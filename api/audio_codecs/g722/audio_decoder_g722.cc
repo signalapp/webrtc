@@ -31,7 +31,7 @@ absl::optional<AudioDecoderG722::Config> AudioDecoderG722::SdpToConfig(
 
 void AudioDecoderG722::AppendSupportedDecoders(
     std::vector<AudioCodecSpec>* specs) {
-  specs->push_back({{"G722", 8000, 1}, {16000, 1, 64000}});
+  // specs->push_back({{"G722", 8000, 1}, {16000, 1, 64000}});
 }
 
 std::unique_ptr<AudioDecoder> AudioDecoderG722::MakeAudioDecoder(

@@ -28,7 +28,7 @@ absl::optional<AudioDecoderIlbc::Config> AudioDecoderIlbc::SdpToConfig(
 
 void AudioDecoderIlbc::AppendSupportedDecoders(
     std::vector<AudioCodecSpec>* specs) {
-  specs->push_back({{"ILBC", 8000, 1}, {8000, 1, 13300}});
+  // specs->push_back({{"ILBC", 8000, 1}, {8000, 1, 13300}});
 }
 
 std::unique_ptr<AudioDecoder> AudioDecoderIlbc::MakeAudioDecoder(

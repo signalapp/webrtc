@@ -643,20 +643,20 @@ std::vector<AudioCodec> WebRtcVoiceEngine::CollectCodecs(
             FeedbackParam(kRtcpFbParamTransportCc, kParamValueEmpty));
       }
 
-      if (spec.info.allow_comfort_noise) {
-        // Generate a CN entry if the decoder allows it and we support the
-        // clockrate.
-        auto cn = generate_cn.find(spec.format.clockrate_hz);
-        if (cn != generate_cn.end()) {
-          cn->second = true;
-        }
-      }
+      // if (spec.info.allow_comfort_noise) {
+      //   // Generate a CN entry if the decoder allows it and we support the
+      //   // clockrate.
+      //   auto cn = generate_cn.find(spec.format.clockrate_hz);
+      //   if (cn != generate_cn.end()) {
+      //     cn->second = true;
+      //   }
+      // }
 
-      // Generate a telephone-event entry if we support the clockrate.
-      auto dtmf = generate_dtmf.find(spec.format.clockrate_hz);
-      if (dtmf != generate_dtmf.end()) {
-        dtmf->second = true;
-      }
+      // // Generate a telephone-event entry if we support the clockrate.
+      // auto dtmf = generate_dtmf.find(spec.format.clockrate_hz);
+      // if (dtmf != generate_dtmf.end()) {
+      //   dtmf->second = true;
+      // }
 
       out.push_back(codec);
     }
