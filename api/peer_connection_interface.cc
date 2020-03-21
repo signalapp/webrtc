@@ -12,6 +12,7 @@
 
 #include "api/dtls_transport_interface.h"
 #include "api/sctp_transport_interface.h"
+#include "rtc_base/logging.h"
 
 namespace webrtc {
 
@@ -68,6 +69,18 @@ RTCError PeerConnectionInterface::SetBitrate(
   bitrate.start_bitrate_bps = bitrate_parameters.current_bitrate_bps;
   bitrate.max_bitrate_bps = bitrate_parameters.max_bitrate_bps;
   return SetBitrate(bitrate);
+}
+
+rtc::scoped_refptr<webrtc::IceGathererInterface>
+PeerConnectionInterface::CreateSharedIceGatherer() {
+  RTC_LOG(LS_ERROR) << "No shared ICE gatherer in dummy implementation";
+  return nullptr;
+}
+
+bool PeerConnectionInterface::UseSharedIceGatherer(
+    rtc::scoped_refptr<webrtc::IceGathererInterface> shared_ice_gatherer) {
+  RTC_LOG(LS_ERROR) << "No shared ICE gatherer in dummy implementation";
+  return false;
 }
 
 PeerConnectionInterface::BitrateParameters::BitrateParameters() = default;

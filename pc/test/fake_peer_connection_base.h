@@ -186,6 +186,16 @@ class FakePeerConnectionBase : public PeerConnectionInternal {
     return false;
   }
 
+  rtc::scoped_refptr<webrtc::IceGathererInterface> CreateSharedIceGatherer()
+      override {
+    return nullptr;
+  }
+
+  bool UseSharedIceGatherer(rtc::scoped_refptr<webrtc::IceGathererInterface>
+                                shared_ice_gatherer) override {
+    return false;
+  }
+
   RTCError SetBitrate(const BitrateSettings& bitrate) override {
     return RTCError(RTCErrorType::UNSUPPORTED_OPERATION, "Not implemented");
   }

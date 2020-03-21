@@ -17,6 +17,7 @@
 #include "p2p/base/basic_ice_controller.h"
 #include "p2p/base/connection.h"
 #include "p2p/base/fake_port_allocator.h"
+#include "p2p/base/ice_gatherer.h"
 #include "p2p/base/ice_transport_internal.h"
 #include "p2p/base/mock_async_resolver.h"
 #include "p2p/base/packet_transport_internal.h"
@@ -5611,6 +5612,85 @@ TEST(P2PTransportChannel, InjectIceController) {
       /* component= */ 77, &pa,
       /* async_resolver_factory = */ nullptr,
       /* event_log = */ nullptr, &factory);
+}
+
+TEST_F(P2PTransportChannelPingTest, Forking) {
+  // Prepare two transports with a shared gatherer
+  rtc::ScopedFakeClock clock;
+  FakePortAllocator fake_port_allocator1(rtc::Thread::Current(), nullptr);
+  auto transport1 = std::make_unique<P2PTransportChannel>(
+      "transport1", 1, &fake_port_allocator1);
+  PrepareChannel(transport1.get());
+
+  FakePortAllocator fake_port_allocator2(rtc::Thread::Current(), nullptr);
+  auto transport2 = std::make_unique<P2PTransportChannel>(
+      "transport2", 1, &fake_port_allocator2);
+  PrepareChannel(transport2.get());
+
+  auto shared_pa =
+      std::make_unique<FakePortAllocator>(rtc::Thread::Current(), nullptr);
+  auto gatherer = shared_pa->CreateIceGatherer("test");
+
+  EXPECT_EQ(IceGatheringState::kIceGatheringNew, transport1->gathering_state());
+  transport1->StartGatheringWithSharedGatherer(gatherer);
+  SIMULATED_WAIT(
+      IceGatheringState::kIceGatheringComplete == transport1->gathering_state(),
+      kShortTimeout, clock);
+  transport1->SetRemoteIceParameters(kIceParams[1]);
+  transport1->AddRemoteCandidate(
+      CreateUdpCandidate(LOCAL_PORT_TYPE, "1.1.1.1", 1, 1));
+  ASSERT_EQ(1u, transport1->connections().size());
+  Connection* transport1_conn =
+      WaitForConnectionTo(transport1.get(), "1.1.1.1", 1, &clock);
+  ASSERT_TRUE(transport1_conn);
+  EXPECT_EQ(gatherer->port_allocator_session()->ice_ufrag(),
+            transport1_conn->local_candidate().username());
+  EXPECT_EQ(gatherer->port_allocator_session()->ice_pwd(),
+            transport1_conn->local_candidate().password());
+  EXPECT_EQ(kIceParams[1].ufrag,
+            transport1_conn->remote_candidate().username());
+  EXPECT_EQ(kIceParams[1].pwd, transport1_conn->remote_candidate().password());
+
+  // Start the second
+  EXPECT_EQ(IceGatheringState::kIceGatheringNew, transport2->gathering_state());
+  transport2->StartGatheringWithSharedGatherer(gatherer);
+  SIMULATED_WAIT(
+      IceGatheringState::kIceGatheringComplete == transport1->gathering_state(),
+      kShortTimeout, clock);
+  transport2->SetRemoteIceParameters(kIceParams[2]);
+  transport2->AddRemoteCandidate(
+      CreateUdpCandidate(LOCAL_PORT_TYPE, "2.2.2.2", 2, 2));
+  ASSERT_EQ(1u, transport2->connections().size());
+  Connection* transport2_conn =
+      WaitForConnectionTo(transport2.get(), "2.2.2.2", 2, &clock);
+  ASSERT_TRUE(transport2_conn);
+  EXPECT_EQ(gatherer->port_allocator_session()->ice_ufrag(),
+            transport2_conn->local_candidate().username());
+  EXPECT_EQ(gatherer->port_allocator_session()->ice_pwd(),
+            transport2_conn->local_candidate().password());
+  EXPECT_EQ(kIceParams[2].ufrag,
+            transport2_conn->remote_candidate().username());
+  EXPECT_EQ(kIceParams[2].pwd, transport2_conn->remote_candidate().password());
+
+  // Restart the first and make sure the generation gets incremented properly
+  transport1->SetIceParameters(kIceParams[3]);
+  transport1->SetRemoteIceParameters(kIceParams[3]);
+  transport1->MaybeStartGathering();
+  EXPECT_EQ(1u, transport1->allocator_session()->generation());
+
+  // Destroy the second transport and make sure things don't blow up.
+  transport2.reset();
+  gatherer->port_allocator_session()->SignalCandidatesAllocationDone(
+      gatherer->port_allocator_session());
+  // Make sure destroying the second transport doesn't close the gatherer's
+  // ports.
+  EXPECT_TRUE(gatherer->port_allocator_session()->IsGettingPorts());
+
+  // Destroy the PortAllocator backing the gatherer and make sure things don't
+  // blow up.
+  shared_pa.reset();
+  gatherer->port_allocator_session()->SignalCandidatesAllocationDone(
+      gatherer->port_allocator_session());
 }
 
 }  // namespace cricket

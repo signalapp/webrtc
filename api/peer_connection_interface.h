@@ -83,6 +83,7 @@
 #include "api/data_channel_interface.h"
 #include "api/dtls_transport_interface.h"
 #include "api/fec_controller.h"
+#include "api/ice_gatherer_interface.h"
 #include "api/ice_transport_interface.h"
 #include "api/jsep.h"
 #include "api/media_stream_interface.h"
@@ -1048,6 +1049,21 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
   // networks come and go.
   virtual bool RemoveIceCandidates(
       const std::vector<cricket::Candidate>& candidates) = 0;
+
+  // Creates an IceGatherer that can be shared/used with UseSharedIceGatherer
+  virtual rtc::scoped_refptr<webrtc::IceGathererInterface>
+  CreateSharedIceGatherer();
+
+  // SetGatherer with the same IceGatherer on many ICE transports to get
+  // ICE forking behavior.  For example, like so:
+  // auto gatherer = pc1->CreateSharedIceGatherer();
+  // pc1->UseSharedIceGatherer(gatherer);
+  // pc2->UseSharedIceGatherer(gatherer);
+  // Do this before calling CreateOffer/CreateAnswer/SetLocalDescription.
+  // Note that the given IceGatherer must be running on the same network thread
+  // as the PeerConnnection.
+  virtual bool UseSharedIceGatherer(
+      rtc::scoped_refptr<webrtc::IceGathererInterface> shared_ice_gatherer);
 
   // 0 <= min <= current <= max should hold for set parameters.
   struct BitrateParameters {

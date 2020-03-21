@@ -19,6 +19,8 @@
 
 #include "absl/algorithm/container.h"
 #include "p2p/base/basic_packet_socket_factory.h"
+#include "p2p/base/ice_credentials_iterator.h"
+#include "p2p/base/ice_gatherer.h"
 #include "p2p/base/port.h"
 #include "p2p/base/stun_port.h"
 #include "p2p/base/tcp_port.h"
@@ -235,6 +237,29 @@ PortAllocatorSession* BasicPortAllocator::CreateSessionInternal(
   session->SignalIceRegathering.connect(this,
                                         &BasicPortAllocator::OnIceRegathering);
   return session;
+}
+
+rtc::scoped_refptr<webrtc::IceGathererInterface>
+BasicPortAllocator::CreateIceGatherer(const std::string& name) {
+  CheckRunOnValidThreadAndInitialized();
+  auto new_allocator = std::make_unique<BasicPortAllocator>(network_manager());
+  new_allocator->socket_factory_ = socket_factory_;
+  new_allocator->InitRelayPortFactory(relay_port_factory_);
+  new_allocator->Initialize();
+  new_allocator->SetConfiguration(stun_servers(), turn_servers(),
+                                  0 /* candidate_pool_size */,
+                                  turn_port_prune_policy(), turn_customizer(),
+                                  stun_candidate_keepalive_interval());
+  new_allocator->SetCandidateFilter(candidate_filter());
+  new_allocator->SetNetworkIgnoreMask(network_ignore_mask());
+
+  IceParameters parameters =
+      IceCredentialsIterator::CreateRandomIceCredentials();
+  auto session =
+      new_allocator->CreateSession(name, 1, parameters.ufrag, parameters.pwd);
+
+  return new rtc::RefCountedObject<cricket::BasicIceGatherer>(
+      rtc::Thread::Current(), std::move(new_allocator), std::move(session));
 }
 
 void BasicPortAllocator::AddTurnServer(const RelayServerConfig& turn_server) {

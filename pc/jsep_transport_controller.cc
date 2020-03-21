@@ -323,6 +323,21 @@ void JsepTransportController::MaybeStartGathering() {
   }
 }
 
+void JsepTransportController::StartGatheringWithSharedIceGatherer(
+    rtc::scoped_refptr<webrtc::IceGathererInterface> shared_ice_gatherer) {
+  if (!network_thread_->IsCurrent()) {
+    network_thread_->Invoke<void>(RTC_FROM_HERE, [=] {
+      StartGatheringWithSharedIceGatherer(std::move(shared_ice_gatherer));
+    });
+    return;
+  }
+
+  for (auto& dtls : GetDtlsTransports()) {
+    dtls->ice_transport()->StartGatheringWithSharedGatherer(
+        shared_ice_gatherer);
+  }
+}
+
 RTCError JsepTransportController::AddRemoteCandidates(
     const std::string& transport_name,
     const cricket::Candidates& candidates) {

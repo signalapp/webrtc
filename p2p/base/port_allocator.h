@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 
+#include "api/ice_gatherer_interface.h"
 #include "api/transport/enums.h"
 #include "p2p/base/port.h"
 #include "p2p/base/port_interface.h"
@@ -408,6 +409,18 @@ class RTC_EXPORT PortAllocator : public sigslot::has_slots<> {
       int component,
       const std::string& ice_ufrag,
       const std::string& ice_pwd);
+
+  // Unlike a PortAllocatorSession, an IceGatherer is independent of the
+  // PortAllocator that created it and can live on after the PortAllocator
+  // is destroyed.  It can also be shared, which is useful for ICE forking.
+  // The name is only used for debugging.  The config is based on the
+  // existing PortAllocator config.
+  virtual rtc::scoped_refptr<webrtc::IceGathererInterface> CreateIceGatherer(
+      const std::string& name) {
+    // This default means the PortAllocator does not support creating
+    // IceGatherers.
+    return nullptr;
+  }
 
   // Get an available pooled session and set the transport information on it.
   //

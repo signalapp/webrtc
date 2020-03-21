@@ -133,6 +133,7 @@ rtc_library("libjingle_peerconnection_api") {
     "dtls_transport_interface.cc",
     "dtls_transport_interface.h",
     "dtmf_sender_interface.h",
+    "ice_gatherer_interface.h",
     "ice_transport_interface.h",
     "jsep.cc",
     "jsep.h",

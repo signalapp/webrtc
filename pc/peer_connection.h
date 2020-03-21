@@ -223,6 +223,10 @@ class PeerConnection : public PeerConnectionInternal,
                        std::function<void(RTCError)> callback) override;
   bool RemoveIceCandidates(
       const std::vector<cricket::Candidate>& candidates) override;
+  rtc::scoped_refptr<webrtc::IceGathererInterface> CreateSharedIceGatherer()
+      override;
+  bool UseSharedIceGatherer(rtc::scoped_refptr<webrtc::IceGathererInterface>
+                                shared_ice_gatherer) override;
 
   RTCError SetBitrate(const BitrateSettings& bitrate) override;
 
@@ -1387,6 +1391,8 @@ class PeerConnection : public PeerConnectionInternal,
   DataChannelController data_channel_controller_;
   rtc::WeakPtrFactory<PeerConnection> weak_ptr_factory_
       RTC_GUARDED_BY(signaling_thread());
+
+  rtc::scoped_refptr<webrtc::IceGathererInterface> shared_ice_gatherer_;
 };
 
 }  // namespace webrtc

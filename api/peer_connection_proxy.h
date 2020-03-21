@@ -119,6 +119,11 @@ PROXY_METHOD2(void,
               std::unique_ptr<IceCandidateInterface>,
               std::function<void(RTCError)>)
 PROXY_METHOD1(bool, RemoveIceCandidates, const std::vector<cricket::Candidate>&)
+PROXY_METHOD0(rtc::scoped_refptr<webrtc::IceGathererInterface>,
+              CreateSharedIceGatherer)
+PROXY_METHOD1(bool,
+              UseSharedIceGatherer,
+              rtc::scoped_refptr<webrtc::IceGathererInterface>)
 PROXY_METHOD1(RTCError, SetBitrate, const BitrateSettings&)
 PROXY_METHOD1(void, SetAudioPlayout, bool)
 PROXY_METHOD1(void, SetAudioRecording, bool)

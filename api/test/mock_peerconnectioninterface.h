@@ -116,6 +116,10 @@ class MockPeerConnectionInterface
   MOCK_METHOD1(AddIceCandidate, bool(const IceCandidateInterface*));
   MOCK_METHOD1(RemoveIceCandidates,
                bool(const std::vector<cricket::Candidate>&));
+  MOCK_METHOD0(CreateSharedIceGatherer,
+               rtc::scoped_refptr<webrtc::IceGathererInterface>());
+  MOCK_METHOD1(UseSharedIceGatherer,
+               bool(rtc::scoped_refptr<webrtc::IceGathererInterface>));
   MOCK_METHOD1(SetBitrate, RTCError(const BitrateSettings&));
   MOCK_METHOD1(SetBitrate, RTCError(const BitrateParameters&));
   MOCK_METHOD1(SetAudioPlayout, void(bool));

@@ -272,6 +272,21 @@ PeerConnectionWrapper::AddTransceiver(
   return result.MoveValue();
 }
 
+rtc::scoped_refptr<DtlsTransportInterface>
+PeerConnectionWrapper::LookupDtlsTransportByMid(const std::string& mid) {
+  return pc()->LookupDtlsTransportByMid(mid);
+}
+
+rtc::scoped_refptr<webrtc::IceGathererInterface>
+PeerConnectionWrapper::CreateSharedIceGatherer() {
+  return pc()->CreateSharedIceGatherer();
+}
+
+bool PeerConnectionWrapper::UseSharedIceGatherer(
+    rtc::scoped_refptr<webrtc::IceGathererInterface> shared_ice_gatherer) {
+  return pc()->UseSharedIceGatherer(shared_ice_gatherer);
+}
+
 rtc::scoped_refptr<AudioTrackInterface> PeerConnectionWrapper::CreateAudioTrack(
     const std::string& label) {
   return pc_factory()->CreateAudioTrack(label, nullptr);
