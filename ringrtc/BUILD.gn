@@ -1,0 +1,7 @@
+import("ringrtc-src-dir.gni")
+
+group("ringrtc") {
+  public_deps = [
+    "${ringrtc_src}:ringrtc",
+  ]
+}
