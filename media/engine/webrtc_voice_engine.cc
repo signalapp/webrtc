@@ -543,18 +543,18 @@ RtpCapabilities WebRtcVoiceEngine::GetCapabilities() const {
   RTC_DCHECK(signal_thread_checker_.IsCurrent());
   RtpCapabilities capabilities;
   int id = 1;
-  capabilities.header_extensions.push_back(
-      webrtc::RtpExtension(webrtc::RtpExtension::kAudioLevelUri, id++));
+  // capabilities.header_extensions.push_back(
+  //     webrtc::RtpExtension(webrtc::RtpExtension::kAudioLevelUri, id++));
   capabilities.header_extensions.push_back(
       webrtc::RtpExtension(webrtc::RtpExtension::kAbsSendTimeUri, id++));
   capabilities.header_extensions.push_back(webrtc::RtpExtension(
       webrtc::RtpExtension::kTransportSequenceNumberUri, id++));
   capabilities.header_extensions.push_back(
       webrtc::RtpExtension(webrtc::RtpExtension::kMidUri, id++));
-  capabilities.header_extensions.push_back(
-      webrtc::RtpExtension(webrtc::RtpExtension::kRidUri, id++));
-  capabilities.header_extensions.push_back(
-      webrtc::RtpExtension(webrtc::RtpExtension::kRepairedRidUri, id++));
+  // capabilities.header_extensions.push_back(
+  //     webrtc::RtpExtension(webrtc::RtpExtension::kRidUri, id++));
+  // capabilities.header_extensions.push_back(
+  //     webrtc::RtpExtension(webrtc::RtpExtension::kRepairedRidUri, id++));
   return capabilities;
 }
 
