@@ -294,6 +294,7 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
   RTCPeerConnectionFactory *_factory;
   NSMutableArray<RTCMediaStream *> *_localStreams;
   std::unique_ptr<webrtc::PeerConnectionDelegateAdapter> _observer;
+  std::unique_ptr<webrtc::PeerConnectionObserver> _customObserver;
   rtc::scoped_refptr<webrtc::PeerConnectionInterface> _peerConnection;
   std::unique_ptr<webrtc::MediaConstraints> _nativeConstraints;
   BOOL _hasStartedRtcEventLog;
@@ -305,31 +306,56 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
 - (instancetype)initWithFactory:(RTCPeerConnectionFactory *)factory
                   configuration:(RTCConfiguration *)configuration
                     constraints:(RTCMediaConstraints *)constraints
-                       delegate:(id<RTCPeerConnectionDelegate>)delegate {
+                       observer:(void *)observer {
   NSParameterAssert(factory);
   std::unique_ptr<webrtc::PeerConnectionInterface::RTCConfiguration> config(
       [configuration createNativeConfiguration]);
   if (!config) {
     return nil;
   }
+
   if (self = [super init]) {
-    _observer.reset(new webrtc::PeerConnectionDelegateAdapter(self));
     _nativeConstraints = constraints.nativeConstraints;
     CopyConstraintsIntoRtcConfiguration(_nativeConstraints.get(),
                                         config.get());
+
+    _customObserver.reset((webrtc::PeerConnectionObserver *)observer);
+
     _peerConnection =
-        factory.nativeFactory->CreatePeerConnection(*config,
-                                                    nullptr,
-                                                    nullptr,
-                                                    _observer.get());
+      factory.nativeFactory->CreatePeerConnection(*config,
+                                                  nullptr,
+                                                  nullptr,
+                                                  _customObserver.get());
     if (!_peerConnection) {
       return nil;
     }
+
     _factory = factory;
     _localStreams = [[NSMutableArray alloc] init];
-    _delegate = delegate;
+
+    // We don't use the delegate from here.
+    _delegate = nil;
   }
+
   return self;
+}
+
+- (RTCMediaStream *)createStreamFromNative:(void *)nativeStream {
+  // @note Modeled on the PeerConnectionDelegateAdapter::OnAddStream
+  // function above in this file.
+
+  webrtc::MediaStreamInterface *stream = (webrtc::MediaStreamInterface *)nativeStream;
+
+  return [[RTCMediaStream alloc] initWithFactory:_factory nativeMediaStream:stream];
+}
+
+- (void *)getRawPeerConnection {
+  return _peerConnection;
+}
+
+- (void)releaseRawPeerConnection:(void *)rawPeerConnection {
+  rtc::scoped_refptr<webrtc::PeerConnectionInterface> _pc = (webrtc::PeerConnectionInterface *)rawPeerConnection;
+  _pc.release();
 }
 
 - (NSArray<RTCMediaStream *> *)localStreams {

@@ -60,12 +60,11 @@ RTC_OBJC_EXPORT
 - (RTCMediaStream *)mediaStreamWithStreamId:(NSString *)streamId;
 
 /** Initialize an RTCPeerConnection with a configuration, constraints, and
- *  delegate.
+ *  observer.
  */
 - (RTCPeerConnection *)peerConnectionWithConfiguration:(RTCConfiguration *)configuration
                                            constraints:(RTCMediaConstraints *)constraints
-                                              delegate:
-                                                  (nullable id<RTCPeerConnectionDelegate>)delegate;
+                                              observer:(void *)observer;
 
 /** Set the options to be used for subsequently created RTCPeerConnections */
 - (void)setOptions:(nonnull RTCPeerConnectionFactoryOptions *)options;

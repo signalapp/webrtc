@@ -288,12 +288,12 @@
     (RTCConfiguration *)configuration
                                            constraints:
     (RTCMediaConstraints *)constraints
-                                              delegate:
-    (nullable id<RTCPeerConnectionDelegate>)delegate {
+                                              observer:
+    (void *)observer {
   return [[RTCPeerConnection alloc] initWithFactory:self
                                       configuration:configuration
                                         constraints:constraints
-                                           delegate:delegate];
+                                           observer:observer];
 }
 
 - (void)setOptions:(nonnull RTCPeerConnectionFactoryOptions *)options {
