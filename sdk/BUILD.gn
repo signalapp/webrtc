@@ -10,7 +10,6 @@ import("../webrtc.gni")
 if (is_ios) {
   import("//build/config/ios/ios_sdk.gni")
   import("//build/config/ios/rules.gni")
-  import("//ringrtc/ringrtc-src-dir.gni")
 }
 if (is_mac) {
   import("//build/config/mac/rules.gni")
@@ -1349,7 +1348,7 @@ if (is_ios || is_mac) {
           ":videocodec_objc",
           ":videotoolbox_objc",
           "../rtc_base:rtc_base_approved",
-          "${ringrtc_src}/rffi:libringrtc_rffi",
+          "../ringrtc/rffi:libringrtc_rffi",
         ]
         if (rtc_use_metal_rendering) {
           deps += [ ":metal_objc" ]
