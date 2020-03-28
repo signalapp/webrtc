@@ -42,9 +42,7 @@ rtc_library("rtc_h264_profile_id") {
 
 rtc_source_set("rtc_media_config") {
   visibility = [ "*" ]
-  sources = [
-    "base/media_config.h",
-  ]
+  sources = [ "base/media_config.h" ]
 }
 
 rtc_library("rtc_vp9_profile") {
@@ -59,6 +57,20 @@ rtc_library("rtc_vp9_profile") {
     "../api/video_codecs:video_codecs_api",
     "../rtc_base:rtc_base_approved",
     "../rtc_base/system:rtc_export",
+    "//third_party/abseil-cpp/absl/types:optional",
+  ]
+}
+
+rtc_library("rtc_sdp_fmtp_utils") {
+  visibility = [ "*" ]
+  sources = [
+    "base/sdp_fmtp_utils.cc",
+    "base/sdp_fmtp_utils.h",
+  ]
+
+  deps = [
+    "../api/video_codecs:video_codecs_api",
+    "../rtc_base:stringutils",
     "//third_party/abseil-cpp/absl/types:optional",
   ]
 }
@@ -165,6 +177,7 @@ rtc_library("rtc_simulcast_encoder_adapter") {
     "engine/simulcast_encoder_adapter.h",
   ]
   deps = [
+    ":rtc_media_base",
     "../api:fec_controller_api",
     "../api:scoped_refptr",
     "../api/video:video_codec_constants",
@@ -403,9 +416,7 @@ rtc_library("rtc_data") {
     ]
   } else {
     # libtool on mac does not like empty targets.
-    sources = [
-      "sctp/noop.cc",
-    ]
+    sources = [ "sctp/noop.cc" ]
   }
 
   if (rtc_enable_sctp && rtc_build_usrsctp) {
@@ -491,20 +502,18 @@ if (rtc_include_tests) {
   rtc_media_unittests_resources = [
     "../resources/media/captured-320x240-2s-48.frames",
     "../resources/media/faces.1280x720_P420.yuv",
+    "../resources/media/faces_I400.jpg",
+    "../resources/media/faces_I411.jpg",
     "../resources/media/faces_I420.jpg",
     "../resources/media/faces_I422.jpg",
     "../resources/media/faces_I444.jpg",
-    "../resources/media/faces_I411.jpg",
-    "../resources/media/faces_I400.jpg",
   ]
 
   if (is_ios) {
     bundle_data("rtc_media_unittests_bundle_data") {
       testonly = true
       sources = rtc_media_unittests_resources
-      outputs = [
-        "{{bundle_resources_dir}}/{{source_file_part}}",
-      ]
+      outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
     }
   }
 
@@ -522,6 +531,7 @@ if (rtc_include_tests) {
       ":rtc_media_base",
       ":rtc_media_engine_defaults",
       ":rtc_media_tests_utils",
+      ":rtc_sdp_fmtp_utils",
       ":rtc_simulcast_encoder_adapter",
       ":rtc_vp9_profile",
       "../:webrtc_common",
@@ -588,6 +598,7 @@ if (rtc_include_tests) {
       "base/codec_unittest.cc",
       "base/rtp_data_engine_unittest.cc",
       "base/rtp_utils_unittest.cc",
+      "base/sdp_fmtp_utils_unittest.cc",
       "base/stream_params_unittest.cc",
       "base/turn_utils_unittest.cc",
       "base/video_adapter_unittest.cc",

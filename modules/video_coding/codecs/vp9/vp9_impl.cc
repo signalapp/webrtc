@@ -917,7 +917,10 @@ int VP9EncoderImpl::Encode(const VideoFrame& input_image,
     }
   }
 
-  for (int sl_idx = 0; sl_idx < num_active_spatial_layers_; ++sl_idx) {
+  // Need to set temporal layer id on ALL layers, even disabled ones.
+  // Otherwise libvpx might produce frames on a disabled layer:
+  // http://crbug.com/1051476
+  for (int sl_idx = 0; sl_idx < num_spatial_layers_; ++sl_idx) {
     layer_id.temporal_layer_id_per_spatial[sl_idx] = layer_id.temporal_layer_id;
   }
 
@@ -1032,7 +1035,8 @@ int VP9EncoderImpl::Encode(const VideoFrame& input_image,
   if (rv != VPX_CODEC_OK) {
     RTC_LOG(LS_ERROR) << "Encoding error: " << vpx_codec_err_to_string(rv)
                       << "\n"
-                      << "Details: " << vpx_codec_error(encoder_) << "\n"
+                         "Details: "
+                      << vpx_codec_error(encoder_) << "\n"
                       << vpx_codec_error_detail(encoder_);
     return WEBRTC_VIDEO_CODEC_ERROR;
   }
@@ -1112,6 +1116,7 @@ void VP9EncoderImpl::PopulateCodecSpecific(CodecSpecificInfo* codec_specific,
   // Always populate this, so that the packetizer can properly set the marker
   // bit.
   vp9_info->num_spatial_layers = num_active_spatial_layers_;
+  vp9_info->first_active_layer = first_active_layer_;
 
   vp9_info->num_ref_pics = 0;
   FillReferenceIndices(pkt, pics_since_key_, vp9_info->inter_layer_predicted,
@@ -1608,8 +1613,9 @@ VP9DecoderImpl::~VP9DecoderImpl() {
     // The frame buffers are reference counted and frames are exposed after
     // decoding. There may be valid usage cases where previous frames are still
     // referenced after ~VP9DecoderImpl that is not a leak.
-    RTC_LOG(LS_INFO) << num_buffers_in_use << " Vp9FrameBuffers are still "
-                     << "referenced during ~VP9DecoderImpl.";
+    RTC_LOG(LS_INFO) << num_buffers_in_use
+                     << " Vp9FrameBuffers are still "
+                        "referenced during ~VP9DecoderImpl.";
   }
 }
 
@@ -1652,6 +1658,11 @@ int VP9DecoderImpl::InitDecode(const VideoCodec* inst, int number_of_cores) {
   inited_ = true;
   // Always start with a complete key frame.
   key_frame_required_ = true;
+  if (inst && inst->buffer_pool_size) {
+    if (!frame_buffer_pool_.Resize(*inst->buffer_pool_size)) {
+      return WEBRTC_VIDEO_CODEC_UNINITIALIZED;
+    }
+  }
   return WEBRTC_VIDEO_CODEC_OK;
 }
 
@@ -1725,15 +1736,28 @@ int VP9DecoderImpl::ReturnFrame(
   rtc::scoped_refptr<VideoFrameBuffer> img_wrapped_buffer;
   switch (img->bit_depth) {
     case 8:
-      img_wrapped_buffer = WrapI420Buffer(
-          img->d_w, img->d_h, img->planes[VPX_PLANE_Y],
-          img->stride[VPX_PLANE_Y], img->planes[VPX_PLANE_U],
-          img->stride[VPX_PLANE_U], img->planes[VPX_PLANE_V],
-          img->stride[VPX_PLANE_V],
-          // WrappedI420Buffer's mechanism for allowing the release of its frame
-          // buffer is through a callback function. This is where we should
-          // release |img_buffer|.
-          rtc::KeepRefUntilDone(img_buffer));
+      RTC_DCHECK(img->fmt == VPX_IMG_FMT_I420 || img->fmt == VPX_IMG_FMT_I444);
+      if (img->fmt == VPX_IMG_FMT_I420) {
+        img_wrapped_buffer = WrapI420Buffer(
+            img->d_w, img->d_h, img->planes[VPX_PLANE_Y],
+            img->stride[VPX_PLANE_Y], img->planes[VPX_PLANE_U],
+            img->stride[VPX_PLANE_U], img->planes[VPX_PLANE_V],
+            img->stride[VPX_PLANE_V],
+            // WrappedI420Buffer's mechanism for allowing the release of its
+            // frame buffer is through a callback function. This is where we
+            // should release |img_buffer|.
+            rtc::KeepRefUntilDone(img_buffer));
+      } else if (img->fmt == VPX_IMG_FMT_I444) {
+        img_wrapped_buffer = WrapI444Buffer(
+            img->d_w, img->d_h, img->planes[VPX_PLANE_Y],
+            img->stride[VPX_PLANE_Y], img->planes[VPX_PLANE_U],
+            img->stride[VPX_PLANE_U], img->planes[VPX_PLANE_V],
+            img->stride[VPX_PLANE_V],
+            // WrappedI444Buffer's mechanism for allowing the release of its
+            // frame buffer is through a callback function. This is where we
+            // should release |img_buffer|.
+            rtc::KeepRefUntilDone(img_buffer));
+      }
       break;
     case 10:
       img_wrapped_buffer = WrapI010Buffer(

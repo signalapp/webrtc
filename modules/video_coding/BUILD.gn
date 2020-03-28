@@ -152,7 +152,6 @@ rtc_library("video_coding") {
     "../../rtc_base/experiments:rate_control_settings",
     "../../rtc_base/experiments:rtt_mult_experiment",
     "../../rtc_base/synchronization:sequence_checker",
-    "../../rtc_base/system:fallthrough",
     "../../rtc_base/task_utils:repeating_task",
     "../../rtc_base/third_party/base64",
     "../../rtc_base/time:timestamp_extrapolator",
@@ -380,6 +379,7 @@ rtc_library("webrtc_multiplex") {
     "../../api/video:video_rtp_headers",
     "../../api/video_codecs:video_codecs_api",
     "../../common_video",
+    "../../media:rtc_media_base",
     "../../rtc_base",
     "../../rtc_base:checks",
     "../rtp_rtcp:rtp_rtcp_format",
@@ -614,6 +614,8 @@ if (rtc_include_tests) {
       ":videocodec_test_stats_impl",
       ":webrtc_vp9_helpers",
       "..:module_api",
+      "../../api:create_frame_generator",
+      "../../api:frame_generator_api",
       "../../api:scoped_refptr",
       "../../api:videocodec_test_fixture_api",
       "../../api/task_queue",
@@ -654,8 +656,8 @@ if (rtc_include_tests) {
   }
   if (!is_android) {
     video_coding_modules_tests_resources += [
-      "../../resources/FourPeople_1280x720_30.yuv",
       "../../resources/ConferenceMotion_1280_720_50.yuv",
+      "../../resources/FourPeople_1280x720_30.yuv",
     ]
   }
 
@@ -759,7 +761,9 @@ if (rtc_include_tests) {
       ":webrtc_vp9",
       ":webrtc_vp9_helpers",
       "../..:webrtc_common",
+      "../../api:create_frame_generator",
       "../../api:create_videocodec_test_fixture_api",
+      "../../api:frame_generator_api",
       "../../api:mock_video_codec_factory",
       "../../api:mock_video_decoder",
       "../../api:mock_video_encoder",
@@ -923,6 +927,7 @@ if (rtc_include_tests) {
       "../../test:test_support",
       "../../test:video_test_common",
       "../../test:video_test_support",
+      "../../test/time_controller:time_controller",
       "../rtp_rtcp:rtp_rtcp_format",
       "../rtp_rtcp:rtp_video_header",
       "//third_party/abseil-cpp/absl/memory",

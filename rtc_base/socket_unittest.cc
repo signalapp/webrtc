@@ -26,7 +26,6 @@
 #include "rtc_base/location.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/message_handler.h"
-#include "rtc_base/message_queue.h"
 #include "rtc_base/net_helpers.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/socket_server.h"
@@ -392,7 +391,7 @@ void SocketTest::ConnectWithDnsLookupFailInternal(const IPAddress& loopback) {
         dns_lookup_finished);
   if (!dns_lookup_finished) {
     RTC_LOG(LS_WARNING) << "Skipping test; DNS resolution took longer than 5 "
-                        << "seconds.";
+                           "seconds.";
     return;
   }
 

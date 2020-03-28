@@ -28,6 +28,7 @@
 #include "api/video_track_source_proxy.h"
 #include "media/base/rtp_data_engine.h"
 #include "media/sctp/sctp_transport.h"
+#include "p2p/base/basic_async_resolver_factory.h"
 #include "p2p/base/basic_packet_socket_factory.h"
 #include "p2p/base/default_ice_transport_factory.h"
 #include "p2p/client/basic_port_allocator.h"
@@ -168,7 +169,7 @@ RtpCapabilities PeerConnectionFactory::GetRtpSenderCapabilities(
     case cricket::MEDIA_TYPE_VIDEO: {
       cricket::VideoCodecs cricket_codecs;
       cricket::RtpHeaderExtensions cricket_extensions;
-      channel_manager_->GetSupportedVideoCodecs(&cricket_codecs);
+      channel_manager_->GetSupportedVideoSendCodecs(&cricket_codecs);
       channel_manager_->GetSupportedVideoRtpHeaderExtensions(
           &cricket_extensions);
       return ToRtpCapabilities(cricket_codecs, cricket_extensions);
@@ -195,7 +196,7 @@ RtpCapabilities PeerConnectionFactory::GetRtpReceiverCapabilities(
     case cricket::MEDIA_TYPE_VIDEO: {
       cricket::VideoCodecs cricket_codecs;
       cricket::RtpHeaderExtensions cricket_extensions;
-      channel_manager_->GetSupportedVideoCodecs(&cricket_codecs);
+      channel_manager_->GetSupportedVideoReceiveCodecs(&cricket_codecs);
       channel_manager_->GetSupportedVideoRtpHeaderExtensions(
           &cricket_extensions);
       return ToRtpCapabilities(cricket_codecs, cricket_extensions);
@@ -270,14 +271,15 @@ PeerConnectionFactory::CreatePeerConnection(
     });
   }
 
+  if (!dependencies.async_resolver_factory) {
+    dependencies.async_resolver_factory =
+        std::make_unique<webrtc::BasicAsyncResolverFactory>();
+  }
+
   if (!dependencies.ice_transport_factory) {
     dependencies.ice_transport_factory =
         std::make_unique<DefaultIceTransportFactory>();
   }
-
-  // TODO(zstein): Once chromium injects its own AsyncResolverFactory, set
-  // |dependencies.async_resolver_factory| to a new
-  // |rtc::BasicAsyncResolverFactory| if no factory is provided.
 
   network_thread_->Invoke<void>(
       RTC_FROM_HERE,

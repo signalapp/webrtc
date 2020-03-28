@@ -139,23 +139,11 @@ std::vector<VideoCodec> AssignPayloadTypesAndDefaultCodecs(
   return output_codecs;
 }
 
-std::vector<VideoCodec> AssignPayloadTypesAndDefaultCodecs(
-    const webrtc::VideoEncoderFactory* encoder_factory) {
-  return encoder_factory ? AssignPayloadTypesAndDefaultCodecs(
-                               encoder_factory->GetSupportedFormats())
-                         : std::vector<VideoCodec>();
-}
-
-int GetMaxFramerate(const webrtc::VideoEncoderConfig& encoder_config,
-                    size_t num_layers) {
-  int max_fps = -1;
-  for (size_t i = 0; i < num_layers; ++i) {
-    int fps = (encoder_config.simulcast_layers[i].max_framerate > 0)
-                  ? encoder_config.simulcast_layers[i].max_framerate
-                  : kDefaultVideoMaxFramerate;
-    max_fps = std::max(fps, max_fps);
-  }
-  return max_fps;
+template <class T>
+std::vector<VideoCodec> GetPayloadTypesAndDefaultCodecs(const T* factory) {
+  return factory ? AssignPayloadTypesAndDefaultCodecs(
+                       factory->GetSupportedFormats())
+                 : std::vector<VideoCodec>();
 }
 
 bool IsTemporalLayersSupported(const std::string& codec_name) {
@@ -306,6 +294,23 @@ int MinPositive(int a, int b) {
     return a;
   }
   return std::min(a, b);
+}
+
+bool IsLayerActive(const webrtc::RtpEncodingParameters& layer) {
+  return layer.active &&
+         (!layer.max_bitrate_bps || *layer.max_bitrate_bps > 0) &&
+         (!layer.max_framerate || *layer.max_framerate > 0);
+}
+
+size_t FindRequiredActiveLayers(
+    const webrtc::VideoEncoderConfig& encoder_config) {
+  // Need enough layers so that at least the first active one is present.
+  for (size_t i = 0; i < encoder_config.number_of_streams; ++i) {
+    if (encoder_config.simulcast_layers[i].active) {
+      return i + 1;
+    }
+  }
+  return 0;
 }
 
 }  // namespace
@@ -482,8 +487,12 @@ VideoMediaChannel* WebRtcVideoEngine::CreateMediaChannel(
                                 encoder_factory_.get(), decoder_factory_.get(),
                                 video_bitrate_allocator_factory);
 }
-std::vector<VideoCodec> WebRtcVideoEngine::codecs() const {
-  return AssignPayloadTypesAndDefaultCodecs(encoder_factory_.get());
+std::vector<VideoCodec> WebRtcVideoEngine::send_codecs() const {
+  return GetPayloadTypesAndDefaultCodecs(encoder_factory_.get());
+}
+
+std::vector<VideoCodec> WebRtcVideoEngine::recv_codecs() const {
+  return GetPayloadTypesAndDefaultCodecs(decoder_factory_.get());
 }
 
 RtpCapabilities WebRtcVideoEngine::GetCapabilities() const {
@@ -553,9 +562,9 @@ WebRtcVideoChannel::WebRtcVideoChannel(
 
   rtcp_receiver_report_ssrc_ = kDefaultRtcpReceiverReportSsrc;
   sending_ = false;
-  recv_codecs_ =
-      MapCodecs(AssignPayloadTypesAndDefaultCodecs(encoder_factory_));
-  recv_flexfec_payload_type_ = recv_codecs_.front().flexfec_payload_type;
+  recv_codecs_ = MapCodecs(GetPayloadTypesAndDefaultCodecs(decoder_factory_));
+  recv_flexfec_payload_type_ =
+      recv_codecs_.empty() ? 0 : recv_codecs_.front().flexfec_payload_type;
 }
 
 WebRtcVideoChannel::~WebRtcVideoChannel() {
@@ -569,7 +578,8 @@ std::vector<WebRtcVideoChannel::VideoCodecSettings>
 WebRtcVideoChannel::SelectSendVideoCodecs(
     const std::vector<VideoCodecSettings>& remote_mapped_codecs) const {
   std::vector<webrtc::SdpVideoFormat> sdp_formats =
-      encoder_factory_->GetImplementations();
+      encoder_factory_ ? encoder_factory_->GetImplementations()
+                       : std::vector<webrtc::SdpVideoFormat>();
 
   // The returned vector holds the VideoCodecSettings in term of preference.
   // They are orderd by receive codec preference first and local implementation
@@ -639,7 +649,8 @@ bool WebRtcVideoChannel::GetChangedSendParameters(
   std::vector<VideoCodecSettings> negotiated_codecs =
       SelectSendVideoCodecs(MapCodecs(params.codecs));
 
-  if (negotiated_codecs.empty()) {
+  // We should only fail here if send direction is enabled.
+  if (params.is_stream_active && negotiated_codecs.empty()) {
     RTC_LOG(LS_ERROR) << "No video codecs supported.";
     return false;
   }
@@ -652,7 +663,9 @@ bool WebRtcVideoChannel::GetChangedSendParameters(
   }
 
   if (negotiated_codecs_ != negotiated_codecs) {
-    if (send_codec_ != negotiated_codecs.front()) {
+    if (negotiated_codecs.empty()) {
+      changed_params->send_codec = absl::nullopt;
+    } else if (send_codec_ != negotiated_codecs.front()) {
       changed_params->send_codec = negotiated_codecs.front();
     }
     changed_params->negotiated_codecs = std::move(negotiated_codecs);
@@ -741,7 +754,8 @@ void WebRtcVideoChannel::RequestEncoderSwitch(
 
     if (!allow_codec_switching_) {
       RTC_LOG(LS_INFO) << "Encoder switch requested but codec switching has"
-                       << " not been enabled.";
+                          " not been enabled yet.";
+      requested_encoder_switch_ = conf;
       return;
     }
 
@@ -787,8 +801,6 @@ bool WebRtcVideoChannel::ApplyChangedParams(
 
   if (changed_params.send_codec)
     send_codec_ = changed_params.send_codec;
-
-  RTC_DCHECK(send_codec_);
 
   if (changed_params.extmap_allow_mixed) {
     SetExtmapAllowMixed(*changed_params.extmap_allow_mixed);
@@ -862,7 +874,8 @@ webrtc::RtpParameters WebRtcVideoChannel::GetRtpSendParameters(
   auto it = send_streams_.find(ssrc);
   if (it == send_streams_.end()) {
     RTC_LOG(LS_WARNING) << "Attempting to get RTP send parameters for stream "
-                        << "with ssrc " << ssrc << " which doesn't exist.";
+                           "with ssrc "
+                        << ssrc << " which doesn't exist.";
     return webrtc::RtpParameters();
   }
 
@@ -883,7 +896,8 @@ webrtc::RTCError WebRtcVideoChannel::SetRtpSendParameters(
   auto it = send_streams_.find(ssrc);
   if (it == send_streams_.end()) {
     RTC_LOG(LS_ERROR) << "Attempting to set RTP send parameters for stream "
-                      << "with ssrc " << ssrc << " which doesn't exist.";
+                         "with ssrc "
+                      << ssrc << " which doesn't exist.";
     return webrtc::RTCError(webrtc::RTCErrorType::INTERNAL_ERROR);
   }
 
@@ -892,7 +906,7 @@ webrtc::RTCError WebRtcVideoChannel::SetRtpSendParameters(
   webrtc::RtpParameters current_parameters = GetRtpSendParameters(ssrc);
   if (current_parameters.codecs != parameters.codecs) {
     RTC_DLOG(LS_ERROR) << "Using SetParameters to change the set of codecs "
-                       << "is not currently supported.";
+                          "is not currently supported.";
     return webrtc::RTCError(webrtc::RTCErrorType::INTERNAL_ERROR);
   }
 
@@ -927,7 +941,8 @@ webrtc::RtpParameters WebRtcVideoChannel::GetRtpReceiveParameters(
   if (it == receive_streams_.end()) {
     RTC_LOG(LS_WARNING)
         << "Attempting to get RTP receive parameters for stream "
-        << "with SSRC " << ssrc << " which doesn't exist.";
+           "with SSRC "
+        << ssrc << " which doesn't exist.";
     return webrtc::RtpParameters();
   }
   rtp_params = it->second->GetRtpParameters();
@@ -977,14 +992,16 @@ bool WebRtcVideoChannel::GetChangedRecvParameters(
   }
 
   // Verify that every mapped codec is supported locally.
-  const std::vector<VideoCodec> local_supported_codecs =
-      AssignPayloadTypesAndDefaultCodecs(encoder_factory_);
-  for (const VideoCodecSettings& mapped_codec : mapped_codecs) {
-    if (!FindMatchingCodec(local_supported_codecs, mapped_codec.codec)) {
-      RTC_LOG(LS_ERROR)
-          << "SetRecvParameters called with unsupported video codec: "
-          << mapped_codec.codec.ToString();
-      return false;
+  if (params.is_stream_active) {
+    const std::vector<VideoCodec> local_supported_codecs =
+        GetPayloadTypesAndDefaultCodecs(decoder_factory_);
+    for (const VideoCodecSettings& mapped_codec : mapped_codecs) {
+      if (!FindMatchingCodec(local_supported_codecs, mapped_codec.codec)) {
+        RTC_LOG(LS_ERROR)
+            << "SetRecvParameters called with unsupported video codec: "
+            << mapped_codec.codec.ToString();
+        return false;
+      }
     }
   }
 
@@ -1648,6 +1665,14 @@ void WebRtcVideoChannel::SetVideoCodecSwitchingEnabled(bool enabled) {
   invoker_.AsyncInvoke<void>(RTC_FROM_HERE, worker_thread_, [this, enabled] {
     RTC_DCHECK_RUN_ON(&thread_checker_);
     allow_codec_switching_ = enabled;
+    if (allow_codec_switching_) {
+      RTC_LOG(LS_INFO) << "Encoder switching enabled.";
+      if (requested_encoder_switch_) {
+        RTC_LOG(LS_INFO) << "Executing cached video encoder switch request.";
+        RequestEncoderSwitch(*requested_encoder_switch_);
+        requested_encoder_switch_.reset();
+      }
+    }
   });
 }
 
@@ -2049,8 +2074,9 @@ webrtc::RTCError WebRtcVideoChannel::WebRtcVideoSendStream::SetRtpParameters(
   // allocator and the video bitrate allocator.
   bool new_send_state = false;
   for (size_t i = 0; i < rtp_parameters_.encodings.size(); ++i) {
-    if (new_parameters.encodings[i].active !=
-        rtp_parameters_.encodings[i].active) {
+    bool new_active = IsLayerActive(new_parameters.encodings[i]);
+    bool old_active = IsLayerActive(rtp_parameters_.encodings[i]);
+    if (new_active != old_active) {
       new_send_state = true;
     }
   }
@@ -2064,7 +2090,9 @@ webrtc::RTCError WebRtcVideoChannel::WebRtcVideoSendStream::SetRtpParameters(
     UpdateSendState();
   }
   if (new_degradation_preference) {
-    stream_->SetSource(this, GetDegradationPreference());
+    if (source_ && stream_) {
+      stream_->SetSource(this, GetDegradationPreference());
+    }
   }
   return webrtc::RTCError::OK();
 }
@@ -2098,7 +2126,18 @@ void WebRtcVideoChannel::WebRtcVideoSendStream::UpdateSendState() {
     }
     std::vector<bool> active_layers(num_layers);
     for (size_t i = 0; i < num_layers; ++i) {
-      active_layers[i] = rtp_parameters_.encodings[i].active;
+      active_layers[i] = IsLayerActive(rtp_parameters_.encodings[i]);
+    }
+    if (parameters_.encoder_config.number_of_streams == 1 &&
+        rtp_parameters_.encodings.size() > 1) {
+      // SVC is used.
+      // The only present simulcast layer should be active if any of the
+      // configured SVC layers is active.
+      bool is_active = false;
+      for (size_t i = 0; i < rtp_parameters_.encodings.size(); ++i) {
+        is_active |= rtp_parameters_.encodings[i].active;
+      }
+      active_layers[0] = is_active;
     }
     // This updates what simulcast layers are sending, and possibly starts
     // or stops the VideoSendStream.
@@ -2730,7 +2769,8 @@ void WebRtcVideoChannel::WebRtcVideoReceiveStream::SetFrameDecryptor(
   if (stream_) {
     RTC_LOG(LS_INFO)
         << "Setting FrameDecryptor (recv) because of SetFrameDecryptor, "
-        << "remote_ssrc=" << config_.rtp.remote_ssrc;
+           "remote_ssrc="
+        << config_.rtp.remote_ssrc;
     stream_->SetFrameDecryptor(frame_decryptor);
   }
 }
@@ -2899,7 +2939,9 @@ bool WebRtcVideoChannel::VideoCodecSettings::operator!=(
 
 std::vector<WebRtcVideoChannel::VideoCodecSettings>
 WebRtcVideoChannel::MapCodecs(const std::vector<VideoCodec>& codecs) {
-  RTC_DCHECK(!codecs.empty());
+  if (codecs.empty()) {
+    return {};
+  }
 
   std::vector<VideoCodecSettings> video_codecs;
   std::map<int, VideoCodec::CodecType> payload_codec_type;
@@ -3095,7 +3137,6 @@ std::vector<webrtc::VideoStream> EncoderStreamFactory::CreateEncoderStreams(
   RTC_DCHECK_GT(encoder_config.number_of_streams, 0);
   RTC_DCHECK_GE(encoder_config.simulcast_layers.size(),
                 encoder_config.number_of_streams);
-  std::vector<webrtc::VideoStream> layers;
 
   const absl::optional<webrtc::DataRate> experimental_min_bitrate =
       GetExperimentalMinVideoBitrate(encoder_config.codec_type);
@@ -3104,101 +3145,21 @@ std::vector<webrtc::VideoStream> EncoderStreamFactory::CreateEncoderStreams(
       ((absl::EqualsIgnoreCase(codec_name_, kVp8CodecName) ||
         absl::EqualsIgnoreCase(codec_name_, kH264CodecName)) &&
        is_screenshare_ && conference_mode_)) {
-    const bool temporal_layers_supported =
-        absl::EqualsIgnoreCase(codec_name_, kVp8CodecName) ||
-        absl::EqualsIgnoreCase(codec_name_, kH264CodecName);
-    // Use legacy simulcast screenshare if conference mode is explicitly enabled
-    // or use the regular simulcast configuration path which is generic.
-    layers = GetSimulcastConfig(encoder_config.number_of_streams, width, height,
-                                encoder_config.bitrate_priority, max_qp_,
-                                is_screenshare_ && conference_mode_,
-                                temporal_layers_supported);
-    // Allow an experiment to override the minimum bitrate for the lowest
-    // spatial layer. The experiment's configuration has the lowest priority.
-    if (experimental_min_bitrate) {
-      layers[0].min_bitrate_bps =
-          rtc::saturated_cast<int>(experimental_min_bitrate->bps());
-    }
-    // The maximum |max_framerate| is currently used for video.
-    const int max_framerate = GetMaxFramerate(encoder_config, layers.size());
-    // Update the active simulcast layers and configured bitrates.
-    bool is_highest_layer_max_bitrate_configured = false;
-    const bool has_scale_resolution_down_by = absl::c_any_of(
-        encoder_config.simulcast_layers, [](const webrtc::VideoStream& layer) {
-          return layer.scale_resolution_down_by != -1.;
-        });
-    const int normalized_width =
-        NormalizeSimulcastSize(width, encoder_config.number_of_streams);
-    const int normalized_height =
-        NormalizeSimulcastSize(height, encoder_config.number_of_streams);
-    for (size_t i = 0; i < layers.size(); ++i) {
-      layers[i].active = encoder_config.simulcast_layers[i].active;
-      if (!is_screenshare_) {
-        // Update simulcast framerates with max configured max framerate.
-        layers[i].max_framerate = max_framerate;
-      }
-      // Update with configured num temporal layers if supported by codec.
-      if (encoder_config.simulcast_layers[i].num_temporal_layers &&
-          IsTemporalLayersSupported(codec_name_)) {
-        layers[i].num_temporal_layers =
-            *encoder_config.simulcast_layers[i].num_temporal_layers;
-      }
-      if (has_scale_resolution_down_by) {
-        const double scale_resolution_down_by = std::max(
-            encoder_config.simulcast_layers[i].scale_resolution_down_by, 1.0);
-        layers[i].width = std::max(
-            static_cast<int>(normalized_width / scale_resolution_down_by),
-            kMinLayerSize);
-        layers[i].height = std::max(
-            static_cast<int>(normalized_height / scale_resolution_down_by),
-            kMinLayerSize);
-      }
-      // Update simulcast bitrates with configured min and max bitrate.
-      if (encoder_config.simulcast_layers[i].min_bitrate_bps > 0) {
-        layers[i].min_bitrate_bps =
-            encoder_config.simulcast_layers[i].min_bitrate_bps;
-      }
-      if (encoder_config.simulcast_layers[i].max_bitrate_bps > 0) {
-        layers[i].max_bitrate_bps =
-            encoder_config.simulcast_layers[i].max_bitrate_bps;
-      }
-      if (encoder_config.simulcast_layers[i].target_bitrate_bps > 0) {
-        layers[i].target_bitrate_bps =
-            encoder_config.simulcast_layers[i].target_bitrate_bps;
-      }
-      if (encoder_config.simulcast_layers[i].min_bitrate_bps > 0 &&
-          encoder_config.simulcast_layers[i].max_bitrate_bps > 0) {
-        // Min and max bitrate are configured.
-        // Set target to 3/4 of the max bitrate (or to max if below min).
-        if (encoder_config.simulcast_layers[i].target_bitrate_bps <= 0)
-          layers[i].target_bitrate_bps = layers[i].max_bitrate_bps * 3 / 4;
-        if (layers[i].target_bitrate_bps < layers[i].min_bitrate_bps)
-          layers[i].target_bitrate_bps = layers[i].max_bitrate_bps;
-      } else if (encoder_config.simulcast_layers[i].min_bitrate_bps > 0) {
-        // Only min bitrate is configured, make sure target/max are above min.
-        layers[i].target_bitrate_bps =
-            std::max(layers[i].target_bitrate_bps, layers[i].min_bitrate_bps);
-        layers[i].max_bitrate_bps =
-            std::max(layers[i].max_bitrate_bps, layers[i].min_bitrate_bps);
-      } else if (encoder_config.simulcast_layers[i].max_bitrate_bps > 0) {
-        // Only max bitrate is configured, make sure min/target are below max.
-        layers[i].min_bitrate_bps =
-            std::min(layers[i].min_bitrate_bps, layers[i].max_bitrate_bps);
-        layers[i].target_bitrate_bps =
-            std::min(layers[i].target_bitrate_bps, layers[i].max_bitrate_bps);
-      }
-      if (i == layers.size() - 1) {
-        is_highest_layer_max_bitrate_configured =
-            encoder_config.simulcast_layers[i].max_bitrate_bps > 0;
-      }
-    }
-    if (!is_screenshare_ && !is_highest_layer_max_bitrate_configured) {
-      // No application-configured maximum for the largest layer.
-      // If there is bitrate leftover, give it to the largest layer.
-      BoostMaxSimulcastLayer(encoder_config.max_bitrate_bps, &layers);
-    }
-    return layers;
+    return CreateSimulcastOrConfereceModeScreenshareStreams(
+        width, height, encoder_config, experimental_min_bitrate);
   }
+
+  return CreateDefaultVideoStreams(width, height, encoder_config,
+                                   experimental_min_bitrate);
+}
+
+std::vector<webrtc::VideoStream>
+EncoderStreamFactory::CreateDefaultVideoStreams(
+    int width,
+    int height,
+    const webrtc::VideoEncoderConfig& encoder_config,
+    const absl::optional<webrtc::DataRate>& experimental_min_bitrate) const {
+  std::vector<webrtc::VideoStream> layers;
 
   // For unset max bitrates set default bitrate for non-simulcast.
   int max_bitrate_bps =
@@ -3269,6 +3230,109 @@ std::vector<webrtc::VideoStream> EncoderStreamFactory::CreateEncoderStreams(
   }
 
   layers.push_back(layer);
+  return layers;
+}
+
+std::vector<webrtc::VideoStream>
+EncoderStreamFactory::CreateSimulcastOrConfereceModeScreenshareStreams(
+    int width,
+    int height,
+    const webrtc::VideoEncoderConfig& encoder_config,
+    const absl::optional<webrtc::DataRate>& experimental_min_bitrate) const {
+  std::vector<webrtc::VideoStream> layers;
+
+  const bool temporal_layers_supported =
+      absl::EqualsIgnoreCase(codec_name_, kVp8CodecName) ||
+      absl::EqualsIgnoreCase(codec_name_, kH264CodecName);
+  // Use legacy simulcast screenshare if conference mode is explicitly enabled
+  // or use the regular simulcast configuration path which is generic.
+  layers = GetSimulcastConfig(FindRequiredActiveLayers(encoder_config),
+                              encoder_config.number_of_streams, width, height,
+                              encoder_config.bitrate_priority, max_qp_,
+                              is_screenshare_ && conference_mode_,
+                              temporal_layers_supported);
+  // Allow an experiment to override the minimum bitrate for the lowest
+  // spatial layer. The experiment's configuration has the lowest priority.
+  if (experimental_min_bitrate) {
+    layers[0].min_bitrate_bps =
+        rtc::saturated_cast<int>(experimental_min_bitrate->bps());
+  }
+  // Update the active simulcast layers and configured bitrates.
+  bool is_highest_layer_max_bitrate_configured = false;
+  const bool has_scale_resolution_down_by = absl::c_any_of(
+      encoder_config.simulcast_layers, [](const webrtc::VideoStream& layer) {
+        return layer.scale_resolution_down_by != -1.;
+      });
+  const int normalized_width =
+      NormalizeSimulcastSize(width, encoder_config.number_of_streams);
+  const int normalized_height =
+      NormalizeSimulcastSize(height, encoder_config.number_of_streams);
+  for (size_t i = 0; i < layers.size(); ++i) {
+    layers[i].active = encoder_config.simulcast_layers[i].active;
+    // Update with configured num temporal layers if supported by codec.
+    if (encoder_config.simulcast_layers[i].num_temporal_layers &&
+        IsTemporalLayersSupported(codec_name_)) {
+      layers[i].num_temporal_layers =
+          *encoder_config.simulcast_layers[i].num_temporal_layers;
+    }
+    if (encoder_config.simulcast_layers[i].max_framerate > 0) {
+      layers[i].max_framerate =
+          encoder_config.simulcast_layers[i].max_framerate;
+    }
+    if (has_scale_resolution_down_by) {
+      const double scale_resolution_down_by = std::max(
+          encoder_config.simulcast_layers[i].scale_resolution_down_by, 1.0);
+      layers[i].width = std::max(
+          static_cast<int>(normalized_width / scale_resolution_down_by),
+          kMinLayerSize);
+      layers[i].height = std::max(
+          static_cast<int>(normalized_height / scale_resolution_down_by),
+          kMinLayerSize);
+    }
+    // Update simulcast bitrates with configured min and max bitrate.
+    if (encoder_config.simulcast_layers[i].min_bitrate_bps > 0) {
+      layers[i].min_bitrate_bps =
+          encoder_config.simulcast_layers[i].min_bitrate_bps;
+    }
+    if (encoder_config.simulcast_layers[i].max_bitrate_bps > 0) {
+      layers[i].max_bitrate_bps =
+          encoder_config.simulcast_layers[i].max_bitrate_bps;
+    }
+    if (encoder_config.simulcast_layers[i].target_bitrate_bps > 0) {
+      layers[i].target_bitrate_bps =
+          encoder_config.simulcast_layers[i].target_bitrate_bps;
+    }
+    if (encoder_config.simulcast_layers[i].min_bitrate_bps > 0 &&
+        encoder_config.simulcast_layers[i].max_bitrate_bps > 0) {
+      // Min and max bitrate are configured.
+      // Set target to 3/4 of the max bitrate (or to max if below min).
+      if (encoder_config.simulcast_layers[i].target_bitrate_bps <= 0)
+        layers[i].target_bitrate_bps = layers[i].max_bitrate_bps * 3 / 4;
+      if (layers[i].target_bitrate_bps < layers[i].min_bitrate_bps)
+        layers[i].target_bitrate_bps = layers[i].max_bitrate_bps;
+    } else if (encoder_config.simulcast_layers[i].min_bitrate_bps > 0) {
+      // Only min bitrate is configured, make sure target/max are above min.
+      layers[i].target_bitrate_bps =
+          std::max(layers[i].target_bitrate_bps, layers[i].min_bitrate_bps);
+      layers[i].max_bitrate_bps =
+          std::max(layers[i].max_bitrate_bps, layers[i].min_bitrate_bps);
+    } else if (encoder_config.simulcast_layers[i].max_bitrate_bps > 0) {
+      // Only max bitrate is configured, make sure min/target are below max.
+      layers[i].min_bitrate_bps =
+          std::min(layers[i].min_bitrate_bps, layers[i].max_bitrate_bps);
+      layers[i].target_bitrate_bps =
+          std::min(layers[i].target_bitrate_bps, layers[i].max_bitrate_bps);
+    }
+    if (i == layers.size() - 1) {
+      is_highest_layer_max_bitrate_configured =
+          encoder_config.simulcast_layers[i].max_bitrate_bps > 0;
+    }
+  }
+  if (!is_screenshare_ && !is_highest_layer_max_bitrate_configured) {
+    // No application-configured maximum for the largest layer.
+    // If there is bitrate leftover, give it to the largest layer.
+    BoostMaxSimulcastLayer(encoder_config.max_bitrate_bps, &layers);
+  }
   return layers;
 }
 

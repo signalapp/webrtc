@@ -368,7 +368,8 @@ class FakeVoiceMediaChannel : public RtpHelper<VoiceMediaChannel> {
                 int bits_per_sample,
                 int sample_rate,
                 size_t number_of_channels,
-                size_t number_of_frames) override;
+                size_t number_of_frames,
+                absl::optional<int64_t> absolute_capture_timestamp_ms) override;
     void OnClose() override;
     AudioSource* source() const;
 
@@ -559,13 +560,16 @@ class FakeVideoEngine : public VideoEngineInterface {
       override;
   FakeVideoMediaChannel* GetChannel(size_t index);
   void UnregisterChannel(VideoMediaChannel* channel);
-  std::vector<VideoCodec> codecs() const override;
-  void SetCodecs(const std::vector<VideoCodec> codecs);
+  std::vector<VideoCodec> send_codecs() const override;
+  std::vector<VideoCodec> recv_codecs() const override;
+  void SetSendCodecs(const std::vector<VideoCodec>& codecs);
+  void SetRecvCodecs(const std::vector<VideoCodec>& codecs);
   bool SetCapture(bool capture);
 
  private:
   std::vector<FakeVideoMediaChannel*> channels_;
-  std::vector<VideoCodec> codecs_;
+  std::vector<VideoCodec> send_codecs_;
+  std::vector<VideoCodec> recv_codecs_;
   bool capture_;
   VideoOptions options_;
   bool fail_create_channel_;

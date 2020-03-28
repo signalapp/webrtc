@@ -20,6 +20,7 @@
 #include "call/simulated_network.h"
 #include "rtc_base/event.h"
 #include "rtc_base/logging.h"
+#include "rtc_base/network_constants.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/network/network_emulation_manager.h"
@@ -45,8 +46,12 @@ struct TrafficCounterFixture {
   SimulatedClock clock{0};
   CountingReceiver counter;
   TaskQueueForTest task_queue_;
-  EmulatedEndpoint endpoint{/*id=*/1, rtc::IPAddress(kTestIpAddress),
-                            /*is_enabled=*/true, &task_queue_, &clock};
+  EmulatedEndpointImpl endpoint{/*id=*/1,
+                                rtc::IPAddress(kTestIpAddress),
+                                /*is_enabled=*/true,
+                                /*type=*/rtc::AdapterType::ADAPTER_TYPE_UNKNOWN,
+                                &task_queue_,
+                                &clock};
 };
 
 }  // namespace
@@ -113,8 +118,7 @@ TEST(CrossTrafficTest, RandomWalkCrossTraffic) {
 }
 
 TEST(TcpMessageRouteTest, DeliveredOnLossyNetwork) {
-  GlobalSimulatedTimeController time(Timestamp::seconds(0));
-  NetworkEmulationManagerImpl net(&time);
+  NetworkEmulationManagerImpl net(TimeMode::kSimulated);
   BuiltInNetworkBehaviorConfig send;
   // 800 kbps means that the 100 kB message would be delivered in ca 1 second
   // under ideal conditions and no overhead.
@@ -134,17 +138,16 @@ TEST(TcpMessageRouteTest, DeliveredOnLossyNetwork) {
   constexpr size_t kMessageSize = 100000;
 
   tcp_route->SendMessage(kMessageSize, [&] {
-    RTC_LOG(LS_INFO) << "Received at "
-                     << ToString(time.GetClock()->CurrentTime());
+    RTC_LOG(LS_INFO) << "Received at " << ToString(net.Now());
     deliver_count++;
   });
 
   // If there was no loss, we would have delivered the message in ca 1 second,
   // with 50% it should take much longer.
-  time.AdvanceTime(TimeDelta::seconds(5));
+  net.time_controller()->AdvanceTime(TimeDelta::seconds(5));
   ASSERT_EQ(deliver_count, 0);
   // But given enough time the messsage will be delivered, but only once.
-  time.AdvanceTime(TimeDelta::seconds(60));
+  net.time_controller()->AdvanceTime(TimeDelta::seconds(60));
   EXPECT_EQ(deliver_count, 1);
 }
 

@@ -22,7 +22,6 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/dscp.h"
 #include "rtc_base/logging.h"
-#include "rtc_base/message_queue.h"
 #include "rtc_base/rtc_certificate.h"
 #include "rtc_base/ssl_stream_adapter.h"
 #include "rtc_base/stream.h"
@@ -420,8 +419,16 @@ int DtlsTransport::SendPacket(const char* data,
                    : -1;
       }
     case DTLS_TRANSPORT_FAILED:
+      // Can't send anything when we're failed.
+      RTC_LOG(LS_ERROR)
+          << ToString()
+          << ": Couldn't send packet due to DTLS_TRANSPORT_FAILED.";
+      return -1;
     case DTLS_TRANSPORT_CLOSED:
       // Can't send anything when we're closed.
+      RTC_LOG(LS_ERROR)
+          << ToString()
+          << ": Couldn't send packet due to DTLS_TRANSPORT_CLOSED.";
       return -1;
     default:
       RTC_NOTREACHED();
@@ -511,8 +518,16 @@ void DtlsTransport::OnWritableState(rtc::PacketTransportInternal* transport) {
       // Do nothing.
       break;
     case DTLS_TRANSPORT_FAILED:
+      // Should not happen. Do nothing.
+      RTC_LOG(LS_ERROR)
+          << ToString()
+          << ": OnWritableState() called in state DTLS_TRANSPORT_FAILED.";
+      break;
     case DTLS_TRANSPORT_CLOSED:
       // Should not happen. Do nothing.
+      RTC_LOG(LS_ERROR)
+          << ToString()
+          << ": OnWritableState() called in state DTLS_TRANSPORT_CLOSED.";
       break;
   }
 }
@@ -656,6 +671,7 @@ void DtlsTransport::OnDtlsEvent(rtc::StreamInterface* dtls, int sig, int err) {
         RTC_LOG(LS_INFO) << ToString() << ": DTLS transport closed by remote";
         set_writable(false);
         set_dtls_state(DTLS_TRANSPORT_CLOSED);
+        SignalClosed(this);
       } else if (ret == rtc::SR_ERROR) {
         // Remote peer shut down the association with an error.
         RTC_LOG(LS_INFO)
@@ -664,6 +680,7 @@ void DtlsTransport::OnDtlsEvent(rtc::StreamInterface* dtls, int sig, int err) {
             << read_error;
         set_writable(false);
         set_dtls_state(DTLS_TRANSPORT_FAILED);
+        SignalClosed(this);
       }
     } while (ret == rtc::SR_SUCCESS);
   }

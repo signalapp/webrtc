@@ -44,6 +44,7 @@ namespace webrtc_pc_e2e {
 namespace {
 
 using VideoConfig = PeerConnectionE2EQualityTestFixture::VideoConfig;
+using VideoCodecConfig = PeerConnectionE2EQualityTestFixture::VideoCodecConfig;
 
 constexpr int kDefaultTimeoutMs = 10000;
 constexpr char kSignalThreadName[] = "signaling_thread";
@@ -250,7 +251,7 @@ void PeerConnectionE2EQualityTest::Run(RunParams run_params) {
   peer_configurations_.clear();
 
   SetDefaultValuesForMissingParams(
-      {alice_params.get(), bob_params.get()},
+      &run_params, {alice_params.get(), bob_params.get()},
       {&alice_video_generators, &bob_video_generators});
   ValidateParams(run_params, {alice_params.get(), bob_params.get()},
                  {&alice_video_generators, &bob_video_generators});
@@ -452,6 +453,7 @@ void PeerConnectionE2EQualityTest::Run(RunParams run_params) {
 }
 
 void PeerConnectionE2EQualityTest::SetDefaultValuesForMissingParams(
+    RunParams* run_params,
     std::vector<Params*> params,
     std::vector<std::vector<std::unique_ptr<test::FrameGeneratorInterface>>*>
         video_generators) {
@@ -490,6 +492,11 @@ void PeerConnectionE2EQualityTest::SetDefaultValuesForMissingParams(
       }
     }
   }
+
+  if (run_params->video_codecs.empty()) {
+    run_params->video_codecs.push_back(VideoCodecConfig(
+        run_params->video_codec_name, run_params->video_codec_required_params));
+  }
 }
 
 void PeerConnectionE2EQualityTest::ValidateParams(
@@ -503,6 +510,7 @@ void PeerConnectionE2EQualityTest::ValidateParams(
   std::set<std::string> audio_labels;
   int media_streams_count = 0;
 
+  bool has_simulcast = false;
   for (size_t i = 0; i < params.size(); ++i) {
     Params* p = params[i];
     if (p->audio_config) {
@@ -567,6 +575,7 @@ void PeerConnectionE2EQualityTest::ValidateParams(
         }
       }
       if (video_config.simulcast_config) {
+        has_simulcast = true;
         // We support simulcast only from caller.
         RTC_CHECK_EQ(i, 0)
             << "Only simulcast stream from first peer is supported";
@@ -593,6 +602,11 @@ void PeerConnectionE2EQualityTest::ValidateParams(
             << " doesn't exist";
       }
     }
+  }
+  if (has_simulcast) {
+    RTC_CHECK_EQ(run_params.video_codecs.size(), 1)
+        << "Only 1 video codec is supported when simulcast is enabled in at "
+        << "least 1 video config";
   }
 
   RTC_CHECK_GT(media_streams_count, 0) << "No media in the call.";
@@ -666,7 +680,8 @@ void PeerConnectionE2EQualityTest::SetupCallOnSignalingThread(
     RtpTransceiverInit transceiver_params;
     if (video_config.simulcast_config) {
       transceiver_params.direction = RtpTransceiverDirection::kSendOnly;
-      if (run_params.video_codec_name == cricket::kVp8CodecName) {
+      // Because simulcast enabled |run_params.video_codecs| has only 1 element.
+      if (run_params.video_codecs[0].name == cricket::kVp8CodecName) {
         // For Vp8 simulcast we need to add as many RtpEncodingParameters to the
         // track as many simulcast streams requested.
         for (int i = 0;
@@ -888,15 +903,15 @@ void PeerConnectionE2EQualityTest::SetPeerCodecPreferences(
     const RunParams& run_params) {
   std::vector<RtpCodecCapability> with_rtx_video_capabilities =
       FilterVideoCodecCapabilities(
-          run_params.video_codec_name, run_params.video_codec_required_params,
-          true, run_params.use_ulp_fec, run_params.use_flex_fec,
+          run_params.video_codecs, true, run_params.use_ulp_fec,
+          run_params.use_flex_fec,
           peer->pc_factory()
               ->GetRtpSenderCapabilities(cricket::MediaType::MEDIA_TYPE_VIDEO)
               .codecs);
   std::vector<RtpCodecCapability> without_rtx_video_capabilities =
       FilterVideoCodecCapabilities(
-          run_params.video_codec_name, run_params.video_codec_required_params,
-          false, run_params.use_ulp_fec, run_params.use_flex_fec,
+          run_params.video_codecs, false, run_params.use_ulp_fec,
+          run_params.use_flex_fec,
           peer->pc_factory()
               ->GetRtpSenderCapabilities(cricket::MediaType::MEDIA_TYPE_VIDEO)
               .codecs);
@@ -930,7 +945,7 @@ void PeerConnectionE2EQualityTest::SetupCall(const RunParams& run_params) {
            video_config.simulcast_config->simulcast_streams_count});
     }
   }
-  PatchingParams patching_params(run_params.video_codec_name,
+  PatchingParams patching_params(run_params.video_codecs,
                                  run_params.use_conference_mode,
                                  stream_label_to_simulcast_streams_count);
   SignalingInterceptor signaling_interceptor(patching_params);

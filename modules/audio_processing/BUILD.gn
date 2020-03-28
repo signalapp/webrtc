@@ -11,13 +11,6 @@ if (rtc_enable_protobuf) {
   import("//third_party/protobuf/proto_library.gni")
 }
 
-declare_args() {
-  # Disables the usual mode where we trust the reported system delay
-  # values the AEC receives. The corresponding define is set appropriately
-  # in the code, but it can be force-enabled here for testing.
-  aec_untrusted_delay_for_testing = false
-}
-
 config("apm_debug_dump") {
   if (apm_debug_dump) {
     defines = [ "WEBRTC_APM_DEBUG_DUMP=1" ]
@@ -112,8 +105,6 @@ rtc_library("audio_processing") {
     "audio_processing_impl.cc",
     "audio_processing_impl.h",
     "common.h",
-    "echo_cancellation_impl.cc",
-    "echo_cancellation_impl.h",
     "echo_control_mobile_impl.cc",
     "echo_control_mobile_impl.h",
     "echo_detector/circular_buffer.cc",
@@ -130,8 +121,6 @@ rtc_library("audio_processing") {
     "gain_controller2.h",
     "include/aec_dump.cc",
     "include/aec_dump.h",
-    "legacy_noise_suppression.cc",
-    "legacy_noise_suppression.h",
     "level_estimator.cc",
     "level_estimator.h",
     "render_queue_item_verifier.h",
@@ -165,7 +154,6 @@ rtc_library("audio_processing") {
     ":audio_buffer",
     ":audio_frame_view",
     ":audio_generator_interface",
-    ":audio_processing_c",
     ":audio_processing_statistics",
     ":config",
     ":high_pass_filter",
@@ -187,8 +175,6 @@ rtc_library("audio_processing") {
     "../../system_wrappers:cpu_features_api",
     "../../system_wrappers:field_trial",
     "../../system_wrappers:metrics",
-    "aec",
-    "aec:aec_core",
     "aec3",
     "aecm:aecm_core",
     "agc",
@@ -197,20 +183,12 @@ rtc_library("audio_processing") {
     "agc2:adaptive_digital",
     "agc2:fixed_digital",
     "agc2:gain_applier",
+    "legacy_ns:legacy_ns",
+    "legacy_ns:legacy_ns_c",
     "ns",
     "vad",
     "//third_party/abseil-cpp/absl/types:optional",
   ]
-
-  if (aec_untrusted_delay_for_testing) {
-    defines += [ "WEBRTC_UNTRUSTED_DELAY" ]
-  }
-
-  if (rtc_prefer_fixed_point) {
-    defines += [ "WEBRTC_NS_FIXED" ]
-  } else {
-    defines += [ "WEBRTC_NS_FLOAT" ]
-  }
 
   deps += [
     "../../common_audio",
@@ -234,19 +212,13 @@ rtc_library("audio_processing_statistics") {
 }
 
 rtc_source_set("audio_frame_view") {
-  sources = [
-    "include/audio_frame_view.h",
-  ]
-  deps = [
-    "../../api:array_view",
-  ]
+  sources = [ "include/audio_frame_view.h" ]
+  deps = [ "../../api:array_view" ]
 }
 
 rtc_source_set("audio_generator_interface") {
   visibility = [ "*" ]
-  sources = [
-    "include/audio_generator.h",
-  ]
+  sources = [ "include/audio_generator.h" ]
   deps = [
     ":audio_frame_view",
     "../../rtc_base:rtc_base_approved",
@@ -283,61 +255,9 @@ rtc_library("file_audio_generator") {
   ]
 }
 
-rtc_source_set("audio_processing_c") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
-  sources = [
-    "legacy_ns/windows_private.h",
-  ]
-
-  if (rtc_prefer_fixed_point) {
-    sources += [
-      "legacy_ns/noise_suppression_x.c",
-      "legacy_ns/noise_suppression_x.h",
-      "legacy_ns/nsx_core.c",
-      "legacy_ns/nsx_core.h",
-      "legacy_ns/nsx_defines.h",
-    ]
-    if (current_cpu == "mipsel") {
-      sources += [ "legacy_ns/nsx_core_mips.c" ]
-    } else {
-      sources += [ "legacy_ns/nsx_core_c.c" ]
-    }
-  } else {
-    sources += [
-      "legacy_ns/defines.h",
-      "legacy_ns/noise_suppression.c",
-      "legacy_ns/noise_suppression.h",
-      "legacy_ns/ns_core.c",
-      "legacy_ns/ns_core.h",
-    ]
-  }
-
-  deps = [
-    "../../common_audio",
-    "../../common_audio:common_audio_c",
-    "../../common_audio/third_party/fft4g",
-    "../../rtc_base:checks",
-    "../../rtc_base:rtc_base_approved",
-    "../../system_wrappers:cpu_features_api",
-    "agc:agc_legacy_c",
-  ]
-
-  if (rtc_build_with_neon) {
-    sources += [ "legacy_ns/nsx_core_neon.c" ]
-
-    if (current_cpu != "arm64") {
-      # Enable compilation for the NEON instruction set.
-      suppressed_configs += [ "//build/config/compiler:compiler_arm_fpu" ]
-      cflags = [ "-mfpu=neon" ]
-    }
-  }
-}
-
 if (rtc_enable_protobuf) {
   proto_library("audioproc_debug_proto") {
-    sources = [
-      "debug.proto",
-    ]
+    sources = [ "debug.proto" ]
 
     proto_out_dir = "modules/audio_processing"
   }
@@ -361,9 +281,7 @@ rtc_library("apm_logging") {
 if (rtc_include_tests) {
   rtc_source_set("mocks") {
     testonly = true
-    sources = [
-      "include/mock_audio_processing.h",
-    ]
+    sources = [ "include/mock_audio_processing.h" ]
     deps = [
       ":api",
       ":audio_buffer",
@@ -383,7 +301,6 @@ if (rtc_include_tests) {
 
     if (rtc_enable_protobuf) {
       deps += [
-        ":audioproc_f",
         ":audioproc_unittest_proto",
         "aec_dump:aec_dump_unittests",
         "test/conversational_speech",
@@ -400,7 +317,6 @@ if (rtc_include_tests) {
       "audio_buffer_unittest.cc",
       "audio_frame_view_unittest.cc",
       "config_unittest.cc",
-      "echo_cancellation_impl_unittest.cc",
       "echo_control_mobile_unittest.cc",
       "gain_controller2_unittest.cc",
       "splitting_filter_unittest.cc",
@@ -451,8 +367,6 @@ if (rtc_include_tests) {
       "../../test:rtc_expect_death",
       "../../test:test_support",
       "../audio_coding:neteq_input_audio_tools",
-      "aec:aec_core",
-      "aec:aec_unittests",
       "aec_dump:mock_aec_dump_unittests",
       "agc:agc_unittests",
       "agc2:adaptive_digital_unittests",
@@ -462,8 +376,8 @@ if (rtc_include_tests) {
       "agc2:rnn_vad_with_level_unittests",
       "agc2:test_utils",
       "agc2/rnn_vad:unittests",
+      "legacy_ns:legacy_ns",
       "test/conversational_speech:unittest",
-      "utility:block_mean_calculator_unittest",
       "utility:legacy_delay_estimator_unittest",
       "utility:pffft_wrapper_unittest",
       "vad:vad_unittests",
@@ -499,7 +413,6 @@ if (rtc_include_tests) {
         "audio_processing_impl_locking_unittest.cc",
         "audio_processing_impl_unittest.cc",
         "audio_processing_unittest.cc",
-        "echo_cancellation_bit_exact_unittest.cc",
         "echo_control_mobile_bit_exact_unittest.cc",
         "echo_detector/circular_buffer_unittest.cc",
         "echo_detector/mean_variance_estimator_unittest.cc",
@@ -507,7 +420,6 @@ if (rtc_include_tests) {
         "echo_detector/normalized_covariance_estimator_unittest.cc",
         "gain_control_unittest.cc",
         "high_pass_filter_unittest.cc",
-        "legacy_noise_suppression_unittest.cc",
         "level_estimator_unittest.cc",
         "residual_echo_detector_unittest.cc",
         "rms_level_unittest.cc",
@@ -528,9 +440,7 @@ if (rtc_include_tests) {
     testonly = true
     configs += [ ":apm_debug_dump" ]
 
-    sources = [
-      "audio_processing_performance_unittest.cc",
-    ]
+    sources = [ "audio_processing_performance_unittest.cc" ]
     deps = [
       ":audio_processing",
       ":audioproc_test_utils",
@@ -546,9 +456,7 @@ if (rtc_include_tests) {
   rtc_library("file_audio_generator_unittests") {
     testonly = true
 
-    sources = [
-      "audio_generator/file_audio_generator_unittest.cc",
-    ]
+    sources = [ "audio_generator/file_audio_generator_unittest.cc" ]
 
     deps = [
       ":api",
@@ -624,18 +532,6 @@ if (rtc_include_tests) {
         "//third_party/abseil-cpp/absl/types:optional",
       ]
     }  # audioproc_f_impl
-    rtc_executable("audioproc_f") {
-      testonly = true
-      sources = [
-        "test/audioproc_float_main.cc",
-      ]
-      deps = [
-        ":api",
-        ":audio_processing",
-        "../../api:audioproc_f_api",
-        "../../rtc_base:rtc_base_approved",
-      ]
-    }  # audioproc_f
   }
 
   rtc_library("audioproc_test_utils") {
@@ -711,9 +607,7 @@ if (rtc_include_tests) {
 
   if (rtc_enable_protobuf) {
     proto_library("audioproc_unittest_proto") {
-      sources = [
-        "test/unittest.proto",
-      ]
+      sources = [ "test/unittest.proto" ]
       proto_out_dir = "modules/audio_processing/test"
     }
 

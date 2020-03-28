@@ -37,7 +37,6 @@ struct SimulationSettings {
   ~SimulationSettings();
   absl::optional<int> stream_delay;
   absl::optional<bool> use_stream_delay;
-  absl::optional<int> stream_drift_samples;
   absl::optional<int> output_sample_rate_hz;
   absl::optional<int> output_num_channels;
   absl::optional<int> reverse_output_sample_rate_hz;
@@ -58,19 +57,13 @@ struct SimulationSettings {
   absl::optional<bool> use_hpf;
   absl::optional<bool> use_ns;
   absl::optional<bool> use_ts;
+  absl::optional<bool> use_analog_agc;
   absl::optional<bool> use_vad;
   absl::optional<bool> use_le;
   absl::optional<bool> use_all;
-  absl::optional<int> aec_suppression_level;
-  absl::optional<bool> use_delay_agnostic;
-  absl::optional<bool> use_extended_filter;
-  absl::optional<bool> use_drift_compensation;
-  absl::optional<bool> use_legacy_aec;
   absl::optional<bool> use_legacy_ns;
-  absl::optional<bool> use_experimental_agc;
-  absl::optional<bool> use_experimental_agc_agc2_level_estimator;
-  absl::optional<bool> experimental_agc_disable_digital_adaptive;
-  absl::optional<bool> experimental_agc_analyze_before_aec;
+  absl::optional<bool> use_analog_agc_agc2_level_estimator;
+  absl::optional<bool> analog_agc_disable_digital_adaptive;
   absl::optional<int> agc_mode;
   absl::optional<int> agc_target_level;
   absl::optional<bool> use_agc_limiter;
@@ -81,8 +74,8 @@ struct SimulationSettings {
       agc2_adaptive_level_estimator;
   absl::optional<float> pre_amplifier_gain_factor;
   absl::optional<int> ns_level;
+  absl::optional<bool> ns_analysis_on_linear_aec_output;
   absl::optional<int> maximum_internal_processing_rate;
-  absl::optional<bool> use_refined_adaptive_filter;
   int initial_mic_level;
   bool simulate_mic_gain = false;
   absl::optional<bool> multi_channel_render;
@@ -100,6 +93,7 @@ struct SimulationSettings {
   bool store_intermediate_output = false;
   bool print_aec_parameter_values = false;
   bool dump_internal_data = false;
+  WavFile::SampleFormat wav_output_format = WavFile::SampleFormat::kInt16;
   absl::optional<std::string> dump_internal_data_output_dir;
   absl::optional<std::string> call_order_input_filename;
   absl::optional<std::string> call_order_output_filename;

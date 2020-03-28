@@ -318,7 +318,8 @@ class RTCStatsVerifier {
     EXPECT_TRUE(valid_reference)
         << stats_->type() << "." << member.name()
         << " is not a reference to an "
-        << "existing dictionary of type " << expected_type << " (value: "
+           "existing dictionary of type "
+        << expected_type << " (value: "
         << (member.is_defined() ? member.ValueToString() : "null") << ").";
     MarkMemberTested(member, valid_reference);
   }
@@ -755,7 +756,6 @@ class RTCStatsReportVerifier {
   void VerifyRTCRTPStreamStats(const RTCRTPStreamStats& stream,
                                RTCStatsVerifier* verifier) {
     verifier->TestMemberIsDefined(stream.ssrc);
-    verifier->TestMemberIsUndefined(stream.associate_stats_id);
     verifier->TestMemberIsDefined(stream.is_remote);
     verifier->TestMemberIsDefined(stream.media_type);
     verifier->TestMemberIsDefined(stream.kind);
@@ -795,6 +795,9 @@ class RTCStatsReportVerifier {
           inbound_stream.fec_packets_received);
       verifier.TestMemberIsNonNegative<uint64_t>(
           inbound_stream.fec_packets_discarded);
+    } else {
+      verifier.TestMemberIsUndefined(inbound_stream.fec_packets_received);
+      verifier.TestMemberIsUndefined(inbound_stream.fec_packets_discarded);
     }
     verifier.TestMemberIsNonNegative<uint64_t>(inbound_stream.bytes_received);
     verifier.TestMemberIsNonNegative<uint64_t>(
@@ -863,6 +866,8 @@ class RTCStatsReportVerifier {
                                        RTCAudioSourceStats::kType);
       verifier.TestMemberIsUndefined(outbound_stream.qp_sum);
     }
+    verifier.TestMemberIsOptionalIDReference(
+        outbound_stream.remote_id, RTCRemoteInboundRtpStreamStats::kType);
     verifier.TestMemberIsNonNegative<uint32_t>(outbound_stream.packets_sent);
     verifier.TestMemberIsNonNegative<uint64_t>(
         outbound_stream.retransmitted_packets_sent);

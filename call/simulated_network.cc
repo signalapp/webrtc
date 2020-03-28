@@ -79,15 +79,14 @@ bool CoDelSimulation::DropDequeuedPacket(Timestamp now,
   }
 }
 
-SimulatedNetwork::SimulatedNetwork(SimulatedNetwork::Config config,
-                                   uint64_t random_seed)
+SimulatedNetwork::SimulatedNetwork(Config config, uint64_t random_seed)
     : random_(random_seed), bursting_(false) {
   SetConfig(config);
 }
 
 SimulatedNetwork::~SimulatedNetwork() = default;
 
-void SimulatedNetwork::SetConfig(const SimulatedNetwork::Config& config) {
+void SimulatedNetwork::SetConfig(const Config& config) {
   rtc::CritScope crit(&config_lock_);
   config_state_.config = config;  // Shallow copy of the struct.
   double prob_loss = config.loss_percent / 100.0;
@@ -101,9 +100,10 @@ void SimulatedNetwork::SetConfig(const SimulatedNetwork::Config& config) {
     int min_avg_burst_loss_length = std::ceil(prob_loss / (1 - prob_loss));
 
     RTC_CHECK_GT(avg_burst_loss_length, min_avg_burst_loss_length)
-        << "For a total packet loss of " << config.loss_percent << "%% then"
-        << " avg_burst_loss_length must be " << min_avg_burst_loss_length + 1
-        << " or higher.";
+        << "For a total packet loss of " << config.loss_percent
+        << "%% then"
+           " avg_burst_loss_length must be "
+        << min_avg_burst_loss_length + 1 << " or higher.";
 
     config_state_.prob_loss_bursting = (1.0 - 1.0 / avg_burst_loss_length);
     config_state_.prob_start_bursting =

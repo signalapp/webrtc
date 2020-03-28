@@ -96,12 +96,13 @@ PacingController::PacingController(Clock* clock,
           !IsDisabled(*field_trials_, "WebRTC-Pacer-DrainQueue")),
       send_padding_if_silent_(
           IsEnabled(*field_trials_, "WebRTC-Pacer-PadInSilence")),
-      pace_audio_(!IsDisabled(*field_trials_, "WebRTC-Pacer-BlockAudio")),
+      pace_audio_(IsEnabled(*field_trials_, "WebRTC-Pacer-BlockAudio")),
       small_first_probe_packet_(
           IsEnabled(*field_trials_, "WebRTC-Pacer-SmallFirstProbePacket")),
-      send_side_bwe_with_overhead_(
-          IsEnabled(*field_trials_, "WebRTC-SendSideBwe-WithOverhead")),
+      ignore_transport_overhead_(
+          IsEnabled(*field_trials_, "WebRTC-Pacer-IgnoreTransportOverhead")),
       min_packet_limit_(kDefaultMinPacketLimit),
+      transport_overhead_per_packet_(DataSize::Zero()),
       last_timestamp_(clock_->CurrentTime()),
       paused_(false),
       media_budget_(0),
@@ -120,7 +121,8 @@ PacingController::PacingController(Clock* clock,
       congestion_window_size_(DataSize::PlusInfinity()),
       outstanding_data_(DataSize::Zero()),
       queue_time_limit(kMaxExpectedQueueLength),
-      account_for_audio_(false) {
+      account_for_audio_(false),
+      include_overhead_(false) {
   if (!drain_large_queues_) {
     RTC_LOG(LS_WARNING) << "Pacer queues will not be drained,"
                            "pushback experiment must be enabled.";
@@ -226,6 +228,18 @@ void PacingController::SetAccountForAudioPackets(bool account_for_audio) {
   account_for_audio_ = account_for_audio;
 }
 
+void PacingController::SetIncludeOverhead() {
+  include_overhead_ = true;
+  packet_queue_.SetIncludeOverhead();
+}
+
+void PacingController::SetTransportOverhead(DataSize overhead_per_packet) {
+  if (ignore_transport_overhead_)
+    return;
+  transport_overhead_per_packet_ = overhead_per_packet;
+  packet_queue_.SetTransportOverhead(overhead_per_packet);
+}
+
 TimeDelta PacingController::ExpectedQueueTime() const {
   RTC_DCHECK_GT(pacing_bitrate_, DataRate::Zero());
   return TimeDelta::ms(
@@ -308,6 +322,10 @@ bool PacingController::ShouldSendKeepalive(Timestamp now) const {
 Timestamp PacingController::NextSendTime() const {
   Timestamp now = CurrentTime();
 
+  if (paused_) {
+    return last_send_time_ + kPausedProcessInterval;
+  }
+
   // If probing is active, that always takes priority.
   if (prober_.IsProbing()) {
     Timestamp probe_time = prober_.NextProbeTime(now);
@@ -318,10 +336,7 @@ Timestamp PacingController::NextSendTime() const {
   }
 
   if (mode_ == ProcessMode::kPeriodic) {
-    // In periodc non-probing mode, we just have a fixed interval.
-    if (paused_) {
-      return last_send_time_ + kPausedProcessInterval;
-    }
+    // In periodic non-probing mode, we just have a fixed interval.
     return last_process_time_ + min_packet_limit_;
   }
 
@@ -516,10 +531,13 @@ void PacingController::ProcessPackets() {
     RTC_DCHECK(rtp_packet);
     RTC_DCHECK(rtp_packet->packet_type().has_value());
     const RtpPacketToSend::Type packet_type = *rtp_packet->packet_type();
-    const DataSize packet_size = DataSize::bytes(
-        send_side_bwe_with_overhead_
-            ? rtp_packet->size()
-            : rtp_packet->payload_size() + rtp_packet->padding_size());
+    DataSize packet_size = DataSize::bytes(rtp_packet->payload_size() +
+                                           rtp_packet->padding_size());
+
+    if (include_overhead_) {
+      packet_size += DataSize::bytes(rtp_packet->headers_size()) +
+                     transport_overhead_per_packet_;
+    }
     packet_sender_->SendRtpPacket(std::move(rtp_packet), pacing_info);
 
     data_sent += packet_size;
@@ -599,7 +617,7 @@ std::unique_ptr<RtpPacketToSend> PacingController::GetPendingPacket(
   bool is_probe = pacing_info.probe_cluster_id != PacedPacketInfo::kNotAProbe;
   if (!unpaced_audio_packet && !is_probe) {
     if (Congested()) {
-      // Don't send anyting if congested.
+      // Don't send anything if congested.
       return nullptr;
     }
 

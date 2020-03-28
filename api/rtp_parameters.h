@@ -329,9 +329,6 @@ struct RTC_EXPORT RtpExtension {
   bool encrypt = false;
 };
 
-// TODO(deadbeef): This is missing the "encrypt" flag, which is unimplemented.
-typedef RtpExtension RtpHeaderExtensionParameters;
-
 struct RTC_EXPORT RtpFecParameters {
   // If unset, a value is chosen by the implementation.
   // Works just like RtpEncodingParameters::ssrc.
@@ -414,10 +411,7 @@ struct RTC_EXPORT RtpEncodingParameters {
   absl::optional<int> min_bitrate_bps;
 
   // Specifies the maximum framerate in fps for video.
-  // TODO(asapersson): Different framerates are not supported per simulcast
-  // layer. If set, the maximum |max_framerate| is currently used.
-  // Not supported for screencast.
-  absl::optional<int> max_framerate;
+  absl::optional<double> max_framerate;
 
   // Specifies the number of temporal layers for video (if the feature is
   // supported by the codec implementation).
@@ -593,7 +587,7 @@ struct RTC_EXPORT RtpParameters {
 
   std::vector<RtpCodecParameters> codecs;
 
-  std::vector<RtpHeaderExtensionParameters> header_extensions;
+  std::vector<RtpExtension> header_extensions;
 
   std::vector<RtpEncodingParameters> encodings;
 

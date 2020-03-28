@@ -97,7 +97,8 @@ class WebRtcVideoEngine : public VideoEngineInterface {
       webrtc::VideoBitrateAllocatorFactory* video_bitrate_allocator_factory)
       override;
 
-  std::vector<VideoCodec> codecs() const override;
+  std::vector<VideoCodec> send_codecs() const override;
+  std::vector<VideoCodec> recv_codecs() const override;
   RtpCapabilities GetCapabilities() const override;
 
  private:
@@ -590,6 +591,8 @@ class WebRtcVideoChannel : public VideoMediaChannel,
       RTC_GUARDED_BY(thread_checker_);
 
   bool allow_codec_switching_ = false;
+  absl::optional<EncoderSwitchRequestCallback::Config>
+      requested_encoder_switch_;
 
   // In order for the |invoker_| to protect other members from being destructed
   // as they are used in asynchronous tasks it has to be destructed first.
@@ -609,6 +612,19 @@ class EncoderStreamFactory
       int width,
       int height,
       const webrtc::VideoEncoderConfig& encoder_config) override;
+
+  std::vector<webrtc::VideoStream> CreateDefaultVideoStreams(
+      int width,
+      int height,
+      const webrtc::VideoEncoderConfig& encoder_config,
+      const absl::optional<webrtc::DataRate>& experimental_min_bitrate) const;
+
+  std::vector<webrtc::VideoStream>
+  CreateSimulcastOrConfereceModeScreenshareStreams(
+      int width,
+      int height,
+      const webrtc::VideoEncoderConfig& encoder_config,
+      const absl::optional<webrtc::DataRate>& experimental_min_bitrate) const;
 
   const std::string codec_name_;
   const int max_qp_;

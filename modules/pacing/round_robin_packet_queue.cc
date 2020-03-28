@@ -73,12 +73,6 @@ uint64_t RoundRobinPacketQueue::QueuedPacket::EnqueueOrder() const {
   return enqueue_order_;
 }
 
-DataSize RoundRobinPacketQueue::QueuedPacket::Size(bool count_overhead) const {
-  return DataSize::bytes(count_overhead ? owned_packet_->size()
-                                        : owned_packet_->payload_size() +
-                                              owned_packet_->padding_size());
-}
-
 RtpPacketToSend* RoundRobinPacketQueue::QueuedPacket::RtpPacket() const {
   return owned_packet_;
 }
@@ -91,6 +85,16 @@ RoundRobinPacketQueue::QueuedPacket::EnqueueTimeIterator() const {
 void RoundRobinPacketQueue::QueuedPacket::SubtractPauseTime(
     TimeDelta pause_time_sum) {
   enqueue_time_ -= pause_time_sum;
+}
+
+RoundRobinPacketQueue::PriorityPacketQueue::const_iterator
+RoundRobinPacketQueue::PriorityPacketQueue::begin() const {
+  return c.begin();
+}
+
+RoundRobinPacketQueue::PriorityPacketQueue::const_iterator
+RoundRobinPacketQueue::PriorityPacketQueue::end() const {
+  return c.end();
 }
 
 RoundRobinPacketQueue::Stream::Stream() : size(DataSize::Zero()), ssrc(0) {}
@@ -107,15 +111,15 @@ bool IsEnabled(const WebRtcKeyValueConfig* field_trials, const char* name) {
 RoundRobinPacketQueue::RoundRobinPacketQueue(
     Timestamp start_time,
     const WebRtcKeyValueConfig* field_trials)
-    : time_last_updated_(start_time),
+    : transport_overhead_per_packet_(DataSize::Zero()),
+      time_last_updated_(start_time),
       paused_(false),
       size_packets_(0),
       size_(DataSize::Zero()),
       max_size_(kMaxLeadingSize),
       queue_time_sum_(TimeDelta::Zero()),
       pause_time_sum_(TimeDelta::Zero()),
-      send_side_bwe_with_overhead_(
-          IsEnabled(field_trials, "WebRTC-SendSideBwe-WithOverhead")) {}
+      include_overhead_(false) {}
 
 RoundRobinPacketQueue::~RoundRobinPacketQueue() {
   // Make sure to release any packets owned by raw pointer in QueuedPacket.
@@ -158,7 +162,13 @@ std::unique_ptr<RtpPacketToSend> RoundRobinPacketQueue::Pop() {
   // case a "budget" will be built up for the stream sending at the lower
   // rate. To avoid building a too large budget we limit |bytes| to be within
   // kMaxLeading bytes of the stream that has sent the most amount of bytes.
-  DataSize packet_size = queued_packet.Size(send_side_bwe_with_overhead_);
+  DataSize packet_size =
+      DataSize::bytes(queued_packet.RtpPacket()->payload_size() +
+                      queued_packet.RtpPacket()->padding_size());
+  if (include_overhead_) {
+    packet_size += DataSize::bytes(queued_packet.RtpPacket()->headers_size()) +
+                   transport_overhead_per_packet_;
+  }
   stream->size =
       std::max(stream->size + packet_size, max_size_ - kMaxLeadingSize);
   max_size_ = std::max(max_size_, stream->size);
@@ -238,6 +248,30 @@ void RoundRobinPacketQueue::SetPauseState(bool paused, Timestamp now) {
   paused_ = paused;
 }
 
+void RoundRobinPacketQueue::SetIncludeOverhead() {
+  include_overhead_ = true;
+  // We need to update the size to reflect overhead for existing packets.
+  for (const auto& stream : streams_) {
+    for (const QueuedPacket& packet : stream.second.packet_queue) {
+      size_ += DataSize::bytes(packet.RtpPacket()->headers_size()) +
+               transport_overhead_per_packet_;
+    }
+  }
+}
+
+void RoundRobinPacketQueue::SetTransportOverhead(DataSize overhead_per_packet) {
+  if (include_overhead_) {
+    DataSize previous_overhead = transport_overhead_per_packet_;
+    // We need to update the size to reflect overhead for existing packets.
+    for (const auto& stream : streams_) {
+      int packets = stream.second.packet_queue.size();
+      size_ -= packets * previous_overhead;
+      size_ += packets * overhead_per_packet;
+    }
+  }
+  transport_overhead_per_packet_ = overhead_per_packet;
+}
+
 TimeDelta RoundRobinPacketQueue::AverageQueueTime() const {
   if (Empty())
     return TimeDelta::Zero();
@@ -279,7 +313,12 @@ void RoundRobinPacketQueue::Push(QueuedPacket packet) {
   packet.SubtractPauseTime(pause_time_sum_);
 
   size_packets_ += 1;
-  size_ += packet.Size(send_side_bwe_with_overhead_);
+  size_ += DataSize::bytes(packet.RtpPacket()->payload_size() +
+                           packet.RtpPacket()->padding_size());
+  if (include_overhead_) {
+    size_ += DataSize::bytes(packet.RtpPacket()->headers_size()) +
+             transport_overhead_per_packet_;
+  }
 
   stream->packet_queue.push(packet);
 }

@@ -209,6 +209,7 @@ void EnableAllAPComponents(AudioProcessing* ap) {
   apm_config.high_pass_filter.enabled = true;
   apm_config.level_estimation.enabled = true;
   apm_config.voice_detection.enabled = true;
+  apm_config.pipeline.maximum_internal_processing_rate = 48000;
   ap->ApplyConfig(apm_config);
 }
 
@@ -429,9 +430,11 @@ ApmTest::ApmTest()
       far_file_(NULL),
       near_file_(NULL),
       out_file_(NULL) {
-  Config config;
-  config.Set<ExperimentalAgc>(new ExperimentalAgc(false));
-  apm_.reset(AudioProcessingBuilder().Create(config));
+  apm_.reset(AudioProcessingBuilder().Create());
+  AudioProcessing::Config apm_config = apm_->GetConfig();
+  apm_config.gain_controller1.analog_gain_controller.enabled = false;
+  apm_config.pipeline.maximum_internal_processing_rate = 48000;
+  apm_->ApplyConfig(apm_config);
 }
 
 void ApmTest::SetUp() {
@@ -640,7 +643,7 @@ void ApmTest::ProcessDelayVerificationTest(int delay_ms,
 
     if (frame_count == 250) {
       // Discard the first delay metrics to avoid convergence effects.
-      static_cast<void>(apm_->GetStatistics(true /* has_remote_tracks */));
+      static_cast<void>(apm_->GetStatistics());
     }
   }
 
@@ -663,8 +666,7 @@ void ApmTest::ProcessDelayVerificationTest(int delay_ms,
       expected_median - rtc::dchecked_cast<int>(96 / samples_per_ms), delay_min,
       delay_max);
   // Verify delay metrics.
-  AudioProcessingStats stats =
-      apm_->GetStatistics(true /* has_remote_tracks */);
+  AudioProcessingStats stats = apm_->GetStatistics();
   ASSERT_TRUE(stats.delay_median_ms.has_value());
   int32_t median = *stats.delay_median_ms;
   EXPECT_GE(expected_median_high, median);
@@ -728,30 +730,6 @@ TEST_F(ApmTest, StreamParametersInt) {
 
 TEST_F(ApmTest, StreamParametersFloat) {
   StreamParametersTest(kFloatFormat);
-}
-
-TEST_F(ApmTest, DefaultDelayOffsetIsZero) {
-  EXPECT_EQ(0, apm_->delay_offset_ms());
-  EXPECT_EQ(apm_->kNoError, apm_->set_stream_delay_ms(50));
-  EXPECT_EQ(50, apm_->stream_delay_ms());
-}
-
-TEST_F(ApmTest, DelayOffsetWithLimitsIsSetProperly) {
-  // High limit of 500 ms.
-  apm_->set_delay_offset_ms(100);
-  EXPECT_EQ(100, apm_->delay_offset_ms());
-  EXPECT_EQ(apm_->kBadStreamParameterWarning, apm_->set_stream_delay_ms(450));
-  EXPECT_EQ(500, apm_->stream_delay_ms());
-  EXPECT_EQ(apm_->kNoError, apm_->set_stream_delay_ms(100));
-  EXPECT_EQ(200, apm_->stream_delay_ms());
-
-  // Low limit of 0 ms.
-  apm_->set_delay_offset_ms(-50);
-  EXPECT_EQ(-50, apm_->delay_offset_ms());
-  EXPECT_EQ(apm_->kBadStreamParameterWarning, apm_->set_stream_delay_ms(20));
-  EXPECT_EQ(0, apm_->stream_delay_ms());
-  EXPECT_EQ(apm_->kNoError, apm_->set_stream_delay_ms(100));
-  EXPECT_EQ(50, apm_->stream_delay_ms());
 }
 
 void ApmTest::TestChangingChannelsInt16Interface(
@@ -829,13 +807,9 @@ TEST_F(ApmTest, Channels) {
 }
 
 TEST_F(ApmTest, SampleRatesInt) {
-  // Testing invalid sample rates
-  SetContainerFormat(10000, 2, &frame_, &float_cb_);
-  EXPECT_EQ(apm_->kBadSampleRateError, ProcessStreamChooser(kIntFormat));
-  // Testing valid sample rates
-  int fs[] = {8000, 16000, 32000, 48000};
-  for (size_t i = 0; i < arraysize(fs); i++) {
-    SetContainerFormat(fs[i], 2, &frame_, &float_cb_);
+  // Testing some valid sample rates.
+  for (int sample_rate : {8000, 12000, 16000, 32000, 44100, 48000, 96000}) {
+    SetContainerFormat(sample_rate, 2, &frame_, &float_cb_);
     EXPECT_NOERR(ProcessStreamChooser(kIntFormat));
   }
 }
@@ -968,42 +942,49 @@ TEST_F(ApmTest, GainControl) {
 #if RTC_DCHECK_IS_ON && GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
 TEST_F(ApmTest, GainControlDiesOnTooLowTargetLevelDbfs) {
   auto config = apm_->GetConfig();
+  config.gain_controller1.enabled = true;
   config.gain_controller1.target_level_dbfs = -1;
   EXPECT_DEATH(apm_->ApplyConfig(config), "");
 }
 
 TEST_F(ApmTest, GainControlDiesOnTooHighTargetLevelDbfs) {
   auto config = apm_->GetConfig();
+  config.gain_controller1.enabled = true;
   config.gain_controller1.target_level_dbfs = 32;
   EXPECT_DEATH(apm_->ApplyConfig(config), "");
 }
 
 TEST_F(ApmTest, GainControlDiesOnTooLowCompressionGainDb) {
   auto config = apm_->GetConfig();
+  config.gain_controller1.enabled = true;
   config.gain_controller1.compression_gain_db = -1;
   EXPECT_DEATH(apm_->ApplyConfig(config), "");
 }
 
 TEST_F(ApmTest, GainControlDiesOnTooHighCompressionGainDb) {
   auto config = apm_->GetConfig();
+  config.gain_controller1.enabled = true;
   config.gain_controller1.compression_gain_db = 91;
   EXPECT_DEATH(apm_->ApplyConfig(config), "");
 }
 
 TEST_F(ApmTest, GainControlDiesOnTooLowAnalogLevelLowerLimit) {
   auto config = apm_->GetConfig();
+  config.gain_controller1.enabled = true;
   config.gain_controller1.analog_level_minimum = -1;
   EXPECT_DEATH(apm_->ApplyConfig(config), "");
 }
 
 TEST_F(ApmTest, GainControlDiesOnTooHighAnalogLevelUpperLimit) {
   auto config = apm_->GetConfig();
+  config.gain_controller1.enabled = true;
   config.gain_controller1.analog_level_maximum = 65536;
   EXPECT_DEATH(apm_->ApplyConfig(config), "");
 }
 
 TEST_F(ApmTest, GainControlDiesOnInvertedAnalogLevelLimits) {
   auto config = apm_->GetConfig();
+  config.gain_controller1.enabled = true;
   config.gain_controller1.analog_level_minimum = 512;
   config.gain_controller1.analog_level_maximum = 255;
   EXPECT_DEATH(apm_->ApplyConfig(config), "");
@@ -1011,6 +992,7 @@ TEST_F(ApmTest, GainControlDiesOnInvertedAnalogLevelLimits) {
 
 TEST_F(ApmTest, ApmDiesOnTooLowAnalogLevel) {
   auto config = apm_->GetConfig();
+  config.gain_controller1.enabled = true;
   config.gain_controller1.analog_level_minimum = 255;
   config.gain_controller1.analog_level_maximum = 512;
   apm_->ApplyConfig(config);
@@ -1019,6 +1001,7 @@ TEST_F(ApmTest, ApmDiesOnTooLowAnalogLevel) {
 
 TEST_F(ApmTest, ApmDiesOnTooHighAnalogLevel) {
   auto config = apm_->GetConfig();
+  config.gain_controller1.enabled = true;
   config.gain_controller1.analog_level_minimum = 255;
   config.gain_controller1.analog_level_maximum = 512;
   apm_->ApplyConfig(config);
@@ -1534,11 +1517,10 @@ TEST_F(ApmTest, Process) {
     if (test->num_input_channels() != test->num_output_channels())
       continue;
 
-    Config config;
-    config.Set<ExperimentalAgc>(new ExperimentalAgc(false));
-    config.Set<ExtendedFilter>(
-        new ExtendedFilter(test->use_aec_extended_filter()));
-    apm_.reset(AudioProcessingBuilder().Create(config));
+    apm_.reset(AudioProcessingBuilder().Create());
+    AudioProcessing::Config apm_config = apm_->GetConfig();
+    apm_config.gain_controller1.analog_gain_controller.enabled = false;
+    apm_->ApplyConfig(apm_config);
 
     EnableAllComponents();
 
@@ -1575,8 +1557,7 @@ TEST_F(ApmTest, Process) {
 
       analog_level = apm_->recommended_stream_analog_level();
       analog_level_average += analog_level;
-      AudioProcessingStats stats =
-          apm_->GetStatistics(/*has_remote_tracks=*/false);
+      AudioProcessingStats stats = apm_->GetStatistics();
       EXPECT_TRUE(stats.voice_detected);
       EXPECT_TRUE(stats.output_rms_dbfs);
       has_voice_count += *stats.voice_detected ? 1 : 0;
@@ -1595,8 +1576,7 @@ TEST_F(ApmTest, Process) {
       const int kStatsAggregationFrameNum = 100;  // 1 second.
       if (frame_count % kStatsAggregationFrameNum == 0) {
         // Get echo and delay metrics.
-        AudioProcessingStats stats =
-            apm_->GetStatistics(true /* has_remote_tracks */);
+        AudioProcessingStats stats = apm_->GetStatistics();
 
         // Echo metrics.
         const float echo_return_loss = stats.echo_return_loss.value_or(-1.0f);
@@ -1823,10 +1803,11 @@ class AudioProcessingTest
                             size_t num_reverse_input_channels,
                             size_t num_reverse_output_channels,
                             const std::string& output_file_prefix) {
-    Config config;
-    config.Set<ExperimentalAgc>(new ExperimentalAgc(false));
-    std::unique_ptr<AudioProcessing> ap(
-        AudioProcessingBuilder().Create(config));
+    std::unique_ptr<AudioProcessing> ap(AudioProcessingBuilder().Create());
+    AudioProcessing::Config apm_config = ap->GetConfig();
+    apm_config.gain_controller1.analog_gain_controller.enabled = false;
+    ap->ApplyConfig(apm_config);
+
     EnableAllAPComponents(ap.get());
 
     ProcessingConfig processing_config = {
@@ -1963,11 +1944,7 @@ TEST_P(AudioProcessingTest, Formats) {
       } else {
         ref_rate = 8000;
       }
-#ifdef WEBRTC_ARCH_ARM_FAMILY
-      if (file_direction == kForward) {
-        ref_rate = std::min(ref_rate, 32000);
-      }
-#endif
+
       FILE* out_file = fopen(
           OutputFilePath("out", input_rate_, output_rate_, reverse_input_rate_,
                          reverse_output_rate_, cf[i].num_input,
@@ -2089,9 +2066,9 @@ INSTANTIATE_TEST_SUITE_P(
                       std::make_tuple(44100, 16000, 32000, 16000, 25, 20),
                       std::make_tuple(44100, 16000, 16000, 16000, 25, 0),
 
-                      std::make_tuple(32000, 48000, 48000, 48000, 30, 0),
-                      std::make_tuple(32000, 48000, 32000, 48000, 32, 30),
-                      std::make_tuple(32000, 48000, 16000, 48000, 30, 20),
+                      std::make_tuple(32000, 48000, 48000, 48000, 15, 0),
+                      std::make_tuple(32000, 48000, 32000, 48000, 15, 30),
+                      std::make_tuple(32000, 48000, 16000, 48000, 15, 20),
                       std::make_tuple(32000, 44100, 48000, 44100, 19, 20),
                       std::make_tuple(32000, 44100, 32000, 44100, 19, 15),
                       std::make_tuple(32000, 44100, 16000, 44100, 19, 15),
@@ -2102,9 +2079,9 @@ INSTANTIATE_TEST_SUITE_P(
                       std::make_tuple(32000, 16000, 32000, 16000, 25, 20),
                       std::make_tuple(32000, 16000, 16000, 16000, 25, 0),
 
-                      std::make_tuple(16000, 48000, 48000, 48000, 23, 0),
-                      std::make_tuple(16000, 48000, 32000, 48000, 24, 30),
-                      std::make_tuple(16000, 48000, 16000, 48000, 24, 20),
+                      std::make_tuple(16000, 48000, 48000, 48000, 9, 0),
+                      std::make_tuple(16000, 48000, 32000, 48000, 9, 30),
+                      std::make_tuple(16000, 48000, 16000, 48000, 9, 20),
                       std::make_tuple(16000, 44100, 48000, 44100, 15, 20),
                       std::make_tuple(16000, 44100, 32000, 44100, 15, 15),
                       std::make_tuple(16000, 44100, 16000, 44100, 15, 15),
@@ -2145,9 +2122,9 @@ INSTANTIATE_TEST_SUITE_P(
                       std::make_tuple(44100, 16000, 32000, 16000, 19, 20),
                       std::make_tuple(44100, 16000, 16000, 16000, 19, 0),
 
-                      std::make_tuple(32000, 48000, 48000, 48000, 27, 0),
-                      std::make_tuple(32000, 48000, 32000, 48000, 65, 30),
-                      std::make_tuple(32000, 48000, 16000, 48000, 30, 20),
+                      std::make_tuple(32000, 48000, 48000, 48000, 17, 0),
+                      std::make_tuple(32000, 48000, 32000, 48000, 17, 30),
+                      std::make_tuple(32000, 48000, 16000, 48000, 17, 20),
                       std::make_tuple(32000, 44100, 48000, 44100, 20, 20),
                       std::make_tuple(32000, 44100, 32000, 44100, 20, 15),
                       std::make_tuple(32000, 44100, 16000, 44100, 20, 15),
@@ -2158,9 +2135,9 @@ INSTANTIATE_TEST_SUITE_P(
                       std::make_tuple(32000, 16000, 32000, 16000, 20, 20),
                       std::make_tuple(32000, 16000, 16000, 16000, 20, 0),
 
-                      std::make_tuple(16000, 48000, 48000, 48000, 23, 0),
-                      std::make_tuple(16000, 48000, 32000, 48000, 24, 30),
-                      std::make_tuple(16000, 48000, 16000, 48000, 25, 20),
+                      std::make_tuple(16000, 48000, 48000, 48000, 11, 0),
+                      std::make_tuple(16000, 48000, 32000, 48000, 11, 30),
+                      std::make_tuple(16000, 48000, 16000, 48000, 11, 20),
                       std::make_tuple(16000, 44100, 48000, 44100, 15, 20),
                       std::make_tuple(16000, 44100, 32000, 44100, 15, 15),
                       std::make_tuple(16000, 44100, 16000, 44100, 15, 15),
@@ -2183,21 +2160,24 @@ std::string ProduceDebugText(int render_input_sample_rate_hz,
                              size_t capture_output_num_channels) {
   rtc::StringBuilder ss;
   ss << "Sample rates:"
-     << "\n"
-     << " Render input: " << render_input_sample_rate_hz << " Hz"
-     << "\n"
-     << " Render output: " << render_output_sample_rate_hz << " Hz"
-     << "\n"
-     << " Capture input: " << capture_input_sample_rate_hz << " Hz"
-     << "\n"
-     << " Capture output: " << capture_output_sample_rate_hz << " Hz"
-     << "\n"
-     << "Number of channels:"
-     << "\n"
-     << " Render input: " << render_input_num_channels << "\n"
-     << " Render output: " << render_output_num_channels << "\n"
-     << " Capture input: " << capture_input_num_channels << "\n"
-     << " Capture output: " << capture_output_num_channels;
+        "\n Render input: "
+     << render_input_sample_rate_hz
+     << " Hz"
+        "\n Render output: "
+     << render_output_sample_rate_hz
+     << " Hz"
+        "\n Capture input: "
+     << capture_input_sample_rate_hz
+     << " Hz"
+        "\n Capture output: "
+     << capture_output_sample_rate_hz
+     << " Hz"
+        "\nNumber of channels:"
+        "\n Render input: "
+     << render_input_num_channels
+     << "\n Render output: " << render_output_num_channels
+     << "\n Capture input: " << capture_input_num_channels
+     << "\n Capture output: " << capture_output_num_channels;
   return ss.Release();
 }
 
@@ -2519,7 +2499,7 @@ TEST(MAYBE_ApmStatistics, AECEnabledTest) {
   }
 
   // Test statistics interface.
-  AudioProcessingStats stats = apm->GetStatistics(true);
+  AudioProcessingStats stats = apm->GetStatistics();
   // We expect all statistics to be set and have a sensible value.
   ASSERT_TRUE(stats.residual_echo_likelihood);
   EXPECT_GE(*stats.residual_echo_likelihood, 0.0);
@@ -2531,17 +2511,6 @@ TEST(MAYBE_ApmStatistics, AECEnabledTest) {
   EXPECT_NE(*stats.echo_return_loss, -100.0);
   ASSERT_TRUE(stats.echo_return_loss_enhancement);
   EXPECT_NE(*stats.echo_return_loss_enhancement, -100.0);
-
-  // If there are no receive streams, we expect the stats not to be set. The
-  // 'false' argument signals to APM that no receive streams are currently
-  // active. In that situation the statistics would get stuck at their last
-  // calculated value (AEC and echo detection need at least one stream in each
-  // direction), so to avoid that, they should not be set by APM.
-  stats = apm->GetStatistics(false);
-  EXPECT_FALSE(stats.residual_echo_likelihood);
-  EXPECT_FALSE(stats.residual_echo_likelihood_recent_max);
-  EXPECT_FALSE(stats.echo_return_loss);
-  EXPECT_FALSE(stats.echo_return_loss_enhancement);
 }
 
 TEST(MAYBE_ApmStatistics, AECMEnabledTest) {
@@ -2568,7 +2537,7 @@ TEST(MAYBE_ApmStatistics, AECMEnabledTest) {
   }
 
   // Test statistics interface.
-  AudioProcessingStats stats = apm->GetStatistics(true);
+  AudioProcessingStats stats = apm->GetStatistics();
   // We expect only the residual echo detector statistics to be set and have a
   // sensible value.
   EXPECT_TRUE(stats.residual_echo_likelihood);
@@ -2581,13 +2550,6 @@ TEST(MAYBE_ApmStatistics, AECMEnabledTest) {
     EXPECT_GE(*stats.residual_echo_likelihood_recent_max, 0.0);
     EXPECT_LE(*stats.residual_echo_likelihood_recent_max, 1.0);
   }
-  EXPECT_FALSE(stats.echo_return_loss);
-  EXPECT_FALSE(stats.echo_return_loss_enhancement);
-
-  // If there are no receive streams, we expect the stats not to be set.
-  stats = apm->GetStatistics(false);
-  EXPECT_FALSE(stats.residual_echo_likelihood);
-  EXPECT_FALSE(stats.residual_echo_likelihood_recent_max);
   EXPECT_FALSE(stats.echo_return_loss);
   EXPECT_FALSE(stats.echo_return_loss_enhancement);
 }
@@ -2613,13 +2575,13 @@ TEST(ApmStatistics, ReportOutputRmsDbfs) {
 
   // If not enabled, no metric should be reported.
   EXPECT_EQ(apm->ProcessStream(&frame), 0);
-  EXPECT_FALSE(apm->GetStatistics(false).output_rms_dbfs);
+  EXPECT_FALSE(apm->GetStatistics().output_rms_dbfs);
 
   // If enabled, metrics should be reported.
   config.level_estimation.enabled = true;
   apm->ApplyConfig(config);
   EXPECT_EQ(apm->ProcessStream(&frame), 0);
-  auto stats = apm->GetStatistics(false);
+  auto stats = apm->GetStatistics();
   EXPECT_TRUE(stats.output_rms_dbfs);
   EXPECT_GE(*stats.output_rms_dbfs, 0);
 
@@ -2627,7 +2589,7 @@ TEST(ApmStatistics, ReportOutputRmsDbfs) {
   config.level_estimation.enabled = false;
   apm->ApplyConfig(config);
   EXPECT_EQ(apm->ProcessStream(&frame), 0);
-  EXPECT_FALSE(apm->GetStatistics(false).output_rms_dbfs);
+  EXPECT_FALSE(apm->GetStatistics().output_rms_dbfs);
 }
 
 TEST(ApmStatistics, ReportHasVoice) {
@@ -2651,20 +2613,20 @@ TEST(ApmStatistics, ReportHasVoice) {
 
   // If not enabled, no metric should be reported.
   EXPECT_EQ(apm->ProcessStream(&frame), 0);
-  EXPECT_FALSE(apm->GetStatistics(false).voice_detected);
+  EXPECT_FALSE(apm->GetStatistics().voice_detected);
 
   // If enabled, metrics should be reported.
   config.voice_detection.enabled = true;
   apm->ApplyConfig(config);
   EXPECT_EQ(apm->ProcessStream(&frame), 0);
-  auto stats = apm->GetStatistics(false);
+  auto stats = apm->GetStatistics();
   EXPECT_TRUE(stats.voice_detected);
 
   // If re-disabled, the value is again not reported.
   config.voice_detection.enabled = false;
   apm->ApplyConfig(config);
   EXPECT_EQ(apm->ProcessStream(&frame), 0);
-  EXPECT_FALSE(apm->GetStatistics(false).voice_detected);
+  EXPECT_FALSE(apm->GetStatistics().voice_detected);
 }
 
 TEST(ApmConfiguration, HandlingOfRateAndChannelCombinations) {
@@ -2690,6 +2652,15 @@ TEST(ApmConfiguration, HandlingOfRateCombinations) {
   std::array<int, 1> capture_channel_counts = {2};
   RunApmRateAndChannelTest(sample_rates_hz, render_channel_counts,
                            capture_channel_counts);
+}
+
+TEST(ApmConfiguration, SelfAssignment) {
+  // At some point memory sanitizer was complaining about self-assigment.
+  // Make sure we don't regress.
+  AudioProcessing::Config config;
+  AudioProcessing::Config* config2 = &config;
+  *config2 = *config2;  // Workaround -Wself-assign-overloaded
+  SUCCEED();  // Real success is absence of defects from asan/msan/ubsan.
 }
 
 }  // namespace webrtc
