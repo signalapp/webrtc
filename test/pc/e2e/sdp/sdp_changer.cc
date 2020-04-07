@@ -23,6 +23,8 @@ namespace webrtc {
 namespace webrtc_pc_e2e {
 namespace {
 
+using VideoCodecConfig = PeerConnectionE2EQualityTestFixture::VideoCodecConfig;
+
 std::string CodecRequiredParamsToString(
     const std::map<std::string, std::string>& codec_required_params) {
   rtc::StringBuilder out;
@@ -35,39 +37,41 @@ std::string CodecRequiredParamsToString(
 }  // namespace
 
 std::vector<RtpCodecCapability> FilterVideoCodecCapabilities(
-    absl::string_view codec_name,
-    const std::map<std::string, std::string>& codec_required_params,
+    rtc::ArrayView<const VideoCodecConfig> video_codecs,
     bool use_rtx,
     bool use_ulpfec,
     bool use_flexfec,
-    std::vector<RtpCodecCapability> supported_codecs) {
+    rtc::ArrayView<const RtpCodecCapability> supported_codecs) {
   std::vector<RtpCodecCapability> output_codecs;
-  // Find main requested codecs among supported and add them to output.
-  for (auto& codec : supported_codecs) {
-    if (codec.name != codec_name) {
-      continue;
-    }
-    bool parameters_matched = true;
-    for (auto item : codec_required_params) {
-      auto it = codec.parameters.find(item.first);
-      if (it == codec.parameters.end()) {
-        parameters_matched = false;
-        break;
+  // Find requested codecs among supported and add them to output in the order
+  // they were requested.
+  for (auto& codec_request : video_codecs) {
+    size_t size_before = output_codecs.size();
+    for (auto& codec : supported_codecs) {
+      if (codec.name != codec_request.name) {
+        continue;
       }
-      if (item.second != it->second) {
-        parameters_matched = false;
-        break;
+      bool parameters_matched = true;
+      for (auto item : codec_request.required_params) {
+        auto it = codec.parameters.find(item.first);
+        if (it == codec.parameters.end()) {
+          parameters_matched = false;
+          break;
+        }
+        if (item.second != it->second) {
+          parameters_matched = false;
+          break;
+        }
+      }
+      if (parameters_matched) {
+        output_codecs.push_back(codec);
       }
     }
-    if (parameters_matched) {
-      output_codecs.push_back(codec);
-    }
+    RTC_CHECK_GT(output_codecs.size(), size_before)
+        << "Codec with name=" << codec_request.name << " and params {"
+        << CodecRequiredParamsToString(codec_request.required_params)
+        << "} is unsupported for this peer connection";
   }
-
-  RTC_CHECK_GT(output_codecs.size(), 0)
-      << "Codec with name=" << codec_name << " and params {"
-      << CodecRequiredParamsToString(codec_required_params)
-      << "} is unsupported for this peer connection";
 
   // Add required FEC and RTX codecs to output.
   for (auto& codec : supported_codecs) {
@@ -161,12 +165,15 @@ LocalAndRemoteSdp SignalingInterceptor::PatchOffer(
     media_desc->set_conference_mode(params_.use_conference_mode);
   }
 
-  if (params_.video_codec_name == cricket::kVp8CodecName) {
-    return PatchVp8Offer(std::move(offer));
-  }
+  if (params_.stream_label_to_simulcast_streams_count.size() > 0) {
+    // Because simulcast enabled |params_.video_codecs| has only 1 element.
+    if (params_.video_codecs[0].name == cricket::kVp8CodecName) {
+      return PatchVp8Offer(std::move(offer));
+    }
 
-  if (params_.video_codec_name == cricket::kVp9CodecName) {
-    return PatchVp9Offer(std::move(offer));
+    if (params_.video_codecs[0].name == cricket::kVp9CodecName) {
+      return PatchVp9Offer(std::move(offer));
+    }
   }
 
   auto offer_for_remote = CloneSessionDescription(offer.get());
@@ -349,12 +356,15 @@ LocalAndRemoteSdp SignalingInterceptor::PatchAnswer(
     media_desc->set_conference_mode(params_.use_conference_mode);
   }
 
-  if (params_.video_codec_name == cricket::kVp8CodecName) {
-    return PatchVp8Answer(std::move(answer));
-  }
+  if (params_.stream_label_to_simulcast_streams_count.size() > 0) {
+    // Because simulcast enabled |params_.video_codecs| has only 1 element.
+    if (params_.video_codecs[0].name == cricket::kVp8CodecName) {
+      return PatchVp8Answer(std::move(answer));
+    }
 
-  if (params_.video_codec_name == cricket::kVp9CodecName) {
-    return PatchVp9Answer(std::move(answer));
+    if (params_.video_codecs[0].name == cricket::kVp9CodecName) {
+      return PatchVp9Answer(std::move(answer));
+    }
   }
 
   auto answer_for_remote = CloneSessionDescription(answer.get());

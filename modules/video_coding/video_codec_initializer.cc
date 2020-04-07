@@ -89,17 +89,13 @@ VideoCodec VideoCodecInitializer::VideoEncoderConfigToVideoCodec(
                                          kDefaultOutlierFrameSizePercent};
   RTC_DCHECK_LE(streams.size(), kMaxSimulcastStreams);
 
+  int max_framerate = 0;
+
   for (size_t i = 0; i < streams.size(); ++i) {
     SimulcastStream* sim_stream = &video_codec.simulcastStream[i];
     RTC_DCHECK_GT(streams[i].width, 0);
     RTC_DCHECK_GT(streams[i].height, 0);
     RTC_DCHECK_GT(streams[i].max_framerate, 0);
-    // Different framerates not supported per stream at the moment, unless it's
-    // screenshare where there is an exception and a simulcast encoder adapter,
-    // which supports different framerates, is used instead.
-    if (config.content_type != VideoEncoderConfig::ContentType::kScreen) {
-      RTC_DCHECK_EQ(streams[i].max_framerate, streams[0].max_framerate);
-    }
     RTC_DCHECK_GE(streams[i].min_bitrate_bps, 0);
     RTC_DCHECK_GE(streams[i].target_bitrate_bps, streams[i].min_bitrate_bps);
     RTC_DCHECK_GE(streams[i].max_bitrate_bps, streams[i].target_bitrate_bps);
@@ -126,6 +122,7 @@ VideoCodec VideoCodecInitializer::VideoEncoderConfigToVideoCodec(
     video_codec.maxBitrate += streams[i].max_bitrate_bps / 1000;
     video_codec.qpMax = std::max(video_codec.qpMax,
                                  static_cast<unsigned int>(streams[i].max_qp));
+    max_framerate = std::max(max_framerate, streams[i].max_framerate);
   }
 
   if (video_codec.maxBitrate == 0) {
@@ -137,8 +134,7 @@ VideoCodec VideoCodecInitializer::VideoEncoderConfigToVideoCodec(
   if (video_codec.maxBitrate < kEncoderMinBitrateKbps)
     video_codec.maxBitrate = kEncoderMinBitrateKbps;
 
-  RTC_DCHECK_GT(streams[0].max_framerate, 0);
-  video_codec.maxFramerate = streams[0].max_framerate;
+  video_codec.maxFramerate = max_framerate;
 
   // Set codec specific options
   if (config.encoder_specific_settings)
@@ -160,6 +156,9 @@ VideoCodec VideoCodecInitializer::VideoEncoderConfigToVideoCodec(
       break;
     }
     case kVideoCodecVP9: {
+      // Force the first stream to always be active.
+      video_codec.simulcastStream[0].active = codec_active;
+
       if (!config.encoder_specific_settings) {
         *video_codec.VP9() = VideoEncoder::GetDefaultVp9Settings();
       }
@@ -180,9 +179,19 @@ VideoCodec VideoCodecInitializer::VideoEncoderConfigToVideoCodec(
         // Layering is set explicitly.
         spatial_layers = config.spatial_layers;
       } else {
+        size_t min_required_layers = 0;
+        // Need at least enough layers for the first active one to be present.
+        for (size_t spatial_idx = 0;
+             spatial_idx < config.simulcast_layers.size(); ++spatial_idx) {
+          if (config.simulcast_layers[spatial_idx].active) {
+            min_required_layers = spatial_idx + 1;
+            break;
+          }
+        }
+
         spatial_layers = GetSvcConfig(
             video_codec.width, video_codec.height, video_codec.maxFramerate,
-            video_codec.VP9()->numberOfSpatialLayers,
+            min_required_layers, video_codec.VP9()->numberOfSpatialLayers,
             video_codec.VP9()->numberOfTemporalLayers,
             video_codec.mode == VideoCodecMode::kScreensharing);
 
@@ -201,7 +210,7 @@ VideoCodec VideoCodecInitializer::VideoEncoderConfigToVideoCodec(
              spatial_idx < config.simulcast_layers.size() &&
              spatial_idx < spatial_layers.size();
              ++spatial_idx) {
-          spatial_layers[spatial_layers.size() - spatial_idx - 1].active =
+          spatial_layers[spatial_idx].active =
               config.simulcast_layers[spatial_idx].active;
         }
       }

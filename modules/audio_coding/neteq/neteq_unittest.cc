@@ -105,7 +105,8 @@ TEST_F(NetEqDecodingTest, MAYBE_TestBitExactness) {
 #else
 #define MAYBE_TestOpusBitExactness DISABLED_TestOpusBitExactness
 #endif
-TEST_F(NetEqDecodingTest, MAYBE_TestOpusBitExactness) {
+// TODO(webrtc:11325) Reenable after Opus has been upgraded to 1.3.
+TEST_F(NetEqDecodingTest, DISABLED_TestOpusBitExactness) {
   const std::string input_rtp_file =
       webrtc::test::ResourcePath("audio_coding/neteq_opus", "rtp");
 
@@ -134,7 +135,8 @@ TEST_F(NetEqDecodingTest, MAYBE_TestOpusBitExactness) {
 #else
 #define MAYBE_TestOpusDtxBitExactness DISABLED_TestOpusDtxBitExactness
 #endif
-TEST_F(NetEqDecodingTest, MAYBE_TestOpusDtxBitExactness) {
+// TODO(webrtc:11325) Reenable after Opus has been upgraded to 1.3.
+TEST_F(NetEqDecodingTest, DISABLED_TestOpusDtxBitExactness) {
   const std::string input_rtp_file =
       webrtc::test::ResourcePath("audio_coding/neteq_opus_dtx", "rtp");
 
@@ -1084,8 +1086,10 @@ TEST(NetEqNoTimeStretchingMode, RunTest) {
       new TimeLimitedNetEqInput(std::move(input), 20000));
   std::unique_ptr<AudioSink> output(new VoidAudioSink);
   NetEqTest::Callbacks callbacks;
-  NetEqTest test(config, CreateBuiltinAudioDecoderFactory(), codecs, nullptr,
-                 std::move(input_time_limit), std::move(output), callbacks);
+  NetEqTest test(config, CreateBuiltinAudioDecoderFactory(), codecs,
+                 /*text_log=*/nullptr, /*neteq_factory=*/nullptr,
+                 /*input=*/std::move(input_time_limit), std::move(output),
+                 callbacks);
   test.Run();
   const auto stats = test.SimulationStats();
   EXPECT_EQ(0, stats.accelerate_rate);

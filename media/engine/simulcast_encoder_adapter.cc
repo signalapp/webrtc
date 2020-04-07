@@ -26,6 +26,7 @@
 #include "api/video_codecs/video_encoder.h"
 #include "api/video_codecs/video_encoder_factory.h"
 #include "api/video_codecs/video_encoder_software_fallback_wrapper.h"
+#include "media/base/video_common.h"
 #include "modules/video_coding/include/video_error_codes.h"
 #include "modules/video_coding/utility/simulcast_rate_allocator.h"
 #include "rtc_base/atomic_ops.h"
@@ -242,7 +243,8 @@ int SimulcastEncoderAdapter::InitEncode(
   RTC_DCHECK_LT(highest_resolution_stream_index, number_of_streams);
 
   const SdpVideoFormat format(
-      codec_.codecType == webrtc::kVideoCodecVP8 ? "VP8" : "H264");
+      codec_.codecType == webrtc::kVideoCodecVP8 ? "VP8" : "H264",
+      video_format_.parameters);
 
   for (int i = 0; i < number_of_streams; ++i) {
     // If an existing encoder instance exists, reuse it.
@@ -318,15 +320,18 @@ int SimulcastEncoderAdapter::InitEncode(
       // Without simulcast, just pass through the encoder info from the one
       // active encoder.
       encoder->RegisterEncodeCompleteCallback(encoded_complete_callback_);
-      streaminfos_.emplace_back(std::move(encoder), nullptr, stream_codec.width,
-                                stream_codec.height, send_stream);
+      streaminfos_.emplace_back(
+          std::move(encoder), nullptr,
+          std::make_unique<FramerateController>(stream_codec.maxFramerate),
+          stream_codec.width, stream_codec.height, send_stream);
     } else {
       std::unique_ptr<EncodedImageCallback> callback(
           new AdapterEncodedImageCallback(this, i));
       encoder->RegisterEncodeCompleteCallback(callback.get());
-      streaminfos_.emplace_back(std::move(encoder), std::move(callback),
-                                stream_codec.width, stream_codec.height,
-                                send_stream);
+      streaminfos_.emplace_back(
+          std::move(encoder), std::move(callback),
+          std::make_unique<FramerateController>(stream_codec.maxFramerate),
+          stream_codec.width, stream_codec.height, send_stream);
     }
   }
 
@@ -377,20 +382,27 @@ int SimulcastEncoderAdapter::Encode(
       continue;
     }
 
+    const uint32_t frame_timestamp_ms =
+        1000 * input_image.timestamp() / 90000;  // kVideoPayloadTypeFrequency;
+
     // If adapter is passed through and only one sw encoder does simulcast,
     // frame types for all streams should be passed to the encoder unchanged.
     // Otherwise a single per-encoder frame type is passed.
     std::vector<VideoFrameType> stream_frame_types(
         streaminfos_.size() == 1 ? NumberOfStreams(codec_) : 1);
-
     if (send_key_frame) {
       std::fill(stream_frame_types.begin(), stream_frame_types.end(),
                 VideoFrameType::kVideoFrameKey);
       streaminfos_[stream_idx].key_frame_request = false;
     } else {
+      if (streaminfos_[stream_idx].framerate_controller->DropFrame(
+              frame_timestamp_ms)) {
+        continue;
+      }
       std::fill(stream_frame_types.begin(), stream_frame_types.end(),
                 VideoFrameType::kVideoFrameDelta);
     }
+    streaminfos_[stream_idx].framerate_controller->AddFrame(frame_timestamp_ms);
 
     int dst_width = streaminfos_[stream_idx].width;
     int dst_height = streaminfos_[stream_idx].height;
@@ -511,6 +523,10 @@ void SimulcastEncoderAdapter::SetRates(
       }
     }
 
+    stream_parameters.framerate_fps = std::min<double>(
+        parameters.framerate_fps,
+        streaminfos_[stream_idx].framerate_controller->GetTargetRate());
+
     streaminfos_[stream_idx].encoder->SetRates(stream_parameters);
   }
 }
@@ -564,6 +580,7 @@ void SimulcastEncoderAdapter::PopulateStreamCodec(
   stream_codec->height = inst.simulcastStream[stream_index].height;
   stream_codec->maxBitrate = inst.simulcastStream[stream_index].maxBitrate;
   stream_codec->minBitrate = inst.simulcastStream[stream_index].minBitrate;
+  stream_codec->maxFramerate = inst.simulcastStream[stream_index].maxFramerate;
   stream_codec->qpMax = inst.simulcastStream[stream_index].qpMax;
   // Settings that are based on stream/resolution.
   if (stream_resolution == StreamResolution::LOWEST) {
@@ -617,6 +634,7 @@ VideoEncoder::EncoderInfo SimulcastEncoderAdapter::GetEncoderInfo() const {
 
   VideoEncoder::EncoderInfo encoder_info;
   encoder_info.implementation_name = "SimulcastEncoderAdapter";
+  encoder_info.requested_resolution_alignment = 1;
   encoder_info.supports_native_handle = true;
   encoder_info.scaling_settings.thresholds = absl::nullopt;
   if (streaminfos_.empty()) {
@@ -665,6 +683,9 @@ VideoEncoder::EncoderInfo SimulcastEncoderAdapter::GetEncoderInfo() const {
       encoder_info.has_internal_source &= encoder_impl_info.has_internal_source;
     }
     encoder_info.fps_allocation[i] = encoder_impl_info.fps_allocation[0];
+    encoder_info.requested_resolution_alignment = cricket::LeastCommonMultiple(
+        encoder_info.requested_resolution_alignment,
+        encoder_impl_info.requested_resolution_alignment);
   }
   encoder_info.implementation_name += ")";
 

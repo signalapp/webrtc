@@ -367,7 +367,8 @@ TEST_P(PacingControllerFieldTrialTest, PaddingInSilenceWithTrial) {
   pacer.ProcessPackets();
 }
 
-TEST_P(PacingControllerFieldTrialTest, DefaultCongestionWindowAffectsAudio) {
+TEST_P(PacingControllerFieldTrialTest, CongestionWindowAffectsAudioInTrial) {
+  ScopedFieldTrials trial("WebRTC-Pacer-BlockAudio/Enabled/");
   EXPECT_CALL(callback_, SendPadding).Times(0);
   PacingController pacer(&clock_, &callback_, nullptr, nullptr, GetParam());
   pacer.SetPacingRates(DataRate::kbps(10000), DataRate::Zero());
@@ -394,8 +395,7 @@ TEST_P(PacingControllerFieldTrialTest, DefaultCongestionWindowAffectsAudio) {
 }
 
 TEST_P(PacingControllerFieldTrialTest,
-       CongestionWindowDoesNotAffectAudioInTrial) {
-  ScopedFieldTrials trial("WebRTC-Pacer-BlockAudio/Disabled/");
+       DefaultCongestionWindowDoesNotAffectAudio) {
   EXPECT_CALL(callback_, SendPadding).Times(0);
   PacingController pacer(&clock_, &callback_, nullptr, nullptr, GetParam());
   pacer.SetPacingRates(DataRate::bps(10000000), DataRate::Zero());
@@ -411,7 +411,8 @@ TEST_P(PacingControllerFieldTrialTest,
   ProcessNext(&pacer);
 }
 
-TEST_P(PacingControllerFieldTrialTest, DefaultBudgetAffectsAudio) {
+TEST_P(PacingControllerFieldTrialTest, BudgetAffectsAudioInTrial) {
+  ScopedFieldTrials trial("WebRTC-Pacer-BlockAudio/Enabled/");
   PacingController pacer(&clock_, &callback_, nullptr, nullptr, GetParam());
   DataRate pacing_rate =
       DataRate::bps(video.packet_size / 3 * 8 * kProcessIntervalsPerSecond);
@@ -440,8 +441,7 @@ TEST_P(PacingControllerFieldTrialTest, DefaultBudgetAffectsAudio) {
                 : PacingController::kMinSleepTime);
 }
 
-TEST_P(PacingControllerFieldTrialTest, BudgetDoesNotAffectAudioInTrial) {
-  ScopedFieldTrials trial("WebRTC-Pacer-BlockAudio/Disabled/");
+TEST_P(PacingControllerFieldTrialTest, DefaultBudgetDoesNotAffectAudio) {
   EXPECT_CALL(callback_, SendPadding).Times(0);
   PacingController pacer(&clock_, &callback_, nullptr, nullptr, GetParam());
   pacer.SetPacingRates(
@@ -1735,6 +1735,35 @@ TEST_P(PacingControllerTest, TaskLate) {
   clock_.AdvanceTime(TimeDelta::ms(1));
   EXPECT_CALL(callback_, SendPacket).Times(1);
   pacer_->ProcessPackets();
+}
+
+TEST_P(PacingControllerTest, NoProbingWhilePaused) {
+  uint32_t ssrc = 12345;
+  uint16_t sequence_number = 1234;
+
+  pacer_->SetProbingEnabled(true);
+
+  // Send at least one packet so probing can initate.
+  SendAndExpectPacket(RtpPacketToSend::Type::kVideo, ssrc, sequence_number,
+                      clock_.TimeInMilliseconds(), 250);
+  while (pacer_->QueueSizePackets() > 0) {
+    AdvanceTimeAndProcess();
+  }
+
+  // Trigger probing.
+  pacer_->CreateProbeCluster(DataRate::kbps(10000),  // 10 Mbps.
+                             /*cluster_id=*/3);
+
+  // Time to next send time should be small.
+  EXPECT_LT(pacer_->NextSendTime() - clock_.CurrentTime(),
+            PacingController::kPausedProcessInterval);
+
+  // Pause pacer, time to next send time should now be the pause process
+  // interval.
+  pacer_->Pause();
+
+  EXPECT_EQ(pacer_->NextSendTime() - clock_.CurrentTime(),
+            PacingController::kPausedProcessInterval);
 }
 
 INSTANTIATE_TEST_SUITE_P(

@@ -255,7 +255,7 @@ class PeerConnectionE2EQualityTestFixture {
    public:
     virtual ~PeerConfigurer() = default;
 
-    // The parameters of the following 8 methods will be passed to the
+    // The parameters of the following 9 methods will be passed to the
     // PeerConnectionFactoryInterface implementation that will be created for
     // this peer.
     virtual PeerConfigurer* SetTaskQueueFactory(
@@ -276,8 +276,11 @@ class PeerConnectionE2EQualityTestFixture {
         std::unique_ptr<VideoEncoderFactory> video_encoder_factory) = 0;
     virtual PeerConfigurer* SetVideoDecoderFactory(
         std::unique_ptr<VideoDecoderFactory> video_decoder_factory) = 0;
+    // Set a custom NetEqFactory to be used in the call.
+    virtual PeerConfigurer* SetNetEqFactory(
+        std::unique_ptr<NetEqFactory> neteq_factory) = 0;
 
-    // The parameters of the following 3 methods will be passed to the
+    // The parameters of the following 4 methods will be passed to the
     // PeerConnectionInterface implementation that will be created for this
     // peer.
     virtual PeerConfigurer* SetAsyncResolverFactory(
@@ -288,6 +291,8 @@ class PeerConnectionE2EQualityTestFixture {
             cert_generator) = 0;
     virtual PeerConfigurer* SetSSLCertificateVerifier(
         std::unique_ptr<rtc::SSLCertificateVerifier> tls_cert_verifier) = 0;
+    virtual PeerConfigurer* SetIceTransportFactory(
+        std::unique_ptr<IceTransportFactory> factory) = 0;
 
     // Add new video stream to the call that will be sent from this peer.
     virtual PeerConfigurer* AddVideoConfig(VideoConfig config) = 0;
@@ -320,6 +325,27 @@ class PeerConnectionE2EQualityTestFixture {
     TimeDelta echo_delay = TimeDelta::ms(50);
   };
 
+  struct VideoCodecConfig {
+    explicit VideoCodecConfig(std::string name)
+        : name(std::move(name)), required_params() {}
+    VideoCodecConfig(std::string name,
+                     std::map<std::string, std::string> required_params)
+        : name(std::move(name)), required_params(std::move(required_params)) {}
+    // Next two fields are used to specify concrete video codec, that should be
+    // used in the test. Video code will be negotiated in SDP during offer/
+    // answer exchange.
+    // Video codec name. You can find valid names in
+    // media/base/media_constants.h
+    std::string name = cricket::kVp8CodecName;
+    // Map of parameters, that have to be specified on SDP codec. Each parameter
+    // is described by key and value. Codec parameters will match the specified
+    // map if and only if for each key from |required_params| there will be
+    // a parameter with name equal to this key and parameter value will be equal
+    // to the value from |required_params| for this key.
+    // If empty then only name will be used to match the codec.
+    std::map<std::string, std::string> required_params;
+  };
+
   // Contains parameters, that describe how long framework should run quality
   // test.
   struct RunParams {
@@ -330,12 +356,14 @@ class PeerConnectionE2EQualityTestFixture {
     // it will be shut downed.
     TimeDelta run_duration;
 
+    // Deprecated. Use |video_codecs| instead.
     // Next two fields are used to specify concrete video codec, that should be
     // used in the test. Video code will be negotiated in SDP during offer/
     // answer exchange.
     // Video codec name. You can find valid names in
     // media/base/media_constants.h
     std::string video_codec_name = cricket::kVp8CodecName;
+    // Deprecated. Use |video_codecs| instead.
     // Map of parameters, that have to be specified on SDP codec. Each parameter
     // is described by key and value. Codec parameters will match the specified
     // map if and only if for each key from |video_codec_required_params| there
@@ -343,6 +371,16 @@ class PeerConnectionE2EQualityTestFixture {
     // be equal to the value from |video_codec_required_params| for this key.
     // If empty then only name will be used to match the codec.
     std::map<std::string, std::string> video_codec_required_params;
+    // List of video codecs to use during the test. These codecs will be
+    // negotiated in SDP during offer/answer exchange. The order of these codecs
+    // during negotiation will be the same as in |video_codecs|. Codecs have
+    // to be available in codecs list provided by peer connection to be
+    // negotiated. If some of specified codecs won't be found, the test will
+    // crash.
+    // TODO(titovartem) replace with Vp8 will be used as default after cleanup.
+    // If list is empty |video_codec_name| and |video_codec_required_params|
+    // will be used.
+    std::vector<VideoCodecConfig> video_codecs;
     bool use_ulp_fec = false;
     bool use_flex_fec = false;
     // Specifies how much video encoder target bitrate should be different than

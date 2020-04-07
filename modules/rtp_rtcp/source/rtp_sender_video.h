@@ -18,11 +18,13 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "api/array_view.h"
+#include "api/transport/rtp/dependency_descriptor.h"
 #include "api/video/video_codec_type.h"
 #include "api/video/video_frame_type.h"
 #include "modules/include/module_common_types.h"
 #include "modules/rtp_rtcp/include/flexfec_sender.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
+#include "modules/rtp_rtcp/source/absolute_capture_time_sender.h"
 #include "modules/rtp_rtcp/source/playout_delay_oracle.h"
 #include "modules/rtp_rtcp/source/rtp_rtcp_config.h"
 #include "modules/rtp_rtcp/source/rtp_sender.h"
@@ -102,6 +104,13 @@ class RTPSenderVideo {
                  const RTPFragmentationHeader* fragmentation,
                  RTPVideoHeader video_header,
                  absl::optional<int64_t> expected_retransmission_time_ms);
+  // Configures video structures produced by encoder to send using the
+  // dependency descriptor rtp header extension. Next call to SendVideo should
+  // have video_header.frame_type == kVideoFrameKey.
+  // All calls to SendVideo after this call must use video_header compatible
+  // with the video_structure.
+  void SetVideoStructure(const FrameDependencyStructure* video_structure);
+
   // FlexFEC/ULPFEC.
   // Set FEC rates, max frames before FEC is sent, and type of FEC masks.
   // Returns false on failure.
@@ -183,6 +192,8 @@ class RTPSenderVideo {
   VideoRotation last_rotation_ RTC_GUARDED_BY(send_checker_);
   absl::optional<ColorSpace> last_color_space_ RTC_GUARDED_BY(send_checker_);
   bool transmit_color_space_next_frame_ RTC_GUARDED_BY(send_checker_);
+  std::unique_ptr<FrameDependencyStructure> video_structure_
+      RTC_GUARDED_BY(send_checker_);
 
   // Tracks the current request for playout delay limits from application
   // and decides whether the current RTP frame should include the playout
@@ -234,6 +245,8 @@ class RTPSenderVideo {
   const bool generic_descriptor_auth_experiment_;
 
   const bool exclude_transport_sequence_number_from_fec_experiment_;
+
+  AbsoluteCaptureTimeSender absolute_capture_time_sender_;
 };
 
 }  // namespace webrtc

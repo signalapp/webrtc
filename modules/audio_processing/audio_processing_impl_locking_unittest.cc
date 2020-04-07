@@ -551,17 +551,6 @@ void AudioProcessingImplLockTest::SetUp() {
   apm_config.voice_detection.enabled = true;
   apm_config.level_estimation.enabled = true;
   apm_->ApplyConfig(apm_config);
-
-  Config config;
-  config.Set<ExtendedFilter>(
-      new ExtendedFilter(test_config_.aec_type ==
-                         AecType::BasicWebRtcAecSettingsWithExtentedFilter));
-
-  config.Set<DelayAgnostic>(
-      new DelayAgnostic(test_config_.aec_type ==
-                        AecType::BasicWebRtcAecSettingsWithDelayAgnosticAec));
-
-  apm_->SetExtraOptions(config);
 }
 
 void AudioProcessingImplLockTest::TearDown() {
@@ -595,7 +584,7 @@ void StatsProcessor::Process() {
   EXPECT_TRUE(apm_config.noise_suppression.enabled);
 
   // The below return value is not testable.
-  apm_->GetStatistics(/*has_remote_tracks=*/true);
+  apm_->GetStatistics();
 }
 
 const float CaptureProcessor::kCaptureInputFloatLevel = 0.03125f;
@@ -827,15 +816,10 @@ void CaptureProcessor::ApplyRuntimeSettingScheme() {
         ASSERT_EQ(AudioProcessing::Error::kNoError,
                   apm_->set_stream_delay_ms(30));
         apm_->set_stream_key_pressed(true);
-        apm_->set_delay_offset_ms(15);
-        EXPECT_EQ(apm_->delay_offset_ms(), 15);
       } else {
         ASSERT_EQ(AudioProcessing::Error::kNoError,
                   apm_->set_stream_delay_ms(50));
         apm_->set_stream_key_pressed(false);
-        apm_->set_delay_offset_ms(20);
-        EXPECT_EQ(apm_->delay_offset_ms(), 20);
-        apm_->delay_offset_ms();
       }
       break;
     default:

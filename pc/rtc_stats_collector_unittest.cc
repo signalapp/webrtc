@@ -42,6 +42,7 @@
 #include "rtc_base/fake_ssl_identity.h"
 #include "rtc_base/gunit.h"
 #include "rtc_base/logging.h"
+#include "rtc_base/strings/json.h"
 #include "rtc_base/time_utils.h"
 
 using ::testing::AtLeast;
@@ -767,6 +768,17 @@ TEST_F(RTCStatsCollectorTest, MultipleCallbacksWithInvalidatedCacheInBetween) {
   // The act of doing |AdvanceTime| processes all messages. If this was not the
   // case we might not require |c| to be fresher than |b|.
   EXPECT_NE(c.get(), b.get());
+}
+
+TEST_F(RTCStatsCollectorTest, ToJsonProducesParseableJson) {
+  ExampleStatsGraph graph = SetupExampleStatsGraphForSelectorTests();
+  rtc::scoped_refptr<const RTCStatsReport> report = stats_->GetStatsReport();
+  std::string json_format = report->ToJson();
+  Json::Reader reader;
+  Json::Value json_value;
+  ASSERT_TRUE(reader.parse(json_format, json_value));
+  // A very brief sanity check on the result.
+  EXPECT_EQ(report->size(), json_value.size());
 }
 
 TEST_F(RTCStatsCollectorTest, CollectRTCCertificateStatsSingle) {
@@ -1935,6 +1947,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCOutboundRTPStreamStats_Audio) {
   RTCOutboundRTPStreamStats expected_audio("RTCOutboundRTPAudioStream_1",
                                            report->timestamp_us());
   expected_audio.media_source_id = "RTCAudioSource_50";
+  // |expected_audio.remote_id| should be undefined.
   expected_audio.ssrc = 1;
   expected_audio.is_remote = false;
   expected_audio.media_type = "audio";
@@ -2013,6 +2026,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCOutboundRTPStreamStats_Video) {
   RTCOutboundRTPStreamStats expected_video(stats_of_my_type[0]->id(),
                                            report->timestamp_us());
   expected_video.media_source_id = "RTCVideoSource_50";
+  // |expected_video.remote_id| should be undefined.
   expected_video.ssrc = 1;
   expected_video.is_remote = false;
   expected_video.media_type = "video";
@@ -2606,7 +2620,12 @@ TEST_P(RTCStatsCollectorTestWithParamKind,
                 ->cast_to<RTCRemoteInboundRtpStreamStats>(),
             expected_remote_inbound_rtp);
   EXPECT_TRUE(report->Get(*expected_remote_inbound_rtp.transport_id));
-  EXPECT_TRUE(report->Get(*expected_remote_inbound_rtp.local_id));
+  ASSERT_TRUE(report->Get(*expected_remote_inbound_rtp.local_id));
+  // Lookup works in both directions.
+  EXPECT_EQ(*report->Get(*expected_remote_inbound_rtp.local_id)
+                 ->cast_to<RTCOutboundRTPStreamStats>()
+                 .remote_id,
+            expected_remote_inbound_rtp.id());
 }
 
 TEST_P(RTCStatsCollectorTestWithParamKind,

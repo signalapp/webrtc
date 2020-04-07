@@ -136,6 +136,20 @@ void TaskQueuePacedSender::SetAccountForAudioPackets(bool account_for_audio) {
   });
 }
 
+void TaskQueuePacedSender::SetIncludeOverhead() {
+  task_queue_.PostTask([this]() {
+    RTC_DCHECK_RUN_ON(&task_queue_);
+    pacing_controller_.SetIncludeOverhead();
+  });
+}
+
+void TaskQueuePacedSender::SetTransportOverhead(DataSize overhead_per_packet) {
+  task_queue_.PostTask([this, overhead_per_packet]() {
+    RTC_DCHECK_RUN_ON(&task_queue_);
+    pacing_controller_.SetTransportOverhead(overhead_per_packet);
+  });
+}
+
 void TaskQueuePacedSender::SetQueueTimeLimit(TimeDelta limit) {
   task_queue_.PostTask([this, limit]() {
     RTC_DCHECK_RUN_ON(&task_queue_);

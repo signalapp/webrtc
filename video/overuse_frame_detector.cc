@@ -540,7 +540,7 @@ OveruseFrameDetector::OveruseFrameDetector(
 OveruseFrameDetector::~OveruseFrameDetector() {}
 
 void OveruseFrameDetector::StartCheckForOveruse(
-    rtc::TaskQueue* task_queue,
+    TaskQueueBase* task_queue_base,
     const CpuOveruseOptions& options,
     AdaptationObserverInterface* overuse_observer) {
   RTC_DCHECK_RUN_ON(&task_checker_);
@@ -549,7 +549,7 @@ void OveruseFrameDetector::StartCheckForOveruse(
 
   SetOptions(options);
   check_overuse_task_ = RepeatingTaskHandle::DelayedStart(
-      task_queue->Get(), TimeDelta::ms(kTimeToFirstCheckForOveruseMs),
+      task_queue_base, TimeDelta::ms(kTimeToFirstCheckForOveruseMs),
       [this, overuse_observer] {
         CheckForOveruse(overuse_observer);
         return TimeDelta::ms(kCheckForOveruseIntervalMs);
@@ -677,9 +677,10 @@ void OveruseFrameDetector::CheckForOveruse(
       in_quick_rampup_ ? kQuickRampUpDelayMs : current_rampup_delay_ms_;
 
   RTC_LOG(LS_VERBOSE) << " Frame stats: "
-                      << " encode usage " << *encode_usage_percent_
-                      << " overuse detections " << num_overuse_detections_
-                      << " rampup delay " << rampup_delay;
+                         " encode usage "
+                      << *encode_usage_percent_ << " overuse detections "
+                      << num_overuse_detections_ << " rampup delay "
+                      << rampup_delay;
 }
 
 void OveruseFrameDetector::SetOptions(const CpuOveruseOptions& options) {

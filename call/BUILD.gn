@@ -28,6 +28,7 @@ rtc_library("call_interfaces") {
     sources += [ "audio_send_stream.cc" ]
   }
   deps = [
+    ":audio_sender_interface",
     ":rtp_interfaces",
     ":video_stream_api",
     "../api:fec_controller_api",
@@ -61,6 +62,12 @@ rtc_library("call_interfaces") {
     "../rtc_base/network:sent_packet",
     "//third_party/abseil-cpp/absl/types:optional",
   ]
+}
+
+rtc_source_set("audio_sender_interface") {
+  visibility = [ "*" ]
+  sources = [ "audio_sender.h" ]
+  deps = [ "../api/audio:audio_frame_api" ]
 }
 
 # TODO(nisse): These RTP targets should be moved elsewhere
@@ -324,9 +331,7 @@ rtc_library("simulated_network") {
 }
 
 rtc_source_set("simulated_packet_receiver") {
-  sources = [
-    "simulated_packet_receiver.h",
-  ]
+  sources = [ "simulated_packet_receiver.h" ]
   deps = [
     ":call_interfaces",
     "../api:simulated_network_api",
@@ -382,6 +387,7 @@ if (rtc_include_tests) {
       ":rtp_sender",
       ":simulated_network",
       "../api:array_view",
+      "../api:create_frame_generator",
       "../api:mock_audio_mixer",
       "../api:rtp_headers",
       "../api:rtp_parameters",
@@ -421,6 +427,7 @@ if (rtc_include_tests) {
       "../test:video_test_common",
       "../test/time_controller:time_controller",
       "../video",
+      "//test/scenario:scenario",
       "//testing/gmock",
       "//testing/gtest",
       "//third_party/abseil-cpp/absl/container:inlined_vector",
@@ -456,6 +463,7 @@ if (rtc_include_tests) {
       "../modules/audio_device:audio_device_impl",
       "../modules/audio_mixer:audio_mixer_impl",
       "../modules/rtp_rtcp",
+      "../modules/rtp_rtcp:rtp_rtcp_format",
       "../rtc_base",
       "../rtc_base:checks",
       "../rtc_base:rtc_base_approved",
@@ -505,9 +513,7 @@ if (rtc_include_tests) {
   rtc_source_set("mock_bitrate_allocator") {
     testonly = true
 
-    sources = [
-      "test/mock_bitrate_allocator.h",
-    ]
+    sources = [ "test/mock_bitrate_allocator.h" ]
     deps = [
       ":bitrate_allocator",
       "../test:test_support",
@@ -516,9 +522,7 @@ if (rtc_include_tests) {
   rtc_source_set("mock_call_interfaces") {
     testonly = true
 
-    sources = [
-      "test/mock_audio_send_stream.h",
-    ]
+    sources = [ "test/mock_audio_send_stream.h" ]
     deps = [
       ":call_interfaces",
       "../test:test_support",

@@ -91,7 +91,9 @@ TEST(PccNetworkControllerTest, UpdatesTargetSendRate) {
   auto* route = s.CreateRoutes(client, {send_net->node()},
                                s.CreateClient("return", CallClientConfig()),
                                {ret_net->node()});
-  s.CreateVideoStream(route->forward(), VideoStreamConfig());
+  VideoStreamConfig video;
+  video.stream.use_rtx = false;
+  s.CreateVideoStream(route->forward(), video);
   s.RunFor(TimeDelta::seconds(30));
   EXPECT_NEAR(client->target_rate().kbps(), 450, 100);
   send_net->UpdateConfig([](NetworkSimulationConfig* c) {
@@ -107,7 +109,7 @@ TEST(PccNetworkControllerTest, UpdatesTargetSendRate) {
   ret_net->UpdateConfig(
       [](NetworkSimulationConfig* c) { c->delay = TimeDelta::ms(200); });
   s.RunFor(TimeDelta::seconds(35));
-  EXPECT_NEAR(client->target_rate().kbps(), 180, 40);
+  EXPECT_NEAR(client->target_rate().kbps(), 170, 50);
 }
 
 }  // namespace test

@@ -170,9 +170,10 @@ absl::optional<int> ComputeSendBitrate(int max_send_bitrate_bps,
     // fail. If codec is not multi-rate and |bps| exceeds or equal the fixed
     // bitrate then ignore.
     RTC_LOG(LS_ERROR) << "Failed to set codec " << spec.format.name
-                      << " to bitrate " << bps << " bps"
-                      << ", requires at least " << spec.info.min_bitrate_bps
-                      << " bps.";
+                      << " to bitrate " << bps
+                      << " bps"
+                         ", requires at least "
+                      << spec.info.min_bitrate_bps << " bps.";
     return absl::nullopt;
   }
 
@@ -233,16 +234,16 @@ void WebRtcVoiceEngine::Init() {
           "rtc-low-prio", webrtc::TaskQueueFactory::Priority::LOW)));
 
   // Load our audio codec lists.
-  RTC_LOG(LS_INFO) << "Supported send codecs in order of preference:";
+  RTC_LOG(LS_VERBOSE) << "Supported send codecs in order of preference:";
   send_codecs_ = CollectCodecs(encoder_factory_->GetSupportedEncoders());
   for (const AudioCodec& codec : send_codecs_) {
-    RTC_LOG(LS_INFO) << ToString(codec);
+    RTC_LOG(LS_VERBOSE) << ToString(codec);
   }
 
-  RTC_LOG(LS_INFO) << "Supported recv codecs in order of preference:";
+  RTC_LOG(LS_VERBOSE) << "Supported recv codecs in order of preference:";
   recv_codecs_ = CollectCodecs(decoder_factory_->GetSupportedDecoders());
   for (const AudioCodec& codec : recv_codecs_) {
-    RTC_LOG(LS_INFO) << ToString(codec);
+    RTC_LOG(LS_VERBOSE) << ToString(codec);
   }
 
 #if defined(WEBRTC_INCLUDE_INTERNAL_AUDIO_DEVICE)
@@ -473,7 +474,6 @@ bool WebRtcVoiceEngine::ApplyOptions(const AudioOptions& options_in) {
   if (options.echo_cancellation) {
     apm_config.echo_canceller.enabled = *options.echo_cancellation;
     apm_config.echo_canceller.mobile_mode = use_mobile_software_aec;
-    apm_config.echo_canceller.legacy_moderate_suppression_level = false;
   }
 
   if (options.auto_gain_control) {
@@ -870,7 +870,8 @@ class WebRtcVoiceMediaChannel::WebRtcAudioSendStream
               int bits_per_sample,
               int sample_rate,
               size_t number_of_channels,
-              size_t number_of_frames) override {
+              size_t number_of_frames,
+              absl::optional<int64_t> absolute_capture_timestamp_ms) override {
     RTC_DCHECK_EQ(16, bits_per_sample);
     RTC_CHECK_RUNS_SERIALIZED(&audio_capture_race_checker_);
     RTC_DCHECK(stream_);
@@ -879,6 +880,8 @@ class WebRtcVoiceMediaChannel::WebRtcAudioSendStream
         audio_frame->timestamp_, static_cast<const int16_t*>(audio_data),
         number_of_frames, sample_rate, audio_frame->speech_type_,
         audio_frame->vad_activity_, number_of_channels);
+    // TODO(bugs.webrtc.org/10739): pass absolute_capture_timestamp_ms to
+    // stream_.
     stream_->SendAudioData(std::move(audio_frame));
   }
 
@@ -1182,7 +1185,7 @@ class WebRtcVoiceMediaChannel::WebRtcAudioReceiveStream {
       return true;
     } else {
       RTC_LOG(LS_ERROR) << "Failed to SetBaseMinimumPlayoutDelayMs"
-                        << " on AudioReceiveStream on SSRC="
+                           " on AudioReceiveStream on SSRC="
                         << config_.rtp.remote_ssrc
                         << " with delay_ms=" << delay_ms;
       return false;
@@ -1352,7 +1355,8 @@ webrtc::RtpParameters WebRtcVoiceMediaChannel::GetRtpSendParameters(
   auto it = send_streams_.find(ssrc);
   if (it == send_streams_.end()) {
     RTC_LOG(LS_WARNING) << "Attempting to get RTP send parameters for stream "
-                        << "with ssrc " << ssrc << " which doesn't exist.";
+                           "with ssrc "
+                        << ssrc << " which doesn't exist.";
     return webrtc::RtpParameters();
   }
 
@@ -1372,7 +1376,8 @@ webrtc::RTCError WebRtcVoiceMediaChannel::SetRtpSendParameters(
   auto it = send_streams_.find(ssrc);
   if (it == send_streams_.end()) {
     RTC_LOG(LS_WARNING) << "Attempting to set RTP send parameters for stream "
-                        << "with ssrc " << ssrc << " which doesn't exist.";
+                           "with ssrc "
+                        << ssrc << " which doesn't exist.";
     return webrtc::RTCError(webrtc::RTCErrorType::INTERNAL_ERROR);
   }
 
@@ -1381,7 +1386,7 @@ webrtc::RTCError WebRtcVoiceMediaChannel::SetRtpSendParameters(
   webrtc::RtpParameters current_parameters = GetRtpSendParameters(ssrc);
   if (current_parameters.codecs != parameters.codecs) {
     RTC_DLOG(LS_ERROR) << "Using SetParameters to change the set of codecs "
-                       << "is not currently supported.";
+                          "is not currently supported.";
     return webrtc::RTCError(webrtc::RTCErrorType::UNSUPPORTED_PARAMETER);
   }
 
@@ -1427,7 +1432,8 @@ webrtc::RtpParameters WebRtcVoiceMediaChannel::GetRtpReceiveParameters(
   if (it == recv_streams_.end()) {
     RTC_LOG(LS_WARNING)
         << "Attempting to get RTP receive parameters for stream "
-        << "with ssrc " << ssrc << " which doesn't exist.";
+           "with ssrc "
+        << ssrc << " which doesn't exist.";
     return webrtc::RtpParameters();
   }
   rtp_params = it->second->GetRtpParameters();

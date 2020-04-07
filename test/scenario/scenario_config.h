@@ -17,20 +17,17 @@
 #include "absl/types/optional.h"
 #include "api/fec_controller.h"
 #include "api/rtp_parameters.h"
+#include "api/test/frame_generator_interface.h"
 #include "api/transport/network_control.h"
 #include "api/units/data_rate.h"
 #include "api/units/data_size.h"
 #include "api/units/time_delta.h"
 #include "api/video/video_codec_type.h"
-#include "test/frame_generator.h"
 #include "test/scenario/performance_stats.h"
 
 namespace webrtc {
 namespace test {
 struct PacketOverhead {
-  static constexpr size_t kIpv4 = 20;
-  static constexpr size_t kIpv6 = 40;
-  static constexpr size_t kUdp = 8;
   static constexpr size_t kSrtp = 10;
   static constexpr size_t kStun = 4;
   // TURN messages can be sent either with or without an establieshed channel.
@@ -38,7 +35,7 @@ struct PacketOverhead {
   // significantly more overhead.
   static constexpr size_t kTurnChannelMessage = 4;
   static constexpr size_t kTurnIndicationMessage = 36;
-  static constexpr size_t kDefault = kIpv4 + kUdp + kSrtp;
+  static constexpr size_t kDefault = kSrtp;
 };
 struct TransportControllerConfig {
   struct Rates {
@@ -103,7 +100,7 @@ struct VideoStreamConfig {
       } images;
     } slides;
     struct Generator {
-      using PixelFormat = FrameGenerator::OutputType;
+      using PixelFormat = FrameGeneratorInterface::OutputType;
       PixelFormat pixel_format = PixelFormat::kI420;
       int width = 320;
       int height = 180;

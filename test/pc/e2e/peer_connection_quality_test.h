@@ -136,6 +136,11 @@ class PeerConfigurerImpl final
     params_->audio_config = std::move(config);
     return this;
   }
+  PeerConfigurer* SetNetEqFactory(
+      std::unique_ptr<NetEqFactory> neteq_factory) override {
+    components_->pcf_dependencies->neteq_factory = std::move(neteq_factory);
+    return this;
+  }
   PeerConfigurer* SetRtcEventLogPath(std::string path) override {
     params_->rtc_event_log_path = std::move(path);
     return this;
@@ -152,6 +157,12 @@ class PeerConfigurerImpl final
   PeerConfigurer* SetBitrateParameters(
       PeerConnectionInterface::BitrateParameters bitrate_params) override {
     params_->bitrate_params = bitrate_params;
+    return this;
+  }
+
+  PeerConfigurer* SetIceTransportFactory(
+      std::unique_ptr<IceTransportFactory> factory) override {
+    components_->pc_dependencies->ice_transport_factory = std::move(factory);
     return this;
   }
 
@@ -259,7 +270,9 @@ class PeerConnectionE2EQualityTest
   //  * Generate video stream labels if some of them missed
   //  * Generate audio stream labels if some of them missed
   //  * Set video source generation mode if it is not specified
+  //  * Video codecs under test
   void SetDefaultValuesForMissingParams(
+      RunParams* run_params,
       std::vector<Params*> params,
       std::vector<std::vector<std::unique_ptr<test::FrameGeneratorInterface>>*>
           video_sources);

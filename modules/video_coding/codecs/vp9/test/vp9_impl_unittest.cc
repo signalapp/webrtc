@@ -8,6 +8,8 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#include "api/test/create_frame_generator.h"
+#include "api/test/frame_generator_interface.h"
 #include "api/video/color_space.h"
 #include "api/video/i420_buffer.h"
 #include "api/video_codecs/video_encoder.h"
@@ -112,8 +114,8 @@ class TestVp9Impl : public VideoCodecUnitTest {
 
     std::vector<SpatialLayer> layers =
         GetSvcConfig(codec_settings_.width, codec_settings_.height,
-                     codec_settings_.maxFramerate, num_spatial_layers,
-                     num_temporal_layers, false);
+                     codec_settings_.maxFramerate, /*min_spatial_layers=*/1,
+                     num_spatial_layers, num_temporal_layers, false);
     for (size_t i = 0; i < layers.size(); ++i) {
       codec_settings_.spatialLayers[i] = layers[i];
     }
@@ -1616,9 +1618,10 @@ class TestVp9ImplProfile2 : public TestVp9Impl {
       return;
 
     TestVp9Impl::SetUp();
-    input_frame_generator_ = test::FrameGenerator::CreateSquareGenerator(
+    input_frame_generator_ = test::CreateSquareFrameGenerator(
         codec_settings_.width, codec_settings_.height,
-        test::FrameGenerator::OutputType::kI010, absl::optional<int>());
+        test::FrameGeneratorInterface::OutputType::kI010,
+        absl::optional<int>());
   }
 
   std::unique_ptr<VideoEncoder> CreateEncoder() override {

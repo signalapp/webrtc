@@ -36,6 +36,7 @@ group("rtc_tools") {
         deps += [ ":event_log_visualizer" ]
       }
       deps += [
+        ":audioproc_f",
         ":rtp_analyzer",
         ":unpack_aecdump",
         "network_tester",
@@ -79,6 +80,7 @@ rtc_library("video_file_writer") {
 }
 
 rtc_library("video_quality_analysis") {
+  testonly = true
   sources = [
     "frame_analyzer/linear_least_squares.cc",
     "frame_analyzer/linear_least_squares.h",
@@ -110,9 +112,7 @@ rtc_library("video_quality_analysis") {
 rtc_executable("frame_analyzer") {
   visibility = [ "*" ]
   testonly = true
-  sources = [
-    "frame_analyzer/frame_analyzer.cc",
-  ]
+  sources = [ "frame_analyzer/frame_analyzer.cc" ]
 
   deps = [
     ":video_file_reader",
@@ -130,9 +130,7 @@ rtc_executable("frame_analyzer") {
 if (!build_with_chromium && !build_with_mozilla) {
   action("frame_analyzer_host") {
     script = "//tools_webrtc/executable_host_build.py"
-    outputs = [
-      "${root_out_dir}/frame_analyzer_host",
-    ]
+    outputs = [ "${root_out_dir}/frame_analyzer_host" ]
     args = [
       "--executable_name",
       "frame_analyzer",
@@ -153,6 +151,7 @@ if (!build_with_chromium) {
     ]
 
     deps = [
+      "../api:create_frame_generator",
       "../api:rtp_parameters",
       "../api:transport_api",
       "../api/rtc_event_log",
@@ -188,9 +187,7 @@ if (!build_with_chromium) {
 
   rtc_executable("psnr_ssim_analyzer") {
     testonly = true
-    sources = [
-      "psnr_ssim_analyzer/psnr_ssim_analyzer.cc",
-    ]
+    sources = [ "psnr_ssim_analyzer/psnr_ssim_analyzer.cc" ]
 
     deps = [
       ":video_file_reader",
@@ -205,6 +202,7 @@ if (!build_with_chromium) {
   }
 
   rtc_library("reference_less_video_analysis_lib") {
+    testonly = true
     sources = [
       "frame_analyzer/reference_less_video_analysis_lib.cc",
       "frame_analyzer/reference_less_video_analysis_lib.h",
@@ -221,9 +219,7 @@ if (!build_with_chromium) {
 
   rtc_executable("reference_less_video_analysis") {
     testonly = true
-    sources = [
-      "frame_analyzer/reference_less_video_analysis.cc",
-    ]
+    sources = [ "frame_analyzer/reference_less_video_analysis.cc" ]
 
     deps = [
       ":reference_less_video_analysis_lib",
@@ -316,10 +312,14 @@ if (rtc_include_tests) {
   if (rtc_enable_protobuf && !build_with_chromium) {
     rtc_executable("event_log_visualizer") {
       testonly = true
-      sources = [
-        "rtc_event_log_visualizer/main.cc",
+      sources = [ "rtc_event_log_visualizer/main.cc" ]
+      data = [
+        # If --wav_filename is not provided, event_log_visualizer uses
+        # EN_script2_F_sp2_B1.wav by default. This is a good default to use
+        # for example with flags --plot=all when there is no need to use a
+        # specific .wav file.
+        "../resources/audio_processing/conversational_speech/EN_script2_F_sp2_B1.wav",
       ]
-
       deps = [
         ":event_log_visualizer_utils",
         "../api/neteq:neteq_api",
@@ -354,9 +354,7 @@ if (rtc_include_tests) {
     bundle_data("tools_unittests_bundle_data") {
       testonly = true
       sources = tools_unittests_resources
-      outputs = [
-        "{{bundle_resources_dir}}/{{source_file_part}}",
-      ]
+      outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
     }
   }
 
@@ -412,6 +410,17 @@ if (rtc_include_tests) {
   }
 
   if (rtc_enable_protobuf) {
+    rtc_executable("audioproc_f") {
+      testonly = true
+      sources = [ "audioproc_f/audioproc_float_main.cc" ]
+      deps = [
+        "../api:audioproc_f_api",
+        "../modules/audio_processing",
+        "../modules/audio_processing:api",
+        "../rtc_base:rtc_base_approved",
+      ]
+    }
+
     copy("rtp_analyzer") {
       sources = [
         "py_event_log_analyzer/misc.py",
@@ -419,20 +428,14 @@ if (rtc_include_tests) {
         "py_event_log_analyzer/rtp_analyzer.py",
         "py_event_log_analyzer/rtp_analyzer.sh",
       ]
-      outputs = [
-        "$root_build_dir/{{source_file_part}}",
-      ]
-      deps = [
-        "../logging:rtc_event_log_proto",
-      ]
+      outputs = [ "$root_build_dir/{{source_file_part}}" ]
+      deps = [ "../logging:rtc_event_log_proto" ]
     }  # rtp_analyzer
 
     rtc_executable("unpack_aecdump") {
       visibility = [ "*" ]
       testonly = true
-      sources = [
-        "unpack_aecdump/unpack.cc",
-      ]
+      sources = [ "unpack_aecdump/unpack.cc" ]
 
       deps = [
         "../api:function_view",

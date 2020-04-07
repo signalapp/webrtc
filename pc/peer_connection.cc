@@ -57,7 +57,6 @@
 #include "rtc_base/logging.h"
 #include "rtc_base/string_encode.h"
 #include "rtc_base/strings/string_builder.h"
-#include "rtc_base/system/fallthrough.h"
 #include "rtc_base/trace_event.h"
 #include "system_wrappers/include/clock.h"
 #include "system_wrappers/include/field_trial.h"
@@ -894,7 +893,6 @@ bool PeerConnectionInterface::RTCConfiguration::operator==(
     absl::optional<int> ice_unwritable_min_checks;
     absl::optional<int> ice_inactive_timeout;
     absl::optional<int> stun_candidate_keepalive_interval;
-    absl::optional<rtc::IntervalRange> ice_regather_interval_range;
     webrtc::TurnCustomizer* turn_customizer;
     SdpSemantics sdp_semantics;
     absl::optional<rtc::AdapterType> network_preference;
@@ -960,7 +958,6 @@ bool PeerConnectionInterface::RTCConfiguration::operator==(
          ice_inactive_timeout == o.ice_inactive_timeout &&
          stun_candidate_keepalive_interval ==
              o.stun_candidate_keepalive_interval &&
-         ice_regather_interval_range == o.ice_regather_interval_range &&
          turn_customizer == o.turn_customizer &&
          sdp_semantics == o.sdp_semantics &&
          network_preference == o.network_preference &&
@@ -1263,7 +1260,7 @@ bool PeerConnection::Initialize(
       RTC_DCHECK(false)
           << "PeerConnecton is initialized with use_datagram_transport = true "
              "or use_datagram_transport_for_data_channels = true "
-          << "but media transport factory is not set in PeerConnectionFactory";
+             "but media transport factory is not set in PeerConnectionFactory";
       return false;
     }
 
@@ -1426,15 +1423,8 @@ bool PeerConnection::Initialize(
 
 RTCError PeerConnection::ValidateConfiguration(
     const RTCConfiguration& config) const {
-  if (config.ice_regather_interval_range &&
-      config.continual_gathering_policy == GATHER_ONCE) {
-    return RTCError(RTCErrorType::INVALID_PARAMETER,
-                    "ice_regather_interval_range specified but continual "
-                    "gathering policy is GATHER_ONCE");
-  }
-  auto result =
-      cricket::P2PTransportChannel::ValidateIceConfig(ParseIceConfig(config));
-  return result;
+  return cricket::P2PTransportChannel::ValidateIceConfig(
+      ParseIceConfig(config));
 }
 
 rtc::scoped_refptr<StreamCollectionInterface> PeerConnection::local_streams() {
@@ -5944,7 +5934,7 @@ cricket::ChannelInterface* PeerConnection::GetChannel(
 bool PeerConnection::GetSctpSslRole(rtc::SSLRole* role) {
   RTC_DCHECK_RUN_ON(signaling_thread());
   if (!local_description() || !remote_description()) {
-    RTC_LOG(LS_INFO)
+    RTC_LOG(LS_VERBOSE)
         << "Local and Remote descriptions must be applied to get the "
            "SSL Role of the SCTP transport.";
     return false;
@@ -6186,8 +6176,6 @@ cricket::IceConfig PeerConnection::ParseIceConfig(
   ice_config.ice_unwritable_min_checks = config.ice_unwritable_min_checks;
   ice_config.ice_inactive_timeout = config.ice_inactive_timeout;
   ice_config.stun_keepalive_interval = config.stun_candidate_keepalive_interval;
-  ice_config.regather_all_networks_interval_range =
-      config.ice_regather_interval_range;
   ice_config.network_preference = config.network_preference;
   return ice_config;
 }

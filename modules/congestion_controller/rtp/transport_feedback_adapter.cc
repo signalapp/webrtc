@@ -66,63 +66,31 @@ DataSize InFlightBytesTracker::GetOutstandingData(
 
 TransportFeedbackAdapter::TransportFeedbackAdapter() = default;
 
-TransportFeedbackAdapter::~TransportFeedbackAdapter() {
-  RTC_DCHECK(observers_.empty());
-}
-
-void TransportFeedbackAdapter::RegisterStreamFeedbackObserver(
-    std::vector<uint32_t> ssrcs,
-    StreamFeedbackObserver* observer) {
-  rtc::CritScope cs(&observers_lock_);
-  RTC_DCHECK(observer);
-  RTC_DCHECK(absl::c_find_if(observers_, [=](const auto& pair) {
-               return pair.second == observer;
-             }) == observers_.end());
-  observers_.push_back({ssrcs, observer});
-}
-
-void TransportFeedbackAdapter::DeRegisterStreamFeedbackObserver(
-    StreamFeedbackObserver* observer) {
-  rtc::CritScope cs(&observers_lock_);
-  RTC_DCHECK(observer);
-  const auto it = absl::c_find_if(
-      observers_, [=](const auto& pair) { return pair.second == observer; });
-  RTC_DCHECK(it != observers_.end());
-  observers_.erase(it);
-}
 
 void TransportFeedbackAdapter::AddPacket(const RtpPacketSendInfo& packet_info,
                                          size_t overhead_bytes,
                                          Timestamp creation_time) {
-  {
-    rtc::CritScope cs(&lock_);
-    PacketFeedback packet;
-    packet.creation_time = creation_time;
-    packet.sent.sequence_number =
-        seq_num_unwrapper_.Unwrap(packet_info.transport_sequence_number);
-    packet.sent.size = DataSize::bytes(packet_info.length + overhead_bytes);
-    packet.local_net_id = local_net_id_;
-    packet.remote_net_id = remote_net_id_;
-    packet.sent.pacing_info = packet_info.pacing_info;
-    if (packet_info.has_rtp_sequence_number) {
-      packet.ssrc = packet_info.ssrc;
-      packet.rtp_sequence_number = packet_info.rtp_sequence_number;
-    }
+  PacketFeedback packet;
+  packet.creation_time = creation_time;
+  packet.sent.sequence_number =
+      seq_num_unwrapper_.Unwrap(packet_info.transport_sequence_number);
+  packet.sent.size = DataSize::bytes(packet_info.length + overhead_bytes);
+  packet.local_net_id = local_net_id_;
+  packet.remote_net_id = remote_net_id_;
+  packet.sent.pacing_info = packet_info.pacing_info;
 
-    while (!history_.empty() &&
-           creation_time - history_.begin()->second.creation_time >
-               kSendTimeHistoryWindow) {
-      // TODO(sprang): Warn if erasing (too many) old items?
-      if (history_.begin()->second.sent.sequence_number > last_ack_seq_num_)
-        in_flight_.RemoveInFlightPacketBytes(history_.begin()->second);
-      history_.erase(history_.begin());
-    }
-    history_.insert(std::make_pair(packet.sent.sequence_number, packet));
+  while (!history_.empty() &&
+         creation_time - history_.begin()->second.creation_time >
+             kSendTimeHistoryWindow) {
+    // TODO(sprang): Warn if erasing (too many) old items?
+    if (history_.begin()->second.sent.sequence_number > last_ack_seq_num_)
+      in_flight_.RemoveInFlightPacketBytes(history_.begin()->second);
+    history_.erase(history_.begin());
   }
+  history_.insert(std::make_pair(packet.sent.sequence_number, packet));
 }
 absl::optional<SentPacket> TransportFeedbackAdapter::ProcessSentPacket(
     const rtc::SentPacket& sent_packet) {
-  rtc::CritScope cs(&lock_);
   auto send_time = Timestamp::ms(sent_packet.send_time_ms);
   // TODO(srte): Only use one way to indicate that packet feedback is used.
   if (sent_packet.info.included_in_feedback || sent_packet.packet_id != -1) {
@@ -168,48 +136,38 @@ TransportFeedbackAdapter::ProcessTransportFeedback(
     RTC_LOG(LS_INFO) << "Empty transport feedback packet received.";
     return absl::nullopt;
   }
-  std::vector<PacketFeedback> feedback_vector;
+
   TransportPacketsFeedback msg;
   msg.feedback_time = feedback_receive_time;
-  {
-    rtc::CritScope cs(&lock_);
-    msg.prior_in_flight =
-        in_flight_.GetOutstandingData(local_net_id_, remote_net_id_);
-    feedback_vector =
-        ProcessTransportFeedbackInner(feedback, feedback_receive_time);
-    if (feedback_vector.empty())
-      return absl::nullopt;
 
-    for (const PacketFeedback& fb : feedback_vector) {
-      PacketResult res;
-      res.sent_packet = fb.sent;
-      res.receive_time = fb.receive_time;
-      msg.packet_feedbacks.push_back(res);
-    }
-    auto it = history_.find(last_ack_seq_num_);
-    if (it != history_.end()) {
-      msg.first_unacked_send_time = it->second.sent.send_time;
-    }
-    msg.data_in_flight =
-        in_flight_.GetOutstandingData(local_net_id_, remote_net_id_);
+  msg.prior_in_flight =
+      in_flight_.GetOutstandingData(local_net_id_, remote_net_id_);
+  msg.packet_feedbacks =
+      ProcessTransportFeedbackInner(feedback, feedback_receive_time);
+  if (msg.packet_feedbacks.empty())
+    return absl::nullopt;
+
+  auto it = history_.find(last_ack_seq_num_);
+  if (it != history_.end()) {
+    msg.first_unacked_send_time = it->second.sent.send_time;
   }
-  SignalObservers(feedback_vector);
+  msg.data_in_flight =
+      in_flight_.GetOutstandingData(local_net_id_, remote_net_id_);
+
   return msg;
 }
 
 void TransportFeedbackAdapter::SetNetworkIds(uint16_t local_id,
                                              uint16_t remote_id) {
-  rtc::CritScope cs(&lock_);
   local_net_id_ = local_id;
   remote_net_id_ = remote_id;
 }
 
 DataSize TransportFeedbackAdapter::GetOutstandingData() const {
-  rtc::CritScope cs(&lock_);
   return in_flight_.GetOutstandingData(local_net_id_, remote_net_id_);
 }
 
-std::vector<PacketFeedback>
+std::vector<PacketResult>
 TransportFeedbackAdapter::ProcessTransportFeedbackInner(
     const rtcp::TransportFeedback& feedback,
     Timestamp feedback_time) {
@@ -220,13 +178,20 @@ TransportFeedbackAdapter::ProcessTransportFeedbackInner(
     current_offset_ = feedback_time;
   } else {
     // TODO(srte): We shouldn't need to do rounding here.
-    current_offset_ += feedback.GetBaseDelta(last_timestamp_)
-                           .RoundDownTo(TimeDelta::Millis<1>());
+    const TimeDelta delta = feedback.GetBaseDelta(last_timestamp_)
+                                .RoundDownTo(TimeDelta::Millis<1>());
+    // Protect against assigning current_offset_ negative value.
+    if (delta < Timestamp::Zero() - current_offset_) {
+      RTC_LOG(LS_WARNING) << "Unexpected feedback timestamp received.";
+      current_offset_ = feedback_time;
+    } else {
+      current_offset_ += delta;
+    }
   }
   last_timestamp_ = feedback.GetBaseTime();
 
-  std::vector<PacketFeedback> packet_feedback_vector;
-  packet_feedback_vector.reserve(feedback.GetPacketStatusCount());
+  std::vector<PacketResult> packet_result_vector;
+  packet_result_vector.reserve(feedback.GetPacketStatusCount());
 
   size_t failed_lookups = 0;
   size_t ignored = 0;
@@ -269,7 +234,10 @@ TransportFeedbackAdapter::ProcessTransportFeedbackInner(
     }
     if (packet_feedback.local_net_id == local_net_id_ &&
         packet_feedback.remote_net_id == remote_net_id_) {
-      packet_feedback_vector.push_back(packet_feedback);
+      PacketResult result;
+      result.sent_packet = packet_feedback.sent;
+      result.receive_time = packet_feedback.receive_time;
+      packet_result_vector.push_back(result);
     } else {
       ++ignored;
     }
@@ -285,27 +253,7 @@ TransportFeedbackAdapter::ProcessTransportFeedbackInner(
                      << " packets because they were sent on a different route.";
   }
 
-  return packet_feedback_vector;
-}
-
-void TransportFeedbackAdapter::SignalObservers(
-    const std::vector<PacketFeedback>& feedback_vector) {
-  rtc::CritScope cs(&observers_lock_);
-  for (auto& observer : observers_) {
-    std::vector<StreamFeedbackObserver::StreamPacketInfo> selected_feedback;
-    for (const auto& packet : feedback_vector) {
-      if (packet.ssrc && absl::c_count(observer.first, *packet.ssrc) > 0) {
-        StreamFeedbackObserver::StreamPacketInfo packet_info;
-        packet_info.ssrc = *packet.ssrc;
-        packet_info.rtp_sequence_number = packet.rtp_sequence_number;
-        packet_info.received = packet.receive_time.IsFinite();
-        selected_feedback.push_back(packet_info);
-      }
-    }
-    if (!selected_feedback.empty()) {
-      observer.second->OnPacketFeedbackVector(std::move(selected_feedback));
-    }
-  }
+  return packet_result_vector;
 }
 
 }  // namespace webrtc

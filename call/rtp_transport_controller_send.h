@@ -24,6 +24,7 @@
 #include "call/rtp_video_sender.h"
 #include "modules/congestion_controller/rtp/control_handler.h"
 #include "modules/congestion_controller/rtp/transport_feedback_adapter.h"
+#include "modules/congestion_controller/rtp/transport_feedback_demuxer.h"
 #include "modules/pacing/paced_sender.h"
 #include "modules/pacing/packet_router.h"
 #include "modules/pacing/rtp_packet_pacer.h"
@@ -106,6 +107,7 @@ class RtpTransportControllerSend final
       size_t transport_overhead_per_packet) override;
 
   void AccountForAudioPacketsInPacedSender(bool account_for_audio) override;
+  void IncludeOverheadInPacedSender() override;
 
   // Implements RtcpBandwidthObserver interface
   void OnReceivedEstimatedBitrate(uint32_t bitrate) override;
@@ -149,9 +151,10 @@ class RtpTransportControllerSend final
   std::unique_ptr<TaskQueuePacedSender> task_queue_pacer_;
 
   TargetTransferRateObserver* observer_ RTC_GUARDED_BY(task_queue_);
+  TransportFeedbackDemuxer feedback_demuxer_;
 
-  // TODO(srte): Move all access to feedback adapter to task queue.
-  TransportFeedbackAdapter transport_feedback_adapter_;
+  TransportFeedbackAdapter transport_feedback_adapter_
+      RTC_GUARDED_BY(task_queue_);
 
   NetworkControllerFactoryInterface* const controller_factory_override_
       RTC_PT_GUARDED_BY(task_queue_);
@@ -176,16 +179,13 @@ class RtpTransportControllerSend final
   const bool reset_feedback_on_route_change_;
   const bool send_side_bwe_with_overhead_;
   const bool add_pacing_to_cwin_;
-  // Transport overhead is written by OnNetworkRouteChanged and read by
-  // AddPacket.
-  // TODO(srte): Remove atomic when feedback adapter runs on task queue.
-  std::atomic<size_t> transport_overhead_bytes_per_packet_;
+
+  size_t transport_overhead_bytes_per_packet_ RTC_GUARDED_BY(task_queue_);
   bool network_available_ RTC_GUARDED_BY(task_queue_);
   RepeatingTaskHandle pacer_queue_update_task_ RTC_GUARDED_BY(task_queue_);
   RepeatingTaskHandle controller_task_ RTC_GUARDED_BY(task_queue_);
-  // TODO(srte): Remove this checker when feedback adapter runs on task queue.
-  rtc::RaceChecker worker_race_;
 
+  // Protected by internal locks.
   RateLimiter retransmission_rate_limiter_;
 
   // TODO(perkj): |task_queue_| is supposed to replace |process_thread_|.
