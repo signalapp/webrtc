@@ -29,6 +29,9 @@ class BasicIceGatherer : public webrtc::IceGathererInterface {
 
   PortAllocatorSession* port_allocator_session() override;
 
+  // For tests
+  PortAllocator* port_allocator() { return port_allocator_.get(); }
+
  private:
   rtc::Thread* network_thread_;
   std::unique_ptr<PortAllocator> port_allocator_;
