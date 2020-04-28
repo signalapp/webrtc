@@ -236,16 +236,46 @@ PortAllocatorSession* BasicPortAllocator::CreateSessionInternal(
 rtc::scoped_refptr<webrtc::IceGathererInterface>
 BasicPortAllocator::CreateIceGatherer(const std::string& name) {
   CheckRunOnValidThreadAndInitialized();
+  // We follow the order that PeerConnectionFactory::CreatePeerConnection
+  // + PeerConnection::InitializePortAllocator_n does:
+  // 1. Create with NetworkManager, PacketSocketFactory, and RelayPortFactory.
+  // 2. SetNetworkIgnoreMask().
+  // 3. Initialize()
+  // 4. User setters to set flags and other settings
+  // 5. SetConfiguration() to set various things.
+  // The only state this does not replicate are the follwing:
+  // - candidate_pool_size_
+  // - candidate_pool_frozen_
+  // - restrict_ice_credentials_change_
+  // These are all related to candidate pools, which aren't relevant
+  // for IceGatherers.
+
+  // 1. Create with NetworkManager, PacketSocketFactory, and RelayPortFactory.
   auto new_allocator = std::make_unique<BasicPortAllocator>(network_manager());
   new_allocator->socket_factory_ = socket_factory_;
   new_allocator->InitRelayPortFactory(relay_port_factory_);
+
+  // 2. SetNetworkIgnoreMask().
+  new_allocator->SetNetworkIgnoreMask(network_ignore_mask());
+
+  // 3. Initialize()
   new_allocator->Initialize();
+
+  // 4. User setters to set flags and other settings
+  new_allocator->set_flags(flags());
+  new_allocator->set_proxy(user_agent(), proxy());
+  new_allocator->SetPortRange(min_port(), max_port());
+  new_allocator->set_max_ipv6_networks(max_ipv6_networks());
+  new_allocator->set_step_delay(step_delay());
+  new_allocator->set_allow_tcp_listen(allow_tcp_listen());
+  new_allocator->set_candidate_filter(candidate_filter());
+  new_allocator->set_origin(origin());
+
+  // 5. SetConfiguration
   new_allocator->SetConfiguration(stun_servers(), turn_servers(),
                                   0 /* candidate_pool_size */,
                                   turn_port_prune_policy(), turn_customizer(),
                                   stun_candidate_keepalive_interval());
-  new_allocator->SetCandidateFilter(candidate_filter());
-  new_allocator->SetNetworkIgnoreMask(network_ignore_mask());
 
   IceParameters parameters =
       IceCredentialsIterator::CreateRandomIceCredentials();
@@ -254,6 +284,7 @@ BasicPortAllocator::CreateIceGatherer(const std::string& name) {
 
   return new rtc::RefCountedObject<cricket::BasicIceGatherer>(
       rtc::Thread::Current(), std::move(new_allocator), std::move(session));
+
 }
 
 void BasicPortAllocator::AddTurnServer(const RelayServerConfig& turn_server) {
