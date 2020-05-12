@@ -1236,7 +1236,14 @@ void P2PTransportChannel::AddRemoteCandidate(const Candidate& candidate) {
   }
 
   if (new_remote_candidate.address().IsUnresolvedIP()) {
-    ResolveHostnameCandidate(new_remote_candidate);
+    // Do not resolve remote candidates because doing so causes a connection to a DNS
+    // server which can leak the local agent's public IP address to the DNS server.
+    // ResolveHostnameCandidate(new_remote_candidate);
+
+    // Do not process the ICE candidate further because TCPPort may still attempt
+    // a resolution of DNS hostnames later on for TCP candidates, despite
+    // the fact that we didn't resolve the hostname above, which could also
+    // leak the local agent's IP address to the DNS server.
     return;
   }
 
