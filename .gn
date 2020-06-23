@@ -60,9 +60,9 @@ default_args = {
   # component builds.
   is_component_build = false
 
-  mac_sdk_min = "10.12"
+  mac_sdk_min = "10.12.1"
 
-  ios_deployment_target = "10.0"
+  ios_deployment_target = "11.0"
 
   # The SDK API level, in contrast, is set by build/android/AndroidManifest.xml.
   android32_ndk_api_level = 16
