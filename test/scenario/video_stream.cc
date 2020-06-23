@@ -13,6 +13,7 @@
 #include <memory>
 #include <utility>
 
+#include "absl/strings/match.h"
 #include "api/test/create_frame_generator.h"
 #include "api/test/frame_generator_interface.h"
 #include "api/test/video/function_video_encoder_factory.h"
@@ -112,7 +113,7 @@ std::string TransformFilePath(std::string path) {
   int ext_pos = path.rfind(".");
   if (ext_pos < 0) {
     return test::ResourcePath(path, "yuv");
-  } else if (path.find(resource_prefix) == 0) {
+  } else if (absl::StartsWith(path, resource_prefix)) {
     std::string name = path.substr(resource_prefix.length(), ext_pos);
     std::string ext = path.substr(ext_pos, path.size());
     return test::ResourcePath(name, ext);
@@ -256,7 +257,8 @@ VideoEncoderConfig CreateVideoEncoderConfig(VideoStreamConfig config) {
 
   // TODO(srte): Base this on encoder capabilities.
   encoder_config.max_bitrate_bps =
-      config.encoder.max_data_rate.value_or(DataRate::kbps(10000)).bps();
+      config.encoder.max_data_rate.value_or(DataRate::KilobitsPerSec(10000))
+          .bps();
 
   encoder_config.encoder_specific_settings =
       CreateEncoderSpecificSettings(config);
@@ -374,7 +376,7 @@ SendVideoStream::SendVideoStream(CallClient* sender,
             rtc::CritScope cs(&crit_);
             std::unique_ptr<FakeEncoder> encoder;
             if (config_.encoder.codec == Codec::kVideoCodecVP8) {
-              encoder = std::make_unique<test::FakeVP8Encoder>(sender_->clock_);
+              encoder = std::make_unique<test::FakeVp8Encoder>(sender_->clock_);
             } else if (config_.encoder.codec == Codec::kVideoCodecGeneric) {
               encoder = std::make_unique<test::FakeEncoder>(sender_->clock_);
             } else {
@@ -614,7 +616,7 @@ VideoReceiveStream::Stats ReceiveVideoStream::GetStats() const {
   if (receive_streams_.empty())
     return VideoReceiveStream::Stats();
   // TODO(srte): Handle multiple receive streams.
-  return receive_streams_.front()->GetStats();
+  return receive_streams_.back()->GetStats();
 }
 
 VideoStreamPair::~VideoStreamPair() = default;

@@ -17,26 +17,24 @@
 
 namespace webrtc {
 
-// Fake resource used for testing. ResourceUsageState is controlled with a
-// setter. The arbitrarily chosen unit of measurement is percentage, with the
-// following current usage reported based on the current usage: kOveruse = 120%,
-// kStable = 80% and kUnderuse = 40%.
+// Fake resource used for testing.
 class FakeResource : public Resource {
  public:
-  FakeResource(std::string name, ResourceUsageState usage);
-  explicit FakeResource(ResourceUsageState usage);
+  explicit FakeResource(ResourceUsageState usage_state);
+  FakeResource(ResourceUsageState usage_state, const std::string& name);
   ~FakeResource() override;
 
-  void set_usage(ResourceUsageState usage);
+  void set_usage_state(ResourceUsageState usage_state);
 
-  std::string Name() const override;
-  std::string UsageUnitsOfMeasurement() const override;
-  double CurrentUsage() const override;
-  ResourceUsageState CurrentUsageState() const override;
+  absl::optional<ResourceListenerResponse> last_response() const {
+    return last_response_;
+  }
+
+  std::string name() const override { return name_; }
 
  private:
-  std::string name_;
-  ResourceUsageState usage_;
+  absl::optional<ResourceListenerResponse> last_response_;
+  const std::string name_;
 };
 
 }  // namespace webrtc

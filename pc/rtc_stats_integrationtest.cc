@@ -445,8 +445,14 @@ class RTCStatsReportVerifier {
     verifier.TestMemberIsDefined(codec.payload_type);
     verifier.TestMemberIsDefined(codec.mime_type);
     verifier.TestMemberIsPositive<uint32_t>(codec.clock_rate);
-    verifier.TestMemberIsUndefined(codec.channels);
-    verifier.TestMemberIsUndefined(codec.sdp_fmtp_line);
+
+    if (codec.mime_type->rfind("audio", 0) == 0)
+      verifier.TestMemberIsPositive<uint32_t>(codec.channels);
+    else
+      verifier.TestMemberIsUndefined(codec.channels);
+
+    // sdp_fmtp_line is an optional field.
+    verifier.MarkMemberTested(codec.sdp_fmtp_line, true);
     return verifier.ExpectAllMembersSuccessfullyTested();
   }
 
@@ -644,6 +650,8 @@ class RTCStatsReportVerifier {
       verifier.TestMemberIsUndefined(media_stream_track.interruption_count);
       verifier.TestMemberIsUndefined(
           media_stream_track.total_interruption_duration);
+      verifier.TestMemberIsUndefined(
+          media_stream_track.jitter_buffer_target_delay);
     } else {
       RTC_DCHECK_EQ(*media_stream_track.kind, RTCMediaStreamTrackKind::kAudio);
       // The type of the referenced media source depends on kind.
@@ -654,6 +662,8 @@ class RTCStatsReportVerifier {
             media_stream_track.jitter_buffer_delay);
         verifier.TestMemberIsNonNegative<uint64_t>(
             media_stream_track.jitter_buffer_emitted_count);
+        verifier.TestMemberIsNonNegative<double>(
+            media_stream_track.jitter_buffer_target_delay);
         verifier.TestMemberIsPositive<double>(media_stream_track.audio_level);
         verifier.TestMemberIsPositive<double>(
             media_stream_track.total_audio_energy);
@@ -688,6 +698,8 @@ class RTCStatsReportVerifier {
         verifier.TestMemberIsUndefined(media_stream_track.jitter_buffer_delay);
         verifier.TestMemberIsUndefined(
             media_stream_track.jitter_buffer_emitted_count);
+        verifier.TestMemberIsUndefined(
+            media_stream_track.jitter_buffer_target_delay);
         verifier.TestMemberIsUndefined(media_stream_track.audio_level);
         verifier.TestMemberIsUndefined(media_stream_track.total_audio_energy);
         verifier.TestMemberIsUndefined(

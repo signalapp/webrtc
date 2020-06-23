@@ -66,14 +66,6 @@ class AudioCodingModuleImpl final : public AudioCodingModule {
   int SetPacketLossRate(int loss_rate) override;
 
   /////////////////////////////////////////
-  //   (VAD) Voice Activity Detection
-  //   and
-  //   (CNG) Comfort Noise Generation
-  //
-
-  int RegisterVADCallback(ACMVADCallback* vad_callback) override;
-
-  /////////////////////////////////////////
   //   Receiver
   //
 
@@ -111,7 +103,6 @@ class AudioCodingModuleImpl final : public AudioCodingModule {
     // If a re-mix is required (up or down), this buffer will store a re-mixed
     // version of the input.
     std::vector<int16_t> buffer;
-    int64_t absolute_capture_timestamp_ms;
   };
 
   InputData input_data_ RTC_GUARDED_BY(acm_crit_sect_);
@@ -134,7 +125,11 @@ class AudioCodingModuleImpl final : public AudioCodingModule {
 
   int Add10MsDataInternal(const AudioFrame& audio_frame, InputData* input_data)
       RTC_EXCLUSIVE_LOCKS_REQUIRED(acm_crit_sect_);
-  int Encode(const InputData& input_data)
+
+  // TODO(bugs.webrtc.org/10739): change |absolute_capture_timestamp_ms| to
+  // int64_t when it always receives a valid value.
+  int Encode(const InputData& input_data,
+             absl::optional<int64_t> absolute_capture_timestamp_ms)
       RTC_EXCLUSIVE_LOCKS_REQUIRED(acm_crit_sect_);
 
   int InitializeReceiverSafe() RTC_EXCLUSIVE_LOCKS_REQUIRED(acm_crit_sect_);
@@ -187,7 +182,6 @@ class AudioCodingModuleImpl final : public AudioCodingModule {
   rtc::CriticalSection callback_crit_sect_;
   AudioPacketizationCallback* packetization_callback_
       RTC_GUARDED_BY(callback_crit_sect_);
-  ACMVADCallback* vad_callback_ RTC_GUARDED_BY(callback_crit_sect_);
 
   int codec_histogram_bins_log_[static_cast<size_t>(
       AudioEncoder::CodecType::kMaxLoggedAudioCodecTypes)];
@@ -222,7 +216,6 @@ AudioCodingModuleImpl::AudioCodingModuleImpl(
       first_10ms_data_(false),
       first_frame_(true),
       packetization_callback_(NULL),
-      vad_callback_(NULL),
       codec_histogram_bins_log_(),
       number_of_consecutive_empty_packets_(0) {
   if (InitializeReceiverSafe() < 0) {
@@ -233,7 +226,11 @@ AudioCodingModuleImpl::AudioCodingModuleImpl(
 
 AudioCodingModuleImpl::~AudioCodingModuleImpl() = default;
 
-int32_t AudioCodingModuleImpl::Encode(const InputData& input_data) {
+int32_t AudioCodingModuleImpl::Encode(
+    const InputData& input_data,
+    absl::optional<int64_t> absolute_capture_timestamp_ms) {
+  // TODO(bugs.webrtc.org/10739): add dcheck that
+  // |audio_frame.absolute_capture_timestamp_ms()| always has a value.
   AudioEncoder::EncodedInfo encoded_info;
   uint8_t previous_pltype;
 
@@ -306,12 +303,7 @@ int32_t AudioCodingModuleImpl::Encode(const InputData& input_data) {
       packetization_callback_->SendData(
           frame_type, encoded_info.payload_type, encoded_info.encoded_timestamp,
           encode_buffer_.data(), encode_buffer_.size(),
-          input_data.absolute_capture_timestamp_ms);
-    }
-
-    if (vad_callback_) {
-      // Callback with VAD decision.
-      vad_callback_->InFrameType(frame_type);
+          absolute_capture_timestamp_ms.value_or(-1));
     }
   }
   previous_pltype_ = encoded_info.payload_type;
@@ -341,7 +333,11 @@ int AudioCodingModuleImpl::RegisterTransportCallback(
 int AudioCodingModuleImpl::Add10MsData(const AudioFrame& audio_frame) {
   rtc::CritScope lock(&acm_crit_sect_);
   int r = Add10MsDataInternal(audio_frame, &input_data_);
-  return r < 0 ? r : Encode(input_data_);
+  // TODO(bugs.webrtc.org/10739): add dcheck that
+  // |audio_frame.absolute_capture_timestamp_ms()| always has a value.
+  return r < 0
+             ? r
+             : Encode(input_data_, audio_frame.absolute_capture_timestamp_ms());
 }
 
 int AudioCodingModuleImpl::Add10MsDataInternal(const AudioFrame& audio_frame,
@@ -396,9 +392,6 @@ int AudioCodingModuleImpl::Add10MsDataInternal(const AudioFrame& audio_frame,
   input_data->input_timestamp = ptr_frame->timestamp_;
   input_data->length_per_channel = ptr_frame->samples_per_channel_;
   input_data->audio_channel = current_num_channels;
-  // TODO(bugs.webrtc.org/10739): Assign from a corresponding field in
-  // audio_frame when it is added in AudioFrame.
-  input_data->absolute_capture_timestamp_ms = 0;
 
   if (!same_num_channels) {
     // Remixes the input frame to the output data and in the process resize the
@@ -592,13 +585,6 @@ int AudioCodingModuleImpl::PlayoutData10Ms(int desired_freq_hz,
 // NetEq function.
 int AudioCodingModuleImpl::GetNetworkStatistics(NetworkStatistics* statistics) {
   receiver_.GetNetworkStatistics(statistics);
-  return 0;
-}
-
-int AudioCodingModuleImpl::RegisterVADCallback(ACMVADCallback* vad_callback) {
-  RTC_LOG(LS_VERBOSE) << "RegisterVADCallback()";
-  rtc::CritScope lock(&callback_crit_sect_);
-  vad_callback_ = vad_callback;
   return 0;
 }
 

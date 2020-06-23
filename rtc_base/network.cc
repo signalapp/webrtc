@@ -11,15 +11,7 @@
 #include "rtc_base/network.h"
 
 #if defined(WEBRTC_POSIX)
-// linux/if.h can't be included at the same time as the posix sys/if.h, and
-// it's transitively required by linux/route.h, so include that version on
-// linux instead of the standard posix one.
-#if defined(WEBRTC_LINUX)
-#include <linux/if.h>
-#include <linux/route.h>
-#elif !defined(__native_client__)
 #include <net/if.h>
-#endif
 #endif  // WEBRTC_POSIX
 
 #if defined(WEBRTC_WIN)
@@ -29,8 +21,6 @@
 #elif !defined(__native_client__)
 #include "rtc_base/ifaddrs_converter.h"
 #endif
-
-#include <stdio.h>
 
 #include <memory>
 
@@ -95,29 +85,9 @@ bool SortNetworks(const Network* a, const Network* b) {
   return a->key() < b->key();
 }
 
-std::string AdapterTypeToString(AdapterType type) {
-  switch (type) {
-    case ADAPTER_TYPE_ANY:
-      return "Wildcard";
-    case ADAPTER_TYPE_UNKNOWN:
-      return "Unknown";
-    case ADAPTER_TYPE_ETHERNET:
-      return "Ethernet";
-    case ADAPTER_TYPE_WIFI:
-      return "Wifi";
-    case ADAPTER_TYPE_CELLULAR:
-      return "Cellular";
-    case ADAPTER_TYPE_VPN:
-      return "VPN";
-    case ADAPTER_TYPE_LOOPBACK:
-      return "Loopback";
-    default:
-      RTC_NOTREACHED() << "Invalid type " << type;
-      return std::string();
-  }
-}
-
 uint16_t ComputeNetworkCostByType(int type) {
+  // TODO(jonaso) : Rollout support for cellular network cost using A/B
+  // experiment to make sure it does not introduce regressions.
   switch (type) {
     case rtc::ADAPTER_TYPE_ETHERNET:
     case rtc::ADAPTER_TYPE_LOOPBACK:
@@ -125,7 +95,11 @@ uint16_t ComputeNetworkCostByType(int type) {
     case rtc::ADAPTER_TYPE_WIFI:
       return kNetworkCostLow;
     case rtc::ADAPTER_TYPE_CELLULAR:
-      return kNetworkCostHigh;
+    case rtc::ADAPTER_TYPE_CELLULAR_2G:
+    case rtc::ADAPTER_TYPE_CELLULAR_3G:
+    case rtc::ADAPTER_TYPE_CELLULAR_4G:
+    case rtc::ADAPTER_TYPE_CELLULAR_5G:
+      return kNetworkCostCellular;
     case rtc::ADAPTER_TYPE_ANY:
       // Candidates gathered from the any-address/wildcard ports, as backups,
       // are given the maximum cost so that if there are other candidates with
@@ -472,10 +446,7 @@ Network* NetworkManagerBase::GetNetworkFromAddress(
 }
 
 BasicNetworkManager::BasicNetworkManager()
-    : thread_(nullptr),
-      sent_first_update_(false),
-      start_count_(0),
-      ignore_non_default_routes_(false) {}
+    : thread_(nullptr), sent_first_update_(false), start_count_(0) {}
 
 BasicNetworkManager::~BasicNetworkManager() {}
 
@@ -767,33 +738,6 @@ bool BasicNetworkManager::CreateNetworks(bool include_ignored,
 }
 #endif  // WEBRTC_WIN
 
-#if defined(WEBRTC_LINUX)
-bool IsDefaultRoute(const std::string& network_name) {
-  FILE* f = fopen("/proc/net/route", "r");
-  if (!f) {
-    RTC_LOG(LS_WARNING)
-        << "Couldn't read /proc/net/route, skipping default "
-           "route check (assuming everything is a default route).";
-    return true;
-  }
-  bool is_default_route = false;
-  char line[500];
-  while (fgets(line, sizeof(line), f)) {
-    char iface_name[256];
-    unsigned int iface_ip, iface_gw, iface_mask, iface_flags;
-    if (sscanf(line, "%255s %8X %8X %4X %*d %*u %*d %8X", iface_name, &iface_ip,
-               &iface_gw, &iface_flags, &iface_mask) == 5 &&
-        network_name == iface_name && iface_mask == 0 &&
-        (iface_flags & (RTF_UP | RTF_HOST)) == RTF_UP) {
-      is_default_route = true;
-      break;
-    }
-  }
-  fclose(f);
-  return is_default_route;
-}
-#endif
-
 bool BasicNetworkManager::IsIgnoredNetwork(const Network& network) const {
   // Ignore networks on the explicit ignore list.
   for (const std::string& ignored_name : network_ignore_list_) {
@@ -810,12 +754,6 @@ bool BasicNetworkManager::IsIgnoredNetwork(const Network& network) const {
       strncmp(network.name().c_str(), "vboxnet", 7) == 0) {
     return true;
   }
-#if defined(WEBRTC_LINUX)
-  // Make sure this is a default route, if we're ignoring non-defaults.
-  if (ignore_non_default_routes_ && !IsDefaultRoute(network.name())) {
-    return true;
-  }
-#endif
 #elif defined(WEBRTC_WIN)
   // Ignore any HOST side vmware adapters with a description like:
   // VMware Virtual Ethernet Adapter for VMnet1

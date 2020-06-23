@@ -81,6 +81,17 @@ class PeerConnectionDelegateAdapter : public PeerConnectionObserver {
                        observer:(void *)observer
         NS_DESIGNATED_INITIALIZER;
 
+/** Initialize an RTCPeerConnection with a configuration, constraints,
+ *  delegate and PeerConnectionDependencies.
+ */
+- (instancetype)initWithDependencies:(RTCPeerConnectionFactory *)factory
+                       configuration:(RTCConfiguration *)configuration
+                         constraints:(RTCMediaConstraints *)constraints
+                        dependencies:
+                            (std::unique_ptr<webrtc::PeerConnectionDependencies>)dependencies
+                            delegate:(nullable id<RTCPeerConnectionDelegate>)delegate
+    NS_DESIGNATED_INITIALIZER;
+
 + (webrtc::PeerConnectionInterface::SignalingState)nativeSignalingStateForState:
         (RTCSignalingState)state;
 

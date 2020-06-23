@@ -32,6 +32,7 @@ rtc_library("call_interfaces") {
     ":rtp_interfaces",
     ":video_stream_api",
     "../api:fec_controller_api",
+    "../api:frame_transformer_interface",
     "../api:network_state_predictor_api",
     "../api:rtc_error",
     "../api:rtp_headers",
@@ -89,6 +90,7 @@ rtc_library("rtp_interfaces") {
   deps = [
     "../api:array_view",
     "../api:fec_controller_api",
+    "../api:frame_transformer_interface",
     "../api:rtp_headers",
     "../api:rtp_parameters",
     "../api/crypto:options",
@@ -96,7 +98,9 @@ rtc_library("rtp_interfaces") {
     "../api/transport:bitrate_settings",
     "../api/units:timestamp",
     "../modules/rtp_rtcp:rtp_rtcp_format",
+    "../rtc_base:checks",
     "../rtc_base:rtc_base_approved",
+    "//third_party/abseil-cpp/absl/algorithm:container",
     "//third_party/abseil-cpp/absl/types:optional",
   ]
 }
@@ -167,6 +171,7 @@ rtc_library("rtp_sender") {
     "../modules/rtp_rtcp:rtp_video_header",
     "../modules/utility",
     "../modules/video_coding:codec_globals_headers",
+    "../modules/video_coding:frame_dependencies_calculator",
     "../modules/video_coding:video_codec_interface",
     "../rtc_base",
     "../rtc_base:checks",
@@ -194,6 +199,7 @@ rtc_library("bitrate_configurator") {
     # For api/bitrate_constraints.h
     "../api:libjingle_peerconnection_api",
     "../api/transport:bitrate_settings",
+    "../api/units:data_rate",
     "../rtc_base:checks",
     "../rtc_base:rtc_base_approved",
     "//third_party/abseil-cpp/absl/types:optional",
@@ -292,6 +298,7 @@ rtc_library("video_stream_api") {
   ]
   deps = [
     ":rtp_interfaces",
+    "../api:frame_transformer_interface",
     "../api:rtp_headers",
     "../api:rtp_parameters",
     "../api:transport_api",
@@ -422,6 +429,7 @@ if (rtc_include_tests) {
       "../test:encoder_settings",
       "../test:fake_video_codecs",
       "../test:field_trial",
+      "../test:mock_transport",
       "../test:test_common",
       "../test:test_support",
       "../test:video_test_common",
@@ -499,6 +507,7 @@ if (rtc_include_tests) {
     ]
     deps = [
       ":rtp_interfaces",
+      "../api:frame_transformer_interface",
       "../api:libjingle_peerconnection_api",
       "../api/crypto:frame_encryptor_interface",
       "../api/crypto:options",

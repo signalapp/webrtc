@@ -17,6 +17,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/match.h"
 #include "api/test/create_frame_generator.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/critical_section.h"
@@ -34,7 +35,7 @@ std::string TransformFilePath(std::string path) {
   int ext_pos = path.rfind(".");
   if (ext_pos < 0) {
     return test::ResourcePath(path, "yuv");
-  } else if (path.find(resource_prefix) == 0) {
+  } else if (absl::StartsWith(path, resource_prefix)) {
     std::string name = path.substr(resource_prefix.length(), ext_pos);
     std::string ext = path.substr(ext_pos, path.size());
     return test::ResourcePath(name, ext);
@@ -167,9 +168,9 @@ bool FrameGeneratorCapturer::Init() {
 
   frame_task_ = RepeatingTaskHandle::DelayedStart(
       task_queue_.Get(),
-      TimeDelta::seconds(1) / GetCurrentConfiguredFramerate(), [this] {
+      TimeDelta::Seconds(1) / GetCurrentConfiguredFramerate(), [this] {
         InsertFrame();
-        return TimeDelta::seconds(1) / GetCurrentConfiguredFramerate();
+        return TimeDelta::Seconds(1) / GetCurrentConfiguredFramerate();
       });
   return true;
 }
@@ -210,7 +211,7 @@ void FrameGeneratorCapturer::Start() {
   if (!frame_task_.Running()) {
     frame_task_ = RepeatingTaskHandle::Start(task_queue_.Get(), [this] {
       InsertFrame();
-      return TimeDelta::seconds(1) / GetCurrentConfiguredFramerate();
+      return TimeDelta::Seconds(1) / GetCurrentConfiguredFramerate();
     });
   }
 }

@@ -28,7 +28,9 @@ class FunctionVideoDecoderFactory final : public VideoDecoderFactory {
  public:
   explicit FunctionVideoDecoderFactory(
       std::function<std::unique_ptr<VideoDecoder>()> create)
-      : create_([create](const SdpVideoFormat&) { return create(); }) {}
+      : create_([create = std::move(create)](const SdpVideoFormat&) {
+          return create();
+        }) {}
   explicit FunctionVideoDecoderFactory(
       std::function<std::unique_ptr<VideoDecoder>(const SdpVideoFormat&)>
           create)
@@ -36,8 +38,10 @@ class FunctionVideoDecoderFactory final : public VideoDecoderFactory {
   FunctionVideoDecoderFactory(
       std::function<std::unique_ptr<VideoDecoder>()> create,
       std::vector<SdpVideoFormat> sdp_video_formats)
-      : create_([create](const SdpVideoFormat&) { return create(); }),
-        sdp_video_formats_(sdp_video_formats) {}
+      : create_([create = std::move(create)](const SdpVideoFormat&) {
+          return create();
+        }),
+        sdp_video_formats_(std::move(sdp_video_formats)) {}
 
   std::vector<SdpVideoFormat> GetSupportedFormats() const override {
     return sdp_video_formats_;

@@ -21,6 +21,7 @@
 #include "api/call/transport.h"
 #include "api/crypto/frame_encryptor_interface.h"
 #include "api/rtc_event_log/rtc_event_log.h"
+#include "audio/channel_send_frame_transformer_delegate.h"
 #include "audio/utility/audio_frame_operations.h"
 #include "call/rtp_transport_controller_send_interface.h"
 #include "logging/rtc_event_log/events/rtc_event_audio_playout.h"
@@ -76,7 +77,8 @@ class ChannelSend : public ChannelSendInterface,
               const webrtc::CryptoOptions& crypto_options,
               bool extmap_allow_mixed,
               int rtcp_report_interval_ms,
-              uint32_t ssrc);
+              uint32_t ssrc,
+              rtc::scoped_refptr<FrameTransformerInterface> frame_transformer);
 
   ~ChannelSend() override;
 
@@ -142,6 +144,12 @@ class ChannelSend : public ChannelSendInterface,
   void SetFrameEncryptor(
       rtc::scoped_refptr<FrameEncryptorInterface> frame_encryptor) override;
 
+  // Sets a frame transformer between encoder and packetizer, to transform
+  // encoded frames before sending them out the network.
+  void SetEncoderToPacketizerFrameTransformer(
+      rtc::scoped_refptr<webrtc::FrameTransformerInterface> frame_transformer)
+      override;
+
  private:
   // From AudioPacketizationCallback in the ACM
   int32_t SendData(AudioFrameType frameType,
@@ -162,6 +170,9 @@ class ChannelSend : public ChannelSendInterface,
       RTC_RUN_ON(encoder_queue_);
 
   void OnReceivedRtt(int64_t rtt_ms);
+
+  void InitFrameTransformerDelegate(
+      rtc::scoped_refptr<webrtc::FrameTransformerInterface> frame_transformer);
 
   // Thread checkers document and lock usage of some methods on voe::Channel to
   // specific threads we know about. The goal is to eventually split up
@@ -216,6 +227,12 @@ class ChannelSend : public ChannelSendInterface,
       RTC_GUARDED_BY(encoder_queue_);
   // E2EE Frame Encryption Options
   const webrtc::CryptoOptions crypto_options_;
+
+  // Delegates calls to a frame transformer to transform audio, and
+  // receives callbacks with the transformed frames; delegates calls to
+  // ChannelSend::SendRtpAudio to send the transformed audio.
+  rtc::scoped_refptr<ChannelSendFrameTransformerDelegate>
+      frame_transformer_delegate_ RTC_GUARDED_BY(encoder_queue_);
 
   rtc::CriticalSection bitrate_crit_section_;
   int configured_bitrate_bps_ RTC_GUARDED_BY(bitrate_crit_section_) = 0;
@@ -368,6 +385,15 @@ int32_t ChannelSend::SendData(AudioFrameType frameType,
                               int64_t absolute_capture_timestamp_ms) {
   RTC_DCHECK_RUN_ON(&encoder_queue_);
   rtc::ArrayView<const uint8_t> payload(payloadData, payloadSize);
+  if (frame_transformer_delegate_) {
+    // Asynchronously transform the payload before sending it. After the payload
+    // is transformed, the delegate will call SendRtpAudio to send it.
+    frame_transformer_delegate_->Transform(
+        frameType, payloadType, rtp_timestamp, _rtpRtcpModule->StartTimestamp(),
+        payloadData, payloadSize, absolute_capture_timestamp_ms,
+        _rtpRtcpModule->SSRC());
+    return 0;
+  }
   return SendRtpAudio(frameType, payloadType, rtp_timestamp, payload,
                       absolute_capture_timestamp_ms);
 }
@@ -452,18 +478,20 @@ int32_t ChannelSend::SendRtpAudio(AudioFrameType frameType,
   return 0;
 }
 
-ChannelSend::ChannelSend(Clock* clock,
-                         TaskQueueFactory* task_queue_factory,
-                         ProcessThread* module_process_thread,
-                         OverheadObserver* overhead_observer,
-                         Transport* rtp_transport,
-                         RtcpRttStats* rtcp_rtt_stats,
-                         RtcEventLog* rtc_event_log,
-                         FrameEncryptorInterface* frame_encryptor,
-                         const webrtc::CryptoOptions& crypto_options,
-                         bool extmap_allow_mixed,
-                         int rtcp_report_interval_ms,
-                         uint32_t ssrc)
+ChannelSend::ChannelSend(
+    Clock* clock,
+    TaskQueueFactory* task_queue_factory,
+    ProcessThread* module_process_thread,
+    OverheadObserver* overhead_observer,
+    Transport* rtp_transport,
+    RtcpRttStats* rtcp_rtt_stats,
+    RtcEventLog* rtc_event_log,
+    FrameEncryptorInterface* frame_encryptor,
+    const webrtc::CryptoOptions& crypto_options,
+    bool extmap_allow_mixed,
+    int rtcp_report_interval_ms,
+    uint32_t ssrc,
+    rtc::scoped_refptr<FrameTransformerInterface> frame_transformer)
     : event_log_(rtc_event_log),
       _timeStamp(0),  // This is just an offset, RTP module will add it's own
                       // random offset
@@ -518,10 +546,16 @@ ChannelSend::ChannelSend(Clock* clock,
 
   int error = audio_coding_->RegisterTransportCallback(this);
   RTC_DCHECK_EQ(0, error);
+  if (frame_transformer)
+    InitFrameTransformerDelegate(std::move(frame_transformer));
 }
 
 ChannelSend::~ChannelSend() {
   RTC_DCHECK(construction_thread_.IsCurrent());
+
+  // Resets the delegate's callback to ChannelSend::SendRtpAudio.
+  if (frame_transformer_delegate_)
+    frame_transformer_delegate_->Reset();
 
   StopSend();
   int error = audio_coding_->RegisterTransportCallback(NULL);
@@ -898,10 +932,46 @@ void ChannelSend::SetFrameEncryptor(
   });
 }
 
+void ChannelSend::SetEncoderToPacketizerFrameTransformer(
+    rtc::scoped_refptr<webrtc::FrameTransformerInterface> frame_transformer) {
+  RTC_DCHECK_RUN_ON(&worker_thread_checker_);
+  if (!frame_transformer)
+    return;
+
+  encoder_queue_.PostTask(
+      [this, frame_transformer = std::move(frame_transformer)]() mutable {
+        RTC_DCHECK_RUN_ON(&encoder_queue_);
+        InitFrameTransformerDelegate(std::move(frame_transformer));
+      });
+}
+
 void ChannelSend::OnReceivedRtt(int64_t rtt_ms) {
   // Invoke audio encoders OnReceivedRtt().
   CallEncoder(
       [rtt_ms](AudioEncoder* encoder) { encoder->OnReceivedRtt(rtt_ms); });
+}
+
+void ChannelSend::InitFrameTransformerDelegate(
+    rtc::scoped_refptr<webrtc::FrameTransformerInterface> frame_transformer) {
+  RTC_DCHECK_RUN_ON(&encoder_queue_);
+  RTC_DCHECK(frame_transformer);
+  RTC_DCHECK(!frame_transformer_delegate_);
+
+  // Pass a callback to ChannelSend::SendRtpAudio, to be called by the delegate
+  // to send the transformed audio.
+  ChannelSendFrameTransformerDelegate::SendFrameCallback send_audio_callback =
+      [this](AudioFrameType frameType, uint8_t payloadType,
+             uint32_t rtp_timestamp, rtc::ArrayView<const uint8_t> payload,
+             int64_t absolute_capture_timestamp_ms) {
+        RTC_DCHECK_RUN_ON(&encoder_queue_);
+        return SendRtpAudio(frameType, payloadType, rtp_timestamp, payload,
+                            absolute_capture_timestamp_ms);
+      };
+  frame_transformer_delegate_ =
+      new rtc::RefCountedObject<ChannelSendFrameTransformerDelegate>(
+          std::move(send_audio_callback), std::move(frame_transformer),
+          &encoder_queue_);
+  frame_transformer_delegate_->Init();
 }
 
 }  // namespace
@@ -918,11 +988,13 @@ std::unique_ptr<ChannelSendInterface> CreateChannelSend(
     const webrtc::CryptoOptions& crypto_options,
     bool extmap_allow_mixed,
     int rtcp_report_interval_ms,
-    uint32_t ssrc) {
+    uint32_t ssrc,
+    rtc::scoped_refptr<FrameTransformerInterface> frame_transformer) {
   return std::make_unique<ChannelSend>(
       clock, task_queue_factory, module_process_thread, overhead_observer,
       rtp_transport, rtcp_rtt_stats, rtc_event_log, frame_encryptor,
-      crypto_options, extmap_allow_mixed, rtcp_report_interval_ms, ssrc);
+      crypto_options, extmap_allow_mixed, rtcp_report_interval_ms, ssrc,
+      std::move(frame_transformer));
 }
 
 }  // namespace voe

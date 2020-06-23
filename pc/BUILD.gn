@@ -231,6 +231,7 @@ rtc_library("peerconnection") {
     "../api:audio_options_api",
     "../api:call_api",
     "../api:fec_controller_api",
+    "../api:frame_transformer_interface",
     "../api:ice_transport_factory",
     "../api:libjingle_peerconnection_api",
     "../api:media_stream_interface",
@@ -359,6 +360,7 @@ if (rtc_include_tests) {
       "../test:test_support",
       "//third_party/abseil-cpp/absl/algorithm:container",
       "//third_party/abseil-cpp/absl/memory",
+      "//third_party/abseil-cpp/absl/strings",
     ]
 
     if (rtc_build_libsrtp) {
@@ -518,6 +520,7 @@ if (rtc_include_tests) {
       "peer_connection_data_channel_unittest.cc",
       "peer_connection_end_to_end_unittest.cc",
       "peer_connection_factory_unittest.cc",
+      "peer_connection_header_extension_unittest.cc",
       "peer_connection_histogram_unittest.cc",
       "peer_connection_ice_unittest.cc",
       "peer_connection_integrationtest.cc",
@@ -597,6 +600,7 @@ if (rtc_include_tests) {
       "../test:field_trial",
       "../test:fileutils",
       "../test:rtp_test_utils",
+      "./scenario_tests:pc_scenario_tests",
       "//third_party/abseil-cpp/absl/algorithm:container",
       "//third_party/abseil-cpp/absl/memory",
       "//third_party/abseil-cpp/absl/strings",
@@ -624,7 +628,8 @@ if (rtc_include_tests) {
       "../api/video_codecs:video_codecs_api",
       "../call:call_interfaces",
       "../media:rtc_audio_video",
-      "../media:rtc_data",  # TODO(phoglund): AFAIK only used for one sctp constant.
+      "../media:rtc_data",  # TODO(phoglund): AFAIK only used for one sctp
+                            # constant.
       "../media:rtc_media_base",
       "../media:rtc_media_tests_utils",
       "../modules/audio_processing",

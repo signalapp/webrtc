@@ -69,9 +69,9 @@ const std::pair<int, SdpAudioFormat> kReceiveCodec = {
     123,
     {"codec_name_recv", 96000, 0}};
 const NetworkStatistics kNetworkStats = {
-    123, 456, false, 789012, 3456, 123, 456, 789, 543, 432,
-    321, 123, 101,   0,      {},   789, 12,  345, 678, 901,
-    0,   -1,  -1,    -1,     -1,   0,   0,   0,   0};
+    123, 456, false, 789012, 3456, 123, 456, 789, 543, 123,
+    432, 321, 123,   101,    0,    {},  789, 12,  345, 678,
+    901, 0,   -1,    -1,     -1,   -1,  0,   0,   0,   0};
 const AudioDecodingCallStats kAudioDecodeStats = MakeAudioDecodeStatsForTest();
 
 struct ConfigHelper {
@@ -100,6 +100,8 @@ struct ConfigHelper {
         .WillRepeatedly(Invoke([](const std::map<int, SdpAudioFormat>& codecs) {
           EXPECT_THAT(codecs, ::testing::IsEmpty());
         }));
+    EXPECT_CALL(*channel_receive_, SetDepacketizerToDecoderFrameTransformer(_))
+        .Times(1);
 
     stream_config_.rtp.local_ssrc = kLocalSsrc;
     stream_config_.rtp.remote_ssrc = kRemoteSsrc;
@@ -294,6 +296,9 @@ TEST(AudioReceiveStreamTest, GetStats) {
             stats.jitter_buffer_delay_seconds);
   EXPECT_EQ(kNetworkStats.jitterBufferEmittedCount,
             stats.jitter_buffer_emitted_count);
+  EXPECT_EQ(static_cast<double>(kNetworkStats.jitterBufferTargetDelayMs) /
+                static_cast<double>(rtc::kNumMillisecsPerSec),
+            stats.jitter_buffer_target_delay_seconds);
   EXPECT_EQ(Q14ToFloat(kNetworkStats.currentExpandRate), stats.expand_rate);
   EXPECT_EQ(Q14ToFloat(kNetworkStats.currentSpeechExpandRate),
             stats.speech_expand_rate);

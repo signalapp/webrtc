@@ -1191,28 +1191,6 @@ TEST_F(WebRtcVoiceEngineTestFake, RtpParametersArePerStream) {
   EXPECT_EQ(32000, GetCodecBitrate(kSsrcs4[2]));
 }
 
-// RTCRtpEncodingParameters.network_priority must be one of a few values
-// derived from the default priority, corresponding to very-low, low, medium,
-// or high.
-TEST_F(WebRtcVoiceEngineTestFake, SetRtpSendParametersInvalidNetworkPriority) {
-  EXPECT_TRUE(SetupSendStream());
-  webrtc::RtpParameters parameters = channel_->GetRtpSendParameters(kSsrcX);
-  EXPECT_EQ(1UL, parameters.encodings.size());
-  EXPECT_EQ(webrtc::kDefaultBitratePriority,
-            parameters.encodings[0].network_priority);
-
-  double good_values[] = {0.5, 1.0, 2.0, 4.0};
-  double bad_values[] = {-1.0, 0.0, 0.49, 0.51, 1.1, 3.99, 4.1, 5.0};
-  for (auto it : good_values) {
-    parameters.encodings[0].network_priority = it;
-    EXPECT_TRUE(channel_->SetRtpSendParameters(kSsrcX, parameters).ok());
-  }
-  for (auto it : bad_values) {
-    parameters.encodings[0].network_priority = it;
-    EXPECT_FALSE(channel_->SetRtpSendParameters(kSsrcX, parameters).ok());
-  }
-}
-
 // Test that GetRtpSendParameters returns the currently configured codecs.
 TEST_F(WebRtcVoiceEngineTestFake, GetRtpSendParametersCodecs) {
   EXPECT_TRUE(SetupSendStream());
@@ -2038,8 +2016,9 @@ class WebRtcVoiceEngineWithSendSideBweTest : public WebRtcVoiceEngineTestFake {
 
 TEST_F(WebRtcVoiceEngineWithSendSideBweTest,
        SupportsTransportSequenceNumberHeaderExtension) {
-  const cricket::RtpCapabilities capabilities = engine_->GetCapabilities();
-  EXPECT_THAT(capabilities.header_extensions,
+  const std::vector<webrtc::RtpExtension> header_extensions =
+      GetDefaultEnabledRtpHeaderExtensions(*engine_);
+  EXPECT_THAT(header_extensions,
               Contains(::testing::Field(
                   "uri", &RtpExtension::uri,
                   webrtc::RtpExtension::kTransportSequenceNumberUri)));
@@ -3051,16 +3030,11 @@ TEST_F(WebRtcVoiceEngineTestFake, TestSetDscpOptions) {
   ASSERT_FALSE(parameters.encodings.empty());
 
   // Various priorities map to various dscp values.
-  parameters.encodings[0].network_priority = 4.0;
+  parameters.encodings[0].network_priority = webrtc::Priority::kHigh;
   ASSERT_TRUE(channel->SetRtpSendParameters(kSsrcZ, parameters).ok());
   EXPECT_EQ(rtc::DSCP_EF, network_interface.dscp());
-  parameters.encodings[0].network_priority = 0.5;
+  parameters.encodings[0].network_priority = webrtc::Priority::kVeryLow;
   ASSERT_TRUE(channel->SetRtpSendParameters(kSsrcZ, parameters).ok());
-  EXPECT_EQ(rtc::DSCP_CS1, network_interface.dscp());
-
-  // A bad priority does not change the dscp value.
-  parameters.encodings[0].network_priority = 0.0;
-  ASSERT_FALSE(channel->SetRtpSendParameters(kSsrcZ, parameters).ok());
   EXPECT_EQ(rtc::DSCP_CS1, network_interface.dscp());
 
   // Packets should also self-identify their dscp in PacketOptions.
@@ -3231,17 +3205,18 @@ TEST_F(WebRtcVoiceEngineTestFake, ConfiguresAudioReceiveStreamRtpExtensions) {
   }
 
   // Set up receive extensions.
-  cricket::RtpCapabilities capabilities = engine_->GetCapabilities();
+  const std::vector<webrtc::RtpExtension> header_extensions =
+      GetDefaultEnabledRtpHeaderExtensions(*engine_);
   cricket::AudioRecvParameters recv_parameters;
-  recv_parameters.extensions = capabilities.header_extensions;
+  recv_parameters.extensions = header_extensions;
   channel_->SetRecvParameters(recv_parameters);
   EXPECT_EQ(2u, call_.GetAudioReceiveStreams().size());
   for (uint32_t ssrc : ssrcs) {
     const auto* s = call_.GetAudioReceiveStream(ssrc);
     EXPECT_NE(nullptr, s);
     const auto& s_exts = s->GetConfig().rtp.extensions;
-    EXPECT_EQ(capabilities.header_extensions.size(), s_exts.size());
-    for (const auto& e_ext : capabilities.header_extensions) {
+    EXPECT_EQ(header_extensions.size(), s_exts.size());
+    for (const auto& e_ext : header_extensions) {
       for (const auto& s_ext : s_exts) {
         if (e_ext.id == s_ext.id) {
           EXPECT_EQ(e_ext.uri, s_ext.uri);

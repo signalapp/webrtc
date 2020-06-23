@@ -37,6 +37,7 @@ rtc_library("system_wrappers") {
     "../rtc_base:checks",
     "../rtc_base/synchronization:rw_lock_wrapper",
     "../rtc_base/system:arch",
+    "../rtc_base/system:rtc_export",
     "//third_party/abseil-cpp/absl/types:optional",
   ]
 
@@ -93,18 +94,6 @@ rtc_library("field_trial") {
     "../rtc_base:stringutils",
     "//third_party/abseil-cpp/absl/strings",
   ]
-}
-
-rtc_library("event_wrapper") {
-  visibility = [
-    "../modules/video_coding:video_coding_legacy",
-    "../modules/video_coding:video_coding_unittests",
-  ]
-  sources = [
-    "include/event_wrapper.h",
-    "source/event.cc",
-  ]
-  deps = [ "../rtc_base:rtc_event" ]
 }
 
 rtc_library("metrics") {

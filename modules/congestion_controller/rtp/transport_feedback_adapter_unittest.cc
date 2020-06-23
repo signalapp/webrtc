@@ -69,10 +69,10 @@ PacketResult CreatePacket(int64_t receive_time_ms,
                           size_t payload_size,
                           const PacedPacketInfo& pacing_info) {
   PacketResult res;
-  res.receive_time = Timestamp::ms(receive_time_ms);
-  res.sent_packet.send_time = Timestamp::ms(send_time_ms);
+  res.receive_time = Timestamp::Millis(receive_time_ms);
+  res.sent_packet.send_time = Timestamp::Millis(send_time_ms);
   res.sent_packet.sequence_number = sequence_number;
-  res.sent_packet.size = DataSize::bytes(payload_size);
+  res.sent_packet.size = DataSize::Bytes(payload_size);
   res.sent_packet.pacing_info = pacing_info;
   return res;
 }
@@ -110,9 +110,9 @@ class TransportFeedbackAdapterTest : public ::testing::Test {
     packet_info.transport_sequence_number =
         packet_feedback.sent_packet.sequence_number;
     packet_info.rtp_sequence_number = 0;
-    packet_info.has_rtp_sequence_number = true;
     packet_info.length = packet_feedback.sent_packet.size.bytes();
     packet_info.pacing_info = packet_feedback.sent_packet.pacing_info;
+    packet_info.packet_type = RtpPacketMediaType::kVideo;
     adapter_->AddPacket(RtpPacketSendInfo(packet_info), 0u,
                         clock_.CurrentTime());
     adapter_->ProcessSentPacket(rtc::SentPacket(
@@ -294,22 +294,22 @@ TEST_F(TransportFeedbackAdapterTest, TimestampDeltas) {
   std::vector<PacketResult> sent_packets;
   // TODO(srte): Consider using us resolution in the constants.
   const TimeDelta kSmallDelta =
-      TimeDelta::us(rtcp::TransportFeedback::kDeltaScaleFactor * 0xFF)
-          .RoundDownTo(TimeDelta::ms(1));
+      TimeDelta::Micros(rtcp::TransportFeedback::kDeltaScaleFactor * 0xFF)
+          .RoundDownTo(TimeDelta::Millis(1));
   const TimeDelta kLargePositiveDelta =
-      TimeDelta::us(rtcp::TransportFeedback::kDeltaScaleFactor *
-                    std::numeric_limits<int16_t>::max())
-          .RoundDownTo(TimeDelta::ms(1));
+      TimeDelta::Micros(rtcp::TransportFeedback::kDeltaScaleFactor *
+                        std::numeric_limits<int16_t>::max())
+          .RoundDownTo(TimeDelta::Millis(1));
   const TimeDelta kLargeNegativeDelta =
-      TimeDelta::us(rtcp::TransportFeedback::kDeltaScaleFactor *
-                    std::numeric_limits<int16_t>::min())
-          .RoundDownTo(TimeDelta::ms(1));
+      TimeDelta::Micros(rtcp::TransportFeedback::kDeltaScaleFactor *
+                        std::numeric_limits<int16_t>::min())
+          .RoundDownTo(TimeDelta::Millis(1));
 
   PacketResult packet_feedback;
   packet_feedback.sent_packet.sequence_number = 1;
-  packet_feedback.sent_packet.send_time = Timestamp::ms(100);
-  packet_feedback.receive_time = Timestamp::ms(200);
-  packet_feedback.sent_packet.size = DataSize::bytes(1500);
+  packet_feedback.sent_packet.send_time = Timestamp::Millis(100);
+  packet_feedback.receive_time = Timestamp::Millis(200);
+  packet_feedback.sent_packet.size = DataSize::Bytes(1500);
   sent_packets.push_back(packet_feedback);
 
   // TODO(srte): This rounding maintains previous behavior, but should ot be
@@ -331,8 +331,8 @@ TEST_F(TransportFeedbackAdapterTest, TimestampDeltas) {
 
   // Too large, delta - will need two feedback messages.
   packet_feedback.sent_packet.send_time +=
-      kLargePositiveDelta + TimeDelta::ms(1);
-  packet_feedback.receive_time += kLargePositiveDelta + TimeDelta::ms(1);
+      kLargePositiveDelta + TimeDelta::Millis(1);
+  packet_feedback.receive_time += kLargePositiveDelta + TimeDelta::Millis(1);
   ++packet_feedback.sent_packet.sequence_number;
 
   // Packets will be added to send history.
@@ -395,6 +395,7 @@ TEST_F(TransportFeedbackAdapterTest, IgnoreDuplicatePacketSentCalls) {
   packet_info.transport_sequence_number = packet.sent_packet.sequence_number;
   packet_info.length = packet.sent_packet.size.bytes();
   packet_info.pacing_info = packet.sent_packet.pacing_info;
+  packet_info.packet_type = RtpPacketMediaType::kVideo;
   adapter_->AddPacket(packet_info, 0u, clock_.CurrentTime());
   absl::optional<SentPacket> sent_packet = adapter_->ProcessSentPacket(
       rtc::SentPacket(packet.sent_packet.sequence_number,

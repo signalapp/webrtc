@@ -17,6 +17,8 @@
 #include <vector>
 
 #include "absl/memory/memory.h"
+#include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "api/async_resolver_factory.h"
 #include "api/call/call_factory_interface.h"
 #include "api/fec_controller.h"
@@ -202,7 +204,7 @@ class PeerConnectionE2EQualityTestFixture {
     // each RtpEncodingParameters of RtpParameters of corresponding
     // RtpSenderInterface for this video stream.
     absl::optional<int> temporal_layers_count;
-    // Sets the maxiumum encode bitrate in bps. If this value is not set, the
+    // Sets the maximum encode bitrate in bps. If this value is not set, the
     // encoder will be capped at an internal maximum value around 2 Mbps
     // depending on the resolution. This means that it will never be able to
     // utilize a high bandwidth link.
@@ -225,6 +227,11 @@ class PeerConnectionE2EQualityTestFixture {
     absl::optional<std::string> output_dump_file_name;
     // If true will display input and output video on the user's screen.
     bool show_on_screen = false;
+    // If specified, determines a sync group to which this video stream belongs.
+    // According to bugs.webrtc.org/4762 WebRTC supports synchronization only
+    // for pair of single audio and single video stream. Framework won't do any
+    // enforcements on this field.
+    absl::optional<std::string> sync_group;
   };
 
   // Contains properties for audio in the call.
@@ -248,6 +255,11 @@ class PeerConnectionE2EQualityTestFixture {
     cricket::AudioOptions audio_options;
     // Sampling frequency of input audio data (from file or generated).
     int sampling_frequency_in_hz = 48000;
+    // If specified, determines a sync group to which this audio stream belongs.
+    // According to bugs.webrtc.org/4762 WebRTC supports synchronization only
+    // for pair of single audio and single video stream. Framework won't do any
+    // enforcements on this field.
+    absl::optional<std::string> sync_group;
   };
 
   // This class is used to fully configure one peer inside the call.
@@ -322,7 +334,7 @@ class PeerConnectionE2EQualityTestFixture {
   struct EchoEmulationConfig {
     // Delay which represents the echo path delay, i.e. how soon rendered signal
     // should reach capturer.
-    TimeDelta echo_delay = TimeDelta::ms(50);
+    TimeDelta echo_delay = TimeDelta::Millis(50);
   };
 
   struct VideoCodecConfig {
@@ -356,30 +368,13 @@ class PeerConnectionE2EQualityTestFixture {
     // it will be shut downed.
     TimeDelta run_duration;
 
-    // Deprecated. Use |video_codecs| instead.
-    // Next two fields are used to specify concrete video codec, that should be
-    // used in the test. Video code will be negotiated in SDP during offer/
-    // answer exchange.
-    // Video codec name. You can find valid names in
-    // media/base/media_constants.h
-    std::string video_codec_name = cricket::kVp8CodecName;
-    // Deprecated. Use |video_codecs| instead.
-    // Map of parameters, that have to be specified on SDP codec. Each parameter
-    // is described by key and value. Codec parameters will match the specified
-    // map if and only if for each key from |video_codec_required_params| there
-    // will be a parameter with name equal to this key and parameter value will
-    // be equal to the value from |video_codec_required_params| for this key.
-    // If empty then only name will be used to match the codec.
-    std::map<std::string, std::string> video_codec_required_params;
     // List of video codecs to use during the test. These codecs will be
     // negotiated in SDP during offer/answer exchange. The order of these codecs
     // during negotiation will be the same as in |video_codecs|. Codecs have
     // to be available in codecs list provided by peer connection to be
     // negotiated. If some of specified codecs won't be found, the test will
     // crash.
-    // TODO(titovartem) replace with Vp8 will be used as default after cleanup.
-    // If list is empty |video_codec_name| and |video_codec_required_params|
-    // will be used.
+    // If list is empty Vp8 with no required_params will be used.
     std::vector<VideoCodecConfig> video_codecs;
     bool use_ulp_fec = false;
     bool use_flex_fec = false;

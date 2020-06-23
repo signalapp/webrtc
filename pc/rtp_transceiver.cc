@@ -11,8 +11,10 @@
 #include "pc/rtp_transceiver.h"
 
 #include <string>
+#include <utility>
 
 #include "absl/algorithm/container.h"
+#include "api/rtp_parameters.h"
 #include "pc/channel_manager.h"
 #include "pc/rtp_media_utils.h"
 #include "pc/rtp_parameters_conversion.h"
@@ -25,7 +27,7 @@ template <class T>
 RTCError VerifyCodecPreferences(const std::vector<RtpCodecCapability>& codecs,
                                 const std::vector<T>& send_codecs,
                                 const std::vector<T>& recv_codecs) {
-  // 6. If the intersection between codecs and
+  // If the intersection between codecs and
   // RTCRtpSender.getCapabilities(kind).codecs or the intersection between
   // codecs and RTCRtpReceiver.getCapabilities(kind).codecs only contains RTX,
   // RED or FEC codecs or is an empty set, throw InvalidModificationError.
@@ -58,11 +60,10 @@ RTCError VerifyCodecPreferences(const std::vector<RtpCodecCapability>& codecs,
                     "codec capabilities.");
   }
 
-  // 7. Let codecCapabilities be the union of
+  // Let codecCapabilities be the union of
   // RTCRtpSender.getCapabilities(kind).codecs and
-  // RTCRtpReceiver.getCapabilities(kind).codecs. 8.1 For each codec in
-  // codecs, If codec is not in codecCapabilities, throw
-  // InvalidModificationError.
+  // RTCRtpReceiver.getCapabilities(kind).codecs. For each codec in codecs, If
+  // codec is not in codecCapabilities, throw InvalidModificationError.
   for (const auto& codec_preference : codecs) {
     bool is_recv_codec =
         absl::c_any_of(recv_codecs, [&codec_preference](const T& codec) {
@@ -108,10 +109,12 @@ RtpTransceiver::RtpTransceiver(
     rtc::scoped_refptr<RtpSenderProxyWithInternal<RtpSenderInternal>> sender,
     rtc::scoped_refptr<RtpReceiverProxyWithInternal<RtpReceiverInternal>>
         receiver,
-    cricket::ChannelManager* channel_manager)
+    cricket::ChannelManager* channel_manager,
+    std::vector<RtpHeaderExtensionCapability> header_extensions_offered)
     : unified_plan_(true),
       media_type_(sender->media_type()),
-      channel_manager_(channel_manager) {
+      channel_manager_(channel_manager),
+      HeaderExtensionsToOffer_(std::move(header_extensions_offered)) {
   RTC_DCHECK(media_type_ == cricket::MEDIA_TYPE_AUDIO ||
              media_type_ == cricket::MEDIA_TYPE_VIDEO);
   RTC_DCHECK_EQ(sender->media_type(), receiver->media_type());
@@ -328,6 +331,7 @@ RTCError RtpTransceiver::SetCodecPreferences(
                            return absl::c_linear_search(codecs, codec);
                          });
 
+  // 6. to 8.
   RTCError result;
   if (media_type_ == cricket::MEDIA_TYPE_AUDIO) {
     std::vector<cricket::AudioCodec> recv_codecs, send_codecs;
@@ -348,6 +352,11 @@ RTCError RtpTransceiver::SetCodecPreferences(
   }
 
   return result;
+}
+
+std::vector<RtpHeaderExtensionCapability>
+RtpTransceiver::HeaderExtensionsToOffer() const {
+  return HeaderExtensionsToOffer_;
 }
 
 }  // namespace webrtc

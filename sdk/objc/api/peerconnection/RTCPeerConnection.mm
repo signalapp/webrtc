@@ -340,6 +340,38 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
   return self;
 }
 
+- (instancetype)initWithDependencies:(RTC_OBJC_TYPE(RTCPeerConnectionFactory) *)factory
+                       configuration:(RTC_OBJC_TYPE(RTCConfiguration) *)configuration
+                         constraints:(RTC_OBJC_TYPE(RTCMediaConstraints) *)constraints
+                        dependencies:
+                            (std::unique_ptr<webrtc::PeerConnectionDependencies>)dependencies
+                            delegate:(id<RTC_OBJC_TYPE(RTCPeerConnectionDelegate)>)delegate {
+  NSParameterAssert(factory);
+  NSParameterAssert(dependencies.get());
+  std::unique_ptr<webrtc::PeerConnectionInterface::RTCConfiguration> config(
+      [configuration createNativeConfiguration]);
+  if (!config) {
+    return nil;
+  }
+  if (self = [super init]) {
+    _observer.reset(new webrtc::PeerConnectionDelegateAdapter(self));
+    _nativeConstraints = constraints.nativeConstraints;
+    CopyConstraintsIntoRtcConfiguration(_nativeConstraints.get(), config.get());
+
+    webrtc::PeerConnectionDependencies deps = std::move(*dependencies.release());
+    deps.observer = _observer.get();
+    _peerConnection = factory.nativeFactory->CreatePeerConnection(*config, std::move(deps));
+
+    if (!_peerConnection) {
+      return nil;
+    }
+    _factory = factory;
+    _localStreams = [[NSMutableArray alloc] init];
+    _delegate = delegate;
+  }
+  return self;
+}
+
 - (RTCMediaStream *)createStreamFromNative:(void *)nativeStream {
   // @note Modeled on the PeerConnectionDelegateAdapter::OnAddStream
   // function above in this file.

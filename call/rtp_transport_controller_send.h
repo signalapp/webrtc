@@ -19,6 +19,7 @@
 
 #include "api/network_state_predictor.h"
 #include "api/transport/network_control.h"
+#include "api/units/data_rate.h"
 #include "call/rtp_bitrate_configurator.h"
 #include "call/rtp_transport_controller_send_interface.h"
 #include "call/rtp_video_sender.h"
@@ -71,7 +72,8 @@ class RtpTransportControllerSend final
       const RtpSenderObservers& observers,
       RtcEventLog* event_log,
       std::unique_ptr<FecController> fec_controller,
-      const RtpSenderFrameEncryptionConfig& frame_encryption_config) override;
+      const RtpSenderFrameEncryptionConfig& frame_encryption_config,
+      rtc::scoped_refptr<FrameTransformerInterface> frame_transformer) override;
   void DestroyRtpVideoSender(
       RtpVideoSenderInterface* rtp_video_sender) override;
 
@@ -104,7 +106,7 @@ class RtpTransportControllerSend final
   void SetClientBitratePreferences(const BitrateSettings& preferences) override;
 
   void OnTransportOverheadChanged(
-      size_t transport_overhead_per_packet) override;
+      size_t transport_overhead_bytes_per_packet) override;
 
   void AccountForAudioPacketsInPacedSender(bool account_for_audio) override;
   void IncludeOverheadInPacedSender() override;
@@ -130,6 +132,10 @@ class RtpTransportControllerSend final
   void StartProcessPeriodicTasks() RTC_RUN_ON(task_queue_);
   void UpdateControllerWithTimeInterval() RTC_RUN_ON(task_queue_);
 
+  absl::optional<BitrateConstraints> ApplyOrLiftRelayCap(bool is_relayed);
+  bool IsRelevantRouteChange(const rtc::NetworkRoute& old_route,
+                             const rtc::NetworkRoute& new_route) const;
+  void UpdateBitrateConstraints(const BitrateConstraints& updated);
   void UpdateStreamsConfig() RTC_RUN_ON(task_queue_);
   void OnReceivedRtcpReceiverReportBlocks(const ReportBlockList& report_blocks,
                                           int64_t now_ms)
@@ -179,6 +185,7 @@ class RtpTransportControllerSend final
   const bool reset_feedback_on_route_change_;
   const bool send_side_bwe_with_overhead_;
   const bool add_pacing_to_cwin_;
+  FieldTrialParameter<DataRate> relay_bandwidth_cap_;
 
   size_t transport_overhead_bytes_per_packet_ RTC_GUARDED_BY(task_queue_);
   bool network_available_ RTC_GUARDED_BY(task_queue_);

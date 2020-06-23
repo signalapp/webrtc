@@ -14,11 +14,12 @@
 #include <cstdint>
 #include <utility>
 
+#include "absl/strings/match.h"
 #include "rtc_base/checks.h"
 
 namespace webrtc {
 namespace {
-static constexpr DataSize kMaxLeadingSize = DataSize::Bytes<1400>();
+static constexpr DataSize kMaxLeadingSize = DataSize::Bytes(1400);
 }
 
 RoundRobinPacketQueue::QueuedPacket::QueuedPacket(const QueuedPacket& rhs) =
@@ -35,7 +36,7 @@ RoundRobinPacketQueue::QueuedPacket::QueuedPacket(
       enqueue_time_(enqueue_time),
       enqueue_order_(enqueue_order),
       is_retransmission_(packet->packet_type() ==
-                         RtpPacketToSend::Type::kRetransmission),
+                         RtpPacketMediaType::kRetransmission),
       enqueue_time_it_(enqueue_time_it),
       owned_packet_(packet.release()) {}
 
@@ -53,7 +54,7 @@ int RoundRobinPacketQueue::QueuedPacket::Priority() const {
   return priority_;
 }
 
-RtpPacketToSend::Type RoundRobinPacketQueue::QueuedPacket::Type() const {
+RtpPacketMediaType RoundRobinPacketQueue::QueuedPacket::Type() const {
   return *owned_packet_->packet_type();
 }
 
@@ -66,7 +67,7 @@ Timestamp RoundRobinPacketQueue::QueuedPacket::EnqueueTime() const {
 }
 
 bool RoundRobinPacketQueue::QueuedPacket::IsRetransmission() const {
-  return Type() == RtpPacketToSend::Type::kRetransmission;
+  return Type() == RtpPacketMediaType::kRetransmission;
 }
 
 uint64_t RoundRobinPacketQueue::QueuedPacket::EnqueueOrder() const {
@@ -105,7 +106,7 @@ bool IsEnabled(const WebRtcKeyValueConfig* field_trials, const char* name) {
   if (!field_trials) {
     return false;
   }
-  return field_trials->Lookup(name).find("Enabled") == 0;
+  return absl::StartsWith(field_trials->Lookup(name), "Enabled");
 }
 
 RoundRobinPacketQueue::RoundRobinPacketQueue(
@@ -163,10 +164,10 @@ std::unique_ptr<RtpPacketToSend> RoundRobinPacketQueue::Pop() {
   // rate. To avoid building a too large budget we limit |bytes| to be within
   // kMaxLeading bytes of the stream that has sent the most amount of bytes.
   DataSize packet_size =
-      DataSize::bytes(queued_packet.RtpPacket()->payload_size() +
+      DataSize::Bytes(queued_packet.RtpPacket()->payload_size() +
                       queued_packet.RtpPacket()->padding_size());
   if (include_overhead_) {
-    packet_size += DataSize::bytes(queued_packet.RtpPacket()->headers_size()) +
+    packet_size += DataSize::Bytes(queued_packet.RtpPacket()->headers_size()) +
                    transport_overhead_per_packet_;
   }
   stream->size =
@@ -215,7 +216,7 @@ bool RoundRobinPacketQueue::NextPacketIsAudio() const {
 
   auto stream_info_it = streams_.find(ssrc);
   return stream_info_it->second.packet_queue.top().Type() ==
-         RtpPacketToSend::Type::kAudio;
+         RtpPacketMediaType::kAudio;
 }
 
 Timestamp RoundRobinPacketQueue::OldestEnqueueTime() const {
@@ -235,7 +236,7 @@ void RoundRobinPacketQueue::UpdateQueueTime(Timestamp now) {
   if (paused_) {
     pause_time_sum_ += delta;
   } else {
-    queue_time_sum_ += TimeDelta::us(delta.us() * size_packets_);
+    queue_time_sum_ += TimeDelta::Micros(delta.us() * size_packets_);
   }
 
   time_last_updated_ = now;
@@ -253,7 +254,7 @@ void RoundRobinPacketQueue::SetIncludeOverhead() {
   // We need to update the size to reflect overhead for existing packets.
   for (const auto& stream : streams_) {
     for (const QueuedPacket& packet : stream.second.packet_queue) {
-      size_ += DataSize::bytes(packet.RtpPacket()->headers_size()) +
+      size_ += DataSize::Bytes(packet.RtpPacket()->headers_size()) +
                transport_overhead_per_packet_;
     }
   }
@@ -313,10 +314,10 @@ void RoundRobinPacketQueue::Push(QueuedPacket packet) {
   packet.SubtractPauseTime(pause_time_sum_);
 
   size_packets_ += 1;
-  size_ += DataSize::bytes(packet.RtpPacket()->payload_size() +
+  size_ += DataSize::Bytes(packet.RtpPacket()->payload_size() +
                            packet.RtpPacket()->padding_size());
   if (include_overhead_) {
-    size_ += DataSize::bytes(packet.RtpPacket()->headers_size()) +
+    size_ += DataSize::Bytes(packet.RtpPacket()->headers_size()) +
              transport_overhead_per_packet_;
   }
 

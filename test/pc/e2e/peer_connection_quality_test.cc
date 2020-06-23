@@ -21,10 +21,8 @@
 #include "api/rtc_event_log_output_file.h"
 #include "api/scoped_refptr.h"
 #include "api/task_queue/default_task_queue_factory.h"
-#include "api/test/create_frame_generator.h"
 #include "api/test/video_quality_analyzer_interface.h"
 #include "api/units/time_delta.h"
-#include "api/video/video_source_interface.h"
 #include "pc/sdp_utils.h"
 #include "pc/test/mock_peer_connection_observers.h"
 #include "rtc_base/bind.h"
@@ -32,11 +30,11 @@
 #include "rtc_base/numerics/safe_conversions.h"
 #include "system_wrappers/include/cpu_info.h"
 #include "system_wrappers/include/field_trial.h"
-#include "test/frame_generator_capturer.h"
 #include "test/pc/e2e/analyzer/audio/default_audio_quality_analyzer.h"
 #include "test/pc/e2e/analyzer/video/default_video_quality_analyzer.h"
+#include "test/pc/e2e/analyzer/video/video_quality_metrics_reporter.h"
 #include "test/pc/e2e/stats_poller.h"
-#include "test/platform_video_capturer.h"
+#include "test/pc/e2e/test_peer_factory.h"
 #include "test/testsupport/file_utils.h"
 
 namespace webrtc {
@@ -55,9 +53,9 @@ constexpr int kPeerConnectionUsedThreads = 7;
 constexpr int kFrameworkUsedThreads = 2;
 constexpr int kMaxVideoAnalyzerThreads = 8;
 
-constexpr TimeDelta kStatsUpdateInterval = TimeDelta::Seconds<1>();
+constexpr TimeDelta kStatsUpdateInterval = TimeDelta::Seconds(1);
 
-constexpr TimeDelta kAliveMessageLogInterval = TimeDelta::Seconds<30>();
+constexpr TimeDelta kAliveMessageLogInterval = TimeDelta::Seconds(30);
 
 constexpr int kQuickTestModeRunDurationMs = 100;
 
@@ -269,6 +267,9 @@ void PeerConnectionE2EQualityTest::Run(RunParams run_params) {
   const std::unique_ptr<rtc::Thread> signaling_thread = rtc::Thread::Create();
   signaling_thread->SetName(kSignalThreadName, nullptr);
   signaling_thread->Start();
+  media_helper_ = std::make_unique<MediaHelper>(
+      video_quality_analyzer_injection_helper_.get(),
+      task_queue_factory_.get());
 
   // Create a |task_queue_|.
   task_queue_ = std::make_unique<TaskQueueForTest>("pc_e2e_quality_test");
@@ -277,15 +278,15 @@ void PeerConnectionE2EQualityTest::Run(RunParams run_params) {
   // Audio streams are intercepted in AudioDeviceModule, so if it is required to
   // catch output of Alice's stream, Alice's output_dump_file_name should be
   // passed to Bob's TestPeer setup as audio output file name.
-  absl::optional<TestPeer::RemotePeerAudioConfig> alice_remote_audio_config =
-      TestPeer::CreateRemoteAudioConfig(bob_params->audio_config);
-  absl::optional<TestPeer::RemotePeerAudioConfig> bob_remote_audio_config =
-      TestPeer::CreateRemoteAudioConfig(alice_params->audio_config);
+  absl::optional<RemotePeerAudioConfig> alice_remote_audio_config =
+      RemotePeerAudioConfig::Create(bob_params->audio_config);
+  absl::optional<RemotePeerAudioConfig> bob_remote_audio_config =
+      RemotePeerAudioConfig::Create(alice_params->audio_config);
   // Copy Alice and Bob video configs to correctly pass them into lambdas.
   std::vector<VideoConfig> alice_video_configs = alice_params->video_configs;
   std::vector<VideoConfig> bob_video_configs = bob_params->video_configs;
 
-  alice_ = TestPeer::CreateTestPeer(
+  alice_ = TestPeerFactory::CreateTestPeer(
       std::move(alice_components), std::move(alice_params),
       std::move(alice_video_generators),
       std::make_unique<FixturePeerConnectionObserver>(
@@ -297,7 +298,7 @@ void PeerConnectionE2EQualityTest::Run(RunParams run_params) {
       video_quality_analyzer_injection_helper_.get(), signaling_thread.get(),
       alice_remote_audio_config, run_params.video_encoder_bitrate_multiplier,
       run_params.echo_emulation_config, task_queue_.get());
-  bob_ = TestPeer::CreateTestPeer(
+  bob_ = TestPeerFactory::CreateTestPeer(
       std::move(bob_components), std::move(bob_params),
       std::move(bob_video_generators),
       std::make_unique<FixturePeerConnectionObserver>(
@@ -321,6 +322,8 @@ void PeerConnectionE2EQualityTest::Run(RunParams run_params) {
   video_analyzer_threads =
       std::min(video_analyzer_threads, kMaxVideoAnalyzerThreads);
   RTC_LOG(INFO) << "video_analyzer_threads=" << video_analyzer_threads;
+  quality_metrics_reporters_.push_back(
+      std::make_unique<VideoQualityMetricsReporter>());
 
   video_quality_analyzer_injection_helper_->Start(test_case_name_,
                                                   video_analyzer_threads);
@@ -445,11 +448,10 @@ void PeerConnectionE2EQualityTest::Run(RunParams run_params) {
   // Audio dumps.
   RTC_CHECK(!alice_);
   RTC_CHECK(!bob_);
-  // Ensuring that TestVideoCapturerVideoTrackSource and VideoFrameWriter
-  // are destroyed on the right thread.
+  // Ensuring that TestVideoCapturerVideoTrackSource are destroyed on the right
+  // thread.
   RTC_CHECK(alice_video_sources_.empty());
   RTC_CHECK(bob_video_sources_.empty());
-  RTC_CHECK(video_writers_.empty());
 }
 
 void PeerConnectionE2EQualityTest::SetDefaultValuesForMissingParams(
@@ -494,8 +496,8 @@ void PeerConnectionE2EQualityTest::SetDefaultValuesForMissingParams(
   }
 
   if (run_params->video_codecs.empty()) {
-    run_params->video_codecs.push_back(VideoCodecConfig(
-        run_params->video_codec_name, run_params->video_codec_required_params));
+    run_params->video_codecs.push_back(
+        VideoCodecConfig(cricket::kVp8CodecName));
   }
 }
 
@@ -629,8 +631,9 @@ void PeerConnectionE2EQualityTest::OnTrackCallback(
     std::vector<VideoConfig> remote_video_configs) {
   const rtc::scoped_refptr<MediaStreamTrackInterface>& track =
       transceiver->receiver()->track();
-  RTC_CHECK_EQ(transceiver->receiver()->stream_ids().size(), 1);
-  std::string stream_label = transceiver->receiver()->stream_ids().front();
+  RTC_CHECK_EQ(transceiver->receiver()->stream_ids().size(), 2)
+      << "Expected 2 stream ids: 1st - sync group, 2nd - unique stream label";
+  std::string stream_label = transceiver->receiver()->stream_ids()[1];
   analyzer_helper_.AddTrackToStreamMapping(track->id(), stream_label);
   if (track->kind() != MediaStreamTrackInterface::kVideoKind) {
     return;
@@ -644,7 +647,7 @@ void PeerConnectionE2EQualityTest::OnTrackCallback(
     }
   }
   RTC_CHECK(video_config);
-  test::VideoFrameWriter* writer = MaybeCreateVideoWriter(
+  test::VideoFrameWriter* writer = media_helper_->MaybeCreateVideoWriter(
       video_config->output_dump_file_name, *video_config);
   // It is safe to cast here, because it is checked above that
   // track->kind() is kVideoKind.
@@ -722,8 +725,10 @@ void PeerConnectionE2EQualityTest::SetupCallOnSignalingThread(
   }
 
   // Then add media for Alice and Bob
-  alice_video_sources_ = MaybeAddMedia(alice_.get());
-  bob_video_sources_ = MaybeAddMedia(bob_.get());
+  media_helper_->MaybeAddAudio(alice_.get());
+  alice_video_sources_ = media_helper_->MaybeAddVideo(alice_.get());
+  media_helper_->MaybeAddAudio(bob_.get());
+  bob_video_sources_ = media_helper_->MaybeAddVideo(bob_.get());
 
   SetPeerCodecPreferences(alice_.get(), run_params);
   SetPeerCodecPreferences(bob_.get(), run_params);
@@ -733,169 +738,6 @@ void PeerConnectionE2EQualityTest::SetupCallOnSignalingThread(
 
 void PeerConnectionE2EQualityTest::TearDownCallOnSignalingThread() {
   TearDownCall();
-}
-
-std::vector<rtc::scoped_refptr<TestVideoCapturerVideoTrackSource>>
-PeerConnectionE2EQualityTest::MaybeAddMedia(TestPeer* peer) {
-  MaybeAddAudio(peer);
-  return MaybeAddVideo(peer);
-}
-
-std::vector<rtc::scoped_refptr<TestVideoCapturerVideoTrackSource>>
-PeerConnectionE2EQualityTest::MaybeAddVideo(TestPeer* peer) {
-  // Params here valid because of pre-run validation.
-  Params* params = peer->params();
-  std::vector<rtc::scoped_refptr<TestVideoCapturerVideoTrackSource>> out;
-  for (size_t i = 0; i < params->video_configs.size(); ++i) {
-    auto video_config = params->video_configs[i];
-    // Setup input video source into peer connection.
-    test::VideoFrameWriter* writer =
-        MaybeCreateVideoWriter(video_config.input_dump_file_name, video_config);
-    std::unique_ptr<test::TestVideoCapturer> capturer = CreateVideoCapturer(
-        video_config, peer->ReleaseVideoGenerator(i),
-        video_quality_analyzer_injection_helper_->CreateFramePreprocessor(
-            video_config, writer));
-    rtc::scoped_refptr<TestVideoCapturerVideoTrackSource> source =
-        new rtc::RefCountedObject<TestVideoCapturerVideoTrackSource>(
-            std::move(capturer),
-            /*is_screencast=*/video_config.screen_share_config &&
-                video_config.screen_share_config->use_text_content_hint);
-    out.push_back(source);
-    RTC_LOG(INFO) << "Adding video with video_config.stream_label="
-                  << video_config.stream_label.value();
-    rtc::scoped_refptr<VideoTrackInterface> track =
-        peer->pc_factory()->CreateVideoTrack(video_config.stream_label.value(),
-                                             source);
-    if (video_config.screen_share_config &&
-        video_config.screen_share_config->use_text_content_hint) {
-      track->set_content_hint(VideoTrackInterface::ContentHint::kText);
-    }
-    RTCErrorOr<rtc::scoped_refptr<RtpSenderInterface>> sender =
-        peer->AddTrack(track, {video_config.stream_label.value()});
-    RTC_CHECK(sender.ok());
-    if (video_config.temporal_layers_count) {
-      RtpParameters rtp_parameters = sender.value()->GetParameters();
-      for (auto& encoding_parameters : rtp_parameters.encodings) {
-        encoding_parameters.num_temporal_layers =
-            video_config.temporal_layers_count;
-      }
-      RTCError res = sender.value()->SetParameters(rtp_parameters);
-      RTC_CHECK(res.ok()) << "Failed to set RTP parameters";
-    }
-  }
-  return out;
-}
-
-std::unique_ptr<test::TestVideoCapturer>
-PeerConnectionE2EQualityTest::CreateVideoCapturer(
-    const VideoConfig& video_config,
-    std::unique_ptr<test::FrameGeneratorInterface> generator,
-    std::unique_ptr<test::TestVideoCapturer::FramePreprocessor>
-        frame_preprocessor) {
-  if (video_config.capturing_device_index) {
-    std::unique_ptr<test::TestVideoCapturer> capturer =
-        test::CreateVideoCapturer(video_config.width, video_config.height,
-                                  video_config.fps,
-                                  *video_config.capturing_device_index);
-    RTC_CHECK(capturer)
-        << "Failed to obtain input stream from capturing device #"
-        << *video_config.capturing_device_index;
-    capturer->SetFramePreprocessor(std::move(frame_preprocessor));
-    return capturer;
-  }
-
-  std::unique_ptr<test::FrameGeneratorInterface> frame_generator = nullptr;
-  if (generator) {
-    frame_generator = std::move(generator);
-  }
-
-  if (video_config.generator) {
-    absl::optional<test::FrameGeneratorInterface::OutputType>
-        frame_generator_type = absl::nullopt;
-    if (video_config.generator == VideoGeneratorType::kDefault) {
-      frame_generator_type = test::FrameGeneratorInterface::OutputType::kI420;
-    } else if (video_config.generator == VideoGeneratorType::kI420A) {
-      frame_generator_type = test::FrameGeneratorInterface::OutputType::kI420A;
-    } else if (video_config.generator == VideoGeneratorType::kI010) {
-      frame_generator_type = test::FrameGeneratorInterface::OutputType::kI010;
-    }
-    frame_generator =
-        test::CreateSquareFrameGenerator(static_cast<int>(video_config.width),
-                                         static_cast<int>(video_config.height),
-                                         frame_generator_type, absl::nullopt);
-  }
-  if (video_config.input_file_name) {
-    frame_generator = test::CreateFromYuvFileFrameGenerator(
-        std::vector<std::string>(/*count=*/1,
-                                 video_config.input_file_name.value()),
-        video_config.width, video_config.height, /*frame_repeat_count=*/1);
-  }
-  if (video_config.screen_share_config) {
-    frame_generator = CreateScreenShareFrameGenerator(video_config);
-  }
-  RTC_CHECK(frame_generator) << "Unsupported video_config input source";
-
-  auto capturer = std::make_unique<test::FrameGeneratorCapturer>(
-      clock_, std::move(frame_generator), video_config.fps,
-      *task_queue_factory_);
-  capturer->SetFramePreprocessor(std::move(frame_preprocessor));
-  capturer->Init();
-  return capturer;
-}
-
-std::unique_ptr<test::FrameGeneratorInterface>
-PeerConnectionE2EQualityTest::CreateScreenShareFrameGenerator(
-    const VideoConfig& video_config) {
-  RTC_CHECK(video_config.screen_share_config);
-  if (video_config.screen_share_config->generate_slides) {
-    return test::CreateSlideFrameGenerator(
-        video_config.width, video_config.height,
-        video_config.screen_share_config->slide_change_interval.seconds() *
-            video_config.fps);
-  }
-  std::vector<std::string> slides =
-      video_config.screen_share_config->slides_yuv_file_names;
-  if (slides.empty()) {
-    // If slides is empty we need to add default slides as source. In such case
-    // video width and height is validated to be equal to kDefaultSlidesWidth
-    // and kDefaultSlidesHeight.
-    slides.push_back(test::ResourcePath("web_screenshot_1850_1110", "yuv"));
-    slides.push_back(test::ResourcePath("presentation_1850_1110", "yuv"));
-    slides.push_back(test::ResourcePath("photo_1850_1110", "yuv"));
-    slides.push_back(test::ResourcePath("difficult_photo_1850_1110", "yuv"));
-  }
-  if (!video_config.screen_share_config->scrolling_params) {
-    // Cycle image every slide_change_interval seconds.
-    return test::CreateFromYuvFileFrameGenerator(
-        slides, video_config.width, video_config.height,
-        video_config.screen_share_config->slide_change_interval.seconds() *
-            video_config.fps);
-  }
-
-  // |pause_duration| is nonnegative. It is validated in ValidateParams(...).
-  TimeDelta pause_duration =
-      video_config.screen_share_config->slide_change_interval -
-      video_config.screen_share_config->scrolling_params->duration;
-
-  return test::CreateScrollingInputFromYuvFilesFrameGenerator(
-      clock_, slides,
-      video_config.screen_share_config->scrolling_params->source_width,
-      video_config.screen_share_config->scrolling_params->source_height,
-      video_config.width, video_config.height,
-      video_config.screen_share_config->scrolling_params->duration.ms(),
-      pause_duration.ms());
-}
-
-void PeerConnectionE2EQualityTest::MaybeAddAudio(TestPeer* peer) {
-  if (!peer->params()->audio_config) {
-    return;
-  }
-  const AudioConfig& audio_config = peer->params()->audio_config.value();
-  rtc::scoped_refptr<webrtc::AudioSourceInterface> source =
-      peer->pc_factory()->CreateAudioSource(audio_config.audio_options);
-  rtc::scoped_refptr<AudioTrackInterface> track =
-      peer->pc_factory()->CreateAudioTrack(*audio_config.stream_label, source);
-  peer->AddTrack(track, {*audio_config.stream_label});
 }
 
 void PeerConnectionE2EQualityTest::SetPeerCodecPreferences(
@@ -1054,24 +896,7 @@ void PeerConnectionE2EQualityTest::TearDownCall() {
   alice_.reset();
   bob_.reset();
 
-  for (const auto& video_writer : video_writers_) {
-    video_writer->Close();
-  }
-  video_writers_.clear();
-}
-
-test::VideoFrameWriter* PeerConnectionE2EQualityTest::MaybeCreateVideoWriter(
-    absl::optional<std::string> file_name,
-    const VideoConfig& config) {
-  if (!file_name) {
-    return nullptr;
-  }
-  // TODO(titovartem) create only one file writer for simulcast video track.
-  auto video_writer = std::make_unique<test::Y4mVideoFrameWriterImpl>(
-      file_name.value(), config.width, config.height, config.fps);
-  test::VideoFrameWriter* out = video_writer.get();
-  video_writers_.push_back(std::move(video_writer));
-  return out;
+  media_helper_.reset();
 }
 
 Timestamp PeerConnectionE2EQualityTest::Now() const {

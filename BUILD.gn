@@ -40,6 +40,7 @@ if (!build_with_chromium) {
         ":rtc_unittests",
         ":slow_tests",
         ":video_engine_tests",
+        ":voip_unittests",
         ":webrtc_nonparallel_tests",
         ":webrtc_perf_tests",
         "common_audio:common_audio_unittests",
@@ -56,13 +57,13 @@ if (!build_with_chromium) {
         "pc:peerconnection_unittests",
         "pc:rtc_pc_unittests",
         "rtc_tools:rtp_generator",
+        "rtc_tools:video_replay",
         "stats:rtc_stats_unittests",
         "system_wrappers:system_wrappers_unittests",
         "test",
         "video:screenshare_loopback",
         "video:sv_loopback",
         "video:video_loopback",
-        "video:video_replay",
       ]
       if (!is_asan) {
         # Do not build :webrtc_lib_link_test because lld complains on some OS
@@ -276,6 +277,10 @@ config("common_config") {
     defines += [ "RTC_DISABLE_METRICS" ]
   }
 
+  if (rtc_exclude_transient_suppressor) {
+    defines += [ "WEBRTC_EXCLUDE_TRANSIENT_SUPPRESSOR" ]
+  }
+
   cflags = []
 
   if (build_with_chromium) {
@@ -485,7 +490,7 @@ if (!build_with_chromium) {
     }
   }
 
-  if (rtc_include_tests) {
+  if (rtc_include_tests && !is_asan) {
     rtc_executable("webrtc_lib_link_test") {
       testonly = true
 
@@ -609,6 +614,7 @@ if (rtc_include_tests) {
       "test:test_main",
       "test:video_test_common",
       "video:video_tests",
+      "video/adaptation:video_adaptation_tests",
     ]
     data = video_engine_tests_resources
     if (is_android) {
@@ -672,6 +678,14 @@ if (rtc_include_tests) {
       deps += [ "//testing/android/native_test:native_test_support" ]
       shard_timeout = 900
     }
+  }
+
+  rtc_test("voip_unittests") {
+    testonly = true
+    deps = [
+      "audio/voip/test:audio_egress_unittests",
+      "test:test_main",
+    ]
   }
 }
 

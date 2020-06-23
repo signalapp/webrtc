@@ -249,7 +249,8 @@ VP9EncoderImpl::VP9EncoderImpl(const cricket::VideoCodec& codec)
           "WebRTC-VP9VariableFramerateScreenshare")),
       variable_framerate_controller_(
           variable_framerate_experiment_.framerate_limit),
-      num_steady_state_frames_(0) {
+      num_steady_state_frames_(0),
+      config_changed_(true) {
   codec_ = {};
   memset(&svc_params_, 0, sizeof(vpx_svc_extra_cfg_t));
 }
@@ -410,6 +411,7 @@ bool VP9EncoderImpl::SetSvcRates(
   }
 
   current_bitrate_allocation_ = bitrate_allocation;
+  config_changed_ = true;
   return true;
 }
 
@@ -439,6 +441,7 @@ void VP9EncoderImpl::SetRates(const RateControlParameters& parameters) {
 
   bool res = SetSvcRates(parameters.bitrate);
   RTC_DCHECK(res) << "Failed to set new bitrate allocation";
+  config_changed_ = true;
 }
 
 // TODO(eladalon): s/inst/codec_settings/g.
@@ -814,6 +817,7 @@ int VP9EncoderImpl::InitAndSetControlSettings(const VideoCodec* inst) {
   // Enable encoder skip of static/low content blocks.
   vpx_codec_control(encoder_, VP8E_SET_STATIC_THRESHOLD, 1);
   inited_ = true;
+  config_changed_ = true;
   return WEBRTC_VIDEO_CODEC_OK;
 }
 
@@ -936,8 +940,11 @@ int VP9EncoderImpl::Encode(const VideoFrame& input_image,
                       &svc_drop_frame_);
   }
 
-  if (vpx_codec_enc_config_set(encoder_, config_)) {
-    return WEBRTC_VIDEO_CODEC_ERROR;
+  if (config_changed_) {
+    if (vpx_codec_enc_config_set(encoder_, config_)) {
+      return WEBRTC_VIDEO_CODEC_ERROR;
+    }
+    config_changed_ = false;
   }
 
   RTC_DCHECK_EQ(input_image.width(), raw_->d_w);
@@ -1543,20 +1550,33 @@ VideoEncoder::EncoderInfo VP9EncoderImpl::GetEncoderInfo() const {
   info.has_trusted_rate_controller = trusted_rate_controller_;
   info.is_hardware_accelerated = false;
   info.has_internal_source = false;
-  for (size_t si = 0; si < num_spatial_layers_; ++si) {
-    info.fps_allocation[si].clear();
-    if (!codec_.spatialLayers[si].active) {
-      continue;
+  if (inited_) {
+    // Find the max configured fps of any active spatial layer.
+    float max_fps = 0.0;
+    for (size_t si = 0; si < num_spatial_layers_; ++si) {
+      if (codec_.spatialLayers[si].active &&
+          codec_.spatialLayers[si].maxFramerate > max_fps) {
+        max_fps = codec_.spatialLayers[si].maxFramerate;
+      }
     }
-    // This spatial layer may already use a fraction of the total frame rate.
-    const float sl_fps_fraction =
-        codec_.spatialLayers[si].maxFramerate / codec_.maxFramerate;
-    for (size_t ti = 0; ti < num_temporal_layers_; ++ti) {
-      const uint32_t decimator =
-          num_temporal_layers_ <= 1 ? 1 : config_->ts_rate_decimator[ti];
-      RTC_DCHECK_GT(decimator, 0);
-      info.fps_allocation[si].push_back(rtc::saturated_cast<uint8_t>(
-          EncoderInfo::kMaxFramerateFraction * (sl_fps_fraction / decimator)));
+
+    for (size_t si = 0; si < num_spatial_layers_; ++si) {
+      info.fps_allocation[si].clear();
+      if (!codec_.spatialLayers[si].active) {
+        continue;
+      }
+
+      // This spatial layer may already use a fraction of the total frame rate.
+      const float sl_fps_fraction =
+          codec_.spatialLayers[si].maxFramerate / max_fps;
+      for (size_t ti = 0; ti < num_temporal_layers_; ++ti) {
+        const uint32_t decimator =
+            num_temporal_layers_ <= 1 ? 1 : config_->ts_rate_decimator[ti];
+        RTC_DCHECK_GT(decimator, 0);
+        info.fps_allocation[si].push_back(
+            rtc::saturated_cast<uint8_t>(EncoderInfo::kMaxFramerateFraction *
+                                         (sl_fps_fraction / decimator)));
+      }
     }
   }
   return info;
@@ -1757,6 +1777,11 @@ int VP9DecoderImpl::ReturnFrame(
             // frame buffer is through a callback function. This is where we
             // should release |img_buffer|.
             rtc::KeepRefUntilDone(img_buffer));
+      } else {
+        RTC_LOG(LS_ERROR)
+            << "Unsupported pixel format produced by the decoder: "
+            << static_cast<int>(img->fmt);
+        return WEBRTC_VIDEO_CODEC_NO_OUTPUT;
       }
       break;
     case 10:

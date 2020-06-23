@@ -29,6 +29,7 @@ namespace frame_gen_cap_impl {
 template <typename T>
 class AutoOpt : public absl::optional<T> {
  public:
+  using absl::optional<T>::optional;
   T* operator->() {
     if (!absl::optional<T>::has_value())
       this->emplace(T());
@@ -48,7 +49,7 @@ struct FrameGeneratorCapturerConfig {
 
   struct SquareSlides {
     int framerate = 30;
-    TimeDelta change_interval = TimeDelta::seconds(10);
+    TimeDelta change_interval = TimeDelta::Seconds(10);
     int width = 1600;
     int height = 1200;
   };
@@ -63,9 +64,9 @@ struct FrameGeneratorCapturerConfig {
 
   struct ImageSlides {
     int framerate = 30;
-    TimeDelta change_interval = TimeDelta::seconds(10);
+    TimeDelta change_interval = TimeDelta::Seconds(10);
     struct Crop {
-      TimeDelta scroll_duration = TimeDelta::seconds(0);
+      TimeDelta scroll_duration = TimeDelta::Seconds(0);
       absl::optional<int> width;
       absl::optional<int> height;
     } crop;

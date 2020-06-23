@@ -10,6 +10,7 @@
 
 #include "pc/rtc_stats_collector.h"
 
+#include <map>
 #include <memory>
 #include <string>
 #include <utility>
@@ -24,6 +25,7 @@
 #include "p2p/base/port.h"
 #include "pc/peer_connection.h"
 #include "pc/rtc_stats_traversal.h"
+#include "pc/webrtc_sdp.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/time_utils.h"
@@ -182,6 +184,10 @@ const char* DtlsTransportStateToRTCDtlsTransportState(
 const char* NetworkAdapterTypeToStatsType(rtc::AdapterType type) {
   switch (type) {
     case rtc::ADAPTER_TYPE_CELLULAR:
+    case rtc::ADAPTER_TYPE_CELLULAR_2G:
+    case rtc::ADAPTER_TYPE_CELLULAR_3G:
+    case rtc::ADAPTER_TYPE_CELLULAR_4G:
+    case rtc::ADAPTER_TYPE_CELLULAR_5G:
       return RTCNetworkType::kCellular;
     case rtc::ADAPTER_TYPE_ETHERNET:
       return RTCNetworkType::kEthernet;
@@ -234,6 +240,14 @@ std::unique_ptr<RTCCodecStats> CodecStatsFromRtpCodecParameters(
   codec_stats->mime_type = codec_params.mime_type();
   if (codec_params.clock_rate) {
     codec_stats->clock_rate = static_cast<uint32_t>(*codec_params.clock_rate);
+  }
+  if (codec_params.num_channels) {
+    codec_stats->channels = *codec_params.num_channels;
+  }
+
+  rtc::StringBuilder fmtp;
+  if (WriteFmtpParameters(codec_params.parameters, &fmtp)) {
+    codec_stats->sdp_fmtp_line = fmtp.Release();
   }
   return codec_stats;
 }
@@ -638,6 +652,8 @@ ProduceMediaStreamTrackStatsFromVoiceReceiverInfo(
       voice_receiver_info.delayed_packet_outage_samples;
   audio_track_stats->relative_packet_arrival_delay =
       voice_receiver_info.relative_packet_arrival_delay_seconds;
+  audio_track_stats->jitter_buffer_target_delay =
+      voice_receiver_info.jitter_buffer_target_delay_seconds;
   audio_track_stats->interruption_count =
       voice_receiver_info.interruption_count >= 0
           ? voice_receiver_info.interruption_count
