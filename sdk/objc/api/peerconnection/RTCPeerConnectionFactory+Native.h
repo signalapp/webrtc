@@ -96,7 +96,7 @@ NS_ASSUME_NONNULL_BEGIN
     peerConnectionWithDependencies:(RTCConfiguration *)configuration
                        constraints:(RTCMediaConstraints *)constraints
                       dependencies:(std::unique_ptr<webrtc::PeerConnectionDependencies>)dependencies
-                          delegate:(nullable id<RTCPeerConnectionDelegate>)delegate;
+                          observer:(void *)observer;
 
 @end
 

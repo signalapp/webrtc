@@ -300,12 +300,12 @@
     peerConnectionWithDependencies:(RTCConfiguration *)configuration
                        constraints:(RTCMediaConstraints *)constraints
                       dependencies:(std::unique_ptr<webrtc::PeerConnectionDependencies>)dependencies
-                          delegate:(id<RTCPeerConnectionDelegate>)delegate {
+                          observer:(void *)observer {
   return [[RTCPeerConnection alloc] initWithDependencies:self
                                            configuration:configuration
                                              constraints:constraints
                                             dependencies:std::move(dependencies)
-                                                delegate:delegate];
+                                                observer:observer];
 }
 
 - (void)setOptions:(nonnull RTCPeerConnectionFactoryOptions *)options {

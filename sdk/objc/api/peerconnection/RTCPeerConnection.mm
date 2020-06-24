@@ -308,6 +308,23 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
                     constraints:(RTCMediaConstraints *)constraints
                        observer:(void *)observer {
   NSParameterAssert(factory);
+  std::unique_ptr<webrtc::PeerConnectionDependencies> dependencies =
+      std::make_unique<webrtc::PeerConnectionDependencies>(nullptr);
+  return [self initWithDependencies:factory
+                      configuration:configuration
+                        constraints:constraints
+                       dependencies:std::move(dependencies)
+                           observer:observer];
+}
+
+- (instancetype)initWithDependencies:(RTCPeerConnectionFactory *)factory
+                       configuration:(RTCConfiguration *)configuration
+                         constraints:(RTCMediaConstraints *)constraints
+                        dependencies:
+                            (std::unique_ptr<webrtc::PeerConnectionDependencies>)dependencies
+                            observer:(void *)observer {
+  NSParameterAssert(factory);
+  NSParameterAssert(dependencies.get());
   std::unique_ptr<webrtc::PeerConnectionInterface::RTCConfiguration> config(
       [configuration createNativeConfiguration]);
   if (!config) {
@@ -316,16 +333,14 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
 
   if (self = [super init]) {
     _nativeConstraints = constraints.nativeConstraints;
-    CopyConstraintsIntoRtcConfiguration(_nativeConstraints.get(),
-                                        config.get());
+    CopyConstraintsIntoRtcConfiguration(_nativeConstraints.get(), config.get());
 
     _customObserver.reset((webrtc::PeerConnectionObserver *)observer);
 
-    _peerConnection =
-      factory.nativeFactory->CreatePeerConnection(*config,
-                                                  nullptr,
-                                                  nullptr,
-                                                  _customObserver.get());
+    webrtc::PeerConnectionDependencies deps = std::move(*dependencies.release());
+    deps.observer = _customObserver.get();
+    _peerConnection = factory.nativeFactory->CreatePeerConnection(*config, std::move(deps));
+
     if (!_peerConnection) {
       return nil;
     }
@@ -337,38 +352,6 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
     _delegate = nil;
   }
 
-  return self;
-}
-
-- (instancetype)initWithDependencies:(RTC_OBJC_TYPE(RTCPeerConnectionFactory) *)factory
-                       configuration:(RTC_OBJC_TYPE(RTCConfiguration) *)configuration
-                         constraints:(RTC_OBJC_TYPE(RTCMediaConstraints) *)constraints
-                        dependencies:
-                            (std::unique_ptr<webrtc::PeerConnectionDependencies>)dependencies
-                            delegate:(id<RTC_OBJC_TYPE(RTCPeerConnectionDelegate)>)delegate {
-  NSParameterAssert(factory);
-  NSParameterAssert(dependencies.get());
-  std::unique_ptr<webrtc::PeerConnectionInterface::RTCConfiguration> config(
-      [configuration createNativeConfiguration]);
-  if (!config) {
-    return nil;
-  }
-  if (self = [super init]) {
-    _observer.reset(new webrtc::PeerConnectionDelegateAdapter(self));
-    _nativeConstraints = constraints.nativeConstraints;
-    CopyConstraintsIntoRtcConfiguration(_nativeConstraints.get(), config.get());
-
-    webrtc::PeerConnectionDependencies deps = std::move(*dependencies.release());
-    deps.observer = _observer.get();
-    _peerConnection = factory.nativeFactory->CreatePeerConnection(*config, std::move(deps));
-
-    if (!_peerConnection) {
-      return nil;
-    }
-    _factory = factory;
-    _localStreams = [[NSMutableArray alloc] init];
-    _delegate = delegate;
-  }
   return self;
 }
 
