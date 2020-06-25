@@ -21,7 +21,7 @@
 
 namespace webrtc {
 namespace {
-constexpr TimeDelta kDefaultProcessDelay = TimeDelta::Millis<5>();
+constexpr TimeDelta kDefaultProcessDelay = TimeDelta::Millis(5);
 }  // namespace
 
 CoDelSimulation::CoDelSimulation() = default;
@@ -31,10 +31,10 @@ bool CoDelSimulation::DropDequeuedPacket(Timestamp now,
                                          Timestamp enqueing_time,
                                          DataSize packet_size,
                                          DataSize queue_size) {
-  constexpr TimeDelta kWindow = TimeDelta::Millis<100>();
-  constexpr TimeDelta kDelayThreshold = TimeDelta::Millis<5>();
-  constexpr TimeDelta kDropCountMemory = TimeDelta::Millis<1600>();
-  constexpr DataSize kMaxPacketSize = DataSize::Bytes<1500>();
+  constexpr TimeDelta kWindow = TimeDelta::Millis(100);
+  constexpr TimeDelta kDelayThreshold = TimeDelta::Millis(5);
+  constexpr TimeDelta kDropCountMemory = TimeDelta::Millis(1600);
+  constexpr DataSize kMaxPacketSize = DataSize::Bytes(1500);
 
   // Compensates for process interval in simulation; not part of standard CoDel.
   TimeDelta queuing_time = now - enqueing_time - kDefaultProcessDelay;
@@ -109,6 +109,12 @@ void SimulatedNetwork::SetConfig(const Config& config) {
     config_state_.prob_start_bursting =
         prob_loss / (1 - prob_loss) / avg_burst_loss_length;
   }
+}
+
+void SimulatedNetwork::UpdateConfig(
+    std::function<void(BuiltInNetworkBehaviorConfig*)> config_modifier) {
+  rtc::CritScope crit(&config_lock_);
+  config_modifier(&config_state_.config);
 }
 
 void SimulatedNetwork::PauseTransmissionUntil(int64_t until_us) {
@@ -191,10 +197,10 @@ void SimulatedNetwork::UpdateCapacityQueue(ConfigState state,
     if (state.config.codel_active_queue_management) {
       while (!capacity_link_.empty() &&
              codel_controller_.DropDequeuedPacket(
-                 Timestamp::us(time_us),
-                 Timestamp::us(capacity_link_.front().packet.send_time_us),
-                 DataSize::bytes(capacity_link_.front().packet.size),
-                 DataSize::bytes(queue_size_bytes_))) {
+                 Timestamp::Micros(time_us),
+                 Timestamp::Micros(capacity_link_.front().packet.send_time_us),
+                 DataSize::Bytes(capacity_link_.front().packet.size),
+                 DataSize::Bytes(queue_size_bytes_))) {
         PacketInfo dropped = capacity_link_.front();
         capacity_link_.pop();
         queue_size_bytes_ -= dropped.packet.size;

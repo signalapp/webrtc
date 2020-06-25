@@ -15,6 +15,7 @@
 
 #include <string>
 
+#include "absl/strings/match.h"
 #include "api/transport/field_trial_based_config.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/numerics/safe_conversions.h"
@@ -42,7 +43,7 @@ const char* kScreenshareHysteresisFieldTrialname =
 
 bool IsEnabled(const WebRtcKeyValueConfig* const key_value_config,
                absl::string_view key) {
-  return key_value_config->Lookup(key).find("Enabled") == 0;
+  return absl::StartsWith(key_value_config->Lookup(key), "Enabled");
 }
 
 void ParseHysteresisFactor(const WebRtcKeyValueConfig* const key_value_config,
@@ -63,7 +64,8 @@ constexpr char CongestionWindowConfig::kKey[];
 std::unique_ptr<StructParametersParser> CongestionWindowConfig::Parser() {
   return StructParametersParser::Create("QueueSize", &queue_size_ms,  //
                                         "MinBitrate", &min_bitrate_bps,
-                                        "InitWin", &initial_data_window);
+                                        "InitWin", &initial_data_window,
+                                        "DropFrame", &drop_frame_only);
 }
 
 // static
@@ -140,6 +142,10 @@ int64_t RateControlSettings::GetCongestionWindowAdditionalTimeMs() const {
 bool RateControlSettings::UseCongestionWindowPushback() const {
   return congestion_window_config_.queue_size_ms &&
          congestion_window_config_.min_bitrate_bps;
+}
+
+bool RateControlSettings::UseCongestionWindowDropFrameOnly() const {
+  return congestion_window_config_.drop_frame_only;
 }
 
 uint32_t RateControlSettings::CongestionWindowMinPushbackTargetBitrateBps()

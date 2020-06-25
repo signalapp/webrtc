@@ -1803,6 +1803,29 @@ TEST_F(P2PTransportChannelTest, TestTcpConnectionsFromActiveToPassive) {
   DestroyChannels();
 }
 
+// Test that tcptype is set on all candidates for a connection running over TCP.
+TEST_F(P2PTransportChannelTest, TestTcpConnectionTcptypeSet) {
+  rtc::ScopedFakeClock clock;
+  ConfigureEndpoints(BLOCK_UDP_AND_INCOMING_TCP, OPEN,
+                     PORTALLOCATOR_ENABLE_SHARED_SOCKET,
+                     PORTALLOCATOR_ENABLE_SHARED_SOCKET);
+
+  SetAllowTcpListen(0, false);  // active.
+  SetAllowTcpListen(1, true);   // actpass.
+  CreateChannels();
+
+  EXPECT_TRUE_SIMULATED_WAIT(CheckConnected(ep1_ch1(), ep2_ch1()),
+                             kMediumTimeout, clock);
+  SIMULATED_WAIT(false, kDefaultTimeout, clock);
+
+  EXPECT_EQ(RemoteCandidate(ep1_ch1())->tcptype(), "passive");
+  EXPECT_EQ(LocalCandidate(ep1_ch1())->tcptype(), "active");
+  EXPECT_EQ(RemoteCandidate(ep2_ch1())->tcptype(), "active");
+  EXPECT_EQ(LocalCandidate(ep2_ch1())->tcptype(), "passive");
+
+  DestroyChannels();
+}
+
 TEST_F(P2PTransportChannelTest, TestIceRoleConflict) {
   AddAddress(0, kPublicAddrs[0]);
   AddAddress(1, kPublicAddrs[1]);
@@ -3222,9 +3245,9 @@ class P2PTransportChannelPingTest : public ::testing::Test,
       return !last_network_route_.has_value();
     } else {
       return pair->local_candidate().network_id() ==
-                 last_network_route_->local_network_id &&
+                 last_network_route_->local.network_id() &&
              pair->remote_candidate().network_id() ==
-                 last_network_route_->remote_network_id;
+                 last_network_route_->remote.network_id();
     }
   }
 
@@ -3620,7 +3643,7 @@ TEST_F(P2PTransportChannelPingTest, TestReceivingStateChange) {
   Connection* conn1 = WaitForConnectionTo(&ch, "1.1.1.1", 1, &clock);
   ASSERT_TRUE(conn1 != nullptr);
 
-  clock.AdvanceTime(webrtc::TimeDelta::seconds(1));
+  clock.AdvanceTime(webrtc::TimeDelta::Seconds(1));
   conn1->ReceivedPing();
   conn1->OnReadPacket("ABC", 3, rtc::TimeMicros());
   EXPECT_TRUE_SIMULATED_WAIT(ch.receiving(), kShortTimeout, clock);
@@ -3715,6 +3738,83 @@ TEST_F(P2PTransportChannelPingTest, TestSelectConnectionBeforeNomination) {
   EXPECT_EQ(last_packet_id, last_sent_packet_id());
   // SignalReadyToSend is fired again because conn4 is writable.
   EXPECT_TRUE(channel_ready_to_send());
+}
+
+// Test the field trial send_ping_on_nomination_ice_controlled
+// that sends a ping directly when a connection has been nominated
+// i.e on the ICE_CONTROLLED-side.
+TEST_F(P2PTransportChannelPingTest, TestPingOnNomination) {
+  webrtc::test::ScopedFieldTrials field_trials(
+      "WebRTC-IceFieldTrials/send_ping_on_nomination_ice_controlled:true/");
+  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
+  P2PTransportChannel ch("receiving state change", 1, &pa);
+  PrepareChannel(&ch);
+  ch.SetIceConfig(ch.config());
+  ch.SetIceRole(ICEROLE_CONTROLLED);
+  ch.MaybeStartGathering();
+  ch.AddRemoteCandidate(CreateUdpCandidate(LOCAL_PORT_TYPE, "1.1.1.1", 1, 1));
+  Connection* conn1 = WaitForConnectionTo(&ch, "1.1.1.1", 1);
+  ASSERT_TRUE(conn1 != nullptr);
+
+  // A connection needs to be writable before it is selected for transmission.
+  conn1->ReceivedPingResponse(LOW_RTT, "id");
+  EXPECT_EQ_WAIT(conn1, ch.selected_connection(), kDefaultTimeout);
+  EXPECT_TRUE(CandidatePairMatchesNetworkRoute(conn1));
+
+  // When a higher priority candidate comes in, the new connection is chosen
+  // as the selected connection.
+  ch.AddRemoteCandidate(CreateUdpCandidate(LOCAL_PORT_TYPE, "2.2.2.2", 2, 10));
+  Connection* conn2 = WaitForConnectionTo(&ch, "2.2.2.2", 2);
+  ASSERT_TRUE(conn2 != nullptr);
+  conn2->ReceivedPingResponse(LOW_RTT, "id");
+  EXPECT_EQ_WAIT(conn2, ch.selected_connection(), kDefaultTimeout);
+  EXPECT_TRUE(CandidatePairMatchesNetworkRoute(conn2));
+
+  // Now nominate conn1 (low prio), it shall be choosen.
+  const int before = conn1->num_pings_sent();
+  NominateConnection(conn1);
+  ASSERT_EQ(conn1, ch.selected_connection());
+  EXPECT_TRUE(CandidatePairMatchesNetworkRoute(conn1));
+
+  // And the additional ping should have been sent directly.
+  EXPECT_EQ(conn1->num_pings_sent(), before + 1);
+}
+
+// Test the field trial send_ping_on_switch_ice_controlling
+// that sends a ping directly when switching to a new connection
+// on the ICE_CONTROLLING-side.
+TEST_F(P2PTransportChannelPingTest, TestPingOnSwitch) {
+  webrtc::test::ScopedFieldTrials field_trials(
+      "WebRTC-IceFieldTrials/send_ping_on_switch_ice_controlling:true/");
+  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
+  P2PTransportChannel ch("receiving state change", 1, &pa);
+  PrepareChannel(&ch);
+  ch.SetIceConfig(ch.config());
+  ch.SetIceRole(ICEROLE_CONTROLLING);
+  ch.MaybeStartGathering();
+  ch.AddRemoteCandidate(CreateUdpCandidate(LOCAL_PORT_TYPE, "1.1.1.1", 1, 1));
+  Connection* conn1 = WaitForConnectionTo(&ch, "1.1.1.1", 1);
+  ASSERT_TRUE(conn1 != nullptr);
+
+  // A connection needs to be writable before it is selected for transmission.
+  conn1->ReceivedPingResponse(LOW_RTT, "id");
+  EXPECT_EQ_WAIT(conn1, ch.selected_connection(), kDefaultTimeout);
+  EXPECT_TRUE(CandidatePairMatchesNetworkRoute(conn1));
+
+  // When a higher priority candidate comes in, the new connection is chosen
+  // as the selected connection.
+  ch.AddRemoteCandidate(CreateUdpCandidate(LOCAL_PORT_TYPE, "2.2.2.2", 2, 10));
+  Connection* conn2 = WaitForConnectionTo(&ch, "2.2.2.2", 2);
+  ASSERT_TRUE(conn2 != nullptr);
+
+  const int before = conn2->num_pings_sent();
+
+  conn2->ReceivedPingResponse(LOW_RTT, "id");
+  EXPECT_EQ_WAIT(conn2, ch.selected_connection(), kDefaultTimeout);
+  EXPECT_TRUE(CandidatePairMatchesNetworkRoute(conn2));
+
+  // And the additional ping should have been sent directly.
+  EXPECT_EQ(conn2->num_pings_sent(), before + 1);
 }
 
 // The controlled side will select a connection as the "selected connection"
@@ -3855,7 +3955,7 @@ TEST_F(P2PTransportChannelPingTest, TestSelectConnectionBasedOnMediaReceived) {
 TEST_F(P2PTransportChannelPingTest,
        TestControlledAgentDataReceivingTakesHigherPrecedenceThanPriority) {
   rtc::ScopedFakeClock clock;
-  clock.AdvanceTime(webrtc::TimeDelta::seconds(1));
+  clock.AdvanceTime(webrtc::TimeDelta::Seconds(1));
   FakePortAllocator pa(rtc::Thread::Current(), nullptr);
   P2PTransportChannel ch("SwitchSelectedConnection", 1, &pa);
   PrepareChannel(&ch);
@@ -3903,7 +4003,7 @@ TEST_F(P2PTransportChannelPingTest,
 TEST_F(P2PTransportChannelPingTest,
        TestControlledAgentNominationTakesHigherPrecedenceThanDataReceiving) {
   rtc::ScopedFakeClock clock;
-  clock.AdvanceTime(webrtc::TimeDelta::seconds(1));
+  clock.AdvanceTime(webrtc::TimeDelta::Seconds(1));
 
   FakePortAllocator pa(rtc::Thread::Current(), nullptr);
   P2PTransportChannel ch("SwitchSelectedConnection", 1, &pa);
@@ -3943,7 +4043,7 @@ TEST_F(P2PTransportChannelPingTest,
 TEST_F(P2PTransportChannelPingTest,
        TestControlledAgentSelectsConnectionWithHigherNomination) {
   rtc::ScopedFakeClock clock;
-  clock.AdvanceTime(webrtc::TimeDelta::seconds(1));
+  clock.AdvanceTime(webrtc::TimeDelta::Seconds(1));
 
   FakePortAllocator pa(rtc::Thread::Current(), nullptr);
   P2PTransportChannel ch("test", 1, &pa);
@@ -3990,7 +4090,7 @@ TEST_F(P2PTransportChannelPingTest,
 TEST_F(P2PTransportChannelPingTest,
        TestControlledAgentIgnoresSmallerNomination) {
   rtc::ScopedFakeClock clock;
-  clock.AdvanceTime(webrtc::TimeDelta::seconds(1));
+  clock.AdvanceTime(webrtc::TimeDelta::Seconds(1));
 
   FakePortAllocator pa(rtc::Thread::Current(), nullptr);
   P2PTransportChannel ch("test", 1, &pa);
@@ -4090,7 +4190,7 @@ TEST_F(P2PTransportChannelPingTest, TestAddRemoteCandidateWithAddressReuse) {
 // will be pruned. Otherwise, lower-priority connections are kept.
 TEST_F(P2PTransportChannelPingTest, TestDontPruneWhenWeak) {
   rtc::ScopedFakeClock clock;
-  clock.AdvanceTime(webrtc::TimeDelta::seconds(1));
+  clock.AdvanceTime(webrtc::TimeDelta::Seconds(1));
   FakePortAllocator pa(rtc::Thread::Current(), nullptr);
   P2PTransportChannel ch("test channel", 1, &pa);
   PrepareChannel(&ch);
@@ -4150,7 +4250,7 @@ TEST_F(P2PTransportChannelPingTest, TestDontPruneHighPriorityConnections) {
 // Test that GetState returns the state correctly.
 TEST_F(P2PTransportChannelPingTest, TestGetState) {
   rtc::ScopedFakeClock clock;
-  clock.AdvanceTime(webrtc::TimeDelta::seconds(1));
+  clock.AdvanceTime(webrtc::TimeDelta::Seconds(1));
   FakePortAllocator pa(rtc::Thread::Current(), nullptr);
   P2PTransportChannel ch("test channel", 1, &pa);
   EXPECT_EQ(webrtc::IceTransportState::kNew, ch.GetIceTransportState());
@@ -4190,7 +4290,7 @@ TEST_F(P2PTransportChannelPingTest, TestGetState) {
 // right away, and it can become active and be pruned again.
 TEST_F(P2PTransportChannelPingTest, TestConnectionPrunedAgain) {
   rtc::ScopedFakeClock clock;
-  clock.AdvanceTime(webrtc::TimeDelta::seconds(1));
+  clock.AdvanceTime(webrtc::TimeDelta::Seconds(1));
 
   FakePortAllocator pa(rtc::Thread::Current(), nullptr);
   P2PTransportChannel ch("test channel", 1, &pa);
@@ -4369,7 +4469,7 @@ TEST_F(P2PTransportChannelPingTest, TestPortDestroyedAfterTimeoutAndPruned) {
   // Simulate 2 minutes going by. This should be enough time for the port to
   // time out.
   for (int second = 0; second < 120; ++second) {
-    fake_clock.AdvanceTime(webrtc::TimeDelta::seconds(1));
+    fake_clock.AdvanceTime(webrtc::TimeDelta::Seconds(1));
   }
   EXPECT_EQ(nullptr, GetConnectionTo(&ch, "1.1.1.1", 1));
   // Port will not be removed because it is not pruned yet.
@@ -5446,7 +5546,7 @@ TEST_F(P2PTransportChannelPingTest, TestInitialSelectDampening0) {
 
   constexpr int kMargin = 10;
   rtc::ScopedFakeClock clock;
-  clock.AdvanceTime(webrtc::TimeDelta::seconds(1));
+  clock.AdvanceTime(webrtc::TimeDelta::Seconds(1));
 
   FakePortAllocator pa(rtc::Thread::Current(), nullptr);
   P2PTransportChannel ch("test channel", 1, &pa);
@@ -5470,7 +5570,7 @@ TEST_F(P2PTransportChannelPingTest, TestInitialSelectDampening) {
 
   constexpr int kMargin = 10;
   rtc::ScopedFakeClock clock;
-  clock.AdvanceTime(webrtc::TimeDelta::seconds(1));
+  clock.AdvanceTime(webrtc::TimeDelta::Seconds(1));
 
   FakePortAllocator pa(rtc::Thread::Current(), nullptr);
   P2PTransportChannel ch("test channel", 1, &pa);
@@ -5494,7 +5594,7 @@ TEST_F(P2PTransportChannelPingTest, TestInitialSelectDampeningPingReceived) {
 
   constexpr int kMargin = 10;
   rtc::ScopedFakeClock clock;
-  clock.AdvanceTime(webrtc::TimeDelta::seconds(1));
+  clock.AdvanceTime(webrtc::TimeDelta::Seconds(1));
 
   FakePortAllocator pa(rtc::Thread::Current(), nullptr);
   P2PTransportChannel ch("test channel", 1, &pa);
@@ -5521,7 +5621,7 @@ TEST_F(P2PTransportChannelPingTest, TestInitialSelectDampeningBoth) {
 
   constexpr int kMargin = 10;
   rtc::ScopedFakeClock clock;
-  clock.AdvanceTime(webrtc::TimeDelta::seconds(1));
+  clock.AdvanceTime(webrtc::TimeDelta::Seconds(1));
 
   FakePortAllocator pa(rtc::Thread::Current(), nullptr);
   P2PTransportChannel ch("test channel", 1, &pa);

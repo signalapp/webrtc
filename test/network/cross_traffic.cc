@@ -146,9 +146,11 @@ void TcpMessageRouteImpl::SendMessage(size_t size,
         }
         size_t data_left = size;
         size_t kMaxPacketSize = 1200;
+        size_t kMinPacketSize = 4;
         Message message{std::move(handler)};
         while (data_left > 0) {
-          size_t packet_size = std::min(data_left, kMaxPacketSize);
+          size_t packet_size =
+              std::max(kMinPacketSize, std::min(data_left, kMaxPacketSize));
           int fragment_id = next_fragment_id_++;
           pending_.push_back(MessageFragment{fragment_id, packet_size});
           message.pending_fragment_ids.insert(fragment_id);
@@ -207,7 +209,7 @@ void TcpMessageRouteImpl::HandleLoss(Timestamp at_time) {
 }
 
 void TcpMessageRouteImpl::SendPackets(Timestamp at_time) {
-  const TimeDelta kPacketTimeout = TimeDelta::seconds(1);
+  const TimeDelta kPacketTimeout = TimeDelta::Seconds(1);
   int cwnd = std::ceil(cwnd_);
   int packets_to_send = std::max(cwnd - static_cast<int>(in_flight_.size()), 0);
   while (packets_to_send-- > 0 && !pending_.empty()) {

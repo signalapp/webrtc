@@ -86,6 +86,7 @@ rtc_library("rtc_media_base") {
     "..:webrtc_common",
     "../api:array_view",
     "../api:audio_options_api",
+    "../api:frame_transformer_interface",
     "../api:media_stream_interface",
     "../api:rtc_error",
     "../api:rtp_parameters",
@@ -197,7 +198,6 @@ rtc_library("rtc_simulcast_encoder_adapter") {
     "../system_wrappers",
     "../system_wrappers:field_trial",
     "//third_party/abseil-cpp/absl/types:optional",
-    "//third_party/libyuv",
   ]
 }
 
@@ -246,6 +246,8 @@ rtc_library("rtc_internal_video_codecs") {
     "../modules/video_coding:webrtc_multiplex",
     "../modules/video_coding:webrtc_vp8",
     "../modules/video_coding:webrtc_vp9",
+    "../modules/video_coding/codecs/av1:libaom_av1_decoder",
+    "../modules/video_coding/codecs/av1:libaom_av1_encoder",
     "../rtc_base:checks",
     "../rtc_base:deprecation",
     "../rtc_base:rtc_base_approved",
@@ -280,6 +282,7 @@ rtc_library("rtc_audio_video") {
     "..:webrtc_common",
     "../api:call_api",
     "../api:libjingle_peerconnection_api",
+    "../api:media_stream_interface",
     "../api:rtp_parameters",
     "../api:scoped_refptr",
     "../api:transport_api",
@@ -564,6 +567,7 @@ if (rtc_include_tests) {
       "../audio",
       "../call:call_interfaces",
       "../common_video",
+      "../media:rtc_h264_profile_id",
       "../modules/audio_device:mock_audio_device",
       "../modules/audio_processing",
       "../modules/audio_processing:api",
@@ -571,7 +575,9 @@ if (rtc_include_tests) {
       "../modules/rtp_rtcp",
       "../modules/video_coding:simulcast_test_fixture_impl",
       "../modules/video_coding:video_codec_interface",
+      "../modules/video_coding:webrtc_h264",
       "../modules/video_coding:webrtc_vp8",
+      "../modules/video_coding/codecs/av1:libaom_av1_decoder",
       "../p2p:p2p_test_utils",
       "../rtc_base",
       "../rtc_base:checks",
@@ -596,6 +602,7 @@ if (rtc_include_tests) {
     ]
     sources = [
       "base/codec_unittest.cc",
+      "base/media_engine_unittest.cc",
       "base/rtp_data_engine_unittest.cc",
       "base/rtp_utils_unittest.cc",
       "base/sdp_fmtp_utils_unittest.cc",

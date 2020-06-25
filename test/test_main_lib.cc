@@ -16,6 +16,8 @@
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
+#include "absl/memory/memory.h"
+#include "absl/types/optional.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/event_tracer.h"
 #include "rtc_base/logging.h"
@@ -45,30 +47,28 @@ ABSL_FLAG(std::string,
           ApplePersistenceIgnoreState,
           "",
           "Intentionally ignored flag intended for iOS simulator.");
+
+// This is the cousin of isolated_script_test_perf_output, but we can't dictate
+// where to write on iOS so the semantics of this flag are a bit different.
 ABSL_FLAG(
     bool,
-    save_chartjson_result,
+    write_perf_output_on_ios,
     false,
-    "Store the perf results in Documents/perf_result.json in the format "
-    "described by "
-    "https://github.com/catapult-project/catapult/blob/master/dashboard/docs/"
-    "data-format.md.");
+    "Store the perf results in Documents/perftest_result.pb in the format "
+    "described by histogram.proto in "
+    "https://chromium.googlesource.com/catapult/.");
 
 #else
-
-ABSL_FLAG(std::string,
-          isolated_script_test_output,
-          "",
-          "Path to output an empty JSON file which Chromium infra requires.");
 
 ABSL_FLAG(
     std::string,
     isolated_script_test_perf_output,
     "",
-    "Path where the perf results should be stored in the JSON format described "
-    "by "
-    "https://github.com/catapult-project/catapult/blob/master/dashboard/docs/"
-    "data-format.md.");
+    "Path where the perf results should be stored in proto format described "
+    "described by histogram.proto in "
+    "https://chromium.googlesource.com/catapult/.");
+
+#endif
 
 constexpr char kPlotAllMetrics[] = "all";
 ABSL_FLAG(std::vector<std::string>,
@@ -77,8 +77,6 @@ ABSL_FLAG(std::vector<std::string>,
           "List of metrics that should be exported for plotting (if they are "
           "available). Example: psnr,ssim,encode_time. To plot all available "
           " metrics pass 'all' as flag value");
-
-#endif
 
 ABSL_FLAG(bool, logs, true, "print logs to stderr");
 ABSL_FLAG(bool, verbose, false, "verbose logs to stderr");
@@ -156,34 +154,36 @@ class TestMainImpl : public TestMain {
       rtc::tracing::StartInternalCapture(trace_event_path.c_str());
     }
 
+    absl::optional<std::vector<std::string>> metrics_to_plot =
+        absl::GetFlag(FLAGS_plot);
+
+    if (metrics_to_plot->empty()) {
+      metrics_to_plot = absl::nullopt;
+    } else {
+      if (metrics_to_plot->size() == 1 &&
+          (*metrics_to_plot)[0] == kPlotAllMetrics) {
+        metrics_to_plot->clear();
+      }
+    }
+
 #if defined(WEBRTC_IOS)
     rtc::test::InitTestSuite(RUN_ALL_TESTS, argc, argv,
-                             absl::GetFlag(FLAGS_save_chartjson_result));
+                             absl::GetFlag(FLAGS_write_perf_output_on_ios),
+                             metrics_to_plot);
     rtc::test::RunTestsFromIOSApp();
     int exit_code = 0;
 #else
     int exit_code = RUN_ALL_TESTS();
 
-    std::string chartjson_result_file =
+    std::string perf_output_file =
         absl::GetFlag(FLAGS_isolated_script_test_perf_output);
-    if (!chartjson_result_file.empty()) {
-      webrtc::test::WritePerfResults(chartjson_result_file);
-    }
-    std::vector<std::string> metrics_to_plot = absl::GetFlag(FLAGS_plot);
-    if (!metrics_to_plot.empty()) {
-      if (metrics_to_plot.size() == 1 &&
-          metrics_to_plot[0] == kPlotAllMetrics) {
-        metrics_to_plot.clear();
+    if (!perf_output_file.empty()) {
+      if (!webrtc::test::WritePerfResults(perf_output_file)) {
+        return 1;
       }
-      webrtc::test::PrintPlottableResults(metrics_to_plot);
     }
-
-    std::string result_filename =
-        absl::GetFlag(FLAGS_isolated_script_test_output);
-    if (!result_filename.empty()) {
-      std::ofstream result_file(result_filename);
-      result_file << "{\"version\": 3}";
-      result_file.close();
+    if (metrics_to_plot) {
+      webrtc::test::PrintPlottableResults(*metrics_to_plot);
     }
 #endif
 

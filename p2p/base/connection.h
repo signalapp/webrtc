@@ -86,7 +86,7 @@ class Connection : public CandidatePairInterface,
   ~Connection() override;
 
   // A unique ID assigned when the connection is created.
-  uint32_t id() { return id_; }
+  uint32_t id() const { return id_; }
 
   // Implementation of virtual methods in CandidatePairInterface.
   // Returns the description of the local port
@@ -302,6 +302,20 @@ class Connection : public CandidatePairInterface,
   const rtc::EventBasedExponentialMovingAverage& GetRttEstimate() const {
     return rtt_estimate_;
   }
+
+  // Reset the connection to a state of a newly connected.
+  // - STATE_WRITE_INIT
+  // - receving = false
+  // - throw away all pending request
+  // - reset RttEstimate
+  //
+  // Keep the following unchanged:
+  // - connected
+  // - remote_candidate
+  // - statistics
+  //
+  // Does not trigger SignalStateChange
+  void ForgetLearnedState();
 
   void SendStunBindingResponse(const StunMessage* request);
   void SendGoogPingResponse(const StunMessage* request);

@@ -17,24 +17,27 @@
 #include <sstream>
 #include <vector>
 
-#include "absl/flags/flag.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/critical_section.h"
-#include "test/testsupport/perf_test_graphjson_writer.h"
 #include "test/testsupport/perf_test_histogram_writer.h"
-
-ABSL_FLAG(bool,
-          write_histogram_proto_json,
-          false,
-          "Use the histogram C++ API, which will write Histogram proto JSON "
-          "instead of Chart JSON. Note, Histogram set JSON and Histogram "
-          "proto JSON are not quite the same thing. This flag only has effect "
-          "if --isolated_script_test_perf_output is specified.");
 
 namespace webrtc {
 namespace test {
 
 namespace {
+
+std::string UnitWithDirection(
+    const std::string& units,
+    webrtc::test::ImproveDirection improve_direction) {
+  switch (improve_direction) {
+    case webrtc::test::ImproveDirection::kNone:
+      return units;
+    case webrtc::test::ImproveDirection::kSmallerIsBetter:
+      return units + "_smallerIsBetter";
+    case webrtc::test::ImproveDirection::kBiggerIsBetter:
+      return units + "_biggerIsBetter";
+  }
+}
 
 template <typename Container>
 void OutputListToStream(std::ostream* ostream, const Container& values) {
@@ -193,13 +196,8 @@ ResultsLinePrinter& GetResultsLinePrinter() {
 }
 
 PerfTestResultWriter& GetPerfWriter() {
-  if (absl::GetFlag(FLAGS_write_histogram_proto_json)) {
-    static PerfTestResultWriter* writer = CreateHistogramWriter();
-    return *writer;
-  } else {
-    static PerfTestResultWriter* writer = CreateGraphJsonWriter();
-    return *writer;
-  }
+  static PerfTestResultWriter* writer = CreateHistogramWriter();
+  return *writer;
 }
 
 }  // namespace
@@ -213,19 +211,32 @@ void SetPerfResultsOutput(FILE* output) {
   GetResultsLinePrinter().SetOutput(output);
 }
 
-std::string GetPerfResultsJSON() {
-  return GetPerfWriter().ToJSON();
+std::string GetPerfResults() {
+  return GetPerfWriter().Serialize();
 }
 
 void PrintPlottableResults(const std::vector<std::string>& desired_graphs) {
   GetPlottableCounterPrinter().Print(desired_graphs);
 }
 
-void WritePerfResults(const std::string& output_path) {
-  std::string json_results = GetPerfResultsJSON();
-  std::fstream json_file(output_path, std::fstream::out);
-  json_file << json_results;
-  json_file.close();
+bool WritePerfResults(const std::string& output_path) {
+  std::string results = GetPerfResults();
+  FILE* output = fopen(output_path.c_str(), "wb");
+  if (output == NULL) {
+    printf("Failed to write to %s.\n", output_path.c_str());
+    return false;
+  }
+  size_t written =
+      fwrite(results.c_str(), sizeof(char), results.size(), output);
+  fclose(output);
+
+  if (written != results.size()) {
+    long expected = results.size();
+    printf("Wrote %zu, tried to write %lu\n", written, expected);
+    return false;
+  }
+
+  return true;
 }
 
 void PrintResult(const std::string& measurement,

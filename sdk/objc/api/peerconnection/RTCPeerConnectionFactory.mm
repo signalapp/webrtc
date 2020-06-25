@@ -296,6 +296,18 @@
                                            observer:observer];
 }
 
+- (RTCPeerConnection *)
+    peerConnectionWithDependencies:(RTCConfiguration *)configuration
+                       constraints:(RTCMediaConstraints *)constraints
+                      dependencies:(std::unique_ptr<webrtc::PeerConnectionDependencies>)dependencies
+                          observer:(void *)observer {
+  return [[RTCPeerConnection alloc] initWithDependencies:self
+                                           configuration:configuration
+                                             constraints:constraints
+                                            dependencies:std::move(dependencies)
+                                                observer:observer];
+}
+
 - (void)setOptions:(nonnull RTCPeerConnectionFactoryOptions *)options {
   RTC_DCHECK(options != nil);
   _nativeFactory->SetOptions(options.nativeOptions);

@@ -16,6 +16,7 @@
 #include <utility>
 
 #include "api/task_queue/default_task_queue_factory.h"
+#include "api/transport/field_trial_based_config.h"
 #include "rtc_base/strings/json.h"
 #include "system_wrappers/include/clock.h"
 #include "test/call_config_utils.h"
@@ -47,7 +48,7 @@ void RtpReplayer::Replay(
   // Work around: webrtc calls webrtc::Random(clock.TimeInMicroseconds())
   // everywhere and Random expects non-zero seed. Let's set the clock non-zero
   // to make them happy.
-  fake_clock.SetTime(webrtc::Timestamp::ms(1));
+  fake_clock.SetTime(webrtc::Timestamp::Millis(1));
 
   // Attempt to create an RtpReader from the input file.
   auto rtp_reader = CreateRtpReader(rtp_dump_data, rtp_dump_size);
@@ -62,6 +63,8 @@ void RtpReplayer::Replay(
       CreateDefaultTaskQueueFactory();
   Call::Config call_config(&event_log);
   call_config.task_queue_factory = task_queue_factory.get();
+  FieldTrialBasedConfig field_trials;
+  call_config.trials = &field_trials;
   std::unique_ptr<Call> call(Call::Create(call_config));
   SetupVideoStreams(&receive_stream_configs, stream_state.get(), call.get());
 
@@ -155,7 +158,7 @@ void RtpReplayer::ReplayPackets(rtc::FakeClock* clock,
     if (deliver_in_ms > 0) {
       // StatsCounter::ReportMetricToAggregatedCounter is O(elapsed time).
       // Set an upper limit to prevent waste time.
-      clock->AdvanceTime(webrtc::TimeDelta::ms(
+      clock->AdvanceTime(webrtc::TimeDelta::Millis(
           std::min(deliver_in_ms, static_cast<int64_t>(100))));
     }
 

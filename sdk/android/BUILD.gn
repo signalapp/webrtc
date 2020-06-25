@@ -116,7 +116,6 @@ if (is_android) {
       ":builtin_audio_codecs_jni",
       ":default_video_codec_factory_jni",
       ":java_audio_device_module_jni",
-      ":legacy_hwcodecs_jni",
       ":peerconnection_jni",
       ":video_jni",
       "../../api:create_peerconnection_factory",
@@ -172,7 +171,6 @@ if (is_android) {
     ]
 
     deps = [
-      "//rtc_base:base_java",
       "//third_party/android_deps:com_android_support_support_annotations_java",
     ]
   }
@@ -270,8 +268,6 @@ if (is_android) {
       "api/org/webrtc/FrameDecryptor.java",
       "api/org/webrtc/FrameEncryptor.java",
       "api/org/webrtc/IceCandidate.java",
-      "api/org/webrtc/MediaCodecVideoDecoder.java",
-      "api/org/webrtc/MediaCodecVideoEncoder.java",
       "api/org/webrtc/MediaConstraints.java",
       "api/org/webrtc/MediaSource.java",
       "api/org/webrtc/MediaStream.java",
@@ -281,8 +277,11 @@ if (is_android) {
       "api/org/webrtc/NativePeerConnectionFactory.java",
       "api/org/webrtc/NetEqFactoryFactory.java",
       "api/org/webrtc/NetworkControllerFactoryFactory.java",
-      "api/org/webrtc/NetworkMonitor.java",  # TODO(sakal): Break dependencies and move to base_java.
-      "api/org/webrtc/NetworkMonitorAutoDetect.java",  # TODO(sakal): Break dependencies and move to base_java.
+      "api/org/webrtc/NetworkMonitor.java",  # TODO(sakal): Break dependencies
+                                             # and move to base_java.
+      "api/org/webrtc/NetworkMonitorAutoDetect.java",  # TODO(sakal): Break
+                                                       # dependencies and move
+                                                       # to base_java.
       "api/org/webrtc/NetworkStatePredictorFactoryFactory.java",
       "api/org/webrtc/PeerConnection.java",
       "api/org/webrtc/PeerConnectionDependencies.java",
@@ -324,6 +323,10 @@ if (is_android) {
       "//modules/audio_device:audio_device_java",
       "//rtc_base:base_java",
       "//third_party/android_deps:com_android_support_support_annotations_java",
+    ]
+    srcjar_deps = [
+      "//api:rtp_parameters_enums",
+      "//api/video:video_frame_enums",
     ]
   }
 
@@ -403,7 +406,7 @@ if (is_android) {
       "src/java/org/webrtc/MediaCodecWrapperFactory.java",
       "src/java/org/webrtc/MediaCodecWrapperFactoryImpl.java",
       "src/java/org/webrtc/NV12Buffer.java",
-      "src/java/org/webrtc/VideoCodecType.java",
+      "src/java/org/webrtc/VideoCodecMimeType.java",
     ]
 
     deps = [
@@ -589,41 +592,6 @@ if (current_os == "linux" || is_android) {
       "../../api/audio_codecs:builtin_audio_decoder_factory",
       "../../api/audio_codecs:builtin_audio_encoder_factory",
       "../../rtc_base:rtc_base_approved",
-    ]
-  }
-
-  # Corresponds to MediaCodecVideoEncoder/Decoder in Java.
-  rtc_library("legacy_hwcodecs_jni") {
-    visibility = [ "*" ]
-    allow_poison = [ "software_video_codecs" ]
-    sources = [
-      "src/jni/android_media_codec_common.h",
-      "src/jni/android_media_decoder.cc",
-      "src/jni/android_media_encoder.cc",
-    ]
-    deps = [
-      ":base_jni",
-      ":default_video_codec_factory_jni",
-      ":generated_video_jni",
-      ":native_api_jni",
-      ":video_jni",
-      ":videoframe_jni",
-      "../../api:scoped_refptr",
-      "../../api/task_queue",
-      "../../api/video_codecs:video_codecs_api",
-      "../../common_video",
-      "../../media:rtc_internal_video_codecs",
-      "../../media:rtc_media_base",
-      "../../modules/video_coding:video_codec_interface",
-      "../../modules/video_coding:video_coding_utility",
-      "../../rtc_base",
-      "../../rtc_base:checks",
-      "../../rtc_base:rtc_task_queue",
-      "../../rtc_base:weak_ptr",
-      "../../rtc_base/synchronization:sequence_checker",
-      "../../system_wrappers:field_trial",
-      "//third_party/abseil-cpp/absl/memory",
-      "//third_party/libyuv",
     ]
   }
 
@@ -1198,8 +1166,6 @@ if (current_os == "linux" || is_android) {
     sources = [
       "api/org/webrtc/EncodedImage.java",
       "api/org/webrtc/JavaI420Buffer.java",
-      "api/org/webrtc/MediaCodecVideoDecoder.java",
-      "api/org/webrtc/MediaCodecVideoEncoder.java",
       "api/org/webrtc/TimestampAligner.java",
       "api/org/webrtc/VideoCodecInfo.java",
       "api/org/webrtc/VideoCodecStatus.java",
@@ -1354,7 +1320,6 @@ if (is_android) {
         "instrumentationtests/src/org/webrtc/GlRectDrawerTest.java",
         "instrumentationtests/src/org/webrtc/HardwareVideoEncoderTest.java",
         "instrumentationtests/src/org/webrtc/LoggableTest.java",
-        "instrumentationtests/src/org/webrtc/MediaCodecVideoEncoderTest.java",
         "instrumentationtests/src/org/webrtc/NetworkMonitorTest.java",
         "instrumentationtests/src/org/webrtc/PeerConnectionEndToEndTest.java",
         "instrumentationtests/src/org/webrtc/PeerConnectionFactoryTest.java",
@@ -1537,6 +1502,7 @@ if (is_android) {
       "tests/src/org/webrtc/GlGenericDrawerTest.java",
       "tests/src/org/webrtc/HardwareVideoEncoderTest.java",
       "tests/src/org/webrtc/IceCandidateTest.java",
+      "tests/src/org/webrtc/RefCountDelegateTest.java",
       "tests/src/org/webrtc/ScalingSettingsTest.java",
     ]
 

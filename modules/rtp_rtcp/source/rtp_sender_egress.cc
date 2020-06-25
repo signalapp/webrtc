@@ -25,6 +25,7 @@ namespace {
 constexpr uint32_t kTimestampTicksPerMs = 90;
 constexpr int kSendSideDelayWindowMs = 1000;
 constexpr int kBitrateStatisticsWindowMs = 1000;
+constexpr size_t kRtpSequenceNumberMapMaxEntries = 1 << 13;
 
 bool IsEnabled(absl::string_view name,
                const WebRtcKeyValueConfig* field_trials) {
@@ -56,9 +57,8 @@ RtpSenderEgress::RtpSenderEgress(const RtpRtcp::Configuration& config,
                                  RtpPacketHistory* packet_history)
     : ssrc_(config.local_media_ssrc),
       rtx_ssrc_(config.rtx_send_ssrc),
-      flexfec_ssrc_(config.flexfec_sender
-                        ? absl::make_optional(config.flexfec_sender->ssrc())
-                        : absl::nullopt),
+      flexfec_ssrc_(config.fec_generator ? config.fec_generator->FecSsrc()
+                                         : absl::nullopt),
       populate_network2_timestamp_(config.populate_network2_timestamp),
       send_side_bwe_with_overhead_(
           IsEnabled("WebRTC-SendSideBwe-WithOverhead", config.field_trials)),
@@ -67,6 +67,7 @@ RtpSenderEgress::RtpSenderEgress(const RtpRtcp::Configuration& config,
       transport_(config.outgoing_transport),
       event_log_(config.event_log),
       is_audio_(config.audio),
+      need_rtp_packet_infos_(config.need_rtp_packet_infos),
       transport_feedback_observer_(config.transport_feedback_callback),
       send_side_delay_observer_(config.send_side_delay_observer),
       send_packet_observer_(config.send_packet_observer),
@@ -75,14 +76,18 @@ RtpSenderEgress::RtpSenderEgress(const RtpRtcp::Configuration& config,
       bitrate_callback_(config.send_bitrate_observer),
       media_has_been_sent_(false),
       force_part_of_allocation_(false),
+      timestamp_offset_(0),
       max_delay_it_(send_delays_.end()),
       sum_delays_ms_(0),
       total_packet_send_delay_ms_(0),
       rtp_overhead_bytes_per_packet_(0),
       total_bitrate_sent_(kBitrateStatisticsWindowMs,
                           RateStatistics::kBpsScale),
-      nack_bitrate_sent_(kBitrateStatisticsWindowMs,
-                         RateStatistics::kBpsScale) {}
+      nack_bitrate_sent_(kBitrateStatisticsWindowMs, RateStatistics::kBpsScale),
+      rtp_sequence_number_map_(need_rtp_packet_infos_
+                                   ? std::make_unique<RtpSequenceNumberMap>(
+                                         kRtpSequenceNumberMapMaxEntries)
+                                   : nullptr) {}
 
 void RtpSenderEgress::SendPacket(RtpPacketToSend* packet,
                                  const PacedPacketInfo& pacing_info) {
@@ -113,6 +118,20 @@ void RtpSenderEgress::SendPacket(RtpPacketToSend* packet,
   {
     rtc::CritScope lock(&lock_);
     options.included_in_allocation = force_part_of_allocation_;
+
+    if (need_rtp_packet_infos_ &&
+        packet->packet_type() == RtpPacketToSend::Type::kVideo) {
+      RTC_DCHECK(rtp_sequence_number_map_);
+      // Last packet of a frame, add it to sequence number info map.
+      const uint32_t timestamp = packet->Timestamp() - timestamp_offset_;
+      bool is_first_packet_of_frame = packet->is_first_packet_of_frame();
+      bool is_last_packet_of_frame = packet->Marker();
+
+      rtp_sequence_number_map_->InsertPacket(
+          packet->SequenceNumber(),
+          RtpSequenceNumberMap::Info(timestamp, is_first_packet_of_frame,
+                                     is_last_packet_of_frame));
+    }
   }
 
   // Bug webrtc:7859. While FEC is invoked from rtp_sender_video, and not after
@@ -140,9 +159,8 @@ void RtpSenderEgress::SendPacket(RtpPacketToSend* packet,
     }
   }
 
-  const bool is_media =
-      packet->packet_type() == RtpPacketToSend::Type::kAudio ||
-      packet->packet_type() == RtpPacketToSend::Type::kVideo;
+  const bool is_media = packet->packet_type() == RtpPacketMediaType::kAudio ||
+                        packet->packet_type() == RtpPacketMediaType::kVideo;
 
   // Downstream code actually uses this flag to distinguish between media and
   // everything else.
@@ -157,8 +175,8 @@ void RtpSenderEgress::SendPacket(RtpPacketToSend* packet,
   options.application_data.assign(packet->application_data().begin(),
                                   packet->application_data().end());
 
-  if (packet->packet_type() != RtpPacketToSend::Type::kPadding &&
-      packet->packet_type() != RtpPacketToSend::Type::kRetransmission) {
+  if (packet->packet_type() != RtpPacketMediaType::kPadding &&
+      packet->packet_type() != RtpPacketMediaType::kRetransmission) {
     UpdateDelayStatistics(packet->capture_time_ms(), now_ms, packet_ssrc);
     UpdateOnSendPacket(options.packet_id, packet->capture_time_ms(),
                        packet_ssrc);
@@ -194,13 +212,13 @@ void RtpSenderEgress::ProcessBitrateAndNotifyObservers() {
 
 DataRate RtpSenderEgress::SendBitrate() const {
   rtc::CritScope cs(&lock_);
-  return DataRate::bps(
+  return DataRate::BitsPerSec(
       total_bitrate_sent_.Rate(clock_->TimeInMilliseconds()).value_or(0));
 }
 
 DataRate RtpSenderEgress::NackOverheadRate() const {
   rtc::CritScope cs(&lock_);
-  return DataRate::bps(
+  return DataRate::BitsPerSec(
       nack_bitrate_sent_.Rate(clock_->TimeInMilliseconds()).value_or(0));
 }
 
@@ -227,17 +245,46 @@ void RtpSenderEgress::SetMediaHasBeenSent(bool media_sent) {
   media_has_been_sent_ = media_sent;
 }
 
+void RtpSenderEgress::SetTimestampOffset(uint32_t timestamp) {
+  rtc::CritScope lock(&lock_);
+  timestamp_offset_ = timestamp;
+}
+
+std::vector<RtpSequenceNumberMap::Info> RtpSenderEgress::GetSentRtpPacketInfos(
+    rtc::ArrayView<const uint16_t> sequence_numbers) const {
+  RTC_DCHECK(!sequence_numbers.empty());
+  if (!need_rtp_packet_infos_) {
+    return std::vector<RtpSequenceNumberMap::Info>();
+  }
+
+  std::vector<RtpSequenceNumberMap::Info> results;
+  results.reserve(sequence_numbers.size());
+
+  rtc::CritScope cs(&lock_);
+  for (uint16_t sequence_number : sequence_numbers) {
+    const auto& info = rtp_sequence_number_map_->Get(sequence_number);
+    if (!info) {
+      // The empty vector will be returned. We can delay the clearing
+      // of the vector until after we exit the critical section.
+      return std::vector<RtpSequenceNumberMap::Info>();
+    }
+    results.push_back(*info);
+  }
+
+  return results;
+}
+
 bool RtpSenderEgress::HasCorrectSsrc(const RtpPacketToSend& packet) const {
   switch (*packet.packet_type()) {
-    case RtpPacketToSend::Type::kAudio:
-    case RtpPacketToSend::Type::kVideo:
+    case RtpPacketMediaType::kAudio:
+    case RtpPacketMediaType::kVideo:
       return packet.Ssrc() == ssrc_;
-    case RtpPacketToSend::Type::kRetransmission:
-    case RtpPacketToSend::Type::kPadding:
+    case RtpPacketMediaType::kRetransmission:
+    case RtpPacketMediaType::kPadding:
       // Both padding and retransmission must be on either the media or the
       // RTX stream.
       return packet.Ssrc() == rtx_ssrc_ || packet.Ssrc() == ssrc_;
-    case RtpPacketToSend::Type::kForwardErrorCorrection:
+    case RtpPacketMediaType::kForwardErrorCorrection:
       // FlexFEC is on separate SSRC, ULPFEC uses media SSRC.
       return packet.Ssrc() == ssrc_ || packet.Ssrc() == flexfec_ssrc_;
   }
@@ -257,10 +304,10 @@ void RtpSenderEgress::AddPacketToTransportFeedback(
     RtpPacketSendInfo packet_info;
     packet_info.ssrc = ssrc_;
     packet_info.transport_sequence_number = packet_id;
-    packet_info.has_rtp_sequence_number = true;
     packet_info.rtp_sequence_number = packet.SequenceNumber();
     packet_info.length = packet_size;
     packet_info.pacing_info = pacing_info;
+    packet_info.packet_type = packet.packet_type();
     transport_feedback_observer_->OnAddPacket(packet_info);
   }
 }
@@ -409,11 +456,11 @@ void RtpSenderEgress::UpdateRtpStats(const RtpPacketToSend& packet) {
     counters->first_packet_time_ms = now_ms;
   }
 
-  if (packet.packet_type() == RtpPacketToSend::Type::kForwardErrorCorrection) {
+  if (packet.packet_type() == RtpPacketMediaType::kForwardErrorCorrection) {
     counters->fec.AddPacket(packet);
   }
 
-  if (packet.packet_type() == RtpPacketToSend::Type::kRetransmission) {
+  if (packet.packet_type() == RtpPacketMediaType::kRetransmission) {
     counters->retransmitted.AddPacket(packet);
     nack_bitrate_sent_.Update(packet.size(), now_ms);
   }

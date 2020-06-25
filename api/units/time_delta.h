@@ -32,34 +32,24 @@ namespace webrtc {
 // microseconds (us).
 class TimeDelta final : public rtc_units_impl::RelativeUnit<TimeDelta> {
  public:
+  template <typename T>
+  static constexpr TimeDelta Seconds(T value) {
+    static_assert(std::is_arithmetic<T>::value, "");
+    return FromFraction(1'000'000, value);
+  }
+  template <typename T>
+  static constexpr TimeDelta Millis(T value) {
+    static_assert(std::is_arithmetic<T>::value, "");
+    return FromFraction(1'000, value);
+  }
+  template <typename T>
+  static constexpr TimeDelta Micros(T value) {
+    static_assert(std::is_arithmetic<T>::value, "");
+    return FromValue(value);
+  }
+
   TimeDelta() = delete;
-  template <int64_t seconds>
-  static constexpr TimeDelta Seconds() {
-    return FromFraction(1'000'000, seconds);
-  }
-  template <int64_t ms>
-  static constexpr TimeDelta Millis() {
-    return FromFraction(1000, ms);
-  }
-  template <int64_t us>
-  static constexpr TimeDelta Micros() {
-    return FromValue(us);
-  }
-  template <typename T>
-  static constexpr TimeDelta seconds(T seconds) {
-    static_assert(std::is_arithmetic<T>::value, "");
-    return FromFraction(1'000'000, seconds);
-  }
-  template <typename T>
-  static constexpr TimeDelta ms(T milliseconds) {
-    static_assert(std::is_arithmetic<T>::value, "");
-    return FromFraction(1000, milliseconds);
-  }
-  template <typename T>
-  static constexpr TimeDelta us(T microseconds) {
-    static_assert(std::is_arithmetic<T>::value, "");
-    return FromValue(microseconds);
-  }
+
   template <typename T = int64_t>
   constexpr T seconds() const {
     return ToFraction<1000000, T>();
@@ -88,7 +78,7 @@ class TimeDelta final : public rtc_units_impl::RelativeUnit<TimeDelta> {
   }
 
   constexpr TimeDelta Abs() const {
-    return us() < 0 ? TimeDelta::us(-us()) : *this;
+    return us() < 0 ? TimeDelta::Micros(-us()) : *this;
   }
 
  private:

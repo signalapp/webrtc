@@ -27,6 +27,7 @@
 #include "modules/audio_processing/test/wav_based_simulator.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/strings/string_builder.h"
+#include "system_wrappers/include/field_trial.h"
 
 constexpr int kParameterNotSpecifiedValue = -10000;
 
@@ -118,10 +119,6 @@ ABSL_FLAG(bool,
           false,
           "Activate all of the default components (will be overridden by any "
           "other settings)");
-ABSL_FLAG(int,
-          use_legacy_ns,
-          kParameterNotSpecifiedValue,
-          "Activate (1) or deactivate(0) the legacy NS");
 ABSL_FLAG(int,
           analog_agc_disable_digital_adaptive,
           kParameterNotSpecifiedValue,
@@ -260,6 +257,13 @@ ABSL_FLAG(bool,
           false,
           "Produce floating point wav output files.");
 
+ABSL_FLAG(std::string,
+          force_fieldtrials,
+          "",
+          "Field trials control experimental feature code which can be forced. "
+          "E.g. running with --force_fieldtrials=WebRTC-FooFeature/Enable/"
+          " will assign the group Enable to field trial WebRTC-FooFeature.");
+
 namespace webrtc {
 namespace test {
 namespace {
@@ -381,8 +385,6 @@ SimulationSettings CreateSettings() {
                       &settings.use_analog_agc);
   SetSettingIfFlagSet(absl::GetFlag(FLAGS_vad), &settings.use_vad);
   SetSettingIfFlagSet(absl::GetFlag(FLAGS_le), &settings.use_le);
-  SetSettingIfFlagSet(absl::GetFlag(FLAGS_use_legacy_ns),
-                      &settings.use_legacy_ns);
   SetSettingIfFlagSet(absl::GetFlag(FLAGS_analog_agc_disable_digital_adaptive),
                       &settings.analog_agc_disable_digital_adaptive);
   SetSettingIfFlagSet(absl::GetFlag(FLAGS_analog_agc_agc2_level_estimator),
@@ -636,6 +638,11 @@ int AudioprocFloatImpl(std::unique_ptr<AudioProcessingBuilder> ap_builder,
     printf("%s", kUsageDescription);
     return 1;
   }
+
+  // InitFieldTrialsFromString stores the char*, so the char array must
+  // outlive the application.
+  const std::string field_trials = absl::GetFlag(FLAGS_force_fieldtrials);
+  webrtc::field_trial::InitFieldTrialsFromString(field_trials.c_str());
 
   SimulationSettings settings = CreateSettings();
   if (!input_aecdump.empty()) {

@@ -163,6 +163,7 @@ rtc_library("libjingle_peerconnection_api") {
     ":audio_options_api",
     ":callfactory_api",
     ":fec_controller_api",
+    ":frame_transformer_interface",
     ":libjingle_logging_api",
     ":media_stream_interface",
     ":network_state_predictor_api",
@@ -171,6 +172,7 @@ rtc_library("libjingle_peerconnection_api") {
     ":rtc_stats_api",
     ":rtp_packet_info",
     ":rtp_parameters",
+    ":rtp_transceiver_direction",
     ":scoped_refptr",
     "audio:audio_mixer_api",
     "audio_codecs:audio_codecs_api",
@@ -211,6 +213,16 @@ rtc_library("libjingle_peerconnection_api") {
     "../rtc_base:deprecation",
     "../rtc_base:rtc_base_approved",
     "../rtc_base/system:rtc_export",
+  ]
+}
+
+rtc_source_set("frame_transformer_interface") {
+  visibility = [ "*" ]
+  sources = [ "frame_transformer_interface.h" ]
+  deps = [
+    ":scoped_refptr",
+    "../rtc_base:refcount",
+    "video:encoded_frame",
   ]
 }
 
@@ -287,6 +299,11 @@ rtc_source_set("track_id_stream_label_map") {
   sources = [ "test/track_id_stream_label_map.h" ]
 }
 
+rtc_source_set("rtp_transceiver_direction") {
+  visibility = [ "*" ]
+  sources = [ "rtp_transceiver_direction.h" ]
+}
+
 rtc_library("rtp_parameters") {
   visibility = [ "*" ]
   sources = [
@@ -297,11 +314,19 @@ rtc_library("rtp_parameters") {
   ]
   deps = [
     ":array_view",
+    ":rtp_transceiver_direction",
     "../rtc_base:checks",
     "../rtc_base:stringutils",
     "../rtc_base/system:rtc_export",
+    "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/types:optional",
   ]
+}
+
+if (is_android) {
+  java_cpp_enum("rtp_parameters_enums") {
+    sources = [ "rtp_parameters.h" ]
+  }
 }
 
 rtc_source_set("audio_quality_analyzer_api") {
@@ -354,6 +379,7 @@ rtc_source_set("peer_connection_quality_test_fixture_api") {
     "video:video_frame",
     "video_codecs:video_codecs_api",
     "//third_party/abseil-cpp/absl/memory",
+    "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/types:optional",
   ]
 }
@@ -663,6 +689,7 @@ if (rtc_include_tests) {
         "//third_party/abseil-cpp/absl/flags:flag",
         "//third_party/abseil-cpp/absl/flags:parse",
         "//third_party/abseil-cpp/absl/strings",
+        "//third_party/abseil-cpp/absl/types:optional",
       ]
     }
   }
@@ -944,6 +971,7 @@ if (rtc_include_tests) {
     deps = [
       ":callfactory_api",
       ":time_controller",
+      "../call",
       "../call:call_interfaces",
       "../test/time_controller",
     ]
@@ -998,6 +1026,7 @@ if (rtc_include_tests) {
     sources = [ "test/compile_all_headers.cc" ]
 
     deps = [
+      ":dummy_peer_connection",
       ":fake_frame_decryptor",
       ":fake_frame_encryptor",
       ":fake_media_transport",

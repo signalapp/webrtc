@@ -137,6 +137,26 @@ bool EchoCanceller3Config::Validate(EchoCanceller3Config* config) {
     res = false;
   }
 
+  res = res & FloorLimit(&c->filter.refined.length_blocks, 1);
+  res = res & Limit(&c->filter.refined.leakage_converged, 0.f, 1000.f);
+  res = res & Limit(&c->filter.refined.leakage_diverged, 0.f, 1000.f);
+  res = res & Limit(&c->filter.refined.error_floor, 0.f, 1000.f);
+  res = res & Limit(&c->filter.refined.error_ceil, 0.f, 100000000.f);
+  res = res & Limit(&c->filter.refined.noise_gate, 0.f, 100000000.f);
+
+  res = res & FloorLimit(&c->filter.refined_initial.length_blocks, 1);
+  res = res & Limit(&c->filter.refined_initial.leakage_converged, 0.f, 1000.f);
+  res = res & Limit(&c->filter.refined_initial.leakage_diverged, 0.f, 1000.f);
+  res = res & Limit(&c->filter.refined_initial.error_floor, 0.f, 1000.f);
+  res = res & Limit(&c->filter.refined_initial.error_ceil, 0.f, 100000000.f);
+  res = res & Limit(&c->filter.refined_initial.noise_gate, 0.f, 100000000.f);
+
+  if (c->filter.refined.length_blocks <
+      c->filter.refined_initial.length_blocks) {
+    c->filter.refined_initial.length_blocks = c->filter.refined.length_blocks;
+    res = false;
+  }
+
   res = res & FloorLimit(&c->filter.shadow.length_blocks, 1);
   res = res & Limit(&c->filter.shadow.rate, 0.f, 1.f);
   res = res & Limit(&c->filter.shadow.noise_gate, 0.f, 100000000.f);
@@ -147,6 +167,19 @@ bool EchoCanceller3Config::Validate(EchoCanceller3Config* config) {
 
   if (c->filter.shadow.length_blocks < c->filter.shadow_initial.length_blocks) {
     c->filter.shadow_initial.length_blocks = c->filter.shadow.length_blocks;
+    res = false;
+  }
+
+  res = res & FloorLimit(&c->filter.coarse.length_blocks, 1);
+  res = res & Limit(&c->filter.coarse.rate, 0.f, 1.f);
+  res = res & Limit(&c->filter.coarse.noise_gate, 0.f, 100000000.f);
+
+  res = res & FloorLimit(&c->filter.coarse_initial.length_blocks, 1);
+  res = res & Limit(&c->filter.coarse_initial.rate, 0.f, 1.f);
+  res = res & Limit(&c->filter.coarse_initial.noise_gate, 0.f, 100000000.f);
+
+  if (c->filter.coarse.length_blocks < c->filter.coarse_initial.length_blocks) {
+    c->filter.coarse_initial.length_blocks = c->filter.coarse.length_blocks;
     res = false;
   }
 
@@ -161,6 +194,7 @@ bool EchoCanceller3Config::Validate(EchoCanceller3Config* config) {
     res = false;
   }
   res = res & Limit(&c->erle.num_sections, 1, c->filter.main.length_blocks);
+  res = res & Limit(&c->erle.num_sections, 1, c->filter.refined.length_blocks);
 
   res = res & Limit(&c->ep_strength.default_gain, 0.f, 1000000.f);
   res = res & Limit(&c->ep_strength.default_len, -1.f, 1.f);
@@ -191,6 +225,8 @@ bool EchoCanceller3Config::Validate(EchoCanceller3Config* config) {
   res = res & Limit(&c->echo_model.noise_gate_slope, 0, 1000000.f);
   res = res & Limit(&c->echo_model.render_pre_window_size, 0, 100);
   res = res & Limit(&c->echo_model.render_post_window_size, 0, 100);
+
+  res = res & Limit(&c->comfort_noise.noise_floor_dbfs, -200.f, 0.f);
 
   res = res & Limit(&c->suppressor.nearend_average_blocks, 1, 5000);
 

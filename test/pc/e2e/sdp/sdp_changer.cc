@@ -42,6 +42,16 @@ std::vector<RtpCodecCapability> FilterVideoCodecCapabilities(
     bool use_ulpfec,
     bool use_flexfec,
     rtc::ArrayView<const RtpCodecCapability> supported_codecs) {
+  RTC_LOG(INFO) << "Peer connection support these codecs:";
+  for (const auto& codec : supported_codecs) {
+    RTC_LOG(INFO) << "Codec: " << codec.name;
+    if (!codec.parameters.empty()) {
+      RTC_LOG(INFO) << "Params:";
+      for (auto param : codec.parameters) {
+        RTC_LOG(INFO) << "  " << param.first << "=" << param.second;
+      }
+    }
+  }
   std::vector<RtpCodecCapability> output_codecs;
   // Find requested codecs among supported and add them to output in the order
   // they were requested.
@@ -204,7 +214,7 @@ LocalAndRemoteSdp SignalingInterceptor::PatchVp8Offer(
     // single simulcast section will be converted. Do it before removing content
     // because otherwise description will be deleted.
     std::unique_ptr<cricket::MediaContentDescription> prototype_media_desc =
-        absl::WrapUnique(simulcast_content->media_description()->Copy());
+        simulcast_content->media_description()->Clone();
 
     // Remove simulcast video section from offer.
     RTC_CHECK(desc->RemoveContentByName(simulcast_content->mid()));
@@ -312,9 +322,10 @@ LocalAndRemoteSdp SignalingInterceptor::PatchVp9Offer(
     RTC_CHECK_EQ(content.media_description()->streams().size(), 1);
     cricket::StreamParams& stream =
         content.media_description()->mutable_streams()[0];
-    RTC_CHECK_EQ(stream.stream_ids().size(), 1)
-        << "Too many stream ids in video stream";
-    std::string stream_label = stream.stream_ids()[0];
+    RTC_CHECK_EQ(stream.stream_ids().size(), 2)
+        << "Expected 2 stream ids in video stream: 1st - sync_group, 2nd - "
+           "unique label";
+    std::string stream_label = stream.stream_ids()[1];
 
     auto it =
         params_.stream_label_to_simulcast_streams_count.find(stream_label);
