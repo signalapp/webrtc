@@ -36,6 +36,7 @@
 #include "media/engine/fake_webrtc_video_engine.h"
 #include "media/engine/webrtc_media_engine.h"
 #include "media/engine/webrtc_media_engine_defaults.h"
+#include "modules/audio_processing/test/audio_processing_builder_for_testing.h"
 #include "p2p/base/fake_ice_transport.h"
 #include "p2p/base/mock_async_resolver.h"
 #include "p2p/base/p2p_constants.h"
@@ -646,6 +647,12 @@ class PeerConnectionWrapper : public webrtc::PeerConnectionObserver,
     }
     if (reset_decoder_factory) {
       media_deps.video_decoder_factory.reset();
+    }
+
+    if (!media_deps.audio_processing) {
+      // If the standard Creation method for APM returns a null pointer, instead
+      // use the builder for testing to create an APM object.
+      media_deps.audio_processing = AudioProcessingBuilderForTesting().Create();
     }
 
     pc_factory_dependencies.media_engine =
@@ -3052,7 +3059,7 @@ TEST_P(PeerConnectionIntegrationTest, NewGetStatsManyAudioAndManyVideoStreams) {
   ASSERT_TRUE(caller_report);
   auto outbound_stream_stats =
       caller_report->GetStatsOfType<webrtc::RTCOutboundRTPStreamStats>();
-  ASSERT_EQ(4u, outbound_stream_stats.size());
+  ASSERT_EQ(outbound_stream_stats.size(), 4u);
   std::vector<std::string> outbound_track_ids;
   for (const auto& stat : outbound_stream_stats) {
     ASSERT_TRUE(stat->bytes_sent.is_defined());

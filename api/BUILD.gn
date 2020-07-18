@@ -88,7 +88,6 @@ rtc_library("rtp_packet_info") {
     ":rtp_headers",
     ":scoped_refptr",
     "..:webrtc_common",
-    "../rtc_base:deprecation",
     "../rtc_base:rtc_base_approved",
     "../rtc_base/system:rtc_export",
     "//third_party/abseil-cpp/absl/types:optional",
@@ -364,8 +363,10 @@ rtc_source_set("peer_connection_quality_test_fixture_api") {
     ":frame_generator_api",
     ":function_view",
     ":libjingle_peerconnection_api",
+    ":media_stream_interface",
     ":network_state_predictor_api",
     ":packet_socket_factory",
+    ":rtp_parameters",
     ":simulated_network_api",
     ":stats_observer_interface",
     ":video_quality_analyzer_api",
@@ -470,6 +471,23 @@ rtc_library("create_frame_generator") {
     "../rtc_base:checks",
     "../system_wrappers",
     "../test:frame_generator_impl",
+    "//third_party/abseil-cpp/absl/types:optional",
+  ]
+}
+
+rtc_library("create_peer_connection_quality_test_frame_generator") {
+  visibility = [ "*" ]
+  testonly = true
+  sources = [
+    "test/create_peer_connection_quality_test_frame_generator.cc",
+    "test/create_peer_connection_quality_test_frame_generator.h",
+  ]
+  deps = [
+    ":create_frame_generator",
+    ":frame_generator_api",
+    ":peer_connection_quality_test_fixture_api",
+    "../rtc_base:checks",
+    "../test:fileutils",
     "//third_party/abseil-cpp/absl/types:optional",
   ]
 }
@@ -769,10 +787,7 @@ if (rtc_include_tests) {
 
   rtc_library("mock_frame_encryptor") {
     testonly = true
-    sources = [
-      "test/mock_frame_encryptor.cc",
-      "test/mock_frame_encryptor.h",
-    ]
+    sources = [ "test/mock_frame_encryptor.h" ]
     deps = [
       # For api/crypto/frame_encryptor_interface.h
       ":libjingle_peerconnection_api",
@@ -783,10 +798,7 @@ if (rtc_include_tests) {
 
   rtc_library("mock_frame_decryptor") {
     testonly = true
-    sources = [
-      "test/mock_frame_decryptor.cc",
-      "test/mock_frame_decryptor.h",
-    ]
+    sources = [ "test/mock_frame_decryptor.h" ]
     deps = [
       ":libjingle_peerconnection_api",
       "../test:test_support",
@@ -901,10 +913,7 @@ if (rtc_include_tests) {
     visibility = [ "*" ]
 
     testonly = true
-    sources = [
-      "test/mock_video_decoder.cc",
-      "test/mock_video_decoder.h",
-    ]
+    sources = [ "test/mock_video_decoder.h" ]
 
     deps = [
       "../api/video_codecs:video_codecs_api",
@@ -916,10 +925,7 @@ if (rtc_include_tests) {
     visibility = [ "*" ]
 
     testonly = true
-    sources = [
-      "test/mock_video_encoder.cc",
-      "test/mock_video_encoder.h",
-    ]
+    sources = [ "test/mock_video_encoder.h" ]
 
     deps = [
       "../api/video_codecs:video_codecs_api",

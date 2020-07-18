@@ -83,13 +83,12 @@ class VideoSendStream {
     // A snapshot of the most recent Report Block with additional data of
     // interest to statistics. Used to implement RTCRemoteInboundRtpStreamStats.
     absl::optional<ReportBlockData> report_block_data;
-
-    // These booleans are redundant; this information is already exposed in
-    // |type|.
-    // TODO(hbos): Update downstream projects to use |type| instead and delete
-    // these members.
-    bool is_flexfec = false;
-    bool is_rtx = false;
+    double encode_frame_rate = 0.0;
+    int frames_encoded = 0;
+    absl::optional<uint64_t> qp_sum;
+    uint64_t total_encode_time_ms = 0;
+    uint64_t total_encoded_bytes_target = 0;
+    uint32_t huge_frames_sent = 0;
   };
 
   struct Stats {
@@ -111,7 +110,6 @@ class VideoSendStream {
     uint32_t frames_dropped_by_rate_limiter = 0;
     uint32_t frames_dropped_by_congestion_window = 0;
     uint32_t frames_dropped_by_encoder = 0;
-    absl::optional<uint64_t> qp_sum;
     // Bitrate the encoder is currently configured to use due to bandwidth
     // limitations.
     int target_media_bitrate_bps = 0;
@@ -137,6 +135,7 @@ class VideoSendStream {
     std::map<uint32_t, StreamStats> substreams;
     webrtc::VideoContentType content_type =
         webrtc::VideoContentType::UNSPECIFIED;
+    uint32_t frames_sent = 0;
     uint32_t huge_frames_sent = 0;
   };
 

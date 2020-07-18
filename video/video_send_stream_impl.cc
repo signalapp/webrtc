@@ -132,7 +132,7 @@ RtpSenderFrameEncryptionConfig CreateFrameEncryptionConfig(
   return frame_encryption_config;
 }
 
-RtpSenderObservers CreateObservers(CallStats* call_stats,
+RtpSenderObservers CreateObservers(RtcpRttStats* call_stats,
                                    EncoderRtcpFeedback* encoder_feedback,
                                    SendStatisticsProxy* stats_proxy,
                                    SendDelayStats* send_delay_stats) {
@@ -188,7 +188,7 @@ VideoSendStreamImpl::VideoSendStreamImpl(
     Clock* clock,
     SendStatisticsProxy* stats_proxy,
     rtc::TaskQueue* worker_queue,
-    CallStats* call_stats,
+    RtcpRttStats* call_stats,
     RtpTransportControllerSendInterface* transport,
     BitrateAllocatorInterface* bitrate_allocator,
     SendDelayStats* send_delay_stats,
@@ -209,7 +209,6 @@ VideoSendStreamImpl::VideoSendStreamImpl(
       config_(config),
       worker_queue_(worker_queue),
       timed_out_(false),
-      call_stats_(call_stats),
       transport_(transport),
       bitrate_allocator_(bitrate_allocator),
       disable_padding_(true),
@@ -244,7 +243,6 @@ VideoSendStreamImpl::VideoSendStreamImpl(
   encoder_feedback_.SetRtpVideoSender(rtp_video_sender_);
 
   RTC_DCHECK(!config_->rtp.ssrcs.empty());
-  RTC_DCHECK(call_stats_);
   RTC_DCHECK(transport_);
   RTC_DCHECK_NE(initial_encoder_max_bitrate, 0);
 

@@ -26,6 +26,7 @@
 #include "test/field_trial.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/mock_frame_transformer.h"
 #include "test/mock_transport.h"
 #include "test/scenario/scenario.h"
 #include "test/time_controller/simulated_time_controller.h"
@@ -195,6 +196,7 @@ class RtpVideoSenderTestFixture {
   const FieldTrialBasedConfig field_trials_;
   RtpTransportControllerSend transport_controller_;
   std::unique_ptr<ProcessThread> process_thread_;
+  // TODO(tommi): Use internal::CallStats.
   CallStats call_stats_;
   SendStatisticsProxy stats_proxy_;
   RateLimiter retransmission_rate_limiter_;
@@ -526,9 +528,9 @@ TEST(RtpVideoSenderTest, RetransmitsOnTransportWideLossInfo) {
   test::NetworkSimulationConfig net_conf;
   net_conf.bandwidth = DataRate::KilobitsPerSec(300);
   auto send_node = s.CreateSimulationNode(net_conf);
+  auto* callee = s.CreateClient("return", call_conf);
   auto* route = s.CreateRoutes(s.CreateClient("send", call_conf), {send_node},
-                               s.CreateClient("return", call_conf),
-                               {s.CreateSimulationNode(net_conf)});
+                               callee, {s.CreateSimulationNode(net_conf)});
 
   test::VideoStreamConfig lossy_config;
   lossy_config.source.framerate = 5;
@@ -556,14 +558,20 @@ TEST(RtpVideoSenderTest, RetransmitsOnTransportWideLossInfo) {
   // from initial probing.
   s.RunFor(TimeDelta::Seconds(1));
   rtx_packets = 0;
-  int decoded_baseline = lossy->receive()->GetStats().frames_decoded;
+  int decoded_baseline = 0;
+  callee->SendTask([&decoded_baseline, &lossy]() {
+    decoded_baseline = lossy->receive()->GetStats().frames_decoded;
+  });
   s.RunFor(TimeDelta::Seconds(1));
   // We expect both that RTX packets were sent and that an appropriate number of
   // frames were received. This is somewhat redundant but reduces the risk of
   // false positives in future regressions (e.g. RTX is send due to probing).
   EXPECT_GE(rtx_packets, 1);
-  int frames_decoded =
-      lossy->receive()->GetStats().frames_decoded - decoded_baseline;
+  int frames_decoded = 0;
+  callee->SendTask([&decoded_baseline, &frames_decoded, &lossy]() {
+    frames_decoded =
+        lossy->receive()->GetStats().frames_decoded - decoded_baseline;
+  });
   EXPECT_EQ(frames_decoded, 5);
 }
 
@@ -819,17 +827,6 @@ TEST(RtpVideoSenderTest, CanSetZeroBitrateWithoutOverhead) {
 }
 
 TEST(RtpVideoSenderTest, SimulcastSenderRegistersFrameTransformers) {
-  class MockFrameTransformer : public FrameTransformerInterface {
-   public:
-    MOCK_METHOD3(TransformFrame,
-                 void(std::unique_ptr<video_coding::EncodedFrame> frame,
-                      std::vector<uint8_t> additional_data,
-                      uint32_t ssrc));
-    MOCK_METHOD2(RegisterTransformedFrameSinkCallback,
-                 void(rtc::scoped_refptr<TransformedFrameCallback>, uint32_t));
-    MOCK_METHOD1(UnregisterTransformedFrameSinkCallback, void(uint32_t));
-  };
-
   rtc::scoped_refptr<MockFrameTransformer> transformer =
       new rtc::RefCountedObject<MockFrameTransformer>();
 

@@ -24,22 +24,26 @@
 #include <vector>
 
 #include "absl/types/optional.h"
+#include "api/array_view.h"
 #include "api/audio/echo_canceller3_config.h"
 #include "api/audio/echo_control.h"
 #include "api/scoped_refptr.h"
-#include "modules/audio_processing/include/audio_generator.h"
 #include "modules/audio_processing/include/audio_processing_statistics.h"
 #include "modules/audio_processing/include/config.h"
 #include "rtc_base/arraysize.h"
 #include "rtc_base/deprecation.h"
 #include "rtc_base/ref_count.h"
+#include "rtc_base/system/file_wrapper.h"
 #include "rtc_base/system/rtc_export.h"
+
+namespace rtc {
+class TaskQueue;
+}  // namespace rtc
 
 namespace webrtc {
 
 class AecDump;
 class AudioBuffer;
-class AudioFrame;
 
 class StreamConfig;
 class ProcessingConfig;
@@ -523,18 +527,6 @@ class RTC_EXPORT AudioProcessing : public rtc::RefCountInterface {
   // Enqueue a runtime setting.
   virtual void SetRuntimeSetting(RuntimeSetting setting) = 0;
 
-  // Processes a 10 ms |frame| of the primary audio stream. On the client-side,
-  // this is the near-end (or captured) audio.
-  //
-  // If needed for enabled functionality, any function with the set_stream_ tag
-  // must be called prior to processing the current frame. Any getter function
-  // with the stream_ tag which is needed should be called after processing.
-  //
-  // The |sample_rate_hz_|, |num_channels_|, and |samples_per_channel_|
-  // members of |frame| must be valid. If changed from the previous call to this
-  // method, it will trigger an initialization.
-  virtual int ProcessStream(AudioFrame* frame) = 0;
-
   // Accepts and produces a 10 ms frame interleaved 16 bit integer audio as
   // specified in |input_config| and |output_config|. |src| and |dest| may use
   // the same memory, if desired.
@@ -554,20 +546,6 @@ class RTC_EXPORT AudioProcessing : public rtc::RefCountInterface {
                             const StreamConfig& input_config,
                             const StreamConfig& output_config,
                             float* const* dest) = 0;
-
-  // Processes a 10 ms |frame| of the reverse direction audio stream. The frame
-  // may be modified. On the client-side, this is the far-end (or to be
-  // rendered) audio.
-  //
-  // It is necessary to provide this if echo processing is enabled, as the
-  // reverse stream forms the echo reference signal. It is recommended, but not
-  // necessary, to provide if gain control is enabled. On the server-side this
-  // typically will not be used. If you're not sure what to pass in here,
-  // chances are you don't need to use it.
-  //
-  // The |sample_rate_hz_|, |num_channels_|, and |samples_per_channel_|
-  // members of |frame| must be valid.
-  virtual int ProcessReverseStream(AudioFrame* frame) = 0;
 
   // Accepts and produces a 10 ms frame of interleaved 16 bit integer audio for
   // the reverse direction audio stream as specified in |input_config| and
@@ -627,6 +605,23 @@ class RTC_EXPORT AudioProcessing : public rtc::RefCountInterface {
   // with this chunk of audio.
   virtual void set_stream_key_pressed(bool key_pressed) = 0;
 
+  // Creates and attaches an webrtc::AecDump for recording debugging
+  // information.
+  // The |worker_queue| may not be null and must outlive the created
+  // AecDump instance. |max_log_size_bytes == -1| means the log size
+  // will be unlimited. |handle| may not be null. The AecDump takes
+  // responsibility for |handle| and closes it in the destructor. A
+  // return value of true indicates that the file has been
+  // sucessfully opened, while a value of false indicates that
+  // opening the file failed.
+  virtual bool CreateAndAttachAecDump(const std::string& file_name,
+                                      int64_t max_log_size_bytes,
+                                      rtc::TaskQueue* worker_queue) = 0;
+  virtual bool CreateAndAttachAecDump(FILE* handle,
+                                      int64_t max_log_size_bytes,
+                                      rtc::TaskQueue* worker_queue) = 0;
+
+  // TODO(webrtc:5298) Deprecated variant.
   // Attaches provided webrtc::AecDump for recording debugging
   // information. Log file and maximum file size logic is supposed to
   // be handled by implementing instance of AecDump. Calling this
@@ -640,22 +635,6 @@ class RTC_EXPORT AudioProcessing : public rtc::RefCountInterface {
   // attached, it's destructor is called. The d-tor may block until
   // all pending logging tasks are completed.
   virtual void DetachAecDump() = 0;
-
-  // Attaches provided webrtc::AudioGenerator for modifying playout audio.
-  // Calling this method when another AudioGenerator is attached replaces the
-  // active AudioGenerator with a new one.
-  virtual void AttachPlayoutAudioGenerator(
-      std::unique_ptr<AudioGenerator> audio_generator) = 0;
-
-  // If no AudioGenerator is attached, this has no effect. If an AecDump is
-  // attached, its destructor is called.
-  virtual void DetachPlayoutAudioGenerator() = 0;
-
-  // Use to send UMA histograms at end of a call. Note that all histogram
-  // specific member variables are reset.
-  // Deprecated. This method is deprecated and will be removed.
-  // TODO(peah): Remove this method.
-  virtual void UpdateHistogramsOnCallEnd() = 0;
 
   // Get audio processing statistics.
   virtual AudioProcessingStats GetStatistics() = 0;
@@ -718,19 +697,34 @@ class RTC_EXPORT AudioProcessingBuilder {
   ~AudioProcessingBuilder();
   // The AudioProcessingBuilder takes ownership of the echo_control_factory.
   AudioProcessingBuilder& SetEchoControlFactory(
-      std::unique_ptr<EchoControlFactory> echo_control_factory);
+      std::unique_ptr<EchoControlFactory> echo_control_factory) {
+    echo_control_factory_ = std::move(echo_control_factory);
+    return *this;
+  }
   // The AudioProcessingBuilder takes ownership of the capture_post_processing.
   AudioProcessingBuilder& SetCapturePostProcessing(
-      std::unique_ptr<CustomProcessing> capture_post_processing);
+      std::unique_ptr<CustomProcessing> capture_post_processing) {
+    capture_post_processing_ = std::move(capture_post_processing);
+    return *this;
+  }
   // The AudioProcessingBuilder takes ownership of the render_pre_processing.
   AudioProcessingBuilder& SetRenderPreProcessing(
-      std::unique_ptr<CustomProcessing> render_pre_processing);
+      std::unique_ptr<CustomProcessing> render_pre_processing) {
+    render_pre_processing_ = std::move(render_pre_processing);
+    return *this;
+  }
   // The AudioProcessingBuilder takes ownership of the echo_detector.
   AudioProcessingBuilder& SetEchoDetector(
-      rtc::scoped_refptr<EchoDetector> echo_detector);
+      rtc::scoped_refptr<EchoDetector> echo_detector) {
+    echo_detector_ = std::move(echo_detector);
+    return *this;
+  }
   // The AudioProcessingBuilder takes ownership of the capture_analyzer.
   AudioProcessingBuilder& SetCaptureAnalyzer(
-      std::unique_ptr<CustomAudioAnalyzer> capture_analyzer);
+      std::unique_ptr<CustomAudioAnalyzer> capture_analyzer) {
+    capture_analyzer_ = std::move(capture_analyzer);
+    return *this;
+  }
   // This creates an APM instance using the previously set components. Calling
   // the Create function resets the AudioProcessingBuilder to its initial state.
   AudioProcessing* Create();
@@ -902,8 +896,8 @@ class EchoDetector : public rtc::RefCountInterface {
                                     std::vector<float>* packed_buffer);
 
   struct Metrics {
-    double echo_likelihood;
-    double echo_likelihood_recent_max;
+    absl::optional<double> echo_likelihood;
+    absl::optional<double> echo_likelihood_recent_max;
   };
 
   // Collect current metrics from the echo detector.

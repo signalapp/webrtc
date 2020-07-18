@@ -17,41 +17,77 @@ namespace webrtc {
 
 ResourceListener::~ResourceListener() {}
 
-Resource::Resource() : usage_state_(ResourceUsageState::kStable) {}
+Resource::Resource()
+    : encoder_queue_(nullptr),
+      resource_adaptation_queue_(nullptr),
+      usage_state_(absl::nullopt),
+      listener_(nullptr) {}
 
 Resource::~Resource() {
-  RTC_DCHECK(listeners_.empty());
+  RTC_DCHECK(!listener_)
+      << "There is a listener depending on a Resource being destroyed.";
 }
 
-void Resource::RegisterListener(ResourceListener* listener) {
-  RTC_DCHECK(listener);
-  RTC_DCHECK(absl::c_find(listeners_, listener) == listeners_.end())
-      << "ResourceListener was added twice.";
-  listeners_.push_back(listener);
+void Resource::Initialize(rtc::TaskQueue* encoder_queue,
+                          rtc::TaskQueue* resource_adaptation_queue) {
+  RTC_DCHECK(!encoder_queue_);
+  RTC_DCHECK(encoder_queue);
+  RTC_DCHECK(!resource_adaptation_queue_);
+  RTC_DCHECK(resource_adaptation_queue);
+  encoder_queue_ = encoder_queue;
+  resource_adaptation_queue_ = resource_adaptation_queue;
 }
 
-void Resource::UnregisterListener(ResourceListener* listener) {
-  RTC_DCHECK(listener);
-  auto it = absl::c_find(listeners_, listener);
-  if (it != listeners_.end())
-    listeners_.erase(it);
+void Resource::SetResourceListener(ResourceListener* listener) {
+  RTC_DCHECK(resource_adaptation_queue_);
+  RTC_DCHECK_RUN_ON(resource_adaptation_queue_);
+  // If you want to change listener you need to unregister the old listener by
+  // setting it to null first.
+  RTC_DCHECK(!listener_ || !listener) << "A listener is already set";
+  listener_ = listener;
 }
 
-ResourceUsageState Resource::usage_state() const {
+absl::optional<ResourceUsageState> Resource::usage_state() const {
+  RTC_DCHECK(resource_adaptation_queue_);
+  RTC_DCHECK_RUN_ON(resource_adaptation_queue_);
   return usage_state_;
 }
 
-ResourceListenerResponse Resource::OnResourceUsageStateMeasured(
-    ResourceUsageState usage_state) {
-  ResourceListenerResponse response = ResourceListenerResponse::kNothing;
+void Resource::ClearUsageState() {
+  RTC_DCHECK(resource_adaptation_queue_);
+  RTC_DCHECK_RUN_ON(resource_adaptation_queue_);
+  usage_state_ = absl::nullopt;
+}
+
+bool Resource::IsAdaptationUpAllowed(
+    const VideoStreamInputState& input_state,
+    const VideoSourceRestrictions& restrictions_before,
+    const VideoSourceRestrictions& restrictions_after,
+    rtc::scoped_refptr<Resource> reason_resource) const {
+  return true;
+}
+
+void Resource::OnAdaptationApplied(
+    const VideoStreamInputState& input_state,
+    const VideoSourceRestrictions& restrictions_before,
+    const VideoSourceRestrictions& restrictions_after,
+    rtc::scoped_refptr<Resource> reason_resource) {}
+
+rtc::TaskQueue* Resource::encoder_queue() const {
+  return encoder_queue_;
+}
+
+rtc::TaskQueue* Resource::resource_adaptation_queue() const {
+  return resource_adaptation_queue_;
+}
+
+void Resource::OnResourceUsageStateMeasured(ResourceUsageState usage_state) {
+  RTC_DCHECK(resource_adaptation_queue_);
+  RTC_DCHECK_RUN_ON(resource_adaptation_queue_);
   usage_state_ = usage_state;
-  for (auto* listener : listeners_) {
-    ResourceListenerResponse listener_response =
-        listener->OnResourceUsageStateMeasured(*this);
-    if (listener_response != ResourceListenerResponse::kNothing)
-      response = listener_response;
-  }
-  return response;
+  if (!listener_)
+    return;
+  listener_->OnResourceUsageStateMeasured(this);
 }
 
 }  // namespace webrtc

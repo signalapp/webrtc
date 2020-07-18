@@ -125,14 +125,14 @@ int32_t LibaomAv1Decoder::Decode(const EncodedImage& encoded_image,
       return WEBRTC_VIDEO_CODEC_ERROR;
     }
 
-    // Return decoded frame data.
-    int qp;
-    ret = aom_codec_control_(&context_, AOMD_GET_LAST_QUANTIZER, &qp);
-    if (ret != AOM_CODEC_OK) {
-      RTC_LOG(LS_WARNING) << "LibaomAv1Decoder::Decode returned " << ret
-                          << " on control AOME_GET_LAST_QUANTIZER.";
-      return WEBRTC_VIDEO_CODEC_ERROR;
-    }
+    // // Return decoded frame data.
+    // int qp;
+    // ret = aom_codec_control_(&context_, AOMD_GET_LAST_QUANTIZER, &qp);
+    // if (ret != AOM_CODEC_OK) {
+    //   RTC_LOG(LS_WARNING) << "LibaomAv1Decoder::Decode returned " << ret
+    //                       << " on control AOME_GET_LAST_QUANTIZER.";
+    //   return WEBRTC_VIDEO_CODEC_ERROR;
+    // }
 
     // Allocate memory for decoded frame.
     rtc::scoped_refptr<I420Buffer> buffer =

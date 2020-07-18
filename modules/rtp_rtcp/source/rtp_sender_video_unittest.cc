@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "api/test/mock_frame_encryptor.h"
+#include "api/transport/field_trial_based_config.h"
 #include "api/transport/rtp/dependency_descriptor.h"
 #include "api/video/video_codec_constants.h"
 #include "api/video/video_timing.h"
@@ -34,8 +35,10 @@
 #include "modules/rtp_rtcp/source/time_util.h"
 #include "rtc_base/arraysize.h"
 #include "rtc_base/rate_limiter.h"
+#include "rtc_base/task_queue_for_test.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/mock_frame_transformer.h"
 
 namespace webrtc {
 
@@ -48,14 +51,14 @@ using ::testing::IsEmpty;
 using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::ReturnArg;
+using ::testing::SaveArg;
 using ::testing::SizeIs;
 using ::testing::WithArgs;
 
 enum : int {  // The first valid value is 1.
   kAbsoluteSendTimeExtensionId = 1,
   kFrameMarkingExtensionId,
-  kGenericDescriptorId00,
-  kGenericDescriptorId01,
+  kGenericDescriptorId,
   kDependencyDescriptorId,
   kTransmissionTimeOffsetExtensionId,
   kTransportSequenceNumberExtensionId,
@@ -87,9 +90,7 @@ class LoopbackTransportTest : public webrtc::Transport {
     receivers_extensions_.Register<VideoTimingExtension>(
         kVideoTimingExtensionId);
     receivers_extensions_.Register<RtpGenericFrameDescriptorExtension00>(
-        kGenericDescriptorId00);
-    receivers_extensions_.Register<RtpGenericFrameDescriptorExtension01>(
-        kGenericDescriptorId01);
+        kGenericDescriptorId);
     receivers_extensions_.Register<RtpDependencyDescriptorExtension>(
         kDependencyDescriptorId);
     receivers_extensions_.Register<FrameMarkingExtension>(
@@ -118,8 +119,6 @@ class LoopbackTransportTest : public webrtc::Transport {
   RtpHeaderExtensionMap receivers_extensions_;
   std::vector<RtpPacketReceived> sent_packets_;
 };
-
-}  // namespace
 
 class TestRtpSenderVideo : public RTPSenderVideo {
  public:
@@ -184,8 +183,6 @@ class RtpSenderVideoTest : public ::testing::TestWithParam<bool> {
     rtp_module_->SetSequenceNumber(kSeqNum);
     rtp_module_->SetStartTimestamp(0);
   }
-
-  void PopulateGenericFrameDescriptor(int version);
 
   void UsesMinimalVp8DescriptorWhenGenericFrameDescriptorExtensionIsUsed(
       int version);
@@ -727,16 +724,11 @@ TEST_P(RtpSenderVideoTest,
                   .HasExtension<RtpDependencyDescriptorExtension>());
 }
 
-void RtpSenderVideoTest::PopulateGenericFrameDescriptor(int version) {
-  const absl::string_view ext_uri =
-      (version == 0) ? RtpGenericFrameDescriptorExtension00::kUri
-                     : RtpGenericFrameDescriptorExtension01::kUri;
-  const int ext_id =
-      (version == 0) ? kGenericDescriptorId00 : kGenericDescriptorId01;
-
+TEST_P(RtpSenderVideoTest, PopulateGenericFrameDescriptor) {
   const int64_t kFrameId = 100000;
   uint8_t kFrame[100];
-  rtp_module_->RegisterRtpHeaderExtension(ext_uri, ext_id);
+  rtp_module_->RegisterRtpHeaderExtension(
+      RtpGenericFrameDescriptorExtension00::kUri, kGenericDescriptorId);
 
   RTPVideoHeader hdr;
   RTPVideoHeader::GenericDescriptorInfo& generic = hdr.generic.emplace();
@@ -751,27 +743,13 @@ void RtpSenderVideoTest::PopulateGenericFrameDescriptor(int version) {
 
   RtpGenericFrameDescriptor descriptor_wire;
   EXPECT_EQ(1, transport_.packets_sent());
-  if (version == 0) {
-    ASSERT_TRUE(transport_.last_sent_packet()
-                    .GetExtension<RtpGenericFrameDescriptorExtension00>(
-                        &descriptor_wire));
-  } else {
-    ASSERT_TRUE(transport_.last_sent_packet()
-                    .GetExtension<RtpGenericFrameDescriptorExtension01>(
-                        &descriptor_wire));
-  }
+  ASSERT_TRUE(transport_.last_sent_packet()
+                  .GetExtension<RtpGenericFrameDescriptorExtension00>(
+                      &descriptor_wire));
   EXPECT_EQ(static_cast<uint16_t>(generic.frame_id), descriptor_wire.FrameId());
   EXPECT_EQ(generic.temporal_index, descriptor_wire.TemporalLayer());
   EXPECT_THAT(descriptor_wire.FrameDependenciesDiffs(), ElementsAre(1, 500));
   EXPECT_EQ(descriptor_wire.SpatialLayersBitmask(), 0b0000'0100);
-}
-
-TEST_P(RtpSenderVideoTest, PopulateGenericFrameDescriptor00) {
-  PopulateGenericFrameDescriptor(0);
-}
-
-TEST_P(RtpSenderVideoTest, PopulateGenericFrameDescriptor01) {
-  PopulateGenericFrameDescriptor(1);
 }
 
 void RtpSenderVideoTest::
@@ -781,13 +759,8 @@ void RtpSenderVideoTest::
   const size_t kFrameSize = 100;
   uint8_t kFrame[kFrameSize];
 
-  if (version == 0) {
-    rtp_module_->RegisterRtpHeaderExtension(
-        RtpGenericFrameDescriptorExtension00::kUri, kGenericDescriptorId00);
-  } else {
-    rtp_module_->RegisterRtpHeaderExtension(
-        RtpGenericFrameDescriptorExtension01::kUri, kGenericDescriptorId01);
-  }
+  rtp_module_->RegisterRtpHeaderExtension(
+      RtpGenericFrameDescriptorExtension00::kUri, kGenericDescriptorId);
 
   RTPVideoHeader hdr;
   hdr.codec = kVideoCodecVP8;
@@ -902,47 +875,119 @@ TEST_P(RtpSenderVideoTest, PopulatesPlayoutDelay) {
   EXPECT_EQ(received_delay, kExpectedDelay);
 }
 
-class MockFrameTransformer : public FrameTransformerInterface {
- public:
-  MOCK_METHOD3(TransformFrame,
-               void(std::unique_ptr<video_coding::EncodedFrame> frame,
-                    std::vector<uint8_t> additional_data,
-                    uint32_t ssrc));
-  MOCK_METHOD2(RegisterTransformedFrameSinkCallback,
-               void(rtc::scoped_refptr<TransformedFrameCallback>, uint32_t));
-  MOCK_METHOD1(UnregisterTransformedFrameSinkCallback, void(uint32_t));
-};
-
-TEST_P(RtpSenderVideoTest, SendEncodedImageWithFrameTransformer) {
-  rtc::scoped_refptr<MockFrameTransformer> transformer =
-      new rtc::RefCountedObject<MockFrameTransformer>();
-  RTPSenderVideo::Config config;
-  config.clock = &fake_clock_;
-  config.rtp_sender = rtp_module_->RtpSender();
-  config.field_trials = &field_trials_;
-  config.frame_transformer = transformer;
-
-  EXPECT_CALL(*transformer, RegisterTransformedFrameSinkCallback);
-  std::unique_ptr<RTPSenderVideo> rtp_sender_video =
-      std::make_unique<RTPSenderVideo>(config);
-
-  const uint8_t data[] = {1, 2, 3, 4};
-  EncodedImage encoded_image;
-  encoded_image.SetEncodedData(
-      webrtc::EncodedImageBuffer::Create(data, sizeof(data)));
-  RTPVideoHeader hdr;
-  EXPECT_CALL(*transformer, TransformFrame(_, RtpDescriptorAuthentication(hdr),
-                                           rtp_module_->RtpSender()->SSRC()));
-  rtp_sender_video->SendEncodedImage(kPayload, kType, kTimestamp, encoded_image,
-                                     nullptr, hdr,
-                                     kDefaultExpectedRetransmissionTimeMs);
-
-  EXPECT_CALL(*transformer, UnregisterTransformedFrameSinkCallback);
-  rtp_sender_video.reset();
-}
-
 INSTANTIATE_TEST_SUITE_P(WithAndWithoutOverhead,
                          RtpSenderVideoTest,
                          ::testing::Bool());
 
+class RtpSenderVideoWithFrameTransformerTest : public ::testing::Test {
+ public:
+  RtpSenderVideoWithFrameTransformerTest()
+      : fake_clock_(kStartTime),
+        retransmission_rate_limiter_(&fake_clock_, 1000),
+        rtp_module_(RtpRtcp::Create([&] {
+          RtpRtcp::Configuration config;
+          config.clock = &fake_clock_;
+          config.outgoing_transport = &transport_;
+          config.retransmission_rate_limiter = &retransmission_rate_limiter_;
+          config.field_trials = &field_trials_;
+          config.local_media_ssrc = kSsrc;
+          return config;
+        }())) {
+    rtp_module_->SetSequenceNumber(kSeqNum);
+    rtp_module_->SetStartTimestamp(0);
+  }
+
+  std::unique_ptr<RTPSenderVideo> CreateSenderWithFrameTransformer(
+      rtc::scoped_refptr<FrameTransformerInterface> transformer) {
+    RTPSenderVideo::Config config;
+    config.clock = &fake_clock_;
+    config.rtp_sender = rtp_module_->RtpSender();
+    config.field_trials = &field_trials_;
+    config.frame_transformer = transformer;
+    return std::make_unique<RTPSenderVideo>(config);
+  }
+
+ protected:
+  FieldTrialBasedConfig field_trials_;
+  SimulatedClock fake_clock_;
+  LoopbackTransportTest transport_;
+  RateLimiter retransmission_rate_limiter_;
+  std::unique_ptr<RtpRtcp> rtp_module_;
+};
+
+std::unique_ptr<EncodedImage> CreateDefaultEncodedImage() {
+  const uint8_t data[] = {1, 2, 3, 4};
+  auto encoded_image = std::make_unique<EncodedImage>();
+  encoded_image->SetEncodedData(
+      webrtc::EncodedImageBuffer::Create(data, sizeof(data)));
+  return encoded_image;
+}
+
+TEST_F(RtpSenderVideoWithFrameTransformerTest,
+       CreateSenderRegistersFrameTransformer) {
+  rtc::scoped_refptr<MockFrameTransformer> mock_frame_transformer =
+      new rtc::RefCountedObject<NiceMock<MockFrameTransformer>>();
+  EXPECT_CALL(*mock_frame_transformer,
+              RegisterTransformedFrameSinkCallback(_, kSsrc));
+  std::unique_ptr<RTPSenderVideo> rtp_sender_video =
+      CreateSenderWithFrameTransformer(mock_frame_transformer);
+}
+
+TEST_F(RtpSenderVideoWithFrameTransformerTest,
+       DestroySenderUnregistersFrameTransformer) {
+  rtc::scoped_refptr<MockFrameTransformer> mock_frame_transformer =
+      new rtc::RefCountedObject<NiceMock<MockFrameTransformer>>();
+  std::unique_ptr<RTPSenderVideo> rtp_sender_video =
+      CreateSenderWithFrameTransformer(mock_frame_transformer);
+  EXPECT_CALL(*mock_frame_transformer,
+              UnregisterTransformedFrameSinkCallback(kSsrc));
+  rtp_sender_video = nullptr;
+}
+
+TEST_F(RtpSenderVideoWithFrameTransformerTest,
+       SendEncodedImageTransformsFrame) {
+  rtc::scoped_refptr<MockFrameTransformer> mock_frame_transformer =
+      new rtc::RefCountedObject<NiceMock<MockFrameTransformer>>();
+  std::unique_ptr<RTPSenderVideo> rtp_sender_video =
+      CreateSenderWithFrameTransformer(mock_frame_transformer);
+  auto encoded_image = CreateDefaultEncodedImage();
+  RTPVideoHeader video_header;
+
+  EXPECT_CALL(*mock_frame_transformer, Transform);
+  rtp_sender_video->SendEncodedImage(kPayload, kType, kTimestamp,
+                                     *encoded_image, nullptr, video_header,
+                                     kDefaultExpectedRetransmissionTimeMs);
+}
+
+TEST_F(RtpSenderVideoWithFrameTransformerTest, OnTransformedFrameSendsVideo) {
+  rtc::scoped_refptr<MockFrameTransformer> mock_frame_transformer =
+      new rtc::RefCountedObject<NiceMock<MockFrameTransformer>>();
+  rtc::scoped_refptr<TransformedFrameCallback> callback;
+  EXPECT_CALL(*mock_frame_transformer, RegisterTransformedFrameSinkCallback)
+      .WillOnce(SaveArg<0>(&callback));
+  std::unique_ptr<RTPSenderVideo> rtp_sender_video =
+      CreateSenderWithFrameTransformer(mock_frame_transformer);
+  ASSERT_TRUE(callback);
+
+  auto encoded_image = CreateDefaultEncodedImage();
+  RTPVideoHeader video_header;
+  video_header.frame_type = VideoFrameType::kVideoFrameKey;
+  ON_CALL(*mock_frame_transformer, Transform)
+      .WillByDefault(
+          [&callback](std::unique_ptr<TransformableFrameInterface> frame) {
+            callback->OnTransformedFrame(std::move(frame));
+          });
+  TaskQueueForTest encoder_queue;
+  encoder_queue.SendTask(
+      [&] {
+        rtp_sender_video->SendEncodedImage(
+            kPayload, kType, kTimestamp, *encoded_image, nullptr, video_header,
+            kDefaultExpectedRetransmissionTimeMs);
+      },
+      RTC_FROM_HERE);
+  encoder_queue.WaitForPreviouslyPostedTasks();
+  EXPECT_EQ(transport_.packets_sent(), 1);
+}
+
+}  // namespace
 }  // namespace webrtc

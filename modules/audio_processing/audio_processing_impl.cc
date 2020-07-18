@@ -22,12 +22,13 @@
 #include "api/audio/audio_frame.h"
 #include "common_audio/audio_converter.h"
 #include "common_audio/include/audio_util.h"
+#include "modules/audio_processing/aec_dump/aec_dump_factory.h"
 #include "modules/audio_processing/agc2/gain_applier.h"
 #include "modules/audio_processing/audio_buffer.h"
 #include "modules/audio_processing/common.h"
 #include "modules/audio_processing/include/audio_frame_view.h"
 #include "modules/audio_processing/logging/apm_data_dumper.h"
-#include "modules/audio_processing/transient/transient_suppressor_creator.h"
+#include "modules/audio_processing/optionally_built_submodule_creators.h"
 #include "rtc_base/atomic_ops.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/constructor_magic.h"
@@ -227,56 +228,6 @@ bool AudioProcessingImpl::SubmoduleStates::RenderMultiBandProcessingActive()
 bool AudioProcessingImpl::SubmoduleStates::HighPassFilteringRequired() const {
   return high_pass_filter_enabled_ || mobile_echo_controller_enabled_ ||
          noise_suppressor_enabled_;
-}
-
-AudioProcessingBuilder::AudioProcessingBuilder() = default;
-AudioProcessingBuilder::~AudioProcessingBuilder() = default;
-
-AudioProcessingBuilder& AudioProcessingBuilder::SetCapturePostProcessing(
-    std::unique_ptr<CustomProcessing> capture_post_processing) {
-  capture_post_processing_ = std::move(capture_post_processing);
-  return *this;
-}
-
-AudioProcessingBuilder& AudioProcessingBuilder::SetRenderPreProcessing(
-    std::unique_ptr<CustomProcessing> render_pre_processing) {
-  render_pre_processing_ = std::move(render_pre_processing);
-  return *this;
-}
-
-AudioProcessingBuilder& AudioProcessingBuilder::SetCaptureAnalyzer(
-    std::unique_ptr<CustomAudioAnalyzer> capture_analyzer) {
-  capture_analyzer_ = std::move(capture_analyzer);
-  return *this;
-}
-
-AudioProcessingBuilder& AudioProcessingBuilder::SetEchoControlFactory(
-    std::unique_ptr<EchoControlFactory> echo_control_factory) {
-  echo_control_factory_ = std::move(echo_control_factory);
-  return *this;
-}
-
-AudioProcessingBuilder& AudioProcessingBuilder::SetEchoDetector(
-    rtc::scoped_refptr<EchoDetector> echo_detector) {
-  echo_detector_ = std::move(echo_detector);
-  return *this;
-}
-
-AudioProcessing* AudioProcessingBuilder::Create() {
-  webrtc::Config config;
-  return Create(config);
-}
-
-AudioProcessing* AudioProcessingBuilder::Create(const webrtc::Config& config) {
-  AudioProcessingImpl* apm = new rtc::RefCountedObject<AudioProcessingImpl>(
-      config, std::move(capture_post_processing_),
-      std::move(render_pre_processing_), std::move(echo_control_factory_),
-      std::move(echo_detector_), std::move(capture_analyzer_));
-  if (apm->Initialize() != AudioProcessing::kNoError) {
-    delete apm;
-    apm = nullptr;
-  }
-  return apm;
 }
 
 AudioProcessingImpl::AudioProcessingImpl(const webrtc::Config& config)
@@ -690,6 +641,12 @@ void AudioProcessingImpl::ApplyConfig(const AudioProcessing::Config& config) {
 // TODO(webrtc:5298): Remove.
 void AudioProcessingImpl::SetExtraOptions(const webrtc::Config& config) {}
 
+void AudioProcessingImpl::OverrideSubmoduleCreationForTesting(
+    const ApmSubmoduleCreationOverrides& overrides) {
+  rtc::CritScope cs(&crit_capture_);
+  submodule_creation_overrides_ = overrides;
+}
+
 int AudioProcessingImpl::proc_sample_rate_hz() const {
   // Used as callback from submodules, hence locking is not allowed.
   return capture_nonlocked_.capture_processing_format.sample_rate_hz();
@@ -1035,6 +992,10 @@ void AudioProcessingImpl::AllocateRenderQueue() {
 
 void AudioProcessingImpl::EmptyQueuedRenderAudio() {
   rtc::CritScope cs_capture(&crit_capture_);
+  EmptyQueuedRenderAudioLocked();
+}
+
+void AudioProcessingImpl::EmptyQueuedRenderAudioLocked() {
   if (submodules_.echo_control_mobile) {
     RTC_DCHECK(aecm_render_signal_queue_);
     while (aecm_render_signal_queue_->Remove(&aecm_capture_queue_buffer_)) {
@@ -1090,7 +1051,7 @@ int AudioProcessingImpl::ProcessStream(const int16_t* const src,
 }
 
 int AudioProcessingImpl::ProcessCaptureStreamLocked() {
-  EmptyQueuedRenderAudio();
+  EmptyQueuedRenderAudioLocked();
   HandleCaptureRuntimeSettings();
 
   // Ensure that not both the AEC and AECM are active at the same time.
@@ -1130,7 +1091,7 @@ int AudioProcessingImpl::ProcessCaptureStreamLocked() {
 
   if (submodules_.echo_controller) {
     // Detect and flag any change in the analog gain.
-    int analog_mic_level = recommended_stream_analog_level();
+    int analog_mic_level = recommended_stream_analog_level_locked();
     capture_.echo_path_gain_change =
         capture_.prev_analog_mic_level != analog_mic_level &&
         capture_.prev_analog_mic_level != -1;
@@ -1299,7 +1260,7 @@ int AudioProcessingImpl::ProcessCaptureStreamLocked() {
 
   if (submodules_.gain_controller2) {
     submodules_.gain_controller2->NotifyAnalogLevel(
-        recommended_stream_analog_level());
+        recommended_stream_analog_level_locked());
     submodules_.gain_controller2->Process(capture_buffer);
   }
 
@@ -1327,7 +1288,7 @@ int AudioProcessingImpl::ProcessCaptureStreamLocked() {
   }
 
   if (submodules_.agc_manager) {
-    int level = recommended_stream_analog_level();
+    int level = recommended_stream_analog_level_locked();
     data_dumper_->DumpRaw("experimental_gain_control_stream_analog_level", 1,
                           &level);
   }
@@ -1567,6 +1528,10 @@ void AudioProcessingImpl::set_stream_analog_level(int level) {
 
 int AudioProcessingImpl::recommended_stream_analog_level() const {
   rtc::CritScope cs_capture(&crit_capture_);
+  return recommended_stream_analog_level_locked();
+}
+
+int AudioProcessingImpl::recommended_stream_analog_level_locked() const {
   if (submodules_.agc_manager) {
     return submodules_.agc_manager->stream_analog_level();
   } else if (submodules_.gain_control) {
@@ -1574,6 +1539,32 @@ int AudioProcessingImpl::recommended_stream_analog_level() const {
   } else {
     return capture_.cached_stream_analog_level_;
   }
+}
+
+bool AudioProcessingImpl::CreateAndAttachAecDump(const std::string& file_name,
+                                                 int64_t max_log_size_bytes,
+                                                 rtc::TaskQueue* worker_queue) {
+  std::unique_ptr<AecDump> aec_dump =
+      AecDumpFactory::Create(file_name, max_log_size_bytes, worker_queue);
+  if (!aec_dump) {
+    return false;
+  }
+
+  AttachAecDump(std::move(aec_dump));
+  return true;
+}
+
+bool AudioProcessingImpl::CreateAndAttachAecDump(FILE* handle,
+                                                 int64_t max_log_size_bytes,
+                                                 rtc::TaskQueue* worker_queue) {
+  std::unique_ptr<AecDump> aec_dump =
+      AecDumpFactory::Create(handle, max_log_size_bytes, worker_queue);
+  if (!aec_dump) {
+    return false;
+  }
+
+  AttachAecDump(std::move(aec_dump));
+  return true;
 }
 
 void AudioProcessingImpl::AttachAecDump(std::unique_ptr<AecDump> aec_dump) {
@@ -1598,17 +1589,6 @@ void AudioProcessingImpl::DetachAecDump() {
     rtc::CritScope cs_capture(&crit_capture_);
     aec_dump = std::move(aec_dump_);
   }
-}
-
-void AudioProcessingImpl::AttachPlayoutAudioGenerator(
-    std::unique_ptr<AudioGenerator> audio_generator) {
-  // TODO(bugs.webrtc.org/8882) Stub.
-  // Reset internal audio generator with audio_generator.
-}
-
-void AudioProcessingImpl::DetachPlayoutAudioGenerator() {
-  // TODO(bugs.webrtc.org/8882) Stub.
-  // Delete audio generator, if one is attached.
 }
 
 void AudioProcessingImpl::MutateConfig(
@@ -1638,7 +1618,8 @@ void AudioProcessingImpl::InitializeTransientSuppressor() {
   if (config_.transient_suppression.enabled) {
     // Attempt to create a transient suppressor, if one is not already created.
     if (!submodules_.transient_suppressor) {
-      submodules_.transient_suppressor = CreateTransientSuppressor();
+      submodules_.transient_suppressor =
+          CreateTransientSuppressor(submodule_creation_overrides_);
     }
     if (submodules_.transient_suppressor) {
       submodules_.transient_suppressor->Initialize(
@@ -1913,8 +1894,6 @@ void AudioProcessingImpl::InitializePreProcessor() {
   }
 }
 
-void AudioProcessingImpl::UpdateHistogramsOnCallEnd() {}
-
 void AudioProcessingImpl::WriteAecDumpConfigMessage(bool forced) {
   if (!aec_dump_) {
     return;
@@ -2035,7 +2014,7 @@ void AudioProcessingImpl::RecordAudioProcessingState() {
   AecDump::AudioProcessingState audio_proc_state;
   audio_proc_state.delay = capture_nonlocked_.stream_delay_ms;
   audio_proc_state.drift = 0;
-  audio_proc_state.level = recommended_stream_analog_level();
+  audio_proc_state.level = recommended_stream_analog_level_locked();
   audio_proc_state.keypress = capture_.key_pressed;
   aec_dump_->AddAudioProcessingState(audio_proc_state);
 }

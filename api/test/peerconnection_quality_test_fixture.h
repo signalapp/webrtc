@@ -23,8 +23,10 @@
 #include "api/call/call_factory_interface.h"
 #include "api/fec_controller.h"
 #include "api/function_view.h"
+#include "api/media_stream_interface.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtc_event_log/rtc_event_log_factory_interface.h"
+#include "api/rtp_parameters.h"
 #include "api/task_queue/task_queue_factory.h"
 #include "api/test/audio_quality_analyzer_interface.h"
 #include "api/test/frame_generator_interface.h"
@@ -52,6 +54,12 @@ constexpr size_t kDefaultSlidesHeight = 1110;
 // API is in development. Can be changed/removed without notice.
 class PeerConnectionE2EQualityTestFixture {
  public:
+  // The index of required capturing device in OS provided list of video
+  // devices. On Linux and Windows the list will be obtained via
+  // webrtc::VideoCaptureModule::DeviceInfo, on Mac OS via
+  // [RTCCameraVideoCapturer captureDevices].
+  enum class CapturingDeviceIndex : size_t {};
+
   // Contains parameters for screen share scrolling.
   //
   // If scrolling is enabled, then it will be done by putting sliding window
@@ -113,12 +121,7 @@ class PeerConnectionE2EQualityTestFixture {
     // must be equal to |kDefaultSlidesWidth| and
     // |ScrollingParams::source_height| must be equal to |kDefaultSlidesHeight|.
     std::vector<std::string> slides_yuv_file_names;
-    // If true will set VideoTrackInterface::ContentHint::kText for current
-    // video track.
-    bool use_text_content_hint = true;
   };
-
-  enum VideoGeneratorType { kDefault, kI420A, kI010 };
 
   // Config for Vp8 simulcast or Vp9 SVC testing.
   //
@@ -133,6 +136,10 @@ class PeerConnectionE2EQualityTestFixture {
   //    available layer and won't restore lower layers, so analyzer won't
   //    receive required data which will cause wrong results or test failures.
   struct VideoSimulcastConfig {
+    explicit VideoSimulcastConfig(int simulcast_streams_count)
+        : simulcast_streams_count(simulcast_streams_count) {
+      RTC_CHECK_GT(simulcast_streams_count, 1);
+    }
     VideoSimulcastConfig(int simulcast_streams_count, int target_spatial_index)
         : simulcast_streams_count(simulcast_streams_count),
           target_spatial_index(target_spatial_index) {
@@ -154,7 +161,18 @@ class PeerConnectionE2EQualityTestFixture {
     //    in such case |target_spatial_index| will specify the top interesting
     //    spatial layer and all layers below, including target one will be
     //    processed. All layers above target one will be dropped.
-    int target_spatial_index;
+    // If not specified than whatever stream will be received will be analyzed.
+    // It requires Selective Forwarding Unit (SFU) to be configured in the
+    // network.
+    absl::optional<int> target_spatial_index;
+
+    // Encoding parameters per simulcast layer. If not empty, |encoding_params|
+    // size have to be equal to |simulcast_streams_count|. Will be used to set
+    // transceiver send encoding params for simulcast layers. Applicable only
+    // for codecs that support simulcast (ex. Vp8) and will be ignored
+    // otherwise. RtpEncodingParameters::rid may be changed by fixture
+    // implementation to ensure signaling correctness.
+    std::vector<RtpEncodingParameters> encoding_params;
   };
 
   // Contains properties of single video stream.
@@ -170,27 +188,9 @@ class PeerConnectionE2EQualityTestFixture {
     // Have to be unique among all specified configs for all peers in the call.
     // Will be auto generated if omitted.
     absl::optional<std::string> stream_label;
-    // You can specify one of |generator|, |input_file_name|,
-    // |screen_share_config| and |capturing_device_index|.
-    // If none of them are specified:
-    // * If config is added to the PeerConfigurer without specifying any video
-    //   source, then |generator| will be set to VideoGeneratorType::kDefault.
-    // * If config is added with own video source implementation, then that
-    //   video source will be used.
-
-    // If specified generator of this type will be used to produce input video.
-    absl::optional<VideoGeneratorType> generator;
-    // If specified this file will be used as input. Input video will be played
-    // in a circle.
-    absl::optional<std::string> input_file_name;
-    // If specified screen share video stream will be created as input.
-    absl::optional<ScreenShareConfig> screen_share_config;
-    // If specified this capturing device will be used to get input video. The
-    // |capturing_device_index| is the index of required capturing device in OS
-    // provided list of video devices. On Linux and Windows the list will be
-    // obtained via webrtc::VideoCaptureModule::DeviceInfo, on Mac OS via
-    // [RTCCameraVideoCapturer captureDevices].
-    absl::optional<size_t> capturing_device_index;
+    // Will be set for current video track. If equals to kText or kDetailed -
+    // screencast in on.
+    absl::optional<VideoTrackInterface::ContentHint> content_hint;
     // If presented video will be transfered in simulcast/SVC mode depending on
     // which encoder is used.
     //
@@ -267,6 +267,11 @@ class PeerConnectionE2EQualityTestFixture {
    public:
     virtual ~PeerConfigurer() = default;
 
+    // Sets peer name that will be used to report metrics related to this peer.
+    // If not set, some default name will be assigned. All names have to be
+    // unique.
+    virtual PeerConfigurer* SetName(absl::string_view name) = 0;
+
     // The parameters of the following 9 methods will be passed to the
     // PeerConnectionFactoryInterface implementation that will be created for
     // this peer.
@@ -307,12 +312,18 @@ class PeerConnectionE2EQualityTestFixture {
         std::unique_ptr<IceTransportFactory> factory) = 0;
 
     // Add new video stream to the call that will be sent from this peer.
+    // Default implementation of video frames generator will be used.
     virtual PeerConfigurer* AddVideoConfig(VideoConfig config) = 0;
     // Add new video stream to the call that will be sent from this peer with
     // provided own implementation of video frames generator.
     virtual PeerConfigurer* AddVideoConfig(
         VideoConfig config,
         std::unique_ptr<test::FrameGeneratorInterface> generator) = 0;
+    // Add new video stream to the call that will be sent from this peer.
+    // Capturing device with specified index will be used to get input video.
+    virtual PeerConfigurer* AddVideoConfig(
+        VideoConfig config,
+        CapturingDeviceIndex capturing_device_index) = 0;
     // Set the audio stream for the call from this peer. If this method won't
     // be invoked, this peer will send no audio.
     virtual PeerConfigurer* SetAudioConfig(AudioConfig config) = 0;

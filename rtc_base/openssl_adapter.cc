@@ -177,7 +177,6 @@ OpenSSLAdapter::OpenSSLAdapter(AsyncSocket* socket,
       role_(SSL_CLIENT),
       ssl_read_needs_write_(false),
       ssl_write_needs_read_(false),
-      restartable_(false),
       ssl_(nullptr),
       ssl_ctx_(nullptr),
       ssl_mode_(SSL_MODE_TLS),
@@ -222,11 +221,6 @@ void OpenSSLAdapter::SetCertVerifier(
   ssl_cert_verifier_ = ssl_cert_verifier;
 }
 
-void OpenSSLAdapter::SetIdentity(SSLIdentity* identity) {
-  RTC_DCHECK(!identity_);
-  identity_.reset(static_cast<OpenSSLIdentity*>(identity));
-}
-
 void OpenSSLAdapter::SetIdentity(std::unique_ptr<SSLIdentity> identity) {
   RTC_DCHECK(!identity_);
   identity_ =
@@ -248,16 +242,15 @@ AsyncSocket* OpenSSLAdapter::Accept(SocketAddress* paddr) {
   adapter->SetIdentity(identity_->Clone());
   adapter->SetRole(rtc::SSL_SERVER);
   adapter->SetIgnoreBadCert(ignore_bad_cert_);
-  adapter->StartSSL("", false);
+  adapter->StartSSL("");
   return adapter;
 }
 
-int OpenSSLAdapter::StartSSL(const char* hostname, bool restartable) {
+int OpenSSLAdapter::StartSSL(const char* hostname) {
   if (state_ != SSL_NONE)
     return -1;
 
   ssl_host_name_ = hostname;
-  restartable_ = restartable;
 
   if (socket_->GetState() != Socket::CS_CONNECTED) {
     state_ = SSL_WAIT;
@@ -653,7 +646,7 @@ int OpenSSLAdapter::RecvFrom(void* pv,
 
 int OpenSSLAdapter::Close() {
   Cleanup();
-  state_ = restartable_ ? SSL_WAIT : SSL_NONE;
+  state_ = SSL_NONE;
   return AsyncSocketAdapter::Close();
 }
 

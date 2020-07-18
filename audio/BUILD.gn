@@ -127,6 +127,8 @@ if (rtc_include_tests) {
       "audio_send_stream_tests.cc",
       "audio_send_stream_unittest.cc",
       "audio_state_unittest.cc",
+      "channel_receive_frame_transformer_delegate_unittest.cc",
+      "channel_send_frame_transformer_delegate_unittest.cc",
       "mock_voe_channel_proxy.h",
       "remix_resample_unittest.cc",
       "test/audio_stats_test.cc",
@@ -172,6 +174,8 @@ if (rtc_include_tests) {
       "../system_wrappers",
       "../test:audio_codec_mocks",
       "../test:field_trial",
+      "../test:mock_frame_transformer",
+      "../test:mock_transformable_frame",
       "../test:mock_transport",
       "../test:rtp_test_utils",
       "../test:test_common",
@@ -182,89 +186,89 @@ if (rtc_include_tests) {
   }
 
   if (rtc_enable_protobuf) {
-    rtc_test("low_bandwidth_audio_test") {
-      testonly = true
+    # rtc_test("low_bandwidth_audio_test") {
+    #   testonly = true
 
-      sources = [
-        "test/low_bandwidth_audio_test.cc",
-        "test/low_bandwidth_audio_test_flags.cc",
-        "test/pc_low_bandwidth_audio_test.cc",
-      ]
+    #   sources = [
+    #     "test/low_bandwidth_audio_test.cc",
+    #     "test/low_bandwidth_audio_test_flags.cc",
+    #     "test/pc_low_bandwidth_audio_test.cc",
+    #   ]
 
-      deps = [
-        ":audio_end_to_end_test",
-        "../api:create_network_emulation_manager",
-        "../api:create_peerconnection_quality_test_fixture",
-        "../api:network_emulation_manager_api",
-        "../api:peer_connection_quality_test_fixture_api",
-        "../api:simulated_network_api",
-        "../call:simulated_network",
-        "../common_audio",
-        "../system_wrappers",
-        "../test:fileutils",
-        "../test:perf_test",
-        "../test:test_common",
-        "../test:test_main",
-        "../test:test_support",
-        "../test/pc/e2e:network_quality_metrics_reporter",
-        "//testing/gtest",
-        "//third_party/abseil-cpp/absl/flags:flag",
-      ]
-      if (is_android) {
-        deps += [ "//testing/android/native_test:native_test_native_code" ]
-      }
-      data = [
-        "../resources/voice_engine/audio_tiny16.wav",
-        "../resources/voice_engine/audio_tiny48.wav",
-      ]
-    }
+    #   deps = [
+    #     ":audio_end_to_end_test",
+    #     "../api:create_network_emulation_manager",
+    #     "../api:create_peerconnection_quality_test_fixture",
+    #     "../api:network_emulation_manager_api",
+    #     "../api:peer_connection_quality_test_fixture_api",
+    #     "../api:simulated_network_api",
+    #     "../call:simulated_network",
+    #     "../common_audio",
+    #     "../system_wrappers",
+    #     "../test:fileutils",
+    #     "../test:perf_test",
+    #     "../test:test_common",
+    #     "../test:test_main",
+    #     "../test:test_support",
+    #     "../test/pc/e2e:network_quality_metrics_reporter",
+    #     "//testing/gtest",
+    #     "//third_party/abseil-cpp/absl/flags:flag",
+    #   ]
+    #   if (is_android) {
+    #     deps += [ "//testing/android/native_test:native_test_native_code" ]
+    #   }
+    #   data = [
+    #     "../resources/voice_engine/audio_tiny16.wav",
+    #     "../resources/voice_engine/audio_tiny48.wav",
+    #   ]
+    # }
 
-    group("low_bandwidth_audio_perf_test") {
-      testonly = true
+    # group("low_bandwidth_audio_perf_test") {
+    #   testonly = true
 
-      deps = [
-        ":low_bandwidth_audio_test",
-        "//third_party/catapult/tracing/tracing/proto:histogram_proto",
-        "//third_party/protobuf:py_proto_runtime",
-      ]
+    #   deps = [
+    #     ":low_bandwidth_audio_test",
+    #     "//third_party/catapult/tracing/tracing/proto:histogram_proto",
+    #     "//third_party/protobuf:py_proto_runtime",
+    #   ]
 
-      data = [
-        "test/low_bandwidth_audio_test.py",
-        "../resources/voice_engine/audio_tiny16.wav",
-        "../resources/voice_engine/audio_tiny48.wav",
-        "${root_out_dir}/pyproto/tracing/tracing/proto/histogram_pb2.py",
-      ]
+    #   data = [
+    #     "test/low_bandwidth_audio_test.py",
+    #     "../resources/voice_engine/audio_tiny16.wav",
+    #     "../resources/voice_engine/audio_tiny48.wav",
+    #     "${root_out_dir}/pyproto/tracing/tracing/proto/histogram_pb2.py",
+    #   ]
 
-      # TODO(http://crbug.com/1029452): Create a cleaner target with just the
-      # tracing python code. We don't need Polymer for instance.
-      data_deps = [ "//third_party/catapult/tracing:convert_chart_json" ]
+    #   # TODO(http://crbug.com/1029452): Create a cleaner target with just the
+    #   # tracing python code. We don't need Polymer for instance.
+    #   data_deps = [ "//third_party/catapult/tracing:convert_chart_json" ]
 
-      if (is_win) {
-        data += [ "${root_out_dir}/low_bandwidth_audio_test.exe" ]
-      } else {
-        data += [ "${root_out_dir}/low_bandwidth_audio_test" ]
-      }
+    #   if (is_win) {
+    #     data += [ "${root_out_dir}/low_bandwidth_audio_test.exe" ]
+    #   } else {
+    #     data += [ "${root_out_dir}/low_bandwidth_audio_test" ]
+    #   }
 
-      if (is_linux || is_android) {
-        data += [
-          "../tools_webrtc/audio_quality/linux/PolqaOem64",
-          "../tools_webrtc/audio_quality/linux/pesq",
-        ]
-      }
-      if (is_win) {
-        data += [
-          "../tools_webrtc/audio_quality/win/PolqaOem64.dll",
-          "../tools_webrtc/audio_quality/win/PolqaOem64.exe",
-          "../tools_webrtc/audio_quality/win/pesq.exe",
-          "../tools_webrtc/audio_quality/win/vcomp120.dll",
-        ]
-      }
-      if (is_mac) {
-        data += [ "../tools_webrtc/audio_quality/mac/pesq" ]
-      }
+    #   if (is_linux || is_android) {
+    #     data += [
+    #       "../tools_webrtc/audio_quality/linux/PolqaOem64",
+    #       "../tools_webrtc/audio_quality/linux/pesq",
+    #     ]
+    #   }
+    #   if (is_win) {
+    #     data += [
+    #       "../tools_webrtc/audio_quality/win/PolqaOem64.dll",
+    #       "../tools_webrtc/audio_quality/win/PolqaOem64.exe",
+    #       "../tools_webrtc/audio_quality/win/pesq.exe",
+    #       "../tools_webrtc/audio_quality/win/vcomp120.dll",
+    #     ]
+    #   }
+    #   if (is_mac) {
+    #     data += [ "../tools_webrtc/audio_quality/mac/pesq" ]
+    #   }
 
-      write_runtime_deps = "${root_out_dir}/${target_name}.runtime_deps"
-    }
+    #   write_runtime_deps = "${root_out_dir}/${target_name}.runtime_deps"
+    # }
   }
 
   rtc_library("audio_perf_tests") {

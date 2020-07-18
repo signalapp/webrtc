@@ -11,8 +11,11 @@
 #ifndef MODULES_AUDIO_PROCESSING_AUDIO_PROCESSING_IMPL_H_
 #define MODULES_AUDIO_PROCESSING_AUDIO_PROCESSING_IMPL_H_
 
+#include <stdio.h>
+
 #include <list>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "api/function_view.h"
@@ -30,6 +33,7 @@
 #include "modules/audio_processing/include/audio_processing_statistics.h"
 #include "modules/audio_processing/level_estimator.h"
 #include "modules/audio_processing/ns/noise_suppressor.h"
+#include "modules/audio_processing/optionally_built_submodule_creators.h"
 #include "modules/audio_processing/render_queue_item_verifier.h"
 #include "modules/audio_processing/residual_echo_detector.h"
 #include "modules/audio_processing/rms_level.h"
@@ -44,7 +48,6 @@
 namespace webrtc {
 
 class ApmDataDumper;
-class AudioFrame;
 class AudioConverter;
 
 class AudioProcessingImpl : public AudioProcessing {
@@ -70,20 +73,19 @@ class AudioProcessingImpl : public AudioProcessing {
   int Initialize(const ProcessingConfig& processing_config) override;
   void ApplyConfig(const AudioProcessing::Config& config) override;
   void SetExtraOptions(const webrtc::Config& config) override;
-  void UpdateHistogramsOnCallEnd() override;
+  bool CreateAndAttachAecDump(const std::string& file_name,
+                              int64_t max_log_size_bytes,
+                              rtc::TaskQueue* worker_queue) override;
+  bool CreateAndAttachAecDump(FILE* handle,
+                              int64_t max_log_size_bytes,
+                              rtc::TaskQueue* worker_queue) override;
+  // TODO(webrtc:5298) Deprecated variant.
   void AttachAecDump(std::unique_ptr<AecDump> aec_dump) override;
   void DetachAecDump() override;
-  void AttachPlayoutAudioGenerator(
-      std::unique_ptr<AudioGenerator> audio_generator) override;
-  void DetachPlayoutAudioGenerator() override;
-
   void SetRuntimeSetting(RuntimeSetting setting) override;
 
   // Capture-side exclusive methods possibly running APM in a
   // multi-threaded manner. Acquire the capture lock.
-  int ProcessStream(AudioFrame* frame) override {
-    return ProcessAudioFrame(this, frame);
-  }
   int ProcessStream(const int16_t* const src,
                     const StreamConfig& input_config,
                     const StreamConfig& output_config,
@@ -98,13 +100,11 @@ class AudioProcessingImpl : public AudioProcessing {
   int set_stream_delay_ms(int delay) override;
   void set_stream_key_pressed(bool key_pressed) override;
   void set_stream_analog_level(int level) override;
-  int recommended_stream_analog_level() const override;
+  int recommended_stream_analog_level() const
+      RTC_LOCKS_EXCLUDED(crit_capture_) override;
 
   // Render-side exclusive methods possibly running APM in a
   // multi-threaded manner. Acquire the render lock.
-  int ProcessReverseStream(AudioFrame* frame) override {
-    return ProcessReverseAudioFrame(this, frame);
-  }
   int ProcessReverseStream(const int16_t* const src,
                            const StreamConfig& input_config,
                            const StreamConfig& output_config,
@@ -149,6 +149,18 @@ class AudioProcessingImpl : public AudioProcessing {
   FRIEND_TEST_ALL_PREFIXES(ApmConfiguration, DefaultBehavior);
   FRIEND_TEST_ALL_PREFIXES(ApmConfiguration, ValidConfigBehavior);
   FRIEND_TEST_ALL_PREFIXES(ApmConfiguration, InValidConfigBehavior);
+  FRIEND_TEST_ALL_PREFIXES(ApmWithSubmodulesExcludedTest,
+                           ToggleTransientSuppressor);
+  FRIEND_TEST_ALL_PREFIXES(ApmWithSubmodulesExcludedTest,
+                           ReinitializeTransientSuppressor);
+  FRIEND_TEST_ALL_PREFIXES(ApmWithSubmodulesExcludedTest,
+                           BitexactWithDisabledModules);
+
+  int recommended_stream_analog_level_locked() const
+      RTC_EXCLUSIVE_LOCKS_REQUIRED(crit_capture_);
+
+  void OverrideSubmoduleCreationForTesting(
+      const ApmSubmoduleCreationOverrides& overrides);
 
   // Class providing thread-safe message pipe functionality for
   // |runtime_settings_|.
@@ -273,7 +285,9 @@ class AudioProcessingImpl : public AudioProcessing {
       RTC_EXCLUSIVE_LOCKS_REQUIRED(crit_capture_);
   void HandleRenderRuntimeSettings() RTC_EXCLUSIVE_LOCKS_REQUIRED(crit_render_);
 
-  void EmptyQueuedRenderAudio();
+  void EmptyQueuedRenderAudio() RTC_LOCKS_EXCLUDED(crit_capture_);
+  void EmptyQueuedRenderAudioLocked()
+      RTC_EXCLUSIVE_LOCKS_REQUIRED(crit_capture_);
   void AllocateRenderQueue()
       RTC_EXCLUSIVE_LOCKS_REQUIRED(crit_render_, crit_capture_);
   void QueueBandedRenderAudio(AudioBuffer* audio)
@@ -338,6 +352,10 @@ class AudioProcessingImpl : public AudioProcessing {
 
   // Struct containing the Config specifying the behavior of APM.
   AudioProcessing::Config config_;
+
+  // Overrides for testing the exclusion of some submodules from the build.
+  ApmSubmoduleCreationOverrides submodule_creation_overrides_
+      RTC_GUARDED_BY(crit_capture_);
 
   // Class containing information about what submodules are active.
   SubmoduleStates submodule_states_;

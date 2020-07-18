@@ -35,6 +35,7 @@
 #include "rtc_base/string_utils.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/thread.h"
+#include "system_wrappers/include/field_trial.h"
 
 namespace rtc {
 namespace {
@@ -85,7 +86,8 @@ bool SortNetworks(const Network* a, const Network* b) {
   return a->key() < b->key();
 }
 
-uint16_t ComputeNetworkCostByType(int type) {
+uint16_t ComputeNetworkCostByType(int type,
+                                  bool use_differentiated_cellular_costs) {
   // TODO(jonaso) : Rollout support for cellular network cost using A/B
   // experiment to make sure it does not introduce regressions.
   switch (type) {
@@ -95,11 +97,19 @@ uint16_t ComputeNetworkCostByType(int type) {
     case rtc::ADAPTER_TYPE_WIFI:
       return kNetworkCostLow;
     case rtc::ADAPTER_TYPE_CELLULAR:
-    case rtc::ADAPTER_TYPE_CELLULAR_2G:
-    case rtc::ADAPTER_TYPE_CELLULAR_3G:
-    case rtc::ADAPTER_TYPE_CELLULAR_4G:
-    case rtc::ADAPTER_TYPE_CELLULAR_5G:
       return kNetworkCostCellular;
+    case rtc::ADAPTER_TYPE_CELLULAR_2G:
+      return use_differentiated_cellular_costs ? kNetworkCostCellular2G
+                                               : kNetworkCostCellular;
+    case rtc::ADAPTER_TYPE_CELLULAR_3G:
+      return use_differentiated_cellular_costs ? kNetworkCostCellular3G
+                                               : kNetworkCostCellular;
+    case rtc::ADAPTER_TYPE_CELLULAR_4G:
+      return use_differentiated_cellular_costs ? kNetworkCostCellular4G
+                                               : kNetworkCostCellular;
+    case rtc::ADAPTER_TYPE_CELLULAR_5G:
+      return use_differentiated_cellular_costs ? kNetworkCostCellular5G
+                                               : kNetworkCostCellular;
     case rtc::ADAPTER_TYPE_ANY:
       // Candidates gathered from the any-address/wildcard ports, as backups,
       // are given the maximum cost so that if there are other candidates with
@@ -146,6 +156,18 @@ bool IsIgnoredIPv6(const InterfaceAddress& ip) {
   return false;
 }
 #endif  // !defined(__native_client__)
+
+// Note: consider changing to const Network* as arguments
+// if/when considering other changes that should not trigger
+// OnNetworksChanged.
+bool ShouldAdapterChangeTriggerNetworkChange(rtc::AdapterType old_type,
+                                             rtc::AdapterType new_type) {
+  // skip triggering OnNetworksChanged if
+  // changing from one cellular to another.
+  if (Network::IsCellular(old_type) && Network::IsCellular(new_type))
+    return false;
+  return true;
+}
 
 }  // namespace
 
@@ -350,8 +372,11 @@ void NetworkManagerBase::MergeNetworkList(const NetworkList& new_networks,
       merged_list.push_back(existing_net);
       if (net->type() != ADAPTER_TYPE_UNKNOWN &&
           net->type() != existing_net->type()) {
+        if (ShouldAdapterChangeTriggerNetworkChange(existing_net->type(),
+                                                    net->type())) {
+          *changed = true;
+        }
         existing_net->set_type(net->type());
-        *changed = true;
       }
       // If the existing network was not active, networks have changed.
       if (!existing_net->active()) {
@@ -915,7 +940,9 @@ Network::Network(const std::string& name,
       scope_id_(0),
       ignored_(false),
       type_(ADAPTER_TYPE_UNKNOWN),
-      preference_(0) {}
+      preference_(0),
+      use_differentiated_cellular_costs_(webrtc::field_trial::IsEnabled(
+          "WebRTC-UseDifferentiatedCellularCosts")) {}
 
 Network::Network(const std::string& name,
                  const std::string& desc,
@@ -930,7 +957,9 @@ Network::Network(const std::string& name,
       scope_id_(0),
       ignored_(false),
       type_(type),
-      preference_(0) {}
+      preference_(0),
+      use_differentiated_cellular_costs_(webrtc::field_trial::IsEnabled(
+          "WebRTC-UseDifferentiatedCellularCosts")) {}
 
 Network::Network(const Network&) = default;
 
@@ -1002,7 +1031,7 @@ webrtc::MdnsResponderInterface* Network::GetMdnsResponder() const {
 
 uint16_t Network::GetCost() const {
   AdapterType type = IsVpn() ? underlying_type_for_vpn_ : type_;
-  return ComputeNetworkCostByType(type);
+  return ComputeNetworkCostByType(type, use_differentiated_cellular_costs_);
 }
 
 std::string Network::ToString() const {

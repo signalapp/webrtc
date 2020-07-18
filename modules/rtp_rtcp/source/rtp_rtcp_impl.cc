@@ -290,7 +290,7 @@ RTCPSender::FeedbackState ModuleRtpRtcpImpl::GetFeedbackState() {
     state.media_bytes_sent = rtp_stats.transmitted.payload_bytes +
                              rtx_stats.transmitted.payload_bytes;
     state.send_bitrate =
-        rtp_sender_->packet_sender.SendBitrate().bps<uint32_t>();
+        rtp_sender_->packet_sender.GetSendRates().Sum().bps<uint32_t>();
   }
   state.module = this;
 
@@ -399,6 +399,13 @@ ModuleRtpRtcpImpl::GetSentRtpPacketInfos(
     rtc::ArrayView<const uint16_t> sequence_numbers) const {
   RTC_DCHECK(rtp_sender_);
   return rtp_sender_->packet_sender.GetSentRtpPacketInfos(sequence_numbers);
+}
+
+size_t ModuleRtpRtcpImpl::ExpectedPerPacketOverhead() const {
+  if (!rtp_sender_) {
+    return 0;
+  }
+  return rtp_sender_->packet_generator.ExpectedPerPacketOverhead();
 }
 
 size_t ModuleRtpRtcpImpl::MaxRtpPacketSize() const {
@@ -695,12 +702,17 @@ void ModuleRtpRtcpImpl::BitrateSent(uint32_t* total_rate,
                                     uint32_t* video_rate,
                                     uint32_t* fec_rate,
                                     uint32_t* nack_rate) const {
-  *total_rate = rtp_sender_->packet_sender.SendBitrate().bps<uint32_t>();
+  RtpSendRates send_rates = rtp_sender_->packet_sender.GetSendRates();
+  *total_rate = send_rates.Sum().bps<uint32_t>();
   if (video_rate)
     *video_rate = 0;
   if (fec_rate)
     *fec_rate = 0;
-  *nack_rate = rtp_sender_->packet_sender.NackOverheadRate().bps<uint32_t>();
+  *nack_rate = send_rates[RtpPacketMediaType::kRetransmission].bps<uint32_t>();
+}
+
+RtpSendRates ModuleRtpRtcpImpl::GetSendRates() const {
+  return rtp_sender_->packet_sender.GetSendRates();
 }
 
 void ModuleRtpRtcpImpl::OnRequestSendReport() {
@@ -767,8 +779,10 @@ std::vector<rtcp::TmmbItem> ModuleRtpRtcpImpl::BoundingSet(bool* tmmbr_owner) {
 }
 
 void ModuleRtpRtcpImpl::set_rtt_ms(int64_t rtt_ms) {
-  rtc::CritScope cs(&critical_section_rtt_);
-  rtt_ms_ = rtt_ms;
+  {
+    rtc::CritScope cs(&critical_section_rtt_);
+    rtt_ms_ = rtt_ms;
+  }
   if (rtp_sender_) {
     rtp_sender_->packet_history.SetRtt(rtt_ms);
   }
@@ -794,12 +808,13 @@ const RTPSender* ModuleRtpRtcpImpl::RtpSender() const {
 
 DataRate ModuleRtpRtcpImpl::SendRate() const {
   RTC_DCHECK(rtp_sender_);
-  return rtp_sender_->packet_sender.SendBitrate();
+  return rtp_sender_->packet_sender.GetSendRates().Sum();
 }
 
 DataRate ModuleRtpRtcpImpl::NackOverheadRate() const {
   RTC_DCHECK(rtp_sender_);
-  return rtp_sender_->packet_sender.NackOverheadRate();
+  return rtp_sender_->packet_sender
+      .GetSendRates()[RtpPacketMediaType::kRetransmission];
 }
 
 }  // namespace webrtc

@@ -38,7 +38,6 @@ namespace webrtc {
 
 // Forward declarations.
 class FrameEncryptorInterface;
-class OverheadObserver;
 class RateLimiter;
 class ReceiveStatisticsProvider;
 class RemoteBitrateEstimator;
@@ -113,7 +112,6 @@ class RtpRtcp : public Module, public RtcpFeedbackSenderInterface {
     RtcEventLog* event_log = nullptr;
     SendPacketObserver* send_packet_observer = nullptr;
     RateLimiter* retransmission_rate_limiter = nullptr;
-    OverheadObserver* overhead_observer = nullptr;
     StreamDataCountersCallback* rtp_stats_callback = nullptr;
 
     int rtcp_report_interval_ms = 0;
@@ -287,11 +285,15 @@ class RtpRtcp : public Module, public RtcpFeedbackSenderInterface {
   // bitrate estimate since the stream participates in the bitrate allocation.
   virtual void SetAsPartOfAllocation(bool part_of_allocation) = 0;
 
-  // Fetches the current send bitrates in bits/s.
+  // TODO(sprang): Remove when all call sites have been moved to
+  // GetSendRates(). Fetches the current send bitrates in bits/s.
   virtual void BitrateSent(uint32_t* total_rate,
                            uint32_t* video_rate,
                            uint32_t* fec_rate,
                            uint32_t* nack_rate) const = 0;
+
+  // Returns bitrate sent (post-pacing) per packet type.
+  virtual RtpSendRates GetSendRates() const = 0;
 
   virtual RTPSender* RtpSender() = 0;
   virtual const RTPSender* RtpSender() const = 0;
@@ -317,6 +319,13 @@ class RtpRtcp : public Module, public RtcpFeedbackSenderInterface {
 
   virtual std::vector<RtpSequenceNumberMap::Info> GetSentRtpPacketInfos(
       rtc::ArrayView<const uint16_t> sequence_numbers) const = 0;
+
+  // Returns an expected per packet overhead representing the main RTP header,
+  // any CSRCs, and the registered header extensions that are expected on all
+  // packets (i.e. disregarding things like abs capture time which is only
+  // populated on a subset of packets, but counting MID/RID type extensions
+  // when we expect to send them).
+  virtual size_t ExpectedPerPacketOverhead() const = 0;
 
   // **************************************************************************
   // RTCP
