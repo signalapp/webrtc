@@ -237,6 +237,7 @@ void RtpDataMediaChannel::OnPacketReceived(rtc::CopyOnWriteBuffer packet,
   //              << ", len=" << data_len;
 
   ReceiveDataParams params;
+  params.type = cricket::DMT_BINARY;
   params.ssrc = header.ssrc;
   params.seq_num = header.seq_num;
   params.timestamp = header.timestamp;
@@ -267,7 +268,7 @@ bool RtpDataMediaChannel::SendData(const SendDataParams& params,
     return false;
   }
 
-  if (params.type != cricket::DMT_TEXT) {
+  if (params.type != cricket::DMT_BINARY) {
     RTC_LOG(LS_WARNING)
         << "Not sending data because binary type is unsupported.";
     return false;
