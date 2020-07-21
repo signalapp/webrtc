@@ -90,14 +90,14 @@ NS_ASSUME_NONNULL_BEGIN
             decoderFactory:(nullable id<RTC_OBJC_TYPE(RTCVideoDecoderFactory)>)decoderFactory
      mediaTransportFactory:(std::unique_ptr<webrtc::MediaTransportFactory>)mediaTransportFactory;
 
-/** Initialize an RTCPeerConnection with a configuration, constraints, and
- *  dependencies.
+/** Initialize an RTCPeerConnection with a configuration, constraints, dependencies,
+ *  and observer.
  */
 - (RTC_OBJC_TYPE(RTCPeerConnection) *)
     peerConnectionWithDependencies:(RTC_OBJC_TYPE(RTCConfiguration) *)configuration
                        constraints:(RTC_OBJC_TYPE(RTCMediaConstraints) *)constraints
                       dependencies:(std::unique_ptr<webrtc::PeerConnectionDependencies>)dependencies
-                          delegate:(nullable id<RTC_OBJC_TYPE(RTCPeerConnectionDelegate)>)delegate;
+                          observer:(void *)observer;
 
 @end
 
