@@ -285,12 +285,11 @@
 - (RTC_OBJC_TYPE(RTCPeerConnection) *)
     peerConnectionWithConfiguration:(RTC_OBJC_TYPE(RTCConfiguration) *)configuration
                         constraints:(RTC_OBJC_TYPE(RTCMediaConstraints) *)constraints
-                           delegate:
-                               (nullable id<RTC_OBJC_TYPE(RTCPeerConnectionDelegate)>)delegate {
+                           observer:(void *)observer {
   return [[RTC_OBJC_TYPE(RTCPeerConnection) alloc] initWithFactory:self
                                                      configuration:configuration
                                                        constraints:constraints
-                                                          delegate:delegate];
+                                                          observer:observer];
 }
 
 - (RTC_OBJC_TYPE(RTCPeerConnection) *)
