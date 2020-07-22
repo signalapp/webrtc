@@ -84,7 +84,8 @@ std::unique_ptr<RtpRtcp> CreateRtpRtcpModule(
     ReceiveStatistics* receive_statistics,
     Transport* outgoing_transport,
     RtcpRttStats* rtt_stats,
-    ReceiveStatisticsProxy* rtcp_statistics_observer,
+    RtcpPacketTypeCounterObserver* rtcp_packet_type_counter_observer,
+    RtcpCnameCallback* rtcp_cname_callback,
     uint32_t local_ssrc) {
   RtpRtcp::Configuration configuration;
   configuration.clock = clock;
@@ -93,8 +94,9 @@ std::unique_ptr<RtpRtcp> CreateRtpRtcpModule(
   configuration.receive_statistics = receive_statistics;
   configuration.outgoing_transport = outgoing_transport;
   configuration.rtt_stats = rtt_stats;
-  configuration.rtcp_packet_type_counter_observer = rtcp_statistics_observer;
-  configuration.rtcp_cname_callback = rtcp_statistics_observer;
+  configuration.rtcp_packet_type_counter_observer =
+      rtcp_packet_type_counter_observer;
+  configuration.rtcp_cname_callback = rtcp_cname_callback;
   configuration.local_media_ssrc = local_ssrc;
 
   std::unique_ptr<RtpRtcp> rtp_rtcp = RtpRtcp::Create(configuration);
@@ -184,6 +186,7 @@ void RtpVideoStreamReceiver::RtcpFeedbackBuffer::SendBufferedRtcpFeedback() {
   }
 }
 
+// DEPRECATED
 RtpVideoStreamReceiver::RtpVideoStreamReceiver(
     Clock* clock,
     Transport* transport,
@@ -198,12 +201,44 @@ RtpVideoStreamReceiver::RtpVideoStreamReceiver(
     video_coding::OnCompleteFrameCallback* complete_frame_callback,
     rtc::scoped_refptr<FrameDecryptorInterface> frame_decryptor,
     rtc::scoped_refptr<FrameTransformerInterface> frame_transformer)
+    : RtpVideoStreamReceiver(clock,
+                             transport,
+                             rtt_stats,
+                             packet_router,
+                             config,
+                             rtp_receive_statistics,
+                             receive_stats_proxy,
+                             receive_stats_proxy,
+                             process_thread,
+                             nack_sender,
+                             keyframe_request_sender,
+                             complete_frame_callback,
+                             frame_decryptor,
+                             frame_transformer) {}
+
+RtpVideoStreamReceiver::RtpVideoStreamReceiver(
+    Clock* clock,
+    Transport* transport,
+    RtcpRttStats* rtt_stats,
+    PacketRouter* packet_router,
+    const VideoReceiveStream::Config* config,
+    ReceiveStatistics* rtp_receive_statistics,
+    RtcpPacketTypeCounterObserver* rtcp_packet_type_counter_observer,
+    RtcpCnameCallback* rtcp_cname_callback,
+    ProcessThread* process_thread,
+    NackSender* nack_sender,
+    KeyFrameRequestSender* keyframe_request_sender,
+    video_coding::OnCompleteFrameCallback* complete_frame_callback,
+    rtc::scoped_refptr<FrameDecryptorInterface> frame_decryptor,
+    rtc::scoped_refptr<FrameTransformerInterface> frame_transformer)
     : clock_(clock),
       config_(*config),
       packet_router_(packet_router),
       process_thread_(process_thread),
       ntp_estimator_(clock),
       rtp_header_extensions_(config_.rtp.extensions),
+      forced_playout_delay_max_ms_("max_ms", absl::nullopt),
+      forced_playout_delay_min_ms_("min_ms", absl::nullopt),
       rtp_receive_statistics_(rtp_receive_statistics),
       ulpfec_receiver_(UlpfecReceiver::Create(config->rtp.remote_ssrc,
                                               this,
@@ -214,7 +249,8 @@ RtpVideoStreamReceiver::RtpVideoStreamReceiver(
                                     rtp_receive_statistics_,
                                     transport,
                                     rtt_stats,
-                                    receive_stats_proxy,
+                                    rtcp_packet_type_counter_observer,
+                                    rtcp_cname_callback,
                                     config_.rtp.local_ssrc)),
       complete_frame_callback_(complete_frame_callback),
       keyframe_request_sender_(keyframe_request_sender),
@@ -255,6 +291,10 @@ RtpVideoStreamReceiver::RtpVideoStreamReceiver(
   }
   if (config_.rtp.rtcp_xr.receiver_reference_time_report)
     rtp_rtcp_->SetRtcpXrRrtrStatus(true);
+
+  ParseFieldTrial(
+      {&forced_playout_delay_max_ms_, &forced_playout_delay_min_ms_},
+      field_trial::FindFullName("WebRTC-ForcePlayoutDelay"));
 
   process_thread_->RegisterModule(rtp_rtcp_.get(), RTC_FROM_HERE);
 
@@ -380,9 +420,6 @@ RtpVideoStreamReceiver::ParseGenericDependenciesExtension(
     }
     generic_descriptor_info.decode_target_indications =
         dependency_descriptor.frame_dependencies.decode_target_indications;
-    generic_descriptor_info.discardable =
-        absl::c_linear_search(generic_descriptor_info.decode_target_indications,
-                              DecodeTargetIndication::kDiscardable);
     if (dependency_descriptor.resolution) {
       video_header->width = dependency_descriptor.resolution->Width();
       video_header->height = dependency_descriptor.resolution->Height();
@@ -412,19 +449,9 @@ RtpVideoStreamReceiver::ParseGenericDependenciesExtension(
     return kHasGenericDescriptor;
   }
 
-  if (rtp_packet.HasExtension<RtpGenericFrameDescriptorExtension00>() &&
-      rtp_packet.HasExtension<RtpGenericFrameDescriptorExtension01>()) {
-    RTC_LOG(LS_WARNING) << "RTP packet had two different GFD versions.";
-    return kDropPacket;
-  }
-
   RtpGenericFrameDescriptor generic_frame_descriptor;
-  bool has_generic_descriptor =
-      rtp_packet.GetExtension<RtpGenericFrameDescriptorExtension01>(
-          &generic_frame_descriptor) ||
-      rtp_packet.GetExtension<RtpGenericFrameDescriptorExtension00>(
-          &generic_frame_descriptor);
-  if (!has_generic_descriptor) {
+  if (!rtp_packet.GetExtension<RtpGenericFrameDescriptorExtension00>(
+          &generic_frame_descriptor)) {
     return kNoGenericDescriptor;
   }
 
@@ -447,8 +474,6 @@ RtpVideoStreamReceiver::ParseGenericDependenciesExtension(
         generic_frame_descriptor.SpatialLayer();
     generic_descriptor_info.temporal_index =
         generic_frame_descriptor.TemporalLayer();
-    generic_descriptor_info.discardable =
-        generic_frame_descriptor.Discardable().value_or(false);
     for (uint16_t fdiff : generic_frame_descriptor.FrameDependenciesDiffs()) {
       generic_descriptor_info.dependencies.push_back(frame_id - fdiff);
     }
@@ -494,7 +519,12 @@ void RtpVideoStreamReceiver::OnReceivedPayloadData(
   rtp_packet.GetExtension<VideoContentTypeExtension>(
       &video_header.content_type);
   rtp_packet.GetExtension<VideoTimingExtension>(&video_header.video_timing);
-  rtp_packet.GetExtension<PlayoutDelayLimits>(&video_header.playout_delay);
+  if (forced_playout_delay_max_ms_ && forced_playout_delay_min_ms_) {
+    video_header.playout_delay.max_ms = *forced_playout_delay_max_ms_;
+    video_header.playout_delay.min_ms = *forced_playout_delay_min_ms_;
+  } else {
+    rtp_packet.GetExtension<PlayoutDelayLimits>(&video_header.playout_delay);
+  }
   rtp_packet.GetExtension<FrameMarkingExtension>(&video_header.frame_marking);
 
   ParseGenericDependenciesResult generic_descriptor_state =
@@ -786,7 +816,9 @@ void RtpVideoStreamReceiver::OnAssembledFrame(
 
   if (loss_notification_controller_ && descriptor) {
     loss_notification_controller_->OnAssembledFrame(
-        frame->first_seq_num(), descriptor->frame_id, descriptor->discardable,
+        frame->first_seq_num(), descriptor->frame_id,
+        absl::c_linear_search(descriptor->decode_target_indications,
+                              DecodeTargetIndication::kDiscardable),
         descriptor->dependencies);
   }
 

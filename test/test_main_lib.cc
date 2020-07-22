@@ -30,7 +30,7 @@
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/testsupport/perf_test.h"
-#include "test/testsupport/resources_dir_flag.h"
+// #include "test/testsupport/resources_dir_flag.h"
 
 #if defined(WEBRTC_WIN)
 #include "rtc_base/win32_socket_init.h"
@@ -104,10 +104,10 @@ class TestMainImpl : public TestMain {
     ::testing::InitGoogleMock(argc, argv);
     absl::ParseCommandLine(*argc, argv);
 
-    // Make sure we always pull in the --resources_dir flag, even if the test
-    // binary doesn't link with fileutils (downstream expects all test mains to
-    // have this flag).
-    (void)absl::GetFlag(FLAGS_resources_dir);
+    // // Make sure we always pull in the --resources_dir flag, even if the test
+    // // binary doesn't link with fileutils (downstream expects all test mains to
+    // // have this flag).
+    // (void)absl::GetFlag(FLAGS_resources_dir);
 
     // Default to LS_INFO, even for release builds to provide better test
     // logging.

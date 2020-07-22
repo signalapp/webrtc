@@ -14,27 +14,37 @@
 #include <string>
 
 #include "call/adaptation/resource.h"
+#include "rtc_base/ref_counted_object.h"
 
 namespace webrtc {
 
 // Fake resource used for testing.
-class FakeResource : public Resource {
+class FakeResource : public rtc::RefCountedObject<Resource> {
  public:
-  explicit FakeResource(ResourceUsageState usage_state);
-  FakeResource(ResourceUsageState usage_state, const std::string& name);
+  explicit FakeResource(std::string name);
   ~FakeResource() override;
 
   void set_usage_state(ResourceUsageState usage_state);
+  void set_is_adaptation_up_allowed(bool is_adaptation_up_allowed);
+  size_t num_adaptations_applied() const;
 
-  absl::optional<ResourceListenerResponse> last_response() const {
-    return last_response_;
-  }
-
+  // Resource implementation.
   std::string name() const override { return name_; }
+  bool IsAdaptationUpAllowed(
+      const VideoStreamInputState& input_state,
+      const VideoSourceRestrictions& restrictions_before,
+      const VideoSourceRestrictions& restrictions_after,
+      rtc::scoped_refptr<Resource> reason_resource) const override;
+  void OnAdaptationApplied(
+      const VideoStreamInputState& input_state,
+      const VideoSourceRestrictions& restrictions_before,
+      const VideoSourceRestrictions& restrictions_after,
+      rtc::scoped_refptr<Resource> reason_resource) override;
 
  private:
-  absl::optional<ResourceListenerResponse> last_response_;
   const std::string name_;
+  bool is_adaptation_up_allowed_;
+  size_t num_adaptations_applied_;
 };
 
 }  // namespace webrtc

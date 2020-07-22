@@ -11,6 +11,10 @@
 
 #include <stdio.h>
 
+#if defined(WEBRTC_WIN)
+#include <conio.h>
+#endif
+
 #include <algorithm>
 #include <deque>
 #include <map>
@@ -27,6 +31,7 @@
 #include "api/video_codecs/video_encoder.h"
 #include "call/fake_network_pipe.h"
 #include "call/simulated_network.h"
+#include "media/base/media_constants.h"
 #include "media/engine/adm_helpers.h"
 #include "media/engine/encoder_simulcast_proxy.h"
 #include "media/engine/fake_video_codec_factory.h"
@@ -43,7 +48,6 @@
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/task_queue_for_test.h"
 #include "test/platform_video_capturer.h"
-#include "test/run_loop.h"
 #include "test/testsupport/file_utils.h"
 #include "test/video_renderer.h"
 #include "video/frame_dumping_decoder.h"
@@ -269,6 +273,29 @@ class QualityTestVideoEncoder : public VideoEncoder,
   EncodedImageCallback* callback_ = nullptr;
   VideoCodec codec_settings_;
 };
+
+#if defined(WEBRTC_WIN) && !defined(WINUWP)
+void PressEnterToContinue(TaskQueueBase* task_queue) {
+  puts(">> Press ENTER to continue...");
+
+  while (!_kbhit() || _getch() != '\r') {
+    // Drive the message loop for the thread running the task_queue
+    SendTask(RTC_FROM_HERE, task_queue, [&]() {
+      MSG msg;
+      if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+      }
+    });
+  }
+}
+#else
+void PressEnterToContinue(TaskQueueBase* /*task_queue*/) {
+  puts(">> Press ENTER to continue...");
+  while (getc(stdin) != '\n' && !feof(stdin))
+    ;  // NOLINT
+}
+#endif
 
 }  // namespace
 
@@ -796,9 +823,6 @@ void VideoQualityTest::SetupVideo(Transport* send_transport,
       video_send_configs_[video_idx].rtp.extensions.emplace_back(
           RtpExtension::kGenericFrameDescriptorUri00,
           kGenericFrameDescriptorExtensionId00);
-      video_send_configs_[video_idx].rtp.extensions.emplace_back(
-          RtpExtension::kGenericFrameDescriptorUri01,
-          kGenericFrameDescriptorExtensionId01);
     }
 
     video_send_configs_[video_idx].rtp.extensions.emplace_back(
@@ -914,6 +938,10 @@ void VideoQualityTest::SetupVideo(Transport* send_transport,
                 VideoEncoderConfig::Vp9EncoderSpecificSettings>(vp9_settings);
       } else if (params_.video[video_idx].codec == "H264") {
         // Quality scaling is always on for H.264.
+      } else if (params_.video[video_idx].codec == cricket::kAv1CodecName) {
+        // TODO(bugs.webrtc.org/11404): Propagate the flag to
+        // aom_codec_enc_cfg_t::rc_resize_mode in Av1 encoder wrapper.
+        // Until then do nothing, specially do not crash.
       } else {
         RTC_NOTREACHED() << "Automatic scaling not supported for codec "
                          << params_.video[video_idx].codec << ", stream "
@@ -1573,7 +1601,7 @@ void VideoQualityTest::RunWithRenderers(const Params& params) {
     Start();
   });
 
-  test::PressEnterToContinue(task_queue());
+  PressEnterToContinue(task_queue());
 
   SendTask(RTC_FROM_HERE, task_queue(), [&]() {
     Stop();

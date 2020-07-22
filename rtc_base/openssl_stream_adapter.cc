@@ -278,7 +278,8 @@ OpenSSLStreamAdapter::OpenSSLStreamAdapter(
       ssl_max_version_(SSL_PROTOCOL_TLS_12),
       // Default is to support legacy TLS protocols.
       // This will be changed to default non-support in M82 or M83.
-      support_legacy_tls_protocols_flag_(false) {}
+      support_legacy_tls_protocols_flag_(
+          !webrtc::field_trial::IsDisabled("WebRTC-LegacyTlsProtocols")) {}
 
 OpenSSLStreamAdapter::~OpenSSLStreamAdapter() {
   Cleanup(0);

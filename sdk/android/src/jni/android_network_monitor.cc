@@ -48,6 +48,9 @@ static NetworkType GetNetworkTypeFromJava(
   if (enum_name == "CONNECTION_WIFI") {
     return NetworkType::NETWORK_WIFI;
   }
+  if (enum_name == "CONNECTION_5G") {
+    return NetworkType::NETWORK_5G;
+  }
   if (enum_name == "CONNECTION_4G") {
     return NetworkType::NETWORK_4G;
   }
@@ -73,7 +76,9 @@ static NetworkType GetNetworkTypeFromJava(
   return NetworkType::NETWORK_UNKNOWN;
 }
 
-static rtc::AdapterType AdapterTypeFromNetworkType(NetworkType network_type) {
+static rtc::AdapterType AdapterTypeFromNetworkType(
+    NetworkType network_type,
+    bool surface_cellular_types) {
   switch (network_type) {
     case NETWORK_UNKNOWN:
       return rtc::ADAPTER_TYPE_UNKNOWN;
@@ -81,9 +86,18 @@ static rtc::AdapterType AdapterTypeFromNetworkType(NetworkType network_type) {
       return rtc::ADAPTER_TYPE_ETHERNET;
     case NETWORK_WIFI:
       return rtc::ADAPTER_TYPE_WIFI;
+    case NETWORK_5G:
+      return surface_cellular_types ? rtc::ADAPTER_TYPE_CELLULAR_5G
+                                    : rtc::ADAPTER_TYPE_CELLULAR;
     case NETWORK_4G:
+      return surface_cellular_types ? rtc::ADAPTER_TYPE_CELLULAR_4G
+                                    : rtc::ADAPTER_TYPE_CELLULAR;
     case NETWORK_3G:
+      return surface_cellular_types ? rtc::ADAPTER_TYPE_CELLULAR_3G
+                                    : rtc::ADAPTER_TYPE_CELLULAR;
     case NETWORK_2G:
+      return surface_cellular_types ? rtc::ADAPTER_TYPE_CELLULAR_2G
+                                    : rtc::ADAPTER_TYPE_CELLULAR;
     case NETWORK_UNKNOWN_CELLULAR:
       return rtc::ADAPTER_TYPE_CELLULAR;
     case NETWORK_VPN:
@@ -192,6 +206,8 @@ void AndroidNetworkMonitor::Start() {
     return;
   }
   started_ = true;
+  surface_cellular_types_ =
+      webrtc::field_trial::IsEnabled("WebRTC-SurfaceCellularTypes");
   find_network_handle_without_ipv6_temporary_part_ =
       webrtc::field_trial::IsEnabled(
           "WebRTC-FindNetworkHandleWithoutIpv6TemporaryPart");
@@ -343,10 +359,11 @@ void AndroidNetworkMonitor::OnNetworkConnected_w(
     const NetworkInformation& network_info) {
   RTC_LOG(LS_INFO) << "Network connected: " << network_info.ToString();
   adapter_type_by_name_[network_info.interface_name] =
-      AdapterTypeFromNetworkType(network_info.type);
+      AdapterTypeFromNetworkType(network_info.type, surface_cellular_types_);
   if (network_info.type == NETWORK_VPN) {
     vpn_underlying_adapter_type_by_name_[network_info.interface_name] =
-        AdapterTypeFromNetworkType(network_info.underlying_type_for_vpn);
+        AdapterTypeFromNetworkType(network_info.underlying_type_for_vpn,
+                                   surface_cellular_types_);
   }
   network_info_by_handle_[network_info.handle] = network_info;
   for (const rtc::IPAddress& address : network_info.ip_addresses) {
@@ -403,7 +420,7 @@ void AndroidNetworkMonitor::SetNetworkInfos(
   network_info_by_handle_.clear();
   RTC_LOG(LS_INFO) << "Android network monitor found " << network_infos.size()
                    << " networks";
-  for (NetworkInformation network : network_infos) {
+  for (const NetworkInformation& network : network_infos) {
     OnNetworkConnected_w(network);
   }
 }

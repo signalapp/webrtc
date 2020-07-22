@@ -14,8 +14,8 @@
 
 #include <algorithm>
 
-#include "absl/algorithm/container.h"
 #include "absl/container/inlined_vector.h"
+#include "absl/strings/match.h"
 #include "absl/types/variant.h"
 #include "api/video/video_timing.h"
 #include "modules/video_coding/codecs/h264/include/h264_globals.h"
@@ -28,7 +28,6 @@
 #include "rtc_base/logging.h"
 #include "rtc_base/random.h"
 #include "rtc_base/time_utils.h"
-#include "system_wrappers/include/field_trial.h"
 
 namespace webrtc {
 
@@ -135,12 +134,15 @@ void SetVideoTiming(const EncodedImage& image, VideoSendTiming* timing) {
 }  // namespace
 
 RtpPayloadParams::RtpPayloadParams(const uint32_t ssrc,
-                                   const RtpPayloadState* state)
+                                   const RtpPayloadState* state,
+                                   const WebRtcKeyValueConfig& trials)
     : ssrc_(ssrc),
       generic_picture_id_experiment_(
-          field_trial::IsEnabled("WebRTC-GenericPictureId")),
+          absl::StartsWith(trials.Lookup("WebRTC-GenericPictureId"),
+                           "Enabled")),
       generic_descriptor_experiment_(
-          !field_trial::IsDisabled("WebRTC-GenericDescriptor")) {
+          !absl::StartsWith(trials.Lookup("WebRTC-GenericDescriptor"),
+                            "Disabled")) {
   for (auto& spatial_layer : last_shared_frame_id_)
     spatial_layer.fill(-1);
 
@@ -262,9 +264,6 @@ RtpPayloadParams::GenericDescriptorFromFrameInfo(
   generic.spatial_index = frame_info.spatial_id;
   generic.temporal_index = frame_info.temporal_id;
   generic.decode_target_indications = frame_info.decode_target_indications;
-  generic.discardable =
-      absl::c_linear_search(frame_info.decode_target_indications,
-                            DecodeTargetIndication::kDiscardable);
   return generic;
 }
 

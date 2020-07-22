@@ -25,6 +25,7 @@ namespace webrtc {
 
 class Syncable;
 
+// DEPRECATED.
 class RtpStreamsSynchronizer : public Module {
  public:
   explicit RtpStreamsSynchronizer(Syncable* syncable_video);

@@ -206,8 +206,6 @@ rtc_library("rtp_rtcp") {
     "source/time_util.h",
     "source/tmmbr_help.cc",
     "source/tmmbr_help.h",
-    "source/transformable_encoded_frame.cc",
-    "source/transformable_encoded_frame.h",
     "source/ulpfec_generator.cc",
     "source/ulpfec_generator.h",
     "source/ulpfec_header_reader_writer.cc",
@@ -286,6 +284,7 @@ rtc_library("rtp_rtcp") {
     "../../rtc_base:rtc_base_approved",
     "../../rtc_base:rtc_numerics",
     "../../rtc_base:safe_minmax",
+    "../../rtc_base/experiments:field_trial_parser",
     "../../rtc_base/synchronization:sequence_checker",
     "../../rtc_base/task_utils:to_queued_task",
     "../../rtc_base/time:timestamp_extrapolator",
@@ -371,12 +370,6 @@ rtc_library("fec_test_helper") {
 
 rtc_library("mock_rtp_rtcp") {
   testonly = true
-  sources = [
-    "mocks/mock_recovered_packet_receiver.cc",
-    "mocks/mock_rtcp_bandwidth_observer.cc",
-    "mocks/mock_rtcp_rtt_stats.cc",
-    "mocks/mock_rtp_rtcp.cc",
-  ]
   public = [
     "mocks/mock_recovered_packet_receiver.h",
     "mocks/mock_rtcp_bandwidth_observer.h",
@@ -542,6 +535,7 @@ if (rtc_include_tests) {
       "../../rtc_base:task_queue_for_test",
       "../../system_wrappers",
       "../../test:field_trial",
+      "../../test:mock_frame_transformer",
       "../../test:mock_transport",
       "../../test:rtp_test_utils",
       "../../test:test_common",

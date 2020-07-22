@@ -23,12 +23,15 @@
 #include "rtc_base/task_utils/to_queued_task.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/mock_frame_transformer.h"
 #include "video/rtp_video_stream_receiver.h"
 
 namespace webrtc {
 namespace {
 
 using ::testing::_;
+using ::testing::NiceMock;
+using ::testing::SaveArg;
 
 std::unique_ptr<video_coding::RtpFrameObject> CreateRtpFrameObject() {
   return std::make_unique<video_coding::RtpFrameObject>(
@@ -93,6 +96,7 @@ class TestRtpVideoStreamReceiver : public TestRtpVideoStreamReceiverInitializer,
                                &test_config_,
                                test_rtp_receive_statistics_.get(),
                                nullptr,
+                               nullptr,
                                test_process_thread_.get(),
                                &fake_nack_sender_,
                                nullptr,
@@ -104,25 +108,6 @@ class TestRtpVideoStreamReceiver : public TestRtpVideoStreamReceiverInitializer,
   MOCK_METHOD(void,
               ManageFrame,
               (std::unique_ptr<video_coding::RtpFrameObject> frame),
-              (override));
-};
-
-class MockFrameTransformer : public FrameTransformerInterface {
- public:
-  ~MockFrameTransformer() override = default;
-  MOCK_METHOD(void,
-              TransformFrame,
-              (std::unique_ptr<video_coding::EncodedFrame>,
-               std::vector<uint8_t>,
-               uint32_t),
-              (override));
-  MOCK_METHOD(void,
-              RegisterTransformedFrameSinkCallback,
-              (rtc::scoped_refptr<TransformedFrameCallback>, uint32_t),
-              (override));
-  MOCK_METHOD(void,
-              UnregisterTransformedFrameSinkCallback,
-              (uint32_t),
               (override));
 };
 
@@ -156,51 +141,40 @@ TEST(RtpVideoStreamReceiverFrameTransformerDelegateTest,
 TEST(RtpVideoStreamReceiverFrameTransformerDelegateTest, TransformFrame) {
   TestRtpVideoStreamReceiver receiver;
   rtc::scoped_refptr<MockFrameTransformer> frame_transformer(
-      new rtc::RefCountedObject<MockFrameTransformer>());
+      new rtc::RefCountedObject<testing::NiceMock<MockFrameTransformer>>());
   rtc::scoped_refptr<RtpVideoStreamReceiverFrameTransformerDelegate> delegate(
       new rtc::RefCountedObject<RtpVideoStreamReceiverFrameTransformerDelegate>(
           &receiver, frame_transformer, rtc::Thread::Current(),
           /*remote_ssrc*/ 1111));
   auto frame = CreateRtpFrameObject();
-  EXPECT_CALL(*frame_transformer,
-              TransformFrame(_, RtpDescriptorAuthentication(RTPVideoHeader()),
-                             /*remote_ssrc*/ 1111));
+  EXPECT_CALL(*frame_transformer, Transform);
   delegate->TransformFrame(std::move(frame));
 }
 
 TEST(RtpVideoStreamReceiverFrameTransformerDelegateTest,
      ManageFrameOnTransformedFrame) {
-  auto main_thread = rtc::Thread::Create();
-  main_thread->Start();
-  auto network_thread = rtc::Thread::Create();
-  network_thread->Start();
-
   TestRtpVideoStreamReceiver receiver;
-  rtc::scoped_refptr<MockFrameTransformer> frame_transformer(
-      new rtc::RefCountedObject<MockFrameTransformer>());
-  auto delegate = network_thread->Invoke<
-      rtc::scoped_refptr<RtpVideoStreamReceiverFrameTransformerDelegate>>(
-      RTC_FROM_HERE, [&]() mutable {
-        return new rtc::RefCountedObject<
-            RtpVideoStreamReceiverFrameTransformerDelegate>(
-            &receiver, frame_transformer, network_thread.get(),
-            /*remote_ssrc*/ 1111);
-      });
+  rtc::scoped_refptr<MockFrameTransformer> mock_frame_transformer(
+      new rtc::RefCountedObject<NiceMock<MockFrameTransformer>>());
+  rtc::scoped_refptr<RtpVideoStreamReceiverFrameTransformerDelegate> delegate =
+      new rtc::RefCountedObject<RtpVideoStreamReceiverFrameTransformerDelegate>(
+          &receiver, mock_frame_transformer, rtc::Thread::Current(),
+          /*remote_ssrc*/ 1111);
 
-  auto frame = CreateRtpFrameObject();
+  rtc::scoped_refptr<TransformedFrameCallback> callback;
+  EXPECT_CALL(*mock_frame_transformer, RegisterTransformedFrameSinkCallback)
+      .WillOnce(SaveArg<0>(&callback));
+  delegate->Init();
+  ASSERT_TRUE(callback);
 
-  EXPECT_CALL(receiver, ManageFrame)
-      .WillOnce([&network_thread](
-                    std::unique_ptr<video_coding::RtpFrameObject> frame) {
-        EXPECT_TRUE(network_thread->IsCurrent());
-      });
-  main_thread->Invoke<void>(RTC_FROM_HERE, [&]() mutable {
-    delegate->OnTransformedFrame(std::move(frame));
-  });
+  EXPECT_CALL(receiver, ManageFrame);
+  ON_CALL(*mock_frame_transformer, Transform)
+      .WillByDefault(
+          [&callback](std::unique_ptr<TransformableFrameInterface> frame) {
+            callback->OnTransformedFrame(std::move(frame));
+          });
+  delegate->TransformFrame(CreateRtpFrameObject());
   rtc::ThreadManager::ProcessAllMessageQueuesForTesting();
-
-  main_thread->Stop();
-  network_thread->Stop();
 }
 
 }  // namespace

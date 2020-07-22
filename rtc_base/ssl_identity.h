@@ -116,6 +116,8 @@ class RTC_EXPORT SSLIdentity {
                                              const KeyParams& key_param);
   static std::unique_ptr<SSLIdentity> Create(const std::string& common_name,
                                              KeyType key_type);
+
+  // Allows fine-grained control over expiration time.
   static std::unique_ptr<SSLIdentity> CreateForTest(
       const SSLIdentityParams& params);
 
@@ -129,40 +131,10 @@ class RTC_EXPORT SSLIdentity {
       const std::string& private_key,
       const std::string& certificate_chain);
 
-  // Old versions of Create(). These return a pointer, but still require the
-  // caller to take ownership.
-  RTC_DEPRECATED static SSLIdentity* GenerateWithExpiration(
-      const std::string& common_name,
-      const KeyParams& key_param,
-      time_t certificate_lifetime);
-  RTC_DEPRECATED static SSLIdentity* Generate(const std::string& common_name,
-                                              const KeyParams& key_param);
-  RTC_DEPRECATED static SSLIdentity* Generate(const std::string& common_name,
-                                              KeyType key_type);
-
-  // Generates an identity with the specified validity period.
-  // TODO(torbjorng): Now that Generate() accepts relevant params, make tests
-  // use that instead of this function.
-  RTC_DEPRECATED static SSLIdentity* GenerateForTest(
-      const SSLIdentityParams& params);
-
-  // Construct an identity from a private key and a certificate.
-  RTC_DEPRECATED static SSLIdentity* FromPEMStrings(
-      const std::string& private_key,
-      const std::string& certificate);
-
-  // Construct an identity from a private key and a certificate chain.
-  RTC_DEPRECATED static SSLIdentity* FromPEMChainStrings(
-      const std::string& private_key,
-      const std::string& certificate_chain);
-
   virtual ~SSLIdentity() {}
 
   // Returns a new SSLIdentity object instance wrapping the same
   // identity information.
-  // Caller is responsible for freeing the returned object.
-  // TODO(hbos,torbjorng): Rename to a less confusing name.
-  RTC_DEPRECATED virtual SSLIdentity* GetReference() const = 0;
   std::unique_ptr<SSLIdentity> Clone() const { return CloneInternal(); }
 
   // Returns a temporary reference to the end-entity (leaf) certificate.

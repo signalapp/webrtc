@@ -11,7 +11,9 @@
 #include <cstdint>
 #include <memory>
 
+#include "api/media_stream_interface.h"
 #include "api/test/create_network_emulation_manager.h"
+#include "api/test/create_peer_connection_quality_test_frame_generator.h"
 #include "api/test/create_peerconnection_quality_test_fixture.h"
 #include "api/test/network_emulation_manager.h"
 #include "api/test/peerconnection_quality_test_fixture.h"
@@ -160,26 +162,31 @@ TEST_F(PeerConnectionE2EQualityTestSmokeTest, MAYBE_Smoke) {
         audio.sync_group = "alice-media";
         alice->SetAudioConfig(std::move(audio));
       },
-      [](PeerConfigurer* bob) {
+      [](PeerConfigurer* charlie) {
+        charlie->SetName("charlie");
         VideoConfig video(640, 360, 30);
-        video.stream_label = "bob-video";
+        video.stream_label = "charlie-video";
         video.temporal_layers_count = 2;
-        bob->AddVideoConfig(std::move(video));
+        charlie->AddVideoConfig(std::move(video));
 
         VideoConfig screenshare(640, 360, 30);
-        screenshare.stream_label = "bob-screenshare";
-        screenshare.screen_share_config =
+        screenshare.stream_label = "charlie-screenshare";
+        screenshare.content_hint = VideoTrackInterface::ContentHint::kText;
+        ScreenShareConfig screen_share_config =
             ScreenShareConfig(TimeDelta::Seconds(2));
-        screenshare.screen_share_config->scrolling_params = ScrollingParams(
+        screen_share_config.scrolling_params = ScrollingParams(
             TimeDelta::Millis(1800), kDefaultSlidesWidth, kDefaultSlidesHeight);
-        bob->AddVideoConfig(screenshare);
+        auto screen_share_frame_generator =
+            CreateScreenShareFrameGenerator(screenshare, screen_share_config);
+        charlie->AddVideoConfig(std::move(screenshare),
+                                std::move(screen_share_frame_generator));
 
         AudioConfig audio;
-        audio.stream_label = "bob-audio";
+        audio.stream_label = "charlie-audio";
         audio.mode = AudioConfig::Mode::kFile;
         audio.input_file_name =
             test::ResourcePath("pc_quality_smoke_test_bob_source", "wav");
-        bob->SetAudioConfig(std::move(audio));
+        charlie->SetAudioConfig(std::move(audio));
       });
 }
 

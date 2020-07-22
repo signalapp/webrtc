@@ -409,8 +409,10 @@ class RTC_EXPORT Network {
 
   bool IsVpn() const { return type_ == ADAPTER_TYPE_VPN; }
 
-  bool IsCellular() const {
-    switch (type_) {
+  bool IsCellular() const { return IsCellular(type_); }
+
+  static bool IsCellular(AdapterType type) {
+    switch (type) {
       case ADAPTER_TYPE_CELLULAR:
       case ADAPTER_TYPE_CELLULAR_2G:
       case ADAPTER_TYPE_CELLULAR_3G:
@@ -460,6 +462,7 @@ class RTC_EXPORT Network {
   int preference_;
   bool active_ = true;
   uint16_t id_ = 0;
+  bool use_differentiated_cellular_costs_ = false;
 
   friend class NetworkManager;
 };
