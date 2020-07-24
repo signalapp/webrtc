@@ -57,6 +57,8 @@
 @synthesize cryptoOptions = _cryptoOptions;
 @synthesize rtcpAudioReportIntervalMs = _rtcpAudioReportIntervalMs;
 @synthesize rtcpVideoReportIntervalMs = _rtcpVideoReportIntervalMs;
+@synthesize enableRtpDataChannel = _enableRtpDataChannel;
+@synthesize enableDtlsSrtp = _enableDtlsSrtp;
 
 - (instancetype)init {
   // Copy defaults.
@@ -136,6 +138,8 @@
     _rtcpAudioReportIntervalMs = config.audio_rtcp_report_interval_ms();
     _rtcpVideoReportIntervalMs = config.video_rtcp_report_interval_ms();
     _allowCodecSwitching = config.allow_codec_switching.value_or(false);
+    _enableRtpDataChannel = config.enable_rtp_data_channel;
+    _enableDtlsSrtp = config.enable_dtls_srtp.value_or(true);
   }
   return self;
 }
@@ -143,7 +147,7 @@
 - (NSString *)description {
   static NSString *formatString = @"RTC_OBJC_TYPE(RTCConfiguration): "
                                   @"{\n%@\n%@\n%@\n%@\n%@\n%@\n%@\n%@\n%d\n%d\n%d\n%d\n%d\n%d\n"
-                                  @"%d\n%@\n%d\n%d\n%d\n%d\n%d\n%@\n%d\n}\n";
+                                  @"%d\n%@\n%d\n%d\n%d\n%d\n%d\n%@\n%d\n%d\n%d\n}\n";
 
   return [NSString
       stringWithFormat:formatString,
@@ -170,7 +174,9 @@
                        _maxIPv6Networks,
                        _activeResetSrtpParams,
                        _useMediaTransport,
-                       _enableDscp];
+                       _enableDscp,
+                       _enableRtpDataChannel,
+                       _enableDtlsSrtp];
 }
 
 #pragma mark - Private
@@ -268,6 +274,8 @@
   nativeConfig->set_audio_rtcp_report_interval_ms(_rtcpAudioReportIntervalMs);
   nativeConfig->set_video_rtcp_report_interval_ms(_rtcpVideoReportIntervalMs);
   nativeConfig->allow_codec_switching = _allowCodecSwitching;
+  nativeConfig->enable_rtp_data_channel = _enableRtpDataChannel;
+  nativeConfig->enable_dtls_srtp = _enableDtlsSrtp;
   return nativeConfig.release();
 }
 
