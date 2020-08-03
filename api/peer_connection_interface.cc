@@ -83,6 +83,11 @@ bool PeerConnectionInterface::UseSharedIceGatherer(
   return false;
 }
 
+bool PeerConnectionInterface::SetIncomingRtpEnabled(bool enabled) {
+  RTC_LOG(LS_ERROR) << "No enabling of incoming RTP in dummy implementation";
+  return false;
+}
+
 PeerConnectionInterface::BitrateParameters::BitrateParameters() = default;
 
 PeerConnectionInterface::BitrateParameters::~BitrateParameters() = default;

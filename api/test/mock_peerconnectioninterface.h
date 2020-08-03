@@ -198,6 +198,8 @@ class MockPeerConnectionInterface
                rtc::scoped_refptr<webrtc::IceGathererInterface>());
   MOCK_METHOD1(UseSharedIceGatherer,
                bool(rtc::scoped_refptr<webrtc::IceGathererInterface>));
+  MOCK_METHOD1(SetIncomingRtpEnabled,
+               bool(bool));
 };
 
 static_assert(!std::is_abstract<MockPeerConnectionInterface>::value, "");

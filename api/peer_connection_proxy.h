@@ -124,6 +124,7 @@ PROXY_METHOD0(rtc::scoped_refptr<webrtc::IceGathererInterface>,
 PROXY_METHOD1(bool,
               UseSharedIceGatherer,
               rtc::scoped_refptr<webrtc::IceGathererInterface>)
+PROXY_METHOD1(bool, SetIncomingRtpEnabled, bool)
 PROXY_METHOD1(RTCError, SetBitrate, const BitrateSettings&)
 PROXY_METHOD1(void, SetAudioPlayout, bool)
 PROXY_METHOD1(void, SetAudioRecording, bool)

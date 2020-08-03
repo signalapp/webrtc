@@ -143,6 +143,8 @@ class PeerConnectionWrapper {
   bool UseSharedIceGatherer(
       rtc::scoped_refptr<webrtc::IceGathererInterface> shared_ice_gatherer);
 
+  bool SetIncomingRtpEnabled(bool enabled);
+
   // Returns a new dummy audio track with the given label.
   rtc::scoped_refptr<AudioTrackInterface> CreateAudioTrack(
       const std::string& label);

@@ -196,6 +196,10 @@ class FakePeerConnectionBase : public PeerConnectionInternal {
     return false;
   }
 
+  bool SetIncomingRtpEnabled(bool enabled) override {
+    return false;
+  }
+
   RTCError SetBitrate(const BitrateSettings& bitrate) override {
     return RTCError(RTCErrorType::UNSUPPORTED_OPERATION, "Not implemented");
   }
