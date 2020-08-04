@@ -287,6 +287,10 @@ bool PeerConnectionWrapper::UseSharedIceGatherer(
   return pc()->UseSharedIceGatherer(shared_ice_gatherer);
 }
 
+bool PeerConnectionWrapper::SetIncomingRtpEnabled(bool enabled) {
+  return pc()->SetIncomingRtpEnabled(enabled);
+}
+
 rtc::scoped_refptr<AudioTrackInterface> PeerConnectionWrapper::CreateAudioTrack(
     const std::string& label) {
   return pc_factory()->CreateAudioTrack(label, nullptr);

@@ -228,6 +228,7 @@ class PeerConnection : public PeerConnectionInternal,
       override;
   bool UseSharedIceGatherer(rtc::scoped_refptr<webrtc::IceGathererInterface>
                                 shared_ice_gatherer) override;
+  bool SetIncomingRtpEnabled(bool enabled) override;
 
   RTCError SetBitrate(const BitrateSettings& bitrate) override;
 

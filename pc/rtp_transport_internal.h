@@ -98,6 +98,11 @@ class RtpTransportInternal : public sigslot::has_slots<> {
                                       RtpPacketSinkInterface* sink) = 0;
 
   virtual bool UnregisterRtpDemuxerSink(RtpPacketSinkInterface* sink) = 0;
+
+  // If false, drop all RTP and RTCP packets before processing them.
+  virtual bool SetIncomingRtpEnabled(bool enabled) {
+    return false;
+  }
 };
 
 }  // namespace webrtc

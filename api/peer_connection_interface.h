@@ -1061,6 +1061,9 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
   virtual bool UseSharedIceGatherer(
       rtc::scoped_refptr<webrtc::IceGathererInterface> shared_ice_gatherer);
 
+  // If false, all RTP and RTCP packets will be dropped before being processed.
+  virtual bool SetIncomingRtpEnabled(bool enabled);
+
   // 0 <= min <= current <= max should hold for set parameters.
   struct BitrateParameters {
     BitrateParameters();

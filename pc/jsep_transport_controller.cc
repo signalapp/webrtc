@@ -338,6 +338,22 @@ void JsepTransportController::StartGatheringWithSharedIceGatherer(
   }
 }
 
+bool JsepTransportController::SetIncomingRtpEnabled(bool enabled) {
+  if (!network_thread_->IsCurrent()) {
+    return network_thread_->Invoke<bool>(RTC_FROM_HERE, [=] {
+      return SetIncomingRtpEnabled(enabled);
+    });
+  }
+
+  for (const auto& jsep_transport : jsep_transports_by_name_) {
+    if (!jsep_transport.second->rtp_transport()->SetIncomingRtpEnabled(enabled)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+
 RTCError JsepTransportController::AddRemoteCandidates(
     const std::string& transport_name,
     const cricket::Candidates& candidates) {

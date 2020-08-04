@@ -7408,6 +7408,10 @@ bool PeerConnection::UseSharedIceGatherer(
   return true;
 }
 
+bool PeerConnection::SetIncomingRtpEnabled(bool enabled) {
+  return transport_controller_->SetIncomingRtpEnabled(enabled);
+}
+
 void PeerConnection::RequestUsagePatternReportForTesting() {
   signaling_thread()->Post(RTC_FROM_HERE, this, MSG_REPORT_USAGE_PATTERN,
                            nullptr);

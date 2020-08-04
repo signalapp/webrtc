@@ -230,6 +230,8 @@ class JsepTransportController : public sigslot::has_slots<> {
   // and deletes unused transports, but doesn't consider anything more complex.
   void RollbackTransports();
 
+  bool SetIncomingRtpEnabled(bool enabled);
+
   // Gets the transport parameters for the transport identified by |mid|.
   // If |mid| is bundled, returns the parameters for the bundled transport.
   // If the transport for |mid| has not been created yet, it may be allocated in
