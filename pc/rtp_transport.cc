@@ -245,11 +245,6 @@ void RtpTransport::OnReadPacket(rtc::PacketTransportInternal* transport,
                                 int flags) {
   TRACE_EVENT0("webrtc", "RtpTransport::OnReadPacket");
 
-  if (!incoming_rtp_enabled_) {
-    RTC_LOG(LS_WARNING) << "Dropping RTP packet because incoming RTP is disabled!";
-    return;
-  }
-
   // When using RTCP multiplexing we might get RTCP packets on the RTP
   // transport. We check the RTP payload type to determine if it is RTCP.
   auto array_view = rtc::MakeArrayView(data, len);
@@ -265,6 +260,18 @@ void RtpTransport::OnReadPacket(rtc::PacketTransportInternal* transport,
                       << cricket::RtpPacketTypeToString(packet_type)
                       << " packet: wrong size=" << len;
     return;
+  }
+
+  if (!incoming_rtp_enabled_) {
+    if (packet_type == cricket::RtpPacketType::kRtcp) {
+      RTC_LOG(LS_WARNING) << "Dropping RTCP packet because incoming RTP is disabled; len: " << len;
+      return;
+    } else {
+      int pt = -1;
+      cricket::GetRtpPayloadType(data, len, &pt);
+      RTC_LOG(LS_INFO) << "Dropping RTP packet because incoming RTP is disabled; len: " << len << " pt: " << pt;
+      return;
+    }
   }
 
   rtc::CopyOnWriteBuffer packet(data, len);
