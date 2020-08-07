@@ -24,9 +24,9 @@ CryptoOptions::CryptoOptions(const CryptoOptions& other) {
 CryptoOptions::~CryptoOptions() {}
 
 // static
-CryptoOptions CryptoOptions::NoGcm() {
+CryptoOptions CryptoOptions::Default() {
   CryptoOptions options;
-  options.srtp.enable_gcm_crypto_suites = false;
+  options.srtp.enable_gcm_crypto_suites = true;
   return options;
 }
 
