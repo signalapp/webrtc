@@ -11,23 +11,28 @@
 #ifndef CALL_ADAPTATION_RESOURCE_ADAPTATION_PROCESSOR_INTERFACE_H_
 #define CALL_ADAPTATION_RESOURCE_ADAPTATION_PROCESSOR_INTERFACE_H_
 
+#include <map>
+#include <vector>
+
 #include "absl/types/optional.h"
+#include "api/adaptation/resource.h"
 #include "api/rtp_parameters.h"
 #include "api/scoped_refptr.h"
+#include "api/task_queue/task_queue_base.h"
 #include "api/video/video_adaptation_counters.h"
 #include "api/video/video_frame.h"
+#include "call/adaptation/adaptation_constraint.h"
+#include "call/adaptation/adaptation_listener.h"
 #include "call/adaptation/encoder_settings.h"
-#include "call/adaptation/resource.h"
 #include "call/adaptation/video_source_restrictions.h"
-#include "rtc_base/task_queue.h"
 
 namespace webrtc {
 
 // The listener is responsible for carrying out the reconfiguration of the video
 // source such that the VideoSourceRestrictions are fulfilled.
-class ResourceAdaptationProcessorListener {
+class VideoSourceRestrictionsListener {
  public:
-  virtual ~ResourceAdaptationProcessorListener();
+  virtual ~VideoSourceRestrictionsListener();
 
   // The |restrictions| are filtered by degradation preference but not the
   // |adaptation_counters|, which are currently only reported for legacy stats
@@ -36,6 +41,13 @@ class ResourceAdaptationProcessorListener {
       VideoSourceRestrictions restrictions,
       const VideoAdaptationCounters& adaptation_counters,
       rtc::scoped_refptr<Resource> reason) = 0;
+
+  // The limitations on a resource were changed. This does not mean the current
+  // video restrictions have changed.
+  virtual void OnResourceLimitationChanged(
+      rtc::scoped_refptr<Resource> resource,
+      const std::map<rtc::scoped_refptr<Resource>, VideoAdaptationCounters>&
+          resource_limitations) {}
 };
 
 // The Resource Adaptation Processor is responsible for reacting to resource
@@ -46,7 +58,8 @@ class ResourceAdaptationProcessorInterface {
  public:
   virtual ~ResourceAdaptationProcessorInterface();
 
-  virtual void InitializeOnResourceAdaptationQueue() = 0;
+  virtual void SetResourceAdaptationQueue(
+      TaskQueueBase* resource_adaptation_queue) = 0;
 
   virtual DegradationPreference degradation_preference() const = 0;
   // Reinterprets "balanced + screenshare" as "maintain-resolution".
@@ -61,14 +74,21 @@ class ResourceAdaptationProcessorInterface {
   // with AddResource() and RemoveResource() instead. When the processor is
   // multi-stream aware, stream-specific resouces will get added and removed
   // over time.
-  virtual void StartResourceAdaptation() = 0;
-  virtual void StopResourceAdaptation() = 0;
-  virtual void AddAdaptationListener(
-      ResourceAdaptationProcessorListener* adaptation_listener) = 0;
-  virtual void RemoveAdaptationListener(
-      ResourceAdaptationProcessorListener* adaptation_listener) = 0;
+  virtual void AddRestrictionsListener(
+      VideoSourceRestrictionsListener* restrictions_listener) = 0;
+  virtual void RemoveRestrictionsListener(
+      VideoSourceRestrictionsListener* restrictions_listener) = 0;
   virtual void AddResource(rtc::scoped_refptr<Resource> resource) = 0;
+  virtual std::vector<rtc::scoped_refptr<Resource>> GetResources() const = 0;
   virtual void RemoveResource(rtc::scoped_refptr<Resource> resource) = 0;
+  virtual void AddAdaptationConstraint(
+      AdaptationConstraint* adaptation_constraint) = 0;
+  virtual void RemoveAdaptationConstraint(
+      AdaptationConstraint* adaptation_constraint) = 0;
+  virtual void AddAdaptationListener(
+      AdaptationListener* adaptation_listener) = 0;
+  virtual void RemoveAdaptationListener(
+      AdaptationListener* adaptation_listener) = 0;
 
   virtual void SetDegradationPreference(
       DegradationPreference degradation_preference) = 0;

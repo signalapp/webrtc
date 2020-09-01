@@ -108,7 +108,6 @@ bool IsNonVolatile(RTPExtensionType type) {
     case kRtpExtensionAbsoluteSendTime:
     case kRtpExtensionTransportSequenceNumber:
     case kRtpExtensionTransportSequenceNumber02:
-    case kRtpExtensionFrameMarking:
     case kRtpExtensionRtpStreamId:
     case kRtpExtensionMid:
     case kRtpExtensionGenericFrameDescriptor00:
@@ -154,7 +153,7 @@ double GetMaxPaddingSizeFactor(const WebRtcKeyValueConfig* field_trials) {
 
 }  // namespace
 
-RTPSender::RTPSender(const RtpRtcp::Configuration& config,
+RTPSender::RTPSender(const RtpRtcpInterface::Configuration& config,
                      RtpPacketHistory* packet_history,
                      RtpPacketSender* packet_sender)
     : clock_(config.clock),
@@ -431,7 +430,7 @@ std::vector<std::unique_ptr<RtpPacketToSend>> RTPSender::GeneratePadding(
 
   size_t padding_bytes_in_packet;
   const size_t max_payload_size =
-      max_packet_size_ - FecOrPaddingPacketMaxRtpHeaderLength();
+      max_packet_size_ - max_padding_fec_packet_header_;
   if (audio_configured_) {
     // Allow smaller padding packets for audio.
     padding_bytes_in_packet = rtc::SafeClamp<size_t>(

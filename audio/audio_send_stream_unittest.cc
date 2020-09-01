@@ -89,7 +89,10 @@ const DataRate kMaxOverheadRate = kOverheadPerPacket / kMinFrameLength;
 
 class MockLimitObserver : public BitrateAllocator::LimitObserver {
  public:
-  MOCK_METHOD1(OnAllocationLimitsChanged, void(BitrateAllocationLimits));
+  MOCK_METHOD(void,
+              OnAllocationLimitsChanged,
+              (BitrateAllocationLimits),
+              (override));
 };
 
 std::unique_ptr<MockAudioEncoder> SetupAudioEncoderMock(
@@ -200,7 +203,7 @@ struct ConfigHelper {
     return *static_cast<MockAudioEncoderFactory*>(
         stream_config_.encoder_factory.get());
   }
-  MockRtpRtcp* rtp_rtcp() { return &rtp_rtcp_; }
+  MockRtpRtcpInterface* rtp_rtcp() { return &rtp_rtcp_; }
   MockChannelSend* channel_send() { return channel_send_; }
   RtpTransportControllerSendInterface* transport() { return &rtp_transport_; }
 
@@ -247,12 +250,12 @@ struct ConfigHelper {
 
   void SetupMockForSetupSendCodec(bool expect_set_encoder_call) {
     if (expect_set_encoder_call) {
-      EXPECT_CALL(*channel_send_, SetEncoderForMock(_, _))
-          .WillOnce(Invoke(
-              [this](int payload_type, std::unique_ptr<AudioEncoder>* encoder) {
-                this->audio_encoder_ = std::move(*encoder);
+      EXPECT_CALL(*channel_send_, SetEncoder)
+          .WillOnce(
+              [this](int payload_type, std::unique_ptr<AudioEncoder> encoder) {
+                this->audio_encoder_ = std::move(encoder);
                 return true;
-              }));
+              });
     }
   }
 
@@ -329,7 +332,7 @@ struct ConfigHelper {
   ::testing::StrictMock<MockRtcpBandwidthObserver> bandwidth_observer_;
   ::testing::NiceMock<MockRtcEventLog> event_log_;
   ::testing::NiceMock<MockRtpTransportControllerSend> rtp_transport_;
-  ::testing::NiceMock<MockRtpRtcp> rtp_rtcp_;
+  ::testing::NiceMock<MockRtpRtcpInterface> rtp_rtcp_;
   ::testing::NiceMock<MockLimitObserver> limit_observer_;
   BitrateAllocator bitrate_allocator_;
   // |worker_queue| is defined last to ensure all pending tasks are cancelled
@@ -368,6 +371,7 @@ TEST(AudioSendStreamTest, ConfigToString) {
   config.send_codec_spec->nack_enabled = true;
   config.send_codec_spec->transport_cc_enabled = false;
   config.send_codec_spec->cng_payload_type = 42;
+  config.send_codec_spec->red_payload_type = 43;
   config.encoder_factory = MockAudioEncoderFactory::CreateUnusedFactory();
   config.rtp.extmap_allow_mixed = true;
   config.rtp.extensions.push_back(
@@ -380,7 +384,7 @@ TEST(AudioSendStreamTest, ConfigToString) {
       "send_transport: null, "
       "min_bitrate_bps: 12000, max_bitrate_bps: 34000, "
       "send_codec_spec: {nack_enabled: true, transport_cc_enabled: false, "
-      "cng_payload_type: 42, payload_type: 103, "
+      "cng_payload_type: 42, red_payload_type: 43, payload_type: 103, "
       "format: {name: isac, clockrate_hz: 16000, num_channels: 1, "
       "parameters: {}}}}",
       config.ToString());
@@ -473,7 +477,7 @@ TEST(AudioSendStreamTest, GetStatsAudioLevel) {
     ConfigHelper helper(false, true, use_null_audio_processing);
     auto send_stream = helper.CreateAudioSendStream();
     helper.SetupMockForGetStats(use_null_audio_processing);
-    EXPECT_CALL(*helper.channel_send(), ProcessAndEncodeAudioForMock(_))
+    EXPECT_CALL(*helper.channel_send(), ProcessAndEncodeAudio)
         .Times(AnyNumber());
 
     constexpr int kSampleRateHz = 48000;
@@ -558,15 +562,13 @@ TEST(AudioSendStreamTest, SendCodecCanApplyVad) {
     helper.config().send_codec_spec =
         AudioSendStream::Config::SendCodecSpec(9, kG722Format);
     helper.config().send_codec_spec->cng_payload_type = 105;
-    using ::testing::Invoke;
     std::unique_ptr<AudioEncoder> stolen_encoder;
-    EXPECT_CALL(*helper.channel_send(), SetEncoderForMock(_, _))
-        .WillOnce(
-            Invoke([&stolen_encoder](int payload_type,
-                                     std::unique_ptr<AudioEncoder>* encoder) {
-              stolen_encoder = std::move(*encoder);
-              return true;
-            }));
+    EXPECT_CALL(*helper.channel_send(), SetEncoder)
+        .WillOnce([&stolen_encoder](int payload_type,
+                                    std::unique_ptr<AudioEncoder> encoder) {
+          stolen_encoder = std::move(encoder);
+          return true;
+        });
     EXPECT_CALL(*helper.channel_send(), RegisterCngPayloadType(105, 8000));
 
     auto send_stream = helper.CreateAudioSendStream();
@@ -748,8 +750,7 @@ TEST(AudioSendStreamTest, DontRecreateEncoder) {
     // test to be correct, it's instead set-up manually here. Otherwise a simple
     // change to ConfigHelper (say to WillRepeatedly) would silently make this
     // test useless.
-    EXPECT_CALL(*helper.channel_send(), SetEncoderForMock(_, _))
-        .WillOnce(Return());
+    EXPECT_CALL(*helper.channel_send(), SetEncoder).WillOnce(Return());
 
     EXPECT_CALL(*helper.channel_send(), RegisterCngPayloadType(105, 8000));
 
@@ -794,13 +795,34 @@ TEST(AudioSendStreamTest, OnTransportOverheadChanged) {
     auto new_config = helper.config();
 
     // CallEncoder will be called on overhead change.
-    EXPECT_CALL(*helper.channel_send(), CallEncoder(::testing::_)).Times(1);
+    EXPECT_CALL(*helper.channel_send(), CallEncoder);
 
     const size_t transport_overhead_per_packet_bytes = 333;
     send_stream->SetTransportOverhead(transport_overhead_per_packet_bytes);
 
     EXPECT_EQ(transport_overhead_per_packet_bytes,
               send_stream->TestOnlyGetPerPacketOverheadBytes());
+  }
+}
+
+TEST(AudioSendStreamTest, DoesntCallEncoderWhenOverheadUnchanged) {
+  for (bool use_null_audio_processing : {false, true}) {
+    ConfigHelper helper(false, true, use_null_audio_processing);
+    auto send_stream = helper.CreateAudioSendStream();
+    auto new_config = helper.config();
+
+    // CallEncoder will be called on overhead change.
+    EXPECT_CALL(*helper.channel_send(), CallEncoder);
+    const size_t transport_overhead_per_packet_bytes = 333;
+    send_stream->SetTransportOverhead(transport_overhead_per_packet_bytes);
+
+    // Set the same overhead again, CallEncoder should not be called again.
+    EXPECT_CALL(*helper.channel_send(), CallEncoder).Times(0);
+    send_stream->SetTransportOverhead(transport_overhead_per_packet_bytes);
+
+    // New overhead, call CallEncoder again
+    EXPECT_CALL(*helper.channel_send(), CallEncoder);
+    send_stream->SetTransportOverhead(transport_overhead_per_packet_bytes + 1);
   }
 }
 

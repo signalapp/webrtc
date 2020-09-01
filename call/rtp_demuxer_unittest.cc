@@ -37,14 +37,22 @@ using ::testing::NiceMock;
 
 class MockSsrcBindingObserver : public SsrcBindingObserver {
  public:
-  MOCK_METHOD2(OnSsrcBoundToRsid, void(const std::string& rsid, uint32_t ssrc));
-  MOCK_METHOD2(OnSsrcBoundToMid, void(const std::string& mid, uint32_t ssrc));
-  MOCK_METHOD3(OnSsrcBoundToMidRsid,
-               void(const std::string& mid,
-                    const std::string& rsid,
-                    uint32_t ssrc));
-  MOCK_METHOD2(OnSsrcBoundToPayloadType,
-               void(uint8_t payload_type, uint32_t ssrc));
+  MOCK_METHOD(void,
+              OnSsrcBoundToRsid,
+              (const std::string& rsid, uint32_t ssrc),
+              (override));
+  MOCK_METHOD(void,
+              OnSsrcBoundToMid,
+              (const std::string& mid, uint32_t ssrc),
+              (override));
+  MOCK_METHOD(void,
+              OnSsrcBoundToMidRsid,
+              (const std::string& mid, const std::string& rsid, uint32_t ssrc),
+              (override));
+  MOCK_METHOD(void,
+              OnSsrcBoundToPayloadType,
+              (uint8_t payload_type, uint32_t ssrc),
+              (override));
 };
 
 class RtpDemuxerTest : public ::testing::Test {
@@ -209,6 +217,8 @@ class RtpDemuxerTest : public ::testing::Test {
   std::set<SsrcBindingObserver*> observers_to_tear_down_;
   uint16_t next_sequence_number_ = 1;
 };
+
+class RtpDemuxerDeathTest : public RtpDemuxerTest {};
 
 MATCHER_P(SamePacketAs, other, "") {
   return arg.Ssrc() == other.Ssrc() &&
@@ -1478,41 +1488,42 @@ TEST_F(RtpDemuxerTest, MaliciousPeerCannotCauseMemoryOveruse) {
 
 #if RTC_DCHECK_IS_ON && GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
 
-TEST_F(RtpDemuxerTest, CriteriaMustBeNonEmpty) {
+TEST_F(RtpDemuxerDeathTest, CriteriaMustBeNonEmpty) {
   MockRtpPacketSink sink;
   RtpDemuxerCriteria criteria;
   EXPECT_DEATH(AddSink(criteria, &sink), "");
 }
 
-TEST_F(RtpDemuxerTest, RsidMustBeAlphaNumeric) {
+TEST_F(RtpDemuxerDeathTest, RsidMustBeAlphaNumeric) {
   MockRtpPacketSink sink;
   EXPECT_DEATH(AddSinkOnlyRsid("a_3", &sink), "");
 }
 
-TEST_F(RtpDemuxerTest, MidMustBeToken) {
+TEST_F(RtpDemuxerDeathTest, MidMustBeToken) {
   MockRtpPacketSink sink;
   EXPECT_DEATH(AddSinkOnlyMid("a(3)", &sink), "");
 }
 
-TEST_F(RtpDemuxerTest, RsidMustNotExceedMaximumLength) {
+TEST_F(RtpDemuxerDeathTest, RsidMustNotExceedMaximumLength) {
   MockRtpPacketSink sink;
   std::string rsid(BaseRtpStringExtension::kMaxValueSizeBytes + 1, 'a');
   EXPECT_DEATH(AddSinkOnlyRsid(rsid, &sink), "");
 }
 
-TEST_F(RtpDemuxerTest, MidMustNotExceedMaximumLength) {
+TEST_F(RtpDemuxerDeathTest, MidMustNotExceedMaximumLength) {
   MockRtpPacketSink sink;
   std::string mid(BaseRtpStringExtension::kMaxValueSizeBytes + 1, 'a');
   EXPECT_DEATH(AddSinkOnlyMid(mid, &sink), "");
 }
 
-TEST_F(RtpDemuxerTest, DoubleRegisterationOfSsrcBindingObserverDisallowed) {
+TEST_F(RtpDemuxerDeathTest,
+       DoubleRegisterationOfSsrcBindingObserverDisallowed) {
   MockSsrcBindingObserver observer;
   RegisterSsrcBindingObserver(&observer);
   EXPECT_DEATH(RegisterSsrcBindingObserver(&observer), "");
 }
 
-TEST_F(RtpDemuxerTest,
+TEST_F(RtpDemuxerDeathTest,
        DregisterationOfNeverRegisteredSsrcBindingObserverDisallowed) {
   MockSsrcBindingObserver observer;
   EXPECT_DEATH(DeregisterSsrcBindingObserver(&observer), "");

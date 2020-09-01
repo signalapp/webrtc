@@ -1035,8 +1035,11 @@ void BasicPortAllocatorSession::OnCandidateError(
     const IceCandidateErrorEvent& event) {
   RTC_DCHECK_RUN_ON(network_thread_);
   RTC_DCHECK(FindPort(port));
-
-  SignalCandidateError(this, event);
+  if (event.address.empty()) {
+    candidate_error_events_.push_back(event);
+  } else {
+    SignalCandidateError(this, event);
+  }
 }
 
 Port* BasicPortAllocatorSession::GetBestTurnPortForNetwork(
@@ -1196,6 +1199,10 @@ void BasicPortAllocatorSession::MaybeSignalCandidatesAllocationDone() {
       RTC_LOG(LS_INFO) << "All candidates gathered for " << content_name()
                        << ":" << component() << ":" << generation();
     }
+    for (const auto& event : candidate_error_events_) {
+      SignalCandidateError(this, event);
+    }
+    candidate_error_events_.clear();
     SignalCandidatesAllocationDone(this);
   }
 }

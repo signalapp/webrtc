@@ -18,6 +18,20 @@
 
 namespace webrtc {
 
+const char* DegradationPreferenceToString(
+    DegradationPreference degradation_preference) {
+  switch (degradation_preference) {
+    case DegradationPreference::DISABLED:
+      return "disabled";
+    case DegradationPreference::MAINTAIN_FRAMERATE:
+      return "maintain-framerate";
+    case DegradationPreference::MAINTAIN_RESOLUTION:
+      return "maintain-resolution";
+    case DegradationPreference::BALANCED:
+      return "balanced";
+  }
+}
+
 const double kDefaultBitratePriority = 1.0;
 
 RtcpFeedback::RtcpFeedback() = default;
@@ -105,7 +119,6 @@ constexpr char RtpExtension::kAbsoluteCaptureTimeUri[];
 constexpr char RtpExtension::kVideoRotationUri[];
 constexpr char RtpExtension::kVideoContentTypeUri[];
 constexpr char RtpExtension::kVideoTimingUri[];
-constexpr char RtpExtension::kFrameMarkingUri[];
 constexpr char RtpExtension::kGenericFrameDescriptorUri00[];
 constexpr char RtpExtension::kDependencyDescriptorUri[];
 constexpr char RtpExtension::kTransportSequenceNumberUri[];
@@ -144,7 +157,6 @@ bool RtpExtension::IsSupportedForVideo(absl::string_view uri) {
          uri == webrtc::RtpExtension::kVideoContentTypeUri ||
          uri == webrtc::RtpExtension::kVideoTimingUri ||
          uri == webrtc::RtpExtension::kMidUri ||
-         uri == webrtc::RtpExtension::kFrameMarkingUri ||
          uri == webrtc::RtpExtension::kGenericFrameDescriptorUri00 ||
          uri == webrtc::RtpExtension::kDependencyDescriptorUri ||
          uri == webrtc::RtpExtension::kColorSpaceUri ||

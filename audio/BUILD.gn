@@ -71,6 +71,7 @@ rtc_library("audio") {
     "../modules/audio_coding:audio_coding_module_typedefs",
     "../modules/audio_coding:audio_encoder_cng",
     "../modules/audio_coding:audio_network_adaptor_config",
+    "../modules/audio_coding:red",
     "../modules/audio_device",
     "../modules/audio_processing",
     "../modules/audio_processing:api",
@@ -95,6 +96,8 @@ rtc_library("audio") {
     "../system_wrappers:field_trial",
     "../system_wrappers:metrics",
     "utility:audio_frame_operations",
+  ]
+  absl_deps = [
     "//third_party/abseil-cpp/absl/memory",
     "//third_party/abseil-cpp/absl/types:optional",
   ]

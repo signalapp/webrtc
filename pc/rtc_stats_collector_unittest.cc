@@ -993,7 +993,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCDataChannelStats) {
   RTCDataChannelStats expected_data_channel0("RTCDataChannel_0", 0);
   expected_data_channel0.label = "MockDataChannel0";
   expected_data_channel0.protocol = "udp";
-  expected_data_channel0.datachannelid = 0;
+  expected_data_channel0.data_channel_identifier = 0;
   expected_data_channel0.state = "connecting";
   expected_data_channel0.messages_sent = 1;
   expected_data_channel0.bytes_sent = 2;
@@ -1005,7 +1005,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCDataChannelStats) {
   RTCDataChannelStats expected_data_channel1("RTCDataChannel_1", 0);
   expected_data_channel1.label = "MockDataChannel1";
   expected_data_channel1.protocol = "tcp";
-  expected_data_channel1.datachannelid = 1;
+  expected_data_channel1.data_channel_identifier = 1;
   expected_data_channel1.state = "open";
   expected_data_channel1.messages_sent = 5;
   expected_data_channel1.bytes_sent = 6;
@@ -1018,7 +1018,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCDataChannelStats) {
   RTCDataChannelStats expected_data_channel2("RTCDataChannel_2", 0);
   expected_data_channel2.label = "MockDataChannel2";
   expected_data_channel2.protocol = "udp";
-  expected_data_channel2.datachannelid = 2;
+  expected_data_channel2.data_channel_identifier = 2;
   expected_data_channel2.state = "closing";
   expected_data_channel2.messages_sent = 9;
   expected_data_channel2.bytes_sent = 10;
@@ -1031,7 +1031,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCDataChannelStats) {
   RTCDataChannelStats expected_data_channel3("RTCDataChannel_3", 0);
   expected_data_channel3.label = "MockDataChannel3";
   expected_data_channel3.protocol = "tcp";
-  expected_data_channel3.datachannelid = 3;
+  expected_data_channel3.data_channel_identifier = 3;
   expected_data_channel3.state = "closed";
   expected_data_channel3.messages_sent = 13;
   expected_data_channel3.bytes_sent = 14;
@@ -1398,11 +1398,14 @@ TEST_F(RTCStatsCollectorTest, CollectRTCPeerConnectionStats) {
         report->Get("RTCPeerConnection")->cast_to<RTCPeerConnectionStats>());
   }
 
+  // TODO(bugs.webrtc.org/11547): Supply a separate network thread.
   rtc::scoped_refptr<DataChannel> dummy_channel_a = DataChannel::Create(
-      nullptr, cricket::DCT_NONE, "DummyChannelA", InternalDataChannelInit());
+      nullptr, cricket::DCT_NONE, "DummyChannelA", InternalDataChannelInit(),
+      rtc::Thread::Current(), rtc::Thread::Current());
   pc_->SignalDataChannelCreated()(dummy_channel_a.get());
   rtc::scoped_refptr<DataChannel> dummy_channel_b = DataChannel::Create(
-      nullptr, cricket::DCT_NONE, "DummyChannelB", InternalDataChannelInit());
+      nullptr, cricket::DCT_NONE, "DummyChannelB", InternalDataChannelInit(),
+      rtc::Thread::Current(), rtc::Thread::Current());
   pc_->SignalDataChannelCreated()(dummy_channel_b.get());
 
   dummy_channel_a->SignalOpened(dummy_channel_a.get());
@@ -2075,13 +2078,11 @@ TEST_F(RTCStatsCollectorTest, CollectRTCOutboundRTPStreamStats_Video) {
   expected_video.total_packet_send_delay = 10.0;
   expected_video.quality_limitation_reason = "bandwidth";
   expected_video.quality_limitation_resolution_changes = 56u;
-  if (pc_->GetConfiguration().enable_simulcast_stats) {
-    expected_video.frame_width = 200u;
-    expected_video.frame_height = 100u;
-    expected_video.frames_per_second = 10.0;
-    expected_video.frames_sent = 5;
-    expected_video.huge_frames_sent = 2;
-  }
+  expected_video.frame_width = 200u;
+  expected_video.frame_height = 100u;
+  expected_video.frames_per_second = 10.0;
+  expected_video.frames_sent = 5;
+  expected_video.huge_frames_sent = 2;
   // |expected_video.content_type| should be undefined.
   // |expected_video.qp_sum| should be undefined.
   // |expected_video.encoder_implementation| should be undefined.

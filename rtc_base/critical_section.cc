@@ -15,6 +15,7 @@
 #include "rtc_base/atomic_ops.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/platform_thread_types.h"
+#include "rtc_base/synchronization/yield.h"
 #include "rtc_base/system/unused.h"
 
 // TODO(tommi): Split this file up to per-platform implementation files.
@@ -42,7 +43,7 @@ CriticalSection::CriticalSection() {
   pthread_mutexattr_settype(&mutex_attribute, PTHREAD_MUTEX_RECURSIVE);
 #if defined(WEBRTC_MAC)
   pthread_mutexattr_setpolicy_np(&mutex_attribute,
-                                 _PTHREAD_MUTEX_POLICY_FAIRSHARE);
+                                 _PTHREAD_MUTEX_POLICY_FIRSTFIT);
 #endif
   pthread_mutex_init(&mutex_, &mutex_attribute);
   pthread_mutexattr_destroy(&mutex_attribute);
@@ -217,19 +218,8 @@ CritScope::~CritScope() {
 }
 
 void GlobalLock::Lock() {
-#if !defined(WEBRTC_WIN) && \
-    (!defined(WEBRTC_MAC) || RTC_USE_NATIVE_MUTEX_ON_MAC)
-  const struct timespec ts_null = {0};
-#endif
-
   while (AtomicOps::CompareAndSwap(&lock_acquired_, 0, 1)) {
-#if defined(WEBRTC_WIN)
-    ::Sleep(0);
-#elif defined(WEBRTC_MAC) && !RTC_USE_NATIVE_MUTEX_ON_MAC
-    sched_yield();
-#else
-    nanosleep(&ts_null, nullptr);
-#endif
+    webrtc::YieldCurrentThread();
   }
 }
 

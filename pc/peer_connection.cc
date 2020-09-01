@@ -108,13 +108,6 @@ const char kDtlsSrtpSetupFailureRtcp[] =
 
 namespace {
 
-// Field trials.
-// Controls datagram transport support.
-const char kDatagramTransportFieldTrial[] = "WebRTC-DatagramTransport";
-// Controls datagram transport data channel support.
-const char kDatagramTransportDataChannelFieldTrial[] =
-    "WebRTC-DatagramTransportDataChannels";
-
 // UMA metric names.
 const char kSimulcastVersionApplyLocalDescription[] =
     "WebRTC.PeerConnection.Simulcast.ApplyLocalDescription";
@@ -691,6 +684,26 @@ class CreateSessionDescriptionObserverOperationWrapper
   std::function<void()> operation_complete_callback_;
 };
 
+// Check if the changes of IceTransportsType motives an ice restart.
+bool NeedIceRestart(bool surface_ice_candidates_on_ice_transport_type_changed,
+                    PeerConnectionInterface::IceTransportsType current,
+                    PeerConnectionInterface::IceTransportsType modified) {
+  if (current == modified) {
+    return false;
+  }
+
+  if (!surface_ice_candidates_on_ice_transport_type_changed) {
+    return true;
+  }
+
+  auto current_filter = ConvertIceTransportTypeToCandidateFilter(current);
+  auto modified_filter = ConvertIceTransportTypeToCandidateFilter(modified);
+
+  // If surface_ice_candidates_on_ice_transport_type_changed is true and we
+  // extend the filter, then no ice restart is needed.
+  return (current_filter & modified_filter) != current_filter;
+}
+
 }  // namespace
 
 // Used by parameterless SetLocalDescription() to create an offer or answer.
@@ -897,11 +910,6 @@ bool PeerConnectionInterface::RTCConfiguration::operator==(
     SdpSemantics sdp_semantics;
     absl::optional<rtc::AdapterType> network_preference;
     bool active_reset_srtp_params;
-    bool use_media_transport;
-    bool use_media_transport_for_data_channels;
-    absl::optional<bool> use_datagram_transport;
-    absl::optional<bool> use_datagram_transport_for_data_channels;
-    absl::optional<bool> use_datagram_transport_for_data_channels_receive_only;
     absl::optional<CryptoOptions> crypto_options;
     bool offer_extmap_allow_mixed;
     std::string turn_logging_id;
@@ -962,14 +970,6 @@ bool PeerConnectionInterface::RTCConfiguration::operator==(
          sdp_semantics == o.sdp_semantics &&
          network_preference == o.network_preference &&
          active_reset_srtp_params == o.active_reset_srtp_params &&
-         use_media_transport == o.use_media_transport &&
-         use_media_transport_for_data_channels ==
-             o.use_media_transport_for_data_channels &&
-         use_datagram_transport == o.use_datagram_transport &&
-         use_datagram_transport_for_data_channels ==
-             o.use_datagram_transport_for_data_channels &&
-         use_datagram_transport_for_data_channels_receive_only ==
-             o.use_datagram_transport_for_data_channels_receive_only &&
          crypto_options == o.crypto_options &&
          offer_extmap_allow_mixed == o.offer_extmap_allow_mixed &&
          turn_logging_id == o.turn_logging_id &&
@@ -1039,10 +1039,6 @@ PeerConnection::PeerConnection(PeerConnectionFactory* factory,
       event_log_(std::move(event_log)),
       event_log_ptr_(event_log_.get()),
       operations_chain_(rtc::OperationsChain::Create()),
-      datagram_transport_config_(
-          field_trial::FindFullName(kDatagramTransportFieldTrial)),
-      datagram_transport_data_channel_config_(
-          field_trial::FindFullName(kDatagramTransportDataChannelFieldTrial)),
       rtcp_cname_(GenerateRtcpCname()),
       local_streams_(StreamCollection::Create()),
       remote_streams_(StreamCollection::Create()),
@@ -1247,33 +1243,6 @@ bool PeerConnection::Initialize(
 #endif
   config.active_reset_srtp_params = configuration.active_reset_srtp_params;
 
-  use_datagram_transport_ = datagram_transport_config_.enabled &&
-                            configuration.use_datagram_transport.value_or(
-                                datagram_transport_config_.default_value);
-  use_datagram_transport_for_data_channels_ =
-      datagram_transport_data_channel_config_.enabled &&
-      configuration.use_datagram_transport_for_data_channels.value_or(
-          datagram_transport_data_channel_config_.default_value);
-  use_datagram_transport_for_data_channels_receive_only_ =
-      configuration.use_datagram_transport_for_data_channels_receive_only
-          .value_or(datagram_transport_data_channel_config_.receive_only);
-  if (use_datagram_transport_ || use_datagram_transport_for_data_channels_) {
-    if (!factory_->media_transport_factory()) {
-      RTC_DCHECK(false)
-          << "PeerConnecton is initialized with use_datagram_transport = true "
-             "or use_datagram_transport_for_data_channels = true "
-             "but media transport factory is not set in PeerConnectionFactory";
-      return false;
-    }
-
-    config.use_datagram_transport = use_datagram_transport_;
-    config.use_datagram_transport_for_data_channels =
-        use_datagram_transport_for_data_channels_;
-    config.use_datagram_transport_for_data_channels_receive_only =
-        use_datagram_transport_for_data_channels_receive_only_;
-    config.media_transport_factory = factory_->media_transport_factory();
-  }
-
   // Obtain a certificate from RTCConfiguration if any were provided (optional).
   rtc::scoped_refptr<rtc::RTCCertificate> certificate;
   if (!configuration.certificates.empty()) {
@@ -1296,24 +1265,7 @@ bool PeerConnection::Initialize(
 
   sctp_factory_ = factory_->CreateSctpTransportInternalFactory();
 
-  if (use_datagram_transport_for_data_channels_) {
-    if (configuration.enable_rtp_data_channel) {
-      RTC_LOG(LS_ERROR) << "enable_rtp_data_channel and "
-                           "use_datagram_transport_for_data_channels are "
-                           "incompatible and cannot both be set to true";
-      return false;
-    }
-    if (configuration.enable_dtls_srtp && !*configuration.enable_dtls_srtp) {
-      RTC_LOG(LS_INFO) << "Using data channel transport with no fallback";
-      data_channel_controller_.set_data_channel_type(
-          cricket::DCT_DATA_CHANNEL_TRANSPORT);
-    } else {
-      RTC_LOG(LS_INFO) << "Using data channel transport with fallback to SCTP";
-      data_channel_controller_.set_data_channel_type(
-          cricket::DCT_DATA_CHANNEL_TRANSPORT_SCTP);
-      config.sctp_factory = sctp_factory_.get();
-    }
-  } else if (configuration.enable_rtp_data_channel) {
+  if (configuration.enable_rtp_data_channel) {
     // Enable creation of RTP data channels if the kEnableRtpDataChannels is
     // set. It takes precendence over the disable_sctp_data_channels
     // PeerConnectionFactoryInterface::Options.
@@ -2180,7 +2132,7 @@ rtc::scoped_refptr<DataChannelInterface> PeerConnection::CreateDataChannel(
   if (config) {
     internal_config.reset(new InternalDataChannelInit(*config));
   }
-  rtc::scoped_refptr<DataChannelInterface> channel(
+  rtc::scoped_refptr<DataChannel> channel(
       data_channel_controller_.InternalCreateDataChannel(
           label, internal_config.get()));
   if (!channel.get()) {
@@ -2193,7 +2145,7 @@ rtc::scoped_refptr<DataChannelInterface> PeerConnection::CreateDataChannel(
     UpdateNegotiationNeeded();
   }
   NoteUsageEvent(UsageEvent::DATA_ADDED);
-  return DataChannelProxy::Create(signaling_thread(), channel.get());
+  return DataChannel::CreateProxy(std::move(channel));
 }
 
 void PeerConnection::RestartIce() {
@@ -3943,66 +3895,6 @@ RTCError PeerConnection::SetConfiguration(
                          "SetLocalDescription.");
   }
 
-  if (local_description() && configuration.use_datagram_transport !=
-                                 configuration_.use_datagram_transport) {
-    LOG_AND_RETURN_ERROR(RTCErrorType::INVALID_MODIFICATION,
-                         "Can't change use_datagram_transport "
-                         "after calling SetLocalDescription.");
-  }
-
-  if (remote_description() && configuration.use_datagram_transport !=
-                                  configuration_.use_datagram_transport) {
-    LOG_AND_RETURN_ERROR(RTCErrorType::INVALID_MODIFICATION,
-                         "Can't change use_datagram_transport "
-                         "after calling SetRemoteDescription.");
-  }
-
-  if (local_description() &&
-      configuration.use_datagram_transport_for_data_channels !=
-          configuration_.use_datagram_transport_for_data_channels) {
-    LOG_AND_RETURN_ERROR(
-        RTCErrorType::INVALID_MODIFICATION,
-        "Can't change use_datagram_transport_for_data_channels "
-        "after calling SetLocalDescription.");
-  }
-
-  if (remote_description() &&
-      configuration.use_datagram_transport_for_data_channels !=
-          configuration_.use_datagram_transport_for_data_channels) {
-    LOG_AND_RETURN_ERROR(
-        RTCErrorType::INVALID_MODIFICATION,
-        "Can't change use_datagram_transport_for_data_channels "
-        "after calling SetRemoteDescription.");
-  }
-
-  if (local_description() &&
-      configuration.use_datagram_transport_for_data_channels_receive_only !=
-          configuration_
-              .use_datagram_transport_for_data_channels_receive_only) {
-    LOG_AND_RETURN_ERROR(
-        RTCErrorType::INVALID_MODIFICATION,
-        "Can't change use_datagram_transport_for_data_channels_receive_only "
-        "after calling SetLocalDescription.");
-  }
-
-  if (remote_description() &&
-      configuration.use_datagram_transport_for_data_channels_receive_only !=
-          configuration_
-              .use_datagram_transport_for_data_channels_receive_only) {
-    LOG_AND_RETURN_ERROR(
-        RTCErrorType::INVALID_MODIFICATION,
-        "Can't change use_datagram_transport_for_data_channels_receive_only "
-        "after calling SetRemoteDescription.");
-  }
-
-  if ((configuration.use_datagram_transport &&
-       *configuration.use_datagram_transport) ||
-      (configuration.use_datagram_transport_for_data_channels &&
-       *configuration.use_datagram_transport_for_data_channels)) {
-    RTC_CHECK(configuration.bundle_policy == kBundlePolicyMaxBundle)
-        << "Media transport requires MaxBundle policy.";
-  }
-
   // The simplest (and most future-compatible) way to tell if the config was
   // modified in an invalid way is to copy each property we do support
   // modifying, then use operator==. There are far more properties we don't
@@ -4031,11 +3923,6 @@ RTCError PeerConnection::SetConfiguration(
   modified_config.network_preference = configuration.network_preference;
   modified_config.active_reset_srtp_params =
       configuration.active_reset_srtp_params;
-  modified_config.use_datagram_transport = configuration.use_datagram_transport;
-  modified_config.use_datagram_transport_for_data_channels =
-      configuration.use_datagram_transport_for_data_channels;
-  modified_config.use_datagram_transport_for_data_channels_receive_only =
-      configuration.use_datagram_transport_for_data_channels_receive_only;
   modified_config.turn_logging_id = configuration.turn_logging_id;
   modified_config.allow_codec_switching = configuration.allow_codec_switching;
   if (configuration != modified_config) {
@@ -4095,27 +3982,15 @@ RTCError PeerConnection::SetConfiguration(
   // candidate policy must set a "needs-ice-restart" bit so that the next offer
   // triggers an ICE restart which will pick up the changes.
   if (modified_config.servers != configuration_.servers ||
-      modified_config.type != configuration_.type ||
+      NeedIceRestart(
+          configuration_.surface_ice_candidates_on_ice_transport_type_changed,
+          configuration_.type, modified_config.type) ||
       modified_config.GetTurnPortPrunePolicy() !=
           configuration_.GetTurnPortPrunePolicy()) {
     transport_controller_->SetNeedsIceRestartFlag();
   }
 
   transport_controller_->SetIceConfig(ParseIceConfig(modified_config));
-
-  use_datagram_transport_ = datagram_transport_config_.enabled &&
-                            modified_config.use_datagram_transport.value_or(
-                                datagram_transport_config_.default_value);
-  use_datagram_transport_for_data_channels_ =
-      datagram_transport_data_channel_config_.enabled &&
-      modified_config.use_datagram_transport_for_data_channels.value_or(
-          datagram_transport_data_channel_config_.default_value);
-  use_datagram_transport_for_data_channels_receive_only_ =
-      modified_config.use_datagram_transport_for_data_channels_receive_only
-          .value_or(datagram_transport_data_channel_config_.receive_only);
-  transport_controller_->SetMediaTransportSettings(
-      use_datagram_transport_, use_datagram_transport_for_data_channels_,
-      use_datagram_transport_for_data_channels_receive_only_);
 
   if (configuration_.active_reset_srtp_params !=
       modified_config.active_reset_srtp_params) {
@@ -4352,6 +4227,21 @@ PeerConnection::GetFirstAudioTransceiver() const {
     }
   }
   return nullptr;
+}
+
+void PeerConnection::AddAdaptationResource(
+    rtc::scoped_refptr<Resource> resource) {
+  if (!worker_thread()->IsCurrent()) {
+    return worker_thread()->Invoke<void>(RTC_FROM_HERE, [this, resource]() {
+      return AddAdaptationResource(resource);
+    });
+  }
+  RTC_DCHECK_RUN_ON(worker_thread());
+  if (!call_) {
+    // The PeerConnection has been closed.
+    return;
+  }
+  call_->AddAdaptationResource(resource);
 }
 
 bool PeerConnection::StartRtcEventLog(std::unique_ptr<RtcEventLogOutput> output,
@@ -4924,25 +4814,6 @@ void PeerConnection::GetOptionsForOffer(
   session_options->offer_extmap_allow_mixed =
       configuration_.offer_extmap_allow_mixed;
 
-  // If datagram transport is in use, add opaque transport parameters.
-  if (use_datagram_transport_ || use_datagram_transport_for_data_channels_) {
-    for (auto& options : session_options->media_description_options) {
-      absl::optional<cricket::OpaqueTransportParameters> params =
-          transport_controller_->GetTransportParameters(options.mid);
-      if (!params) {
-        continue;
-      }
-      options.transport_options.opaque_parameters = params;
-      if ((use_datagram_transport_ &&
-           (options.type == cricket::MEDIA_TYPE_AUDIO ||
-            options.type == cricket::MEDIA_TYPE_VIDEO)) ||
-          (use_datagram_transport_for_data_channels_ &&
-           options.type == cricket::MEDIA_TYPE_DATA)) {
-        options.alt_protocol = params->protocol;
-      }
-    }
-  }
-
   // Allow fallback for using obsolete SCTP syntax.
   // Note that the default in |session_options| is true, while
   // the default in |options| is false.
@@ -4998,21 +4869,21 @@ void PeerConnection::GetOptionsForPlanBOffer(
 
   // Add audio/video/data m= sections to the end if needed.
   if (!audio_index && offer_new_audio_description) {
-    session_options->media_description_options.push_back(
-        cricket::MediaDescriptionOptions(
-            cricket::MEDIA_TYPE_AUDIO, cricket::CN_AUDIO,
-            RtpTransceiverDirectionFromSendRecv(send_audio, recv_audio),
-            false));
-
+    cricket::MediaDescriptionOptions options(
+        cricket::MEDIA_TYPE_AUDIO, cricket::CN_AUDIO,
+        RtpTransceiverDirectionFromSendRecv(send_audio, recv_audio), false);
+    options.header_extensions =
+        channel_manager()->GetSupportedAudioRtpHeaderExtensions();
+    session_options->media_description_options.push_back(options);
     audio_index = session_options->media_description_options.size() - 1;
   }
   if (!video_index && offer_new_video_description) {
-    session_options->media_description_options.push_back(
-        cricket::MediaDescriptionOptions(
-            cricket::MEDIA_TYPE_VIDEO, cricket::CN_VIDEO,
-            RtpTransceiverDirectionFromSendRecv(send_video, recv_video),
-            false));
-
+    cricket::MediaDescriptionOptions options(
+        cricket::MEDIA_TYPE_VIDEO, cricket::CN_VIDEO,
+        RtpTransceiverDirectionFromSendRecv(send_video, recv_video), false);
+    options.header_extensions =
+        channel_manager()->GetSupportedVideoRtpHeaderExtensions();
+    session_options->media_description_options.push_back(options);
     video_index = session_options->media_description_options.size() - 1;
   }
   if (!data_index && offer_new_data_description) {
@@ -5044,6 +4915,8 @@ GetMediaDescriptionOptionsForTransceiver(
       transceiver->stopped());
   media_description_options.codec_preferences =
       transceiver->codec_preferences();
+  media_description_options.header_extensions =
+      transceiver->HeaderExtensionsToOffer();
   // This behavior is specified in JSEP. The gist is that:
   // 1. The MSID is included if the RtpTransceiver's direction is sendonly or
   //    sendrecv.
@@ -5255,24 +5128,6 @@ void PeerConnection::GetOptionsForAnswer(
             rtc::Bind(&cricket::PortAllocator::GetPooledIceCredentials,
                       port_allocator_.get()));
   }
-  // If datagram transport is in use, add opaque transport parameters.
-  if (use_datagram_transport_ || use_datagram_transport_for_data_channels_) {
-    for (auto& options : session_options->media_description_options) {
-      absl::optional<cricket::OpaqueTransportParameters> params =
-          transport_controller_->GetTransportParameters(options.mid);
-      if (!params) {
-        continue;
-      }
-      options.transport_options.opaque_parameters = params;
-      if ((use_datagram_transport_ &&
-           (options.type == cricket::MEDIA_TYPE_AUDIO ||
-            options.type == cricket::MEDIA_TYPE_VIDEO)) ||
-          (use_datagram_transport_for_data_channels_ &&
-           options.type == cricket::MEDIA_TYPE_DATA)) {
-        options.alt_protocol = params->protocol;
-      }
-    }
-  }
 }
 
 void PeerConnection::GetOptionsForPlanBAnswer(
@@ -5381,6 +5236,8 @@ void PeerConnection::GenerateMediaDescriptionOptions(
                                              stopped));
         *audio_index = session_options->media_description_options.size() - 1;
       }
+      session_options->media_description_options.back().header_extensions =
+          channel_manager()->GetSupportedAudioRtpHeaderExtensions();
     } else if (IsVideoContent(&content)) {
       // If we already have an video m= section, reject this extra one.
       if (*video_index) {
@@ -5396,6 +5253,8 @@ void PeerConnection::GenerateMediaDescriptionOptions(
                                              stopped));
         *video_index = session_options->media_description_options.size() - 1;
       }
+      session_options->media_description_options.back().header_extensions =
+          channel_manager()->GetSupportedVideoRtpHeaderExtensions();
     } else {
       RTC_DCHECK(IsDataContent(&content));
       // If we already have an data m= section, reject this extra one.
@@ -6205,6 +6064,11 @@ cricket::IceConfig PeerConnection::ParseIceConfig(
   return ice_config;
 }
 
+std::vector<DataChannel::Stats> PeerConnection::GetDataChannelStats() const {
+  RTC_DCHECK_RUN_ON(signaling_thread());
+  return data_channel_controller_.GetDataChannelStats();
+}
+
 absl::optional<std::string> PeerConnection::sctp_transport_name() const {
   RTC_DCHECK_RUN_ON(signaling_thread());
   if (sctp_mid_s_ && transport_controller_) {
@@ -6629,13 +6493,11 @@ RTCError PeerConnection::CreateChannels(const SessionDescription& desc) {
 cricket::VoiceChannel* PeerConnection::CreateVoiceChannel(
     const std::string& mid) {
   RtpTransportInternal* rtp_transport = GetRtpTransport(mid);
-  MediaTransportConfig media_transport_config =
-      transport_controller_->GetMediaTransportConfig(mid);
 
   cricket::VoiceChannel* voice_channel = channel_manager()->CreateVoiceChannel(
-      call_ptr_, configuration_.media_config, rtp_transport,
-      media_transport_config, signaling_thread(), mid, SrtpRequired(),
-      GetCryptoOptions(), &ssrc_generator_, audio_options_);
+      call_ptr_, configuration_.media_config, rtp_transport, signaling_thread(),
+      mid, SrtpRequired(), GetCryptoOptions(), &ssrc_generator_,
+      audio_options_);
   if (!voice_channel) {
     return nullptr;
   }
@@ -6652,13 +6514,10 @@ cricket::VoiceChannel* PeerConnection::CreateVoiceChannel(
 cricket::VideoChannel* PeerConnection::CreateVideoChannel(
     const std::string& mid) {
   RtpTransportInternal* rtp_transport = GetRtpTransport(mid);
-  MediaTransportConfig media_transport_config =
-      transport_controller_->GetMediaTransportConfig(mid);
 
   cricket::VideoChannel* video_channel = channel_manager()->CreateVideoChannel(
-      call_ptr_, configuration_.media_config, rtp_transport,
-      media_transport_config, signaling_thread(), mid, SrtpRequired(),
-      GetCryptoOptions(), &ssrc_generator_, video_options_,
+      call_ptr_, configuration_.media_config, rtp_transport, signaling_thread(),
+      mid, SrtpRequired(), GetCryptoOptions(), &ssrc_generator_, video_options_,
       video_bitrate_allocator_factory_.get());
   if (!video_channel) {
     return nullptr;
@@ -6685,16 +6544,12 @@ bool PeerConnection::CreateDataChannel(const std::string& mid) {
       } else {
         return false;
       }
-
-      // All non-RTP data channels must initialize |sctp_data_channels_|.
-      for (const auto& channel :
-           *data_channel_controller_.sctp_data_channels()) {
-        channel->OnTransportChannelCreated();
-      }
       return true;
     case cricket::DCT_RTP:
     default:
       RtpTransportInternal* rtp_transport = GetRtpTransport(mid);
+      // TODO(bugs.webrtc.org/9987): set_rtp_data_channel() should be called on
+      // the network thread like set_data_channel_transport is.
       data_channel_controller_.set_rtp_data_channel(
           channel_manager()->CreateRtpDataChannel(
               configuration_.media_config, rtp_transport, signaling_thread(),
@@ -7107,8 +6962,7 @@ bool PeerConnection::ReadyToUseRemoteCandidate(
 }
 
 bool PeerConnection::SrtpRequired() const {
-  return !use_datagram_transport_ &&
-         (dtls_enabled_ ||
+  return (dtls_enabled_ ||
           webrtc_session_desc_factory_->SdesPolicy() == cricket::SEC_REQUIRED);
 }
 

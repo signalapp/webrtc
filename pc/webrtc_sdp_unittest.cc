@@ -1528,8 +1528,6 @@ class WebRtcSdpTest : public ::testing::Test {
       CompareSimulcastDescription(
           c1.media_description()->simulcast_description(),
           c2.media_description()->simulcast_description());
-      EXPECT_EQ(c1.media_description()->alt_protocol(),
-                c2.media_description()->alt_protocol());
     }
 
     // group
@@ -1584,8 +1582,6 @@ class WebRtcSdpTest : public ::testing::Test {
       }
       EXPECT_EQ(transport1.description.transport_options,
                 transport2.description.transport_options);
-      EXPECT_EQ(transport1.description.opaque_parameters,
-                transport2.description.opaque_parameters);
     }
 
     // global attributes
@@ -1677,23 +1673,6 @@ class WebRtcSdpTest : public ::testing::Test {
     transport_info.description.ice_ufrag = ice_ufrag;
     transport_info.description.ice_pwd = ice_pwd;
     desc_.AddTransportInfo(transport_info);
-  }
-
-  void AddOpaqueTransportParameters(const std::string& content_name,
-                                    cricket::OpaqueTransportParameters params) {
-    ASSERT_TRUE(desc_.GetTransportInfoByName(content_name) != NULL);
-    cricket::TransportInfo info = *(desc_.GetTransportInfoByName(content_name));
-    desc_.RemoveTransportInfoByName(content_name);
-    info.description.opaque_parameters = params;
-    desc_.AddTransportInfo(info);
-  }
-
-  void AddAltProtocol(const std::string& content_name,
-                      const std::string& alt_protocol) {
-    ASSERT_TRUE(desc_.GetTransportInfoByName(content_name) != NULL);
-    cricket::MediaContentDescription* description =
-        desc_.GetContentDescriptionByName(content_name);
-    description->set_alt_protocol(alt_protocol);
   }
 
   void AddFingerprint() {
@@ -2236,41 +2215,6 @@ TEST_F(WebRtcSdpTest, SerializeSessionDescriptionWithIceOptions) {
   EXPECT_EQ(sdp_with_ice_options, message);
 }
 
-TEST_F(WebRtcSdpTest, SerializeSessionDescriptionWithOpaqueTransportParams) {
-  cricket::OpaqueTransportParameters params;
-  params.protocol = "foo";
-  params.parameters = "test64";
-  AddOpaqueTransportParameters(kAudioContentName, params);
-  AddOpaqueTransportParameters(kVideoContentName, params);
-
-  ASSERT_TRUE(jdesc_.Initialize(desc_.Clone(), jdesc_.session_id(),
-                                jdesc_.session_version()));
-  std::string message = webrtc::SdpSerialize(jdesc_);
-
-  std::string sdp_with_transport_parameters = kSdpFullString;
-  InjectAfter(kAttributeIcePwdVoice, "a=x-opaque:foo:dGVzdDY0\r\n",
-              &sdp_with_transport_parameters);
-  InjectAfter(kAttributeIcePwdVideo, "a=x-opaque:foo:dGVzdDY0\r\n",
-              &sdp_with_transport_parameters);
-  EXPECT_EQ(message, sdp_with_transport_parameters);
-}
-
-TEST_F(WebRtcSdpTest, SerializeSessionDescriptionWithAltProtocol) {
-  AddAltProtocol(kAudioContentName, "foo");
-  AddAltProtocol(kVideoContentName, "bar");
-
-  ASSERT_TRUE(jdesc_.Initialize(desc_.Clone(), jdesc_.session_id(),
-                                jdesc_.session_version()));
-  std::string message = webrtc::SdpSerialize(jdesc_);
-
-  std::string sdp_with_alt_protocol = kSdpFullString;
-  InjectAfter(kAttributeIcePwdVoice, "a=x-alt-protocol:foo\r\n",
-              &sdp_with_alt_protocol);
-  InjectAfter(kAttributeIcePwdVideo, "a=x-alt-protocol:bar\r\n",
-              &sdp_with_alt_protocol);
-  EXPECT_EQ(message, sdp_with_alt_protocol);
-}
-
 TEST_F(WebRtcSdpTest, SerializeSessionDescriptionWithRecvOnlyContent) {
   EXPECT_TRUE(TestSerializeDirection(RtpTransceiverDirection::kRecvOnly));
 }
@@ -2445,8 +2389,6 @@ TEST_F(WebRtcSdpTest, SerializeHostnameCandidate) {
   EXPECT_EQ(std::string(kRawHostnameCandidate), message);
 }
 
-// TODO(mallinath) : Enable this test once WebRTCSdp capable of parsing
-// RFC 6544.
 TEST_F(WebRtcSdpTest, SerializeTcpCandidates) {
   Candidate candidate(ICE_CANDIDATE_COMPONENT_RTP, "tcp",
                       rtc::SocketAddress("192.168.1.5", 9), kCandidatePriority,
@@ -2683,48 +2625,6 @@ TEST_F(WebRtcSdpTest, DeserializeSessionDescriptionWithIceOptions) {
   ASSERT_TRUE(jdesc_.Initialize(desc_.Clone(), jdesc_.session_id(),
                                 jdesc_.session_version()));
   EXPECT_TRUE(CompareSessionDescription(jdesc_, jdesc_with_ice_options));
-}
-
-TEST_F(WebRtcSdpTest, DeserializeSessionDescriptionWithOpaqueTransportParams) {
-  std::string sdp_with_transport_parameters = kSdpFullString;
-  InjectAfter(kAttributeIcePwdVoice, "a=x-opaque:foo:dGVzdDY0\r\n",
-              &sdp_with_transport_parameters);
-  InjectAfter(kAttributeIcePwdVideo, "a=x-opaque:foo:dGVzdDY0\r\n",
-              &sdp_with_transport_parameters);
-
-  JsepSessionDescription jdesc_with_transport_parameters(kDummyType);
-  EXPECT_TRUE(SdpDeserialize(sdp_with_transport_parameters,
-                             &jdesc_with_transport_parameters));
-
-  cricket::OpaqueTransportParameters params;
-  params.protocol = "foo";
-  params.parameters = "test64";
-
-  AddOpaqueTransportParameters(kAudioContentName, params);
-  AddOpaqueTransportParameters(kVideoContentName, params);
-
-  ASSERT_TRUE(jdesc_.Initialize(desc_.Clone(), jdesc_.session_id(),
-                                jdesc_.session_version()));
-  EXPECT_TRUE(
-      CompareSessionDescription(jdesc_, jdesc_with_transport_parameters));
-}
-
-TEST_F(WebRtcSdpTest, DeserializeSessionDescriptionWithAltProtocol) {
-  std::string sdp_with_alt_protocol = kSdpFullString;
-  InjectAfter(kAttributeIcePwdVoice, "a=x-alt-protocol:foo\r\n",
-              &sdp_with_alt_protocol);
-  InjectAfter(kAttributeIcePwdVideo, "a=x-alt-protocol:bar\r\n",
-              &sdp_with_alt_protocol);
-
-  JsepSessionDescription jdesc_with_alt_protocol(kDummyType);
-  EXPECT_TRUE(SdpDeserialize(sdp_with_alt_protocol, &jdesc_with_alt_protocol));
-
-  AddAltProtocol(kAudioContentName, "foo");
-  AddAltProtocol(kVideoContentName, "bar");
-
-  ASSERT_TRUE(jdesc_.Initialize(desc_.Clone(), jdesc_.session_id(),
-                                jdesc_.session_version()));
-  EXPECT_TRUE(CompareSessionDescription(jdesc_, jdesc_with_alt_protocol));
 }
 
 TEST_F(WebRtcSdpTest, DeserializeSessionDescriptionWithUfragPwd) {

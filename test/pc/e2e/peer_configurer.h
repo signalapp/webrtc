@@ -23,7 +23,6 @@
 #include "api/task_queue/task_queue_factory.h"
 #include "api/test/create_peer_connection_quality_test_frame_generator.h"
 #include "api/test/peerconnection_quality_test_fixture.h"
-#include "api/transport/media/media_transport_interface.h"
 #include "api/transport/network_control.h"
 #include "api/video_codecs/video_decoder_factory.h"
 #include "api/video_codecs/video_encoder_factory.h"
@@ -84,12 +83,6 @@ class PeerConfigurerImpl final
           network_controller_factory) override {
     components_->pcf_dependencies->network_controller_factory =
         std::move(network_controller_factory);
-    return this;
-  }
-  PeerConfigurer* SetMediaTransportFactory(
-      std::unique_ptr<MediaTransportFactory> media_transport_factory) override {
-    components_->pcf_dependencies->media_transport_factory =
-        std::move(media_transport_factory);
     return this;
   }
   PeerConfigurer* SetVideoEncoderFactory(
@@ -172,7 +165,15 @@ class PeerConfigurerImpl final
   }
   PeerConfigurer* SetBitrateParameters(
       PeerConnectionInterface::BitrateParameters bitrate_params) override {
-    params_->bitrate_params = bitrate_params;
+    BitrateSettings bitrate_settings;
+    bitrate_settings.min_bitrate_bps = bitrate_params.min_bitrate_bps;
+    bitrate_settings.start_bitrate_bps = bitrate_params.current_bitrate_bps;
+    bitrate_settings.max_bitrate_bps = bitrate_params.max_bitrate_bps;
+    return SetBitrateSettings(bitrate_settings);
+  }
+  PeerConfigurer* SetBitrateSettings(
+      BitrateSettings bitrate_settings) override {
+    params_->bitrate_settings = bitrate_settings;
     return this;
   }
 

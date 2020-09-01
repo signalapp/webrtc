@@ -33,7 +33,7 @@
 #include "modules/rtp_rtcp/source/rtcp_packet/tmmbn.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/tmmbr.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/transport_feedback.h"
-#include "modules/rtp_rtcp/source/rtp_rtcp_impl.h"
+#include "modules/rtp_rtcp/source/rtp_rtcp_impl2.h"
 #include "modules/rtp_rtcp/source/time_util.h"
 #include "modules/rtp_rtcp/source/tmmbr_help.h"
 #include "rtc_base/checks.h"
@@ -123,7 +123,7 @@ RTCPSender::FeedbackState::FeedbackState()
       last_rr_ntp_secs(0),
       last_rr_ntp_frac(0),
       remote_sr(0),
-      module(nullptr) {}
+      receiver(nullptr) {}
 
 RTCPSender::FeedbackState::FeedbackState(const FeedbackState&) = default;
 
@@ -148,7 +148,7 @@ class RTCPSender::RtcpContext {
   const int64_t now_us_;
 };
 
-RTCPSender::RTCPSender(const RtpRtcp::Configuration& config)
+RTCPSender::RTCPSender(const RtpRtcpInterface::Configuration& config)
     : audio_(config.audio),
       ssrc_(config.local_media_ssrc),
       clock_(config.clock),
@@ -176,11 +176,6 @@ RTCPSender::RTCPSender(const RtpRtcp::Configuration& config)
       packet_oh_send_(0),
       max_packet_size_(IP_PACKET_SIZE - 28),  // IPv4 + UDP by default.
 
-      app_sub_type_(0),
-      app_name_(0),
-      app_data_(nullptr),
-      app_length_(0),
-
       xr_send_receiver_reference_time_enabled_(false),
       packet_type_counter_observer_(config.rtcp_packet_type_counter_observer),
       send_video_bitrate_allocation_(false),
@@ -194,7 +189,6 @@ RTCPSender::RTCPSender(const RtpRtcp::Configuration& config)
   builders_[kRtcpFir] = &RTCPSender::BuildFIR;
   builders_[kRtcpRemb] = &RTCPSender::BuildREMB;
   builders_[kRtcpBye] = &RTCPSender::BuildBYE;
-  builders_[kRtcpApp] = &RTCPSender::BuildAPP;
   builders_[kRtcpLossNotification] = &RTCPSender::BuildLossNotification;
   builders_[kRtcpTmmbr] = &RTCPSender::BuildTMMBR;
   builders_[kRtcpTmmbn] = &RTCPSender::BuildTMMBN;
@@ -262,8 +256,8 @@ int32_t RTCPSender::SendLossNotification(const FeedbackState& feedback_state,
     return 0;
   }
 
-  return SendCompoundRTCP(feedback_state,
-                          {RTCPPacketType::kRtcpLossNotification});
+  return SendCompoundRTCPLocked(
+      feedback_state, {RTCPPacketType::kRtcpLossNotification}, 0, nullptr);
 }
 
 void RTCPSender::SetRemb(int64_t bitrate_bps, std::vector<uint32_t> ssrcs) {
@@ -544,7 +538,7 @@ void RTCPSender::SetTargetBitrate(unsigned int target_bitrate) {
 
 std::unique_ptr<rtcp::RtcpPacket> RTCPSender::BuildTMMBR(
     const RtcpContext& ctx) {
-  if (ctx.feedback_state_.module == nullptr)
+  if (ctx.feedback_state_.receiver == nullptr)
     return nullptr;
   // Before sending the TMMBR check the received TMMBN, only an owner is
   // allowed to raise the bitrate:
@@ -558,7 +552,7 @@ std::unique_ptr<rtcp::RtcpPacket> RTCPSender::BuildTMMBR(
   // will accuire criticalSectionRTCPReceiver_ is a potental deadlock but
   // since RTCPreceiver is not doing the reverse we should be fine
   std::vector<rtcp::TmmbItem> candidates =
-      ctx.feedback_state_.module->BoundingSet(&tmmbr_owner);
+      ctx.feedback_state_.receiver->BoundingSet(&tmmbr_owner);
 
   if (!candidates.empty()) {
     for (const auto& candidate : candidates) {
@@ -614,9 +608,6 @@ std::unique_ptr<rtcp::RtcpPacket> RTCPSender::BuildTMMBN(
 std::unique_ptr<rtcp::RtcpPacket> RTCPSender::BuildAPP(const RtcpContext& ctx) {
   rtcp::App* app = new rtcp::App();
   app->SetSenderSsrc(ssrc_);
-  app->SetSubType(app_sub_type_);
-  app->SetName(app_name_);
-  app->SetData(app_data_.get(), app_length_);
 
   return std::unique_ptr<rtcp::RtcpPacket>(app);
 }
@@ -712,52 +703,86 @@ int32_t RTCPSender::SendCompoundRTCP(
 
   {
     rtc::CritScope lock(&critical_section_rtcp_sender_);
-    if (method_ == RtcpMode::kOff) {
-      RTC_LOG(LS_WARNING) << "Can't send rtcp if it is disabled.";
+    auto result = ComputeCompoundRTCPPacket(feedback_state, packet_types,
+                                            nack_size, nack_list, &container);
+    if (result) {
+      return *result;
+    }
+    max_packet_size = max_packet_size_;
+  }
+
+  size_t bytes_sent = container.SendPackets(max_packet_size);
+  return bytes_sent == 0 ? -1 : 0;
+}
+
+int32_t RTCPSender::SendCompoundRTCPLocked(
+    const FeedbackState& feedback_state,
+    const std::set<RTCPPacketType>& packet_types,
+    int32_t nack_size,
+    const uint16_t* nack_list) {
+  PacketContainer container(transport_, event_log_);
+  auto result = ComputeCompoundRTCPPacket(feedback_state, packet_types,
+                                          nack_size, nack_list, &container);
+  if (result) {
+    return *result;
+  }
+  size_t bytes_sent = container.SendPackets(max_packet_size_);
+  return bytes_sent == 0 ? -1 : 0;
+}
+
+absl::optional<int32_t> RTCPSender::ComputeCompoundRTCPPacket(
+    const FeedbackState& feedback_state,
+    const std::set<RTCPPacketType>& packet_types,
+    int32_t nack_size,
+    const uint16_t* nack_list,
+    rtcp::CompoundPacket* out_packet) {
+  if (method_ == RtcpMode::kOff) {
+    RTC_LOG(LS_WARNING) << "Can't send rtcp if it is disabled.";
+    return -1;
+  }
+  // Add all flags as volatile. Non volatile entries will not be overwritten.
+  // All new volatile flags added will be consumed by the end of this call.
+  SetFlags(packet_types, true);
+
+  // Prevent sending streams to send SR before any media has been sent.
+  const bool can_calculate_rtp_timestamp = (last_frame_capture_time_ms_ >= 0);
+  if (!can_calculate_rtp_timestamp) {
+    bool consumed_sr_flag = ConsumeFlag(kRtcpSr);
+    bool consumed_report_flag = sending_ && ConsumeFlag(kRtcpReport);
+    bool sender_report = consumed_report_flag || consumed_sr_flag;
+    if (sender_report && AllVolatileFlagsConsumed()) {
+      // This call was for Sender Report and nothing else.
+      return 0;
+    }
+    if (sending_ && method_ == RtcpMode::kCompound) {
+      // Not allowed to send any RTCP packet without sender report.
       return -1;
     }
-    // Add all flags as volatile. Non volatile entries will not be overwritten.
-    // All new volatile flags added will be consumed by the end of this call.
-    SetFlags(packet_types, true);
+  }
 
-    // Prevent sending streams to send SR before any media has been sent.
-    const bool can_calculate_rtp_timestamp = (last_frame_capture_time_ms_ >= 0);
-    if (!can_calculate_rtp_timestamp) {
-      bool consumed_sr_flag = ConsumeFlag(kRtcpSr);
-      bool consumed_report_flag = sending_ && ConsumeFlag(kRtcpReport);
-      bool sender_report = consumed_report_flag || consumed_sr_flag;
-      if (sender_report && AllVolatileFlagsConsumed()) {
-        // This call was for Sender Report and nothing else.
-        return 0;
-      }
-      if (sending_ && method_ == RtcpMode::kCompound) {
-        // Not allowed to send any RTCP packet without sender report.
-        return -1;
-      }
+  if (packet_type_counter_.first_packet_time_ms == -1)
+    packet_type_counter_.first_packet_time_ms = clock_->TimeInMilliseconds();
+
+  // We need to send our NTP even if we haven't received any reports.
+  RtcpContext context(feedback_state, nack_size, nack_list,
+                      clock_->TimeInMicroseconds());
+
+  PrepareReport(feedback_state);
+
+  std::unique_ptr<rtcp::RtcpPacket> packet_bye;
+
+  auto it = report_flags_.begin();
+  while (it != report_flags_.end()) {
+    auto builder_it = builders_.find(it->type);
+    if (it->is_volatile) {
+      report_flags_.erase(it++);
+    } else {
+      ++it;
     }
 
-    if (packet_type_counter_.first_packet_time_ms == -1)
-      packet_type_counter_.first_packet_time_ms = clock_->TimeInMilliseconds();
-
-    // We need to send our NTP even if we haven't received any reports.
-    RtcpContext context(feedback_state, nack_size, nack_list,
-                        clock_->TimeInMicroseconds());
-
-    PrepareReport(feedback_state);
-
-    std::unique_ptr<rtcp::RtcpPacket> packet_bye;
-
-    auto it = report_flags_.begin();
-    while (it != report_flags_.end()) {
-      auto builder_it = builders_.find(it->type);
-      RTC_DCHECK(builder_it != builders_.end())
-          << "Could not find builder for packet type " << it->type;
-      if (it->is_volatile) {
-        report_flags_.erase(it++);
-      } else {
-        ++it;
-      }
-
+    if (builder_it == builders_.end()) {
+      RTC_NOTREACHED() << "Could not find builder for packet type " << it->type;
+    } else {
       BuilderFunc func = builder_it->second;
       std::unique_ptr<rtcp::RtcpPacket> packet = (this->*func)(context);
       if (packet == nullptr)
@@ -767,26 +792,23 @@ int32_t RTCPSender::SendCompoundRTCP(
       if (builder_it->first == kRtcpBye) {
         packet_bye = std::move(packet);
       } else {
-        container.Append(packet.release());
+        out_packet->Append(packet.release());
       }
     }
-
-    // Append the BYE now at the end
-    if (packet_bye) {
-      container.Append(packet_bye.release());
-    }
-
-    if (packet_type_counter_observer_ != nullptr) {
-      packet_type_counter_observer_->RtcpPacketTypesCounterUpdated(
-          remote_ssrc_, packet_type_counter_);
-    }
-
-    RTC_DCHECK(AllVolatileFlagsConsumed());
-    max_packet_size = max_packet_size_;
   }
 
-  size_t bytes_sent = container.SendPackets(max_packet_size);
-  return bytes_sent == 0 ? -1 : 0;
+  // Append the BYE now at the end
+  if (packet_bye) {
+    out_packet->Append(packet_bye.release());
+  }
+
+  if (packet_type_counter_observer_ != nullptr) {
+    packet_type_counter_observer_->RtcpPacketTypesCounterUpdated(
+        remote_ssrc_, packet_type_counter_);
+  }
+
+  RTC_DCHECK(AllVolatileFlagsConsumed());
+  return absl::nullopt;
 }
 
 void RTCPSender::PrepareReport(const FeedbackState& feedback_state) {
@@ -875,25 +897,6 @@ void RTCPSender::SetCsrcs(const std::vector<uint32_t>& csrcs) {
   RTC_DCHECK_LE(csrcs.size(), kRtpCsrcSize);
   rtc::CritScope lock(&critical_section_rtcp_sender_);
   csrcs_ = csrcs;
-}
-
-int32_t RTCPSender::SetApplicationSpecificData(uint8_t subType,
-                                               uint32_t name,
-                                               const uint8_t* data,
-                                               uint16_t length) {
-  if (length % 4 != 0) {
-    RTC_LOG(LS_ERROR) << "Failed to SetApplicationSpecificData.";
-    return -1;
-  }
-  rtc::CritScope lock(&critical_section_rtcp_sender_);
-
-  SetFlag(kRtcpApp, true);
-  app_sub_type_ = subType;
-  app_name_ = name;
-  app_data_.reset(new uint8_t[length]);
-  app_length_ = length;
-  memcpy(app_data_.get(), data, length);
-  return 0;
 }
 
 void RTCPSender::SendRtcpXrReceiverReferenceTime(bool enable) {

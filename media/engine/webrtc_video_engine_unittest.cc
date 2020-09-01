@@ -28,7 +28,6 @@
 #include "api/test/mock_video_encoder_factory.h"
 #include "api/test/video/function_video_decoder_factory.h"
 #include "api/transport/field_trial_based_config.h"
-#include "api/transport/media/media_transport_config.h"
 #include "api/units/time_delta.h"
 #include "api/video/builtin_video_bitrate_allocator_factory.h"
 #include "api/video/i420_buffer.h"
@@ -209,11 +208,15 @@ int GetMaxDefaultBitrateBps(size_t width, size_t height) {
 
 class MockVideoSource : public rtc::VideoSourceInterface<webrtc::VideoFrame> {
  public:
-  MOCK_METHOD2(AddOrUpdateSink,
-               void(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink,
-                    const rtc::VideoSinkWants& wants));
-  MOCK_METHOD1(RemoveSink,
-               void(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink));
+  MOCK_METHOD(void,
+              AddOrUpdateSink,
+              (rtc::VideoSinkInterface<webrtc::VideoFrame> * sink,
+               const rtc::VideoSinkWants& wants),
+              (override));
+  MOCK_METHOD(void,
+              RemoveSink,
+              (rtc::VideoSinkInterface<webrtc::VideoFrame> * sink),
+              (override));
 };
 
 }  // namespace
@@ -341,10 +344,6 @@ TEST_F(WebRtcVideoEngineTest, SupportsVideoContentTypeHeaderExtension) {
 
 TEST_F(WebRtcVideoEngineTest, SupportsVideoTimingHeaderExtension) {
   ExpectRtpCapabilitySupport(RtpExtension::kVideoTimingUri, true);
-}
-
-TEST_F(WebRtcVideoEngineTest, SupportsFrameMarkingHeaderExtension) {
-  ExpectRtpCapabilitySupport(RtpExtension::kFrameMarkingUri, true);
 }
 
 TEST_F(WebRtcVideoEngineTest, SupportsColorSpaceHeaderExtension) {
@@ -1335,7 +1334,7 @@ class WebRtcVideoChannelEncodedFrameCallbackTest : public ::testing::Test {
                 webrtc::CryptoOptions(),
                 video_bitrate_allocator_factory_.get())))) {
     network_interface_.SetDestination(channel_.get());
-    channel_->SetInterface(&network_interface_, webrtc::MediaTransportConfig());
+    channel_->SetInterface(&network_interface_);
     cricket::VideoRecvParameters parameters;
     parameters.codecs = engine_.recv_codecs();
     channel_->SetRecvParameters(parameters);
@@ -1481,7 +1480,7 @@ class WebRtcVideoChannelBaseTest : public ::testing::Test {
     channel_->OnReadyToSend(true);
     EXPECT_TRUE(channel_.get() != NULL);
     network_interface_.SetDestination(channel_.get());
-    channel_->SetInterface(&network_interface_, webrtc::MediaTransportConfig());
+    channel_->SetInterface(&network_interface_);
     cricket::VideoRecvParameters parameters;
     parameters.codecs = engine_.send_codecs();
     channel_->SetRecvParameters(parameters);
@@ -5064,8 +5063,7 @@ TEST_F(WebRtcVideoChannelTest, TestSetDscpOptions) {
       static_cast<cricket::WebRtcVideoChannel*>(engine_.CreateMediaChannel(
           call_.get(), config, VideoOptions(), webrtc::CryptoOptions(),
           video_bitrate_allocator_factory_.get())));
-  channel->SetInterface(network_interface.get(),
-                        webrtc::MediaTransportConfig());
+  channel->SetInterface(network_interface.get());
   // Default value when DSCP is disabled should be DSCP_DEFAULT.
   EXPECT_EQ(rtc::DSCP_DEFAULT, network_interface->dscp());
 
@@ -5076,8 +5074,7 @@ TEST_F(WebRtcVideoChannelTest, TestSetDscpOptions) {
       static_cast<cricket::WebRtcVideoChannel*>(engine_.CreateMediaChannel(
           call_.get(), config, VideoOptions(), webrtc::CryptoOptions(),
           video_bitrate_allocator_factory_.get())));
-  channel->SetInterface(network_interface.get(),
-                        webrtc::MediaTransportConfig());
+  channel->SetInterface(network_interface.get());
   EXPECT_EQ(rtc::DSCP_DEFAULT, network_interface->dscp());
 
   // Create a send stream to configure
@@ -5106,8 +5103,7 @@ TEST_F(WebRtcVideoChannelTest, TestSetDscpOptions) {
       static_cast<cricket::WebRtcVideoChannel*>(engine_.CreateMediaChannel(
           call_.get(), config, VideoOptions(), webrtc::CryptoOptions(),
           video_bitrate_allocator_factory_.get())));
-  channel->SetInterface(network_interface.get(),
-                        webrtc::MediaTransportConfig());
+  channel->SetInterface(network_interface.get());
   EXPECT_EQ(rtc::DSCP_DEFAULT, network_interface->dscp());
 }
 

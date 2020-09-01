@@ -17,6 +17,7 @@
 #include "rtc_base/event.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/task_utils/to_queued_task.h"
+#include "rtc_base/trace_event.h"
 
 namespace webrtc {
 namespace {
@@ -34,8 +35,10 @@ TaskQueuePacedSender::TaskQueuePacedSender(
     PacketRouter* packet_router,
     RtcEventLog* event_log,
     const WebRtcKeyValueConfig* field_trials,
-    TaskQueueFactory* task_queue_factory)
+    TaskQueueFactory* task_queue_factory,
+    TimeDelta hold_back_window)
     : clock_(clock),
+      hold_back_window_(hold_back_window),
       packet_router_(packet_router),
       pacing_controller_(clock,
                          static_cast<PacingController::PacketSender*>(this),
@@ -120,6 +123,17 @@ void TaskQueuePacedSender::SetPacingRates(DataRate pacing_rate,
 
 void TaskQueuePacedSender::EnqueuePackets(
     std::vector<std::unique_ptr<RtpPacketToSend>> packets) {
+#if RTC_TRACE_EVENTS_ENABLED
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("webrtc"),
+               "TaskQueuePacedSender::EnqueuePackets");
+  for (auto& packet : packets) {
+    TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("webrtc"),
+                 "TaskQueuePacedSender::EnqueuePackets::Loop",
+                 "sequence_number", packet->SequenceNumber(), "rtp_timestamp",
+                 packet->Timestamp());
+  }
+#endif
+
   task_queue_.PostTask([this, packets_ = std::move(packets)]() mutable {
     RTC_DCHECK_RUN_ON(&task_queue_);
     for (auto& packet : packets_) {
@@ -175,7 +189,7 @@ TimeDelta TaskQueuePacedSender::OldestPacketWaitTime() const {
 }
 
 void TaskQueuePacedSender::OnStatsUpdated(const Stats& stats) {
-  rtc::CritScope cs(&stats_crit_);
+  MutexLock lock(&stats_mutex_);
   current_stats_ = stats;
 }
 
@@ -205,8 +219,10 @@ void TaskQueuePacedSender::MaybeProcessPackets(
     next_process_time = pacing_controller_.NextSendTime();
   }
 
-  next_process_time =
-      std::max(now + PacingController::kMinSleepTime, next_process_time);
+  const TimeDelta min_sleep = pacing_controller_.IsProbing()
+                                  ? PacingController::kMinSleepTime
+                                  : hold_back_window_;
+  next_process_time = std::max(now + min_sleep, next_process_time);
 
   TimeDelta sleep_time = next_process_time - now;
   if (next_process_time_.IsMinusInfinity() ||
@@ -295,7 +311,7 @@ void TaskQueuePacedSender::MaybeUpdateStats(bool is_scheduled_call) {
 }
 
 TaskQueuePacedSender::Stats TaskQueuePacedSender::GetStats() const {
-  rtc::CritScope cs(&stats_crit_);
+  MutexLock lock(&stats_mutex_);
   return current_stats_;
 }
 

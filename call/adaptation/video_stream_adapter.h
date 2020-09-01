@@ -14,9 +14,9 @@
 #include <memory>
 
 #include "absl/types/optional.h"
+#include "api/adaptation/resource.h"
 #include "api/rtp_parameters.h"
 #include "api/video/video_adaptation_counters.h"
-#include "call/adaptation/resource.h"
 #include "call/adaptation/video_source_restrictions.h"
 #include "call/adaptation/video_stream_input_state.h"
 #include "modules/video_coding/utility/quality_scaler.h"
@@ -56,6 +56,8 @@ class Adaptation final {
     kAwaitingPreviousAdaptation,
   };
 
+  static const char* StatusToString(Status status);
+
   // The status of this Adaptation. To find out how this Adaptation affects
   // VideoSourceRestrictions, see VideoStreamAdapter::PeekNextRestrictions().
   Status status() const;
@@ -73,12 +75,22 @@ class Adaptation final {
     kDecreaseResolution,
     kIncreaseFrameRate,
     kDecreaseFrameRate,
+    kForce
   };
 
   struct Step {
     Step(StepType type, int target);
+    // StepType is kForce
+    Step(VideoSourceRestrictions restrictions,
+         VideoAdaptationCounters counters);
     const StepType type;
-    const int target;  // Pixel or frame rate depending on |type|.
+    // Pixel or frame rate depending on |type|.
+    // Only set when |type| is not kForce.
+    const absl::optional<int> target;
+    // Only set when |type| is kForce.
+    const absl::optional<VideoSourceRestrictions> restrictions;
+    // Only set when |type| is kForce.
+    const absl::optional<VideoAdaptationCounters> counters;
   };
 
   // Constructs with a valid adaptation Step. Status is kValid.
@@ -127,10 +139,18 @@ class VideoStreamAdapter {
   // status code indicating the reason why we cannot adapt.
   Adaptation GetAdaptationUp() const;
   Adaptation GetAdaptationDown() const;
+  Adaptation GetAdaptationTo(const VideoAdaptationCounters& counters,
+                             const VideoSourceRestrictions& restrictions) const;
+
+  struct RestrictionsWithCounters {
+    VideoSourceRestrictions restrictions;
+    VideoAdaptationCounters adaptation_counters;
+  };
+
   // Returns the restrictions that result from applying the adaptation, without
   // actually applying it. If the adaptation is not valid, current restrictions
   // are returned.
-  VideoSourceRestrictions PeekNextRestrictions(
+  RestrictionsWithCounters PeekNextRestrictions(
       const Adaptation& adaptation) const;
   // Updates source_restrictions() based according to the Adaptation.
   void ApplyAdaptation(const Adaptation& adaptation);

@@ -12,6 +12,7 @@
 #include <utility>
 
 #include "absl/memory/memory.h"
+#include "absl/strings/string_view.h"
 #include "api/task_queue/default_task_queue_factory.h"
 #include "api/video_codecs/builtin_video_decoder_factory.h"
 #include "api/video_codecs/builtin_video_encoder_factory.h"
@@ -172,6 +173,7 @@ std::unique_ptr<cricket::MediaEngineInterface> CreateMediaEngine(
 }
 
 void WrapVideoEncoderFactory(
+    absl::string_view peer_name,
     double bitrate_multiplier,
     std::map<std::string, absl::optional<int>> stream_required_spatial_index,
     PeerConnectionFactoryComponents* pcf_dependencies,
@@ -184,11 +186,12 @@ void WrapVideoEncoderFactory(
   }
   pcf_dependencies->video_encoder_factory =
       video_analyzer_helper->WrapVideoEncoderFactory(
-          std::move(video_encoder_factory), bitrate_multiplier,
+          peer_name, std::move(video_encoder_factory), bitrate_multiplier,
           std::move(stream_required_spatial_index));
 }
 
 void WrapVideoDecoderFactory(
+    absl::string_view peer_name,
     PeerConnectionFactoryComponents* pcf_dependencies,
     VideoQualityAnalyzerInjectionHelper* video_analyzer_helper) {
   std::unique_ptr<VideoDecoderFactory> video_decoder_factory;
@@ -199,7 +202,7 @@ void WrapVideoDecoderFactory(
   }
   pcf_dependencies->video_decoder_factory =
       video_analyzer_helper->WrapVideoDecoderFactory(
-          std::move(video_decoder_factory));
+          peer_name, std::move(video_decoder_factory));
 }
 
 // Creates PeerConnectionFactoryDependencies objects, providing entities
@@ -225,10 +228,6 @@ PeerConnectionFactoryDependencies CreatePCFDependencies(
   if (pcf_dependencies->network_controller_factory != nullptr) {
     pcf_deps.network_controller_factory =
         std::move(pcf_dependencies->network_controller_factory);
-  }
-  if (pcf_dependencies->media_transport_factory != nullptr) {
-    pcf_deps.media_transport_factory =
-        std::move(pcf_dependencies->media_transport_factory);
   }
   if (pcf_dependencies->neteq_factory != nullptr) {
     pcf_deps.neteq_factory = std::move(pcf_dependencies->neteq_factory);
@@ -309,10 +308,11 @@ std::unique_ptr<TestPeer> TestPeerFactory::CreateTestPeer(
           params->audio_config, remote_audio_config, echo_emulation_config,
           components->pcf_dependencies->task_queue_factory.get());
   WrapVideoEncoderFactory(
-      bitrate_multiplier,
+      params->name.value(), bitrate_multiplier,
       CalculateRequiredSpatialIndexPerStream(params->video_configs),
       components->pcf_dependencies.get(), video_analyzer_helper);
-  WrapVideoDecoderFactory(components->pcf_dependencies.get(),
+  WrapVideoDecoderFactory(params->name.value(),
+                          components->pcf_dependencies.get(),
                           video_analyzer_helper);
   std::unique_ptr<cricket::MediaEngineInterface> media_engine =
       CreateMediaEngine(components->pcf_dependencies.get(), audio_device_module,
@@ -329,7 +329,7 @@ std::unique_ptr<TestPeer> TestPeerFactory::CreateTestPeer(
   rtc::scoped_refptr<PeerConnectionInterface> peer_connection =
       peer_connection_factory->CreatePeerConnection(params->rtc_configuration,
                                                     std::move(pc_deps));
-  peer_connection->SetBitrate(params->bitrate_params);
+  peer_connection->SetBitrate(params->bitrate_settings);
 
   return absl::WrapUnique(new TestPeer(
       peer_connection_factory, peer_connection, std::move(observer),

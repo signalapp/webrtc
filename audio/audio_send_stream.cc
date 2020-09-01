@@ -31,6 +31,7 @@
 #include "logging/rtc_event_log/events/rtc_event_audio_send_stream_config.h"
 #include "logging/rtc_event_log/rtc_stream_config.h"
 #include "modules/audio_coding/codecs/cng/audio_encoder_cng.h"
+#include "modules/audio_coding/codecs/red/audio_encoder_copy_red.h"
 #include "modules/audio_processing/include/audio_processing.h"
 #include "modules/rtp_rtcp/source/rtp_header_extensions.h"
 #include "rtc_base/checks.h"
@@ -544,10 +545,12 @@ void AudioSendStream::SetTransportOverhead(
 }
 
 void AudioSendStream::UpdateOverheadForEncoder() {
-  const size_t overhead_per_packet_bytes = GetPerPacketOverheadBytes();
-  if (overhead_per_packet_bytes == 0) {
-    return;  // Overhead is not known yet, do not tell the encoder.
+  size_t overhead_per_packet_bytes = GetPerPacketOverheadBytes();
+  if (overhead_per_packet_ == overhead_per_packet_bytes) {
+    return;
   }
+  overhead_per_packet_ = overhead_per_packet_bytes;
+
   channel_send_->CallEncoder([&](AudioEncoder* encoder) {
     encoder->OnReceivedOverhead(overhead_per_packet_bytes);
   });
@@ -644,7 +647,7 @@ bool AudioSendStream::SetupSendCodec(const Config& new_config) {
     }
   }
 
-  // Wrap the encoder in a an AudioEncoderCNG, if VAD is enabled.
+  // Wrap the encoder in an AudioEncoderCNG, if VAD is enabled.
   if (spec.cng_payload_type) {
     AudioEncoderCngConfig cng_config;
     cng_config.num_channels = encoder->NumChannels();
@@ -655,6 +658,14 @@ bool AudioSendStream::SetupSendCodec(const Config& new_config) {
 
     RegisterCngPayloadType(*spec.cng_payload_type,
                            new_config.send_codec_spec->format.clockrate_hz);
+  }
+
+  // Wrap the encoder in a RED encoder, if RED is enabled.
+  if (spec.red_payload_type) {
+    AudioEncoderCopyRed::Config red_config;
+    red_config.payload_type = *spec.red_payload_type;
+    red_config.speech_encoder = std::move(encoder);
+    encoder = std::make_unique<AudioEncoderCopyRed>(std::move(red_config));
   }
 
   // Set currently known overhead (used in ANA, opus only).
