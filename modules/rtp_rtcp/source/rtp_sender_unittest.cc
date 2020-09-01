@@ -149,33 +149,32 @@ class MockRtpPacketPacer : public RtpPacketSender {
   MockRtpPacketPacer() {}
   virtual ~MockRtpPacketPacer() {}
 
-  MOCK_METHOD1(EnqueuePackets,
-               void(std::vector<std::unique_ptr<RtpPacketToSend>>));
-
-  MOCK_METHOD2(CreateProbeCluster, void(int bitrate_bps, int cluster_id));
-
-  MOCK_METHOD0(Pause, void());
-  MOCK_METHOD0(Resume, void());
-  MOCK_METHOD1(SetCongestionWindow,
-               void(absl::optional<int64_t> congestion_window_bytes));
-  MOCK_METHOD1(UpdateOutstandingData, void(int64_t outstanding_bytes));
-  MOCK_METHOD1(SetAccountForAudioPackets, void(bool account_for_audio));
+  MOCK_METHOD(void,
+              EnqueuePackets,
+              (std::vector<std::unique_ptr<RtpPacketToSend>>),
+              (override));
 };
 
 class MockSendSideDelayObserver : public SendSideDelayObserver {
  public:
-  MOCK_METHOD4(SendSideDelayUpdated, void(int, int, uint64_t, uint32_t));
+  MOCK_METHOD(void,
+              SendSideDelayUpdated,
+              (int, int, uint64_t, uint32_t),
+              (override));
 };
 
 class MockSendPacketObserver : public SendPacketObserver {
  public:
-  MOCK_METHOD3(OnSendPacket, void(uint16_t, int64_t, uint32_t));
+  MOCK_METHOD(void, OnSendPacket, (uint16_t, int64_t, uint32_t), (override));
 };
 
 class MockTransportFeedbackObserver : public TransportFeedbackObserver {
  public:
-  MOCK_METHOD1(OnAddPacket, void(const RtpPacketSendInfo&));
-  MOCK_METHOD1(OnTransportFeedback, void(const rtcp::TransportFeedback&));
+  MOCK_METHOD(void, OnAddPacket, (const RtpPacketSendInfo&), (override));
+  MOCK_METHOD(void,
+              OnTransportFeedback,
+              (const rtcp::TransportFeedback&),
+              (override));
 };
 
 class StreamDataTestCallback : public StreamDataCountersCallback {
@@ -213,7 +212,7 @@ class StreamDataTestCallback : public StreamDataCountersCallback {
 // TODO(sprang): Split up unit tests and test these components individually
 // wherever possible.
 struct RtpSenderContext {
-  explicit RtpSenderContext(const RtpRtcp::Configuration& config)
+  explicit RtpSenderContext(const RtpRtcpInterface::Configuration& config)
       : packet_history_(config.clock, config.enable_rtx_padding_prioritization),
         packet_sender_(config, &packet_history_),
         non_paced_sender_(&packet_sender_),
@@ -286,7 +285,7 @@ class RtpSenderTest : public ::testing::TestWithParam<TestConfig> {
   void SetUpRtpSender(bool pacer,
                       bool populate_network2,
                       bool always_send_mid_and_rid) {
-    RtpRtcp::Configuration config;
+    RtpRtcpInterface::Configuration config;
     config.clock = &fake_clock_;
     config.outgoing_transport = &transport_;
     config.local_media_ssrc = kSsrc;
@@ -482,7 +481,7 @@ TEST_P(RtpSenderTestWithoutPacer, AssignSequenceNumberMayAllowPaddingOnVideo) {
 
 TEST_P(RtpSenderTest, AssignSequenceNumberAllowsPaddingOnAudio) {
   MockTransport transport;
-  RtpRtcp::Configuration config;
+  RtpRtcpInterface::Configuration config;
   config.audio = true;
   config.clock = &fake_clock_;
   config.outgoing_transport = &transport;
@@ -532,7 +531,7 @@ TEST_P(RtpSenderTestWithoutPacer,
        TransportFeedbackObserverGetsCorrectByteCount) {
   constexpr size_t kRtpOverheadBytesPerPacket = 12 + 8;
 
-  RtpRtcp::Configuration config;
+  RtpRtcpInterface::Configuration config;
   config.clock = &fake_clock_;
   config.outgoing_transport = &transport_;
   config.local_media_ssrc = kSsrc;
@@ -567,7 +566,7 @@ TEST_P(RtpSenderTestWithoutPacer,
 }
 
 TEST_P(RtpSenderTestWithoutPacer, SendsPacketsWithTransportSequenceNumber) {
-  RtpRtcp::Configuration config;
+  RtpRtcpInterface::Configuration config;
   config.clock = &fake_clock_;
   config.outgoing_transport = &transport_;
   config.local_media_ssrc = kSsrc;
@@ -606,7 +605,7 @@ TEST_P(RtpSenderTestWithoutPacer, SendsPacketsWithTransportSequenceNumber) {
 }
 
 TEST_P(RtpSenderTestWithoutPacer, PacketOptionsNoRetransmission) {
-  RtpRtcp::Configuration config;
+  RtpRtcpInterface::Configuration config;
   config.clock = &fake_clock_;
   config.outgoing_transport = &transport_;
   config.local_media_ssrc = kSsrc;
@@ -661,7 +660,7 @@ TEST_P(RtpSenderTestWithoutPacer, DoesnSetIncludedInAllocationByDefault) {
 TEST_P(RtpSenderTestWithoutPacer, OnSendSideDelayUpdated) {
   StrictMock<MockSendSideDelayObserver> send_side_delay_observer_;
 
-  RtpRtcp::Configuration config;
+  RtpRtcpInterface::Configuration config;
   config.clock = &fake_clock_;
   config.outgoing_transport = &transport_;
   config.local_media_ssrc = kSsrc;
@@ -748,7 +747,7 @@ TEST_P(RtpSenderTestWithoutPacer, OnSendPacketUpdated) {
 }
 
 TEST_P(RtpSenderTest, SendsPacketsWithTransportSequenceNumber) {
-  RtpRtcp::Configuration config;
+  RtpRtcpInterface::Configuration config;
   config.clock = &fake_clock_;
   config.outgoing_transport = &transport_;
   config.paced_sender = &mock_paced_sender_;
@@ -1240,7 +1239,7 @@ TEST_P(RtpSenderTest, SendFlexfecPackets) {
                                nullptr /* rtp_state */, &fake_clock_);
 
   // Reset |rtp_sender_| to use FlexFEC.
-  RtpRtcp::Configuration config;
+  RtpRtcpInterface::Configuration config;
   config.clock = &fake_clock_;
   config.outgoing_transport = &transport_;
   config.paced_sender = &mock_paced_sender_;
@@ -1329,7 +1328,7 @@ TEST_P(RtpSenderTestWithoutPacer, SendFlexfecPackets) {
                                nullptr /* rtp_state */, &fake_clock_);
 
   // Reset |rtp_sender_| to use FlexFEC.
-  RtpRtcp::Configuration config;
+  RtpRtcpInterface::Configuration config;
   config.clock = &fake_clock_;
   config.outgoing_transport = &transport_;
   config.local_media_ssrc = kSsrc;
@@ -1662,7 +1661,7 @@ TEST_P(RtpSenderTest, FecOverheadRate) {
                                nullptr /* rtp_state */, &fake_clock_);
 
   // Reset |rtp_sender_| to use FlexFEC.
-  RtpRtcp::Configuration config;
+  RtpRtcpInterface::Configuration config;
   config.clock = &fake_clock_;
   config.outgoing_transport = &transport_;
   config.paced_sender = &mock_paced_sender_;
@@ -1743,7 +1742,7 @@ TEST_P(RtpSenderTest, BitrateCallbacks) {
     uint32_t retransmit_bitrate_;
   } callback;
 
-  RtpRtcp::Configuration config;
+  RtpRtcpInterface::Configuration config;
   config.clock = &fake_clock_;
   config.outgoing_transport = &transport_;
   config.local_media_ssrc = kSsrc;
@@ -1971,7 +1970,7 @@ TEST_P(RtpSenderTestWithoutPacer, RespectsNackBitrateLimit) {
 }
 
 TEST_P(RtpSenderTest, UpdatingCsrcsUpdatedOverhead) {
-  RtpRtcp::Configuration config;
+  RtpRtcpInterface::Configuration config;
   config.clock = &fake_clock_;
   config.outgoing_transport = &transport_;
   config.local_media_ssrc = kSsrc;
@@ -1987,7 +1986,7 @@ TEST_P(RtpSenderTest, UpdatingCsrcsUpdatedOverhead) {
 }
 
 TEST_P(RtpSenderTest, OnOverheadChanged) {
-  RtpRtcp::Configuration config;
+  RtpRtcpInterface::Configuration config;
   config.clock = &fake_clock_;
   config.outgoing_transport = &transport_;
   config.local_media_ssrc = kSsrc;
@@ -2006,7 +2005,7 @@ TEST_P(RtpSenderTest, OnOverheadChanged) {
 }
 
 TEST_P(RtpSenderTest, CountMidOnlyUntilAcked) {
-  RtpRtcp::Configuration config;
+  RtpRtcpInterface::Configuration config;
   config.clock = &fake_clock_;
   config.outgoing_transport = &transport_;
   config.local_media_ssrc = kSsrc;
@@ -2033,7 +2032,7 @@ TEST_P(RtpSenderTest, CountMidOnlyUntilAcked) {
 }
 
 TEST_P(RtpSenderTest, DontCountVolatileExtensionsIntoOverhead) {
-  RtpRtcp::Configuration config;
+  RtpRtcpInterface::Configuration config;
   config.clock = &fake_clock_;
   config.outgoing_transport = &transport_;
   config.local_media_ssrc = kSsrc;
@@ -2251,7 +2250,7 @@ TEST_P(RtpSenderTest, SendPacketUpdatesStats) {
 
   StrictMock<MockSendSideDelayObserver> send_side_delay_observer;
 
-  RtpRtcp::Configuration config;
+  RtpRtcpInterface::Configuration config;
   config.clock = &fake_clock_;
   config.outgoing_transport = &transport_;
   config.local_media_ssrc = kSsrc;

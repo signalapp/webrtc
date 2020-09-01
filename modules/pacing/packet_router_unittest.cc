@@ -101,12 +101,12 @@ TEST_F(PacketRouterTest, GeneratePaddingPrioritizesRtx) {
   const uint16_t kSsrc1 = 1234;
   const uint16_t kSsrc2 = 4567;
 
-  NiceMock<MockRtpRtcp> rtp_1;
+  NiceMock<MockRtpRtcpInterface> rtp_1;
   ON_CALL(rtp_1, RtxSendStatus()).WillByDefault(Return(kRtxRedundantPayloads));
   ON_CALL(rtp_1, SSRC()).WillByDefault(Return(kSsrc1));
   ON_CALL(rtp_1, SupportsPadding).WillByDefault(Return(false));
 
-  NiceMock<MockRtpRtcp> rtp_2;
+  NiceMock<MockRtpRtcpInterface> rtp_2;
   ON_CALL(rtp_2, RtxSendStatus()).WillByDefault(Return(kRtxOff));
   ON_CALL(rtp_2, SSRC()).WillByDefault(Return(kSsrc2));
   ON_CALL(rtp_2, SupportsPadding).WillByDefault(Return(true));
@@ -142,13 +142,13 @@ TEST_F(PacketRouterTest, GeneratePaddingPrioritizesVideo) {
         kExpectedPaddingPackets);
   };
 
-  NiceMock<MockRtpRtcp> audio_module;
+  NiceMock<MockRtpRtcpInterface> audio_module;
   ON_CALL(audio_module, RtxSendStatus()).WillByDefault(Return(kRtxOff));
   ON_CALL(audio_module, SSRC()).WillByDefault(Return(kSsrc1));
   ON_CALL(audio_module, SupportsPadding).WillByDefault(Return(true));
   ON_CALL(audio_module, IsAudioConfigured).WillByDefault(Return(true));
 
-  NiceMock<MockRtpRtcp> video_module;
+  NiceMock<MockRtpRtcpInterface> video_module;
   ON_CALL(video_module, RtxSendStatus()).WillByDefault(Return(kRtxOff));
   ON_CALL(video_module, SSRC()).WillByDefault(Return(kSsrc2));
   ON_CALL(video_module, SupportsPadding).WillByDefault(Return(true));
@@ -194,7 +194,7 @@ TEST_F(PacketRouterTest, PadsOnLastActiveMediaStream) {
   const uint16_t kSsrc3 = 8901;
 
   // First two rtp modules send media and have rtx.
-  NiceMock<MockRtpRtcp> rtp_1;
+  NiceMock<MockRtpRtcpInterface> rtp_1;
   EXPECT_CALL(rtp_1, SSRC()).WillRepeatedly(Return(kSsrc1));
   EXPECT_CALL(rtp_1, SupportsPadding).WillRepeatedly(Return(true));
   EXPECT_CALL(rtp_1, SupportsRtxPayloadPadding).WillRepeatedly(Return(true));
@@ -205,7 +205,7 @@ TEST_F(PacketRouterTest, PadsOnLastActiveMediaStream) {
           ::testing::Pointee(Property(&RtpPacketToSend::Ssrc, kSsrc1)), _))
       .WillRepeatedly(Return(true));
 
-  NiceMock<MockRtpRtcp> rtp_2;
+  NiceMock<MockRtpRtcpInterface> rtp_2;
   EXPECT_CALL(rtp_2, SSRC()).WillRepeatedly(Return(kSsrc2));
   EXPECT_CALL(rtp_2, SupportsPadding).WillRepeatedly(Return(true));
   EXPECT_CALL(rtp_2, SupportsRtxPayloadPadding).WillRepeatedly(Return(true));
@@ -217,7 +217,7 @@ TEST_F(PacketRouterTest, PadsOnLastActiveMediaStream) {
       .WillRepeatedly(Return(true));
 
   // Third module is sending media, but does not support rtx.
-  NiceMock<MockRtpRtcp> rtp_3;
+  NiceMock<MockRtpRtcpInterface> rtp_3;
   EXPECT_CALL(rtp_3, SSRC()).WillRepeatedly(Return(kSsrc3));
   EXPECT_CALL(rtp_3, SupportsPadding).WillRepeatedly(Return(true));
   EXPECT_CALL(rtp_3, SupportsRtxPayloadPadding).WillRepeatedly(Return(false));
@@ -265,7 +265,7 @@ TEST_F(PacketRouterTest, PadsOnLastActiveMediaStream) {
   packet_router_.RemoveSendRtpModule(&rtp_2);
 
   // Send on and then remove all remaining modules.
-  RtpRtcp* last_send_module;
+  RtpRtcpInterface* last_send_module;
   EXPECT_CALL(rtp_1, GeneratePadding(kPaddingBytes))
       .Times(1)
       .WillOnce([&](size_t target_size_bytes) {
@@ -297,7 +297,7 @@ TEST_F(PacketRouterTest, AllocatesTransportSequenceNumbers) {
   const uint16_t kSsrc1 = 1234;
 
   PacketRouter packet_router(kStartSeq - 1);
-  NiceMock<MockRtpRtcp> rtp_1;
+  NiceMock<MockRtpRtcpInterface> rtp_1;
   EXPECT_CALL(rtp_1, SSRC()).WillRepeatedly(Return(kSsrc1));
   EXPECT_CALL(rtp_1, TrySendPacket).WillRepeatedly(Return(true));
   packet_router.AddSendRtpModule(&rtp_1, false);
@@ -315,8 +315,8 @@ TEST_F(PacketRouterTest, AllocatesTransportSequenceNumbers) {
 }
 
 TEST_F(PacketRouterTest, SendTransportFeedback) {
-  NiceMock<MockRtpRtcp> rtp_1;
-  NiceMock<MockRtpRtcp> rtp_2;
+  NiceMock<MockRtpRtcpInterface> rtp_1;
+  NiceMock<MockRtpRtcpInterface> rtp_2;
 
   ON_CALL(rtp_1, RTCP()).WillByDefault(Return(RtcpMode::kCompound));
   ON_CALL(rtp_2, RTCP()).WillByDefault(Return(RtcpMode::kCompound));
@@ -338,7 +338,7 @@ TEST_F(PacketRouterTest, SendTransportFeedback) {
 
 TEST_F(PacketRouterTest, SendPacketWithoutTransportSequenceNumbers) {
   const uint16_t kSsrc1 = 1234;
-  NiceMock<MockRtpRtcp> rtp_1;
+  NiceMock<MockRtpRtcpInterface> rtp_1;
   ON_CALL(rtp_1, SendingMedia).WillByDefault(Return(true));
   ON_CALL(rtp_1, SSRC).WillByDefault(Return(kSsrc1));
   packet_router_.AddSendRtpModule(&rtp_1, false);
@@ -361,8 +361,8 @@ TEST_F(PacketRouterTest, SendPacketWithoutTransportSequenceNumbers) {
 }
 
 TEST_F(PacketRouterTest, SendPacketAssignsTransportSequenceNumbers) {
-  NiceMock<MockRtpRtcp> rtp_1;
-  NiceMock<MockRtpRtcp> rtp_2;
+  NiceMock<MockRtpRtcpInterface> rtp_1;
+  NiceMock<MockRtpRtcpInterface> rtp_2;
 
   const uint16_t kSsrc1 = 1234;
   const uint16_t kSsrc2 = 2345;
@@ -405,8 +405,9 @@ TEST_F(PacketRouterTest, SendPacketAssignsTransportSequenceNumbers) {
 }
 
 #if RTC_DCHECK_IS_ON && GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
-TEST_F(PacketRouterTest, DoubleRegistrationOfSendModuleDisallowed) {
-  NiceMock<MockRtpRtcp> module;
+using PacketRouterDeathTest = PacketRouterTest;
+TEST_F(PacketRouterDeathTest, DoubleRegistrationOfSendModuleDisallowed) {
+  NiceMock<MockRtpRtcpInterface> module;
 
   constexpr bool remb_candidate = false;  // Value irrelevant.
   packet_router_.AddSendRtpModule(&module, remb_candidate);
@@ -416,8 +417,8 @@ TEST_F(PacketRouterTest, DoubleRegistrationOfSendModuleDisallowed) {
   packet_router_.RemoveSendRtpModule(&module);
 }
 
-TEST_F(PacketRouterTest, DoubleRegistrationOfReceiveModuleDisallowed) {
-  NiceMock<MockRtpRtcp> module;
+TEST_F(PacketRouterDeathTest, DoubleRegistrationOfReceiveModuleDisallowed) {
+  NiceMock<MockRtpRtcpInterface> module;
 
   constexpr bool remb_candidate = false;  // Value irrelevant.
   packet_router_.AddReceiveRtpModule(&module, remb_candidate);
@@ -427,14 +428,14 @@ TEST_F(PacketRouterTest, DoubleRegistrationOfReceiveModuleDisallowed) {
   packet_router_.RemoveReceiveRtpModule(&module);
 }
 
-TEST_F(PacketRouterTest, RemovalOfNeverAddedSendModuleDisallowed) {
-  NiceMock<MockRtpRtcp> module;
+TEST_F(PacketRouterDeathTest, RemovalOfNeverAddedSendModuleDisallowed) {
+  NiceMock<MockRtpRtcpInterface> module;
 
   EXPECT_DEATH(packet_router_.RemoveSendRtpModule(&module), "");
 }
 
-TEST_F(PacketRouterTest, RemovalOfNeverAddedReceiveModuleDisallowed) {
-  NiceMock<MockRtpRtcp> module;
+TEST_F(PacketRouterDeathTest, RemovalOfNeverAddedReceiveModuleDisallowed) {
+  NiceMock<MockRtpRtcpInterface> module;
 
   EXPECT_DEATH(packet_router_.RemoveReceiveRtpModule(&module), "");
 }
@@ -442,7 +443,7 @@ TEST_F(PacketRouterTest, RemovalOfNeverAddedReceiveModuleDisallowed) {
 
 TEST(PacketRouterRembTest, LowerEstimateToSendRemb) {
   rtc::ScopedFakeClock clock;
-  NiceMock<MockRtpRtcp> rtp;
+  NiceMock<MockRtpRtcpInterface> rtp;
   PacketRouter packet_router;
 
   packet_router.AddSendRtpModule(&rtp, true);
@@ -468,7 +469,7 @@ TEST(PacketRouterRembTest, LowerEstimateToSendRemb) {
 
 TEST(PacketRouterRembTest, VerifyIncreasingAndDecreasing) {
   rtc::ScopedFakeClock clock;
-  NiceMock<MockRtpRtcp> rtp;
+  NiceMock<MockRtpRtcpInterface> rtp;
   PacketRouter packet_router;
   packet_router.AddSendRtpModule(&rtp, true);
 
@@ -493,7 +494,7 @@ TEST(PacketRouterRembTest, VerifyIncreasingAndDecreasing) {
 
 TEST(PacketRouterRembTest, NoRembForIncreasedBitrate) {
   rtc::ScopedFakeClock clock;
-  NiceMock<MockRtpRtcp> rtp;
+  NiceMock<MockRtpRtcpInterface> rtp;
   PacketRouter packet_router;
   packet_router.AddSendRtpModule(&rtp, true);
 
@@ -521,8 +522,8 @@ TEST(PacketRouterRembTest, NoRembForIncreasedBitrate) {
 
 TEST(PacketRouterRembTest, ChangeSendRtpModule) {
   rtc::ScopedFakeClock clock;
-  NiceMock<MockRtpRtcp> rtp_send;
-  NiceMock<MockRtpRtcp> rtp_recv;
+  NiceMock<MockRtpRtcpInterface> rtp_send;
+  NiceMock<MockRtpRtcpInterface> rtp_recv;
   PacketRouter packet_router;
   packet_router.AddSendRtpModule(&rtp_send, true);
   packet_router.AddReceiveRtpModule(&rtp_recv, true);
@@ -556,7 +557,7 @@ TEST(PacketRouterRembTest, ChangeSendRtpModule) {
 
 TEST(PacketRouterRembTest, OnlyOneRembForRepeatedOnReceiveBitrateChanged) {
   rtc::ScopedFakeClock clock;
-  NiceMock<MockRtpRtcp> rtp;
+  NiceMock<MockRtpRtcpInterface> rtp;
   PacketRouter packet_router;
   packet_router.AddSendRtpModule(&rtp, true);
 
@@ -585,7 +586,7 @@ TEST(PacketRouterRembTest, SetMaxDesiredReceiveBitrateLimitsSetRemb) {
   rtc::ScopedFakeClock clock;
   PacketRouter packet_router;
   clock.AdvanceTime(TimeDelta::Millis(1000));
-  NiceMock<MockRtpRtcp> remb_sender;
+  NiceMock<MockRtpRtcpInterface> remb_sender;
   constexpr bool remb_candidate = true;
   packet_router.AddSendRtpModule(&remb_sender, remb_candidate);
 
@@ -608,7 +609,7 @@ TEST(PacketRouterRembTest,
   rtc::ScopedFakeClock clock;
   PacketRouter packet_router;
   clock.AdvanceTime(TimeDelta::Millis(1000));
-  NiceMock<MockRtpRtcp> remb_sender;
+  NiceMock<MockRtpRtcpInterface> remb_sender;
   constexpr bool remb_candidate = true;
   packet_router.AddSendRtpModule(&remb_sender, remb_candidate);
 
@@ -630,7 +631,7 @@ TEST(PacketRouterRembTest,
   rtc::ScopedFakeClock clock;
   PacketRouter packet_router;
   clock.AdvanceTime(TimeDelta::Millis(1000));
-  NiceMock<MockRtpRtcp> remb_sender;
+  NiceMock<MockRtpRtcpInterface> remb_sender;
   constexpr bool remb_candidate = true;
   packet_router.AddSendRtpModule(&remb_sender, remb_candidate);
 
@@ -652,7 +653,7 @@ TEST(PacketRouterRembTest,
   rtc::ScopedFakeClock clock;
   PacketRouter packet_router;
   clock.AdvanceTime(TimeDelta::Millis(1000));
-  NiceMock<MockRtpRtcp> remb_sender;
+  NiceMock<MockRtpRtcpInterface> remb_sender;
   constexpr bool remb_candidate = true;
   packet_router.AddSendRtpModule(&remb_sender, remb_candidate);
 
@@ -674,7 +675,7 @@ TEST(PacketRouterRembTest,
   rtc::ScopedFakeClock clock;
   PacketRouter packet_router;
   clock.AdvanceTime(TimeDelta::Millis(1000));
-  NiceMock<MockRtpRtcp> remb_sender;
+  NiceMock<MockRtpRtcpInterface> remb_sender;
   constexpr bool remb_candidate = true;
   packet_router.AddSendRtpModule(&remb_sender, remb_candidate);
 
@@ -697,7 +698,7 @@ TEST(PacketRouterRembTest,
   rtc::ScopedFakeClock clock;
   PacketRouter packet_router;
   clock.AdvanceTime(TimeDelta::Millis(1000));
-  NiceMock<MockRtpRtcp> remb_sender;
+  NiceMock<MockRtpRtcpInterface> remb_sender;
   constexpr bool remb_candidate = true;
   packet_router.AddSendRtpModule(&remb_sender, remb_candidate);
 
@@ -719,7 +720,7 @@ TEST(PacketRouterRembTest,
 // packet on this one.
 TEST(PacketRouterRembTest, NoSendingRtpModule) {
   rtc::ScopedFakeClock clock;
-  NiceMock<MockRtpRtcp> rtp;
+  NiceMock<MockRtpRtcpInterface> rtp;
   PacketRouter packet_router;
 
   packet_router.AddReceiveRtpModule(&rtp, true);
@@ -745,7 +746,7 @@ TEST(PacketRouterRembTest, NoSendingRtpModule) {
 TEST(PacketRouterRembTest, NonCandidateSendRtpModuleNotUsedForRemb) {
   rtc::ScopedFakeClock clock;
   PacketRouter packet_router;
-  NiceMock<MockRtpRtcp> module;
+  NiceMock<MockRtpRtcpInterface> module;
 
   constexpr bool remb_candidate = false;
 
@@ -764,7 +765,7 @@ TEST(PacketRouterRembTest, NonCandidateSendRtpModuleNotUsedForRemb) {
 TEST(PacketRouterRembTest, CandidateSendRtpModuleUsedForRemb) {
   rtc::ScopedFakeClock clock;
   PacketRouter packet_router;
-  NiceMock<MockRtpRtcp> module;
+  NiceMock<MockRtpRtcpInterface> module;
 
   constexpr bool remb_candidate = true;
 
@@ -783,7 +784,7 @@ TEST(PacketRouterRembTest, CandidateSendRtpModuleUsedForRemb) {
 TEST(PacketRouterRembTest, NonCandidateReceiveRtpModuleNotUsedForRemb) {
   rtc::ScopedFakeClock clock;
   PacketRouter packet_router;
-  NiceMock<MockRtpRtcp> module;
+  NiceMock<MockRtpRtcpInterface> module;
 
   constexpr bool remb_candidate = false;
 
@@ -802,7 +803,7 @@ TEST(PacketRouterRembTest, NonCandidateReceiveRtpModuleNotUsedForRemb) {
 TEST(PacketRouterRembTest, CandidateReceiveRtpModuleUsedForRemb) {
   rtc::ScopedFakeClock clock;
   PacketRouter packet_router;
-  NiceMock<MockRtpRtcp> module;
+  NiceMock<MockRtpRtcpInterface> module;
 
   constexpr bool remb_candidate = true;
 
@@ -822,8 +823,8 @@ TEST(PacketRouterRembTest,
      SendCandidatePreferredOverReceiveCandidate_SendModuleAddedFirst) {
   rtc::ScopedFakeClock clock;
   PacketRouter packet_router;
-  NiceMock<MockRtpRtcp> send_module;
-  NiceMock<MockRtpRtcp> receive_module;
+  NiceMock<MockRtpRtcpInterface> send_module;
+  NiceMock<MockRtpRtcpInterface> receive_module;
 
   constexpr bool remb_candidate = true;
 
@@ -850,8 +851,8 @@ TEST(PacketRouterRembTest,
      SendCandidatePreferredOverReceiveCandidate_ReceiveModuleAddedFirst) {
   rtc::ScopedFakeClock clock;
   PacketRouter packet_router;
-  NiceMock<MockRtpRtcp> send_module;
-  NiceMock<MockRtpRtcp> receive_module;
+  NiceMock<MockRtpRtcpInterface> send_module;
+  NiceMock<MockRtpRtcpInterface> receive_module;
 
   constexpr bool remb_candidate = true;
 
@@ -877,8 +878,8 @@ TEST(PacketRouterRembTest,
 TEST(PacketRouterRembTest, ReceiveModuleTakesOverWhenLastSendModuleRemoved) {
   rtc::ScopedFakeClock clock;
   PacketRouter packet_router;
-  NiceMock<MockRtpRtcp> send_module;
-  NiceMock<MockRtpRtcp> receive_module;
+  NiceMock<MockRtpRtcpInterface> send_module;
+  NiceMock<MockRtpRtcpInterface> receive_module;
 
   constexpr bool remb_candidate = true;
 

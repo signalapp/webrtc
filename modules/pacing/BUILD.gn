@@ -49,6 +49,7 @@ rtc_library("pacing") {
     "../../rtc_base:rtc_base_approved",
     "../../rtc_base:rtc_task_queue",
     "../../rtc_base/experiments:field_trial_parser",
+    "../../rtc_base/synchronization:mutex",
     "../../rtc_base/synchronization:sequence_checker",
     "../../rtc_base/task_utils:to_queued_task",
     "../../system_wrappers",
@@ -57,6 +58,8 @@ rtc_library("pacing") {
     "../rtp_rtcp",
     "../rtp_rtcp:rtp_rtcp_format",
     "../utility",
+  ]
+  absl_deps = [
     "//third_party/abseil-cpp/absl/memory",
     "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/types:optional",

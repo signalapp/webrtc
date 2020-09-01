@@ -52,8 +52,6 @@
 @synthesize turnCustomizer = _turnCustomizer;
 @synthesize activeResetSrtpParams = _activeResetSrtpParams;
 @synthesize allowCodecSwitching = _allowCodecSwitching;
-@synthesize useMediaTransport = _useMediaTransport;
-@synthesize useMediaTransportForDataChannels = _useMediaTransportForDataChannels;
 @synthesize cryptoOptions = _cryptoOptions;
 @synthesize rtcpAudioReportIntervalMs = _rtcpAudioReportIntervalMs;
 @synthesize rtcpVideoReportIntervalMs = _rtcpVideoReportIntervalMs;
@@ -108,8 +106,6 @@
     _iceConnectionReceivingTimeout = config.ice_connection_receiving_timeout;
     _iceBackupCandidatePairPingInterval =
         config.ice_backup_candidate_pair_ping_interval;
-    _useMediaTransport = config.use_media_transport;
-    _useMediaTransportForDataChannels = config.use_media_transport_for_data_channels;
     _keyType = RTCEncryptionKeyTypeECDSA;
     _iceCandidatePoolSize = config.ice_candidate_pool_size;
     _shouldPruneTurnPorts = config.prune_turn_ports;
@@ -147,7 +143,7 @@
 - (NSString *)description {
   static NSString *formatString = @"RTC_OBJC_TYPE(RTCConfiguration): "
                                   @"{\n%@\n%@\n%@\n%@\n%@\n%@\n%@\n%@\n%d\n%d\n%d\n%d\n%d\n%d\n"
-                                  @"%d\n%@\n%d\n%d\n%d\n%d\n%d\n%@\n%d\n%d\n%d\n}\n";
+                                  @"%d\n%@\n%d\n%d\n%d\n%d\n%d\n%@\n%d\n%d\n}\n";
 
   return [NSString
       stringWithFormat:formatString,
@@ -173,7 +169,6 @@
                        _disableIPV6OnWiFi,
                        _maxIPv6Networks,
                        _activeResetSrtpParams,
-                       _useMediaTransport,
                        _enableDscp,
                        _enableRtpDataChannel,
                        _enableDtlsSrtp];
@@ -214,8 +209,6 @@
       _iceConnectionReceivingTimeout;
   nativeConfig->ice_backup_candidate_pair_ping_interval =
       _iceBackupCandidatePairPingInterval;
-  nativeConfig->use_media_transport = _useMediaTransport;
-  nativeConfig->use_media_transport_for_data_channels = _useMediaTransportForDataChannels;
   rtc::KeyType keyType =
       [[self class] nativeEncryptionKeyTypeForKeyType:_keyType];
   if (_certificate != nullptr) {

@@ -145,7 +145,7 @@ RTPSenderVideo::RTPSenderVideo(const Config& config)
                     this,
                     config.frame_transformer,
                     rtp_sender_->SSRC(),
-                    config.worker_queue)
+                    config.send_transport_queue)
               : nullptr) {
   if (frame_transformer_delegate_)
     frame_transformer_delegate_->Init();
@@ -252,8 +252,6 @@ void RTPSenderVideo::SetVideoStructureUnderLock(
   video_structure_ =
       std::make_unique<FrameDependencyStructure>(*video_structure);
   video_structure_->structure_id = structure_id;
-  // TODO(bugs.webrtc.org/10342): Support chains.
-  video_structure_->num_chains = 0;
 }
 
 void RTPSenderVideo::AddRtpHeaderExtensions(
@@ -314,14 +312,6 @@ void RTPSenderVideo::AddRtpHeaderExtensions(
     packet->SetExtension<AbsoluteCaptureTimeExtension>(*absolute_capture_time);
   }
 
-  if (video_header.codec == kVideoCodecH264 &&
-      video_header.frame_marking.temporal_id != kNoTemporalIdx) {
-    FrameMarking frame_marking = video_header.frame_marking;
-    frame_marking.start_of_frame = first_packet;
-    frame_marking.end_of_frame = last_packet;
-    packet->SetExtension<FrameMarkingExtension>(frame_marking);
-  }
-
   if (video_header.generic) {
     bool extension_is_set = false;
     if (video_structure_ != nullptr) {
@@ -337,6 +327,8 @@ void RTPSenderVideo::AddRtpHeaderExtensions(
         descriptor.frame_dependencies.frame_diffs.push_back(
             video_header.generic->frame_id - dep);
       }
+      descriptor.frame_dependencies.chain_diffs =
+          video_header.generic->chain_diffs;
       descriptor.frame_dependencies.decode_target_indications =
           video_header.generic->decode_target_indications;
       RTC_DCHECK_EQ(
@@ -736,12 +728,7 @@ uint8_t RTPSenderVideo::GetTemporalId(const RTPVideoHeader& header) {
     }
     uint8_t operator()(const absl::monostate&) { return kNoTemporalIdx; }
   };
-  switch (header.codec) {
-    case kVideoCodecH264:
-      return header.frame_marking.temporal_id;
-    default:
-      return absl::visit(TemporalIdGetter(), header.video_type_header);
-  }
+  return absl::visit(TemporalIdGetter(), header.video_type_header);
 }
 
 bool RTPSenderVideo::UpdateConditionalRetransmit(

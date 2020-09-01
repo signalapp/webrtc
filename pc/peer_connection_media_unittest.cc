@@ -825,8 +825,10 @@ TEST_P(PeerConnectionMediaTest, AnswerHasDifferentDirectionsForAudioVideo) {
 }
 
 void AddComfortNoiseCodecsToSend(cricket::FakeMediaEngine* media_engine) {
-  const cricket::AudioCodec kComfortNoiseCodec8k(102, "CN", 8000, 0, 1);
-  const cricket::AudioCodec kComfortNoiseCodec16k(103, "CN", 16000, 0, 1);
+  const cricket::AudioCodec kComfortNoiseCodec8k(102, cricket::kCnCodecName,
+                                                 8000, 0, 1);
+  const cricket::AudioCodec kComfortNoiseCodec16k(103, cricket::kCnCodecName,
+                                                  16000, 0, 1);
 
   auto codecs = media_engine->voice().send_codecs();
   codecs.push_back(kComfortNoiseCodec8k);
@@ -837,7 +839,7 @@ void AddComfortNoiseCodecsToSend(cricket::FakeMediaEngine* media_engine) {
 bool HasAnyComfortNoiseCodecs(const cricket::SessionDescription* desc) {
   const auto* audio_desc = cricket::GetFirstAudioContentDescription(desc);
   for (const auto& codec : audio_desc->codecs()) {
-    if (codec.name == "CN") {
+    if (codec.name == cricket::kCnCodecName) {
       return true;
     }
   }
@@ -1118,10 +1120,11 @@ TEST_P(PeerConnectionMediaTest, MediaEngineErrorPropagatedToClients) {
   std::string error;
   ASSERT_FALSE(caller->SetRemoteDescription(callee->CreateAnswerAndSetAsLocal(),
                                             &error));
-  EXPECT_EQ(
-      "Failed to set remote answer sdp: Failed to set remote video description "
-      "send parameters.",
-      error);
+  EXPECT_EQ(std::string("Failed to set remote answer sdp: Failed to set remote "
+                        "video description "
+                        "send parameters for m-section with mid='") +
+                (IsUnifiedPlan() ? "1" : "video") + "'.",
+            error);
 }
 
 // Tests that if the underlying video encoder fails once then subsequent

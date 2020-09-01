@@ -16,6 +16,9 @@ linux_use_bundled_binutils_override = true
 # only needed to support both WebRTC standalone and Chromium builds.
 build_with_chromium = false
 
+# WebRTC checks out google_benchmark by default since it is always used.
+checkout_google_benchmark = true
+
 # Use our own suppressions files.
 asan_suppressions_file = "//build/sanitizers/asan_suppressions.cc"
 lsan_suppressions_file = "//tools_webrtc/sanitizers/lsan_suppressions_webrtc.cc"
@@ -26,9 +29,6 @@ ubsan_blacklist_path =
     rebase_path("//tools_webrtc/ubsan/blacklist.txt", root_build_dir)
 ubsan_vptr_blacklist_path =
     rebase_path("//tools_webrtc/ubsan/vptr_blacklist.txt", root_build_dir)
-
-# Android lint suppressions file
-lint_suppressions_file = "//tools_webrtc/android/suppressions.xml"
 
 # For Chromium, Android 32-bit non-component, non-clang builds hit a 4GiB size
 # limit, making them requiring symbol_level=2. WebRTC doesn't hit that problem

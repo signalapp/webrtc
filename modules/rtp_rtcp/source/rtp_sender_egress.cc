@@ -53,7 +53,7 @@ void RtpSenderEgress::NonPacedPacketSender::EnqueuePackets(
   }
 }
 
-RtpSenderEgress::RtpSenderEgress(const RtpRtcp::Configuration& config,
+RtpSenderEgress::RtpSenderEgress(const RtpRtcpInterface::Configuration& config,
                                  RtpPacketHistory* packet_history)
     : ssrc_(config.local_media_ssrc),
       rtx_ssrc_(config.rtx_send_ssrc),
@@ -84,7 +84,9 @@ RtpSenderEgress::RtpSenderEgress(const RtpRtcp::Configuration& config,
       rtp_sequence_number_map_(need_rtp_packet_infos_
                                    ? std::make_unique<RtpSequenceNumberMap>(
                                          kRtpSequenceNumberMapMaxEntries)
-                                   : nullptr) {}
+                                   : nullptr) {
+  RTC_DCHECK(TaskQueueBase::Current());
+}
 
 void RtpSenderEgress::SendPacket(RtpPacketToSend* packet,
                                  const PacedPacketInfo& pacing_info) {

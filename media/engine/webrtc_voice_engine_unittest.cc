@@ -59,6 +59,7 @@ const cricket::AudioCodec kG722CodecVoE(9, "G722", 16000, 64000, 1);
 const cricket::AudioCodec kG722CodecSdp(9, "G722", 8000, 64000, 1);
 const cricket::AudioCodec kCn8000Codec(13, "CN", 8000, 0, 1);
 const cricket::AudioCodec kCn16000Codec(105, "CN", 16000, 0, 1);
+const cricket::AudioCodec kRed48000Codec(112, "RED", 48000, 32000, 2);
 const cricket::AudioCodec kTelephoneEventCodec1(106,
                                                 "telephone-event",
                                                 8000,
@@ -1031,6 +1032,30 @@ TEST_P(WebRtcVoiceEngineTestFake, ChangeRecvCodecPayloadType) {
   EXPECT_TRUE(channel_->SetRecvParameters(parameters));
 }
 
+// Test that we set Opus/Red under the field trial.
+TEST_P(WebRtcVoiceEngineTestFake, RecvRed) {
+  webrtc::test::ScopedFieldTrials override_field_trials(
+      "WebRTC-Audio-Red-For-Opus/Enabled/");
+
+  EXPECT_TRUE(SetupRecvStream());
+  cricket::AudioRecvParameters parameters;
+  parameters.codecs.push_back(kOpusCodec);
+  parameters.codecs.push_back(kRed48000Codec);
+  EXPECT_TRUE(channel_->SetRecvParameters(parameters));
+  EXPECT_THAT(GetRecvStreamConfig(kSsrcX).decoder_map,
+              (ContainerEq<std::map<int, webrtc::SdpAudioFormat>>(
+                  {{111, {"opus", 48000, 2}}, {112, {"red", 48000, 2}}})));
+}
+
+// Test that we do not allow setting Opus/Red by default.
+TEST_P(WebRtcVoiceEngineTestFake, RecvRedDefault) {
+  EXPECT_TRUE(SetupRecvStream());
+  cricket::AudioRecvParameters parameters;
+  parameters.codecs.push_back(kOpusCodec);
+  parameters.codecs.push_back(kRed48000Codec);
+  EXPECT_FALSE(channel_->SetRecvParameters(parameters));
+}
+
 TEST_P(WebRtcVoiceEngineTestFake, SetSendBandwidthAuto) {
   EXPECT_TRUE(SetupSendStream());
 
@@ -1192,6 +1217,46 @@ TEST_P(WebRtcVoiceEngineTestFake, SetRtpParametersEncodingsActive) {
   parameters.encodings[0].max_bitrate_bps = absl::optional<int>(6000);
   EXPECT_TRUE(channel_->SetRtpSendParameters(kSsrcX, parameters).ok());
   EXPECT_TRUE(GetSendStream(kSsrcX).IsSending());
+}
+
+TEST_P(WebRtcVoiceEngineTestFake, SetRtpParametersAdaptivePtime) {
+  EXPECT_TRUE(SetupSendStream());
+  // Get current parameters and change "adaptive_ptime" to true.
+  webrtc::RtpParameters parameters = channel_->GetRtpSendParameters(kSsrcX);
+  ASSERT_EQ(1u, parameters.encodings.size());
+  ASSERT_FALSE(parameters.encodings[0].adaptive_ptime);
+  parameters.encodings[0].adaptive_ptime = true;
+  EXPECT_TRUE(channel_->SetRtpSendParameters(kSsrcX, parameters).ok());
+  EXPECT_TRUE(GetAudioNetworkAdaptorConfig(kSsrcX));
+  EXPECT_EQ(12000, GetSendStreamConfig(kSsrcX).min_bitrate_bps);
+
+  parameters.encodings[0].adaptive_ptime = false;
+  EXPECT_TRUE(channel_->SetRtpSendParameters(kSsrcX, parameters).ok());
+  EXPECT_FALSE(GetAudioNetworkAdaptorConfig(kSsrcX));
+  EXPECT_EQ(32000, GetSendStreamConfig(kSsrcX).min_bitrate_bps);
+}
+
+TEST_P(WebRtcVoiceEngineTestFake,
+       DisablingAdaptivePtimeDoesNotRemoveAudioNetworkAdaptorFromOptions) {
+  EXPECT_TRUE(SetupSendStream());
+  send_parameters_.options.audio_network_adaptor = true;
+  send_parameters_.options.audio_network_adaptor_config = {"1234"};
+  SetSendParameters(send_parameters_);
+  EXPECT_EQ(send_parameters_.options.audio_network_adaptor_config,
+            GetAudioNetworkAdaptorConfig(kSsrcX));
+
+  webrtc::RtpParameters parameters = channel_->GetRtpSendParameters(kSsrcX);
+  parameters.encodings[0].adaptive_ptime = false;
+  EXPECT_TRUE(channel_->SetRtpSendParameters(kSsrcX, parameters).ok());
+  EXPECT_EQ(send_parameters_.options.audio_network_adaptor_config,
+            GetAudioNetworkAdaptorConfig(kSsrcX));
+}
+
+TEST_P(WebRtcVoiceEngineTestFake, AdaptivePtimeFieldTrial) {
+  webrtc::test::ScopedFieldTrials override_field_trials(
+      "WebRTC-Audio-AdaptivePtime/enabled:true/");
+  EXPECT_TRUE(SetupSendStream());
+  EXPECT_TRUE(GetAudioNetworkAdaptorConfig(kSsrcX));
 }
 
 // Test that SetRtpSendParameters configures the correct encoding channel for
@@ -1440,6 +1505,37 @@ TEST_P(WebRtcVoiceEngineTestFake, SetSendCodecs) {
   EXPECT_NE(send_codec_spec.format.clockrate_hz, 8000);
   EXPECT_EQ(absl::nullopt, send_codec_spec.cng_payload_type);
   EXPECT_FALSE(channel_->CanInsertDtmf());
+}
+
+// Test that we set Opus/Red under the field trial.
+TEST_P(WebRtcVoiceEngineTestFake, SetSendCodecsRed) {
+  webrtc::test::ScopedFieldTrials override_field_trials(
+      "WebRTC-Audio-Red-For-Opus/Enabled/");
+
+  EXPECT_TRUE(SetupSendStream());
+  cricket::AudioSendParameters parameters;
+  parameters.codecs.push_back(kOpusCodec);
+  parameters.codecs.push_back(kRed48000Codec);
+  parameters.codecs[0].id = 96;
+  SetSendParameters(parameters);
+  const auto& send_codec_spec = *GetSendStreamConfig(kSsrcX).send_codec_spec;
+  EXPECT_EQ(96, send_codec_spec.payload_type);
+  EXPECT_STRCASEEQ("opus", send_codec_spec.format.name.c_str());
+  EXPECT_EQ(112, send_codec_spec.red_payload_type);
+}
+
+// Test that we set do not interpret Opus/Red by default.
+TEST_P(WebRtcVoiceEngineTestFake, SetSendCodecsRedDefault) {
+  EXPECT_TRUE(SetupSendStream());
+  cricket::AudioSendParameters parameters;
+  parameters.codecs.push_back(kOpusCodec);
+  parameters.codecs.push_back(kRed48000Codec);
+  parameters.codecs[0].id = 96;
+  SetSendParameters(parameters);
+  const auto& send_codec_spec = *GetSendStreamConfig(kSsrcX).send_codec_spec;
+  EXPECT_EQ(96, send_codec_spec.payload_type);
+  EXPECT_STRCASEEQ("opus", send_codec_spec.format.name.c_str());
+  EXPECT_EQ(absl::nullopt, send_codec_spec.red_payload_type);
 }
 
 // Test that WebRtcVoiceEngine reconfigures, rather than recreates its
@@ -2045,6 +2141,10 @@ class WebRtcVoiceEngineWithSendSideBweTest : public WebRtcVoiceEngineTestFake {
   WebRtcVoiceEngineWithSendSideBweTest()
       : WebRtcVoiceEngineTestFake("WebRTC-Audio-SendSideBwe/Enabled/") {}
 };
+
+INSTANTIATE_TEST_SUITE_P(UnusedParameter,
+                         WebRtcVoiceEngineWithSendSideBweTest,
+                         ::testing::Values(true));
 
 TEST_P(WebRtcVoiceEngineWithSendSideBweTest,
        SupportsTransportSequenceNumberHeaderExtension) {
@@ -3098,7 +3198,7 @@ TEST_P(WebRtcVoiceEngineTestFake, TestSetDscpOptions) {
   channel.reset(static_cast<cricket::WebRtcVoiceMediaChannel*>(
       engine_->CreateMediaChannel(&call_, config, cricket::AudioOptions(),
                                   webrtc::CryptoOptions())));
-  channel->SetInterface(&network_interface, webrtc::MediaTransportConfig());
+  channel->SetInterface(&network_interface);
   // Default value when DSCP is disabled should be DSCP_DEFAULT.
   EXPECT_EQ(rtc::DSCP_DEFAULT, network_interface.dscp());
 
@@ -3106,7 +3206,7 @@ TEST_P(WebRtcVoiceEngineTestFake, TestSetDscpOptions) {
   channel.reset(static_cast<cricket::WebRtcVoiceMediaChannel*>(
       engine_->CreateMediaChannel(&call_, config, cricket::AudioOptions(),
                                   webrtc::CryptoOptions())));
-  channel->SetInterface(&network_interface, webrtc::MediaTransportConfig());
+  channel->SetInterface(&network_interface);
   EXPECT_EQ(rtc::DSCP_DEFAULT, network_interface.dscp());
 
   // Create a send stream to configure
@@ -3134,11 +3234,11 @@ TEST_P(WebRtcVoiceEngineTestFake, TestSetDscpOptions) {
   channel.reset(static_cast<cricket::WebRtcVoiceMediaChannel*>(
       engine_->CreateMediaChannel(&call_, config, cricket::AudioOptions(),
                                   webrtc::CryptoOptions())));
-  channel->SetInterface(&network_interface, webrtc::MediaTransportConfig());
+  channel->SetInterface(&network_interface);
   // Default value when DSCP is disabled should be DSCP_DEFAULT.
   EXPECT_EQ(rtc::DSCP_DEFAULT, network_interface.dscp());
 
-  channel->SetInterface(nullptr, webrtc::MediaTransportConfig());
+  channel->SetInterface(nullptr);
 }
 
 TEST_P(WebRtcVoiceEngineTestFake, SetOutputVolume) {

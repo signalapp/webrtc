@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include "api/adaptation/resource.h"
 #include "api/units/data_rate.h"
 #include "api/video/video_bitrate_allocator.h"
 #include "api/video/video_rotation.h"
@@ -26,6 +27,8 @@
 #include "api/video/video_stream_encoder_settings.h"
 #include "api/video_codecs/video_codec.h"
 #include "api/video_codecs/video_encoder.h"
+#include "call/adaptation/adaptation_constraint.h"
+#include "call/adaptation/adaptation_listener.h"
 #include "call/adaptation/resource_adaptation_processor_interface.h"
 #include "call/adaptation/video_source_restrictions.h"
 #include "call/adaptation/video_stream_input_state_provider.h"
@@ -44,6 +47,7 @@
 #include "video/encoder_bitrate_adjuster.h"
 #include "video/frame_encode_metadata_writer.h"
 #include "video/video_source_sink_controller.h"
+
 namespace webrtc {
 
 // VideoStreamEncoder represent a video encoder that accepts raw video frames as
@@ -56,7 +60,7 @@ namespace webrtc {
 //  Call Stop() when done.
 class VideoStreamEncoder : public VideoStreamEncoderInterface,
                            private EncodedImageCallback,
-                           public ResourceAdaptationProcessorListener {
+                           public VideoSourceRestrictionsListener {
  public:
   VideoStreamEncoder(Clock* clock,
                      uint32_t number_of_cores,
@@ -65,6 +69,9 @@ class VideoStreamEncoder : public VideoStreamEncoderInterface,
                      std::unique_ptr<OveruseFrameDetector> overuse_detector,
                      TaskQueueFactory* task_queue_factory);
   ~VideoStreamEncoder() override;
+
+  void AddAdaptationResource(rtc::scoped_refptr<Resource> resource) override;
+  std::vector<rtc::scoped_refptr<Resource>> GetAdaptationResources() override;
 
   void SetSource(rtc::VideoSourceInterface<VideoFrame>* source,
                  const DegradationPreference& degradation_preference) override;
@@ -118,16 +125,17 @@ class VideoStreamEncoder : public VideoStreamEncoderInterface,
   // Used for injected test resources.
   // TODO(eshr): Move all adaptation tests out of VideoStreamEncoder tests.
   void InjectAdaptationResource(rtc::scoped_refptr<Resource> resource,
-                                VideoAdaptationReason reason)
-      RTC_RUN_ON(&encoder_queue_);
+                                VideoAdaptationReason reason);
+  void InjectAdaptationConstraint(AdaptationConstraint* adaptation_constraint);
+  void InjectAdaptationListener(AdaptationListener* adaptation_listener);
 
   rtc::scoped_refptr<QualityScalerResource>
   quality_scaler_resource_for_testing();
 
-  void AddAdaptationListenerForTesting(
-      ResourceAdaptationProcessorListener* adaptation_listener);
-  void RemoveAdaptationListenerForTesting(
-      ResourceAdaptationProcessorListener* adaptation_listener);
+  void AddRestrictionsListenerForTesting(
+      VideoSourceRestrictionsListener* restrictions_listener);
+  void RemoveRestrictionsListenerForTesting(
+      VideoSourceRestrictionsListener* restrictions_listener);
 
  private:
   class VideoFrameInfo {
@@ -341,17 +349,6 @@ class VideoStreamEncoder : public VideoStreamEncoderInterface,
   // experiment group numbers incremented by 1.
   const std::array<uint8_t, 2> experiment_groups_;
 
-  // TODO(philipel): Remove this lock and run on |encoder_queue_| instead.
-  rtc::CriticalSection encoded_image_lock_;
-
-  int64_t next_frame_id_ RTC_GUARDED_BY(encoded_image_lock_);
-
-  // This array is used as a map from simulcast id to an encoder's buffer
-  // state. For every buffer of the encoder we keep track of the last frame id
-  // that updated that buffer.
-  std::array<std::array<int64_t, kMaxEncoderBuffers>, kMaxSimulcastStreams>
-      encoder_buffer_state_ RTC_GUARDED_BY(encoded_image_lock_);
-
   struct EncoderSwitchExperiment {
     struct Thresholds {
       absl::optional<DataRate> bitrate;
@@ -417,6 +414,10 @@ class VideoStreamEncoder : public VideoStreamEncoderInterface,
   std::unique_ptr<ResourceAdaptationProcessorInterface>
       resource_adaptation_processor_
           RTC_GUARDED_BY(&resource_adaptation_queue_);
+  std::vector<AdaptationConstraint*> adaptation_constraints_
+      RTC_GUARDED_BY(&resource_adaptation_queue_);
+  std::vector<AdaptationListener*> adaptation_listeners_
+      RTC_GUARDED_BY(&resource_adaptation_queue_);
   // Handles input, output and stats reporting related to VideoStreamEncoder
   // specific resources, such as "encode usage percent" measurements and "QP
   // scaling". Also involved with various mitigations such as inital frame

@@ -53,7 +53,7 @@
 
 namespace webrtc {
 
-class NackModule;
+class DEPRECATED_NackModule;
 class PacketRouter;
 class ProcessThread;
 class ReceiveStatistics;
@@ -69,7 +69,8 @@ class RtpVideoStreamReceiver : public LossNotificationSender,
                                public KeyFrameRequestSender,
                                public video_coding::OnCompleteFrameCallback,
                                public OnDecryptedFrameCallback,
-                               public OnDecryptionStatusChangeCallback {
+                               public OnDecryptionStatusChangeCallback,
+                               public RtpVideoFrameReceiver {
  public:
   // DEPRECATED due to dependency on ReceiveStatisticsProxy.
   RtpVideoStreamReceiver(
@@ -205,9 +206,11 @@ class RtpVideoStreamReceiver : public LossNotificationSender,
   void AddSecondarySink(RtpPacketSinkInterface* sink);
   void RemoveSecondarySink(const RtpPacketSinkInterface* sink);
 
-  virtual void ManageFrame(std::unique_ptr<video_coding::RtpFrameObject> frame);
-
  private:
+  // Implements RtpVideoFrameReceiver.
+  void ManageFrame(
+      std::unique_ptr<video_coding::RtpFrameObject> frame) override;
+
   // Used for buffering RTCP feedback messages and sending them all together.
   // Note:
   // 1. Key frame requests and NACKs are mutually exclusive, with the
@@ -225,35 +228,23 @@ class RtpVideoStreamReceiver : public LossNotificationSender,
     ~RtcpFeedbackBuffer() override = default;
 
     // KeyFrameRequestSender implementation.
-    void RequestKeyFrame() override;
+    void RequestKeyFrame() RTC_LOCKS_EXCLUDED(cs_) override;
 
     // NackSender implementation.
     void SendNack(const std::vector<uint16_t>& sequence_numbers,
-                  bool buffering_allowed) override;
+                  bool buffering_allowed) RTC_LOCKS_EXCLUDED(cs_) override;
 
     // LossNotificationSender implementation.
     void SendLossNotification(uint16_t last_decoded_seq_num,
                               uint16_t last_received_seq_num,
                               bool decodability_flag,
-                              bool buffering_allowed) override;
+                              bool buffering_allowed)
+        RTC_LOCKS_EXCLUDED(cs_) override;
 
     // Send all RTCP feedback messages buffered thus far.
-    void SendBufferedRtcpFeedback();
+    void SendBufferedRtcpFeedback() RTC_LOCKS_EXCLUDED(cs_);
 
    private:
-    KeyFrameRequestSender* const key_frame_request_sender_;
-    NackSender* const nack_sender_;
-    LossNotificationSender* const loss_notification_sender_;
-
-    // NACKs are accessible from two threads due to nack_module_ being a module.
-    rtc::CriticalSection cs_;
-
-    // Key-frame-request-related state.
-    bool request_key_frame_ RTC_GUARDED_BY(cs_);
-
-    // NACK-related state.
-    std::vector<uint16_t> nack_sequence_numbers_ RTC_GUARDED_BY(cs_);
-
     // LNTF-related state.
     struct LossNotificationState {
       LossNotificationState(uint16_t last_decoded_seq_num,
@@ -267,6 +258,31 @@ class RtpVideoStreamReceiver : public LossNotificationSender,
       uint16_t last_received_seq_num;
       bool decodability_flag;
     };
+    struct ConsumedRtcpFeedback {
+      bool request_key_frame = false;
+      std::vector<uint16_t> nack_sequence_numbers;
+      absl::optional<LossNotificationState> lntf_state;
+    };
+
+    ConsumedRtcpFeedback ConsumeRtcpFeedback() RTC_LOCKS_EXCLUDED(cs_);
+    ConsumedRtcpFeedback ConsumeRtcpFeedbackLocked()
+        RTC_EXCLUSIVE_LOCKS_REQUIRED(cs_);
+    // This method is called both with and without cs_ held.
+    void SendRtcpFeedback(ConsumedRtcpFeedback feedback);
+
+    KeyFrameRequestSender* const key_frame_request_sender_;
+    NackSender* const nack_sender_;
+    LossNotificationSender* const loss_notification_sender_;
+
+    // NACKs are accessible from two threads due to nack_module_ being a module.
+    rtc::CriticalSection cs_;
+
+    // Key-frame-request-related state.
+    bool request_key_frame_ RTC_GUARDED_BY(cs_);
+
+    // NACK-related state.
+    std::vector<uint16_t> nack_sequence_numbers_ RTC_GUARDED_BY(cs_);
+
     absl::optional<LossNotificationState> lntf_state_ RTC_GUARDED_BY(cs_);
   };
   enum ParseGenericDependenciesResult {
@@ -317,7 +333,7 @@ class RtpVideoStreamReceiver : public LossNotificationSender,
   KeyFrameRequestSender* const keyframe_request_sender_;
 
   RtcpFeedbackBuffer rtcp_feedback_buffer_;
-  std::unique_ptr<NackModule> nack_module_;
+  std::unique_ptr<DEPRECATED_NackModule> nack_module_;
   std::unique_ptr<LossNotificationController> loss_notification_controller_;
 
   video_coding::PacketBuffer packet_buffer_;

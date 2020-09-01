@@ -397,7 +397,6 @@ void SetOutboundRTPStreamStatsFromVoiceSenderInfo(
 void SetOutboundRTPStreamStatsFromVideoSenderInfo(
     const std::string& mid,
     const cricket::VideoSenderInfo& video_sender_info,
-    bool enable_simulcast_stats,
     RTCOutboundRTPStreamStats* outbound_video) {
   SetOutboundRTPStreamStatsFromMediaSenderInfo(video_sender_info,
                                                outbound_video);
@@ -422,21 +421,19 @@ void SetOutboundRTPStreamStatsFromVideoSenderInfo(
       rtc::kNumMillisecsPerSec;
   outbound_video->total_encoded_bytes_target =
       video_sender_info.total_encoded_bytes_target;
-  if (enable_simulcast_stats) {
-    if (video_sender_info.send_frame_width > 0) {
-      outbound_video->frame_width =
-          static_cast<uint32_t>(video_sender_info.send_frame_width);
-    }
-    if (video_sender_info.send_frame_height > 0) {
-      outbound_video->frame_height =
-          static_cast<uint32_t>(video_sender_info.send_frame_height);
-    }
-    if (video_sender_info.framerate_sent > 0) {
-      outbound_video->frames_per_second = video_sender_info.framerate_sent;
-    }
-    outbound_video->frames_sent = video_sender_info.frames_sent;
-    outbound_video->huge_frames_sent = video_sender_info.huge_frames_sent;
+  if (video_sender_info.send_frame_width > 0) {
+    outbound_video->frame_width =
+        static_cast<uint32_t>(video_sender_info.send_frame_width);
   }
+  if (video_sender_info.send_frame_height > 0) {
+    outbound_video->frame_height =
+        static_cast<uint32_t>(video_sender_info.send_frame_height);
+  }
+  if (video_sender_info.framerate_sent > 0) {
+    outbound_video->frames_per_second = video_sender_info.framerate_sent;
+  }
+  outbound_video->frames_sent = video_sender_info.frames_sent;
+  outbound_video->huge_frames_sent = video_sender_info.huge_frames_sent;
   outbound_video->total_packet_send_delay =
       static_cast<double>(video_sender_info.total_packet_send_delay_ms) /
       rtc::kNumMillisecsPerSec;
@@ -987,7 +984,6 @@ RTCStatsCollector::RTCStatsCollector(PeerConnectionInternal* pc,
   RTC_DCHECK_GE(cache_lifetime_us_, 0);
   pc_->SignalDataChannelCreated().connect(
       this, &RTCStatsCollector::OnDataChannelCreated);
-  enable_simulcast_stats_ = pc_->GetConfiguration().enable_simulcast_stats;
 }
 
 RTCStatsCollector::~RTCStatsCollector() {
@@ -1279,22 +1275,21 @@ void RTCStatsCollector::ProduceCodecStats_n(
 void RTCStatsCollector::ProduceDataChannelStats_s(
     int64_t timestamp_us,
     RTCStatsReport* report) const {
-  RTC_DCHECK(signaling_thread_->IsCurrent());
-  for (const rtc::scoped_refptr<DataChannel>& data_channel :
-       pc_->sctp_data_channels()) {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
+  std::vector<DataChannel::Stats> data_stats = pc_->GetDataChannelStats();
+  for (const auto& stats : data_stats) {
     std::unique_ptr<RTCDataChannelStats> data_channel_stats(
         new RTCDataChannelStats(
-            "RTCDataChannel_" + rtc::ToString(data_channel->internal_id()),
+            "RTCDataChannel_" + rtc::ToString(stats.internal_id),
             timestamp_us));
-    data_channel_stats->label = data_channel->label();
-    data_channel_stats->protocol = data_channel->protocol();
-    data_channel_stats->datachannelid = data_channel->id();
-    data_channel_stats->state =
-        DataStateToRTCDataChannelState(data_channel->state());
-    data_channel_stats->messages_sent = data_channel->messages_sent();
-    data_channel_stats->bytes_sent = data_channel->bytes_sent();
-    data_channel_stats->messages_received = data_channel->messages_received();
-    data_channel_stats->bytes_received = data_channel->bytes_received();
+    data_channel_stats->label = std::move(stats.label);
+    data_channel_stats->protocol = std::move(stats.protocol);
+    data_channel_stats->data_channel_identifier = stats.id;
+    data_channel_stats->state = DataStateToRTCDataChannelState(stats.state);
+    data_channel_stats->messages_sent = stats.messages_sent;
+    data_channel_stats->bytes_sent = stats.bytes_sent;
+    data_channel_stats->messages_received = stats.messages_received;
+    data_channel_stats->bytes_received = stats.bytes_received;
     report->AddStats(std::move(data_channel_stats));
   }
 }
@@ -1663,16 +1658,14 @@ void RTCStatsCollector::ProduceVideoRTPStreamStats_n(
   // Outbound
   std::map<std::string, RTCOutboundRTPStreamStats*> video_outbound_rtps;
   for (const cricket::VideoSenderInfo& video_sender_info :
-       enable_simulcast_stats_
-           ? track_media_info_map.video_media_info()->senders
-           : track_media_info_map.video_media_info()->aggregated_senders) {
+       track_media_info_map.video_media_info()->senders) {
     if (!video_sender_info.connected())
       continue;
     auto outbound_video = std::make_unique<RTCOutboundRTPStreamStats>(
         RTCOutboundRTPStreamStatsIDFromSSRC(false, video_sender_info.ssrc()),
         timestamp_us);
-    SetOutboundRTPStreamStatsFromVideoSenderInfo(
-        mid, video_sender_info, enable_simulcast_stats_, outbound_video.get());
+    SetOutboundRTPStreamStatsFromVideoSenderInfo(mid, video_sender_info,
+                                                 outbound_video.get());
     rtc::scoped_refptr<VideoTrackInterface> video_track =
         track_media_info_map.GetVideoTrack(video_sender_info);
     if (video_track) {

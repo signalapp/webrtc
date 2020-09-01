@@ -14,6 +14,7 @@
 #include <string>
 #include <utility>
 
+#include "api/proxy.h"
 #include "media/sctp/sctp_transport_internal.h"
 #include "pc/sctp_utils.h"
 #include "rtc_base/checks.h"
@@ -137,13 +138,56 @@ rtc::scoped_refptr<DataChannel> DataChannel::Create(
     DataChannelProviderInterface* provider,
     cricket::DataChannelType dct,
     const std::string& label,
-    const InternalDataChannelInit& config) {
+    const InternalDataChannelInit& config,
+    rtc::Thread* signaling_thread,
+    rtc::Thread* network_thread) {
   rtc::scoped_refptr<DataChannel> channel(
-      new rtc::RefCountedObject<DataChannel>(provider, dct, label));
-  if (!channel->Init(config)) {
-    return NULL;
+      new rtc::RefCountedObject<DataChannel>(config, provider, dct, label,
+                                             signaling_thread, network_thread));
+  if (!channel->Init()) {
+    return nullptr;
   }
   return channel;
+}
+
+// Define proxy for DataChannelInterface.
+BEGIN_SIGNALING_PROXY_MAP(DataChannel)
+PROXY_SIGNALING_THREAD_DESTRUCTOR()
+PROXY_METHOD1(void, RegisterObserver, DataChannelObserver*)
+PROXY_METHOD0(void, UnregisterObserver)
+BYPASS_PROXY_CONSTMETHOD0(std::string, label)
+BYPASS_PROXY_CONSTMETHOD0(bool, reliable)
+BYPASS_PROXY_CONSTMETHOD0(bool, ordered)
+BYPASS_PROXY_CONSTMETHOD0(uint16_t, maxRetransmitTime)
+BYPASS_PROXY_CONSTMETHOD0(uint16_t, maxRetransmits)
+BYPASS_PROXY_CONSTMETHOD0(absl::optional<int>, maxRetransmitsOpt)
+BYPASS_PROXY_CONSTMETHOD0(absl::optional<int>, maxPacketLifeTime)
+BYPASS_PROXY_CONSTMETHOD0(std::string, protocol)
+BYPASS_PROXY_CONSTMETHOD0(bool, negotiated)
+// Can't bypass the proxy since the id may change.
+PROXY_CONSTMETHOD0(int, id)
+BYPASS_PROXY_CONSTMETHOD0(Priority, priority)
+PROXY_CONSTMETHOD0(DataState, state)
+PROXY_CONSTMETHOD0(RTCError, error)
+PROXY_CONSTMETHOD0(uint32_t, messages_sent)
+PROXY_CONSTMETHOD0(uint64_t, bytes_sent)
+PROXY_CONSTMETHOD0(uint32_t, messages_received)
+PROXY_CONSTMETHOD0(uint64_t, bytes_received)
+PROXY_CONSTMETHOD0(uint64_t, buffered_amount)
+PROXY_METHOD0(void, Close)
+// TODO(bugs.webrtc.org/11547): Change to run on the network thread.
+PROXY_METHOD1(bool, Send, const DataBuffer&)
+END_PROXY_MAP()
+
+// static
+rtc::scoped_refptr<DataChannelInterface> DataChannel::CreateProxy(
+    rtc::scoped_refptr<DataChannel> channel) {
+  // TODO(bugs.webrtc.org/11547): incorporate the network thread in the proxy.
+  // Also, consider allowing the proxy object to own the reference (std::move).
+  // As is, the proxy has a raw pointer and no reference to the channel object
+  // and trusting that the lifetime management aligns with the
+  // sctp_data_channels_ array in DataChannelController.
+  return DataChannelProxy::Create(channel->signaling_thread_, channel.get());
 }
 
 bool DataChannel::IsSctpLike(cricket::DataChannelType type) {
@@ -152,11 +196,17 @@ bool DataChannel::IsSctpLike(cricket::DataChannelType type) {
          type == cricket::DCT_DATA_CHANNEL_TRANSPORT_SCTP;
 }
 
-DataChannel::DataChannel(DataChannelProviderInterface* provider,
+DataChannel::DataChannel(const InternalDataChannelInit& config,
+                         DataChannelProviderInterface* provider,
                          cricket::DataChannelType dct,
-                         const std::string& label)
-    : internal_id_(GenerateUniqueId()),
+                         const std::string& label,
+                         rtc::Thread* signaling_thread,
+                         rtc::Thread* network_thread)
+    : signaling_thread_(signaling_thread),
+      network_thread_(network_thread),
+      internal_id_(GenerateUniqueId()),
       label_(label),
+      config_(config),
       observer_(nullptr),
       state_(kConnecting),
       messages_sent_(0),
@@ -172,31 +222,33 @@ DataChannel::DataChannel(DataChannelProviderInterface* provider,
       receive_ssrc_set_(false),
       writable_(false),
       send_ssrc_(0),
-      receive_ssrc_(0) {}
+      receive_ssrc_(0) {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
+}
 
-bool DataChannel::Init(const InternalDataChannelInit& config) {
+bool DataChannel::Init() {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
   if (data_channel_type_ == cricket::DCT_RTP) {
-    if (config.reliable || config.id != -1 || config.maxRetransmits ||
-        config.maxRetransmitTime) {
+    if (config_.reliable || config_.id != -1 || config_.maxRetransmits ||
+        config_.maxRetransmitTime) {
       RTC_LOG(LS_ERROR) << "Failed to initialize the RTP data channel due to "
                            "invalid DataChannelInit.";
       return false;
     }
     handshake_state_ = kHandshakeReady;
   } else if (IsSctpLike(data_channel_type_)) {
-    if (config.id < -1 ||
-        (config.maxRetransmits && *config.maxRetransmits < 0) ||
-        (config.maxRetransmitTime && *config.maxRetransmitTime < 0)) {
+    if (config_.id < -1 ||
+        (config_.maxRetransmits && *config_.maxRetransmits < 0) ||
+        (config_.maxRetransmitTime && *config_.maxRetransmitTime < 0)) {
       RTC_LOG(LS_ERROR) << "Failed to initialize the SCTP data channel due to "
                            "invalid DataChannelInit.";
       return false;
     }
-    if (config.maxRetransmits && config.maxRetransmitTime) {
+    if (config_.maxRetransmits && config_.maxRetransmitTime) {
       RTC_LOG(LS_ERROR)
           << "maxRetransmits and maxRetransmitTime should not be both set.";
       return false;
     }
-    config_ = config;
 
     switch (config_.open_handshake_role) {
       case webrtc::InternalDataChannelInit::kNone:  // pre-negotiated
@@ -228,18 +280,23 @@ bool DataChannel::Init(const InternalDataChannelInit& config) {
   return true;
 }
 
-DataChannel::~DataChannel() {}
+DataChannel::~DataChannel() {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
+}
 
 void DataChannel::RegisterObserver(DataChannelObserver* observer) {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
   observer_ = observer;
   DeliverQueuedReceivedData();
 }
 
 void DataChannel::UnregisterObserver() {
-  observer_ = NULL;
+  RTC_DCHECK_RUN_ON(signaling_thread_);
+  observer_ = nullptr;
 }
 
 bool DataChannel::reliable() const {
+  // May be called on any thread.
   if (data_channel_type_ == cricket::DCT_RTP) {
     return false;
   } else {
@@ -248,10 +305,12 @@ bool DataChannel::reliable() const {
 }
 
 uint64_t DataChannel::buffered_amount() const {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
   return buffered_amount_;
 }
 
 void DataChannel::Close() {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
   if (state_ == kClosed)
     return;
   send_ssrc_ = 0;
@@ -261,12 +320,42 @@ void DataChannel::Close() {
   UpdateState();
 }
 
+DataChannel::DataState DataChannel::state() const {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
+  return state_;
+}
+
 RTCError DataChannel::error() const {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
   return error_;
 }
 
+uint32_t DataChannel::messages_sent() const {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
+  return messages_sent_;
+}
+
+uint64_t DataChannel::bytes_sent() const {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
+  return bytes_sent_;
+}
+
+uint32_t DataChannel::messages_received() const {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
+  return messages_received_;
+}
+
+uint64_t DataChannel::bytes_received() const {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
+  return bytes_received_;
+}
+
 bool DataChannel::Send(const DataBuffer& buffer) {
-  buffered_amount_ += buffer.size();
+  RTC_DCHECK_RUN_ON(signaling_thread_);
+  // TODO(bugs.webrtc.org/11547): Expect this method to be called on the network
+  // thread. Bring buffer management etc to the network thread and keep the
+  // operational state management on the signaling thread.
+
   if (state_ != kOpen) {
     return false;
   }
@@ -277,6 +366,8 @@ bool DataChannel::Send(const DataBuffer& buffer) {
   if (buffer.size() == 0) {
     return true;
   }
+
+  buffered_amount_ += buffer.size();
 
   // If the queue is non-empty, we're waiting for SignalReadyToSend,
   // so just add to the end of the queue and keep waiting.
@@ -305,6 +396,7 @@ bool DataChannel::Send(const DataBuffer& buffer) {
 }
 
 void DataChannel::SetReceiveSsrc(uint32_t receive_ssrc) {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
   RTC_DCHECK(data_channel_type_ == cricket::DCT_RTP);
 
   if (receive_ssrc_set_) {
@@ -323,11 +415,12 @@ void DataChannel::SetSctpSid(int sid) {
     return;
   }
 
-  config_.id = sid;
+  const_cast<InternalDataChannelInit&>(config_).id = sid;
   provider_->AddSctpDataStream(sid);
 }
 
 void DataChannel::OnClosingProcedureStartedRemotely(int sid) {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
   if (IsSctpLike(data_channel_type_) && sid == config_.id &&
       state_ != kClosing && state_ != kClosed) {
     // Don't bother sending queued data since the side that initiated the
@@ -344,6 +437,7 @@ void DataChannel::OnClosingProcedureStartedRemotely(int sid) {
 }
 
 void DataChannel::OnClosingProcedureComplete(int sid) {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
   if (IsSctpLike(data_channel_type_) && sid == config_.id) {
     // If the closing procedure is complete, we should have finished sending
     // all pending data and transitioned to kClosing already.
@@ -355,6 +449,7 @@ void DataChannel::OnClosingProcedureComplete(int sid) {
 }
 
 void DataChannel::OnTransportChannelCreated() {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
   RTC_DCHECK(IsSctpLike(data_channel_type_));
   if (!connected_to_provider_) {
     connected_to_provider_ = provider_->ConnectDataChannel(this);
@@ -370,10 +465,18 @@ void DataChannel::OnTransportChannelClosed() {
   // The SctpTransport is unusable (for example, because the SCTP m= section
   // was rejected, or because the DTLS transport closed), so we need to close
   // abruptly.
-  // Note: this needs to differentiate between normal close and error close.
-  // https://w3c.github.io/webrtc-pc/#announcing-a-data-channel-as-closed
-  CloseAbruptlyWithError(
-      RTCError(RTCErrorType::NETWORK_ERROR, "Transport channel closed"));
+  RTCError error = RTCError(RTCErrorType::OPERATION_ERROR_WITH_DATA,
+                            "Transport channel closed");
+  error.set_error_detail(RTCErrorDetailType::SCTP_FAILURE);
+  CloseAbruptlyWithError(std::move(error));
+}
+
+DataChannel::Stats DataChannel::GetStats() const {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
+  Stats stats{internal_id_,        id(),         label(),
+              protocol(),          state(),      messages_sent(),
+              messages_received(), bytes_sent(), bytes_received()};
+  return stats;
 }
 
 // The remote peer request that this channel shall be closed.
@@ -384,6 +487,7 @@ void DataChannel::RemotePeerRequestClose() {
 }
 
 void DataChannel::SetSendSsrc(uint32_t send_ssrc) {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
   RTC_DCHECK(data_channel_type_ == cricket::DCT_RTP);
   if (send_ssrc_set_) {
     return;
@@ -395,6 +499,7 @@ void DataChannel::SetSendSsrc(uint32_t send_ssrc) {
 
 void DataChannel::OnDataReceived(const cricket::ReceiveDataParams& params,
                                  const rtc::CopyOnWriteBuffer& payload) {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
   if (data_channel_type_ == cricket::DCT_RTP && params.ssrc != receive_ssrc_) {
     return;
   }
@@ -461,6 +566,8 @@ void DataChannel::OnDataReceived(const cricket::ReceiveDataParams& params,
 }
 
 void DataChannel::OnChannelReady(bool writable) {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
+
   writable_ = writable;
   if (!writable) {
     return;
@@ -472,6 +579,8 @@ void DataChannel::OnChannelReady(bool writable) {
 }
 
 void DataChannel::CloseAbruptlyWithError(RTCError error) {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
+
   if (state_ == kClosed) {
     return;
   }
@@ -500,6 +609,7 @@ void DataChannel::CloseAbruptlyWithDataChannelFailure(
 }
 
 void DataChannel::UpdateState() {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
   // UpdateState determines what to do from a few state variables.  Include
   // all conditions required for each state transition here for
   // clarity. OnChannelReady(true) will send any queued data and then invoke
@@ -567,6 +677,7 @@ void DataChannel::UpdateState() {
 }
 
 void DataChannel::SetState(DataState state) {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
   if (state_ == state) {
     return;
   }
@@ -583,6 +694,7 @@ void DataChannel::SetState(DataState state) {
 }
 
 void DataChannel::DisconnectFromProvider() {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
   if (!connected_to_provider_)
     return;
 
@@ -591,6 +703,7 @@ void DataChannel::DisconnectFromProvider() {
 }
 
 void DataChannel::DeliverQueuedReceivedData() {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
   if (!observer_) {
     return;
   }
@@ -604,6 +717,7 @@ void DataChannel::DeliverQueuedReceivedData() {
 }
 
 void DataChannel::SendQueuedDataMessages() {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
   if (queued_send_data_.Empty()) {
     return;
   }
@@ -622,6 +736,7 @@ void DataChannel::SendQueuedDataMessages() {
 
 bool DataChannel::SendDataMessage(const DataBuffer& buffer,
                                   bool queue_if_blocked) {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
   cricket::SendDataParams send_params;
 
   if (IsSctpLike(data_channel_type_)) {
@@ -680,6 +795,7 @@ bool DataChannel::SendDataMessage(const DataBuffer& buffer,
 }
 
 bool DataChannel::QueueSendDataMessage(const DataBuffer& buffer) {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
   size_t start_buffered_amount = queued_send_data_.byte_count();
   if (start_buffered_amount + buffer.size() > kMaxQueuedSendDataBytes) {
     RTC_LOG(LS_ERROR) << "Can't buffer any more data for the data channel.";
@@ -690,6 +806,7 @@ bool DataChannel::QueueSendDataMessage(const DataBuffer& buffer) {
 }
 
 void DataChannel::SendQueuedControlMessages() {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
   PacketQueue control_packets;
   control_packets.Swap(&queued_control_data_);
 
@@ -700,10 +817,12 @@ void DataChannel::SendQueuedControlMessages() {
 }
 
 void DataChannel::QueueControlMessage(const rtc::CopyOnWriteBuffer& buffer) {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
   queued_control_data_.PushBack(std::make_unique<DataBuffer>(buffer, true));
 }
 
 bool DataChannel::SendControlMessage(const rtc::CopyOnWriteBuffer& buffer) {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
   bool is_open_message = handshake_state_ == kHandshakeShouldSendOpen;
 
   RTC_DCHECK(IsSctpLike(data_channel_type_));

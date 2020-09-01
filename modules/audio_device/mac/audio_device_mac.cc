@@ -391,7 +391,10 @@ int32_t AudioDeviceMac::SpeakerIsAvailable(bool& available) {
 
 int32_t AudioDeviceMac::InitSpeaker() {
   rtc::CritScope lock(&_critSect);
+  return InitSpeakerLocked();
+}
 
+int32_t AudioDeviceMac::InitSpeakerLocked() {
   if (_playing) {
     return -1;
   }
@@ -439,7 +442,10 @@ int32_t AudioDeviceMac::MicrophoneIsAvailable(bool& available) {
 
 int32_t AudioDeviceMac::InitMicrophone() {
   rtc::CritScope lock(&_critSect);
+  return InitMicrophoneLocked();
+}
 
+int32_t AudioDeviceMac::InitMicrophoneLocked() {
   if (_recording) {
     return -1;
   }
@@ -941,7 +947,7 @@ int32_t AudioDeviceMac::InitPlayout() {
   }
 
   // Initialize the speaker (devices might have been added or removed)
-  if (InitSpeaker() == -1) {
+  if (InitSpeakerLocked() == -1) {
     RTC_LOG(LS_WARNING) << "InitSpeaker() failed";
   }
 
@@ -1053,7 +1059,7 @@ int32_t AudioDeviceMac::InitRecording() {
   }
 
   // Initialize the microphone (devices might have been added or removed)
-  if (InitMicrophone() == -1) {
+  if (InitMicrophoneLocked() == -1) {
     RTC_LOG(LS_WARNING) << "InitMicrophone() failed";
   }
 
