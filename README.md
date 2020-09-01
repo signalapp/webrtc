@@ -56,8 +56,8 @@ At branch-heads/4183:
 - Video adapation refactored
 - Refactored audio frame length (ptime) adapation
 - Support for audio RED payload type added
+- Support for audio RED payload type added
 - Frame Marking RTP header extension removed
 - MediaTransportInterface and DatagramTransportInterface removed
+- Switch to using absl::MutexLock
 - RtpRtcp module moved to RtpRtcpInterface + RtpRtcpModule2
-
-
