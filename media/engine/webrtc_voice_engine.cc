@@ -1855,6 +1855,11 @@ void WebRtcVoiceMediaChannel::SetSend(bool send) {
   if (send) {
     engine()->ApplyOptions(options_);
 
+    // Signal does not do early InitRecording() as it opens the capture device
+    // before the call is answered, which on Windows desktop causes audio
+    // ducking. In addition, it leaves the device open indefinitely if the call
+    // is never answered.
+#if false
     // InitRecording() may return an error if the ADM is already recording.
     if (!engine()->adm()->RecordingIsInitialized() &&
         !engine()->adm()->Recording()) {
@@ -1862,6 +1867,7 @@ void WebRtcVoiceMediaChannel::SetSend(bool send) {
         RTC_LOG(LS_WARNING) << "Failed to initialize recording";
       }
     }
+#endif
   }
 
   // Change the settings on each send channel.
