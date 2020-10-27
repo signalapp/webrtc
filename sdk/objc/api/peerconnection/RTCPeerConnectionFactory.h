@@ -64,6 +64,9 @@ RTC_OBJC_EXPORT
 - (RTC_OBJC_TYPE(RTCVideoTrack) *)videoTrackWithSource:(RTC_OBJC_TYPE(RTCVideoSource) *)source
                                                trackId:(NSString *)trackId;
 
+/** Initialize an RTCVideoTrack with a native VideoTrack. */
+- (RTC_OBJC_TYPE(RTCVideoTrack) *)videoTrackFromNativeTrack:(void *)nativeTrack;
+
 /** Initialize an RTCMediaStream with an id. */
 - (RTC_OBJC_TYPE(RTCMediaStream) *)mediaStreamWithStreamId:(NSString *)streamId;
 

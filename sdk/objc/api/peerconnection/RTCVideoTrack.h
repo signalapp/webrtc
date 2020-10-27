@@ -33,6 +33,10 @@ RTC_OBJC_EXPORT
 /** Deregister a renderer. */
 - (void)removeRenderer:(id<RTC_OBJC_TYPE(RTCVideoRenderer)>)renderer;
 
+/** Return the underlying native WebRTC VideoTrack pointer.
+ */
+- (void *)getNativeVideoTrack;
+
 @end
 
 NS_ASSUME_NONNULL_END

@@ -240,6 +240,12 @@
   return [[RTC_OBJC_TYPE(RTCVideoTrack) alloc] initWithFactory:self source:source trackId:trackId];
 }
 
+- (RTC_OBJC_TYPE(RTCVideoTrack) *)videoTrackFromNativeTrack:(void *)nativeTrack {
+  webrtc::MediaStreamTrackInterface *track = (webrtc::MediaStreamTrackInterface *)nativeTrack;
+
+  return [[RTC_OBJC_TYPE(RTCVideoTrack) alloc] initWithFactory:self nativeTrack:track];
+}
+
 - (RTC_OBJC_TYPE(RTCMediaStream) *)mediaStreamWithStreamId:(NSString *)streamId {
   return [[RTC_OBJC_TYPE(RTCMediaStream) alloc] initWithFactory:self streamId:streamId];
 }
