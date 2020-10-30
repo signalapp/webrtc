@@ -64,6 +64,10 @@ default_args = {
 
   ios_deployment_target = "11.0"
 
+  # Temporary allow warnings until Xcode 12 builds handle "-Wno-range-loop-analysis"
+  # noise.
+  treat_warnings_as_errors = false
+
   # The SDK API level, in contrast, is set by build/android/AndroidManifest.xml.
   android32_ndk_api_level = 16
   android64_ndk_api_level = 21
