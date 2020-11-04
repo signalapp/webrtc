@@ -313,15 +313,16 @@ class SctpTransport::UsrSctpWrapper {
     // closed. Wait and try again until it succeeds for up to 3 seconds.
     for (size_t i = 0; i < 300; ++i) {
       if (usrsctp_finish() == 0) {
-        delete g_transport_map_;
-        g_transport_map_ = nullptr;
+        // Disable to avoid crash with iOS/Xcode 12.
+        // delete g_transport_map_;
+        // g_transport_map_ = nullptr;
         return;
       }
 
       rtc::Thread::SleepMs(10);
     }
-    delete g_transport_map_;
-    g_transport_map_ = nullptr;
+    // delete g_transport_map_;
+    // g_transport_map_ = nullptr;
     RTC_LOG(LS_ERROR) << "Failed to shutdown usrsctp.";
   }
 
