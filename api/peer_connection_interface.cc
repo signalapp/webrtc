@@ -88,6 +88,16 @@ bool PeerConnectionInterface::SetIncomingRtpEnabled(bool enabled) {
   return false;
 }
 
+bool PeerConnectionInterface::SendRtp(std::unique_ptr<RtpPacket> rtp_packet) {
+  RTC_LOG(LS_ERROR) << "No SendRtp in dummy implementation";
+  return false;
+}
+
+bool PeerConnectionInterface::ReceiveRtp(uint8_t pt) {
+  RTC_LOG(LS_ERROR) << "No SendRtp in dummy implementation";
+  return false;
+}
+
 PeerConnectionInterface::BitrateParameters::BitrateParameters() = default;
 
 PeerConnectionInterface::BitrateParameters::~BitrateParameters() = default;

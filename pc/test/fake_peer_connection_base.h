@@ -200,6 +200,14 @@ class FakePeerConnectionBase : public PeerConnectionInternal {
     return false;
   }
 
+  bool SendRtp(std::unique_ptr<RtpPacket> rtp_packet) override {
+    return false;
+  }
+
+  bool ReceiveRtp(uint8_t pt) override {
+    return false;
+  }
+
   RTCError SetBitrate(const BitrateSettings& bitrate) override {
     return RTCError(RTCErrorType::UNSUPPORTED_OPERATION, "Not implemented");
   }
