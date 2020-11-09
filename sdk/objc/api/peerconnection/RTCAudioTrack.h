@@ -25,7 +25,7 @@ RTC_OBJC_EXPORT
 
 /** Return the underlying native WebRTC audio track pointer.
  */
-- (void *)getNativeTrack;
+- (void *)getNativeAudioTrack;
 
 @end
 

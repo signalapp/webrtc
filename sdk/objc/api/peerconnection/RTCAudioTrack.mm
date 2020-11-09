@@ -61,7 +61,7 @@
   return _source;
 }
 
-- (void *)getNativeTrack {
+- (void *)getNativeAudioTrack {
   return _audioTrack.release();
 }
 

@@ -35,7 +35,7 @@ RTC_OBJC_EXPORT
 
 /** Return the underlying native WebRTC video track pointer.
  */
-- (void *)getNativeTrack;
+- (void *)getNativeVideoTrack;
 
 @end
 
