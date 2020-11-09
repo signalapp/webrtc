@@ -65,12 +65,12 @@ std::string RtpDemuxer::DescribePacket(const RtpPacketReceived& packet) {
 RtpDemuxer::RtpDemuxer() = default;
 
 RtpDemuxer::~RtpDemuxer() {
-  RTC_DCHECK(sink_by_mid_.empty());
-  RTC_DCHECK(sink_by_ssrc_.empty());
-  RTC_DCHECK(sinks_by_pt_.empty());
-  RTC_DCHECK(sink_by_mid_and_rsid_.empty());
-  RTC_DCHECK(sink_by_rsid_.empty());
-  RTC_DCHECK(ssrc_binding_observers_.empty());
+  // RTC_DCHECK(sink_by_mid_.empty());
+  // RTC_DCHECK(sink_by_ssrc_.empty());
+  // RTC_DCHECK(sinks_by_pt_.empty());
+  // RTC_DCHECK(sink_by_mid_and_rsid_.empty());
+  // RTC_DCHECK(sink_by_rsid_.empty());
+  // RTC_DCHECK(ssrc_binding_observers_.empty());
 }
 
 bool RtpDemuxer::AddSink(const RtpDemuxerCriteria& criteria,
