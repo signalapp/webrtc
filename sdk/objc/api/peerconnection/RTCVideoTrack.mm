@@ -117,7 +117,7 @@
   [_adapters removeObjectAtIndex:indexToRemove];
 }
 
-- (void *)getNativeVideoTrack {
+- (void *)getNativeTrack {
   return _videoTrack.release();
 }
 
