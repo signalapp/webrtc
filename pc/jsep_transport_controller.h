@@ -126,6 +126,14 @@ class JsepTransportController : public sigslot::has_slots<> {
   // Get transports to be used for the provided |mid|. If bundling is enabled,
   // calling GetRtpTransport for multiple MIDs may yield the same object.
   RtpTransportInternal* GetRtpTransport(const std::string& mid) const;
+  // If bundling, return the transport used for it.
+  // If not, return nullptr.
+  RtpTransportInternal* GetBundledRtpTransport() {
+      if (!bundled_mid()) {
+          return nullptr;
+      }
+      return GetRtpTransport(*bundled_mid());
+  }
   cricket::DtlsTransportInternal* GetDtlsTransport(const std::string& mid);
   const cricket::DtlsTransportInternal* GetRtcpDtlsTransport(
       const std::string& mid) const;

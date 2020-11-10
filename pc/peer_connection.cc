@@ -7266,6 +7266,42 @@ bool PeerConnection::SetIncomingRtpEnabled(bool enabled) {
   return transport_controller_->SetIncomingRtpEnabled(enabled);
 }
 
+bool PeerConnection::SendRtp(std::unique_ptr<RtpPacket> rtp_packet) {
+  RTC_DCHECK_RUN_ON(signaling_thread());
+  RtpTransportInternal* rtp_transport = transport_controller_->GetBundledRtpTransport();
+  if (!rtp_transport) {
+    return false;
+  }
+
+  // Is there a better way to std::move the unique_ptr?
+  RtpPacket* raw_rtp_packet = rtp_packet.release();
+  return network_thread()->Invoke<bool>(RTC_FROM_HERE, [rtp_transport, raw_rtp_packet] {
+    std::unique_ptr<RtpPacket> rtp_packet(raw_rtp_packet);
+
+    // Doesn't copy because we're not writing to it.
+    rtc::CopyOnWriteBuffer buffer = rtp_packet->Buffer();
+    rtc::PacketOptions options;
+    // This makes the packet use SRTP instead of DTLS.
+    int flags = cricket::PF_SRTP_BYPASS;
+    return rtp_transport->SendRtpPacket(&buffer, options, flags);
+  });
+}
+
+bool PeerConnection::ReceiveRtp(uint8_t pt) {
+  RTC_DCHECK_RUN_ON(signaling_thread());
+  RtpTransportInternal* rtp_transport = transport_controller_->GetBundledRtpTransport();
+  if (!rtp_transport) {
+    return false;
+  }
+
+  RtpDemuxerCriteria demux_criteria;
+  demux_criteria.payload_types.insert(pt);
+  RtpPacketSinkInterface* sink = Observer();
+  return network_thread()->Invoke<bool>(RTC_FROM_HERE, [rtp_transport, demux_criteria, sink] {
+    return rtp_transport->RegisterRtpDemuxerSink(demux_criteria, sink);
+  });
+}
+
 void PeerConnection::RequestUsagePatternReportForTesting() {
   signaling_thread()->Post(RTC_FROM_HERE, this, MSG_REPORT_USAGE_PATTERN,
                            nullptr);
