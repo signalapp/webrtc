@@ -118,7 +118,7 @@
 }
 
 - (void *)getNativeVideoTrack {
-  return _nativeTrack.get();
+  return _nativeTrack.release();
 }
 
 #pragma mark - Private
