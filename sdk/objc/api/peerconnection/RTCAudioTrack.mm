@@ -18,7 +18,7 @@
 #include "rtc_base/checks.h"
 
 @implementation RTC_OBJC_TYPE (RTCAudioTrack) {
-  rtc::scoped_refptr<webrtc::AudioTrackInterface> _audioTrack;
+  rtc::scoped_refptr<webrtc::AudioTrackInterface> _nativeTrack;
 }
 
 @synthesize source = _source;
@@ -35,7 +35,7 @@
       factory.nativeFactory->CreateAudioTrack(nativeId, source.nativeAudioSource);
   if (self = [self initWithFactory:factory nativeTrack:track type:RTCMediaStreamTrackTypeAudio]) {
     _source = source;
-    _audioTrack = track;
+    _nativeTrack = track;
   }
   return self;
 }
@@ -62,7 +62,7 @@
 }
 
 - (void *)getNativeAudioTrack {
-  return _audioTrack.release();
+  return _nativeTrack.get();
 }
 
 #pragma mark - Private
