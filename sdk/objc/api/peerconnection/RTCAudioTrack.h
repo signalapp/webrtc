@@ -23,6 +23,10 @@ RTC_OBJC_EXPORT
 /** The audio source for this audio track. */
 @property(nonatomic, readonly) RTC_OBJC_TYPE(RTCAudioSource) * source;
 
+/** Return the underlying native WebRTC audio track pointer.
+ */
+- (void *)getNativeAudioTrack;
+
 @end
 
 NS_ASSUME_NONNULL_END
