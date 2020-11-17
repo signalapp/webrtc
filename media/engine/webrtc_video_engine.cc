@@ -634,7 +634,7 @@ WebRtcVideoChannel::WebRtcVideoChannel(
     : VideoMediaChannel(config),
       worker_thread_(rtc::Thread::Current()),
       call_(call),
-      unsignalled_ssrc_handler_(&default_unsignalled_ssrc_handler_),
+      unsignalled_ssrc_handler_(nullptr),
       video_config_(config.video),
       encoder_factory_(encoder_factory),
       decoder_factory_(decoder_factory),
@@ -1674,18 +1674,20 @@ void WebRtcVideoChannel::OnPacketReceived(rtc::CopyOnWriteBuffer packet,
     return;
   }
 
-  switch (unsignalled_ssrc_handler_->OnUnsignalledSsrc(this, ssrc)) {
-    case UnsignalledSsrcHandler::kDropPacket:
-      return;
-    case UnsignalledSsrcHandler::kDeliverPacket:
-      break;
-  }
+  if (unsignalled_ssrc_handler_) {
+    switch (unsignalled_ssrc_handler_->OnUnsignalledSsrc(this, ssrc)) {
+      case UnsignalledSsrcHandler::kDropPacket:
+        return;
+      case UnsignalledSsrcHandler::kDeliverPacket:
+        break;
+    }
 
-  if (call_->Receiver()->DeliverPacket(webrtc::MediaType::VIDEO, packet,
-                                       packet_time_us) !=
-      webrtc::PacketReceiver::DELIVERY_OK) {
-    RTC_LOG(LS_WARNING) << "Failed to deliver RTP packet on re-delivery.";
-    return;
+    if (call_->Receiver()->DeliverPacket(webrtc::MediaType::VIDEO, packet,
+                                        packet_time_us) !=
+        webrtc::PacketReceiver::DELIVERY_OK) {
+      RTC_LOG(LS_WARNING) << "Failed to deliver RTP packet on re-delivery.";
+      return;
+    }
   }
 }
 
