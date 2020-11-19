@@ -230,6 +230,9 @@ class PeerConnection : public PeerConnectionInternal,
                                 shared_ice_gatherer) override;
   bool SetIncomingRtpEnabled(bool enabled) override;
 
+  bool SendRtp(std::unique_ptr<RtpPacket> rtp_packet) override;
+  bool ReceiveRtp(uint8_t pt) override;
+
   RTCError SetBitrate(const BitrateSettings& bitrate) override;
 
   void SetAudioPlayout(bool playout) override;

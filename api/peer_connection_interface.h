@@ -107,8 +107,11 @@
 #include "api/transport/network_control.h"
 #include "api/transport/webrtc_key_value_config.h"
 #include "api/turn_customizer.h"
+#include "call/rtp_packet_sink_interface.h"
 #include "media/base/media_config.h"
 #include "media/base/media_engine.h"
+#include "modules/rtp_rtcp/source/rtp_packet_received.h"
+#include "pc/rtp_transport.h"
 // TODO(bugs.webrtc.org/7447): We plan to provide a way to let applications
 // inject a PacketSocketFactory and/or NetworkManager, and not expose
 // PortAllocator in the PeerConnection api.
@@ -1036,6 +1039,13 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
   // If false, all RTP and RTCP packets will be dropped before being processed.
   virtual bool SetIncomingRtpEnabled(bool enabled);
 
+  // Make sure that you don't reuse (SSRC, seqnum) combinations except when rolling
+  // over.  Otherwise, SRTP won't work properly.
+  virtual bool SendRtp(std::unique_ptr<RtpPacket> rtp_packet);
+
+  // Packets will go to the PeerConnectionObserver
+  virtual bool ReceiveRtp(uint8_t pt);
+
   // 0 <= min <= current <= max should hold for set parameters.
   struct BitrateParameters {
     BitrateParameters();
@@ -1148,7 +1158,7 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
 
 // PeerConnection callback interface, used for RTCPeerConnection events.
 // Application should implement these methods.
-class PeerConnectionObserver {
+class PeerConnectionObserver : public RtpPacketSinkInterface {
  public:
   virtual ~PeerConnectionObserver() = default;
 
@@ -1265,6 +1275,8 @@ class PeerConnectionObserver {
   // The heuristics for defining what constitutes "interesting" are
   // implementation-defined.
   virtual void OnInterestingUsage(int usage_pattern) {}
+
+  void OnRtpPacket(const RtpPacketReceived& rtp_packet) override {}
 };
 
 // PeerConnectionDependencies holds all of PeerConnections dependencies.

@@ -24,7 +24,7 @@ public class AudioTrack extends MediaStreamTrack {
   }
 
   /** Returns a pointer to webrtc::AudioTrackInterface. */
-  long getNativeAudioTrack() {
+  public long getNativeAudioTrack() {
     return getNativeMediaStreamTrack();
   }
 

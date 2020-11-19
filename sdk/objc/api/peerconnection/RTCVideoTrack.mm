@@ -18,7 +18,7 @@
 
 @implementation RTC_OBJC_TYPE (RTCVideoTrack) {
   NSMutableArray *_adapters;
-  rtc::scoped_refptr<webrtc::VideoTrackInterface> _videoTrack;
+  rtc::scoped_refptr<webrtc::VideoTrackInterface> _nativeTrack;
 }
 
 @synthesize source = _source;
@@ -35,7 +35,7 @@
                                               source.nativeVideoSource);
   if (self = [self initWithFactory:factory nativeTrack:track type:RTCMediaStreamTrackTypeVideo]) {
     _source = source;
-    _videoTrack = track;
+    _nativeTrack = track;
   }
   return self;
 }
@@ -118,7 +118,7 @@
 }
 
 - (void *)getNativeVideoTrack {
-  return _videoTrack.release();
+  return _nativeTrack.release();
 }
 
 #pragma mark - Private
