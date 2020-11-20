@@ -266,8 +266,9 @@ bool RTPSenderAudio::SendAudio(AudioFrameType frame_type,
   packet->SetPayloadType(payload_type);
   packet->SetTimestamp(rtp_timestamp);
   packet->set_capture_time_ms(clock_->TimeInMilliseconds());
-  // Make the audio level less precise (0, 25, 50, 75, 100, 125).
-  audio_level_dbov -= (audio_level_dbov % 25);
+  // Make the audio level less precise (0, 10, 20, 30, ...).
+  audio_level_dbov -= (audio_level_dbov % 10);
+
   // Update audio level extension, if included.
   packet->SetExtension<AudioLevel>(
       frame_type == AudioFrameType::kAudioFrameSpeech, audio_level_dbov);
