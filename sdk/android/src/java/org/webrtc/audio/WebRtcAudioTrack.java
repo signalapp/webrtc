@@ -18,7 +18,7 @@ import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.os.Build;
 import android.os.Process;
-import androidx.annotation.Nullable;
+import android.support.annotation.Nullable;
 import java.lang.Thread;
 import java.nio.ByteBuffer;
 import org.webrtc.CalledByNative;

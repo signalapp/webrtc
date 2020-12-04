@@ -10,7 +10,7 @@
 
 package org.webrtc;
 
-import androidx.annotation.Nullable;
+import android.support.annotation.Nullable;
 import java.lang.Double;
 import java.lang.String;
 import java.util.List;

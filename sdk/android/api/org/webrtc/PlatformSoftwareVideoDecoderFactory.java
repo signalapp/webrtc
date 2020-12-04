@@ -11,7 +11,7 @@
 package org.webrtc;
 
 import android.media.MediaCodecInfo;
-import androidx.annotation.Nullable;
+import android.support.annotation.Nullable;
 import java.util.Arrays;
 
 /** Factory for Android platform software VideoDecoders. */

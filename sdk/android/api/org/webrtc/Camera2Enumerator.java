@@ -20,7 +20,7 @@ import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.os.Build;
 import android.os.SystemClock;
-import androidx.annotation.Nullable;
+import android.support.annotation.Nullable;
 import android.util.AndroidException;
 import android.util.Range;
 import java.util.ArrayList;
