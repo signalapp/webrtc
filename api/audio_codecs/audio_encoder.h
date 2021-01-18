@@ -22,6 +22,7 @@
 #include "api/units/time_delta.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/deprecation.h"
+#include "rtc_base/logging.h"
 
 namespace webrtc {
 
@@ -290,6 +291,7 @@ class AudioEncoder {
       const = 0;
 
   virtual bool Configure(const Config& config) {
+    RTC_LOG(LS_WARNING) << "Default AudioEncoder::Configure(...) does nothing!";
     return false;
   }
 
