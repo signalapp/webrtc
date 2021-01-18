@@ -1046,7 +1046,7 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
   // Packets will go to the PeerConnectionObserver
   virtual bool ReceiveRtp(uint8_t pt);
 
-  virtual void ConfigureAudioEncoders(const webrtc::AudioEncoder::Config& config);
+  virtual void ConfigureAudioEncoders(const webrtc::AudioEncoder::Config& config) {}
 
   // 0 <= min <= current <= max should hold for set parameters.
   struct BitrateParameters {
