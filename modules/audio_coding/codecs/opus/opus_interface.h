@@ -526,6 +526,14 @@ int WebRtcOpus_PacketHasFec(const uint8_t* payload,
 int WebRtcOpus_PacketHasVoiceActivity(const uint8_t* payload,
                                       size_t payload_length_bytes);
 
+
+int16_t WebRtcOpus_SetMaxBandwidth(OpusEncInst* inst, int32_t max_bandwidth);
+int16_t WebRtcOpus_SetPredicationDisabled(OpusEncInst* inst, int32_t disable_prediction);
+int16_t WebRtcOpus_SetForceMode(OpusEncInst* inst, int32_t mode);
+int16_t WebRtcOpus_SetSignal(OpusEncInst* inst, int32_t signal);
+int16_t WebRtcOpus_SetApplication(OpusEncInst* inst, int32_t application);
+
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
