@@ -21,6 +21,7 @@
 #include "absl/strings/match.h"
 #include "api/audio_codecs/audio_codec_pair_id.h"
 #include "api/call/audio_sink.h"
+#include "api/peer_connection_interface.h"  // 
 #include "media/base/audio_source.h"
 #include "media/base/media_constants.h"
 #include "media/base/stream_params.h"
@@ -1036,6 +1037,10 @@ class WebRtcVoiceMediaChannel::WebRtcAudioSendStream
     RTC_DCHECK(worker_thread_checker_.IsCurrent());
     config_.frame_transformer = std::move(frame_transformer);
     ReconfigureAudioSendStream();
+  }
+
+  void ConfigureEncoder(const webrtc::AudioEncoder::Config& config) {
+    stream_->ConfigureEncoder(config);
   }
 
  private:
@@ -2498,4 +2503,11 @@ bool WebRtcVoiceMediaChannel::MaybeDeregisterUnsignaledRecvStream(
   }
   return false;
 }
+
+void WebRtcVoiceMediaChannel::ConfigureEncoders(const webrtc::AudioEncoder::Config& config) {
+  for (auto& it : send_streams_) {
+    it.second->ConfigureEncoder(config);
+  }
+}
+
 }  // namespace cricket

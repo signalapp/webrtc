@@ -797,3 +797,39 @@ int WebRtcOpus_PacketHasVoiceActivity(const uint8_t* payload,
 
   return 0;
 }
+
+int16_t WebRtcOpus_SetMaxBandwidth(OpusEncInst* inst, int32_t max_bandwidth) {
+  if (!inst) {
+    return -1;
+  }
+  return ENCODER_CTL(inst, OPUS_SET_MAX_BANDWIDTH(max_bandwidth));
+}
+
+int16_t WebRtcOpus_SetPredicationDisabled(OpusEncInst* inst, int32_t prediction_disabled) {
+  if (!inst) {
+    return -1;
+  }
+  return ENCODER_CTL(inst, OPUS_SET_PREDICTION_DISABLED(prediction_disabled));
+}
+
+int16_t WebRtcOpus_SetForceMode(OpusEncInst* inst, int32_t mode) {
+  if (!inst) {
+    return -1;
+  }
+  // 11002 == OPUS_SET_FORCE_MODE_REQUEST, a private API in opus_private.h
+  return opus_encoder_ctl(inst->encoder, 11002, __opus_check_int(mode));
+}
+
+int16_t WebRtcOpus_SetSignal(OpusEncInst* inst, int32_t signal) {
+  if (!inst) {
+    return -1;
+  }
+  return ENCODER_CTL(inst, OPUS_SET_SIGNAL(signal));
+}
+
+int16_t WebRtcOpus_SetApplication(OpusEncInst* inst, int32_t application) {
+  if (!inst) {
+    return OPUS_BAD_ARG;
+  }
+  return ENCODER_CTL(inst, OPUS_SET_APPLICATION(application));
+}

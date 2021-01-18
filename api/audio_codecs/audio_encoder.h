@@ -114,6 +114,49 @@ class AudioEncoder {
     std::vector<EncodedInfoLeaf> redundant;
   };
 
+  // Very OPUS-specific
+  struct Config {
+    // AKA ptime or frame size
+    // One of 10, 20, 40, 60, 120
+    uint32_t packet_size_ms = 20;
+
+    // 1101 = OPUS_BANDWIDTH_NARROWBAND
+    // 1102 = OPUS_BADWIDTH_MEDIUMBAND
+    // 1103 = OPUS_BANDWIDTH_WIDEBAND
+    // 1104 = OPUS_BANDWIDTH_SUPERWIDEBAND
+    // 1105 = OPUS_BANDWIDTH_FULLBAND
+    int32_t max_bandwidth = 1105;  // OPUS_BANDWIDTH_FULLBAND
+    int32_t bandwidth = -1000;  // OPUS_AUTO
+    // 500 to 192000;
+    int32_t bitrate_bps = 40000;
+    // 0 (least complex) to 9 (most complex)
+    int32_t complexity = 9;
+    // 0 = CBR; 1 = VBR
+    int32_t enable_vbr = 0;
+    // 0 = disable; 1 = enable
+    int32_t enable_dtx = 0;
+    // 0 = disable; 1 = enable
+    int32_t enable_fec = 1;
+
+    // 0 = enabled; 1 = disabled
+    int32_t disable_prediction = 0;
+    // 0-100% loss
+    int32_t packet_loss_percent = 0;
+
+    // 1000 = MODE_SILK_ONLY
+    // 1001 = MODE_HYBRID
+    // 1002 = MODE_CELT_ONLY
+    int32_t opus_mode =  1001;  // MODE_HYBRID
+    // 3001 = OPUS_SIGNAL_VOICE
+    // 3002 = OPUS_SIGNAL_MUSIC
+    // -1000 = OPUS_AUTO
+    int32_t opus_signal = 3001;  // OPUS_SIGNAL_VOICE
+    // 2048 = OPUS_APPLICATION_VOIP
+    // 2049 = OPUS_APPLICATION_AUDIO
+    // 2051 = OPUS_APPLICATION_LOWDELAY
+    int32_t opus_application = 2048;  // OPUS_APPLICATION_VOIP
+  };
+
   virtual ~AudioEncoder() = default;
 
   // Returns the input sample rate in Hz and the number of input channels.
@@ -245,6 +288,10 @@ class AudioEncoder {
   // overhead.
   virtual absl::optional<std::pair<TimeDelta, TimeDelta>> GetFrameLengthRange()
       const = 0;
+
+  virtual bool Configure(const Config& config) {
+    return false;
+  }
 
  protected:
   // Subclasses implement this to perform the actual encoding. Called by

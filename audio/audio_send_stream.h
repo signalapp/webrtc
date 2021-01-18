@@ -15,6 +15,7 @@
 #include <utility>
 #include <vector>
 
+#include "api/peer_connection_interface.h"  // For webrtc::AudioSendStreamConfig
 #include "audio/audio_level.h"
 #include "audio/channel_send.h"
 #include "call/audio_send_stream.h"
@@ -104,6 +105,8 @@ class AudioSendStream final : public webrtc::AudioSendStream,
   // Returns combined per-packet overhead.
   size_t TestOnlyGetPerPacketOverheadBytes() const
       RTC_LOCKS_EXCLUDED(overhead_per_packet_lock_);
+
+  void ConfigureEncoder(const webrtc::AudioEncoder::Config& config) override;
 
  private:
   class TimedTransport;

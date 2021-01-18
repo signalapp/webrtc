@@ -812,4 +812,111 @@ AudioEncoderOpusImpl::GetFrameLengthRange() const {
   }
 }
 
+bool AudioEncoderOpusImpl::Configure(const webrtc::AudioEncoder::Config& config) {
+  config_.frame_size_ms = config.packet_size_ms;
+
+  // I don't think any of the below are necessary, but the above is, so we might as well set these.
+  config_.application = config.opus_application == 2048 ? AudioEncoderOpusConfig::ApplicationMode::kVoip : AudioEncoderOpusConfig::ApplicationMode::kAudio;
+  config_.bitrate_bps = config.bitrate_bps;
+  config_.fec_enabled = config.enable_fec == 1;
+  config_.cbr_enabled = config.enable_vbr == 0;
+  config_.complexity = config.complexity;
+  config_.dtx_enabled = config.enable_dtx == 1;
+
+  if (WebRtcOpus_SetBandwidth(inst_, config.bandwidth) == -1) {
+    RTC_LOG(LS_WARNING) << "Failed to configure OPUS to bandwidth=" << config.bandwidth;
+    return false;
+  }
+  RTC_LOG(LS_INFO) << "Successfully configured OPUS to bandwidth=" << config.bandwidth;
+
+  if (WebRtcOpus_SetMaxBandwidth(inst_, config.max_bandwidth) == -1) {
+    RTC_LOG(LS_WARNING) << "Failed to configure OPUS to max_bandwidth=" << config.max_bandwidth;
+    return false;
+  }
+  RTC_LOG(LS_INFO) << "Successfully configured OPUS to max_bandwidth=" << config.max_bandwidth;
+
+  if (WebRtcOpus_SetBitRate(inst_, config.bitrate_bps) == -1) {
+    RTC_LOG(LS_WARNING) << "Failed to configure OPUS to bitrate_bps=" << config.bitrate_bps;
+    return false;
+  }
+  RTC_LOG(LS_INFO) << "Successfully configured OPUS to bitrate_bps=" << config.bitrate_bps;
+
+  if (WebRtcOpus_SetComplexity(inst_, config.complexity) == -1) {
+    RTC_LOG(LS_WARNING) << "Failed to configure OPUS to complexity=" << config.complexity;
+    return false;
+  }
+  RTC_LOG(LS_INFO) << "Successfully configured OPUS to complexity=" << config.complexity;
+
+  if (config.enable_fec == 1) {
+    if (WebRtcOpus_EnableFec(inst_) == -1) {
+      RTC_LOG(LS_WARNING) << "Failed to configure OPUS to enable_fec=" << config.enable_fec;
+      return false;
+    }
+  } else {
+    if (WebRtcOpus_DisableFec(inst_) == -1) {
+      RTC_LOG(LS_WARNING) << "Failed to configure OPUS to enable_fec=" << config.enable_fec;
+      return false;
+    }
+  }
+  RTC_LOG(LS_INFO) << "Successfully configured OPUS to enable_fec=" << config.enable_fec;
+
+  if (config.enable_dtx == 1) {
+    if (WebRtcOpus_EnableDtx(inst_) == -1) {
+      RTC_LOG(LS_WARNING) << "Failed to configure OPUS to enable_dtx=" << config.enable_dtx;
+      return false;
+    }
+  } else {
+    if (WebRtcOpus_DisableDtx(inst_) == -1) {
+      RTC_LOG(LS_WARNING) << "Failed to configure OPUS to enable_dtx=" << config.enable_dtx;
+      return false;
+    }
+  }
+  RTC_LOG(LS_INFO) << "Successfully configured OPUS to enable_dtx=" << config.enable_dtx;
+
+  if (config.enable_vbr == 0) {
+    if (WebRtcOpus_EnableCbr(inst_) == -1) {
+      RTC_LOG(LS_WARNING) << "Failed to configure OPUS to enable_vbr=" << config.enable_vbr;
+      return false;
+    }
+  } else {
+    if (WebRtcOpus_DisableCbr(inst_) == -1) {
+      RTC_LOG(LS_WARNING) << "Failed to configure OPUS to enable_vbr=" << config.enable_vbr;
+      return false;
+    }
+  }
+  RTC_LOG(LS_INFO) << "Successfully configured OPUS to enable_vbr=" << config.enable_vbr;
+
+  if (WebRtcOpus_SetPacketLossRate(inst_, config.packet_loss_percent) == -1) {
+    RTC_LOG(LS_WARNING) << "Failed to configure OPUS to packet_loss_percent=" << config.packet_loss_percent;
+    return false;
+  }
+  RTC_LOG(LS_INFO) << "Successfully configured OPUS to enable_vbr=" << config.enable_vbr;
+
+  if (WebRtcOpus_SetPredicationDisabled(inst_, config.disable_prediction) == -1) {
+    RTC_LOG(LS_WARNING) << "Failed to configure OPUS to disable_prediction=" << config.disable_prediction;
+    return false;
+  }
+  RTC_LOG(LS_INFO) << "Successfully configured OPUS to disable_prediction=" << config.disable_prediction;
+
+  if (WebRtcOpus_SetForceMode(inst_, config.opus_mode) == -1) {
+    RTC_LOG(LS_WARNING) << "Failed to configure OPUS to opus_mode=" << config.opus_mode;
+    return false;
+  }
+  RTC_LOG(LS_INFO) << "Successfully configured OPUS to opus_mode=" << config.opus_mode;
+
+  if (WebRtcOpus_SetSignal(inst_, config.opus_signal) == -1) {
+    RTC_LOG(LS_WARNING) << "Failed to configure OPUS to opus_signal=" << config.opus_signal;
+    return false;
+
+  RTC_LOG(LS_INFO) << "Successfully configured OPUS to opus_signal=" << config.opus_signal;
+
+  if (WebRtcOpus_SetApplication(inst_, config.opus_application) == -1) {
+    RTC_LOG(LS_WARNING) << "Failed to configure OPUS to opus_application=" << config.opus_application;
+    return false;
+  }
+  RTC_LOG(LS_INFO) << "Successfully configured OPUS to opus_application=" << config.opus_application;
+
+  return true;
+}
+
 }  // namespace webrtc

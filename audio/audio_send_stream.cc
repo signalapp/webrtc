@@ -922,5 +922,14 @@ void AudioSendStream::RegisterCngPayloadType(int payload_type,
                                              int clockrate_hz) {
   channel_send_->RegisterCngPayloadType(payload_type, clockrate_hz);
 }
+
+void AudioSendStream::ConfigureEncoder(const webrtc::AudioEncoder::Config& config) {
+  channel_send_->CallEncoder([&](AudioEncoder* encoder) {
+    if (!encoder->Configure(config)) {
+      RTC_LOG(LS_INFO) << "Failed to configure audio send stream";
+    }
+  });
+}
+
 }  // namespace internal
 }  // namespace webrtc
