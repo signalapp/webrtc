@@ -130,6 +130,9 @@ PROXY_METHOD1(bool,
 PROXY_METHOD1(bool,
               ReceiveRtp,
               uint8_t)
+PROXY_METHOD1(void,
+              ConfigureAudioEncoders,
+              const webrtc::AudioEncoder::Config&)
 PROXY_METHOD1(bool, SetIncomingRtpEnabled, bool)
 PROXY_METHOD1(RTCError, SetBitrate, const BitrateSettings&)
 PROXY_METHOD1(void, SetAudioPlayout, bool)
