@@ -907,7 +907,7 @@ bool AudioEncoderOpusImpl::Configure(const webrtc::AudioEncoder::Config& config)
   if (WebRtcOpus_SetSignal(inst_, config.opus_signal) == -1) {
     RTC_LOG(LS_WARNING) << "Failed to configure OPUS to opus_signal=" << config.opus_signal;
     return false;
-
+  }
   RTC_LOG(LS_INFO) << "Successfully configured OPUS to opus_signal=" << config.opus_signal;
 
   if (WebRtcOpus_SetApplication(inst_, config.opus_application) == -1) {
