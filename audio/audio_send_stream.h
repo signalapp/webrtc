@@ -15,7 +15,6 @@
 #include <utility>
 #include <vector>
 
-#include "api/peer_connection_interface.h"  // For webrtc::AudioSendStreamConfig
 #include "audio/audio_level.h"
 #include "audio/channel_send.h"
 #include "call/audio_send_stream.h"
