@@ -962,6 +962,13 @@ bool VoiceChannel::SetRemoteContent_w(const MediaContentDescription* content,
   return true;
 }
 
+void VoiceChannel::ConfigureEncoders(const webrtc::AudioEncoder::Config& config) {
+  worker_thread()->Invoke<void>(RTC_FROM_HERE, [this, &config] {
+    media_channel()->ConfigureEncoders(config);
+  });
+}
+
+
 VideoChannel::VideoChannel(rtc::Thread* worker_thread,
                            rtc::Thread* network_thread,
                            rtc::Thread* signaling_thread,

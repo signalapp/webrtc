@@ -348,6 +348,8 @@ class VoiceChannel : public BaseChannel {
   }
   void Init_w(webrtc::RtpTransportInternal* rtp_transport) override;
 
+  void ConfigureEncoders(const webrtc::AudioEncoder::Config& config);
+
  private:
   // overrides from BaseChannel
   void UpdateMediaSendRecvState_w() override;

@@ -860,6 +860,10 @@ class VoiceMediaChannel : public MediaChannel, public Delayable {
       std::unique_ptr<webrtc::AudioSinkInterface> sink) = 0;
 
   virtual std::vector<webrtc::RtpSource> GetSources(uint32_t ssrc) const = 0;
+
+  virtual void ConfigureEncoders(const webrtc::AudioEncoder::Config& config) {
+    RTC_LOG(LS_WARNING) << "Default VoiceMediaChannel::ConfigureEncoders(...) does nothing!";
+  }
 };
 
 // TODO(deadbeef): Rename to VideoSenderParameters, since they're intended to

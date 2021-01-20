@@ -1038,6 +1038,10 @@ class WebRtcVoiceMediaChannel::WebRtcAudioSendStream
     ReconfigureAudioSendStream();
   }
 
+  void ConfigureEncoder(const webrtc::AudioEncoder::Config& config) {
+    stream_->ConfigureEncoder(config);
+  }
+
  private:
   void UpdateSendState() {
     RTC_DCHECK(worker_thread_checker_.IsCurrent());
@@ -2498,4 +2502,19 @@ bool WebRtcVoiceMediaChannel::MaybeDeregisterUnsignaledRecvStream(
   }
   return false;
 }
+
+void WebRtcVoiceMediaChannel::ConfigureEncoders(const webrtc::AudioEncoder::Config& config) {
+  int count = 0;
+  for (auto& it : send_streams_) {
+    it.second->ConfigureEncoder(config);
+    count++;
+  }
+
+  if (count == 0) {
+    RTC_LOG(LS_WARNING) << "WebRtcVoiceMediaChannel::ConfigureEncoders(...) changed no send streams!";
+  } else {
+    RTC_LOG(LS_INFO) << "WebRtcVoiceMediaChannel::ConfigureEncoders(...) changed " << count << " transceivers.";
+  }
+}
+
 }  // namespace cricket

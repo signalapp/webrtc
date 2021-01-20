@@ -7302,6 +7302,22 @@ bool PeerConnection::ReceiveRtp(uint8_t pt) {
   });
 }
 
+void PeerConnection::ConfigureAudioEncoders(const webrtc::AudioEncoder::Config& config) {
+  int count = 0;
+  for (const auto& transceiver : transceivers_) {
+    if (transceiver->media_type() == cricket::MEDIA_TYPE_AUDIO) {
+      cricket::VoiceChannel* voice_channel = static_cast<cricket::VoiceChannel*>(transceiver->internal()->channel());
+      voice_channel->ConfigureEncoders(config);
+      count++;
+    }
+  }
+  if (count == 0) {
+    RTC_LOG(LS_WARNING) << "PeerConnection::ConfigureAudioEncoders(...) changed no transceivers!";
+  } else {
+    RTC_LOG(LS_INFO) << "PeerConnection::ConfigureAudioEncoders(...) changed " << count << " transceivers.";
+  }
+}
+
 void PeerConnection::RequestUsagePatternReportForTesting() {
   signaling_thread()->Post(RTC_FROM_HERE, this, MSG_REPORT_USAGE_PATTERN,
                            nullptr);

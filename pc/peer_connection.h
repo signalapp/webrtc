@@ -233,6 +233,8 @@ class PeerConnection : public PeerConnectionInternal,
   bool SendRtp(std::unique_ptr<RtpPacket> rtp_packet) override;
   bool ReceiveRtp(uint8_t pt) override;
 
+  void ConfigureAudioEncoders(const webrtc::AudioEncoder::Config& config) override;
+
   RTCError SetBitrate(const BitrateSettings& bitrate) override;
 
   void SetAudioPlayout(bool playout) override;
