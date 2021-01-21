@@ -820,6 +820,7 @@ bool AudioEncoderOpusImpl::Configure(const webrtc::AudioEncoder::Config& config)
   config_.fec_enabled = config.enable_fec == 1;
   config_.cbr_enabled = config.enable_vbr == 0;
   config_.complexity = config.complexity;
+  config_.low_rate_complexity = config_.low_rate_complexity;
   config_.dtx_enabled = config.enable_dtx == 1;
 
   if (WebRtcOpus_SetBandwidth(inst_, config.bandwidth) == -1) {
