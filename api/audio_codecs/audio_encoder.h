@@ -127,8 +127,12 @@ class AudioEncoder {
     // 1104 = OPUS_BANDWIDTH_SUPERWIDEBAND
     // 1105 = OPUS_BANDWIDTH_FULLBAND
     int32_t bandwidth = -1000;  // OPUS_AUTO
-    // 500 to 192000;
-    int32_t bitrate_bps = 40000;
+    // 500 to 192000
+    // Start at start_bitrate_bps, and let the BWE and bitrate allocator
+    // move up to max_bitrate_bps or down to min_bitrate_bps.
+    int32_t start_bitrate_bps = 40000;
+    int32_t min_bitrate_bps = 16000;
+    int32_t max_bitrate_bps = 40000;
     // 0 (least complex) to 9 (most complex)
     int32_t complexity = 9;
     // 0 = CBR; 1 = VBR
