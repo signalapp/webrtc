@@ -814,6 +814,7 @@ AudioEncoderOpusImpl::GetFrameLengthRange() const {
 
 bool AudioEncoderOpusImpl::Configure(const webrtc::AudioEncoder::Config& config) {
   config_.frame_size_ms = config.packet_size_ms;
+  next_frame_length_ms_ = config.packet_size_ms;
 
   // I don't think any of the below are necessary, but the above is, so we might as well set these.
   config_.bitrate_bps = config.start_bitrate_bps;
