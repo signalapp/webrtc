@@ -187,7 +187,7 @@ public class ScreenCapturerAndroid implements VideoCapturer, VideoSink {
   }
 
   @Override
-  public void setOrientation(int orientation) {
+  public void setOrientation(Integer orientation) {
     // Empty on purpose
   }
 

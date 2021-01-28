@@ -313,7 +313,7 @@ class Camera1Session implements CameraSession {
   }
 
   @Override
-  public void setOrientation(int orientation) {
+  public void setOrientation(Integer orientation) {
     Logging.d(TAG, "(Ignored) Set Orientation: " + orientation);
   }
 

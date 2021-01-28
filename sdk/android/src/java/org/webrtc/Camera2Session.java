@@ -56,7 +56,6 @@ class Camera2Session implements CameraSession {
   // Initialized at start
   private CameraCharacteristics cameraCharacteristics;
   private int cameraOrientation;
-  private int deviceOrientation;
   private boolean isCameraFrontFacing;
   private int fpsUnitFactor;
   private CaptureFormat captureFormat;
@@ -67,6 +66,9 @@ class Camera2Session implements CameraSession {
 
   // Initialized when capture session is created
   @Nullable private CameraCaptureSession captureSession;
+
+  // Initialized when set via API
+  @Nullable private Integer deviceOrientation;
 
   // State
   private SessionState state = SessionState.RUNNING;
@@ -308,7 +310,6 @@ class Camera2Session implements CameraSession {
       return;
     }
     cameraOrientation = cameraCharacteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
-    deviceOrientation = CameraSession.getDeviceOrientation(applicationContext);
     isCameraFrontFacing = cameraCharacteristics.get(CameraCharacteristics.LENS_FACING)
         == CameraMetadata.LENS_FACING_FRONT;
 
@@ -407,21 +408,28 @@ class Camera2Session implements CameraSession {
   }
 
   @Override
-  public void setOrientation(int orientation) {
+  public void setOrientation(@Nullable Integer orientation) {
     checkIsOnCameraThread();
     Logging.d(TAG, "Set Orientation: " + orientation);
 
     // The device orientation is locked to portrait in Signal clients.
-    // Instead of using CameraSession.getDeviceOrientation(), rely
-    // on the client to indicate the current rotated orientation.
+    // Instead of using CameraSession.getDeviceOrientation(), the
+    // client can indicate the current rotated orientation directly.
     deviceOrientation = orientation;
   }
 
   private int getFrameOrientation() {
-    if (!isCameraFrontFacing) {
-      deviceOrientation = 360 - deviceOrientation;
+    int rotation;
+    if (deviceOrientation == null) {
+      rotation = CameraSession.getDeviceOrientation(applicationContext);
+    } else {
+      rotation = deviceOrientation;
     }
-    return (cameraOrientation + deviceOrientation) % 360;
+
+    if (!isCameraFrontFacing) {
+      rotation = 360 - rotation;
+    }
+    return (cameraOrientation + rotation) % 360;
   }
 
   private void checkIsOnCameraThread() {
