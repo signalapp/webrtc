@@ -39,6 +39,8 @@ interface CameraSession {
    */
   void stop();
 
+  void setOrientation(int orientation);
+
   static int getDeviceOrientation(Context context) {
     final WindowManager wm = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
     switch (wm.getDefaultDisplay().getRotation()) {

@@ -56,6 +56,7 @@ class Camera2Session implements CameraSession {
   // Initialized at start
   private CameraCharacteristics cameraCharacteristics;
   private int cameraOrientation;
+  private int deviceOrientation;
   private boolean isCameraFrontFacing;
   private int fpsUnitFactor;
   private CaptureFormat captureFormat;
@@ -307,6 +308,7 @@ class Camera2Session implements CameraSession {
       return;
     }
     cameraOrientation = cameraCharacteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
+    deviceOrientation = CameraSession.getDeviceOrientation(applicationContext);
     isCameraFrontFacing = cameraCharacteristics.get(CameraCharacteristics.LENS_FACING)
         == CameraMetadata.LENS_FACING_FRONT;
 
@@ -404,12 +406,22 @@ class Camera2Session implements CameraSession {
     }
   }
 
+  @Override
+  public void setOrientation(int orientation) {
+    checkIsOnCameraThread();
+    Logging.d(TAG, "Set Orientation: " + orientation);
+
+    // The device orientation is locked to portrait in Signal clients.
+    // Instead of using CameraSession.getDeviceOrientation(), rely
+    // on the client to indicate the current rotated orientation.
+    deviceOrientation = orientation;
+  }
+
   private int getFrameOrientation() {
-    int rotation = CameraSession.getDeviceOrientation(applicationContext);
     if (!isCameraFrontFacing) {
-      rotation = 360 - rotation;
+      deviceOrientation = 360 - deviceOrientation;
     }
-    return (cameraOrientation + rotation) % 360;
+    return (cameraOrientation + deviceOrientation) % 360;
   }
 
   private void checkIsOnCameraThread() {

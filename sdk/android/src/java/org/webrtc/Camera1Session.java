@@ -312,6 +312,11 @@ class Camera1Session implements CameraSession {
     });
   }
 
+  @Override
+  public void setOrientation(int orientation) {
+    Logging.d(TAG, "(Ignored) Set Orientation: " + orientation);
+  }
+
   private int getFrameOrientation() {
     int rotation = CameraSession.getDeviceOrientation(applicationContext);
     if (info.facing == android.hardware.Camera.CameraInfo.CAMERA_FACING_BACK) {

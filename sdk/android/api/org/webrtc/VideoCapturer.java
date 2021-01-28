@@ -41,6 +41,8 @@ public interface VideoCapturer {
 
   void changeCaptureFormat(int width, int height, int framerate);
 
+  void setOrientation(int orientation);
+
   /**
    * Perform any final cleanup here. No more capturing will be done after this call.
    */

@@ -190,6 +190,11 @@ public class FileVideoCapturer implements VideoCapturer {
   }
 
   @Override
+  public void setOrientation(int orientation) {
+    // Empty on purpose
+  }
+
+  @Override
   public void dispose() {
     videoReader.close();
   }

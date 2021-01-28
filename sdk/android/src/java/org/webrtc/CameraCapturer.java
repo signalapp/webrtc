@@ -313,6 +313,20 @@ abstract class CameraCapturer implements CameraVideoCapturer {
   }
 
   @Override
+  public void setOrientation(int orientation) {
+    synchronized (stateLock) {
+      if (currentSession != null) {
+        cameraThreadHandler.post(new Runnable() {
+          @Override
+          public void run() {
+            currentSession.setOrientation(orientation);
+          }
+        });
+      }
+    }
+  }
+
+  @Override
   public void changeCaptureFormat(int width, int height, int framerate) {
     Logging.d(TAG, "changeCaptureFormat: " + width + "x" + height + "@" + framerate);
     synchronized (stateLock) {
