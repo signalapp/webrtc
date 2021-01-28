@@ -186,6 +186,11 @@ public class ScreenCapturerAndroid implements VideoCapturer, VideoSink {
     });
   }
 
+  @Override
+  public void setOrientation(Integer orientation) {
+    // Empty on purpose
+  }
+
   private void createVirtualDisplay() {
     surfaceTextureHelper.setTextureSize(width, height);
     virtualDisplay = mediaProjection.createVirtualDisplay("WebRTC_ScreenCapture", width, height,
