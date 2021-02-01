@@ -175,14 +175,24 @@ class WindowsAudioDeviceModule : public AudioDeviceModuleForTest {
     RTC_LOG(INFO) << __FUNCTION__;
     RTC_DCHECK_RUN_ON(&thread_checker_);
     RETURN_IF_OUTPUT_RESTARTS(0);
-    return output_->NumDevices();
+    int16_t num_devices = output_->NumDevices();
+    if (num_devices == 0) {
+        return 0;
+    } else {
+        return num_devices + 2;
+    }
   }
 
   int16_t RecordingDevices() override {
     RTC_LOG(INFO) << __FUNCTION__;
     RTC_DCHECK_RUN_ON(&thread_checker_);
     RETURN_IF_INPUT_RESTARTS(0);
-    return input_->NumDevices();
+    int16_t num_devices = input_->NumDevices();
+    if (num_devices == 0) {
+      return 0;
+    } else {
+      return num_devices + 2;
+    }
   }
 
   int32_t PlayoutDeviceName(uint16_t index,
