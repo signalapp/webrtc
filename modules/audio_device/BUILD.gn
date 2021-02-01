@@ -158,6 +158,7 @@ rtc_library("audio_device_impl") {
     ":audio_device_buffer",
     ":audio_device_default",
     ":audio_device_generic",
+    ":audio_device_module_from_input_and_output",
     "../../api:array_view",
     "../../api:refcountedbase",
     "../../api:scoped_refptr",
