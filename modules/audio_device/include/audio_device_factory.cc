@@ -37,13 +37,6 @@ CreateWindowsCoreAudioAudioDeviceModuleForTest(
     TaskQueueFactory* task_queue_factory,
     bool automatic_restart) {
   RTC_DLOG(INFO) << __FUNCTION__;
-  // Returns NULL if Core Audio is not supported or if COM has not been
-  // initialized correctly using webrtc_win::ScopedCOMInitializer.
-  if (!webrtc_win::core_audio_utility::IsSupported()) {
-    RTC_LOG(LS_ERROR)
-        << "Unable to create ADM since Core Audio is not supported";
-    return nullptr;
-  }
   return CreateWindowsCoreAudioAudioDeviceModuleFromInputAndOutput(
       std::make_unique<webrtc_win::CoreAudioInput>(automatic_restart),
       std::make_unique<webrtc_win::CoreAudioOutput>(automatic_restart),

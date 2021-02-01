@@ -15,6 +15,7 @@
 
 #include "modules/audio_device/audio_device_buffer.h"
 #include "modules/audio_device/include/audio_device.h"
+#include "modules/audio_device/win/core_audio_utility_win.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/ref_counted_object.h"
@@ -93,6 +94,14 @@ class WindowsAudioDeviceModule : public AudioDeviceModuleForTest {
       : input_(std::move(audio_input)),
         output_(std::move(audio_output)),
         task_queue_factory_(task_queue_factory) {
+    // Tell COM that this thread shall live in the MTA.
+    com_initializer_ = std::make_unique<webrtc_win::ScopedCOMInitializer>(webrtc_win::ScopedCOMInitializer::kMTA);
+    if (!com_initializer_->Succeeded()) {
+      RTC_LOG(LS_WARNING) << "Failed to setup COM";
+      //return nullptr;
+      return;
+    }
+
     RTC_CHECK(input_);
     RTC_CHECK(output_);
     RTC_LOG(INFO) << __FUNCTION__;
@@ -514,6 +523,8 @@ class WindowsAudioDeviceModule : public AudioDeviceModuleForTest {
 
   // Set to true after a successful call to Init(). Cleared by Terminate().
   bool initialized_ = false;
+
+  std::unique_ptr<webrtc_win::ScopedCOMInitializer> com_initializer_;
 };
 
 }  // namespace
