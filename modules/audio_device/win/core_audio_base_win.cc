@@ -529,7 +529,9 @@ bool CoreAudioBase::Init() {
     return false;
   }
   RTC_DLOG(INFO) << "audio session state: " << SessionStateToString(state);
-  RTC_DCHECK_EQ(state, AudioSessionStateInactive);
+
+  // Removing this check to support multiple instances in debug builds.
+  //RTC_DCHECK_EQ(state, AudioSessionStateInactive);
 
   // Register the client to receive notifications of session events, including
   // changes in the stream state.
