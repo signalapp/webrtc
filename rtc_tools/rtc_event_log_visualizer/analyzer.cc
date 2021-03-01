@@ -21,6 +21,7 @@
 #include "absl/algorithm/container.h"
 #include "absl/strings/string_view.h"
 #include "api/function_view.h"
+#include "api/transport/bitrate_settings.h"
 #include "api/transport/field_trial_based_config.h"
 #include "api/transport/goog_cc_factory.h"
 #include "call/audio_receive_stream.h"
@@ -1199,11 +1200,10 @@ void EventLogAnalyzer::CreateSendSideBweSimulationGraph(Plot* plot) {
   auto factory = GoogCcNetworkControllerFactory();
   TimeDelta process_interval = factory.GetProcessInterval();
   // TODO(holmer): Log the call config and use that here instead.
-  static const uint32_t kDefaultStartBitrateBps = 100000;
   NetworkControllerConfig cc_config;
   cc_config.constraints.at_time = Timestamp::Micros(clock.TimeInMicroseconds());
   cc_config.constraints.starting_rate =
-      DataRate::BitsPerSec(kDefaultStartBitrateBps);
+      DataRate::BitsPerSec(BitrateConstraints::kDefaultStartBitrateBps);
   cc_config.event_log = &null_event_log;
   auto goog_cc = factory.Create(cc_config);
 
@@ -1380,9 +1380,8 @@ void EventLogAnalyzer::CreateReceiveSideBweSimulationGraph(Plot* plot) {
     }
 
    private:
-    // We don't know the start bitrate, but assume that it is the default 100
-    // kbps.
-    uint32_t last_bitrate_bps_ = 100000;
+    // We don't know the start bitrate, but assume that it is the default.
+    uint32_t last_bitrate_bps_ = BitrateConstraints::kDefaultStartBitrateBps;
     bool bitrate_updated_ = false;
   };
 

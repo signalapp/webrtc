@@ -362,7 +362,7 @@ std::unique_ptr<Call> PeerConnectionFactory::CreateCall_w(
   FieldTrialParameter<DataRate> min_bandwidth("min",
                                               DataRate::KilobitsPerSec(30));
   FieldTrialParameter<DataRate> start_bandwidth("start",
-                                                DataRate::KilobitsPerSec(100));
+                                                DataRate::BitsPerSec(BitrateConstraints::kDefaultStartBitrateBps));
   FieldTrialParameter<DataRate> max_bandwidth("max",
                                               DataRate::KilobitsPerSec(2000));
   ParseFieldTrial({&min_bandwidth, &start_bandwidth, &max_bandwidth},
