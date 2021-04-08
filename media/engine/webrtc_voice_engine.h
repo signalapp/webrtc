@@ -268,6 +268,9 @@ class WebRtcVoiceMediaChannel final : public VoiceMediaChannel,
     return VoiceMediaChannel::SendRtcp(&packet, rtc_options);
   }
 
+  // RingRTC change to configure opus
+  void ConfigureEncoders(const webrtc::AudioEncoder::Config& config) override;
+
  private:
   bool SetOptions(const AudioOptions& options);
   bool SetRecvCodecs(const std::vector<AudioCodec>& codecs);

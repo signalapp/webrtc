@@ -414,6 +414,9 @@ class VoiceChannel : public BaseChannel {
   }
   void Init_w(webrtc::RtpTransportInternal* rtp_transport) override;
 
+  // RingRTC change to configure OPUS
+  void ConfigureEncoders(const webrtc::AudioEncoder::Config& config);
+
  private:
   // overrides from BaseChannel
   void UpdateMediaSendRecvState_w() override;

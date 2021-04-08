@@ -272,6 +272,34 @@ PeerConnectionWrapper::AddTransceiver(
   return result.MoveValue();
 }
 
+// RingRTC change to add methods (see interface header)
+rtc::scoped_refptr<DtlsTransportInterface>
+PeerConnectionWrapper::LookupDtlsTransportByMid(const std::string& mid) {
+  return pc()->LookupDtlsTransportByMid(mid);
+}
+
+rtc::scoped_refptr<webrtc::IceGathererInterface>
+PeerConnectionWrapper::CreateSharedIceGatherer() {
+  return pc()->CreateSharedIceGatherer();
+}
+
+bool PeerConnectionWrapper::UseSharedIceGatherer(
+    rtc::scoped_refptr<webrtc::IceGathererInterface> shared_ice_gatherer) {
+  return pc()->UseSharedIceGatherer(shared_ice_gatherer);
+}
+
+bool PeerConnectionWrapper::SetIncomingRtpEnabled(bool enabled) {
+  return pc()->SetIncomingRtpEnabled(enabled);
+}
+
+bool PeerConnectionWrapper::SendRtp(std::unique_ptr<RtpPacket> rtp_packet) {
+  return pc()->SendRtp(std::move(rtp_packet));
+}
+
+bool PeerConnectionWrapper::ReceiveRtp(uint8_t pt) {
+  return pc()->ReceiveRtp(pt);
+}
+
 rtc::scoped_refptr<AudioTrackInterface> PeerConnectionWrapper::CreateAudioTrack(
     const std::string& label) {
   return pc_factory()->CreateAudioTrack(label, nullptr);

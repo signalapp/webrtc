@@ -135,6 +135,20 @@ class PeerConnectionWrapper {
       rtc::scoped_refptr<MediaStreamTrackInterface> track,
       const RtpTransceiverInit& init);
 
+  // RingRTC change to add methods (see interface header)
+  rtc::scoped_refptr<DtlsTransportInterface> LookupDtlsTransportByMid(
+      const std::string& mid);
+
+  rtc::scoped_refptr<webrtc::IceGathererInterface> CreateSharedIceGatherer();
+
+  bool UseSharedIceGatherer(
+      rtc::scoped_refptr<webrtc::IceGathererInterface> shared_ice_gatherer);
+
+  bool SetIncomingRtpEnabled(bool enabled);
+
+  bool SendRtp(std::unique_ptr<RtpPacket> rtp_packet);
+  bool ReceiveRtp(uint8_t pt);
+
   // Returns a new dummy audio track with the given label.
   rtc::scoped_refptr<AudioTrackInterface> CreateAudioTrack(
       const std::string& label);

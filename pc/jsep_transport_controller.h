@@ -127,6 +127,16 @@ class JsepTransportController : public sigslot::has_slots<> {
   // Get transports to be used for the provided |mid|. If bundling is enabled,
   // calling GetRtpTransport for multiple MIDs may yield the same object.
   RtpTransportInternal* GetRtpTransport(const std::string& mid) const;
+
+  // RingRTC change to configure OPUS
+  // If bundling, return the transport used for it.
+  // If not, return nullptr.
+  RtpTransportInternal* GetBundledRtpTransport() {
+      if (!bundled_mid()) {
+          return nullptr;
+      }
+      return GetRtpTransport(*bundled_mid());
+  }
   cricket::DtlsTransportInternal* GetDtlsTransport(const std::string& mid);
   const cricket::DtlsTransportInternal* GetRtcpDtlsTransport(
       const std::string& mid) const;
@@ -157,6 +167,8 @@ class JsepTransportController : public sigslot::has_slots<> {
   // Start gathering candidates for any new transports, or transports doing an
   // ICE restart.
   void MaybeStartGathering();
+  void StartGatheringWithSharedIceGatherer(
+      rtc::scoped_refptr<webrtc::IceGathererInterface> shared_ice_gatherer);
   RTCError AddRemoteCandidates(
       const std::string& mid,
       const std::vector<cricket::Candidate>& candidates);
@@ -191,6 +203,8 @@ class JsepTransportController : public sigslot::has_slots<> {
   // For now the rollback only removes mid to transport mappings
   // and deletes unused transports, but doesn't consider anything more complex.
   void RollbackTransports();
+
+  bool SetIncomingRtpEnabled(bool enabled);
 
   // All of these signals are fired on the signaling thread.
 

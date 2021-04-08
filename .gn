@@ -59,9 +59,14 @@ default_args = {
   # component builds.
   is_component_build = false
 
-  mac_sdk_min = "10.12"
+  # RingRTC change to control MacOS/iOS targets
+  mac_sdk_min = "10.12.1"
 
-  ios_deployment_target = "10.0"
+  ios_deployment_target = "11.0"
+
+  # Temporary allow warnings until Xcode 12 builds handle "-Wno-range-loop-analysis"
+  # noise.
+  treat_warnings_as_errors = false
 
   # The SDK API level, in contrast, is set by build/android/AndroidManifest.xml.
   android32_ndk_api_level = 16
@@ -71,7 +76,8 @@ default_args = {
   # for unittests, it can be disabled (see third_party/libyuv/BUILD.gn)
   libyuv_use_gflags = false
 
-  enable_libaom = true
+  # RingRTC change to disable AV1
+  enable_libaom = false
 
   gtest_enable_absl_printers = true
 }

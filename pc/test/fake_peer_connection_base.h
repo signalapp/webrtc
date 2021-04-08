@@ -186,6 +186,29 @@ class FakePeerConnectionBase : public PeerConnectionInternal {
     return false;
   }
 
+  // RingRTC change to add methods (see interface header)
+  rtc::scoped_refptr<webrtc::IceGathererInterface> CreateSharedIceGatherer()
+      override {
+    return nullptr;
+  }
+
+  bool UseSharedIceGatherer(rtc::scoped_refptr<webrtc::IceGathererInterface>
+                                shared_ice_gatherer) override {
+    return false;
+  }
+
+  bool SetIncomingRtpEnabled(bool enabled) override {
+    return false;
+  }
+
+  bool SendRtp(std::unique_ptr<RtpPacket> rtp_packet) override {
+    return false;
+  }
+
+  bool ReceiveRtp(uint8_t pt) override {
+    return false;
+  }
+
   RTCError SetBitrate(const BitrateSettings& bitrate) override {
     return RTCError(RTCErrorType::UNSUPPORTED_OPERATION, "Not implemented");
   }

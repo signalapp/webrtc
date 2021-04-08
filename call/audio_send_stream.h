@@ -189,6 +189,11 @@ class AudioSendStream : public AudioSender {
 
   virtual Stats GetStats() const = 0;
   virtual Stats GetStats(bool has_remote_tracks) const = 0;
+
+  // RingRTC change to configure opus
+  virtual void ConfigureEncoder(const webrtc::AudioEncoder::Config& config) {
+    RTC_LOG(LS_WARNING) << "Default AudioSendStream::ConfigureEncoder(...) does nothing!";
+  }
 };
 
 }  // namespace webrtc

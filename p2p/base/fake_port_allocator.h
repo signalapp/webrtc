@@ -13,9 +13,12 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "p2p/base/basic_packet_socket_factory.h"
+#include "p2p/base/ice_credentials_iterator.h"
+#include "p2p/base/ice_gatherer.h"
 #include "p2p/base/port_allocator.h"
 #include "p2p/base/udp_port.h"
 #include "rtc_base/bind.h"
@@ -237,6 +240,18 @@ class FakePortAllocator : public cricket::PortAllocator {
     return new FakePortAllocatorSession(this, network_thread_, factory_,
                                         content_name, component, ice_ufrag,
                                         ice_pwd);
+  }
+
+  rtc::scoped_refptr<webrtc::IceGathererInterface> CreateIceGatherer(
+      const std::string& content_name) override {
+    auto new_allocator = std::make_unique<FakePortAllocator>(
+        network_thread_, nullptr /* factory */);
+    IceParameters parameters =
+        cricket::IceCredentialsIterator::CreateRandomIceCredentials();
+    auto session = new_allocator->CreateSession(
+        content_name, 1, parameters.ufrag, parameters.pwd);
+    return new rtc::RefCountedObject<cricket::BasicIceGatherer>(
+        network_thread_, std::move(new_allocator), std::move(session));
   }
 
   bool initialized() const { return initialized_; }

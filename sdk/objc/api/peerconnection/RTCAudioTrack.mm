@@ -17,7 +17,10 @@
 
 #include "rtc_base/checks.h"
 
-@implementation RTC_OBJC_TYPE (RTCAudioTrack)
+// RingRTC change to allow access to the native track
+@implementation RTC_OBJC_TYPE (RTCAudioTrack) {
+  rtc::scoped_refptr<webrtc::AudioTrackInterface> _nativeTrack;
+}
 
 @synthesize source = _source;
 
@@ -33,6 +36,8 @@
       factory.nativeFactory->CreateAudioTrack(nativeId, source.nativeAudioSource);
   if (self = [self initWithFactory:factory nativeTrack:track type:RTCMediaStreamTrackTypeAudio]) {
     _source = source;
+    // RingRTC change to allow access to the native track
+    _nativeTrack = track;
   }
   return self;
 }
@@ -56,6 +61,11 @@
     }
   }
   return _source;
+}
+
+// RingRTC change to allow access to the native track
+- (void *)getNativeAudioTrack {
+  return _nativeTrack.release();
 }
 
 #pragma mark - Private

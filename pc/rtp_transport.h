@@ -76,6 +76,10 @@ class RtpTransport : public RtpTransportInternal {
 
   bool UnregisterRtpDemuxerSink(RtpPacketSinkInterface* sink) override;
 
+  // RingRTC change to avoid processing RTP packets too soon
+  // If false, drop all RTP and RTCP packets before processing them.
+  bool SetIncomingRtpEnabled(bool enabled) override;
+
  protected:
   // These methods will be used in the subclasses.
   void DemuxPacket(rtc::CopyOnWriteBuffer packet, int64_t packet_time_us);
@@ -126,6 +130,9 @@ class RtpTransport : public RtpTransportInternal {
 
   // Used for identifying the MID for RtpDemuxer.
   RtpHeaderExtensionMap header_extension_map_;
+
+  // If false, drop all RTP and RTCP packets before processing them.
+  bool incoming_rtp_enabled_ = true;
 };
 
 }  // namespace webrtc

@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "api/turn_customizer.h"
+#include "p2p/base/port.h"
 #include "p2p/base/port_allocator.h"
 #include "p2p/client/relay_port_factory_interface.h"
 #include "p2p/client/turn_port_factory.h"
@@ -66,6 +67,10 @@ class RTC_EXPORT BasicPortAllocator : public PortAllocator {
       int component,
       const std::string& ice_ufrag,
       const std::string& ice_pwd) override;
+
+  // RingRTC change to add ICE forking
+  rtc::scoped_refptr<webrtc::IceGathererInterface> CreateIceGatherer(
+      const std::string& content_name) override;
 
   // Convenience method that adds a TURN server to the configuration.
   void AddTurnServer(const RelayServerConfig& turn_server);

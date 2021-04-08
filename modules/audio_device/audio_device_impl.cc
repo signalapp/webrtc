@@ -665,11 +665,12 @@ int32_t AudioDeviceModuleImpl::MinMicrophoneVolume(uint32_t* minVolume) const {
   return 0;
 }
 
+// RingRTC changes to add some useful logging
 int16_t AudioDeviceModuleImpl::PlayoutDevices() {
-  RTC_LOG(INFO) << __FUNCTION__;
+  RTC_LOG(LS_VERBOSE) << __FUNCTION__;
   CHECKinitialized_();
   uint16_t nPlayoutDevices = audio_device_->PlayoutDevices();
-  RTC_LOG(INFO) << "output: " << nPlayoutDevices;
+  RTC_LOG(LS_VERBOSE) << "output: " << nPlayoutDevices;
   return (int16_t)(nPlayoutDevices);
 }
 
@@ -689,7 +690,7 @@ int32_t AudioDeviceModuleImpl::PlayoutDeviceName(
     uint16_t index,
     char name[kAdmMaxDeviceNameSize],
     char guid[kAdmMaxGuidSize]) {
-  RTC_LOG(INFO) << __FUNCTION__ << "(" << index << ", ...)";
+  RTC_LOG(LS_VERBOSE) << __FUNCTION__ << "(" << index << ", ...)";
   CHECKinitialized_();
   if (name == NULL) {
     return -1;
@@ -698,10 +699,10 @@ int32_t AudioDeviceModuleImpl::PlayoutDeviceName(
     return -1;
   }
   if (name != NULL) {
-    RTC_LOG(INFO) << "output: name = " << name;
+    RTC_LOG(LS_VERBOSE) << "output: name = " << name;
   }
   if (guid != NULL) {
-    RTC_LOG(INFO) << "output: guid = " << guid;
+    RTC_LOG(LS_VERBOSE) << "output: guid = " << guid;
   }
   return 0;
 }
@@ -710,7 +711,7 @@ int32_t AudioDeviceModuleImpl::RecordingDeviceName(
     uint16_t index,
     char name[kAdmMaxDeviceNameSize],
     char guid[kAdmMaxGuidSize]) {
-  RTC_LOG(INFO) << __FUNCTION__ << "(" << index << ", ...)";
+  RTC_LOG(LS_VERBOSE) << __FUNCTION__ << "(" << index << ", ...)";
   CHECKinitialized_();
   if (name == NULL) {
     return -1;
@@ -719,19 +720,19 @@ int32_t AudioDeviceModuleImpl::RecordingDeviceName(
     return -1;
   }
   if (name != NULL) {
-    RTC_LOG(INFO) << "output: name = " << name;
+    RTC_LOG(LS_VERBOSE) << "output: name = " << name;
   }
   if (guid != NULL) {
-    RTC_LOG(INFO) << "output: guid = " << guid;
+    RTC_LOG(LS_VERBOSE) << "output: guid = " << guid;
   }
   return 0;
 }
 
 int16_t AudioDeviceModuleImpl::RecordingDevices() {
-  RTC_LOG(INFO) << __FUNCTION__;
+  RTC_LOG(LS_VERBOSE) << __FUNCTION__;
   CHECKinitialized_();
   uint16_t nRecordingDevices = audio_device_->RecordingDevices();
-  RTC_LOG(INFO) << "output: " << nRecordingDevices;
+  RTC_LOG(LS_VERBOSE) << "output: " << nRecordingDevices;
   return (int16_t)nRecordingDevices;
 }
 

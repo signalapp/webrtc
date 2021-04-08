@@ -189,6 +189,12 @@ public class FileVideoCapturer implements VideoCapturer {
     // Empty on purpose
   }
 
+  // RingRTC change to set frame orientation
+  @Override
+  public void setOrientation(Integer orientation) {
+    // Empty on purpose
+  }
+
   @Override
   public void dispose() {
     videoReader.close();

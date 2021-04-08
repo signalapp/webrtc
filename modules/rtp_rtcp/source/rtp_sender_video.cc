@@ -573,9 +573,10 @@ bool RTPSenderVideo::SendVideo(
   // TODO(benwright@webrtc.org) - Allocate enough to always encrypt inline.
   rtc::Buffer encrypted_video_payload;
   if (frame_encryptor_ != nullptr) {
-    if (!has_generic_descriptor) {
-      return false;
-    }
+    // RingRTC change to allow encryption without generic descriptor.
+    // if (!has_generic_descriptor) {
+    //   return false;
+    // }
 
     const size_t max_ciphertext_size =
         frame_encryptor_->GetMaxCiphertextByteSize(cricket::MEDIA_TYPE_VIDEO,

@@ -138,8 +138,6 @@ AudioDeviceMac::AudioDeviceMac()
       _twoDevices(true),
       _doStop(false),
       _doStopRec(false),
-      _macBookPro(false),
-      _macBookProPanRight(false),
       _captureLatencyUs(0),
       _renderLatencyUs(0),
       _captureDelayUs(0),
@@ -313,22 +311,7 @@ AudioDeviceGeneric::InitStatus AudioDeviceMac::Init() {
   WEBRTC_CA_LOG_ERR(AudioObjectAddPropertyListener(
       kAudioObjectSystemObject, &propertyAddress, &objectListenerProc, this));
 
-  // Determine if this is a MacBook Pro
-  _macBookPro = false;
-  _macBookProPanRight = false;
-  char buf[128];
-  size_t length = sizeof(buf);
-  memset(buf, 0, length);
-
-  int intErr = sysctlbyname("hw.model", buf, &length, NULL, 0);
-  if (intErr != 0) {
-    RTC_LOG(LS_ERROR) << "Error in sysctlbyname(): " << err;
-  } else {
-    RTC_LOG(LS_VERBOSE) << "Hardware model: " << buf;
-    if (strncmp(buf, "MacBookPro", 10) == 0) {
-      _macBookPro = true;
-    }
-  }
+  // RingRTC changes (code removed) to avoid speaker panning
 
   _initialized = true;
 
@@ -996,34 +979,9 @@ int32_t AudioDeviceMac::InitPlayout() {
   _renderDeviceIsAlive = 1;
   _doStop = false;
 
-  // The internal microphone of a MacBook Pro is located under the left speaker
-  // grille. When the internal speakers are in use, we want to fully stereo
-  // pan to the right.
+  // RingRTC changes (code removed) to avoid speaker panning
   AudioObjectPropertyAddress propertyAddress = {
       kAudioDevicePropertyDataSource, kAudioDevicePropertyScopeOutput, 0};
-  if (_macBookPro) {
-    _macBookProPanRight = false;
-    Boolean hasProperty =
-        AudioObjectHasProperty(_outputDeviceID, &propertyAddress);
-    if (hasProperty) {
-      UInt32 dataSource = 0;
-      size = sizeof(dataSource);
-      WEBRTC_CA_LOG_WARN(AudioObjectGetPropertyData(
-          _outputDeviceID, &propertyAddress, 0, NULL, &size, &dataSource));
-
-      if (dataSource == 'ispk') {
-        _macBookProPanRight = true;
-        RTC_LOG(LS_VERBOSE)
-            << "MacBook Pro using internal speakers; stereo panning right";
-      } else {
-        RTC_LOG(LS_VERBOSE) << "MacBook Pro not using internal speakers";
-      }
-
-      // Add a listener to determine if the status changes.
-      WEBRTC_CA_LOG_WARN(AudioObjectAddPropertyListener(
-          _outputDeviceID, &propertyAddress, &objectListenerProc, this));
-    }
-  }
 
   // Get current stream description
   propertyAddress.mSelector = kAudioDevicePropertyStreamFormat;
@@ -1523,16 +1481,6 @@ int32_t AudioDeviceMac::StopPlayout() {
   WEBRTC_CA_LOG_WARN(AudioObjectRemovePropertyListener(
       _outputDeviceID, &propertyAddress, &objectListenerProc, this));
 
-  if (_macBookPro) {
-    Boolean hasProperty =
-        AudioObjectHasProperty(_outputDeviceID, &propertyAddress);
-    if (hasProperty) {
-      propertyAddress.mSelector = kAudioDevicePropertyDataSource;
-      WEBRTC_CA_LOG_WARN(AudioObjectRemovePropertyListener(
-          _outputDeviceID, &propertyAddress, &objectListenerProc, this));
-    }
-  }
-
   _playIsInitialized = false;
   _playing = false;
 
@@ -1922,8 +1870,6 @@ OSStatus AudioDeviceMac::implObjectListenerProc(
       HandleDeviceChange();
     } else if (addresses[i].mSelector == kAudioDevicePropertyStreamFormat) {
       HandleStreamFormatChange(objectId, addresses[i]);
-    } else if (addresses[i].mSelector == kAudioDevicePropertyDataSource) {
-      HandleDataSourceChange(objectId, addresses[i]);
     } else if (addresses[i].mSelector == kAudioDeviceProcessorOverload) {
       HandleProcessorOverload(addresses[i]);
     }
@@ -2068,31 +2014,8 @@ int32_t AudioDeviceMac::HandleStreamFormatChange(
   return 0;
 }
 
-int32_t AudioDeviceMac::HandleDataSourceChange(
-    const AudioObjectID objectId,
-    const AudioObjectPropertyAddress propertyAddress) {
-  OSStatus err = noErr;
+  // RingRTC changes (code removed) to avoid speaker panning
 
-  if (_macBookPro &&
-      propertyAddress.mScope == kAudioDevicePropertyScopeOutput) {
-    RTC_LOG(LS_VERBOSE) << "Data source changed";
-
-    _macBookProPanRight = false;
-    UInt32 dataSource = 0;
-    UInt32 size = sizeof(UInt32);
-    WEBRTC_CA_RETURN_ON_ERR(AudioObjectGetPropertyData(
-        objectId, &propertyAddress, 0, NULL, &size, &dataSource));
-    if (dataSource == 'ispk') {
-      _macBookProPanRight = true;
-      RTC_LOG(LS_VERBOSE)
-          << "MacBook Pro using internal speakers; stereo panning right";
-    } else {
-      RTC_LOG(LS_VERBOSE) << "MacBook Pro not using internal speakers";
-    }
-  }
-
-  return 0;
-}
 int32_t AudioDeviceMac::HandleProcessorOverload(
     const AudioObjectPropertyAddress propertyAddress) {
   // TODO(xians): we probably want to notify the user in some way of the
@@ -2416,24 +2339,7 @@ bool AudioDeviceMac::RenderWorkerThread() {
   uint32_t nOutSamples = nSamples * _outDesiredFormat.mChannelsPerFrame;
 
   SInt16* pPlayBuffer = (SInt16*)&playBuffer;
-  if (_macBookProPanRight && (_playChannels == 2)) {
-    // Mix entirely into the right channel and zero the left channel.
-    SInt32 sampleInt32 = 0;
-    for (uint32_t sampleIdx = 0; sampleIdx < nOutSamples; sampleIdx += 2) {
-      sampleInt32 = pPlayBuffer[sampleIdx];
-      sampleInt32 += pPlayBuffer[sampleIdx + 1];
-      sampleInt32 /= 2;
-
-      if (sampleInt32 > 32767) {
-        sampleInt32 = 32767;
-      } else if (sampleInt32 < -32768) {
-        sampleInt32 = -32768;
-      }
-
-      pPlayBuffer[sampleIdx] = 0;
-      pPlayBuffer[sampleIdx + 1] = static_cast<SInt16>(sampleInt32);
-    }
-  }
+  // RingRTC changes (code removed) to avoid speaker panning
 
   PaUtil_WriteRingBuffer(_paRenderBuffer, pPlayBuffer, nOutSamples);
 

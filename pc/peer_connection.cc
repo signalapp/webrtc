@@ -36,6 +36,7 @@
 #include "p2p/base/connection.h"
 #include "p2p/base/connection_info.h"
 #include "p2p/base/dtls_transport_internal.h"
+#include "p2p/base/ice_gatherer.h"
 #include "p2p/base/p2p_constants.h"
 #include "p2p/base/p2p_transport_channel.h"
 #include "p2p/base/transport_info.h"
@@ -1787,9 +1788,7 @@ PeerConnection::InitializePortAllocator_n(
   // To handle both internal and externally created port allocator, we will
   // enable BUNDLE here.
   int port_allocator_flags = port_allocator_->flags();
-  port_allocator_flags |= cricket::PORTALLOCATOR_ENABLE_SHARED_SOCKET |
-                          cricket::PORTALLOCATOR_ENABLE_IPV6 |
-                          cricket::PORTALLOCATOR_ENABLE_IPV6_ON_WIFI;
+  // RingRTC change to default flags (code removed)
   // If the disable-IPv6 flag was specified, we'll not override it
   // by experiment.
   if (configuration.disable_ipv6) {
@@ -2593,5 +2592,81 @@ PeerConnection::InitializeRtcpCallback() {
     }));
   };
 }
+
+// RingRTC change to add methods (see interface header)
+rtc::scoped_refptr<webrtc::IceGathererInterface>
+PeerConnection::CreateSharedIceGatherer() {
+  return network_thread()
+      ->Invoke<rtc::scoped_refptr<webrtc::IceGathererInterface>>(
+          RTC_FROM_HERE, [this] {
+            RTC_DCHECK_RUN_ON(network_thread());
+            return port_allocator_->CreateIceGatherer("shared");
+          });
+}
+
+bool PeerConnection::UseSharedIceGatherer(
+    rtc::scoped_refptr<webrtc::IceGathererInterface> shared_ice_gatherer) {
+  RTC_DCHECK(shared_ice_gatherer);
+  shared_ice_gatherer_ = std::move(shared_ice_gatherer);
+  return true;
+}
+
+bool PeerConnection::SetIncomingRtpEnabled(bool enabled) {
+  return transport_controller_->SetIncomingRtpEnabled(enabled);
+}
+
+bool PeerConnection::SendRtp(std::unique_ptr<RtpPacket> rtp_packet) {
+  RTC_DCHECK_RUN_ON(signaling_thread());
+  RtpTransportInternal* rtp_transport = transport_controller_->GetBundledRtpTransport();
+  if (!rtp_transport) {
+    return false;
+  }
+
+  // Is there a better way to std::move the unique_ptr?
+  RtpPacket* raw_rtp_packet = rtp_packet.release();
+  return network_thread()->Invoke<bool>(RTC_FROM_HERE, [rtp_transport, raw_rtp_packet] {
+    std::unique_ptr<RtpPacket> rtp_packet(raw_rtp_packet);
+
+    // Doesn't copy because we're not writing to it.
+    rtc::CopyOnWriteBuffer buffer = rtp_packet->Buffer();
+    rtc::PacketOptions options;
+    // This makes the packet use SRTP instead of DTLS.
+    int flags = cricket::PF_SRTP_BYPASS;
+    return rtp_transport->SendRtpPacket(&buffer, options, flags);
+  });
+}
+
+bool PeerConnection::ReceiveRtp(uint8_t pt) {
+  RTC_DCHECK_RUN_ON(signaling_thread());
+  RtpTransportInternal* rtp_transport = transport_controller_->GetBundledRtpTransport();
+  if (!rtp_transport) {
+    return false;
+  }
+
+  RtpDemuxerCriteria demux_criteria;
+  demux_criteria.payload_types.insert(pt);
+  RtpPacketSinkInterface* sink = Observer();
+  return network_thread()->Invoke<bool>(RTC_FROM_HERE, [rtp_transport, demux_criteria, sink] {
+    return rtp_transport->RegisterRtpDemuxerSink(demux_criteria, sink);
+  });
+}
+
+void PeerConnection::ConfigureAudioEncoders(const webrtc::AudioEncoder::Config& config) {
+  int count = 0;
+  for (const auto& transceiver : rtp_manager()->transceivers()->List()) {
+    if (transceiver->media_type() == cricket::MEDIA_TYPE_AUDIO) {
+      cricket::VoiceChannel* voice_channel = static_cast<cricket::VoiceChannel*>(transceiver->internal()->channel());
+      voice_channel->ConfigureEncoders(config);
+      count++;
+    }
+  }
+  if (count == 0) {
+    RTC_LOG(LS_WARNING) << "PeerConnection::ConfigureAudioEncoders(...) changed no transceivers!";
+  } else {
+    RTC_LOG(LS_INFO) << "PeerConnection::ConfigureAudioEncoders(...) changed " << count << " transceivers.";
+  }
+}
+
+
 
 }  // namespace webrtc

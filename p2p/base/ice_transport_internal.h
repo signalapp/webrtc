@@ -13,15 +13,20 @@
 
 #include <stdint.h>
 
+#include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/types/optional.h"
 #include "api/candidate.h"
+#include "api/ice_gatherer_interface.h"
 #include "api/transport/enums.h"
 #include "p2p/base/connection.h"
 #include "p2p/base/packet_transport_internal.h"
 #include "p2p/base/port.h"
+// For PortAllocatorSession
+#include "p2p/base/port_allocator.h"
 #include "p2p/base/transport_description.h"
 #include "rtc_base/network_constants.h"
 #include "rtc_base/system/rtc_export.h"
@@ -251,6 +256,17 @@ class RTC_EXPORT IceTransportInternal : public rtc::PacketTransportInternal {
   // Start gathering candidates if not already started, or if an ICE restart
   // occurred.
   virtual void MaybeStartGathering() = 0;
+  // RingRTC change to add ICE forking
+  // Start gathering with the same IceGatherer on many ICE transports to get
+  // ICE forking behavior.  For example, like so:
+  // rtc::scoped_refptr<webrtc::IceGathererInterface> gatherer = ...;
+  // transport1->StartGatheringWithSharedGatherer(gatherer);
+  // transport2->StartGatheringWithSharedGatherer(gatherer);
+  // Can only be called once.
+  virtual void StartGatheringWithSharedGatherer(
+      rtc::scoped_refptr<webrtc::IceGathererInterface> gatherer) {}
+  // Just for tests.
+  virtual webrtc::IceGathererInterface* shared_gatherer() { return nullptr; }
 
   virtual void AddRemoteCandidate(const Candidate& candidate) = 0;
 

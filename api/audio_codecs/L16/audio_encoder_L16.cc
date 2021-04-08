@@ -43,7 +43,8 @@ absl::optional<AudioEncoderL16::Config> AudioEncoderL16::SdpToConfig(
 
 void AudioEncoderL16::AppendSupportedEncoders(
     std::vector<AudioCodecSpec>* specs) {
-  Pcm16BAppendSupportedCodecSpecs(specs);
+  // RingRTC change to unused audio codecs
+  // Pcm16BAppendSupportedCodecSpecs(specs);
 }
 
 AudioCodecInfo AudioEncoderL16::QueryAudioEncoder(

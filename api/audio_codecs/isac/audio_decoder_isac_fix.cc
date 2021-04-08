@@ -27,7 +27,8 @@ absl::optional<AudioDecoderIsacFix::Config> AudioDecoderIsacFix::SdpToConfig(
 
 void AudioDecoderIsacFix::AppendSupportedDecoders(
     std::vector<AudioCodecSpec>* specs) {
-  specs->push_back({{"ISAC", 16000, 1}, {16000, 1, 32000, 10000, 32000}});
+  // RingRTC change to unused audio codecs
+  // specs->push_back({{"ISAC", 16000, 1}, {16000, 1, 32000, 10000, 32000}});
 }
 
 std::unique_ptr<AudioDecoder> AudioDecoderIsacFix::MakeAudioDecoder(

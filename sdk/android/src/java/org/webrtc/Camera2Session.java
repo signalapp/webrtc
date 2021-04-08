@@ -67,6 +67,9 @@ class Camera2Session implements CameraSession {
   // Initialized when capture session is created
   @Nullable private CameraCaptureSession captureSession;
 
+  // Initialized when set via API
+  @Nullable private Integer deviceOrientation;
+
   // State
   private SessionState state = SessionState.RUNNING;
   private boolean firstFrameReported;
@@ -404,8 +407,26 @@ class Camera2Session implements CameraSession {
     }
   }
 
+  // RingRTC change to set frame orientation (rotation)
+  @Override
+  public void setOrientation(@Nullable Integer orientation) {
+    checkIsOnCameraThread();
+    Logging.d(TAG, "Set Orientation: " + orientation);
+
+    // The device orientation is locked to portrait in Signal clients.
+    // Instead of using CameraSession.getDeviceOrientation(), the
+    // client can indicate the current rotated orientation directly.
+    deviceOrientation = orientation;
+  }
+
   private int getFrameOrientation() {
-    int rotation = CameraSession.getDeviceOrientation(applicationContext);
+    int rotation;
+    if (deviceOrientation == null) {
+      rotation = CameraSession.getDeviceOrientation(applicationContext);
+    } else {
+      rotation = deviceOrientation;
+    }
+
     if (!isCameraFrontFacing) {
       rotation = 360 - rotation;
     }

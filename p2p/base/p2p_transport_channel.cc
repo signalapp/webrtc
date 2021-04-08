@@ -202,6 +202,22 @@ P2PTransportChannel::~P2PTransportChannel() {
     p.resolver_->Destroy(false);
   }
   resolvers_.clear();
+
+  // RingRTC change for ICE forking
+  if (shared_gatherer_) {
+    shared_gatherer_->port_allocator_session()->SignalPortReady.disconnect(
+        this);
+    shared_gatherer_->port_allocator_session()->SignalPortsPruned.disconnect(
+        this);
+    shared_gatherer_->port_allocator_session()
+        ->SignalCandidatesReady.disconnect(this);
+    shared_gatherer_->port_allocator_session()->SignalCandidateError.disconnect(
+        this);
+    shared_gatherer_->port_allocator_session()
+        ->SignalCandidatesRemoved.disconnect(this);
+    shared_gatherer_->port_allocator_session()
+        ->SignalCandidatesAllocationDone.disconnect(this);
+  }
 }
 
 // Add the allocator session to our list so that we know which sessions
@@ -210,7 +226,15 @@ void P2PTransportChannel::AddAllocatorSession(
     std::unique_ptr<PortAllocatorSession> session) {
   RTC_DCHECK_RUN_ON(network_thread_);
 
-  session->set_generation(static_cast<uint32_t>(allocator_sessions_.size()));
+  // RingRTC change to add ICE forking
+  uint32_t generation = rtc::checked_cast<uint32_t>(allocator_sessions_.size());
+  if (shared_gatherer_) {
+    // ICE restarts after the use of a shared_gatherer_ need to have a
+    // generation larger than the shared_gatherer_ had.
+    generation +=
+        (shared_gatherer_->port_allocator_session()->generation() + 1);
+  }
+  session->set_generation(generation);
   session->SignalPortReady.connect(this, &P2PTransportChannel::OnPortReady);
   session->SignalPortsPruned.connect(this, &P2PTransportChannel::OnPortsPruned);
   session->SignalCandidatesReady.connect(
@@ -222,7 +246,8 @@ void P2PTransportChannel::AddAllocatorSession(
   session->SignalCandidatesAllocationDone.connect(
       this, &P2PTransportChannel::OnCandidatesAllocationDone);
   if (!allocator_sessions_.empty()) {
-    allocator_session()->PruneAllPorts();
+    // RingRTC change to add ICE forking
+    allocator_sessions_.back()->PruneAllPorts();
   }
   allocator_sessions_.push_back(std::move(session));
   regathering_controller_->set_allocator_session(allocator_session());
@@ -515,7 +540,7 @@ void P2PTransportChannel::SetRemoteIceMode(IceMode mode) {
 void P2PTransportChannel::SetIceConfig(const IceConfig& config) {
   RTC_DCHECK_RUN_ON(network_thread_);
   if (config_.continual_gathering_policy != config.continual_gathering_policy) {
-    if (!allocator_sessions_.empty()) {
+    if (allocator_session()) {
       RTC_LOG(LS_ERROR) << "Trying to change continual gathering policy "
                            "when gathering has already started!";
     } else {
@@ -820,16 +845,16 @@ void P2PTransportChannel::MaybeStartGathering() {
     return;
   }
   // Start gathering if we never started before, or if an ICE restart occurred.
-  if (allocator_sessions_.empty() ||
-      IceCredentialsChanged(allocator_sessions_.back()->ice_ufrag(),
-                            allocator_sessions_.back()->ice_pwd(),
+  if (!allocator_session() ||
+      IceCredentialsChanged(allocator_session()->ice_ufrag(),
+                            allocator_session()->ice_pwd(),
                             ice_parameters_.ufrag, ice_parameters_.pwd)) {
     if (gathering_state_ != kIceGatheringGathering) {
       gathering_state_ = kIceGatheringGathering;
       SignalGatheringState(this);
     }
 
-    if (!allocator_sessions_.empty()) {
+    if (allocator_session()) {
       IceRestartState state;
       if (writable()) {
         state = IceRestartState::CONNECTED;
@@ -877,6 +902,46 @@ void P2PTransportChannel::MaybeStartGathering() {
   }
 }
 
+// RingRTC change to add ICE forking
+void P2PTransportChannel::StartGatheringWithSharedGatherer(
+    rtc::scoped_refptr<webrtc::IceGathererInterface> shared_gatherer) {
+  RTC_DCHECK(!shared_gatherer_);
+  RTC_DCHECK_RUN_ON(network_thread_);
+  if (gathering_state_ != kIceGatheringGathering) {
+    gathering_state_ = kIceGatheringGathering;
+    SignalGatheringState(this);
+  }
+
+  // Note: we must set this before calling OnPortReady below to make sure
+  // we handle peer reflexive candidates properly.
+  shared_gatherer_ = std::move(shared_gatherer);
+
+  auto* session = shared_gatherer_->port_allocator_session();
+  session->SignalPortReady.connect(this, &P2PTransportChannel::OnPortReady);
+  session->SignalPortsPruned.connect(this, &P2PTransportChannel::OnPortsPruned);
+  session->SignalCandidatesReady.connect(
+      this, &P2PTransportChannel::OnCandidatesReady);
+  session->SignalCandidateError.connect(this,
+                                        &P2PTransportChannel::OnCandidateError);
+  session->SignalCandidatesRemoved.connect(
+      this, &P2PTransportChannel::OnCandidatesRemoved);
+  session->SignalCandidatesAllocationDone.connect(
+      this, &P2PTransportChannel::OnCandidatesAllocationDone);
+  // Process the pooled session's existing candidates/ports, if they exist.
+  OnCandidatesReady(session, session->ReadyCandidates());
+  for (PortInterface* port : session->ReadyPorts()) {
+    OnPortReady(session, port);
+  }
+  if (session->CandidatesAllocationDone()) {
+    OnCandidatesAllocationDone(session);
+  }
+  // This expects that it's OK to call StartGettingPorts multiple times.
+  // If that is ever not the case, we should add an IceGatherer::Start method
+  // that makes sure StartGettingPorts is only called once and then call
+  // that method here.
+  session->StartGettingPorts();
+}
+
 // A new port is available, attempt to make connections for it
 void P2PTransportChannel::OnPortReady(PortAllocatorSession* session,
                                       PortInterface* port) {
@@ -900,12 +965,24 @@ void P2PTransportChannel::OnPortReady(PortAllocatorSession* session,
 
   port->SetIceRole(ice_role_);
   port->SetIceTiebreaker(tiebreaker_);
-  ports_.push_back(port);
-  port->SignalUnknownAddress.connect(this,
-                                     &P2PTransportChannel::OnUnknownAddress);
-  port->SignalDestroyed.connect(this, &P2PTransportChannel::OnPortDestroyed);
+  // RingRTC change to add ICE forking
+  if (IsSharedSession(session)) {
+    // Handling role conflicts at the port level breaks badly when sharing
+    // a port between many transports.  So disable it until we have
+    // role conflict handling that works with ICE forking.
+    port->SignalRoleConflict.connect(
+        this, &P2PTransportChannel::OnRoleConflictIgnored);
+    port->SignalUnknownAddress.connect(
+        this, &P2PTransportChannel::OnUnknownAddressFromSharedSession);
+  } else {
+    port->SignalRoleConflict.connect(this,
+                                     &P2PTransportChannel::OnRoleConflict);
+    port->SignalUnknownAddress.connect(
+        this, &P2PTransportChannel::OnUnknownAddressFromOwnedSession);
+  }
 
-  port->SignalRoleConflict.connect(this, &P2PTransportChannel::OnRoleConflict);
+  ports_.push_back(port);
+  port->SignalDestroyed.connect(this, &P2PTransportChannel::OnPortDestroyed);
   port->SignalSentPacket.connect(this, &P2PTransportChannel::OnSentPacket);
 
   // Attempt to create a connection from this new port to all of the remote
@@ -954,13 +1031,39 @@ void P2PTransportChannel::OnCandidatesAllocationDone(
   SignalGatheringState(this);
 }
 
+// RingRTC change to add ICE forking
+void P2PTransportChannel::OnUnknownAddressFromSharedSession(
+    PortInterface* port,
+    const rtc::SocketAddress& address,
+    ProtocolType proto,
+    IceMessage* stun_msg,
+    const std::string& remote_username,
+    bool port_muxed) {
+  bool shared = true;
+  OnUnknownAddress(port, address, proto, stun_msg, remote_username, port_muxed,
+                   shared);
+}
+
+void P2PTransportChannel::OnUnknownAddressFromOwnedSession(
+    PortInterface* port,
+    const rtc::SocketAddress& address,
+    ProtocolType proto,
+    IceMessage* stun_msg,
+    const std::string& remote_username,
+    bool port_muxed) {
+  bool shared = false;
+  OnUnknownAddress(port, address, proto, stun_msg, remote_username, port_muxed,
+                   shared);
+}
+
 // Handle stun packets
 void P2PTransportChannel::OnUnknownAddress(PortInterface* port,
                                            const rtc::SocketAddress& address,
                                            ProtocolType proto,
                                            IceMessage* stun_msg,
                                            const std::string& remote_username,
-                                           bool port_muxed) {
+                                           bool port_muxed,
+                                           bool shared) {
   RTC_DCHECK_RUN_ON(network_thread_);
 
   // Port has received a valid stun packet from an address that no Connection
@@ -1003,6 +1106,14 @@ void P2PTransportChannel::OnUnknownAddress(PortInterface* port,
   // Note: if not found, the remote_generation will still be 0.
   if (ice_param != nullptr) {
     remote_password = ice_param->pwd;
+  // RingRTC change to add ICE forking
+  } else if (shared) {
+    // If we don't know that the remote ufrag and the session is shared between
+    // different transports, then don't create a peer reflexive candidate.
+    // Otherwise, each transport would end up with one.
+    RTC_LOG(LS_WARNING)
+        << "Ignoring peer-refexive ICE candidate because the ufrag is unknown.";
+    return;
   }
 
   Candidate remote_candidate;
@@ -1117,6 +1228,10 @@ void P2PTransportChannel::OnRoleConflict(PortInterface* port) {
                              // from Transport.
 }
 
+void P2PTransportChannel::OnRoleConflictIgnored(PortInterface* port) {
+  RTC_LOG(LS_ERROR) << "Ignored conflict. This is bad.";
+}
+
 const IceParameters* P2PTransportChannel::FindRemoteIceFromUfrag(
     const std::string& ufrag,
     uint32_t* generation) {
@@ -1217,7 +1332,10 @@ void P2PTransportChannel::AddRemoteCandidate(const Candidate& candidate) {
     bool sharing_host = ((allocator_->candidate_filter() & CF_HOST) != 0);
     bool sharing_stun = ((allocator_->candidate_filter() & CF_REFLEXIVE) != 0);
     if (sharing_host || sharing_stun) {
-      ResolveHostnameCandidate(new_remote_candidate);
+      // RingRTC change to improve privacy of IP addresses
+      // Do not resolve remote candidates because doing so may cause a connection to
+      // an arbitrary DNS server.
+      // ResolveHostnameCandidate(new_remote_candidate);
     }
     return;
   }
@@ -1563,7 +1681,7 @@ bool P2PTransportChannel::GetStats(IceTransportStats* ice_transport_stats) {
   ice_transport_stats->candidate_stats_list.clear();
   ice_transport_stats->connection_infos.clear();
 
-  if (!allocator_sessions_.empty()) {
+  if (allocator_session()) {
     allocator_session()->GetCandidateStatsFromReadyPorts(
         &ice_transport_stats->candidate_stats_list);
   }

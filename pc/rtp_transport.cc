@@ -262,12 +262,32 @@ void RtpTransport::OnReadPacket(rtc::PacketTransportInternal* transport,
     return;
   }
 
+  // RingRTC change to avoid processing RTP packets too soon
+  if (!incoming_rtp_enabled_) {
+    if (packet_type == cricket::RtpPacketType::kRtcp) {
+      RTC_LOG(LS_WARNING) << "Dropping RTCP packet because incoming RTP is disabled; len: " << len;
+      return;
+    } else {
+      int pt = -1;
+      cricket::GetRtpPayloadType(data, len, &pt);
+      RTC_LOG(LS_INFO) << "Dropping RTP packet because incoming RTP is disabled; len: " << len << " pt: " << pt;
+      return;
+    }
+  }
+
   rtc::CopyOnWriteBuffer packet(data, len);
   if (packet_type == cricket::RtpPacketType::kRtcp) {
     OnRtcpPacketReceived(std::move(packet), packet_time_us);
   } else {
     OnRtpPacketReceived(std::move(packet), packet_time_us);
   }
+}
+
+// RingRTC change to avoid processing RTP packets too soon
+bool RtpTransport::SetIncomingRtpEnabled(bool enabled) {
+  incoming_rtp_enabled_ = enabled;
+  RTC_LOG(LS_INFO) << "RtpTransport::SetIncomingRtpEnabled(" << enabled << ")";
+  return true;
 }
 
 void RtpTransport::SetReadyToSend(bool rtcp, bool ready) {

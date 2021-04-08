@@ -25,10 +25,11 @@ struct RTC_EXPORT CryptoOptions {
   CryptoOptions(const CryptoOptions& other);
   ~CryptoOptions();
 
+  // RingRTC change to use GCM by default
   // Helper method to return an instance of the CryptoOptions with GCM crypto
   // suites disabled. This method should be used instead of depending on current
   // default values set by the constructor.
-  static CryptoOptions NoGcm();
+  static CryptoOptions Default();
 
   // Returns a list of the supported DTLS-SRTP Crypto suites based on this set
   // of crypto options.

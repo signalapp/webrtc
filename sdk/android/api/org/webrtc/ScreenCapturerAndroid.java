@@ -198,6 +198,12 @@ public class ScreenCapturerAndroid implements VideoCapturer, VideoSink {
         null /* callback */, null /* callback handler */);
   }
 
+  // RingRTC change to set frame orientation
+  @Override
+  public void setOrientation(Integer orientation) {
+    // Empty on purpose
+  }
+
   // This is called on the internal looper thread of {@Code SurfaceTextureHelper}.
   @Override
   public void onFrame(VideoFrame frame) {

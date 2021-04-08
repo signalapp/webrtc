@@ -15,6 +15,7 @@
 
 #include "absl/algorithm/container.h"
 #include "p2p/base/basic_packet_socket_factory.h"
+#include "p2p/base/ice_gatherer.h"
 #include "p2p/base/p2p_constants.h"
 #include "p2p/base/stun_port.h"
 #include "p2p/base/stun_request.h"
@@ -2451,6 +2452,41 @@ TEST_F(BasicPortAllocatorTest, TestDoNotUseTurnServerAsStunSever) {
   port_config.AddRelay(turn_servers);
 
   EXPECT_EQ(1U, port_config.StunServers().size());
+}
+
+TEST_F(BasicPortAllocatorTest, TestCreateIceGathererForForking) {
+  allocator_->set_flags(1);
+  allocator_->SetPortRange(2, 3);
+  allocator_->set_step_delay(5);
+  allocator_->set_allow_tcp_listen(false);
+  allocator_->set_candidate_filter(5);
+  allocator_->set_origin("test");
+  allocator_->set_max_ipv6_networks(6);
+  allocator_->SetNetworkIgnoreMask(7);
+  AddTurnServers(kTurnUdpIntAddr, rtc::SocketAddress());
+  allocator_->SetConfiguration(allocator_->stun_servers(),
+                               allocator_->turn_servers(), 0,
+                               webrtc::PRUNE_BASED_ON_PRIORITY,
+                               nullptr, 8);
+
+  auto gatherer = allocator_->CreateIceGatherer("test");
+  ASSERT_TRUE(gatherer);
+  auto* forked = static_cast<cricket::BasicPortAllocator*>(
+    static_cast<cricket::BasicIceGatherer*>(gatherer.get())->port_allocator());
+
+  EXPECT_EQ(allocator_->flags(), forked->flags());
+  EXPECT_EQ(allocator_->min_port(), forked->min_port());
+  EXPECT_EQ(allocator_->max_port(), forked->max_port());
+  EXPECT_EQ(allocator_->step_delay(), forked->step_delay());
+  EXPECT_EQ(allocator_->allow_tcp_listen(), forked->allow_tcp_listen());
+  EXPECT_EQ(allocator_->candidate_filter(), forked->candidate_filter());
+  EXPECT_EQ(allocator_->origin(), forked->origin());
+  EXPECT_EQ(allocator_->max_ipv6_networks(), forked->max_ipv6_networks());
+  EXPECT_EQ(allocator_->network_ignore_mask(), forked->network_ignore_mask());
+  EXPECT_EQ(allocator_->stun_servers(), forked->stun_servers());
+  EXPECT_EQ(allocator_->turn_servers(), forked->turn_servers());
+  EXPECT_EQ(allocator_->turn_port_prune_policy(), forked->turn_port_prune_policy());
+  EXPECT_EQ(allocator_->stun_candidate_keepalive_interval(), forked->stun_candidate_keepalive_interval());
 }
 
 }  // namespace cricket

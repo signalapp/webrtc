@@ -59,9 +59,10 @@ absl::optional<AudioEncoderIlbcConfig> AudioEncoderIlbc::SdpToConfig(
 
 void AudioEncoderIlbc::AppendSupportedEncoders(
     std::vector<AudioCodecSpec>* specs) {
-  const SdpAudioFormat fmt = {"ILBC", 8000, 1};
-  const AudioCodecInfo info = QueryAudioEncoder(*SdpToConfig(fmt));
-  specs->push_back({fmt, info});
+  // RingRTC change to unused audio codecs
+  // const SdpAudioFormat fmt = {"ILBC", 8000, 1};
+  // const AudioCodecInfo info = QueryAudioEncoder(*SdpToConfig(fmt));
+  // specs->push_back({fmt, info});
 }
 
 AudioCodecInfo AudioEncoderIlbc::QueryAudioEncoder(

@@ -1,15 +1,10 @@
-**WebRTC is a free, open software project** that provides browsers and mobile
-applications with Real-Time Communications (RTC) capabilities via simple APIs.
-The WebRTC components have been optimized to best serve this purpose.
-
-**Our mission:** To enable rich, high-quality RTC applications to be
-developed for the browser, mobile platforms, and IoT devices, and allow them
-all to communicate via a common set of protocols.
-
-The WebRTC initiative is a project supported by Google, Mozilla and Opera,
-amongst others.
-
-### Development
+This is a fork of WebRTC intended to be used in [RingRTC](https://github.com/signalapp/ringrtc).
+It currently has the following changes:
+* Injections into the build system for RingRTC's Rust FFI
+* Changes to Android and iOS SDKs for some more control/customization
+* ICE forking (from https://webrtc-review.googlesource.com/c/src/+/167051/)
+* Various things disabled (RTP header extensions, audio codecs)
+* Various security patches (since the version when the fork branched off)
 
 See [here][native-dev] for instructions on how to get started
 developing with the native code.

@@ -33,6 +33,11 @@ RTC_OBJC_EXPORT
 /** Deregister a renderer. */
 - (void)removeRenderer:(id<RTC_OBJC_TYPE(RTCVideoRenderer)>)renderer;
 
+// RingRTC changes for low-level FFI
+/** Return the underlying native WebRTC video track pointer.
+ */
+- (void *)getNativeVideoTrack;
+
 @end
 
 NS_ASSUME_NONNULL_END

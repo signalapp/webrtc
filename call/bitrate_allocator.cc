@@ -17,6 +17,7 @@
 #include <utility>
 
 #include "absl/algorithm/container.h"
+#include "api/transport/bitrate_settings.h"
 #include "api/units/data_rate.h"
 #include "api/units/time_delta.h"
 #include "rtc_base/checks.h"
@@ -34,7 +35,8 @@ using bitrate_allocator_impl::AllocatableTrack;
 // Allow packets to be transmitted in up to 2 times max video bitrate if the
 // bandwidth estimate allows it.
 const uint8_t kTransmissionMaxBitrateMultiplier = 2;
-const int kDefaultBitrateBps = 300000;
+// RingRTC change to start with lower bitrate
+const int kDefaultBitrateBps = BitrateConstraints::kDefaultStartBitrateBps;
 
 // Require a bitrate increase of max(10%, 20kbps) to resume paused streams.
 const double kToggleFactor = 0.1;
@@ -379,6 +381,10 @@ void BitrateAllocator::OnNetworkEstimateChanged(TargetTransferRate msg) {
   RTC_DCHECK_RUN_ON(&sequenced_checker_);
   last_target_bps_ = msg.target_rate.bps();
   last_stable_target_bps_ = msg.stable_target_rate.bps();
+
+  // Adjust the estimated target bitrate as configured.
+  last_target_bps_ = last_target_bps_ * BitrateConstraints::kBitrateAllocationMultiplier;
+
   last_non_zero_bitrate_bps_ =
       last_target_bps_ > 0 ? last_target_bps_ : last_non_zero_bitrate_bps_;
 

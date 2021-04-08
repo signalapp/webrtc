@@ -300,6 +300,38 @@ void JsepTransportController::MaybeStartGathering() {
   }
 }
 
+// RingRTC change to configure OPUS
+void JsepTransportController::StartGatheringWithSharedIceGatherer(
+    rtc::scoped_refptr<webrtc::IceGathererInterface> shared_ice_gatherer) {
+  if (!network_thread_->IsCurrent()) {
+    network_thread_->Invoke<void>(RTC_FROM_HERE, [=] {
+      StartGatheringWithSharedIceGatherer(std::move(shared_ice_gatherer));
+    });
+    return;
+  }
+
+  for (auto& dtls : GetDtlsTransports()) {
+    dtls->ice_transport()->StartGatheringWithSharedGatherer(
+        shared_ice_gatherer);
+  }
+}
+
+bool JsepTransportController::SetIncomingRtpEnabled(bool enabled) {
+  if (!network_thread_->IsCurrent()) {
+    return network_thread_->Invoke<bool>(RTC_FROM_HERE, [=] {
+      return SetIncomingRtpEnabled(enabled);
+    });
+  }
+
+  for (const auto& jsep_transport : jsep_transports_by_name_) {
+    if (!jsep_transport.second->rtp_transport()->SetIncomingRtpEnabled(enabled)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+
 RTCError JsepTransportController::AddRemoteCandidates(
     const std::string& transport_name,
     const cricket::Candidates& candidates) {

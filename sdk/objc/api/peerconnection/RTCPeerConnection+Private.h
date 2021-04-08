@@ -93,6 +93,27 @@ class PeerConnectionDelegateAdapter : public PeerConnectionObserver {
                             delegate:(nullable id<RTC_OBJC_TYPE(RTCPeerConnectionDelegate)>)delegate
     NS_DESIGNATED_INITIALIZER;
 
+/** Initialize an RTCPeerConnection with a configuration, constraints, and
+ *  observer.
+ */
+- (instancetype)initWithFactory:(RTC_OBJC_TYPE(RTCPeerConnectionFactory) *)factory
+                  configuration:(RTC_OBJC_TYPE(RTCConfiguration) *)configuration
+                    constraints:(RTC_OBJC_TYPE(RTCMediaConstraints) *)constraints
+                      // RingRTC changes for low-level FFI
+                       observer:(void *)observer;
+
+/** Initialize an RTCPeerConnection with a configuration, constraints,
+ *  observer and PeerConnectionDependencies.
+ */
+- (instancetype)initWithDependencies:(RTC_OBJC_TYPE(RTCPeerConnectionFactory) *)factory
+                       configuration:(RTC_OBJC_TYPE(RTCConfiguration) *)configuration
+                         constraints:(RTC_OBJC_TYPE(RTCMediaConstraints) *)constraints
+                        dependencies:
+                            (std::unique_ptr<webrtc::PeerConnectionDependencies>)dependencies
+                             // RingRTC changes for low-level FFI
+                             observer:(void *)observer
+    NS_DESIGNATED_INITIALIZER;
+
 + (webrtc::PeerConnectionInterface::SignalingState)nativeSignalingStateForState:
         (RTCSignalingState)state;
 

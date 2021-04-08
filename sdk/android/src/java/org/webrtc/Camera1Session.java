@@ -312,6 +312,12 @@ class Camera1Session implements CameraSession {
     });
   }
 
+  // RingRTC change to set frame orientation
+  @Override
+  public void setOrientation(Integer orientation) {
+    Logging.d(TAG, "(Ignored) Set Orientation: " + orientation);
+  }
+
   private int getFrameOrientation() {
     int rotation = CameraSession.getDeviceOrientation(applicationContext);
     if (info.facing == android.hardware.Camera.CameraInfo.CAMERA_FACING_BACK) {

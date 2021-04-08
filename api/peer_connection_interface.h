@@ -84,6 +84,7 @@
 #include "api/data_channel_interface.h"
 #include "api/dtls_transport_interface.h"
 #include "api/fec_controller.h"
+#include "api/ice_gatherer_interface.h"
 #include "api/ice_transport_interface.h"
 #include "api/jsep.h"
 #include "api/media_stream_interface.h"
@@ -108,8 +109,11 @@
 #include "api/transport/sctp_transport_factory_interface.h"
 #include "api/transport/webrtc_key_value_config.h"
 #include "api/turn_customizer.h"
+#include "call/rtp_packet_sink_interface.h"
 #include "media/base/media_config.h"
 #include "media/base/media_engine.h"
+#include "modules/rtp_rtcp/source/rtp_packet_received.h"
+#include "pc/rtp_transport.h"
 // TODO(bugs.webrtc.org/7447): We plan to provide a way to let applications
 // inject a PacketSocketFactory and/or NetworkManager, and not expose
 // PortAllocator in the PeerConnection api.
@@ -1064,6 +1068,42 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
   virtual bool RemoveIceCandidates(
       const std::vector<cricket::Candidate>& candidates) = 0;
 
+
+  // RingRTC change to add ICE forking
+  // Creates an IceGatherer that can be shared/used with UseSharedIceGatherer
+  virtual rtc::scoped_refptr<webrtc::IceGathererInterface>
+  CreateSharedIceGatherer();
+
+  // RingRTC change to add ICE forking
+  // SetGatherer with the same IceGatherer on many ICE transports to get
+  // ICE forking behavior.  For example, like so:
+  // auto gatherer = pc1->CreateSharedIceGatherer();
+  // pc1->UseSharedIceGatherer(gatherer);
+  // pc2->UseSharedIceGatherer(gatherer);
+  // Do this before calling CreateOffer/CreateAnswer/SetLocalDescription.
+  // Note that the given IceGatherer must be running on the same network thread
+  // as the PeerConnnection.
+  virtual bool UseSharedIceGatherer(
+      rtc::scoped_refptr<webrtc::IceGathererInterface> shared_ice_gatherer);
+
+  // RingRTC change to RTP from being processed before the call is accepted
+  // If false, all RTP and RTCP packets will be dropped before being processed.
+  virtual bool SetIncomingRtpEnabled(bool enabled);
+
+  // RingRTC change to send RTP data
+  // Make sure that you don't reuse (SSRC, seqnum) combinations except when rolling
+  // over.  Otherwise, SRTP won't work properly.
+  virtual bool SendRtp(std::unique_ptr<RtpPacket> rtp_packet);
+
+  // RingRTC change to receive RTP data
+  // Packets will go to the PeerConnectionObserver
+  virtual bool ReceiveRtp(uint8_t pt);
+
+  virtual void ConfigureAudioEncoders(const webrtc::AudioEncoder::Config& config) {
+    RTC_LOG(LS_WARNING) << "Default PeerConnectionInterface::ConfigureAudioEncoders(...) does nothing!";
+  }
+
+
   // SetBitrate limits the bandwidth allocated for all RTP streams sent by
   // this PeerConnection. Other limitations might affect these limits and
   // are respected (for example "b=AS" in SDP).
@@ -1169,7 +1209,7 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
 
 // PeerConnection callback interface, used for RTCPeerConnection events.
 // Application should implement these methods.
-class PeerConnectionObserver {
+class PeerConnectionObserver : public RtpPacketSinkInterface {
  public:
   virtual ~PeerConnectionObserver() = default;
 
@@ -1296,6 +1336,8 @@ class PeerConnectionObserver {
   // The heuristics for defining what constitutes "interesting" are
   // implementation-defined.
   virtual void OnInterestingUsage(int usage_pattern) {}
+
+  void OnRtpPacket(const RtpPacketReceived& rtp_packet) override {}
 };
 
 // PeerConnectionDependencies holds all of PeerConnections dependencies.
@@ -1418,7 +1460,7 @@ class RTC_EXPORT PeerConnectionFactoryInterface
     rtc::SSLProtocolVersion ssl_max_version = rtc::SSL_PROTOCOL_DTLS_12;
 
     // Sets crypto related options, e.g. enabled cipher suites.
-    CryptoOptions crypto_options = CryptoOptions::NoGcm();
+    CryptoOptions crypto_options = CryptoOptions::Default();
   };
 
   // Set the options to be used for subsequently created PeerConnections.

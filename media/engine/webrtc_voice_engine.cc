@@ -609,12 +609,15 @@ WebRtcVoiceEngine::GetRtpHeaderExtensions() const {
   RTC_DCHECK(signal_thread_checker_.IsCurrent());
   std::vector<webrtc::RtpHeaderExtensionCapability> result;
   int id = 1;
+  // RingRTC change to disable unused header extensions
   for (const auto& uri :
-       {webrtc::RtpExtension::kAudioLevelUri,
+       {// webrtc::RtpExtension::kAudioLevelUri,
         webrtc::RtpExtension::kAbsSendTimeUri,
         webrtc::RtpExtension::kTransportSequenceNumberUri,
-        webrtc::RtpExtension::kMidUri, webrtc::RtpExtension::kRidUri,
-        webrtc::RtpExtension::kRepairedRidUri}) {
+        webrtc::RtpExtension::kMidUri,
+        // webrtc::RtpExtension::kRidUri,
+        // webrtc::RtpExtension::kRepairedRidUri
+        }) {
     result.emplace_back(uri, id++, webrtc::RtpTransceiverDirection::kSendRecv);
   }
   return result;
@@ -714,20 +717,20 @@ std::vector<AudioCodec> WebRtcVoiceEngine::CollectCodecs(
             FeedbackParam(kRtcpFbParamTransportCc, kParamValueEmpty));
       }
 
-      if (spec.info.allow_comfort_noise) {
-        // Generate a CN entry if the decoder allows it and we support the
-        // clockrate.
-        auto cn = generate_cn.find(spec.format.clockrate_hz);
-        if (cn != generate_cn.end()) {
-          cn->second = true;
-        }
-      }
+      // if (spec.info.allow_comfort_noise) {
+      //   // Generate a CN entry if the decoder allows it and we support the
+      //   // clockrate.
+      //   auto cn = generate_cn.find(spec.format.clockrate_hz);
+      //   if (cn != generate_cn.end()) {
+      //     cn->second = true;
+      //   }
+      // }
 
-      // Generate a telephone-event entry if we support the clockrate.
-      auto dtmf = generate_dtmf.find(spec.format.clockrate_hz);
-      if (dtmf != generate_dtmf.end()) {
-        dtmf->second = true;
-      }
+      // // Generate a telephone-event entry if we support the clockrate.
+      // auto dtmf = generate_dtmf.find(spec.format.clockrate_hz);
+      // if (dtmf != generate_dtmf.end()) {
+      //   dtmf->second = true;
+      // }
 
       out.push_back(codec);
 
@@ -1046,6 +1049,10 @@ class WebRtcVoiceMediaChannel::WebRtcAudioSendStream
     RTC_DCHECK(worker_thread_checker_.IsCurrent());
     config_.frame_transformer = std::move(frame_transformer);
     ReconfigureAudioSendStream();
+  }
+
+  void ConfigureEncoder(const webrtc::AudioEncoder::Config& config) {
+    stream_->ConfigureEncoder(config);
   }
 
  private:
@@ -1886,6 +1893,11 @@ void WebRtcVoiceMediaChannel::SetSend(bool send) {
   if (send) {
     engine()->ApplyOptions(options_);
 
+    // Signal does not do early InitRecording() as it opens the capture device
+    // before the call is answered, which on Windows desktop causes audio
+    // ducking. In addition, it leaves the device open indefinitely if the call
+    // is never answered.
+#if false
     // InitRecording() may return an error if the ADM is already recording.
     if (!engine()->adm()->RecordingIsInitialized() &&
         !engine()->adm()->Recording()) {
@@ -1893,6 +1905,7 @@ void WebRtcVoiceMediaChannel::SetSend(bool send) {
         RTC_LOG(LS_WARNING) << "Failed to initialize recording";
       }
     }
+#endif
   }
 
   // Change the settings on each send channel.
@@ -2535,4 +2548,19 @@ bool WebRtcVoiceMediaChannel::MaybeDeregisterUnsignaledRecvStream(
   }
   return false;
 }
+
+void WebRtcVoiceMediaChannel::ConfigureEncoders(const webrtc::AudioEncoder::Config& config) {
+  int count = 0;
+  for (auto& it : send_streams_) {
+    it.second->ConfigureEncoder(config);
+    count++;
+  }
+
+  if (count == 0) {
+    RTC_LOG(LS_WARNING) << "WebRtcVoiceMediaChannel::ConfigureEncoders(...) changed no send streams!";
+  } else {
+    RTC_LOG(LS_INFO) << "WebRtcVoiceMediaChannel::ConfigureEncoders(...) changed " << count << " transceivers.";
+  }
+}
+
 }  // namespace cricket

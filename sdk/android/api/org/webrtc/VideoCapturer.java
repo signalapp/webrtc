@@ -11,6 +11,7 @@
 package org.webrtc;
 
 import android.content.Context;
+import android.support.annotation.Nullable;
 
 // Base interface for all VideoCapturers to implement.
 public interface VideoCapturer {
@@ -40,6 +41,9 @@ public interface VideoCapturer {
   void stopCapture() throws InterruptedException;
 
   void changeCaptureFormat(int width, int height, int framerate);
+
+  // RingRTC change to set frame orientation
+  void setOrientation(@Nullable Integer orientation);
 
   /**
    * Perform any final cleanup here. No more capturing will be done after this call.

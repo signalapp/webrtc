@@ -73,7 +73,11 @@ const uint32_t WEBRTC_PA_PLAYBACK_LATENCY_INCREMENT_MSECS = 20;
 // CPU from the overhead of transfering small amounts of data at once. Too large
 // and the amount of data remaining in the buffer right before refilling it
 // would be a buffer underflow risk. We set it to half of the buffer size.
-const uint32_t WEBRTC_PA_PLAYBACK_REQUEST_FACTOR = 2;
+// RingRTC change to avoid scratchy audio.
+// Update: with 2, we often get scratchy audio.
+// The Pulse code indicates 2 is a bad idea and 4 is a good idea.
+// See https://github.com/pulseaudio/pulseaudio/blob/master/src/pulsecore/protocol-native.c#L814
+const uint32_t WEBRTC_PA_PLAYBACK_REQUEST_FACTOR = 4;
 
 // Capture.
 

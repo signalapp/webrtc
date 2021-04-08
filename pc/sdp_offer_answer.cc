@@ -1968,7 +1968,12 @@ void SdpOfferAnswerHandler::DoSetLocalDescription(
   // MaybeStartGathering needs to be called after informing the observer so that
   // we don't signal any candidates before signaling that SetLocalDescription
   // completed.
-  transport_controller()->MaybeStartGathering();
+  // RingRTC change to add ICE forking
+  if (pc_->shared_ice_gatherer()) {
+    transport_controller()->StartGatheringWithSharedIceGatherer(pc_->shared_ice_gatherer());
+  } else {
+    transport_controller()->MaybeStartGathering();
+  }
 }
 
 void SdpOfferAnswerHandler::DoCreateOffer(
@@ -3536,11 +3541,19 @@ void SdpOfferAnswerHandler::GetOptionsForOffer(
 
   session_options->rtcp_cname = rtcp_cname_;
   session_options->crypto_options = pc_->GetCryptoOptions();
-  session_options->pooled_ice_credentials =
-      pc_->network_thread()->Invoke<std::vector<cricket::IceParameters>>(
-          RTC_FROM_HERE,
-          rtc::Bind(&cricket::PortAllocator::GetPooledIceCredentials,
-                    port_allocator()));
+  // RingRTC change to add ICE forking
+  if (pc_->shared_ice_gatherer()) {
+    session_options->ice_credentials.push_back(cricket::IceParameters(
+        pc_->shared_ice_gatherer()->port_allocator_session()->ice_ufrag(),
+        pc_->shared_ice_gatherer()->port_allocator_session()->ice_pwd(),
+        pc_->configuration()->enable_ice_renomination));
+  } else {
+    session_options->ice_credentials =
+        pc_->network_thread()->Invoke<std::vector<cricket::IceParameters>>(
+            RTC_FROM_HERE,
+            rtc::Bind(&cricket::PortAllocator::GetPooledIceCredentials,
+                      port_allocator()));
+  }
   session_options->offer_extmap_allow_mixed =
       pc_->configuration()->offer_extmap_allow_mixed;
 
@@ -3801,11 +3814,19 @@ void SdpOfferAnswerHandler::GetOptionsForAnswer(
 
   session_options->rtcp_cname = rtcp_cname_;
   session_options->crypto_options = pc_->GetCryptoOptions();
-  session_options->pooled_ice_credentials =
-      pc_->network_thread()->Invoke<std::vector<cricket::IceParameters>>(
-          RTC_FROM_HERE,
-          rtc::Bind(&cricket::PortAllocator::GetPooledIceCredentials,
-                    port_allocator()));
+  // RingRTC change to add ICE forking
+  if (pc_->shared_ice_gatherer()) {
+    session_options->ice_credentials.push_back(cricket::IceParameters(
+        pc_->shared_ice_gatherer()->port_allocator_session()->ice_ufrag(),
+        pc_->shared_ice_gatherer()->port_allocator_session()->ice_pwd(),
+        pc_->configuration()->enable_ice_renomination));
+  } else {
+    session_options->ice_credentials =
+        pc_->network_thread()->Invoke<std::vector<cricket::IceParameters>>(
+            RTC_FROM_HERE,
+            rtc::Bind(&cricket::PortAllocator::GetPooledIceCredentials,
+                      port_allocator()));
+  }
 }
 
 void SdpOfferAnswerHandler::GetOptionsForPlanBAnswer(

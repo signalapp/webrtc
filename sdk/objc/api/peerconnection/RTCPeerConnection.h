@@ -201,6 +201,19 @@ RTC_OBJC_EXPORT
 
 - (instancetype)init NS_UNAVAILABLE;
 
+// RingRTC changes for low-level FFI
+/** Given a native WebRTC stream, create an objc sdk RTCMediaStream.
+ */
+- (RTCMediaStream *)createStreamFromNative:(void *)nativeStream;
+
+/** Return the underlying WebRTC Peer Connection object pointer.
+ */
+- (void *)getRawPeerConnection;
+
+/** Releases the underlying WebRTC Peer Connection.
+ */
+- (void)releaseRawPeerConnection:(void *)rawPeerConnection;
+
 /** Sets the PeerConnection's global configuration to |configuration|.
  *  Any changes to STUN/TURN servers or ICE candidate policy will affect the
  *  next gathering phase, and cause the next call to createOffer to generate

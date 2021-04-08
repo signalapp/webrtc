@@ -37,9 +37,10 @@ absl::optional<AudioDecoderG711::Config> AudioDecoderG711::SdpToConfig(
 
 void AudioDecoderG711::AppendSupportedDecoders(
     std::vector<AudioCodecSpec>* specs) {
-  for (const char* type : {"PCMU", "PCMA"}) {
-    specs->push_back({{type, 8000, 1}, {8000, 1, 64000}});
-  }
+  // RingRTC change to unused audio codecs
+  // for (const char* type : {"PCMU", "PCMA"}) {
+  //   specs->push_back({{type, 8000, 1}, {8000, 1, 64000}});
+  // }
 }
 
 std::unique_ptr<AudioDecoder> AudioDecoderG711::MakeAudioDecoder(

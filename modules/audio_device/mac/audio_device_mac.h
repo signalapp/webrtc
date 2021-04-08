@@ -314,8 +314,6 @@ class AudioDeviceMac : public AudioDeviceGeneric {
   bool _twoDevices;
   bool _doStop;  // For play if not shared device or play+rec if shared device
   bool _doStopRec;  // For rec if not shared device
-  bool _macBookPro;
-  bool _macBookProPanRight;
 
   AudioConverterRef _captureConverter;
   AudioConverterRef _renderConverter;

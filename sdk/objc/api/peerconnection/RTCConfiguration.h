@@ -220,6 +220,17 @@ RTC_OBJC_EXPORT
  */
 @property(nonatomic, assign) int rtcpVideoReportIntervalMs;
 
+// RingRTC change to allow control of RTP data and DTLS
+/**
+ * Enable RTP data channel support. If disabled, SCTP data channels will be used.
+ */
+@property(nonatomic, assign) BOOL enableRtpDataChannel;
+
+/**
+ * Enable DTLS-SRTP key negotiation.
+ */
+@property(nonatomic, assign) BOOL enableDtlsSrtp;
+
 - (instancetype)init;
 
 @end

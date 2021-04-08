@@ -84,7 +84,8 @@ if (rtc_include_tests) {
   rtc_library("video_coding_codecs_av1_tests") {
     testonly = true
 
-    sources = [ "av1_svc_config_unittest.cc" ]
+    # sources = [ "av1_svc_config_unittest.cc" ]
+    sources = []
     deps = [
       ":av1_svc_config",
       "../../../../api/video_codecs:video_codecs_api",

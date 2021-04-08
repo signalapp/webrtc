@@ -654,6 +654,7 @@ std::vector<VideoCodec> WebRtcVideoEngine::recv_codecs() const {
                                          /*is_decoder_factory=*/true, trials_);
 }
 
+// RingRTC change to disable unused header extensions
 std::vector<webrtc::RtpHeaderExtensionCapability>
 WebRtcVideoEngine::GetRtpHeaderExtensions() const {
   std::vector<webrtc::RtpHeaderExtensionCapability> result;
@@ -663,28 +664,31 @@ WebRtcVideoEngine::GetRtpHeaderExtensions() const {
         webrtc::RtpExtension::kAbsSendTimeUri,
         webrtc::RtpExtension::kVideoRotationUri,
         webrtc::RtpExtension::kTransportSequenceNumberUri,
-        webrtc::RtpExtension::kPlayoutDelayUri,
-        webrtc::RtpExtension::kVideoContentTypeUri,
-        webrtc::RtpExtension::kVideoTimingUri,
-        webrtc::RtpExtension::kColorSpaceUri, webrtc::RtpExtension::kMidUri,
-        webrtc::RtpExtension::kRidUri, webrtc::RtpExtension::kRepairedRidUri}) {
+        // webrtc::RtpExtension::kPlayoutDelayUri,
+        // webrtc::RtpExtension::kVideoContentTypeUri,
+        // webrtc::RtpExtension::kVideoTimingUri,
+        // webrtc::RtpExtension::kColorSpaceUri,
+        webrtc::RtpExtension::kMidUri,
+        // webrtc::RtpExtension::kRidUri,
+        // webrtc::RtpExtension::kRepairedRidUri
+        }) {
     result.emplace_back(uri, id++, webrtc::RtpTransceiverDirection::kSendRecv);
   }
-  result.emplace_back(webrtc::RtpExtension::kGenericFrameDescriptorUri00, id++,
-                      IsEnabled(trials_, "WebRTC-GenericDescriptorAdvertised")
-                          ? webrtc::RtpTransceiverDirection::kSendRecv
-                          : webrtc::RtpTransceiverDirection::kStopped);
-  result.emplace_back(
-      webrtc::RtpExtension::kDependencyDescriptorUri, id++,
-      IsEnabled(trials_, "WebRTC-DependencyDescriptorAdvertised")
-          ? webrtc::RtpTransceiverDirection::kSendRecv
-          : webrtc::RtpTransceiverDirection::kStopped);
+  // result.emplace_back(webrtc::RtpExtension::kGenericFrameDescriptorUri00, id++,
+  //                     IsEnabled(trials_, "WebRTC-GenericDescriptorAdvertised")
+  //                         ? webrtc::RtpTransceiverDirection::kSendRecv
+  //                         : webrtc::RtpTransceiverDirection::kStopped);
+  // result.emplace_back(
+  //     webrtc::RtpExtension::kDependencyDescriptorUri, id++,
+  //     IsEnabled(trials_, "WebRTC-DependencyDescriptorAdvertised")
+  //         ? webrtc::RtpTransceiverDirection::kSendRecv
+  //         : webrtc::RtpTransceiverDirection::kStopped);
 
-  result.emplace_back(
-      webrtc::RtpExtension::kVideoLayersAllocationUri, id++,
-      IsEnabled(trials_, "WebRTC-VideoLayersAllocationAdvertised")
-          ? webrtc::RtpTransceiverDirection::kSendRecv
-          : webrtc::RtpTransceiverDirection::kStopped);
+  // result.emplace_back(
+  //     webrtc::RtpExtension::kVideoLayersAllocationUri, id++,
+  //     IsEnabled(trials_, "WebRTC-VideoLayersAllocationAdvertised")
+  //         ? webrtc::RtpTransceiverDirection::kSendRecv
+  //         : webrtc::RtpTransceiverDirection::kStopped);
 
   return result;
 }
@@ -700,7 +704,8 @@ WebRtcVideoChannel::WebRtcVideoChannel(
     : VideoMediaChannel(config),
       worker_thread_(rtc::Thread::Current()),
       call_(call),
-      unsignalled_ssrc_handler_(&default_unsignalled_ssrc_handler_),
+      // RingRTC change to not process unsignaled SSRCs
+      unsignalled_ssrc_handler_(nullptr),
       video_config_(config.video),
       encoder_factory_(encoder_factory),
       decoder_factory_(decoder_factory),
@@ -1731,19 +1736,22 @@ void WebRtcVideoChannel::OnPacketReceived(rtc::CopyOnWriteBuffer packet,
   if (payload_type == recv_flexfec_payload_type_) {
     return;
   }
+ 
+  // RingRTC change to not process unsignaled SSRCs
+  if (unsignalled_ssrc_handler_) {
+    switch (unsignalled_ssrc_handler_->OnUnsignalledSsrc(this, ssrc)) {
+      case UnsignalledSsrcHandler::kDropPacket:
+        return;
+      case UnsignalledSsrcHandler::kDeliverPacket:
+        break;
+    }
 
-  switch (unsignalled_ssrc_handler_->OnUnsignalledSsrc(this, ssrc)) {
-    case UnsignalledSsrcHandler::kDropPacket:
+    if (call_->Receiver()->DeliverPacket(webrtc::MediaType::VIDEO, packet,
+                                        packet_time_us) !=
+        webrtc::PacketReceiver::DELIVERY_OK) {
+      RTC_LOG(LS_WARNING) << "Failed to deliver RTP packet on re-delivery.";
       return;
-    case UnsignalledSsrcHandler::kDeliverPacket:
-      break;
-  }
-
-  if (call_->Receiver()->DeliverPacket(webrtc::MediaType::VIDEO, packet,
-                                       packet_time_us) !=
-      webrtc::PacketReceiver::DELIVERY_OK) {
-    RTC_LOG(LS_WARNING) << "Failed to deliver RTP packet on re-delivery.";
-    return;
+    }
   }
 }
 

@@ -36,7 +36,12 @@ namespace adm_helpers {
 void Init(AudioDeviceModule* adm) {
   RTC_DCHECK(adm);
 
-  RTC_CHECK_EQ(0, adm->Init()) << "Failed to initialize the ADM.";
+  // RingRTC change to avoid crashes
+  auto result = adm->Init();
+  if (result != 0) {
+    RTC_LOG(LS_ERROR) << "Failed to initialize the ADM: " << result;
+    return;
+  }
 
   // Playout device.
   {

@@ -21,7 +21,12 @@ public class Camera2Capturer extends CameraCapturer {
   @Nullable private final CameraManager cameraManager;
 
   public Camera2Capturer(Context context, String cameraName, CameraEventsHandler eventsHandler) {
-    super(cameraName, eventsHandler, new Camera2Enumerator(context));
+    this(context, cameraName, eventsHandler, new Camera2Enumerator(context));
+  }
+
+  // RingRTC change to allow more control
+  public Camera2Capturer(Context context, String cameraName, CameraEventsHandler eventsHandler, CameraEnumerator cameraEnumerator) {
+    super(cameraName, eventsHandler, cameraEnumerator);
 
     this.context = context;
     cameraManager = (CameraManager) context.getSystemService(Context.CAMERA_SERVICE);
