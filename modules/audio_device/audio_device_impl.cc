@@ -21,6 +21,7 @@
 #include "system_wrappers/include/metrics.h"
 
 #if defined(_WIN32)
+#include "modules/audio_device/include/audio_device_factory.h"
 #if defined(WEBRTC_WINDOWS_CORE_AUDIO_BUILD)
 #include "modules/audio_device/win/audio_device_core_win.h"
 #endif
@@ -83,14 +84,13 @@ rtc::scoped_refptr<AudioDeviceModuleForTest> AudioDeviceModule::CreateForTest(
     TaskQueueFactory* task_queue_factory) {
   RTC_LOG(INFO) << __FUNCTION__;
 
-  // The "AudioDeviceModule::kWindowsCoreAudio2" audio layer has its own
-  // dedicated factory method which should be used instead.
-  if (audio_layer == AudioDeviceModule::kWindowsCoreAudio2) {
-    RTC_LOG(LS_ERROR) << "Use the CreateWindowsCoreAudioAudioDeviceModule() "
-                         "factory method instead for this option.";
-    return nullptr;
-  }
+#if defined(_WIN32)
+  // Force the use of the "AudioDeviceModule::kWindowsCoreAudio2" audio layer.
+  RTC_LOG(INFO) << "Attempting to use the Windows Core Audio 2 APIs...";
 
+  // Create the ADM with support for automatic restart if devices are unplugged.
+  return CreateWindowsCoreAudioAudioDeviceModuleForTest(task_queue_factory, true);
+#elif
   // Create the generic reference counted (platform independent) implementation.
   rtc::scoped_refptr<AudioDeviceModuleImpl> audioDevice(
       new rtc::RefCountedObject<AudioDeviceModuleImpl>(audio_layer,
@@ -113,6 +113,7 @@ rtc::scoped_refptr<AudioDeviceModuleForTest> AudioDeviceModule::CreateForTest(
   }
 
   return audioDevice;
+#endif
 }
 
 AudioDeviceModuleImpl::AudioDeviceModuleImpl(

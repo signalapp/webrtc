@@ -270,7 +270,8 @@ bool CoreAudioInput::OnDataCallback(uint64_t device_frequency) {
     // This is concurrent examination of state across multiple threads so will
     // be somewhat error prone, but we should still be defensive and not use
     // audio_capture_client_ if we know it's not there.
-    return false;
+    RTC_LOG(LS_WARNING) << "CoreAudioInput::OnDataCallback not yet ready";
+    return true;
   }
   if (num_data_callbacks_ == 0) {
     RTC_LOG(INFO) << "--- Input audio stream is alive ---";
