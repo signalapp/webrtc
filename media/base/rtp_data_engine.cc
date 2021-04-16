@@ -62,7 +62,7 @@ RtpDataMediaChannel::RtpDataMediaChannel(const MediaConfig& config)
 void RtpDataMediaChannel::Construct() {
   sending_ = false;
   receiving_ = false;
-  send_limiter_.reset(new rtc::DataRateLimiter(kDataMaxBandwidth / 8, 1.0));
+  send_limiter_.reset(new rtc::DataRateLimiter(kRtpDataMaxBandwidth / 8, 1.0));
 }
 
 RtpDataMediaChannel::~RtpDataMediaChannel() {
@@ -237,6 +237,7 @@ void RtpDataMediaChannel::OnPacketReceived(rtc::CopyOnWriteBuffer packet,
   //              << ", len=" << data_len;
 
   ReceiveDataParams params;
+  // RingRTC change to use binary, not string, messages
   params.type = cricket::DMT_BINARY;
   params.ssrc = header.ssrc;
   params.seq_num = header.seq_num;
@@ -246,7 +247,7 @@ void RtpDataMediaChannel::OnPacketReceived(rtc::CopyOnWriteBuffer packet,
 
 bool RtpDataMediaChannel::SetMaxSendBandwidth(int bps) {
   if (bps <= 0) {
-    bps = kDataMaxBandwidth;
+    bps = kRtpDataMaxBandwidth;
   }
   send_limiter_.reset(new rtc::DataRateLimiter(bps / 8, 1.0));
   RTC_LOG(LS_INFO) << "RtpDataMediaChannel::SetSendBandwidth to " << bps
@@ -268,6 +269,7 @@ bool RtpDataMediaChannel::SendData(const SendDataParams& params,
     return false;
   }
 
+  // RingRTC change to use binary, not string, messages
   if (params.type != cricket::DMT_BINARY) {
     RTC_LOG(LS_WARNING)
         << "Not sending data because binary type is unsupported.";
@@ -313,7 +315,7 @@ bool RtpDataMediaChannel::SendData(const SendDataParams& params,
                                              &header.timestamp);
 
   rtc::CopyOnWriteBuffer packet(kMinRtpPacketLen, packet_len);
-  if (!SetRtpHeader(packet.data(), packet.size(), header)) {
+  if (!SetRtpHeader(packet.MutableData(), packet.size(), header)) {
     return false;
   }
   packet.AppendData(kReservedSpace);

@@ -299,6 +299,7 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
   RTC_OBJC_TYPE(RTCPeerConnectionFactory) * _factory;
   NSMutableArray<RTC_OBJC_TYPE(RTCMediaStream) *> *_localStreams;
   std::unique_ptr<webrtc::PeerConnectionDelegateAdapter> _observer;
+  // RingRTC changes for low-level FFI
   std::unique_ptr<webrtc::PeerConnectionObserver> _customObserver;
   rtc::scoped_refptr<webrtc::PeerConnectionInterface> _peerConnection;
   std::unique_ptr<webrtc::MediaConstraints> _nativeConstraints;
@@ -311,7 +312,7 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
 - (instancetype)initWithFactory:(RTC_OBJC_TYPE(RTCPeerConnectionFactory) *)factory
                   configuration:(RTC_OBJC_TYPE(RTCConfiguration) *)configuration
                     constraints:(RTC_OBJC_TYPE(RTCMediaConstraints) *)constraints
-                       observer:(void *)observer {
+                       delegate:(id<RTC_OBJC_TYPE(RTCPeerConnectionDelegate)>)delegate {
   NSParameterAssert(factory);
   std::unique_ptr<webrtc::PeerConnectionDependencies> dependencies =
       std::make_unique<webrtc::PeerConnectionDependencies>(nullptr);
@@ -319,6 +320,23 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
                       configuration:configuration
                         constraints:constraints
                        dependencies:std::move(dependencies)
+                           delegate:delegate];
+}
+
+
+- (instancetype)initWithFactory:(RTC_OBJC_TYPE(RTCPeerConnectionFactory) *)factory
+                  configuration:(RTC_OBJC_TYPE(RTCConfiguration) *)configuration
+                    constraints:(RTC_OBJC_TYPE(RTCMediaConstraints) *)constraints
+                      // RingRTC changes for low-level FFI
+                       observer:(void *)observer  {
+  NSParameterAssert(factory);
+  std::unique_ptr<webrtc::PeerConnectionDependencies> dependencies =
+      std::make_unique<webrtc::PeerConnectionDependencies>(nullptr);
+  return [self initWithDependencies:factory
+                      configuration:configuration
+                        constraints:constraints
+                       dependencies:std::move(dependencies)
+                          // RingRTC changes for low-level FFI
                            observer:observer];
 }
 
@@ -327,6 +345,39 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
                          constraints:(RTC_OBJC_TYPE(RTCMediaConstraints) *)constraints
                         dependencies:
                             (std::unique_ptr<webrtc::PeerConnectionDependencies>)dependencies
+                            delegate:(id<RTC_OBJC_TYPE(RTCPeerConnectionDelegate)>)delegate {
+  NSParameterAssert(factory);
+  NSParameterAssert(dependencies.get());
+  std::unique_ptr<webrtc::PeerConnectionInterface::RTCConfiguration> config(
+      [configuration createNativeConfiguration]);
+  if (!config) {
+    return nil;
+  }
+  if (self = [super init]) {
+    _observer.reset(new webrtc::PeerConnectionDelegateAdapter(self));
+    _nativeConstraints = constraints.nativeConstraints;
+    CopyConstraintsIntoRtcConfiguration(_nativeConstraints.get(), config.get());
+
+    webrtc::PeerConnectionDependencies deps = std::move(*dependencies.release());
+    deps.observer = _observer.get();
+    _peerConnection = factory.nativeFactory->CreatePeerConnection(*config, std::move(deps));
+
+    if (!_peerConnection) {
+      return nil;
+    }
+    _factory = factory;
+    _localStreams = [[NSMutableArray alloc] init];
+    _delegate = delegate;
+  }
+  return self;
+}
+
+- (instancetype)initWithDependencies:(RTC_OBJC_TYPE(RTCPeerConnectionFactory) *)factory
+                       configuration:(RTC_OBJC_TYPE(RTCConfiguration) *)configuration
+                         constraints:(RTC_OBJC_TYPE(RTCMediaConstraints) *)constraints
+                        dependencies:
+                            (std::unique_ptr<webrtc::PeerConnectionDependencies>)dependencies
+                            // RingRTC changes for low-level FFI
                             observer:(void *)observer {
   NSParameterAssert(factory);
   NSParameterAssert(dependencies.get());
@@ -342,6 +393,7 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
     _customObserver.reset((webrtc::PeerConnectionObserver *)observer);
 
     webrtc::PeerConnectionDependencies deps = std::move(*dependencies.release());
+    // RingRTC changes for low-level FFI
     deps.observer = _customObserver.get();
     _peerConnection = factory.nativeFactory->CreatePeerConnection(*config, std::move(deps));
 
@@ -359,6 +411,7 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
   return self;
 }
 
+// RingRTC changes for low-level FFI
 - (RTC_OBJC_TYPE(RTCMediaStream) *)createStreamFromNative:(void *)nativeStream {
   // @note Modeled on the PeerConnectionDelegateAdapter::OnAddStream
   // function above in this file.
@@ -377,24 +430,33 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
   _pc.release();
 }
 
+
 - (NSArray<RTC_OBJC_TYPE(RTCMediaStream) *> *)localStreams {
   return [_localStreams copy];
 }
 
 - (RTC_OBJC_TYPE(RTCSessionDescription) *)localDescription {
-  const webrtc::SessionDescriptionInterface *description =
-      _peerConnection->local_description();
-  return description ?
-      [[RTC_OBJC_TYPE(RTCSessionDescription) alloc] initWithNativeDescription:description] :
-      nil;
+  // It's only safe to operate on SessionDescriptionInterface on the signaling thread.
+  return _peerConnection->signaling_thread()->Invoke<RTC_OBJC_TYPE(RTCSessionDescription) *>(
+      RTC_FROM_HERE, [self] {
+        const webrtc::SessionDescriptionInterface *description =
+            _peerConnection->local_description();
+        return description ?
+            [[RTC_OBJC_TYPE(RTCSessionDescription) alloc] initWithNativeDescription:description] :
+            nil;
+      });
 }
 
 - (RTC_OBJC_TYPE(RTCSessionDescription) *)remoteDescription {
-  const webrtc::SessionDescriptionInterface *description =
-      _peerConnection->remote_description();
-  return description ?
-      [[RTC_OBJC_TYPE(RTCSessionDescription) alloc] initWithNativeDescription:description] :
-      nil;
+  // It's only safe to operate on SessionDescriptionInterface on the signaling thread.
+  return _peerConnection->signaling_thread()->Invoke<RTC_OBJC_TYPE(RTCSessionDescription) *>(
+      RTC_FROM_HERE, [self] {
+        const webrtc::SessionDescriptionInterface *description =
+            _peerConnection->remote_description();
+        return description ?
+            [[RTC_OBJC_TYPE(RTCSessionDescription) alloc] initWithNativeDescription:description] :
+            nil;
+      });
 }
 
 - (RTCSignalingState)signalingState {
@@ -582,12 +644,12 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
 - (BOOL)setBweMinBitrateBps:(nullable NSNumber *)minBitrateBps
           currentBitrateBps:(nullable NSNumber *)currentBitrateBps
               maxBitrateBps:(nullable NSNumber *)maxBitrateBps {
-  webrtc::PeerConnectionInterface::BitrateParameters params;
+  webrtc::BitrateSettings params;
   if (minBitrateBps != nil) {
     params.min_bitrate_bps = absl::optional<int>(minBitrateBps.intValue);
   }
   if (currentBitrateBps != nil) {
-    params.current_bitrate_bps = absl::optional<int>(currentBitrateBps.intValue);
+    params.start_bitrate_bps = absl::optional<int>(currentBitrateBps.intValue);
   }
   if (maxBitrateBps != nil) {
     params.max_bitrate_bps = absl::optional<int>(maxBitrateBps.intValue);

@@ -228,10 +228,6 @@ class ChannelTest : public ::testing::Test, public sigslot::has_slots<> {
                               rtp_transport1_.get(), flags1);
     channel2_ = CreateChannel(worker_thread, network_thread_, std::move(ch2),
                               rtp_transport2_.get(), flags2);
-    channel1_->SignalRtcpMuxFullyActive.connect(
-        this, &ChannelTest<T>::OnRtcpMuxFullyActive1);
-    channel2_->SignalRtcpMuxFullyActive.connect(
-        this, &ChannelTest<T>::OnRtcpMuxFullyActive2);
     CreateContent(flags1, kPcmuCodec, kH264Codec, &local_media_content1_);
     CreateContent(flags2, kPcmuCodec, kH264Codec, &local_media_content2_);
     CopyContent(local_media_content1_, &remote_media_content1_);
@@ -327,19 +323,26 @@ class ChannelTest : public ::testing::Test, public sigslot::has_slots<> {
             fake_rtcp_packet_transport2_.get(), asymmetric);
       }
     });
+    // The transport becoming writable will asynchronously update the send state
+    // on the worker thread; since this test uses the main thread as the worker
+    // thread, we must process the message queue for this to occur.
+    WaitForThreads();
   }
 
   bool SendInitiate() {
     bool result = channel1_->SetLocalContent(&local_media_content1_,
-                                             SdpType::kOffer, NULL);
+                                             SdpType::kOffer, NULL) &&
+                  channel1_->UpdateRtpTransport(nullptr);
     if (result) {
       channel1_->Enable(true);
       result = channel2_->SetRemoteContent(&remote_media_content1_,
-                                           SdpType::kOffer, NULL);
+                                           SdpType::kOffer, NULL) &&
+               channel2_->UpdateRtpTransport(nullptr);
       if (result) {
         ConnectFakeTransports();
         result = channel2_->SetLocalContent(&local_media_content2_,
-                                            SdpType::kAnswer, NULL);
+                                            SdpType::kAnswer, NULL) &&
+                 channel2_->UpdateRtpTransport(nullptr);
       }
     }
     return result;
@@ -348,27 +351,32 @@ class ChannelTest : public ::testing::Test, public sigslot::has_slots<> {
   bool SendAccept() {
     channel2_->Enable(true);
     return channel1_->SetRemoteContent(&remote_media_content2_,
-                                       SdpType::kAnswer, NULL);
+                                       SdpType::kAnswer, NULL) &&
+           channel1_->UpdateRtpTransport(nullptr);
   }
 
   bool SendOffer() {
     bool result = channel1_->SetLocalContent(&local_media_content1_,
-                                             SdpType::kOffer, NULL);
+                                             SdpType::kOffer, NULL) &&
+                  channel1_->UpdateRtpTransport(nullptr);
     if (result) {
       channel1_->Enable(true);
       result = channel2_->SetRemoteContent(&remote_media_content1_,
-                                           SdpType::kOffer, NULL);
+                                           SdpType::kOffer, NULL) &&
+               channel2_->UpdateRtpTransport(nullptr);
     }
     return result;
   }
 
   bool SendProvisionalAnswer() {
     bool result = channel2_->SetLocalContent(&local_media_content2_,
-                                             SdpType::kPrAnswer, NULL);
+                                             SdpType::kPrAnswer, NULL) &&
+                  channel2_->UpdateRtpTransport(nullptr);
     if (result) {
       channel2_->Enable(true);
       result = channel1_->SetRemoteContent(&remote_media_content2_,
-                                           SdpType::kPrAnswer, NULL);
+                                           SdpType::kPrAnswer, NULL) &&
+               channel1_->UpdateRtpTransport(nullptr);
       ConnectFakeTransports();
     }
     return result;
@@ -376,10 +384,12 @@ class ChannelTest : public ::testing::Test, public sigslot::has_slots<> {
 
   bool SendFinalAnswer() {
     bool result = channel2_->SetLocalContent(&local_media_content2_,
-                                             SdpType::kAnswer, NULL);
+                                             SdpType::kAnswer, NULL) &&
+                  channel2_->UpdateRtpTransport(nullptr);
     if (result)
       result = channel1_->SetRemoteContent(&remote_media_content2_,
-                                           SdpType::kAnswer, NULL);
+                                           SdpType::kAnswer, NULL) &&
+               channel1_->UpdateRtpTransport(nullptr);
     return result;
   }
 
@@ -490,13 +500,6 @@ class ChannelTest : public ::testing::Test, public sigslot::has_slots<> {
     return false;  // overridden in specialized classes
   }
 
-  void OnRtcpMuxFullyActive1(const std::string&) {
-    rtcp_mux_activated_callbacks1_++;
-  }
-  void OnRtcpMuxFullyActive2(const std::string&) {
-    rtcp_mux_activated_callbacks2_++;
-  }
-
   cricket::CandidatePairInterface* last_selected_candidate_pair() {
     return last_selected_candidate_pair_;
   }
@@ -512,7 +515,7 @@ class ChannelTest : public ::testing::Test, public sigslot::has_slots<> {
   // Basic sanity check.
   void TestInit() {
     CreateChannels(0, 0);
-    EXPECT_FALSE(channel1_->srtp_active());
+    EXPECT_FALSE(channel1_->SrtpActiveForTesting());
     EXPECT_FALSE(media_channel1_->sending());
     if (verify_playout_) {
       EXPECT_FALSE(media_channel1_->playout());
@@ -597,29 +600,6 @@ class ChannelTest : public ::testing::Test, public sigslot::has_slots<> {
     EXPECT_TRUE(channel2_->SetRemoteContent(&content, SdpType::kAnswer, NULL));
   }
 
-  // Test that SetLocalContent and SetRemoteContent properly set RTCP
-  // mux when a provisional answer is received.
-  void TestSetContentsRtcpMuxWithPrAnswer() {
-    CreateChannels(0, 0);
-    typename T::Content content;
-    CreateContent(0, kPcmuCodec, kH264Codec, &content);
-    content.set_rtcp_mux(true);
-    EXPECT_TRUE(channel1_->SetLocalContent(&content, SdpType::kOffer, NULL));
-    EXPECT_TRUE(
-        channel1_->SetRemoteContent(&content, SdpType::kPrAnswer, NULL));
-    // Both sides agree on mux. Should signal RTCP mux as fully activated.
-    EXPECT_EQ(0, rtcp_mux_activated_callbacks1_);
-    EXPECT_TRUE(channel1_->SetRemoteContent(&content, SdpType::kAnswer, NULL));
-    EXPECT_EQ(1, rtcp_mux_activated_callbacks1_);
-    // Only initiator supports mux. Should still have a separate RTCP channel.
-    EXPECT_TRUE(channel2_->SetLocalContent(&content, SdpType::kOffer, NULL));
-    content.set_rtcp_mux(false);
-    EXPECT_TRUE(
-        channel2_->SetRemoteContent(&content, SdpType::kPrAnswer, NULL));
-    EXPECT_TRUE(channel2_->SetRemoteContent(&content, SdpType::kAnswer, NULL));
-    EXPECT_EQ(0, rtcp_mux_activated_callbacks2_);
-  }
-
   // Test that SetLocalContent and SetRemoteContent properly
   // handles adding and removing StreamParams when the action is a full
   // SdpType::kOffer / SdpType::kAnswer.
@@ -642,10 +622,12 @@ class ChannelTest : public ::testing::Test, public sigslot::has_slots<> {
     CreateContent(0, kPcmuCodec, kH264Codec, &content1);
     content1.AddStream(stream1);
     EXPECT_TRUE(channel1_->SetLocalContent(&content1, SdpType::kOffer, NULL));
+    EXPECT_TRUE(channel1_->UpdateRtpTransport(nullptr));
     EXPECT_TRUE(channel1_->Enable(true));
     EXPECT_EQ(1u, media_channel1_->send_streams().size());
 
     EXPECT_TRUE(channel2_->SetRemoteContent(&content1, SdpType::kOffer, NULL));
+    EXPECT_TRUE(channel2_->UpdateRtpTransport(nullptr));
     EXPECT_EQ(1u, media_channel2_->recv_streams().size());
     ConnectFakeTransports();
 
@@ -653,8 +635,10 @@ class ChannelTest : public ::testing::Test, public sigslot::has_slots<> {
     typename T::Content content2;
     CreateContent(0, kPcmuCodec, kH264Codec, &content2);
     EXPECT_TRUE(channel1_->SetRemoteContent(&content2, SdpType::kAnswer, NULL));
+    EXPECT_TRUE(channel1_->UpdateRtpTransport(nullptr));
     EXPECT_EQ(0u, media_channel1_->recv_streams().size());
     EXPECT_TRUE(channel2_->SetLocalContent(&content2, SdpType::kAnswer, NULL));
+    EXPECT_TRUE(channel2_->UpdateRtpTransport(nullptr));
     EXPECT_TRUE(channel2_->Enable(true));
     EXPECT_EQ(0u, media_channel2_->send_streams().size());
 
@@ -667,10 +651,12 @@ class ChannelTest : public ::testing::Test, public sigslot::has_slots<> {
     CreateContent(0, kPcmuCodec, kH264Codec, &content3);
     content3.AddStream(stream2);
     EXPECT_TRUE(channel2_->SetLocalContent(&content3, SdpType::kOffer, NULL));
+    EXPECT_TRUE(channel2_->UpdateRtpTransport(nullptr));
     ASSERT_EQ(1u, media_channel2_->send_streams().size());
     EXPECT_EQ(stream2, media_channel2_->send_streams()[0]);
 
     EXPECT_TRUE(channel1_->SetRemoteContent(&content3, SdpType::kOffer, NULL));
+    EXPECT_TRUE(channel1_->UpdateRtpTransport(nullptr));
     ASSERT_EQ(1u, media_channel1_->recv_streams().size());
     EXPECT_EQ(stream2, media_channel1_->recv_streams()[0]);
 
@@ -678,9 +664,11 @@ class ChannelTest : public ::testing::Test, public sigslot::has_slots<> {
     typename T::Content content4;
     CreateContent(0, kPcmuCodec, kH264Codec, &content4);
     EXPECT_TRUE(channel1_->SetLocalContent(&content4, SdpType::kAnswer, NULL));
+    EXPECT_TRUE(channel1_->UpdateRtpTransport(nullptr));
     EXPECT_EQ(0u, media_channel1_->send_streams().size());
 
     EXPECT_TRUE(channel2_->SetRemoteContent(&content4, SdpType::kAnswer, NULL));
+    EXPECT_TRUE(channel2_->UpdateRtpTransport(nullptr));
     EXPECT_EQ(0u, media_channel2_->recv_streams().size());
 
     SendCustomRtp2(kSsrc2, 0);
@@ -877,14 +865,14 @@ class ChannelTest : public ::testing::Test, public sigslot::has_slots<> {
   // Test setting up a call.
   void TestCallSetup() {
     CreateChannels(0, 0);
-    EXPECT_FALSE(channel1_->srtp_active());
+    EXPECT_FALSE(channel1_->SrtpActiveForTesting());
     EXPECT_TRUE(SendInitiate());
     if (verify_playout_) {
       EXPECT_TRUE(media_channel1_->playout());
     }
     EXPECT_FALSE(media_channel1_->sending());
     EXPECT_TRUE(SendAccept());
-    EXPECT_FALSE(channel1_->srtp_active());
+    EXPECT_FALSE(channel1_->SrtpActiveForTesting());
     EXPECT_TRUE(media_channel1_->sending());
     EXPECT_EQ(1U, media_channel1_->codecs().size());
     if (verify_playout_) {
@@ -921,8 +909,8 @@ class ChannelTest : public ::testing::Test, public sigslot::has_slots<> {
     CreateChannels(RTCP_MUX, RTCP_MUX);
     EXPECT_TRUE(SendInitiate());
     EXPECT_TRUE(SendAccept());
-    EXPECT_TRUE(channel1_->rtp_transport()->rtcp_mux_enabled());
-    EXPECT_TRUE(channel2_->rtp_transport()->rtcp_mux_enabled());
+    EXPECT_TRUE(channel1_->RtpTransportForTesting()->rtcp_mux_enabled());
+    EXPECT_TRUE(channel2_->RtpTransportForTesting()->rtcp_mux_enabled());
     SendRtp1();
     SendRtp2();
     WaitForThreads();
@@ -945,15 +933,13 @@ class ChannelTest : public ::testing::Test, public sigslot::has_slots<> {
 
   void SendDtlsSrtpToDtlsSrtp(int flags1, int flags2) {
     CreateChannels(flags1 | DTLS, flags2 | DTLS);
-    EXPECT_FALSE(channel1_->srtp_active());
-    EXPECT_FALSE(channel2_->srtp_active());
+    EXPECT_FALSE(channel1_->SrtpActiveForTesting());
+    EXPECT_FALSE(channel2_->SrtpActiveForTesting());
     EXPECT_TRUE(SendInitiate());
     WaitForThreads();
-    EXPECT_TRUE(channel1_->writable());
-    EXPECT_TRUE(channel2_->writable());
     EXPECT_TRUE(SendAccept());
-    EXPECT_TRUE(channel1_->srtp_active());
-    EXPECT_TRUE(channel2_->srtp_active());
+    EXPECT_TRUE(channel1_->SrtpActiveForTesting());
+    EXPECT_TRUE(channel2_->SrtpActiveForTesting());
     SendRtp1();
     SendRtp2();
     WaitForThreads();
@@ -971,10 +957,10 @@ class ChannelTest : public ::testing::Test, public sigslot::has_slots<> {
     CreateChannels(SSRC_MUX | RTCP_MUX | DTLS, SSRC_MUX | RTCP_MUX | DTLS);
     EXPECT_TRUE(SendOffer());
     EXPECT_TRUE(SendProvisionalAnswer());
-    EXPECT_TRUE(channel1_->srtp_active());
-    EXPECT_TRUE(channel2_->srtp_active());
-    EXPECT_TRUE(channel1_->rtp_transport()->rtcp_mux_enabled());
-    EXPECT_TRUE(channel2_->rtp_transport()->rtcp_mux_enabled());
+    EXPECT_TRUE(channel1_->SrtpActiveForTesting());
+    EXPECT_TRUE(channel2_->SrtpActiveForTesting());
+    EXPECT_TRUE(channel1_->RtpTransportForTesting()->rtcp_mux_enabled());
+    EXPECT_TRUE(channel2_->RtpTransportForTesting()->rtcp_mux_enabled());
     WaitForThreads();  // Wait for 'sending' flag go through network thread.
     SendCustomRtp1(kSsrc1, ++sequence_number1_1);
     WaitForThreads();
@@ -987,8 +973,8 @@ class ChannelTest : public ::testing::Test, public sigslot::has_slots<> {
 
     // Complete call setup and ensure everything is still OK.
     EXPECT_TRUE(SendFinalAnswer());
-    EXPECT_TRUE(channel1_->srtp_active());
-    EXPECT_TRUE(channel2_->srtp_active());
+    EXPECT_TRUE(channel1_->SrtpActiveForTesting());
+    EXPECT_TRUE(channel2_->SrtpActiveForTesting());
     SendCustomRtp1(kSsrc1, ++sequence_number1_1);
     SendCustomRtp2(kSsrc2, ++sequence_number2_2);
     WaitForThreads();
@@ -1017,8 +1003,8 @@ class ChannelTest : public ::testing::Test, public sigslot::has_slots<> {
     CreateChannels(RTCP_MUX, RTCP_MUX);
     EXPECT_TRUE(SendInitiate());
     EXPECT_TRUE(SendAccept());
-    EXPECT_TRUE(channel1_->rtp_transport()->rtcp_mux_enabled());
-    EXPECT_TRUE(channel2_->rtp_transport()->rtcp_mux_enabled());
+    EXPECT_TRUE(channel1_->RtpTransportForTesting()->rtcp_mux_enabled());
+    EXPECT_TRUE(channel2_->RtpTransportForTesting()->rtcp_mux_enabled());
     SendRtp1();
     SendRtp2();
     WaitForThreads();
@@ -1412,8 +1398,6 @@ class ChannelTest : public ::testing::Test, public sigslot::has_slots<> {
   // The RTP and RTCP packets to send in the tests.
   rtc::Buffer rtp_packet_;
   rtc::Buffer rtcp_packet_;
-  int rtcp_mux_activated_callbacks1_ = 0;
-  int rtcp_mux_activated_callbacks2_ = 0;
   cricket::CandidatePairInterface* last_selected_candidate_pair_;
   rtc::UniqueRandomIdGenerator ssrc_generator_;
 };

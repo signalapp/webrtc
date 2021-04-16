@@ -150,6 +150,8 @@ struct CandidatePairChangeEvent {
   CandidatePair selected_candidate_pair;
   int64_t last_data_received_ms;
   std::string reason;
+  // How long do we estimate that we've been disconnected.
+  int64_t estimated_disconnected_time_ms;
 };
 
 typedef std::set<rtc::SocketAddress> ServerAddresses;
@@ -206,6 +208,9 @@ class Port : public PortInterface,
   void KeepAliveUntilPruned();
   // Allows a port to be destroyed if no connection is using it.
   void Prune();
+
+  // Call to stop any currently pending operations from running.
+  void CancelPendingTasks();
 
   // The thread on which this port performs its I/O.
   rtc::Thread* thread() { return thread_; }
@@ -320,7 +325,7 @@ class Port : public PortInterface,
   uint16_t max_port() { return max_port_; }
 
   // Timeout shortening function to speed up unit tests.
-  void set_timeout_delay(int delay) { timeout_delay_ = delay; }
+  void set_timeout_delay(int delay);
 
   // This method will return local and remote username fragements from the
   // stun username attribute if present.
@@ -435,7 +440,7 @@ class Port : public PortInterface,
 
   void OnNetworkTypeChanged(const rtc::Network* network);
 
-  rtc::Thread* thread_;
+  rtc::Thread* const thread_;
   rtc::PacketSocketFactory* factory_;
   std::string type_;
   bool send_retransmit_count_attribute_;

@@ -63,6 +63,7 @@ BufferedFrameDecryptor::FrameDecision BufferedFrameDecryptor::DecryptFrame(
     return FrameDecision::kStash;
   }
   // When using encryption we expect the frame to have the generic descriptor.
+  // RingRTC change to allow encryption without generic descriptor
   // if (frame->GetRtpVideoHeader().generic == absl::nullopt) {
   //   RTC_LOG(LS_ERROR) << "No generic frame descriptor found dropping frame.";
   //   return FrameDecision::kDrop;
@@ -72,12 +73,13 @@ BufferedFrameDecryptor::FrameDecision BufferedFrameDecryptor::DecryptFrame(
       frame_decryptor_->GetMaxPlaintextByteSize(cricket::MEDIA_TYPE_VIDEO,
                                                 frame->size());
   RTC_CHECK_LE(max_plaintext_byte_size, frame->size());
+  // RingRTC change to allow encryption without generic descriptor
   // Place the decrypted frame inline into the existing frame.
-  rtc::ArrayView<uint8_t> encrypted_bitstream(frame->data(),
+  rtc::ArrayView<uint8_t> encrypted_bitstream(frame->mutable_data(),
                                               frame->size());
 
   // Place the decrypted frame inline into the existing frame.
-  rtc::ArrayView<uint8_t> inline_decrypted_bitstream(frame->data(),
+  rtc::ArrayView<uint8_t> inline_decrypted_bitstream(frame->mutable_data(),
                                                      max_plaintext_byte_size);
 
   // Enable authenticating the header if the field trial isn't disabled.
@@ -89,6 +91,7 @@ BufferedFrameDecryptor::FrameDecision BufferedFrameDecryptor::DecryptFrame(
   // Attempt to decrypt the video frame.
   const FrameDecryptorInterface::Result decrypt_result =
       frame_decryptor_->Decrypt(cricket::MEDIA_TYPE_VIDEO, /*csrcs=*/{},
+                                // RingRTC change to allow encryption without generic descriptor
                                 additional_data,
                                 encrypted_bitstream,
                                 inline_decrypted_bitstream);

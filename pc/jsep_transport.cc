@@ -134,13 +134,6 @@ JsepTransport::JsepTransport(
         std::vector<webrtc::RtpTransportInternal*>{
             datagram_rtp_transport_.get(), default_rtp_transport()});
   }
-
-  if (data_channel_transport_ && sctp_data_channel_transport_) {
-    composite_data_channel_transport_ =
-        std::make_unique<webrtc::CompositeDataChannelTransport>(
-            std::vector<webrtc::DataChannelTransportInterface*>{
-                data_channel_transport_, sctp_data_channel_transport_.get()});
-  }
 }
 
 JsepTransport::~JsepTransport() {
@@ -234,7 +227,6 @@ webrtc::RTCError JsepTransport::SetLocalJsepTransportDescription(
   // If PRANSWER/ANSWER is set, we should decide transport protocol type.
   if (type == SdpType::kPrAnswer || type == SdpType::kAnswer) {
     error = NegotiateAndSetDtlsParameters(type);
-    NegotiateDatagramTransport(type);
   }
   if (!error.ok()) {
     local_description_.reset();
@@ -312,7 +304,6 @@ webrtc::RTCError JsepTransport::SetRemoteJsepTransportDescription(
   // If PRANSWER/ANSWER is set, we should decide transport protocol type.
   if (type == SdpType::kPrAnswer || type == SdpType::kAnswer) {
     error = NegotiateAndSetDtlsParameters(SdpType::kOffer);
-    NegotiateDatagramTransport(type);
   }
   if (!error.ok()) {
     remote_description_.reset();
@@ -726,12 +717,6 @@ bool JsepTransport::GetTransportStats(DtlsTransportInternal* dtls_transport,
   }
   stats->channel_stats.push_back(substats);
   return true;
-}
-
-// TODO(nisse): Delete.
-void JsepTransport::NegotiateDatagramTransport(SdpType type) {
-  RTC_DCHECK(type == SdpType::kAnswer || type == SdpType::kPrAnswer);
-  return;  // No need to negotiate the use of datagram transport.
 }
 
 }  // namespace cricket

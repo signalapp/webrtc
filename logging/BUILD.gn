@@ -97,10 +97,26 @@ rtc_library("rtc_event_bwe") {
   ]
 
   deps = [
+    "../api:network_state_predictor_api",
     "../api:scoped_refptr",
     "../api/rtc_event_log",
     "../api/units:data_rate",
-    "../modules/remote_bitrate_estimator",
+  ]
+  absl_deps = [
+    "//third_party/abseil-cpp/absl/memory",
+    "//third_party/abseil-cpp/absl/types:optional",
+  ]
+}
+
+rtc_library("rtc_event_frame_events") {
+  sources = [
+    "rtc_event_log/events/rtc_event_frame_decoded.cc",
+    "rtc_event_log/events/rtc_event_frame_decoded.h",
+  ]
+  deps = [
+    "../api/rtc_event_log",
+    "../api/video:video_frame",
+    "../rtc_base:timeutils",
   ]
   absl_deps = [
     "//third_party/abseil-cpp/absl/memory",
@@ -203,6 +219,7 @@ rtc_library("rtc_event_log_impl_encoder") {
       ":ice_log",
       ":rtc_event_audio",
       ":rtc_event_bwe",
+      ":rtc_event_frame_events",
       ":rtc_event_generic_packet_events",
       ":rtc_event_log2_proto",
       ":rtc_event_log_api",
@@ -212,8 +229,8 @@ rtc_library("rtc_event_log_impl_encoder") {
       ":rtc_event_video",
       ":rtc_stream_config",
       "../api:array_view",
+      "../api:network_state_predictor_api",
       "../modules/audio_coding:audio_network_adaptor",
-      "../modules/remote_bitrate_estimator",
       "../modules/rtp_rtcp:rtp_rtcp_format",
     ]
     sources += [
@@ -251,6 +268,7 @@ if (rtc_enable_protobuf) {
       "../rtc_base:rtc_task_queue",
       "../rtc_base:safe_minmax",
       "../rtc_base/synchronization:sequence_checker",
+      "../rtc_base/system:no_unique_address",
     ]
     absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
   }
@@ -299,23 +317,29 @@ if (rtc_enable_protobuf) {
 
     deps = [
       ":ice_log",
+      ":rtc_event_audio",
       ":rtc_event_bwe",
+      ":rtc_event_frame_events",
+      ":rtc_event_generic_packet_events",
       ":rtc_event_log2_proto",
       ":rtc_event_log_impl_encoder",
       ":rtc_event_log_proto",
+      ":rtc_event_pacing",
+      ":rtc_event_rtp_rtcp",
+      ":rtc_event_video",
       ":rtc_stream_config",
       "../api:function_view",
+      "../api:network_state_predictor_api",
       "../api:rtp_headers",
       "../api:rtp_parameters",
       "../api/rtc_event_log",
       "../api/units:data_rate",
       "../api/units:time_delta",
       "../api/units:timestamp",
+      "../api/video:video_frame",
       "../call:video_stream_api",
-      "../modules:module_api",
       "../modules:module_api_public",
       "../modules/audio_coding:audio_network_adaptor",
-      "../modules/remote_bitrate_estimator",
       "../modules/rtp_rtcp",
       "../modules/rtp_rtcp:rtp_rtcp_format",
       "../rtc_base:checks",
@@ -349,6 +373,7 @@ if (rtc_enable_protobuf) {
         ":ice_log",
         ":rtc_event_audio",
         ":rtc_event_bwe",
+        ":rtc_event_frame_events",
         ":rtc_event_generic_packet_events",
         ":rtc_event_log2_proto",
         ":rtc_event_log_impl_encoder",
@@ -359,6 +384,7 @@ if (rtc_enable_protobuf) {
         ":rtc_event_video",
         ":rtc_stream_config",
         "../api:array_view",
+        "../api:network_state_predictor_api",
         "../api:rtc_event_log_output_file",
         "../api:rtp_headers",
         "../api:rtp_parameters",
@@ -368,7 +394,6 @@ if (rtc_enable_protobuf) {
         "../call",
         "../call:call_interfaces",
         "../modules/audio_coding:audio_network_adaptor",
-        "../modules/remote_bitrate_estimator",
         "../modules/rtp_rtcp:rtp_rtcp_format",
         "../rtc_base:checks",
         "../rtc_base:rtc_base_approved",

@@ -17,9 +17,11 @@ rtc_library("network_emulation") {
   ]
 
   deps = [
+    "../..:array_view",
     "../../../rtc_base",
     "../../../rtc_base:checks",
     "../../../rtc_base:rtc_base_approved",
+    "../../numerics",
     "../../units:data_rate",
     "../../units:data_size",
     "../../units:timestamp",

@@ -14,6 +14,8 @@
 #include <vector>
 
 #include "api/scoped_refptr.h"
+#include "rtc_base/constructor_magic.h"
+#include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread_checker.h"
 
 // Forward declaration to avoid pulling in libsrtp headers here
@@ -107,6 +109,10 @@ class SrtpSession {
   // Returns send stream current packet index from srtp db.
   bool GetSendStreamPacketIndex(void* data, int in_len, int64_t* index);
 
+  // Writes unencrypted packets in text2pcap format to the log file
+  // for debugging.
+  void DumpPacket(const void* buf, int len, bool outbound);
+
   // These methods are responsible for initializing libsrtp (if the usage count
   // is incremented from 0 to 1) or deinitializing it (when decremented from 1
   // to 0).
@@ -123,11 +129,12 @@ class SrtpSession {
   int rtp_auth_tag_len_ = 0;
   int rtcp_auth_tag_len_ = 0;
   bool inited_ = false;
-  static rtc::GlobalLock lock_;
+  static webrtc::GlobalMutex lock_;
   int last_send_seq_num_ = -1;
   bool external_auth_active_ = false;
   bool external_auth_enabled_ = false;
   int decryption_failure_count_ = 0;
+  bool dump_plain_rtp_ = false;
   RTC_DISALLOW_COPY_AND_ASSIGN(SrtpSession);
 };
 

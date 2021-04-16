@@ -75,6 +75,11 @@ public class ScreenCapturerAndroid implements VideoCapturer, VideoSink {
     }
   }
 
+  @Nullable
+  public MediaProjection getMediaProjection() {
+    return mediaProjection;
+  }
+
   @Override
   // TODO(bugs.webrtc.org/8491): Remove NoSynchronizedMethodCheck suppression.
   @SuppressWarnings("NoSynchronizedMethodCheck")
@@ -186,16 +191,17 @@ public class ScreenCapturerAndroid implements VideoCapturer, VideoSink {
     });
   }
 
-  @Override
-  public void setOrientation(Integer orientation) {
-    // Empty on purpose
-  }
-
   private void createVirtualDisplay() {
     surfaceTextureHelper.setTextureSize(width, height);
     virtualDisplay = mediaProjection.createVirtualDisplay("WebRTC_ScreenCapture", width, height,
         VIRTUAL_DISPLAY_DPI, DISPLAY_FLAGS, new Surface(surfaceTextureHelper.getSurfaceTexture()),
         null /* callback */, null /* callback handler */);
+  }
+
+  // RingRTC change to set frame orientation
+  @Override
+  public void setOrientation(Integer orientation) {
+    // Empty on purpose
   }
 
   // This is called on the internal looper thread of {@Code SurfaceTextureHelper}.

@@ -35,6 +35,7 @@ using bitrate_allocator_impl::AllocatableTrack;
 // Allow packets to be transmitted in up to 2 times max video bitrate if the
 // bandwidth estimate allows it.
 const uint8_t kTransmissionMaxBitrateMultiplier = 2;
+// RingRTC change to start with lower bitrate
 const int kDefaultBitrateBps = BitrateConstraints::kDefaultStartBitrateBps;
 
 // Require a bitrate increase of max(10%, 20kbps) to resume paused streams.

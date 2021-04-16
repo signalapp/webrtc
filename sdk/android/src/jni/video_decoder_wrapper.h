@@ -12,12 +12,14 @@
 #define SDK_ANDROID_SRC_JNI_VIDEO_DECODER_WRAPPER_H_
 
 #include <jni.h>
+
 #include <atomic>
 #include <deque>
 
 #include "api/video_codecs/video_decoder.h"
 #include "common_video/h264/h264_bitstream_parser.h"
 #include "rtc_base/race_checker.h"
+#include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread_checker.h"
 #include "sdk/android/src/jni/jni_helpers.h"
 
@@ -44,11 +46,6 @@ class VideoDecoderWrapper : public VideoDecoder {
   // from VCMGenericDecoder destructor which is on a different thread but is
   // still safe and synchronous.
   int32_t Release() override RTC_NO_THREAD_SAFETY_ANALYSIS;
-
-  // Returns true if the decoder prefer to decode frames late.
-  // That is, it can not decode infinite number of frames before the decoded
-  // frame is consumed.
-  bool PrefersLateDecoding() const override;
 
   const char* ImplementationName() const override;
 
@@ -103,7 +100,7 @@ class VideoDecoderWrapper : public VideoDecoder {
 
   // Accessed both on the decoder thread and the callback thread.
   std::atomic<bool> qp_parsing_enabled_;
-  rtc::CriticalSection frame_extra_infos_lock_;
+  Mutex frame_extra_infos_lock_;
   std::deque<FrameExtraInfo> frame_extra_infos_
       RTC_GUARDED_BY(frame_extra_infos_lock_);
 };

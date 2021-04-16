@@ -51,8 +51,7 @@ class RtpPayloadParams final {
                         int64_t shared_frame_id);
   RTPVideoHeader::GenericDescriptorInfo GenericDescriptorFromFrameInfo(
       const GenericFrameInfo& frame_info,
-      int64_t frame_id,
-      VideoFrameType frame_type);
+      int64_t frame_id);
   void SetGeneric(const CodecSpecificInfo* codec_specific_info,
                   int64_t frame_id,
                   bool is_keyframe,

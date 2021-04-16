@@ -12,10 +12,10 @@ rtc_library("resource_adaptation") {
   sources = [
     "adaptation_constraint.cc",
     "adaptation_constraint.h",
-    "adaptation_listener.cc",
-    "adaptation_listener.h",
     "broadcast_resource_listener.cc",
     "broadcast_resource_listener.h",
+    "degradation_preference_provider.cc",
+    "degradation_preference_provider.h",
     "encoder_settings.cc",
     "encoder_settings.h",
     "resource_adaptation_processor.cc",
@@ -45,12 +45,15 @@ rtc_library("resource_adaptation") {
     "../../rtc_base:rtc_base_approved",
     "../../rtc_base:rtc_task_queue",
     "../../rtc_base/experiments:balanced_degradation_settings",
+    "../../rtc_base/synchronization:mutex",
     "../../rtc_base/synchronization:sequence_checker",
+    "../../rtc_base/system:no_unique_address",
     "../../rtc_base/task_utils:to_queued_task",
   ]
   absl_deps = [
     "//third_party/abseil-cpp/absl/algorithm:container",
     "//third_party/abseil-cpp/absl/types:optional",
+    "//third_party/abseil-cpp/absl/types:variant",
   ]
 }
 
@@ -80,6 +83,7 @@ if (rtc_include_tests) {
       "../../rtc_base:rtc_base_approved",
       "../../rtc_base:rtc_task_queue",
       "../../rtc_base:task_queue_for_test",
+      "../../rtc_base/synchronization:mutex",
       "../../test:field_trial",
       "../../test:rtc_expect_death",
       "../../test:test_support",
@@ -93,12 +97,12 @@ if (rtc_include_tests) {
     sources = [
       "test/fake_adaptation_constraint.cc",
       "test/fake_adaptation_constraint.h",
-      "test/fake_adaptation_listener.cc",
-      "test/fake_adaptation_listener.h",
       "test/fake_frame_rate_provider.cc",
       "test/fake_frame_rate_provider.h",
       "test/fake_resource.cc",
       "test/fake_resource.h",
+      "test/fake_video_stream_input_state_provider.cc",
+      "test/fake_video_stream_input_state_provider.h",
       "test/mock_resource_listener.h",
     ]
     deps = [

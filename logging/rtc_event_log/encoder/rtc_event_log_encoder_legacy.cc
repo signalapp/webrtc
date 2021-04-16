@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "absl/types/optional.h"
+#include "api/network_state_predictor.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_parameters.h"
 #include "api/transport/network_types.h"
@@ -38,7 +39,6 @@
 #include "logging/rtc_event_log/events/rtc_event_video_send_stream_config.h"
 #include "logging/rtc_event_log/rtc_stream_config.h"
 #include "modules/audio_coding/audio_network_adaptor/include/audio_network_adaptor_config.h"
-#include "modules/remote_bitrate_estimator/include/bwe_defines.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/app.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/bye.h"
@@ -367,6 +367,7 @@ std::string RtcEventLogEncoderLegacy::Encode(const RtcEvent& event) {
     case RtcEvent::Type::GenericPacketReceived:
     case RtcEvent::Type::GenericPacketSent:
     case RtcEvent::Type::GenericAckReceived:
+    case RtcEvent::Type::FrameDecoded:
       // These are unsupported in the old format, but shouldn't crash.
       return "";
   }
@@ -695,8 +696,7 @@ std::string RtcEventLogEncoderLegacy::EncodeRtcpPacket(
   rtcp::CommonHeader header;
   const uint8_t* block_begin = packet.data();
   const uint8_t* packet_end = packet.data() + packet.size();
-  RTC_DCHECK(packet.size() <= IP_PACKET_SIZE);
-  uint8_t buffer[IP_PACKET_SIZE];
+  std::vector<uint8_t> buffer(packet.size());
   uint32_t buffer_length = 0;
   while (block_begin < packet_end) {
     if (!header.Parse(block_begin, packet_end - block_begin)) {
@@ -715,7 +715,7 @@ std::string RtcEventLogEncoderLegacy::EncodeRtcpPacket(
         // We log sender reports, receiver reports, bye messages
         // inter-arrival jitter, third-party loss reports, payload-specific
         // feedback and extended reports.
-        memcpy(buffer + buffer_length, block_begin, block_size);
+        memcpy(buffer.data() + buffer_length, block_begin, block_size);
         buffer_length += block_size;
         break;
       case rtcp::App::kPacketType:
@@ -728,7 +728,8 @@ std::string RtcEventLogEncoderLegacy::EncodeRtcpPacket(
 
     block_begin += block_size;
   }
-  rtclog_event.mutable_rtcp_packet()->set_packet_data(buffer, buffer_length);
+  rtclog_event.mutable_rtcp_packet()->set_packet_data(buffer.data(),
+                                                      buffer_length);
 
   return Serialize(&rtclog_event);
 }

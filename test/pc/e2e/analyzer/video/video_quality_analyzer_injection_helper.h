@@ -25,7 +25,7 @@
 #include "api/video/video_sink_interface.h"
 #include "api/video_codecs/video_decoder_factory.h"
 #include "api/video_codecs/video_encoder_factory.h"
-#include "rtc_base/critical_section.h"
+#include "rtc_base/synchronization/mutex.h"
 #include "test/pc/e2e/analyzer/video/encoded_image_data_injector.h"
 #include "test/pc/e2e/analyzer/video/id_generator.h"
 #include "test/test_video_capturer.h"
@@ -45,6 +45,12 @@ class VideoQualityAnalyzerInjectionHelper : public StatsObserverInterface {
       EncodedImageDataInjector* injector,
       EncodedImageDataExtractor* extractor);
   ~VideoQualityAnalyzerInjectionHelper() override;
+
+  // Registers new call participant to the underlying video quality analyzer.
+  // The method should be called before the participant is actually added.
+  void RegisterParticipantInCall(absl::string_view peer_name) {
+    analyzer_->RegisterParticipantInCall(peer_name);
+  }
 
   // Wraps video encoder factory to give video quality analyzer access to frames
   // before encoding and encoded images after.
@@ -75,7 +81,7 @@ class VideoQualityAnalyzerInjectionHelper : public StatsObserverInterface {
 
   void Start(std::string test_case_name,
              rtc::ArrayView<const std::string> peer_names,
-             int max_threads_count);
+             int max_threads_count = 1);
 
   // Forwards |stats_reports| for Peer Connection |pc_label| to
   // |analyzer_|.
@@ -107,6 +113,8 @@ class VideoQualityAnalyzerInjectionHelper : public StatsObserverInterface {
   test::VideoFrameWriter* MaybeCreateVideoWriter(
       absl::optional<std::string> file_name,
       const PeerConnectionE2EQualityTestFixture::VideoConfig& config);
+  // Creates a deep copy of the frame and passes it to the video analyzer, while
+  // passing real frame to the sinks
   void OnFrame(absl::string_view peer_name, const VideoFrame& frame);
   std::vector<std::unique_ptr<rtc::VideoSinkInterface<VideoFrame>>>*
   PopulateSinks(const std::string& stream_label);
@@ -117,7 +125,7 @@ class VideoQualityAnalyzerInjectionHelper : public StatsObserverInterface {
 
   std::vector<std::unique_ptr<test::VideoFrameWriter>> video_writers_;
 
-  rtc::CriticalSection lock_;
+  Mutex lock_;
   std::map<std::string, VideoConfig> known_video_configs_ RTC_GUARDED_BY(lock_);
   std::map<std::string,
            std::vector<std::unique_ptr<rtc::VideoSinkInterface<VideoFrame>>>>

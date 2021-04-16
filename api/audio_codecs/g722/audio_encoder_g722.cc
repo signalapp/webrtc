@@ -44,6 +44,7 @@ absl::optional<AudioEncoderG722Config> AudioEncoderG722::SdpToConfig(
 
 void AudioEncoderG722::AppendSupportedEncoders(
     std::vector<AudioCodecSpec>* specs) {
+  // RingRTC change to unused audio codecs
   // const SdpAudioFormat fmt = {"G722", 8000, 1};
   // const AudioCodecInfo info = QueryAudioEncoder(*SdpToConfig(fmt));
   // specs->push_back({fmt, info});

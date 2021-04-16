@@ -32,6 +32,7 @@ AudioDecoderIsacFloat::SdpToConfig(const SdpAudioFormat& format) {
 
 void AudioDecoderIsacFloat::AppendSupportedDecoders(
     std::vector<AudioCodecSpec>* specs) {
+  // RingRTC change to unused audio codecs
   // specs->push_back({{"ISAC", 16000, 1}, {16000, 1, 32000, 10000, 32000}});
   // specs->push_back({{"ISAC", 32000, 1}, {32000, 1, 56000, 10000, 56000}});
 }

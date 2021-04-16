@@ -115,6 +115,7 @@ class AudioEncoder {
     std::vector<EncodedInfoLeaf> redundant;
   };
 
+  // RingRTC change to enable configuring OPUS
   // Very OPUS-specific
   struct Config {
     // AKA ptime or frame size
@@ -275,6 +276,7 @@ class AudioEncoder {
   virtual absl::optional<std::pair<TimeDelta, TimeDelta>> GetFrameLengthRange()
       const = 0;
 
+  //  RingRTC Change to configure OPUS
   virtual bool Configure(const Config& config) {
     RTC_LOG(LS_WARNING) << "Default AudioEncoder::Configure(...) does nothing!";
     return false;

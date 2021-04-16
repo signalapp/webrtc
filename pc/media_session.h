@@ -113,6 +113,7 @@ struct MediaSessionOptions {
   // List of media description options in the same order that the media
   // descriptions will be generated.
   std::vector<MediaDescriptionOptions> media_description_options;
+  // RingRTC change to configure OPUS
   std::vector<IceParameters> ice_credentials;
 
   // Use the draft-ietf-mmusic-sctp-sdp-03 obsolete syntax for SCTP
@@ -283,6 +284,14 @@ class MediaSessionDescriptionFactory {
       SessionDescription* desc,
       IceCredentialsIterator* ice_credentials) const;
 
+  bool AddUnsupportedContentForOffer(
+      const MediaDescriptionOptions& media_description_options,
+      const MediaSessionOptions& session_options,
+      const ContentInfo* current_content,
+      const SessionDescription* current_description,
+      SessionDescription* desc,
+      IceCredentialsIterator* ice_credentials) const;
+
   bool AddAudioContentForAnswer(
       const MediaDescriptionOptions& media_description_options,
       const MediaSessionOptions& session_options,
@@ -324,6 +333,17 @@ class MediaSessionDescriptionFactory {
       SessionDescription* answer,
       IceCredentialsIterator* ice_credentials) const;
 
+  bool AddUnsupportedContentForAnswer(
+      const MediaDescriptionOptions& media_description_options,
+      const MediaSessionOptions& session_options,
+      const ContentInfo* offer_content,
+      const SessionDescription* offer_description,
+      const ContentInfo* current_content,
+      const SessionDescription* current_description,
+      const TransportInfo* bundle_transport,
+      SessionDescription* answer,
+      IceCredentialsIterator* ice_credentials) const;
+
   void ComputeAudioCodecsIntersectionAndUnion();
 
   void ComputeVideoCodecsIntersectionAndUnion();
@@ -356,6 +376,7 @@ bool IsMediaContent(const ContentInfo* content);
 bool IsAudioContent(const ContentInfo* content);
 bool IsVideoContent(const ContentInfo* content);
 bool IsDataContent(const ContentInfo* content);
+bool IsUnsupportedContent(const ContentInfo* content);
 const ContentInfo* GetFirstMediaContent(const ContentInfos& contents,
                                         MediaType media_type);
 const ContentInfo* GetFirstAudioContent(const ContentInfos& contents);

@@ -50,6 +50,9 @@ size_t Merge::Process(int16_t* input,
   assert(fs_hz_ == 8000 || fs_hz_ == 16000 || fs_hz_ == 32000 ||
          fs_hz_ == 48000);
   assert(fs_hz_ <= kMaxSampleRate);  // Should not be possible.
+  if (input_length == 0) {
+    return 0;
+  }
 
   size_t old_length;
   size_t expand_period;
@@ -80,7 +83,7 @@ size_t Merge::Process(int16_t* input,
 
     if (channel == 0) {
       // Downsample, correlate, and find strongest correlation period for the
-      // master (i.e., first) channel only.
+      // reference (i.e., first) channel only.
       // Downsample to 4kHz sample rate.
       Downsample(input_channel.get(), input_length_per_channel,
                  expanded_channel.get(), expanded_length);

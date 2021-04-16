@@ -56,8 +56,13 @@ void AudioEgress::SetEncoder(int payload_type,
   audio_coding_->SetEncoder(std::move(encoder));
 }
 
-void AudioEgress::StartSend() {
+bool AudioEgress::StartSend() {
+  if (!GetEncoderFormat()) {
+    RTC_DLOG(LS_WARNING) << "Send codec has not been set yet";
+    return false;
+  }
   rtp_rtcp_->SetSendingMediaStatus(true);
+  return true;
 }
 
 void AudioEgress::StopSend() {
@@ -74,6 +79,12 @@ void AudioEgress::SendAudioData(std::unique_ptr<AudioFrame> audio_frame) {
         if (!rtp_rtcp_->SendingMedia()) {
           return;
         }
+
+        double duration_seconds =
+            static_cast<double>(audio_frame->samples_per_channel_) /
+            audio_frame->sample_rate_hz_;
+
+        input_audio_level_.ComputeLevel(*audio_frame, duration_seconds);
 
         AudioFrameOperations::Mute(audio_frame.get(),
                                    encoder_context_.previously_muted_,

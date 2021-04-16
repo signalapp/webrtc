@@ -300,6 +300,7 @@ void JsepTransportController::MaybeStartGathering() {
   }
 }
 
+// RingRTC change to configure OPUS
 void JsepTransportController::StartGatheringWithSharedIceGatherer(
     rtc::scoped_refptr<webrtc::IceGathererInterface> shared_ice_gatherer) {
   if (!network_thread_->IsCurrent()) {
@@ -1057,8 +1058,6 @@ RTCError JsepTransportController::MaybeCreateJsepTransport(
 
   jsep_transport->SignalRtcpMuxActive.connect(
       this, &JsepTransportController::UpdateAggregateStates_n);
-  jsep_transport->SignalDataChannelTransportNegotiated.connect(
-      this, &JsepTransportController::OnDataChannelTransportNegotiated_n);
   SetTransportForMid(content_info.name, jsep_transport.get());
 
   jsep_transports_by_name_[content_info.name] = std::move(jsep_transport);
@@ -1239,18 +1238,6 @@ void JsepTransportController::OnTransportStateChanged_n(
   UpdateAggregateStates_n();
 }
 
-void JsepTransportController::OnDataChannelTransportNegotiated_n(
-    cricket::JsepTransport* transport,
-    DataChannelTransportInterface* data_channel_transport) {
-  for (const auto& it : mid_to_transport_) {
-    if (it.second == transport) {
-      config_.transport_observer->OnTransportChanged(
-          it.first, transport->rtp_transport(), transport->RtpDtlsTransport(),
-          data_channel_transport);
-    }
-  }
-}
-
 void JsepTransportController::UpdateAggregateStates_n() {
   RTC_DCHECK(network_thread_->IsCurrent());
 
@@ -1301,10 +1288,11 @@ void JsepTransportController::UpdateAggregateStates_n() {
   }
   if (ice_connection_state_ != new_connection_state) {
     ice_connection_state_ = new_connection_state;
-    invoker_.AsyncInvoke<void>(RTC_FROM_HERE, signaling_thread_,
-                               [this, new_connection_state] {
-                                 SignalIceConnectionState(new_connection_state);
-                               });
+
+    invoker_.AsyncInvoke<void>(
+        RTC_FROM_HERE, signaling_thread_, [this, new_connection_state] {
+          SignalIceConnectionState.Send(new_connection_state);
+        });
   }
 
   // Compute the current RTCIceConnectionState as described in
@@ -1426,7 +1414,10 @@ void JsepTransportController::UpdateAggregateStates_n() {
                                });
   }
 
-  if (all_done_gathering) {
+  // Compute the gathering state.
+  if (dtls_transports.empty()) {
+    new_gathering_state = cricket::kIceGatheringNew;
+  } else if (all_done_gathering) {
     new_gathering_state = cricket::kIceGatheringComplete;
   } else if (any_gathering) {
     new_gathering_state = cricket::kIceGatheringGathering;

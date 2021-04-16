@@ -20,11 +20,11 @@
 #include "api/candidate.h"
 #include "api/ice_transport_interface.h"
 #include "api/jsep.h"
+#include "api/transport/data_channel_transport_interface.h"
 #include "media/sctp/sctp_transport_internal.h"
 #include "p2p/base/dtls_transport.h"
 #include "p2p/base/p2p_constants.h"
 #include "p2p/base/transport_info.h"
-#include "pc/composite_data_channel_transport.h"
 #include "pc/composite_rtp_transport.h"
 #include "pc/dtls_srtp_transport.h"
 #include "pc/dtls_transport.h"
@@ -218,30 +218,21 @@ class JsepTransport : public sigslot::has_slots<> {
     return sctp_transport_;
   }
 
+  // TODO(bugs.webrtc.org/9719): Delete method, update callers to use
+  // SctpTransport() instead.
   webrtc::DataChannelTransportInterface* data_channel_transport() const
       RTC_LOCKS_EXCLUDED(accessor_lock_) {
     rtc::CritScope scope(&accessor_lock_);
-    if (composite_data_channel_transport_) {
-      return composite_data_channel_transport_.get();
-    } else if (sctp_data_channel_transport_) {
+    if (sctp_data_channel_transport_) {
       return sctp_data_channel_transport_.get();
     }
-    return data_channel_transport_;
+    return nullptr;
   }
 
   // This is signaled when RTCP-mux becomes active and
   // |rtcp_dtls_transport_| is destroyed. The JsepTransportController will
   // handle the signal and update the aggregate transport states.
   sigslot::signal<> SignalRtcpMuxActive;
-
-  // Signals that a data channel transport was negotiated and may be used to
-  // send data.  The first parameter is |this|.  The second parameter is the
-  // transport that was negotiated, or null if negotiation rejected the data
-  // channel transport.  The third parameter (bool) indicates whether the
-  // negotiation was provisional or final.  If true, it is provisional, if
-  // false, it is final.
-  sigslot::signal2<JsepTransport*, webrtc::DataChannelTransportInterface*>
-      SignalDataChannelTransportNegotiated;
 
   // TODO(deadbeef): The methods below are only public for testing. Should make
   // them utility functions or objects so they can be tested independently from
@@ -307,12 +298,6 @@ class JsepTransport : public sigslot::has_slots<> {
                          TransportStats* stats)
       RTC_EXCLUSIVE_LOCKS_REQUIRED(accessor_lock_);
 
-  // Deactivates, signals removal, and deletes |composite_rtp_transport_| if the
-  // current state of negotiation is sufficient to determine which rtp_transport
-  // and data channel transport to use.
-  void NegotiateDatagramTransport(webrtc::SdpType type)
-      RTC_RUN_ON(network_thread_) RTC_LOCKS_EXCLUDED(accessor_lock_);
-
   // Returns the default (non-datagram) rtp transport, if any.
   webrtc::RtpTransportInternal* default_rtp_transport() const
       RTC_EXCLUSIVE_LOCKS_REQUIRED(accessor_lock_) {
@@ -331,7 +316,7 @@ class JsepTransport : public sigslot::has_slots<> {
   const rtc::Thread* const network_thread_;
   // Critical scope for fields accessed off-thread
   // TODO(https://bugs.webrtc.org/10300): Stop doing this.
-  rtc::CriticalSection accessor_lock_;
+  rtc::RecursiveCriticalSection accessor_lock_;
   const std::string mid_;
   // needs-ice-restart bit as described in JSEP.
   bool needs_ice_restart_ RTC_GUARDED_BY(accessor_lock_) = false;
@@ -386,15 +371,6 @@ class JsepTransport : public sigslot::has_slots<> {
 
   std::unique_ptr<webrtc::RtpTransportInternal> datagram_rtp_transport_
       RTC_GUARDED_BY(accessor_lock_);
-
-  // Non-SCTP data channel transport.  Set to |datagram_transport_| if that
-  // transport should be used for data chanels.  Unset otherwise.
-  webrtc::DataChannelTransportInterface* data_channel_transport_
-      RTC_GUARDED_BY(accessor_lock_) = nullptr;
-
-  // Composite data channel transport, used during negotiation.
-  std::unique_ptr<webrtc::CompositeDataChannelTransport>
-      composite_data_channel_transport_ RTC_GUARDED_BY(accessor_lock_);
 
   RTC_DISALLOW_COPY_AND_ASSIGN(JsepTransport);
 };

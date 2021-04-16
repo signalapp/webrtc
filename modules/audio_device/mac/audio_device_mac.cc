@@ -204,7 +204,7 @@ AudioDeviceMac::~AudioDeviceMac() {
 // ============================================================================
 
 void AudioDeviceMac::AttachAudioBuffer(AudioDeviceBuffer* audioBuffer) {
-  rtc::CritScope lock(&_critSect);
+  MutexLock lock(&mutex_);
 
   _ptrAudioBuffer = audioBuffer;
 
@@ -222,7 +222,7 @@ int32_t AudioDeviceMac::ActiveAudioLayer(
 }
 
 AudioDeviceGeneric::InitStatus AudioDeviceMac::Init() {
-  rtc::CritScope lock(&_critSect);
+  MutexLock lock(&mutex_);
 
   if (_initialized) {
     return InitStatus::OK;
@@ -311,6 +311,8 @@ AudioDeviceGeneric::InitStatus AudioDeviceMac::Init() {
   WEBRTC_CA_LOG_ERR(AudioObjectAddPropertyListener(
       kAudioObjectSystemObject, &propertyAddress, &objectListenerProc, this));
 
+  // RingRTC changes (code removed) to avoid speaker panning
+
   _initialized = true;
 
   return InitStatus::OK;
@@ -331,8 +333,7 @@ int32_t AudioDeviceMac::Terminate() {
     return -1;
   }
 
-  _critSect.Enter();
-
+  MutexLock lock(&mutex_);
   _mixerManager.Close();
 
   OSStatus err = noErr;
@@ -356,8 +357,6 @@ int32_t AudioDeviceMac::Terminate() {
   _outputDeviceIsSpecified = false;
   _inputDeviceIsSpecified = false;
 
-  _critSect.Leave();
-
   return retVal;
 }
 
@@ -366,12 +365,17 @@ bool AudioDeviceMac::Initialized() const {
 }
 
 int32_t AudioDeviceMac::SpeakerIsAvailable(bool& available) {
+  MutexLock lock(&mutex_);
+  return SpeakerIsAvailableLocked(available);
+}
+
+int32_t AudioDeviceMac::SpeakerIsAvailableLocked(bool& available) {
   bool wasInitialized = _mixerManager.SpeakerIsInitialized();
 
   // Make an attempt to open up the
   // output mixer corresponding to the currently selected output device.
   //
-  if (!wasInitialized && InitSpeaker() == -1) {
+  if (!wasInitialized && InitSpeakerLocked() == -1) {
     available = false;
     return 0;
   }
@@ -390,7 +394,7 @@ int32_t AudioDeviceMac::SpeakerIsAvailable(bool& available) {
 }
 
 int32_t AudioDeviceMac::InitSpeaker() {
-  rtc::CritScope lock(&_critSect);
+  MutexLock lock(&mutex_);
   return InitSpeakerLocked();
 }
 
@@ -417,12 +421,17 @@ int32_t AudioDeviceMac::InitSpeakerLocked() {
 }
 
 int32_t AudioDeviceMac::MicrophoneIsAvailable(bool& available) {
+  MutexLock lock(&mutex_);
+  return MicrophoneIsAvailableLocked(available);
+}
+
+int32_t AudioDeviceMac::MicrophoneIsAvailableLocked(bool& available) {
   bool wasInitialized = _mixerManager.MicrophoneIsInitialized();
 
   // Make an attempt to open up the
   // input mixer corresponding to the currently selected output device.
   //
-  if (!wasInitialized && InitMicrophone() == -1) {
+  if (!wasInitialized && InitMicrophoneLocked() == -1) {
     available = false;
     return 0;
   }
@@ -441,7 +450,7 @@ int32_t AudioDeviceMac::MicrophoneIsAvailable(bool& available) {
 }
 
 int32_t AudioDeviceMac::InitMicrophone() {
-  rtc::CritScope lock(&_critSect);
+  MutexLock lock(&mutex_);
   return InitMicrophoneLocked();
 }
 
@@ -783,7 +792,7 @@ int16_t AudioDeviceMac::PlayoutDevices() {
 }
 
 int32_t AudioDeviceMac::SetPlayoutDevice(uint16_t index) {
-  rtc::CritScope lock(&_critSect);
+  MutexLock lock(&mutex_);
 
   if (_playIsInitialized) {
     return -1;
@@ -932,7 +941,7 @@ int32_t AudioDeviceMac::RecordingIsAvailable(bool& available) {
 
 int32_t AudioDeviceMac::InitPlayout() {
   RTC_LOG(LS_INFO) << "InitPlayout";
-  rtc::CritScope lock(&_critSect);
+  MutexLock lock(&mutex_);
 
   if (_playing) {
     return -1;
@@ -955,7 +964,7 @@ int32_t AudioDeviceMac::InitPlayout() {
     // Make this call to check if we are using
     // one or two devices (_twoDevices)
     bool available = false;
-    if (MicrophoneIsAvailable(available) == -1) {
+    if (MicrophoneIsAvailableLocked(available) == -1) {
       RTC_LOG(LS_WARNING) << "MicrophoneIsAvailable() failed";
     }
   }
@@ -970,6 +979,7 @@ int32_t AudioDeviceMac::InitPlayout() {
   _renderDeviceIsAlive = 1;
   _doStop = false;
 
+  // RingRTC changes (code removed) to avoid speaker panning
   AudioObjectPropertyAddress propertyAddress = {
       kAudioDevicePropertyDataSource, kAudioDevicePropertyScopeOutput, 0};
 
@@ -1044,7 +1054,7 @@ int32_t AudioDeviceMac::InitPlayout() {
 
 int32_t AudioDeviceMac::InitRecording() {
   RTC_LOG(LS_INFO) << "InitRecording";
-  rtc::CritScope lock(&_critSect);
+  MutexLock lock(&mutex_);
 
   if (_recording) {
     return -1;
@@ -1067,7 +1077,7 @@ int32_t AudioDeviceMac::InitRecording() {
     // Make this call to check if we are using
     // one or two devices (_twoDevices)
     bool available = false;
-    if (SpeakerIsAvailable(available) == -1) {
+    if (SpeakerIsAvailableLocked(available) == -1) {
       RTC_LOG(LS_WARNING) << "SpeakerIsAvailable() failed";
     }
   }
@@ -1241,7 +1251,7 @@ int32_t AudioDeviceMac::InitRecording() {
 
 int32_t AudioDeviceMac::StartRecording() {
   RTC_LOG(LS_INFO) << "StartRecording";
-  rtc::CritScope lock(&_critSect);
+  MutexLock lock(&mutex_);
 
   if (!_recIsInitialized) {
     return -1;
@@ -1277,7 +1287,7 @@ int32_t AudioDeviceMac::StartRecording() {
 
 int32_t AudioDeviceMac::StopRecording() {
   RTC_LOG(LS_INFO) << "StopRecording";
-  rtc::CritScope lock(&_critSect);
+  MutexLock lock(&mutex_);
 
   if (!_recIsInitialized) {
     return 0;
@@ -1290,16 +1300,16 @@ int32_t AudioDeviceMac::StopRecording() {
     if (_recording) {
       _recording = false;
       _doStopRec = true;  // Signal to io proc to stop audio device
-      _critSect.Leave();  // Cannot be under lock, risk of deadlock
+      mutex_.Unlock();    // Cannot be under lock, risk of deadlock
       if (!_stopEventRec.Wait(2000)) {
-        rtc::CritScope critScoped(&_critSect);
+        MutexLock lockScoped(&mutex_);
         RTC_LOG(LS_WARNING) << "Timed out stopping the capture IOProc."
                                "We may have failed to detect a device removal.";
         WEBRTC_CA_LOG_WARN(AudioDeviceStop(_inputDeviceID, _inDeviceIOProcID));
         WEBRTC_CA_LOG_WARN(
             AudioDeviceDestroyIOProcID(_inputDeviceID, _inDeviceIOProcID));
       }
-      _critSect.Enter();
+      mutex_.Lock();
       _doStopRec = false;
       RTC_LOG(LS_INFO) << "Recording stopped (input device)";
     } else if (_recIsInitialized) {
@@ -1318,9 +1328,9 @@ int32_t AudioDeviceMac::StopRecording() {
     if (_recording && captureDeviceIsAlive == 1) {
       _recording = false;
       _doStop = true;     // Signal to io proc to stop audio device
-      _critSect.Leave();  // Cannot be under lock, risk of deadlock
+      mutex_.Unlock();    // Cannot be under lock, risk of deadlock
       if (!_stopEvent.Wait(2000)) {
-        rtc::CritScope critScoped(&_critSect);
+        MutexLock lockScoped(&mutex_);
         RTC_LOG(LS_WARNING) << "Timed out stopping the shared IOProc."
                                "We may have failed to detect a device removal.";
         // We assume rendering on a shared device has stopped as well if
@@ -1329,7 +1339,7 @@ int32_t AudioDeviceMac::StopRecording() {
         WEBRTC_CA_LOG_WARN(
             AudioDeviceDestroyIOProcID(_outputDeviceID, _deviceIOProcID));
       }
-      _critSect.Enter();
+      mutex_.Lock();
       _doStop = false;
       RTC_LOG(LS_INFO) << "Recording stopped (shared device)";
     } else if (_recIsInitialized && !_playing && !_playIsInitialized) {
@@ -1343,10 +1353,10 @@ int32_t AudioDeviceMac::StopRecording() {
   AtomicSet32(&_captureDeviceIsAlive, 0);
 
   if (capture_worker_thread_.get()) {
-    _critSect.Leave();
+    mutex_.Unlock();
     capture_worker_thread_->Stop();
     capture_worker_thread_.reset();
-    _critSect.Enter();
+    mutex_.Lock();
   }
 
   WEBRTC_CA_LOG_WARN(AudioConverterDispose(_captureConverter));
@@ -1381,7 +1391,7 @@ bool AudioDeviceMac::PlayoutIsInitialized() const {
 
 int32_t AudioDeviceMac::StartPlayout() {
   RTC_LOG(LS_INFO) << "StartPlayout";
-  rtc::CritScope lock(&_critSect);
+  MutexLock lock(&mutex_);
 
   if (!_playIsInitialized) {
     return -1;
@@ -1407,7 +1417,7 @@ int32_t AudioDeviceMac::StartPlayout() {
 
 int32_t AudioDeviceMac::StopPlayout() {
   RTC_LOG(LS_INFO) << "StopPlayout";
-  rtc::CritScope lock(&_critSect);
+  MutexLock lock(&mutex_);
 
   if (!_playIsInitialized) {
     return 0;
@@ -1425,9 +1435,9 @@ int32_t AudioDeviceMac::StopPlayout() {
     // has ended before stopping itself.
     _playing = false;
     _doStop = true;     // Signal to io proc to stop audio device
-    _critSect.Leave();  // Cannot be under lock, risk of deadlock
+    mutex_.Unlock();    // Cannot be under lock, risk of deadlock
     if (!_stopEvent.Wait(2000)) {
-      rtc::CritScope critScoped(&_critSect);
+      MutexLock lockScoped(&mutex_);
       RTC_LOG(LS_WARNING) << "Timed out stopping the render IOProc."
                              "We may have failed to detect a device removal.";
 
@@ -1437,7 +1447,7 @@ int32_t AudioDeviceMac::StopPlayout() {
       WEBRTC_CA_LOG_WARN(
           AudioDeviceDestroyIOProcID(_outputDeviceID, _deviceIOProcID));
     }
-    _critSect.Enter();
+    mutex_.Lock();
     _doStop = false;
     RTC_LOG(LS_INFO) << "Playout stopped";
   } else if (_twoDevices && _playIsInitialized) {
@@ -1453,10 +1463,10 @@ int32_t AudioDeviceMac::StopPlayout() {
   // Setting this signal will allow the worker thread to be stopped.
   AtomicSet32(&_renderDeviceIsAlive, 0);
   if (render_worker_thread_.get()) {
-    _critSect.Leave();
+    mutex_.Unlock();
     render_worker_thread_->Stop();
     render_worker_thread_.reset();
-    _critSect.Enter();
+    mutex_.Lock();
   }
 
   WEBRTC_CA_LOG_WARN(AudioConverterDispose(_renderConverter));
@@ -2004,6 +2014,8 @@ int32_t AudioDeviceMac::HandleStreamFormatChange(
   return 0;
 }
 
+  // RingRTC changes (code removed) to avoid speaker panning
+
 int32_t AudioDeviceMac::HandleProcessorOverload(
     const AudioObjectPropertyAddress propertyAddress) {
   // TODO(xians): we probably want to notify the user in some way of the
@@ -2099,7 +2111,7 @@ OSStatus AudioDeviceMac::implDeviceIOProc(const AudioBufferList* inputData,
   // Check if we should close down audio device
   // Double-checked locking optimization to remove locking overhead
   if (_doStop) {
-    _critSect.Enter();
+    MutexLock lock(&mutex_);
     if (_doStop) {
       if (_twoDevices || (!_recording && !_playing)) {
         // In the case of a shared device, the single driving ioProc
@@ -2114,10 +2126,8 @@ OSStatus AudioDeviceMac::implDeviceIOProc(const AudioBufferList* inputData,
 
       _doStop = false;
       _stopEvent.Set();
-      _critSect.Leave();
       return 0;
     }
-    _critSect.Leave();
   }
 
   if (!_playing) {
@@ -2194,7 +2204,7 @@ OSStatus AudioDeviceMac::implInDeviceIOProc(const AudioBufferList* inputData,
   // Check if we should close down audio device
   // Double-checked locking optimization to remove locking overhead
   if (_doStopRec) {
-    _critSect.Enter();
+    MutexLock lock(&mutex_);
     if (_doStopRec) {
       // This will be signalled only when a shared device is not in use.
       WEBRTC_CA_LOG_ERR(AudioDeviceStop(_inputDeviceID, _inDeviceIOProcID));
@@ -2206,10 +2216,8 @@ OSStatus AudioDeviceMac::implInDeviceIOProc(const AudioBufferList* inputData,
 
       _doStopRec = false;
       _stopEventRec.Set();
-      _critSect.Leave();
       return 0;
     }
-    _critSect.Leave();
   }
 
   if (!_recording) {
@@ -2331,6 +2339,8 @@ bool AudioDeviceMac::RenderWorkerThread() {
   uint32_t nOutSamples = nSamples * _outDesiredFormat.mChannelsPerFrame;
 
   SInt16* pPlayBuffer = (SInt16*)&playBuffer;
+  // RingRTC changes (code removed) to avoid speaker panning
+
   PaUtil_WriteRingBuffer(_paRenderBuffer, pPlayBuffer, nOutSamples);
 
   return true;

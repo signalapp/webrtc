@@ -258,7 +258,6 @@ void ModuleRtpRtcpImpl::SetSequenceNumber(const uint16_t seq_num) {
 
 void ModuleRtpRtcpImpl::SetRtpState(const RtpState& rtp_state) {
   rtp_sender_->packet_generator.SetRtpState(rtp_state);
-  rtp_sender_->packet_sender.SetMediaHasBeenSent(rtp_state.media_has_been_sent);
   rtcp_sender_.SetTimestampOffset(rtp_state.start_timestamp);
 }
 
@@ -268,7 +267,6 @@ void ModuleRtpRtcpImpl::SetRtxState(const RtpState& rtp_state) {
 
 RtpState ModuleRtpRtcpImpl::GetRtpState() const {
   RtpState state = rtp_sender_->packet_generator.GetRtpState();
-  state.media_has_been_sent = rtp_sender_->packet_sender.MediaHasBeenSent();
   return state;
 }
 
@@ -389,6 +387,17 @@ bool ModuleRtpRtcpImpl::TrySendPacket(RtpPacketToSend* packet,
   }
   rtp_sender_->packet_sender.SendPacket(packet, pacing_info);
   return true;
+}
+
+void ModuleRtpRtcpImpl::SetFecProtectionParams(const FecProtectionParams&,
+                                               const FecProtectionParams&) {
+  // Deferred FEC not supported in deprecated RTP module.
+}
+
+std::vector<std::unique_ptr<RtpPacketToSend>>
+ModuleRtpRtcpImpl::FetchFecPackets() {
+  // Deferred FEC not supported in deprecated RTP module.
+  return {};
 }
 
 void ModuleRtpRtcpImpl::OnPacketsAcknowledged(
@@ -525,15 +534,6 @@ int32_t ModuleRtpRtcpImpl::SetRTCPApplicationSpecificData(
     const uint16_t length) {
   RTC_NOTREACHED() << "Not implemented";
   return -1;
-}
-
-void ModuleRtpRtcpImpl::SetRtcpXrRrtrStatus(bool enable) {
-  rtcp_receiver_.SetRtcpXrRrtrStatus(enable);
-  rtcp_sender_.SendRtcpXrReceiverReferenceTime(enable);
-}
-
-bool ModuleRtpRtcpImpl::RtcpXrRrtrStatus() const {
-  return rtcp_sender_.RtcpXrReceiverReferenceTime();
 }
 
 // TODO(asapersson): Replace this method with the one below.
@@ -718,20 +718,6 @@ void ModuleRtpRtcpImpl::SetRemoteSSRC(const uint32_t ssrc) {
   rtcp_receiver_.SetRemoteSSRC(ssrc);
 }
 
-// TODO(nisse): Delete video_rate amd fec_rate arguments.
-void ModuleRtpRtcpImpl::BitrateSent(uint32_t* total_rate,
-                                    uint32_t* video_rate,
-                                    uint32_t* fec_rate,
-                                    uint32_t* nack_rate) const {
-  RtpSendRates send_rates = rtp_sender_->packet_sender.GetSendRates();
-  *total_rate = send_rates.Sum().bps<uint32_t>();
-  if (video_rate)
-    *video_rate = 0;
-  if (fec_rate)
-    *fec_rate = 0;
-  *nack_rate = send_rates[RtpPacketMediaType::kRetransmission].bps<uint32_t>();
-}
-
 RtpSendRates ModuleRtpRtcpImpl::GetSendRates() const {
   return rtp_sender_->packet_sender.GetSendRates();
 }
@@ -796,7 +782,7 @@ bool ModuleRtpRtcpImpl::LastReceivedNTP(
 
 void ModuleRtpRtcpImpl::set_rtt_ms(int64_t rtt_ms) {
   {
-    rtc::CritScope cs(&critical_section_rtt_);
+    MutexLock lock(&mutex_rtt_);
     rtt_ms_ = rtt_ms;
   }
   if (rtp_sender_) {
@@ -805,7 +791,7 @@ void ModuleRtpRtcpImpl::set_rtt_ms(int64_t rtt_ms) {
 }
 
 int64_t ModuleRtpRtcpImpl::rtt_ms() const {
-  rtc::CritScope cs(&critical_section_rtt_);
+  MutexLock lock(&mutex_rtt_);
   return rtt_ms_;
 }
 
@@ -820,17 +806,6 @@ RTPSender* ModuleRtpRtcpImpl::RtpSender() {
 
 const RTPSender* ModuleRtpRtcpImpl::RtpSender() const {
   return rtp_sender_ ? &rtp_sender_->packet_generator : nullptr;
-}
-
-DataRate ModuleRtpRtcpImpl::SendRate() const {
-  RTC_DCHECK(rtp_sender_);
-  return rtp_sender_->packet_sender.GetSendRates().Sum();
-}
-
-DataRate ModuleRtpRtcpImpl::NackOverheadRate() const {
-  RTC_DCHECK(rtp_sender_);
-  return rtp_sender_->packet_sender
-      .GetSendRates()[RtpPacketMediaType::kRetransmission];
 }
 
 }  // namespace webrtc

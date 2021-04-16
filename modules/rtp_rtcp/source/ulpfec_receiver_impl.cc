@@ -42,7 +42,7 @@ UlpfecReceiverImpl::~UlpfecReceiverImpl() {
 }
 
 FecPacketCounter UlpfecReceiverImpl::GetPacketCounter() const {
-  rtc::CritScope cs(&crit_sect_);
+  MutexLock lock(&mutex_);
   return packet_counter_;
 }
 
@@ -87,7 +87,7 @@ bool UlpfecReceiverImpl::AddReceivedRedPacket(
                            "packet size; dropping.";
     return false;
   }
-  rtc::CritScope cs(&crit_sect_);
+  MutexLock lock(&mutex_);
 
   static constexpr uint8_t kRedHeaderLength = 1;
 
@@ -135,8 +135,9 @@ bool UlpfecReceiverImpl::AddReceivedRedPacket(
     received_packet->pkt->data.SetData(rtp_packet.data(),
                                        rtp_packet.headers_size());
     // Set payload type.
-    received_packet->pkt->data[1] &= 0x80;          // Reset RED payload type.
-    received_packet->pkt->data[1] += payload_type;  // Set media payload type.
+    uint8_t& payload_type_byte = received_packet->pkt->data.MutableData()[1];
+    payload_type_byte &= 0x80;          // Reset RED payload type.
+    payload_type_byte += payload_type;  // Set media payload type.
     // Copy payload data.
     received_packet->pkt->data.AppendData(red_payload.data(),
                                           red_payload.size());
@@ -150,7 +151,7 @@ bool UlpfecReceiverImpl::AddReceivedRedPacket(
 
 // TODO(nisse): Drop always-zero return value.
 int32_t UlpfecReceiverImpl::ProcessReceivedFec() {
-  crit_sect_.Enter();
+  mutex_.Lock();
 
   // If we iterate over |received_packets_| and it contains a packet that cause
   // us to recurse back to this function (for example a RED packet encapsulating
@@ -167,10 +168,10 @@ int32_t UlpfecReceiverImpl::ProcessReceivedFec() {
     // Send received media packet to VCM.
     if (!received_packet->is_fec) {
       ForwardErrorCorrection::Packet* packet = received_packet->pkt;
-      crit_sect_.Leave();
+      mutex_.Unlock();
       recovered_packet_callback_->OnRecoveredPacket(packet->data.data(),
                                                     packet->data.size());
-      crit_sect_.Enter();
+      mutex_.Lock();
       // Create a packet with the buffer to modify it.
       RtpPacketReceived rtp_packet;
       const uint8_t* const original_data = packet->data.cdata();
@@ -207,13 +208,13 @@ int32_t UlpfecReceiverImpl::ProcessReceivedFec() {
     // Set this flag first; in case the recovered packet carries a RED
     // header, OnRecoveredPacket will recurse back here.
     recovered_packet->returned = true;
-    crit_sect_.Leave();
+    mutex_.Unlock();
     recovered_packet_callback_->OnRecoveredPacket(packet->data.data(),
                                                   packet->data.size());
-    crit_sect_.Enter();
+    mutex_.Lock();
   }
 
-  crit_sect_.Leave();
+  mutex_.Unlock();
   return 0;
 }
 

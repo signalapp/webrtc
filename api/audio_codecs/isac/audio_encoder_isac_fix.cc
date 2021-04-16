@@ -38,6 +38,7 @@ absl::optional<AudioEncoderIsacFix::Config> AudioEncoderIsacFix::SdpToConfig(
 
 void AudioEncoderIsacFix::AppendSupportedEncoders(
     std::vector<AudioCodecSpec>* specs) {
+  // RingRTC change to unused audio codecs
   // const SdpAudioFormat fmt = {"ISAC", 16000, 1};
   // const AudioCodecInfo info = QueryAudioEncoder(*SdpToConfig(fmt));
   // specs->push_back({fmt, info});

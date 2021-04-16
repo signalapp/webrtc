@@ -17,7 +17,6 @@
 #include "api/task_queue/task_queue_factory.h"
 #include "modules/rtp_rtcp/include/receive_statistics.h"
 #include "modules/rtp_rtcp/source/rtp_rtcp_impl2.h"
-#include "rtc_base/critical_section.h"
 #include "rtc_base/location.h"
 #include "rtc_base/logging.h"
 
@@ -80,48 +79,103 @@ AudioChannel::~AudioChannel() {
   }
 
   audio_mixer_->RemoveSource(ingress_.get());
+
+  // AudioEgress could hold current global TaskQueueBase that we need to clear
+  // before ProcessThread::DeRegisterModule.
+  egress_.reset();
+  ingress_.reset();
+
   process_thread_->DeRegisterModule(rtp_rtcp_.get());
 }
 
-void AudioChannel::StartSend() {
-  egress_->StartSend();
+bool AudioChannel::StartSend() {
+  // If encoder has not been set, return false.
+  if (!egress_->StartSend()) {
+    return false;
+  }
 
   // Start sending with RTP stack if it has not been sending yet.
-  if (!rtp_rtcp_->Sending() && rtp_rtcp_->SetSendingStatus(true) != 0) {
-    RTC_DLOG(LS_ERROR) << "StartSend() RTP/RTCP failed to start sending";
+  if (!rtp_rtcp_->Sending()) {
+    rtp_rtcp_->SetSendingStatus(true);
   }
+  return true;
 }
 
 void AudioChannel::StopSend() {
   egress_->StopSend();
 
-  // If the channel is not playing and RTP stack is active then deactivate RTP
-  // stack. SetSendingStatus(false) triggers the transmission of RTCP BYE
+  // Deactivate RTP stack when both sending and receiving are stopped.
+  // SetSendingStatus(false) triggers the transmission of RTCP BYE
   // message to remote endpoint.
-  if (!IsPlaying() && rtp_rtcp_->Sending() &&
-      rtp_rtcp_->SetSendingStatus(false) != 0) {
-    RTC_DLOG(LS_ERROR) << "StopSend() RTP/RTCP failed to stop sending";
+  if (!ingress_->IsPlaying() && rtp_rtcp_->Sending()) {
+    rtp_rtcp_->SetSendingStatus(false);
   }
 }
 
-void AudioChannel::StartPlay() {
-  ingress_->StartPlay();
+bool AudioChannel::StartPlay() {
+  // If decoders have not been set, return false.
+  if (!ingress_->StartPlay()) {
+    return false;
+  }
 
   // If RTP stack is not sending then start sending as in recv-only mode, RTCP
   // receiver report is expected.
-  if (!rtp_rtcp_->Sending() && rtp_rtcp_->SetSendingStatus(true) != 0) {
-    RTC_DLOG(LS_ERROR) << "StartPlay() RTP/RTCP failed to start sending";
+  if (!rtp_rtcp_->Sending()) {
+    rtp_rtcp_->SetSendingStatus(true);
   }
+  return true;
 }
 
 void AudioChannel::StopPlay() {
   ingress_->StopPlay();
 
   // Deactivate RTP stack only when both sending and receiving are stopped.
-  if (!IsSendingMedia() && rtp_rtcp_->Sending() &&
-      rtp_rtcp_->SetSendingStatus(false) != 0) {
-    RTC_DLOG(LS_ERROR) << "StopPlay() RTP/RTCP failed to stop sending";
+  if (!rtp_rtcp_->SendingMedia() && rtp_rtcp_->Sending()) {
+    rtp_rtcp_->SetSendingStatus(false);
   }
+}
+
+IngressStatistics AudioChannel::GetIngressStatistics() {
+  IngressStatistics ingress_stats;
+  NetworkStatistics stats = ingress_->GetNetworkStatistics();
+  ingress_stats.neteq_stats.total_samples_received = stats.totalSamplesReceived;
+  ingress_stats.neteq_stats.concealed_samples = stats.concealedSamples;
+  ingress_stats.neteq_stats.concealment_events = stats.concealmentEvents;
+  ingress_stats.neteq_stats.jitter_buffer_delay_ms = stats.jitterBufferDelayMs;
+  ingress_stats.neteq_stats.jitter_buffer_emitted_count =
+      stats.jitterBufferEmittedCount;
+  ingress_stats.neteq_stats.jitter_buffer_target_delay_ms =
+      stats.jitterBufferTargetDelayMs;
+  ingress_stats.neteq_stats.inserted_samples_for_deceleration =
+      stats.insertedSamplesForDeceleration;
+  ingress_stats.neteq_stats.removed_samples_for_acceleration =
+      stats.removedSamplesForAcceleration;
+  ingress_stats.neteq_stats.silent_concealed_samples =
+      stats.silentConcealedSamples;
+  ingress_stats.neteq_stats.fec_packets_received = stats.fecPacketsReceived;
+  ingress_stats.neteq_stats.fec_packets_discarded = stats.fecPacketsDiscarded;
+  ingress_stats.neteq_stats.delayed_packet_outage_samples =
+      stats.delayedPacketOutageSamples;
+  ingress_stats.neteq_stats.relative_packet_arrival_delay_ms =
+      stats.relativePacketArrivalDelayMs;
+  ingress_stats.neteq_stats.interruption_count = stats.interruptionCount;
+  ingress_stats.neteq_stats.total_interruption_duration_ms =
+      stats.totalInterruptionDurationMs;
+  ingress_stats.total_duration = ingress_->GetOutputTotalDuration();
+  return ingress_stats;
+}
+
+ChannelStatistics AudioChannel::GetChannelStatistics() {
+  ChannelStatistics channel_stat = ingress_->GetChannelStatistics();
+
+  StreamDataCounters rtp_stats, rtx_stats;
+  rtp_rtcp_->GetSendStreamDataCounters(&rtp_stats, &rtx_stats);
+  channel_stat.bytes_sent =
+      rtp_stats.transmitted.payload_bytes + rtx_stats.transmitted.payload_bytes;
+  channel_stat.packets_sent =
+      rtp_stats.transmitted.packets + rtx_stats.transmitted.packets;
+
+  return channel_stat;
 }
 
 }  // namespace webrtc

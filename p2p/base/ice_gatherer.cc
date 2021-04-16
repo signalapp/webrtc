@@ -15,6 +15,7 @@
 
 namespace cricket {
 
+// RingRTC change to add ICE forking
 BasicIceGatherer::BasicIceGatherer(
     rtc::Thread* network_thread,
     std::unique_ptr<PortAllocator> port_allocator,

@@ -128,7 +128,7 @@ specific_include_rules = {
     "+media/base/media_config.h",
     "+media/base/media_engine.h",
     "+p2p/base/port_allocator.h",
-    "+rtc_base/network.h",
+    "+rtc_base/network_monitor_factory.h",
     "+rtc_base/rtc_certificate.h",
     "+rtc_base/rtc_certificate_generator.h",
     "+rtc_base/socket_address.h",
@@ -172,6 +172,9 @@ specific_include_rules = {
     "+rtc_base/ref_count.h",
   ],
 
+  "set_local_description_observer_interface\.h": [
+    "+rtc_base/ref_count.h",
+  ],
   "set_remote_description_observer_interface\.h": [
     "+rtc_base/ref_count.h",
   ],
@@ -258,7 +261,6 @@ specific_include_rules = {
   ],
 
   "simulated_network\.h": [
-    "+rtc_base/critical_section.h",
     "+rtc_base/random.h",
     "+rtc_base/thread_annotations.h",
   ],

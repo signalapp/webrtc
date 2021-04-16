@@ -27,11 +27,11 @@ constexpr int kSendSideDelayWindowMs = 1000;
 constexpr int kBitrateStatisticsWindowMs = 1000;
 constexpr size_t kRtpSequenceNumberMapMaxEntries = 1 << 13;
 
-bool IsEnabled(absl::string_view name,
-               const WebRtcKeyValueConfig* field_trials) {
+bool IsDisabled(absl::string_view name,
+                const WebRtcKeyValueConfig* field_trials) {
   FieldTrialBasedConfig default_trials;
   auto& trials = field_trials ? *field_trials : default_trials;
-  return absl::StartsWith(trials.Lookup(name), "Enabled");
+  return absl::StartsWith(trials.Lookup(name), "Disabled");
 }
 }  // namespace
 
@@ -63,7 +63,7 @@ DEPRECATED_RtpSenderEgress::DEPRECATED_RtpSenderEgress(
                                          : absl::nullopt),
       populate_network2_timestamp_(config.populate_network2_timestamp),
       send_side_bwe_with_overhead_(
-          IsEnabled("WebRTC-SendSideBwe-WithOverhead", config.field_trials)),
+          !IsDisabled("WebRTC-SendSideBwe-WithOverhead", config.field_trials)),
       clock_(config.clock),
       packet_history_(packet_history),
       transport_(config.outgoing_transport),
@@ -120,7 +120,7 @@ void DEPRECATED_RtpSenderEgress::SendPacket(
 
   PacketOptions options;
   {
-    rtc::CritScope lock(&lock_);
+    MutexLock lock(&lock_);
     options.included_in_allocation = force_part_of_allocation_;
 
     if (need_rtp_packet_infos_ &&
@@ -198,7 +198,7 @@ void DEPRECATED_RtpSenderEgress::SendPacket(
   }
 
   if (send_success) {
-    rtc::CritScope lock(&lock_);
+    MutexLock lock(&lock_);
     UpdateRtpStats(*packet);
     media_has_been_sent_ = true;
   }
@@ -208,7 +208,7 @@ void DEPRECATED_RtpSenderEgress::ProcessBitrateAndNotifyObservers() {
   if (!bitrate_callback_)
     return;
 
-  rtc::CritScope lock(&lock_);
+  MutexLock lock(&lock_);
   RtpSendRates send_rates = GetSendRatesLocked();
   bitrate_callback_->Notify(
       send_rates.Sum().bps(),
@@ -216,7 +216,7 @@ void DEPRECATED_RtpSenderEgress::ProcessBitrateAndNotifyObservers() {
 }
 
 RtpSendRates DEPRECATED_RtpSenderEgress::GetSendRates() const {
-  rtc::CritScope lock(&lock_);
+  MutexLock lock(&lock_);
   return GetSendRatesLocked();
 }
 
@@ -234,29 +234,29 @@ RtpSendRates DEPRECATED_RtpSenderEgress::GetSendRatesLocked() const {
 void DEPRECATED_RtpSenderEgress::GetDataCounters(
     StreamDataCounters* rtp_stats,
     StreamDataCounters* rtx_stats) const {
-  rtc::CritScope lock(&lock_);
+  MutexLock lock(&lock_);
   *rtp_stats = rtp_stats_;
   *rtx_stats = rtx_rtp_stats_;
 }
 
 void DEPRECATED_RtpSenderEgress::ForceIncludeSendPacketsInAllocation(
     bool part_of_allocation) {
-  rtc::CritScope lock(&lock_);
+  MutexLock lock(&lock_);
   force_part_of_allocation_ = part_of_allocation;
 }
 
 bool DEPRECATED_RtpSenderEgress::MediaHasBeenSent() const {
-  rtc::CritScope lock(&lock_);
+  MutexLock lock(&lock_);
   return media_has_been_sent_;
 }
 
 void DEPRECATED_RtpSenderEgress::SetMediaHasBeenSent(bool media_sent) {
-  rtc::CritScope lock(&lock_);
+  MutexLock lock(&lock_);
   media_has_been_sent_ = media_sent;
 }
 
 void DEPRECATED_RtpSenderEgress::SetTimestampOffset(uint32_t timestamp) {
-  rtc::CritScope lock(&lock_);
+  MutexLock lock(&lock_);
   timestamp_offset_ = timestamp;
 }
 
@@ -271,7 +271,7 @@ DEPRECATED_RtpSenderEgress::GetSentRtpPacketInfos(
   std::vector<RtpSequenceNumberMap::Info> results;
   results.reserve(sequence_numbers.size());
 
-  rtc::CritScope cs(&lock_);
+  MutexLock lock(&lock_);
   for (uint16_t sequence_number : sequence_numbers) {
     const auto& info = rtp_sequence_number_map_->Get(sequence_number);
     if (!info) {
@@ -334,7 +334,7 @@ void DEPRECATED_RtpSenderEgress::UpdateDelayStatistics(int64_t capture_time_ms,
   int max_delay_ms = 0;
   uint64_t total_packet_send_delay_ms = 0;
   {
-    rtc::CritScope cs(&lock_);
+    MutexLock lock(&lock_);
     // Compute the max and average of the recent capture-to-send delays.
     // The time complexity of the current approach depends on the distribution
     // of the delay values. This could be done more efficiently.

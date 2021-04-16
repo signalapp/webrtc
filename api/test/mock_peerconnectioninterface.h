@@ -167,7 +167,6 @@ class MockPeerConnectionInterface
               (const std::vector<cricket::Candidate>&),
               (override));
   MOCK_METHOD(RTCError, SetBitrate, (const BitrateSettings&), (override));
-  MOCK_METHOD(RTCError, SetBitrate, (const BitrateParameters&), (override));
   MOCK_METHOD(void, SetAudioPlayout, (bool), (override));
   MOCK_METHOD(void, SetAudioRecording, (bool), (override));
   MOCK_METHOD(rtc::scoped_refptr<DtlsTransportInterface>,
@@ -194,6 +193,7 @@ class MockPeerConnectionInterface
   MOCK_METHOD(void, StopRtcEventLog, (), (override));
   MOCK_METHOD(void, Close, (), (override));
 
+  // RingRTC changes for added methods
   MOCK_METHOD0(CreateSharedIceGatherer,
                rtc::scoped_refptr<webrtc::IceGathererInterface>());
   MOCK_METHOD1(UseSharedIceGatherer,

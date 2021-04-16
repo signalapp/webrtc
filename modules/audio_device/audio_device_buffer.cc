@@ -17,7 +17,6 @@
 #include <cstdint>
 
 #include "common_audio/signal_processing/include/signal_processing_library.h"
-#include "rtc_base/bind.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/time_utils.h"
@@ -349,13 +348,11 @@ int32_t AudioDeviceBuffer::GetPlayoutData(void* audio_buffer) {
 }
 
 void AudioDeviceBuffer::StartPeriodicLogging() {
-  task_queue_.PostTask(rtc::Bind(&AudioDeviceBuffer::LogStats, this,
-                                 AudioDeviceBuffer::LOG_START));
+  task_queue_.PostTask([this] { LogStats(AudioDeviceBuffer::LOG_START); });
 }
 
 void AudioDeviceBuffer::StopPeriodicLogging() {
-  task_queue_.PostTask(rtc::Bind(&AudioDeviceBuffer::LogStats, this,
-                                 AudioDeviceBuffer::LOG_STOP));
+  task_queue_.PostTask([this] { LogStats(AudioDeviceBuffer::LOG_STOP); });
 }
 
 void AudioDeviceBuffer::LogStats(LogState state) {
@@ -386,7 +383,7 @@ void AudioDeviceBuffer::LogStats(LogState state) {
 
   Stats stats;
   {
-    rtc::CritScope cs(&lock_);
+    MutexLock lock(&lock_);
     stats = stats_;
     stats_.max_rec_level = 0;
     stats_.max_play_level = 0;
@@ -460,28 +457,28 @@ void AudioDeviceBuffer::LogStats(LogState state) {
   RTC_DCHECK_GT(time_to_wait_ms, 0) << "Invalid timer interval";
 
   // Keep posting new (delayed) tasks until state is changed to kLogStop.
-  task_queue_.PostDelayedTask(rtc::Bind(&AudioDeviceBuffer::LogStats, this,
-                                        AudioDeviceBuffer::LOG_ACTIVE),
-                              time_to_wait_ms);
+  task_queue_.PostDelayedTask(
+      [this] { AudioDeviceBuffer::LogStats(AudioDeviceBuffer::LOG_ACTIVE); },
+      time_to_wait_ms);
 }
 
 void AudioDeviceBuffer::ResetRecStats() {
   RTC_DCHECK_RUN_ON(&task_queue_);
   last_stats_.ResetRecStats();
-  rtc::CritScope cs(&lock_);
+  MutexLock lock(&lock_);
   stats_.ResetRecStats();
 }
 
 void AudioDeviceBuffer::ResetPlayStats() {
   RTC_DCHECK_RUN_ON(&task_queue_);
   last_stats_.ResetPlayStats();
-  rtc::CritScope cs(&lock_);
+  MutexLock lock(&lock_);
   stats_.ResetPlayStats();
 }
 
 void AudioDeviceBuffer::UpdateRecStats(int16_t max_abs,
                                        size_t samples_per_channel) {
-  rtc::CritScope cs(&lock_);
+  MutexLock lock(&lock_);
   ++stats_.rec_callbacks;
   stats_.rec_samples += samples_per_channel;
   if (max_abs > stats_.max_rec_level) {
@@ -491,7 +488,7 @@ void AudioDeviceBuffer::UpdateRecStats(int16_t max_abs,
 
 void AudioDeviceBuffer::UpdatePlayStats(int16_t max_abs,
                                         size_t samples_per_channel) {
-  rtc::CritScope cs(&lock_);
+  MutexLock lock(&lock_);
   ++stats_.play_callbacks;
   stats_.play_samples += samples_per_channel;
   if (max_abs > stats_.max_play_level) {

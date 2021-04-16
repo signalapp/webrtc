@@ -25,6 +25,7 @@ NS_ASSUME_NONNULL_BEGIN
                          source:(RTC_OBJC_TYPE(RTCVideoSource) *)source
                         trackId:(NSString *)trackId;
 
+// RingRTC changes for low-level FFI
 /** Initialize an RTCVideoTrack with a native VideoTrack. */
 - (instancetype)initWithFactory:(RTC_OBJC_TYPE(RTCPeerConnectionFactory) *)factory
                     nativeTrack:

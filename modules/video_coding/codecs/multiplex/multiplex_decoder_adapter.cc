@@ -20,11 +20,6 @@
 #include "rtc_base/keep_ref_until_done.h"
 #include "rtc_base/logging.h"
 
-namespace {
-void KeepBufferRefs(rtc::scoped_refptr<webrtc::VideoFrameBuffer>,
-                    rtc::scoped_refptr<webrtc::VideoFrameBuffer>) {}
-}  // anonymous namespace
-
 namespace webrtc {
 
 class MultiplexDecoderAdapter::AdapterDecodedImageCallback
@@ -76,23 +71,26 @@ struct MultiplexDecoderAdapter::DecodedImageData {
         decoded_image_(decoded_image),
         decode_time_ms_(decode_time_ms),
         qp_(qp) {}
+
+  DecodedImageData() = delete;
+  DecodedImageData(const DecodedImageData&) = delete;
+  DecodedImageData& operator=(const DecodedImageData&) = delete;
+
   const AlphaCodecStream stream_idx_;
   VideoFrame decoded_image_;
   const absl::optional<int32_t> decode_time_ms_;
   const absl::optional<uint8_t> qp_;
-
- private:
-  RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(DecodedImageData);
 };
 
 struct MultiplexDecoderAdapter::AugmentingData {
   AugmentingData(std::unique_ptr<uint8_t[]> augmenting_data, uint16_t data_size)
       : data_(std::move(augmenting_data)), size_(data_size) {}
+  AugmentingData() = delete;
+  AugmentingData(const AugmentingData&) = delete;
+  AugmentingData& operator=(const AugmentingData&) = delete;
+
   std::unique_ptr<uint8_t[]> data_;
   const uint16_t size_;
-
- private:
-  RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(AugmentingData);
 };
 
 MultiplexDecoderAdapter::MultiplexDecoderAdapter(
@@ -247,7 +245,8 @@ void MultiplexDecoderAdapter::MergeAlphaImages(
         yuv_buffer->StrideY(), yuv_buffer->DataU(), yuv_buffer->StrideU(),
         yuv_buffer->DataV(), yuv_buffer->StrideV(), alpha_buffer->DataY(),
         alpha_buffer->StrideY(),
-        rtc::Bind(&KeepBufferRefs, yuv_buffer, alpha_buffer));
+        // To keep references alive.
+        [yuv_buffer, alpha_buffer] {});
   }
   if (supports_augmenting_data_) {
     merged_buffer = rtc::scoped_refptr<webrtc::AugmentedVideoFrameBuffer>(

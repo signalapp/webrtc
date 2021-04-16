@@ -34,6 +34,9 @@ std::string AudioSendStream::Config::ToString() const {
   ss << ", send_transport: " << (send_transport ? "(Transport)" : "null");
   ss << ", min_bitrate_bps: " << min_bitrate_bps;
   ss << ", max_bitrate_bps: " << max_bitrate_bps;
+  ss << ", has audio_network_adaptor_config: "
+     << (audio_network_adaptor_config ? "true" : "false");
+  ss << ", has_dscp: " << (has_dscp ? "true" : "false");
   ss << ", send_codec_spec: "
      << (send_codec_spec ? send_codec_spec->ToString() : "<unset>");
   ss << '}';
@@ -48,6 +51,12 @@ std::string AudioSendStream::Config::Rtp::ToString() const {
   char buf[1024];
   rtc::SimpleStringBuilder ss(buf);
   ss << "{ssrc: " << ssrc;
+  if (!rid.empty()) {
+    ss << ", rid: " << rid;
+  }
+  if (!mid.empty()) {
+    ss << ", mid: " << mid;
+  }
   ss << ", extmap-allow-mixed: " << (extmap_allow_mixed ? "true" : "false");
   ss << ", extensions: [";
   for (size_t i = 0; i < extensions.size(); ++i) {
@@ -88,6 +97,7 @@ bool AudioSendStream::Config::SendCodecSpec::operator==(
   if (nack_enabled == rhs.nack_enabled &&
       transport_cc_enabled == rhs.transport_cc_enabled &&
       cng_payload_type == rhs.cng_payload_type &&
+      red_payload_type == rhs.red_payload_type &&
       payload_type == rhs.payload_type && format == rhs.format &&
       target_bitrate_bps == rhs.target_bitrate_bps) {
     return true;

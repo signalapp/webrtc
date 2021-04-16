@@ -17,6 +17,8 @@ rtc_library("video_codecs_api") {
   sources = [
     "sdp_video_format.cc",
     "sdp_video_format.h",
+    "spatial_layer.cc",
+    "spatial_layer.h",
     "video_codec.cc",
     "video_codec.h",
     "video_decoder.cc",
@@ -38,7 +40,6 @@ rtc_library("video_codecs_api") {
   deps = [
     "..:fec_controller_api",
     "..:scoped_refptr",
-    "../..:webrtc_common",
     "../../modules/video_coding:codec_globals_headers",
     "../../rtc_base:checks",
     "../../rtc_base:rtc_base_approved",
@@ -136,7 +137,7 @@ rtc_library("rtc_software_fallback_wrappers") {
   deps = [
     ":video_codecs_api",
     "..:fec_controller_api",
-    "../../api/video:video_frame_i420",
+    "../../api/video:video_frame",
     "../../media:rtc_h264_profile_id",
     "../../media:rtc_media_base",
     "../../modules/video_coding:video_codec_interface",

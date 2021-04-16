@@ -99,6 +99,7 @@ enum class IceRegatheringReason {
   MAX_VALUE
 };
 
+// RingRTC change to default flags
 const uint32_t kDefaultPortAllocatorFlags = (
   PORTALLOCATOR_ENABLE_SHARED_SOCKET
   | PORTALLOCATOR_ENABLE_IPV6
@@ -412,6 +413,7 @@ class RTC_EXPORT PortAllocator : public sigslot::has_slots<> {
       const std::string& ice_ufrag,
       const std::string& ice_pwd);
 
+  // RingRTC change to add ICE forking
   // Unlike a PortAllocatorSession, an IceGatherer is independent of the
   // PortAllocator that created it and can live on after the PortAllocator
   // is destroyed.  It can also be shared, which is useful for ICE forking.

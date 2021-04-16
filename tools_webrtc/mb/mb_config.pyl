@@ -12,21 +12,21 @@
 # easy to try different configurations of GN args in tryjob patches.
 
 {
-  # This is a map of buildbot master names -> buildbot builder names ->
+  # This is a map of buildbot builder group names -> buildbot builder names ->
   # config names (where each config name is a key in the 'configs' dict,
   # above). mb uses this dict to look up which config to use for a given bot.
   # The builders should be sorted by the order they appear in the /builders
   # page on the buildbots, *not* alphabetically.
-  'masters': {
+  'builder_groups': {
     'client.webrtc': {
       # iOS
       'iOS32 Debug': 'ios_debug_bot_arm',
       'iOS32 Release': 'ios_release_bot_arm',
       'iOS64 Debug': 'ios_debug_bot_arm64',
       'iOS64 Release': 'ios_release_bot_arm64',
-      'iOS64 Sim Debug (iOS 10.0)': 'ios_debug_bot_x64',
-      'iOS64 Sim Debug (iOS 11)': 'ios_debug_bot_x64',
       'iOS64 Sim Debug (iOS 12)': 'ios_debug_bot_x64',
+      'iOS64 Sim Debug (iOS 13)': 'ios_debug_bot_x64',
+      'iOS64 Sim Debug (iOS 14.0)': 'ios_debug_bot_x64',
 
       # Mac
       'Mac64 Debug': 'debug_bot_x64',
@@ -108,7 +108,7 @@
       # build anything).
       # TODO(http://crbug.com/1029452): Nuke these and isolate on builder
       # instead?
-      'Perf Android32 (K Nexus5)': 'release_bot_x64',
+      'Perf Android32 (M Nexus5)': 'release_bot_x64',
       'Perf Android32 (M AOSP Nexus6)': 'release_bot_x64',
       'Perf Android64 (M Nexus5X)': 'release_bot_x64',
       'Perf Android64 (O Pixel2)': 'release_bot_x64',
@@ -153,9 +153,9 @@
       'ios_compile_arm_rel': 'ios_release_bot_arm',
       'ios_compile_arm64_dbg': 'ios_debug_bot_arm64',
       'ios_compile_arm64_rel': 'ios_release_bot_arm64',
-      'ios_sim_x64_dbg_ios10': 'ios_debug_bot_x64',
-      'ios_sim_x64_dbg_ios11': 'ios_debug_bot_x64',
       'ios_sim_x64_dbg_ios12': 'ios_debug_bot_x64',
+      'ios_sim_x64_dbg_ios13': 'ios_debug_bot_x64',
+      'ios_sim_x64_dbg_ios14': 'ios_debug_bot_x64',
 
       # Mac
       'mac_compile_dbg': 'debug_bot_x64',
@@ -392,31 +392,35 @@
 
     # iOS
     'ios_debug_bot_arm': [
-      'ios', 'debug_bot', 'arm', 'no_ios_code_signing', 'ios_use_goma_rbe'
+      'ios', 'debug_bot', 'arm', 'no_ios_code_signing', 'ios_use_goma_rbe',
+      'xctest',
     ],
     'ios_release_bot_arm': [
-      'ios', 'release_bot', 'arm', 'no_ios_code_signing', 'ios_use_goma_rbe'
+      'ios', 'release_bot', 'arm', 'no_ios_code_signing', 'ios_use_goma_rbe',
+      'xctest',
     ],
     'ios_debug_bot_arm64': [
-      'ios', 'debug_bot', 'arm64', 'no_ios_code_signing', 'ios_use_goma_rbe'
+      'ios', 'debug_bot', 'arm64', 'no_ios_code_signing', 'ios_use_goma_rbe',
+      'xctest',
     ],
     'ios_release_bot_arm64': [
-      'ios', 'release_bot', 'arm64', 'no_ios_code_signing', 'ios_use_goma_rbe'
+      'ios', 'release_bot', 'arm64', 'no_ios_code_signing', 'ios_use_goma_rbe',
+      'xctest',
     ],
     'ios_internal_debug_bot_arm64': [
       'ios', 'debug_bot', 'arm64', 'ios_use_goma_rbe',
-      'ios_code_signing_identity_description',
+      'ios_code_signing_identity_description', 'xctest',
     ],
     'ios_internal_release_bot_arm64': [
       'ios', 'release_bot', 'arm64', 'ios_use_goma_rbe',
-      'ios_code_signing_identity_description',
+      'ios_code_signing_identity_description', 'xctest',
     ],
     'ios_internal_pure_release_bot_arm64': [
       'ios', 'pure_release_bot', 'arm64', 'ios_use_goma_rbe',
-      'ios_code_signing_identity_description',
+      'ios_code_signing_identity_description', 'xctest',
     ],
     'ios_debug_bot_x64': [
-      'ios', 'debug_bot', 'x64', 'ios_use_goma_rbe'
+      'ios', 'debug_bot', 'x64', 'ios_use_goma_rbe', 'xctest',
     ],
 
     # More configs
@@ -631,6 +635,9 @@
 
     'win_undef_unicode': {
       'gn_args': 'rtc_win_undef_unicode=true',
+    },
+    'xctest': {
+      'gn_args': 'enable_run_ios_unittests_with_xctest=true',
     },
   },
 }

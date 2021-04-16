@@ -41,11 +41,11 @@
 #include "p2p/base/port_allocator.h"
 #include "p2p/base/port_interface.h"
 #include "p2p/base/regathering_controller.h"
-#include "rtc_base/async_invoker.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/constructor_magic.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/system/rtc_export.h"
+#include "rtc_base/task_utils/pending_task_safety_flag.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread_annotations.h"
 
@@ -114,6 +114,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal {
   // IceTransportChannel does not depend on this.
   void Connect() {}
   void MaybeStartGathering() override;
+  // RingRTC change to add ICE forking
   void StartGatheringWithSharedGatherer(
       rtc::scoped_refptr<webrtc::IceGathererInterface> shared_gatherer)
       override;
@@ -192,6 +193,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal {
   // Public for unit tests.
   PortAllocatorSession* allocator_session() const {
     RTC_DCHECK_RUN_ON(network_thread_);
+    // RingRTC change to add ICE forking
     // Owned allocator sessions take precedent over shared ones so that ICE
     // restarts after forking work properly.
     if (!allocator_sessions_.empty()) {
@@ -220,8 +222,6 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal {
   }
 
  private:
-  rtc::Thread* thread() const { return network_thread_; }
-
   bool IsGettingPorts() {
     RTC_DCHECK_RUN_ON(network_thread_);
     return allocator_session()->IsGettingPorts();
@@ -283,6 +283,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal {
                         const std::string& remote_username,
                         bool port_muxed,
                         bool shared);
+  // RingRTC change to add ICE forking
   void OnUnknownAddressFromOwnedSession(PortInterface* port,
                                         const rtc::SocketAddress& addr,
                                         ProtocolType proto,
@@ -333,6 +334,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal {
       IceControllerInterface::SwitchResult result);
   void PruneConnections();
 
+  // RingRTC change to add ICE forking
   bool IsSharedSession(PortAllocatorSession* session) {
     return shared_gatherer_ &&
            shared_gatherer_->port_allocator_session() == session;
@@ -388,16 +390,21 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal {
     return const_cast<Connection*>(conn);
   }
 
+  int64_t ComputeEstimatedDisconnectedTimeMs(int64_t now,
+                                             Connection* old_connection);
+
+  webrtc::ScopedTaskSafety task_safety_;
   std::string transport_name_ RTC_GUARDED_BY(network_thread_);
   int component_ RTC_GUARDED_BY(network_thread_);
   PortAllocator* allocator_ RTC_GUARDED_BY(network_thread_);
   webrtc::AsyncResolverFactory* async_resolver_factory_
       RTC_GUARDED_BY(network_thread_);
-  rtc::Thread* network_thread_;
+  rtc::Thread* const network_thread_;
   bool incoming_only_ RTC_GUARDED_BY(network_thread_);
   int error_ RTC_GUARDED_BY(network_thread_);
   std::vector<std::unique_ptr<PortAllocatorSession>> allocator_sessions_
       RTC_GUARDED_BY(network_thread_);
+  // RingRTC change to add ICE forking
   rtc::scoped_refptr<webrtc::IceGathererInterface> shared_gatherer_;
   // |ports_| contains ports that are used to form new connections when
   // new remote candidates are added.
@@ -447,7 +454,6 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal {
   bool has_been_writable_ RTC_GUARDED_BY(network_thread_) =
       false;  // if writable_ has ever been true
 
-  rtc::AsyncInvoker invoker_ RTC_GUARDED_BY(network_thread_);
   absl::optional<rtc::NetworkRoute> network_route_
       RTC_GUARDED_BY(network_thread_);
   webrtc::IceEventLog ice_event_log_ RTC_GUARDED_BY(network_thread_);
@@ -470,6 +476,10 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal {
 
   // Number of times the selected_connection_ has been modified.
   uint32_t selected_candidate_pair_changes_ = 0;
+
+  // When was last data received on a existing connection,
+  // from connection->last_data_received() that uses rtc::TimeMillis().
+  int64_t last_data_received_ms_ = 0;
 
   IceFieldTrials field_trials_;
 

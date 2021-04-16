@@ -14,11 +14,13 @@
 #include <map>
 #include <string>
 
+#include "absl/strings/string_view.h"
+#include "api/numerics/samples_stats_counter.h"
 #include "api/test/peerconnection_quality_test_fixture.h"
+#include "api/test/track_id_stream_info_map.h"
 #include "api/units/data_size.h"
 #include "api/units/timestamp.h"
-#include "rtc_base/critical_section.h"
-#include "rtc_base/numerics/samples_stats_counter.h"
+#include "rtc_base/synchronization/mutex.h"
 #include "test/testsupport/perf_test.h"
 
 namespace webrtc {
@@ -36,7 +38,8 @@ class VideoQualityMetricsReporter
   VideoQualityMetricsReporter(Clock* const clock) : clock_(clock) {}
   ~VideoQualityMetricsReporter() override = default;
 
-  void Start(absl::string_view test_case_name) override;
+  void Start(absl::string_view test_case_name,
+             const TrackIdStreamInfoMap* reporter_helper) override;
   void OnStatsReports(
       absl::string_view pc_label,
       const rtc::scoped_refptr<const RTCStatsReport>& report) override;
@@ -68,7 +71,7 @@ class VideoQualityMetricsReporter
   std::string test_case_name_;
   absl::optional<Timestamp> start_time_;
 
-  rtc::CriticalSection video_bwe_stats_lock_;
+  Mutex video_bwe_stats_lock_;
   // Map between a peer connection label (provided by the framework) and
   // its video BWE stats.
   std::map<std::string, VideoBweStats> video_bwe_stats_

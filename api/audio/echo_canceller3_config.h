@@ -86,6 +86,7 @@ struct RTC_EXPORT EchoCanceller3Config {
 
     size_t config_change_duration_blocks = 250;
     float initial_state_seconds = 2.5f;
+    int coarse_reset_hangover_blocks = 25;
     bool conservative_initial_phase = false;
     bool enable_coarse_filter_output_usage = true;
     bool use_linear_filter = true;
@@ -143,6 +144,7 @@ struct RTC_EXPORT EchoCanceller3Config {
     float noise_gate_slope = 0.3f;
     size_t render_pre_window_size = 1;
     size_t render_post_window_size = 1;
+    bool model_reverb_in_nonlinear_mode = true;
   } echo_model;
 
   struct ComfortNoise {
@@ -215,11 +217,12 @@ struct RTC_EXPORT EchoCanceller3Config {
     struct HighBandsSuppression {
       float enr_threshold = 1.f;
       float max_gain_during_echo = 1.f;
-      float anti_howling_activation_threshold = 25.f;
-      float anti_howling_gain = 0.01f;
+      float anti_howling_activation_threshold = 400.f;
+      float anti_howling_gain = 1.f;
     } high_bands_suppression;
 
     float floor_first_increase = 0.00001f;
+    bool conservative_hf_suppression = false;
   } suppressor;
 };
 }  // namespace webrtc

@@ -75,11 +75,31 @@ class PeerConnectionDelegateAdapter : public PeerConnectionObserver {
     nativePeerConnection;
 
 /** Initialize an RTCPeerConnection with a configuration, constraints, and
+ *  delegate.
+ */
+- (instancetype)initWithFactory:(RTC_OBJC_TYPE(RTCPeerConnectionFactory) *)factory
+                  configuration:(RTC_OBJC_TYPE(RTCConfiguration) *)configuration
+                    constraints:(RTC_OBJC_TYPE(RTCMediaConstraints) *)constraints
+                       delegate:(nullable id<RTC_OBJC_TYPE(RTCPeerConnectionDelegate)>)delegate;
+
+/** Initialize an RTCPeerConnection with a configuration, constraints,
+ *  delegate and PeerConnectionDependencies.
+ */
+- (instancetype)initWithDependencies:(RTC_OBJC_TYPE(RTCPeerConnectionFactory) *)factory
+                       configuration:(RTC_OBJC_TYPE(RTCConfiguration) *)configuration
+                         constraints:(RTC_OBJC_TYPE(RTCMediaConstraints) *)constraints
+                        dependencies:
+                            (std::unique_ptr<webrtc::PeerConnectionDependencies>)dependencies
+                            delegate:(nullable id<RTC_OBJC_TYPE(RTCPeerConnectionDelegate)>)delegate
+    NS_DESIGNATED_INITIALIZER;
+
+/** Initialize an RTCPeerConnection with a configuration, constraints, and
  *  observer.
  */
 - (instancetype)initWithFactory:(RTC_OBJC_TYPE(RTCPeerConnectionFactory) *)factory
                   configuration:(RTC_OBJC_TYPE(RTCConfiguration) *)configuration
                     constraints:(RTC_OBJC_TYPE(RTCMediaConstraints) *)constraints
+                      // RingRTC changes for low-level FFI
                        observer:(void *)observer;
 
 /** Initialize an RTCPeerConnection with a configuration, constraints,
@@ -90,7 +110,8 @@ class PeerConnectionDelegateAdapter : public PeerConnectionObserver {
                          constraints:(RTC_OBJC_TYPE(RTCMediaConstraints) *)constraints
                         dependencies:
                             (std::unique_ptr<webrtc::PeerConnectionDependencies>)dependencies
-                            observer:(void *)observer
+                             // RingRTC changes for low-level FFI
+                             observer:(void *)observer
     NS_DESIGNATED_INITIALIZER;
 
 + (webrtc::PeerConnectionInterface::SignalingState)nativeSignalingStateForState:

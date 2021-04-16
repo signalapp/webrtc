@@ -76,6 +76,7 @@ class RtpTransport : public RtpTransportInternal {
 
   bool UnregisterRtpDemuxerSink(RtpPacketSinkInterface* sink) override;
 
+  // RingRTC change to avoid processing RTP packets too soon
   // If false, drop all RTP and RTCP packets before processing them.
   bool SetIncomingRtpEnabled(bool enabled) override;
 

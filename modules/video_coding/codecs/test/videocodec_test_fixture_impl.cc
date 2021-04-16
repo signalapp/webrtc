@@ -22,6 +22,7 @@
 
 #include "absl/types/optional.h"
 #include "api/array_view.h"
+#include "api/transport/field_trial_based_config.h"
 #include "api/video/video_bitrate_allocation.h"
 #include "api/video_codecs/sdp_video_format.h"
 #include "api/video_codecs/video_codec.h"
@@ -57,17 +58,18 @@ using VideoStatistics = VideoCodecTestStats::VideoStatistics;
 namespace {
 const int kBaseKeyFrameInterval = 3000;
 const double kBitratePriority = 1.0;
-const int kMaxFramerateFps = 30;
+const int kDefaultMaxFramerateFps = 30;
 const int kMaxQp = 56;
 
 void ConfigureSimulcast(VideoCodec* codec_settings) {
+  FieldTrialBasedConfig trials;
   const std::vector<webrtc::VideoStream> streams = cricket::GetSimulcastConfig(
       /*min_layer=*/1, codec_settings->numberOfSimulcastStreams,
       codec_settings->width, codec_settings->height, kBitratePriority, kMaxQp,
-      /* is_screenshare = */ false, true);
+      /* is_screenshare = */ false, true, trials);
 
   for (size_t i = 0; i < streams.size(); ++i) {
-    SimulcastStream* ss = &codec_settings->simulcastStream[i];
+    SpatialLayer* ss = &codec_settings->simulcastStream[i];
     ss->width = static_cast<uint16_t>(streams[i].width);
     ss->height = static_cast<uint16_t>(streams[i].height);
     ss->numberOfTemporalLayers =
@@ -84,7 +86,7 @@ void ConfigureSvc(VideoCodec* codec_settings) {
   RTC_CHECK_EQ(kVideoCodecVP9, codec_settings->codecType);
 
   const std::vector<SpatialLayer> layers = GetSvcConfig(
-      codec_settings->width, codec_settings->height, kMaxFramerateFps,
+      codec_settings->width, codec_settings->height, kDefaultMaxFramerateFps,
       /*first_active_layer=*/0, codec_settings->VP9()->numberOfSpatialLayers,
       codec_settings->VP9()->numberOfTemporalLayers,
       /* is_screen_sharing = */ false);
@@ -277,8 +279,7 @@ std::string VideoCodecTestFixtureImpl::Config::ToString() const {
   if (codec_settings.numberOfSimulcastStreams > 1) {
     for (int i = 0; i < codec_settings.numberOfSimulcastStreams; ++i) {
       ss << "\n\n--> codec_settings.simulcastStream[" << i << "]";
-      const SimulcastStream& simulcast_stream =
-          codec_settings.simulcastStream[i];
+      const SpatialLayer& simulcast_stream = codec_settings.simulcastStream[i];
       ss << "\nwidth: " << simulcast_stream.width;
       ss << "\nheight: " << simulcast_stream.height;
       ss << "\nnum_temporal_layers: "
@@ -448,6 +449,8 @@ void VideoCodecTestFixtureImpl::ProcessAllFrames(
       SleepMs(frame_duration_ms);
     }
   }
+
+  task_queue->PostTask([this] { processor_->Finalize(); });
 
   // Wait until we know that the last frame has been sent for encode.
   task_queue->SendTask([] {}, RTC_FROM_HERE);
@@ -643,10 +646,16 @@ void VideoCodecTestFixtureImpl::SetUpAndInitObjects(
   config_.codec_settings.startBitrate = static_cast<int>(initial_bitrate_kbps);
   config_.codec_settings.maxFramerate = std::ceil(initial_framerate_fps);
 
+  int clip_width = config_.clip_width.value_or(config_.codec_settings.width);
+  int clip_height = config_.clip_height.value_or(config_.codec_settings.height);
+
   // Create file objects for quality analysis.
-  source_frame_reader_.reset(
-      new YuvFrameReaderImpl(config_.filepath, config_.codec_settings.width,
-                             config_.codec_settings.height));
+  source_frame_reader_.reset(new YuvFrameReaderImpl(
+      config_.filepath, clip_width, clip_height,
+      config_.reference_width.value_or(clip_width),
+      config_.reference_height.value_or(clip_height),
+      YuvFrameReaderImpl::RepeatMode::kPingPong, config_.clip_fps,
+      config_.codec_settings.maxFramerate));
   EXPECT_TRUE(source_frame_reader_->Init());
 
   RTC_DCHECK(encoded_frame_writers_.empty());
@@ -739,7 +748,7 @@ void VideoCodecTestFixtureImpl::PrintSettings(
   task_queue->SendTask(
       [this, &encoder_name, &decoder_name] {
         encoder_name = encoder_->GetEncoderInfo().implementation_name;
-        decoder_name = decoders_.at(0)->ImplementationName();
+        decoder_name = decoders_.at(0)->GetDecoderInfo().implementation_name;
       },
       RTC_FROM_HERE);
   RTC_LOG(LS_INFO) << "enc_impl_name: " << encoder_name;

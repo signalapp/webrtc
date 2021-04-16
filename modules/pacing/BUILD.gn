@@ -93,6 +93,7 @@ if (rtc_include_tests) {
     deps = [
       ":interval_budget",
       ":pacing",
+      "../../api/transport:network_control",
       "../../api/units:data_rate",
       "../../api/units:time_delta",
       "../../modules/utility:mock_process_thread",
@@ -102,6 +103,7 @@ if (rtc_include_tests) {
       "../../rtc_base/experiments:alr_experiment",
       "../../system_wrappers",
       "../../system_wrappers:field_trial",
+      "../../test:explicit_key_value_config",
       "../../test:field_trial",
       "../../test:test_support",
       "../../test/time_controller:time_controller",

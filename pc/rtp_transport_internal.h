@@ -99,6 +99,7 @@ class RtpTransportInternal : public sigslot::has_slots<> {
 
   virtual bool UnregisterRtpDemuxerSink(RtpPacketSinkInterface* sink) = 0;
 
+  // RingRTC change to avoid processing RTP packets too soon
   // If false, drop all RTP and RTCP packets before processing them.
   virtual bool SetIncomingRtpEnabled(bool enabled) {
     return false;

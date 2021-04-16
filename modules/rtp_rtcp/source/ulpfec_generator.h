@@ -21,9 +21,9 @@
 #include "modules/include/module_fec_types.h"
 #include "modules/rtp_rtcp/source/forward_error_correction.h"
 #include "modules/rtp_rtcp/source/video_fec_generator.h"
-#include "rtc_base/critical_section.h"
 #include "rtc_base/race_checker.h"
 #include "rtc_base/rate_statistics.h"
+#include "rtc_base/synchronization/mutex.h"
 
 namespace webrtc {
 
@@ -59,6 +59,9 @@ class UlpfecGenerator : public VideoFecGenerator {
 
   absl::optional<RtpState> GetRtpState() override { return absl::nullopt; }
 
+  // Currently used protection params.
+  const FecProtectionParams& CurrentParams() const;
+
  private:
   struct Params {
     Params();
@@ -90,8 +93,6 @@ class UlpfecGenerator : public VideoFecGenerator {
   // (e.g. (2k,2m) vs (k,m)) are generally more effective at recovering losses.
   bool MinimumMediaPacketsReached() const;
 
-  const FecProtectionParams& CurrentParams() const;
-
   void ResetState();
 
   const int red_payload_type_;
@@ -110,11 +111,11 @@ class UlpfecGenerator : public VideoFecGenerator {
   int num_protected_frames_ RTC_GUARDED_BY(race_checker_);
   int min_num_media_packets_ RTC_GUARDED_BY(race_checker_);
   Params current_params_ RTC_GUARDED_BY(race_checker_);
-  bool keyframe_in_process_ RTC_GUARDED_BY(race_checker_);
+  bool media_contains_keyframe_ RTC_GUARDED_BY(race_checker_);
 
-  rtc::CriticalSection crit_;
-  absl::optional<Params> pending_params_ RTC_GUARDED_BY(crit_);
-  RateStatistics fec_bitrate_ RTC_GUARDED_BY(crit_);
+  mutable Mutex mutex_;
+  absl::optional<Params> pending_params_ RTC_GUARDED_BY(mutex_);
+  RateStatistics fec_bitrate_ RTC_GUARDED_BY(mutex_);
 };
 
 }  // namespace webrtc

@@ -52,6 +52,8 @@ class ChannelInterface {
   virtual bool SetRemoteContent(const MediaContentDescription* content,
                                 webrtc::SdpType type,
                                 std::string* error_desc) = 0;
+  virtual void SetPayloadTypeDemuxingEnabled(bool enabled) = 0;
+  virtual bool UpdateRtpTransport(std::string* error_desc) = 0;
 
   // Access to the local and remote streams that were set on the channel.
   virtual const std::vector<StreamParams>& local_streams() const = 0;
@@ -63,6 +65,9 @@ class ChannelInterface {
   //   * An SrtpTransport for SDES.
   //   * A DtlsSrtpTransport for DTLS-SRTP.
   virtual bool SetRtpTransport(webrtc::RtpTransportInternal* rtp_transport) = 0;
+
+  // Returns the last negotiated header extensions.
+  virtual RtpHeaderExtensions GetNegotiatedRtpHeaderExtensions() const = 0;
 
  protected:
   virtual ~ChannelInterface() = default;

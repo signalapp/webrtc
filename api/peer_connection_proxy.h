@@ -98,17 +98,25 @@ PROXY_METHOD2(void,
               const RTCOfferAnswerOptions&)
 PROXY_METHOD2(void,
               SetLocalDescription,
+              std::unique_ptr<SessionDescriptionInterface>,
+              rtc::scoped_refptr<SetLocalDescriptionObserverInterface>)
+PROXY_METHOD1(void,
+              SetLocalDescription,
+              rtc::scoped_refptr<SetLocalDescriptionObserverInterface>)
+PROXY_METHOD2(void,
+              SetLocalDescription,
               SetSessionDescriptionObserver*,
               SessionDescriptionInterface*)
 PROXY_METHOD1(void, SetLocalDescription, SetSessionDescriptionObserver*)
 PROXY_METHOD2(void,
               SetRemoteDescription,
-              SetSessionDescriptionObserver*,
-              SessionDescriptionInterface*)
-PROXY_METHOD2(void,
-              SetRemoteDescription,
               std::unique_ptr<SessionDescriptionInterface>,
               rtc::scoped_refptr<SetRemoteDescriptionObserverInterface>)
+PROXY_METHOD2(void,
+              SetRemoteDescription,
+              SetSessionDescriptionObserver*,
+              SessionDescriptionInterface*)
+PROXY_METHOD1(bool, ShouldFireNegotiationNeededEvent, uint32_t)
 PROXY_METHOD0(PeerConnectionInterface::RTCConfiguration, GetConfiguration)
 PROXY_METHOD1(RTCError,
               SetConfiguration,
@@ -155,6 +163,7 @@ PROXY_METHOD2(bool,
 PROXY_METHOD1(bool, StartRtcEventLog, std::unique_ptr<RtcEventLogOutput>)
 PROXY_METHOD0(void, StopRtcEventLog)
 PROXY_METHOD0(void, Close)
+BYPASS_PROXY_CONSTMETHOD0(rtc::Thread*, signaling_thread)
 END_PROXY_MAP()
 
 }  // namespace webrtc

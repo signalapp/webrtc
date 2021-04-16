@@ -64,6 +64,7 @@ RTC_OBJC_EXPORT
 - (RTC_OBJC_TYPE(RTCVideoTrack) *)videoTrackWithSource:(RTC_OBJC_TYPE(RTCVideoSource) *)source
                                                trackId:(NSString *)trackId;
 
+// RingRTC changes for low-level FFI
 /** Initialize an RTCVideoTrack with a native VideoTrack. */
 - (RTC_OBJC_TYPE(RTCVideoTrack) *)videoTrackFromNativeTrack:(void *)nativeTrack;
 
@@ -71,11 +72,20 @@ RTC_OBJC_EXPORT
 - (RTC_OBJC_TYPE(RTCMediaStream) *)mediaStreamWithStreamId:(NSString *)streamId;
 
 /** Initialize an RTCPeerConnection with a configuration, constraints, and
+ *  delegate.
+ */
+- (RTC_OBJC_TYPE(RTCPeerConnection) *)
+    peerConnectionWithConfiguration:(RTC_OBJC_TYPE(RTCConfiguration) *)configuration
+                        constraints:(RTC_OBJC_TYPE(RTCMediaConstraints) *)constraints
+                           delegate:(nullable id<RTC_OBJC_TYPE(RTCPeerConnectionDelegate)>)delegate;
+
+/** Initialize an RTCPeerConnection with a configuration, constraints, and
  *  observer.
  */
 - (RTC_OBJC_TYPE(RTCPeerConnection) *)
     peerConnectionWithConfiguration:(RTC_OBJC_TYPE(RTCConfiguration) *)configuration
                         constraints:(RTC_OBJC_TYPE(RTCMediaConstraints) *)constraints
+                          // RingRTC changes for low-level FFI
                            observer:(void *)observer;
 
 /** Set the options to be used for subsequently created RTCPeerConnections */

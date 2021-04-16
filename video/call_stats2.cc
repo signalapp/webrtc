@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <utility>
 
 #include "absl/algorithm/container.h"
 #include "modules/utility/include/process_thread.h"
@@ -75,7 +76,7 @@ CallStats::CallStats(Clock* clock, TaskQueueBase* task_queue)
       time_of_first_rtt_ms_(-1),
       task_queue_(task_queue) {
   RTC_DCHECK(task_queue_);
-  process_thread_checker_.Detach();
+  RTC_DCHECK_RUN_ON(task_queue_);
   repeating_task_ =
       RepeatingTaskHandle::DelayedStart(task_queue_, kUpdateInterval, [this]() {
         UpdateAndReport();
@@ -84,7 +85,7 @@ CallStats::CallStats(Clock* clock, TaskQueueBase* task_queue)
 }
 
 CallStats::~CallStats() {
-  RTC_DCHECK_RUN_ON(&construction_thread_checker_);
+  RTC_DCHECK_RUN_ON(task_queue_);
   RTC_DCHECK(observers_.empty());
 
   repeating_task_.Stop();
@@ -93,68 +94,62 @@ CallStats::~CallStats() {
 }
 
 void CallStats::UpdateAndReport() {
-  RTC_DCHECK_RUN_ON(&construction_thread_checker_);
+  RTC_DCHECK_RUN_ON(task_queue_);
 
-  // |avg_rtt_ms_| is allowed to be read on the construction thread since that's
-  // the only thread that modifies the value.
-  int64_t avg_rtt_ms = avg_rtt_ms_;
   RemoveOldReports(clock_->CurrentTime().ms(), &reports_);
   max_rtt_ms_ = GetMaxRttMs(reports_);
-  avg_rtt_ms = GetNewAvgRttMs(reports_, avg_rtt_ms);
-  {
-    rtc::CritScope lock(&avg_rtt_ms_lock_);
-    avg_rtt_ms_ = avg_rtt_ms;
-  }
+  avg_rtt_ms_ = GetNewAvgRttMs(reports_, avg_rtt_ms_);
 
   // If there is a valid rtt, update all observers with the max rtt.
   if (max_rtt_ms_ >= 0) {
-    RTC_DCHECK_GE(avg_rtt_ms, 0);
+    RTC_DCHECK_GE(avg_rtt_ms_, 0);
     for (CallStatsObserver* observer : observers_)
-      observer->OnRttUpdate(avg_rtt_ms, max_rtt_ms_);
+      observer->OnRttUpdate(avg_rtt_ms_, max_rtt_ms_);
     // Sum for Histogram of average RTT reported over the entire call.
-    sum_avg_rtt_ms_ += avg_rtt_ms;
+    sum_avg_rtt_ms_ += avg_rtt_ms_;
     ++num_avg_rtt_;
   }
 }
 
 void CallStats::RegisterStatsObserver(CallStatsObserver* observer) {
-  RTC_DCHECK_RUN_ON(&construction_thread_checker_);
+  RTC_DCHECK_RUN_ON(task_queue_);
   if (!absl::c_linear_search(observers_, observer))
     observers_.push_back(observer);
 }
 
 void CallStats::DeregisterStatsObserver(CallStatsObserver* observer) {
-  RTC_DCHECK_RUN_ON(&construction_thread_checker_);
+  RTC_DCHECK_RUN_ON(task_queue_);
   observers_.remove(observer);
 }
 
 int64_t CallStats::LastProcessedRtt() const {
-  RTC_DCHECK_RUN_ON(&construction_thread_checker_);
+  RTC_DCHECK_RUN_ON(task_queue_);
   // No need for locking since we're on the construction thread.
   return avg_rtt_ms_;
 }
 
-int64_t CallStats::LastProcessedRttFromProcessThread() const {
-  RTC_DCHECK_RUN_ON(&process_thread_checker_);
-  rtc::CritScope lock(&avg_rtt_ms_lock_);
-  return avg_rtt_ms_;
-}
-
 void CallStats::OnRttUpdate(int64_t rtt) {
-  RTC_DCHECK_RUN_ON(&process_thread_checker_);
-
+  // This callback may for some RtpRtcp module instances (video send stream) be
+  // invoked from a separate task queue, in other cases, we should already be
+  // on the correct TQ.
   int64_t now_ms = clock_->TimeInMilliseconds();
-  task_queue_->PostTask(ToQueuedTask(task_safety_, [this, rtt, now_ms]() {
-    RTC_DCHECK_RUN_ON(&construction_thread_checker_);
+  auto update = [this, rtt, now_ms]() {
+    RTC_DCHECK_RUN_ON(task_queue_);
     reports_.push_back(RttTime(rtt, now_ms));
     if (time_of_first_rtt_ms_ == -1)
       time_of_first_rtt_ms_ = now_ms;
     UpdateAndReport();
-  }));
+  };
+
+  if (task_queue_->IsCurrent()) {
+    update();
+  } else {
+    task_queue_->PostTask(ToQueuedTask(task_safety_, std::move(update)));
+  }
 }
 
 void CallStats::UpdateHistograms() {
-  RTC_DCHECK_RUN_ON(&construction_thread_checker_);
+  RTC_DCHECK_RUN_ON(task_queue_);
 
   if (time_of_first_rtt_ms_ == -1 || num_avg_rtt_ < 1)
     return;

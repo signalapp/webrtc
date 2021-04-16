@@ -356,7 +356,7 @@ AudioEncoderOpusImpl::AudioEncoderOpusImpl(
     std::unique_ptr<SmoothingFilter> bitrate_smoother)
     : payload_type_(payload_type),
       send_side_bwe_with_overhead_(
-          webrtc::field_trial::IsEnabled("WebRTC-SendSideBwe-WithOverhead")),
+          !webrtc::field_trial::IsDisabled("WebRTC-SendSideBwe-WithOverhead")),
       use_stable_target_for_adaptation_(!webrtc::field_trial::IsDisabled(
           "WebRTC-Audio-StableTargetAdaptation")),
       adjust_bandwidth_(
@@ -812,6 +812,7 @@ AudioEncoderOpusImpl::GetFrameLengthRange() const {
   }
 }
 
+// RingRTC change to configure opus
 bool AudioEncoderOpusImpl::Configure(const webrtc::AudioEncoder::Config& config) {
   // This sets next_frame_length_ms_ until the next time audio is sampled,
   // and then it sets config_.frame_size_ms as well.
@@ -885,5 +886,6 @@ bool AudioEncoderOpusImpl::Configure(const webrtc::AudioEncoder::Config& config)
 
   return true;
 }
+
 
 }  // namespace webrtc

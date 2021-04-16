@@ -407,6 +407,7 @@ class Camera2Session implements CameraSession {
     }
   }
 
+  // RingRTC change to set frame orientation (rotation)
   @Override
   public void setOrientation(@Nullable Integer orientation) {
     checkIsOnCameraThread();

@@ -34,6 +34,7 @@
 #include "rtc_base/ssl_adapter.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/unique_id_generator.h"
+#include "test/field_trial.h"
 #include "test/gmock.h"
 
 #define ASSERT_CRYPTO(cd, s, cs)      \
@@ -958,7 +959,7 @@ TEST_F(MediaSessionDescriptionFactoryTest, TestCreateRtpDataOffer) {
   EXPECT_EQ(MEDIA_TYPE_DATA, dcd->type());
   EXPECT_EQ(f1_.rtp_data_codecs(), dcd->codecs());
   EXPECT_EQ(0U, dcd->first_ssrc());  // no sender is attached.
-  EXPECT_EQ(cricket::kDataMaxBandwidth,
+  EXPECT_EQ(cricket::kRtpDataMaxBandwidth,
             dcd->bandwidth());   // default bandwidth (auto)
   EXPECT_TRUE(dcd->rtcp_mux());  // rtcp-mux defaults on
   ASSERT_CRYPTO(dcd, 1U, kDefaultSrtpCryptoSuite);
@@ -2483,7 +2484,7 @@ TEST_F(MediaSessionDescriptionFactoryTest, TestCreateMultiStreamVideoOffer) {
   ASSERT_EQ(1U, data_streams[1].ssrcs.size());
   EXPECT_NE(0U, data_streams[1].ssrcs[0]);
 
-  EXPECT_EQ(cricket::kDataMaxBandwidth,
+  EXPECT_EQ(cricket::kRtpDataMaxBandwidth,
             dcd->bandwidth());   // default bandwidth (auto)
   EXPECT_TRUE(dcd->rtcp_mux());  // rtcp-mux defaults on
   ASSERT_CRYPTO(dcd, 1U, kDefaultSrtpCryptoSuite);
@@ -2843,7 +2844,7 @@ TEST_F(MediaSessionDescriptionFactoryTest, TestCreateMultiStreamVideoAnswer) {
   ASSERT_EQ(1U, data_streams[1].ssrcs.size());
   EXPECT_NE(0U, data_streams[1].ssrcs[0]);
 
-  EXPECT_EQ(cricket::kDataMaxBandwidth,
+  EXPECT_EQ(cricket::kRtpDataMaxBandwidth,
             dcd->bandwidth());   // default bandwidth (auto)
   EXPECT_TRUE(dcd->rtcp_mux());  // rtcp-mux defaults on
 
@@ -3456,8 +3457,10 @@ TEST_F(MediaSessionDescriptionFactoryTest, SimSsrcsGenerateMultipleRtxSsrcs) {
 }
 
 // Test that, when the FlexFEC codec is added, a FlexFEC ssrc is created
-// together with a FEC-FR grouping.
+// together with a FEC-FR grouping. Guarded by WebRTC-FlexFEC-03 trial.
 TEST_F(MediaSessionDescriptionFactoryTest, GenerateFlexfecSsrc) {
+  webrtc::test::ScopedFieldTrials override_field_trials(
+      "WebRTC-FlexFEC-03/Enabled/");
   MediaSessionOptions opts;
   AddMediaDescriptionOptions(MEDIA_TYPE_VIDEO, "video",
                              RtpTransceiverDirection::kSendRecv, kActive,
@@ -3499,6 +3502,8 @@ TEST_F(MediaSessionDescriptionFactoryTest, GenerateFlexfecSsrc) {
 // TODO(brandtr): Remove this test when we support simulcast, either through
 // multiple FlexfecSenders, or through multistream protection.
 TEST_F(MediaSessionDescriptionFactoryTest, SimSsrcsGenerateNoFlexfecSsrcs) {
+  webrtc::test::ScopedFieldTrials override_field_trials(
+      "WebRTC-FlexFEC-03/Enabled/");
   MediaSessionOptions opts;
   AddMediaDescriptionOptions(MEDIA_TYPE_VIDEO, "video",
                              RtpTransceiverDirection::kSendRecv, kActive,
@@ -4863,7 +4868,8 @@ void TestAudioCodecsAnswer(RtpTransceiverDirection offer_direction,
                                             kResultSendrecv_SendrecvCodecs);
         }
         break;
-      default:
+      case RtpTransceiverDirection::kStopped:
+        // This does not happen in any current test.
         RTC_NOTREACHED();
     }
 

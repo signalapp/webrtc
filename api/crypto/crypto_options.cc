@@ -23,6 +23,7 @@ CryptoOptions::CryptoOptions(const CryptoOptions& other) {
 
 CryptoOptions::~CryptoOptions() {}
 
+// RingRTC change to use GCM by default
 // static
 CryptoOptions CryptoOptions::Default() {
   CryptoOptions options;

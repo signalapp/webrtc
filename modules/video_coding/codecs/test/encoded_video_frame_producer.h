@@ -40,8 +40,12 @@ class EncodedVideoFrameProducer {
 
   // Number of the input frames to pass to the encoder.
   EncodedVideoFrameProducer& SetNumInputFrames(int value);
+  // Encode next frame as key frame.
+  EncodedVideoFrameProducer& ForceKeyFrame();
   // Resolution of the input frames.
   EncodedVideoFrameProducer& SetResolution(RenderResolution value);
+
+  EncodedVideoFrameProducer& SetFramerateFps(int value);
 
   // Generates input video frames and encodes them with `encoder` provided in
   // the constructor. Returns frame passed to the `OnEncodedImage` by wraping
@@ -55,6 +59,8 @@ class EncodedVideoFrameProducer {
   int num_input_frames_ = 1;
   int framerate_fps_ = 30;
   RenderResolution resolution_ = {320, 180};
+  std::vector<VideoFrameType> next_frame_type_ = {
+      VideoFrameType::kVideoFrameKey};
 };
 
 inline EncodedVideoFrameProducer& EncodedVideoFrameProducer::SetNumInputFrames(
@@ -64,9 +70,21 @@ inline EncodedVideoFrameProducer& EncodedVideoFrameProducer::SetNumInputFrames(
   return *this;
 }
 
+inline EncodedVideoFrameProducer& EncodedVideoFrameProducer::ForceKeyFrame() {
+  next_frame_type_ = {VideoFrameType::kVideoFrameKey};
+  return *this;
+}
+
 inline EncodedVideoFrameProducer& EncodedVideoFrameProducer::SetResolution(
     RenderResolution value) {
   resolution_ = value;
+  return *this;
+}
+
+inline EncodedVideoFrameProducer& EncodedVideoFrameProducer::SetFramerateFps(
+    int value) {
+  RTC_DCHECK_GT(value, 0);
+  framerate_fps_ = value;
   return *this;
 }
 

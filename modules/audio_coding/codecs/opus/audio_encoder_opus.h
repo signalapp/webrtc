@@ -100,6 +100,7 @@ class AudioEncoderOpusImpl final : public AudioEncoder {
     return config_.supported_frame_lengths_ms;
   }
 
+  // RingRTC change to configure opus
   bool Configure(const webrtc::AudioEncoder::Config& config) override;
 
   // Getters for testing.

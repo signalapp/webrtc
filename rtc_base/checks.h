@@ -95,7 +95,7 @@ RTC_NORETURN void rtc_FatalMessage(const char* file, int line, const char* msg);
 //   messages if the condition doesn't hold. Prefer them to raw RTC_CHECK and
 //   RTC_DCHECK.
 //
-// - FATAL() aborts unconditionally.
+// - RTC_FATAL() aborts unconditionally.
 
 namespace rtc {
 namespace webrtc_checks_impl {
@@ -338,6 +338,22 @@ class FatalLogCall final {
   const char* message_;
 };
 
+#if RTC_DCHECK_IS_ON
+
+// Be helpful, and include file and line in the RTC_CHECK_NOTREACHED error
+// message.
+#define RTC_UNREACHABLE_FILE_AND_LINE_CALL_ARGS __FILE__, __LINE__
+RTC_NORETURN RTC_EXPORT void UnreachableCodeReached(const char* file, int line);
+
+#else
+
+// Be mindful of binary size, and don't include file and line in the
+// RTC_CHECK_NOTREACHED error message.
+#define RTC_UNREACHABLE_FILE_AND_LINE_CALL_ARGS
+RTC_NORETURN RTC_EXPORT void UnreachableCodeReached();
+
+#endif
+
 }  // namespace webrtc_checks_impl
 
 // The actual stream used isn't important. We reference |ignored| in the code
@@ -430,8 +446,15 @@ class FatalLogCall final {
 #define RTC_UNREACHABLE_CODE_HIT false
 #define RTC_NOTREACHED() RTC_DCHECK(RTC_UNREACHABLE_CODE_HIT)
 
-// TODO(bugs.webrtc.org/8454): Add an RTC_ prefix or rename differently.
-#define FATAL()                                                      \
+// Kills the process with an error message. Never returns. Use when you wish to
+// assert that a point in the code is never reached.
+#define RTC_CHECK_NOTREACHED()                         \
+  do {                                                 \
+    ::rtc::webrtc_checks_impl::UnreachableCodeReached( \
+        RTC_UNREACHABLE_FILE_AND_LINE_CALL_ARGS);      \
+  } while (0)
+
+#define RTC_FATAL()                                                  \
   ::rtc::webrtc_checks_impl::FatalLogCall<false>(__FILE__, __LINE__, \
                                                  "FATAL()") &        \
       ::rtc::webrtc_checks_impl::LogStreamer<>()

@@ -233,6 +233,7 @@ PortAllocatorSession* BasicPortAllocator::CreateSessionInternal(
   return session;
 }
 
+// RingRTC change to add ICE forking
 rtc::scoped_refptr<webrtc::IceGathererInterface>
 BasicPortAllocator::CreateIceGatherer(const std::string& name) {
   CheckRunOnValidThreadAndInitialized();

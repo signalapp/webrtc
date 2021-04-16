@@ -39,6 +39,7 @@
 #include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/race_checker.h"
 #include "rtc_base/rate_limiter.h"
+#include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/task_queue.h"
 #include "rtc_base/thread_checker.h"
 #include "rtc_base/time_utils.h"
@@ -55,7 +56,6 @@ constexpr int64_t kMaxRetransmissionWindowMs = 1000;
 constexpr int64_t kMinRetransmissionWindowMs = 30;
 
 class RtpPacketSenderProxy;
-class TransportFeedbackProxy;
 class TransportSequenceNumberProxy;
 class VoERtcpObserver;
 
@@ -78,7 +78,8 @@ class ChannelSend : public ChannelSendInterface,
               bool extmap_allow_mixed,
               int rtcp_report_interval_ms,
               uint32_t ssrc,
-              rtc::scoped_refptr<FrameTransformerInterface> frame_transformer);
+              rtc::scoped_refptr<FrameTransformerInterface> frame_transformer,
+              TransportFeedbackObserver* feedback_observer);
 
   ~ChannelSend() override;
 
@@ -186,7 +187,7 @@ class ChannelSend : public ChannelSendInterface,
   // audio thread to another, but access is still sequential.
   rtc::RaceChecker audio_thread_race_checker_;
 
-  rtc::CriticalSection volume_settings_critsect_;
+  mutable Mutex volume_settings_mutex_;
 
   bool sending_ RTC_GUARDED_BY(&worker_thread_checker_) = false;
 
@@ -201,7 +202,7 @@ class ChannelSend : public ChannelSendInterface,
   // uses
   ProcessThread* const _moduleProcessThreadPtr;
   RmsLevel rms_level_ RTC_GUARDED_BY(encoder_queue_);
-  bool input_mute_ RTC_GUARDED_BY(volume_settings_critsect_);
+  bool input_mute_ RTC_GUARDED_BY(volume_settings_mutex_);
   bool previous_frame_muted_ RTC_GUARDED_BY(encoder_queue_);
   // VoeRTP_RTCP
   // TODO(henrika): can today be accessed on the main thread and on the
@@ -213,7 +214,7 @@ class ChannelSend : public ChannelSendInterface,
 
   PacketRouter* packet_router_ RTC_GUARDED_BY(&worker_thread_checker_) =
       nullptr;
-  const std::unique_ptr<TransportFeedbackProxy> feedback_observer_proxy_;
+  TransportFeedbackObserver* const feedback_observer_;
   const std::unique_ptr<RtpPacketSenderProxy> rtp_packet_pacer_proxy_;
   const std::unique_ptr<RateLimiter> retransmission_rate_limiter_;
 
@@ -234,52 +235,17 @@ class ChannelSend : public ChannelSendInterface,
   rtc::scoped_refptr<ChannelSendFrameTransformerDelegate>
       frame_transformer_delegate_ RTC_GUARDED_BY(encoder_queue_);
 
-  rtc::CriticalSection bitrate_crit_section_;
-  int configured_bitrate_bps_ RTC_GUARDED_BY(bitrate_crit_section_) = 0;
+  mutable Mutex bitrate_mutex_;
+  int configured_bitrate_bps_ RTC_GUARDED_BY(bitrate_mutex_) = 0;
 
   // Defined last to ensure that there are no running tasks when the other
   // members are destroyed.
   rtc::TaskQueue encoder_queue_;
+
+  const bool fixing_timestamp_stall_;
 };
 
 const int kTelephoneEventAttenuationdB = 10;
-
-class TransportFeedbackProxy : public TransportFeedbackObserver {
- public:
-  TransportFeedbackProxy() : feedback_observer_(nullptr) {
-    pacer_thread_.Detach();
-    network_thread_.Detach();
-  }
-
-  void SetTransportFeedbackObserver(
-      TransportFeedbackObserver* feedback_observer) {
-    RTC_DCHECK(thread_checker_.IsCurrent());
-    rtc::CritScope lock(&crit_);
-    feedback_observer_ = feedback_observer;
-  }
-
-  // Implements TransportFeedbackObserver.
-  void OnAddPacket(const RtpPacketSendInfo& packet_info) override {
-    RTC_DCHECK(pacer_thread_.IsCurrent());
-    rtc::CritScope lock(&crit_);
-    if (feedback_observer_)
-      feedback_observer_->OnAddPacket(packet_info);
-  }
-
-  void OnTransportFeedback(const rtcp::TransportFeedback& feedback) override {
-    RTC_DCHECK(network_thread_.IsCurrent());
-    rtc::CritScope lock(&crit_);
-    if (feedback_observer_)
-      feedback_observer_->OnTransportFeedback(feedback);
-  }
-
- private:
-  rtc::CriticalSection crit_;
-  rtc::ThreadChecker thread_checker_;
-  rtc::ThreadChecker pacer_thread_;
-  rtc::ThreadChecker network_thread_;
-  TransportFeedbackObserver* feedback_observer_ RTC_GUARDED_BY(&crit_);
-};
 
 class RtpPacketSenderProxy : public RtpPacketSender {
  public:
@@ -287,20 +253,20 @@ class RtpPacketSenderProxy : public RtpPacketSender {
 
   void SetPacketPacer(RtpPacketSender* rtp_packet_pacer) {
     RTC_DCHECK(thread_checker_.IsCurrent());
-    rtc::CritScope lock(&crit_);
+    MutexLock lock(&mutex_);
     rtp_packet_pacer_ = rtp_packet_pacer;
   }
 
   void EnqueuePackets(
       std::vector<std::unique_ptr<RtpPacketToSend>> packets) override {
-    rtc::CritScope lock(&crit_);
+    MutexLock lock(&mutex_);
     rtp_packet_pacer_->EnqueuePackets(std::move(packets));
   }
 
  private:
   rtc::ThreadChecker thread_checker_;
-  rtc::CriticalSection crit_;
-  RtpPacketSender* rtp_packet_pacer_ RTC_GUARDED_BY(&crit_);
+  Mutex mutex_;
+  RtpPacketSender* rtp_packet_pacer_ RTC_GUARDED_BY(&mutex_);
 };
 
 class VoERtcpObserver : public RtcpBandwidthObserver {
@@ -310,12 +276,12 @@ class VoERtcpObserver : public RtcpBandwidthObserver {
   ~VoERtcpObserver() override {}
 
   void SetBandwidthObserver(RtcpBandwidthObserver* bandwidth_observer) {
-    rtc::CritScope lock(&crit_);
+    MutexLock lock(&mutex_);
     bandwidth_observer_ = bandwidth_observer;
   }
 
   void OnReceivedEstimatedBitrate(uint32_t bitrate) override {
-    rtc::CritScope lock(&crit_);
+    MutexLock lock(&mutex_);
     if (bandwidth_observer_) {
       bandwidth_observer_->OnReceivedEstimatedBitrate(bitrate);
     }
@@ -325,7 +291,7 @@ class VoERtcpObserver : public RtcpBandwidthObserver {
                                     int64_t rtt,
                                     int64_t now_ms) override {
     {
-      rtc::CritScope lock(&crit_);
+      MutexLock lock(&mutex_);
       if (bandwidth_observer_) {
         bandwidth_observer_->OnReceivedRtcpReceiverReport(report_blocks, rtt,
                                                           now_ms);
@@ -373,8 +339,8 @@ class VoERtcpObserver : public RtcpBandwidthObserver {
   ChannelSend* owner_;
   // Maps remote side ssrc to extended highest sequence number received.
   std::map<uint32_t, uint32_t> extended_max_sequence_number_;
-  rtc::CriticalSection crit_;
-  RtcpBandwidthObserver* bandwidth_observer_ RTC_GUARDED_BY(crit_);
+  Mutex mutex_;
+  RtcpBandwidthObserver* bandwidth_observer_ RTC_GUARDED_BY(mutex_);
 };
 
 int32_t ChannelSend::SendData(AudioFrameType frameType,
@@ -489,7 +455,8 @@ ChannelSend::ChannelSend(
     bool extmap_allow_mixed,
     int rtcp_report_interval_ms,
     uint32_t ssrc,
-    rtc::scoped_refptr<FrameTransformerInterface> frame_transformer)
+    rtc::scoped_refptr<FrameTransformerInterface> frame_transformer,
+    TransportFeedbackObserver* feedback_observer)
     : event_log_(rtc_event_log),
       _timeStamp(0),  // This is just an offset, RTP module will add it's own
                       // random offset
@@ -498,7 +465,7 @@ ChannelSend::ChannelSend(
       previous_frame_muted_(false),
       _includeAudioLevelIndication(false),
       rtcp_observer_(new VoERtcpObserver(this)),
-      feedback_observer_proxy_(new TransportFeedbackProxy()),
+      feedback_observer_(feedback_observer),
       rtp_packet_pacer_proxy_(new RtpPacketSenderProxy()),
       retransmission_rate_limiter_(
           new RateLimiter(clock, kMaxRetransmissionWindowMs)),
@@ -506,7 +473,9 @@ ChannelSend::ChannelSend(
       crypto_options_(crypto_options),
       encoder_queue_(task_queue_factory->CreateTaskQueue(
           "AudioEncoder",
-          TaskQueueFactory::Priority::NORMAL)) {
+          TaskQueueFactory::Priority::NORMAL)),
+      fixing_timestamp_stall_(
+          !field_trial::IsDisabled("WebRTC-Audio-FixTimestampStall")) {
   RTC_DCHECK(module_process_thread);
   module_process_thread_checker_.Detach();
 
@@ -514,7 +483,7 @@ ChannelSend::ChannelSend(
 
   RtpRtcpInterface::Configuration configuration;
   configuration.bandwidth_callback = rtcp_observer_.get();
-  configuration.transport_feedback_callback = feedback_observer_proxy_.get();
+  configuration.transport_feedback_callback = feedback_observer_;
   configuration.clock = (clock ? clock : Clock::GetRealTimeClock());
   configuration.audio = true;
   configuration.outgoing_transport = rtp_transport;
@@ -642,7 +611,7 @@ void ChannelSend::OnBitrateAllocation(BitrateAllocationUpdate update) {
   // rules.
   // RTC_DCHECK(worker_thread_checker_.IsCurrent() ||
   //            module_process_thread_checker_.IsCurrent());
-  rtc::CritScope lock(&bitrate_crit_section_);
+  MutexLock lock(&bitrate_mutex_);
 
   CallEncoder([&](AudioEncoder* encoder) {
     encoder->OnReceivedUplinkAllocation(update);
@@ -652,7 +621,7 @@ void ChannelSend::OnBitrateAllocation(BitrateAllocationUpdate update) {
 }
 
 int ChannelSend::GetBitrate() const {
-  rtc::CritScope lock(&bitrate_crit_section_);
+  MutexLock lock(&bitrate_mutex_);
   return configured_bitrate_bps_;
 }
 
@@ -663,6 +632,8 @@ void ChannelSend::OnUplinkPacketLossRate(float packet_loss_rate) {
 }
 
 void ChannelSend::ReceivedRTCPPacket(const uint8_t* data, size_t length) {
+  RTC_DCHECK_RUN_ON(&worker_thread_checker_);
+
   // Deliver RTCP packet to RTP/RTCP module for parsing
   rtp_rtcp_->IncomingRtcpPacket(data, length);
 
@@ -685,12 +656,12 @@ void ChannelSend::ReceivedRTCPPacket(const uint8_t* data, size_t length) {
 
 void ChannelSend::SetInputMute(bool enable) {
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);
-  rtc::CritScope cs(&volume_settings_critsect_);
+  MutexLock lock(&volume_settings_mutex_);
   input_mute_ = enable;
 }
 
 bool ChannelSend::InputMute() const {
-  rtc::CritScope cs(&volume_settings_critsect_);
+  MutexLock lock(&volume_settings_mutex_);
   return input_mute_;
 }
 
@@ -743,17 +714,12 @@ void ChannelSend::RegisterSenderCongestionControlObjects(
     RtcpBandwidthObserver* bandwidth_observer) {
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);
   RtpPacketSender* rtp_packet_pacer = transport->packet_sender();
-  TransportFeedbackObserver* transport_feedback_observer =
-      transport->transport_feedback_observer();
   PacketRouter* packet_router = transport->packet_router();
 
   RTC_DCHECK(rtp_packet_pacer);
-  RTC_DCHECK(transport_feedback_observer);
   RTC_DCHECK(packet_router);
   RTC_DCHECK(!packet_router_);
   rtcp_observer_->SetBandwidthObserver(bandwidth_observer);
-  feedback_observer_proxy_->SetTransportFeedbackObserver(
-      transport_feedback_observer);
   rtp_packet_pacer_proxy_->SetPacketPacer(rtp_packet_pacer);
   rtp_rtcp_->SetStorePacketsStatus(true, 600);
   constexpr bool remb_candidate = false;
@@ -766,7 +732,6 @@ void ChannelSend::ResetSenderCongestionControlObjects() {
   RTC_DCHECK(packet_router_);
   rtp_rtcp_->SetStorePacketsStatus(false, 600);
   rtcp_observer_->SetBandwidthObserver(nullptr);
-  feedback_observer_proxy_->SetTransportFeedbackObserver(nullptr);
   packet_router_->RemoveSendRtpModule(rtp_rtcp_.get());
   packet_router_ = nullptr;
   rtp_packet_pacer_proxy_->SetPacketPacer(nullptr);
@@ -847,6 +812,10 @@ void ChannelSend::ProcessAndEncodeAudio(
       [this, audio_frame = std::move(audio_frame)]() mutable {
         RTC_DCHECK_RUN_ON(&encoder_queue_);
         if (!encoder_queue_is_active_) {
+          if (fixing_timestamp_stall_) {
+            _timeStamp +=
+                static_cast<uint32_t>(audio_frame->samples_per_channel_);
+          }
           return;
         }
         // Measure time between when the audio frame is added to the task queue
@@ -985,12 +954,13 @@ std::unique_ptr<ChannelSendInterface> CreateChannelSend(
     bool extmap_allow_mixed,
     int rtcp_report_interval_ms,
     uint32_t ssrc,
-    rtc::scoped_refptr<FrameTransformerInterface> frame_transformer) {
+    rtc::scoped_refptr<FrameTransformerInterface> frame_transformer,
+    TransportFeedbackObserver* feedback_observer) {
   return std::make_unique<ChannelSend>(
       clock, task_queue_factory, module_process_thread, rtp_transport,
       rtcp_rtt_stats, rtc_event_log, frame_encryptor, crypto_options,
       extmap_allow_mixed, rtcp_report_interval_ms, ssrc,
-      std::move(frame_transformer));
+      std::move(frame_transformer), feedback_observer);
 }
 
 }  // namespace voe

@@ -349,7 +349,7 @@ class FakeVoiceMediaChannel : public RtpHelper<VoiceMediaChannel> {
   absl::optional<int> GetBaseMinimumPlayoutDelayMs(
       uint32_t ssrc) const override;
 
-  bool GetStats(VoiceMediaInfo* info) override;
+  bool GetStats(VoiceMediaInfo* info, bool get_and_clear_legacy_stats) override;
 
   void SetRawAudioSink(
       uint32_t ssrc,
@@ -371,6 +371,7 @@ class FakeVoiceMediaChannel : public RtpHelper<VoiceMediaChannel> {
                 size_t number_of_frames,
                 absl::optional<int64_t> absolute_capture_timestamp_ms) override;
     void OnClose() override;
+    int NumPreferredChannels() const override { return -1; }
     AudioSource* source() const;
 
    private:

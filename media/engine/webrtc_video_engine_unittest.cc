@@ -10,6 +10,7 @@
 
 #include "media/engine/webrtc_video_engine.h"
 
+#include <algorithm>
 #include <map>
 #include <memory>
 #include <string>
@@ -257,7 +258,8 @@ class WebRtcVideoEngineTest : public ::testing::Test {
         engine_(std::unique_ptr<cricket::FakeWebRtcVideoEncoderFactory>(
                     encoder_factory_),
                 std::unique_ptr<cricket::FakeWebRtcVideoDecoderFactory>(
-                    decoder_factory_)) {
+                    decoder_factory_),
+                field_trials_) {
     // Ensure fake clock doesn't return 0, which will cause some initializations
     // fail inside RTP senders.
     fake_clock_.AdvanceTime(webrtc::TimeDelta::Micros(1));
@@ -364,6 +366,36 @@ class WebRtcVideoEngineTestWithGenericDescriptor
 TEST_F(WebRtcVideoEngineTestWithGenericDescriptor,
        AdvertiseGenericDescriptor00) {
   ExpectRtpCapabilitySupport(RtpExtension::kGenericFrameDescriptorUri00, true);
+}
+
+class WebRtcVideoEngineTestWithDependencyDescriptor
+    : public WebRtcVideoEngineTest {
+ public:
+  WebRtcVideoEngineTestWithDependencyDescriptor()
+      : WebRtcVideoEngineTest(
+            "WebRTC-DependencyDescriptorAdvertised/Enabled/") {}
+};
+
+TEST_F(WebRtcVideoEngineTestWithDependencyDescriptor,
+       AdvertiseDependencyDescriptor) {
+  ExpectRtpCapabilitySupport(RtpExtension::kDependencyDescriptorUri, true);
+}
+
+TEST_F(WebRtcVideoEngineTest, AdvertiseVideoLayersAllocation) {
+  ExpectRtpCapabilitySupport(RtpExtension::kVideoLayersAllocationUri, false);
+}
+
+class WebRtcVideoEngineTestWithVideoLayersAllocation
+    : public WebRtcVideoEngineTest {
+ public:
+  WebRtcVideoEngineTestWithVideoLayersAllocation()
+      : WebRtcVideoEngineTest(
+            "WebRTC-VideoLayersAllocationAdvertised/Enabled/") {}
+};
+
+TEST_F(WebRtcVideoEngineTestWithVideoLayersAllocation,
+       AdvertiseVideoLayersAllocation) {
+  ExpectRtpCapabilitySupport(RtpExtension::kVideoLayersAllocationUri, true);
 }
 
 TEST_F(WebRtcVideoEngineTest, CVOSetHeaderExtensionBeforeCapturer) {
@@ -660,7 +692,7 @@ void WebRtcVideoEngineTest::AssignDefaultCodec() {
   bool codec_set = false;
   for (const cricket::VideoCodec& codec : engine_codecs) {
     if (!codec_set && codec.name != "rtx" && codec.name != "red" &&
-        codec.name != "ulpfec") {
+        codec.name != "ulpfec" && codec.name != "flexfec-03") {
       default_codec_ = codec;
       codec_set = true;
     }
@@ -919,24 +951,54 @@ TEST_F(WebRtcVideoEngineTest, SimulcastEnabledForH264BehindFieldTrial) {
   EXPECT_TRUE(channel->SetVideoSend(ssrcs[0], nullptr, nullptr));
 }
 
-// Test that the FlexFEC field trial properly alters the output of
-// WebRtcVideoEngine::codecs(), for an existing |engine_| object.
-//
-// TODO(brandtr): Remove this test, when the FlexFEC field trial is gone.
-TEST_F(WebRtcVideoEngineTest,
-       Flexfec03SupportedAsInternalCodecBehindFieldTrial) {
+// Test that FlexFEC is not supported as a send video codec by default.
+// Only enabling field trial should allow advertising FlexFEC send codec.
+TEST_F(WebRtcVideoEngineTest, Flexfec03SendCodecEnablesWithFieldTrial) {
   encoder_factory_->AddSupportedVideoCodecType("VP8");
 
   auto flexfec = Field("name", &VideoCodec::name, "flexfec-03");
 
-  // FlexFEC is not active without field trial.
   EXPECT_THAT(engine_.send_codecs(), Not(Contains(flexfec)));
+
+  RTC_DCHECK(!override_field_trials_);
+  override_field_trials_ = std::make_unique<webrtc::test::ScopedFieldTrials>(
+      "WebRTC-FlexFEC-03-Advertised/Enabled/");
+  EXPECT_THAT(engine_.send_codecs(), Contains(flexfec));
+}
+
+// Test that FlexFEC is supported as a receive video codec by default.
+// Disabling field trial should prevent advertising FlexFEC receive codec.
+TEST_F(WebRtcVideoEngineTest, Flexfec03ReceiveCodecDisablesWithFieldTrial) {
+  decoder_factory_->AddSupportedVideoCodecType("VP8");
+
+  auto flexfec = Field("name", &VideoCodec::name, "flexfec-03");
+
+  EXPECT_THAT(engine_.recv_codecs(), Contains(flexfec));
+
+  RTC_DCHECK(!override_field_trials_);
+  override_field_trials_ = std::make_unique<webrtc::test::ScopedFieldTrials>(
+      "WebRTC-FlexFEC-03-Advertised/Disabled/");
+  EXPECT_THAT(engine_.recv_codecs(), Not(Contains(flexfec)));
+}
+
+// Test that the FlexFEC "codec" gets assigned to the lower payload type range
+TEST_F(WebRtcVideoEngineTest, Flexfec03LowerPayloadTypeRange) {
+  encoder_factory_->AddSupportedVideoCodecType("VP8");
+
+  auto flexfec = Field("name", &VideoCodec::name, "flexfec-03");
 
   // FlexFEC is active with field trial.
   RTC_DCHECK(!override_field_trials_);
   override_field_trials_ = std::make_unique<webrtc::test::ScopedFieldTrials>(
       "WebRTC-FlexFEC-03-Advertised/Enabled/");
-  EXPECT_THAT(engine_.send_codecs(), Contains(flexfec));
+  auto send_codecs = engine_.send_codecs();
+  auto it = std::find_if(send_codecs.begin(), send_codecs.end(),
+                         [](const cricket::VideoCodec& codec) {
+                           return codec.name == "flexfec-03";
+                         });
+  ASSERT_NE(it, send_codecs.end());
+  EXPECT_LE(35, it->id);
+  EXPECT_GE(65, it->id);
 }
 
 // Test that codecs are added in the order they are reported from the factory.
@@ -1043,8 +1105,9 @@ TEST_F(WebRtcVideoEngineTest, GetSourcesWithNonExistingSsrc) {
 TEST(WebRtcVideoEngineNewVideoCodecFactoryTest, NullFactories) {
   std::unique_ptr<webrtc::VideoEncoderFactory> encoder_factory;
   std::unique_ptr<webrtc::VideoDecoderFactory> decoder_factory;
+  webrtc::FieldTrialBasedConfig trials;
   WebRtcVideoEngine engine(std::move(encoder_factory),
-                           std::move(decoder_factory));
+                           std::move(decoder_factory), trials);
   EXPECT_EQ(0u, engine.send_codecs().size());
   EXPECT_EQ(0u, engine.recv_codecs().size());
 }
@@ -1055,9 +1118,10 @@ TEST(WebRtcVideoEngineNewVideoCodecFactoryTest, EmptyFactories) {
       new webrtc::MockVideoEncoderFactory();
   webrtc::MockVideoDecoderFactory* decoder_factory =
       new webrtc::MockVideoDecoderFactory();
+  webrtc::FieldTrialBasedConfig trials;
   WebRtcVideoEngine engine(
       (std::unique_ptr<webrtc::VideoEncoderFactory>(encoder_factory)),
-      (std::unique_ptr<webrtc::VideoDecoderFactory>(decoder_factory)));
+      (std::unique_ptr<webrtc::VideoDecoderFactory>(decoder_factory)), trials);
   // TODO(kron): Change to Times(1) once send and receive codecs are changed
   // to be treated independently.
   EXPECT_CALL(*encoder_factory, GetSupportedFormats()).Times(1);
@@ -1085,9 +1149,10 @@ TEST(WebRtcVideoEngineNewVideoCodecFactoryTest, Vp8) {
                                                 webrtc::kVideoCodecVP8)))
       .WillOnce(
           [] { return std::make_unique<webrtc::MockVideoBitrateAllocator>(); });
+  webrtc::FieldTrialBasedConfig trials;
   WebRtcVideoEngine engine(
       (std::unique_ptr<webrtc::VideoEncoderFactory>(encoder_factory)),
-      (std::unique_ptr<webrtc::VideoDecoderFactory>(decoder_factory)));
+      (std::unique_ptr<webrtc::VideoDecoderFactory>(decoder_factory)), trials);
   const webrtc::SdpVideoFormat vp8_format("VP8");
   const std::vector<webrtc::SdpVideoFormat> supported_formats = {vp8_format};
   EXPECT_CALL(*encoder_factory, GetSupportedFormats())
@@ -1129,7 +1194,6 @@ TEST(WebRtcVideoEngineNewVideoCodecFactoryTest, Vp8) {
 
   // Mock encoder creation. |engine| take ownership of the encoder.
   webrtc::VideoEncoderFactory::CodecInfo codec_info;
-  codec_info.is_hardware_accelerated = false;
   codec_info.has_internal_source = false;
   const webrtc::SdpVideoFormat format("VP8");
   EXPECT_CALL(*encoder_factory, QueryVideoEncoder(format))
@@ -1205,9 +1269,10 @@ TEST(WebRtcVideoEngineNewVideoCodecFactoryTest, NullDecoder) {
   std::unique_ptr<webrtc::MockVideoBitrateAllocatorFactory>
       rate_allocator_factory =
           std::make_unique<webrtc::MockVideoBitrateAllocatorFactory>();
+  webrtc::FieldTrialBasedConfig trials;
   WebRtcVideoEngine engine(
       (std::unique_ptr<webrtc::VideoEncoderFactory>(encoder_factory)),
-      (std::unique_ptr<webrtc::VideoDecoderFactory>(decoder_factory)));
+      (std::unique_ptr<webrtc::VideoDecoderFactory>(decoder_factory)), trials);
   const webrtc::SdpVideoFormat vp8_format("VP8");
   const std::vector<webrtc::SdpVideoFormat> supported_formats = {vp8_format};
   EXPECT_CALL(*encoder_factory, GetSupportedFormats())
@@ -1325,7 +1390,8 @@ class WebRtcVideoChannelEncodedFrameCallbackTest : public ::testing::Test {
             webrtc::CreateBuiltinVideoEncoderFactory(),
             std::make_unique<webrtc::test::FunctionVideoDecoderFactory>(
                 []() { return std::make_unique<webrtc::test::FakeDecoder>(); },
-                kSdpVideoFormats)),
+                kSdpVideoFormats),
+            field_trials_),
         channel_(absl::WrapUnique(static_cast<cricket::WebRtcVideoChannel*>(
             engine_.CreateMediaChannel(
                 call_.get(),
@@ -1457,7 +1523,8 @@ class WebRtcVideoChannelBaseTest : public ::testing::Test {
         video_bitrate_allocator_factory_(
             webrtc::CreateBuiltinVideoBitrateAllocatorFactory()),
         engine_(webrtc::CreateBuiltinVideoEncoderFactory(),
-                webrtc::CreateBuiltinVideoDecoderFactory()) {}
+                webrtc::CreateBuiltinVideoDecoderFactory(),
+                field_trials_) {}
 
   virtual void SetUp() {
     // One testcase calls SetUp in a loop, only create call_ once.
@@ -1983,7 +2050,7 @@ TEST_F(WebRtcVideoChannelBaseTest, SetSink) {
                      0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
   rtc::CopyOnWriteBuffer packet1(data1, sizeof(data1));
-  rtc::SetBE32(packet1.data() + 8, kSsrc);
+  rtc::SetBE32(packet1.MutableData() + 8, kSsrc);
   channel_->SetDefaultSink(NULL);
   EXPECT_TRUE(SetDefaultCodec());
   EXPECT_TRUE(SetSend(true));
@@ -2263,6 +2330,8 @@ TEST_F(WebRtcVideoChannelBaseTest, TwoStreamsSendAndReceive) {
   TwoStreamsSendAndReceive(codec);
 }
 
+#if defined(RTC_ENABLE_VP9)
+
 TEST_F(WebRtcVideoChannelBaseTest, RequestEncoderFallback) {
   cricket::VideoSendParameters parameters;
   parameters.codecs.push_back(GetEngineCodec("VP9"));
@@ -2398,6 +2467,8 @@ TEST_F(WebRtcVideoChannelBaseTest,
   EXPECT_THAT(codec.name, Eq("VP8"));
   EXPECT_THAT(codec.params, Contains(Pair(kParam, kPing)));
 }
+
+#endif  // defined(RTC_ENABLE_VP9)
 
 class WebRtcVideoChannelTest : public WebRtcVideoEngineTest {
  public:
@@ -3976,13 +4047,13 @@ TEST_F(WebRtcVideoChannelTest, FlexfecRecvCodecWithoutSsrcNotExposedByDefault) {
   EXPECT_TRUE(streams.empty());
 }
 
-TEST_F(WebRtcVideoChannelTest, FlexfecRecvCodecWithSsrcNotExposedByDefault) {
+TEST_F(WebRtcVideoChannelTest, FlexfecRecvCodecWithSsrcExposedByDefault) {
   AddRecvStream(
       CreatePrimaryWithFecFrStreamParams("cname", kSsrcs1[0], kFlexfecSsrc));
 
   const std::vector<FakeFlexfecReceiveStream*>& streams =
       fake_call_->GetFlexfecReceiveStreams();
-  EXPECT_TRUE(streams.empty());
+  EXPECT_EQ(1U, streams.size());
 }
 
 // TODO(brandtr): When FlexFEC is no longer behind a field trial, merge all
@@ -7535,10 +7606,13 @@ TEST_F(WebRtcVideoChannelTest, MinOrMaxSimulcastBitratePropagatedToEncoder) {
   EXPECT_EQ(kDefault[0].max_bitrate_bps,
             stream->GetVideoStreams()[0].max_bitrate_bps);
   // Layer 1: max configured bitrate should overwrite max default.
+  // And target bitrate should be 3/4 * max bitrate or default target
+  // which is larger.
   EXPECT_EQ(kDefault[1].min_bitrate_bps,
             stream->GetVideoStreams()[1].min_bitrate_bps);
-  EXPECT_EQ(kDefault[1].target_bitrate_bps,
-            stream->GetVideoStreams()[1].target_bitrate_bps);
+  const int kTargetBpsLayer1 =
+      std::max(kDefault[1].target_bitrate_bps, kMaxBpsLayer1 * 3 / 4);
+  EXPECT_EQ(kTargetBpsLayer1, stream->GetVideoStreams()[1].target_bitrate_bps);
   EXPECT_EQ(kMaxBpsLayer1, stream->GetVideoStreams()[1].max_bitrate_bps);
   // Layer 2: min and max bitrate not configured, default expected.
   EXPECT_EQ(kDefault[2].min_bitrate_bps,
@@ -7830,6 +7904,59 @@ TEST_F(WebRtcVideoChannelTest, SetRtpSendParametersMultipleEncodingsActive) {
   EXPECT_FALSE(simulcast_streams[0].active);
   EXPECT_FALSE(simulcast_streams[1].active);
   EXPECT_FALSE(simulcast_streams[2].active);
+
+  EXPECT_TRUE(channel_->SetVideoSend(primary_ssrc, nullptr, nullptr));
+}
+
+// Tests that when some streams are disactivated then the lowest
+// stream min_bitrate would be reused for the first active stream.
+TEST_F(WebRtcVideoChannelTest,
+       SetRtpSendParametersSetsMinBitrateForFirstActiveStream) {
+  // Create the stream params with multiple ssrcs for simulcast.
+  const size_t kNumSimulcastStreams = 3;
+  std::vector<uint32_t> ssrcs = MAKE_VECTOR(kSsrcs3);
+  StreamParams stream_params = CreateSimStreamParams("cname", ssrcs);
+  FakeVideoSendStream* fake_video_send_stream = AddSendStream(stream_params);
+  uint32_t primary_ssrc = stream_params.first_ssrc();
+
+  // Using the FrameForwarder, we manually send a full size
+  // frame. This allows us to test that ReconfigureEncoder is called
+  // appropriately.
+  webrtc::test::FrameForwarder frame_forwarder;
+  VideoOptions options;
+  EXPECT_TRUE(channel_->SetVideoSend(primary_ssrc, &options, &frame_forwarder));
+  channel_->SetSend(true);
+  frame_forwarder.IncomingCapturedFrame(frame_source_.GetFrame(
+      1920, 1080, webrtc::VideoRotation::kVideoRotation_0,
+      rtc::kNumMicrosecsPerSec / 30));
+
+  // Check that all encodings are initially active.
+  webrtc::RtpParameters parameters =
+      channel_->GetRtpSendParameters(primary_ssrc);
+  EXPECT_EQ(kNumSimulcastStreams, parameters.encodings.size());
+  EXPECT_TRUE(parameters.encodings[0].active);
+  EXPECT_TRUE(parameters.encodings[1].active);
+  EXPECT_TRUE(parameters.encodings[2].active);
+  EXPECT_TRUE(fake_video_send_stream->IsSending());
+
+  // Only turn on the highest stream.
+  parameters.encodings[0].active = false;
+  parameters.encodings[1].active = false;
+  parameters.encodings[2].active = true;
+  EXPECT_TRUE(channel_->SetRtpSendParameters(primary_ssrc, parameters).ok());
+
+  // Check that the VideoSendStream is updated appropriately. This means its
+  // send state was updated and it was reconfigured.
+  EXPECT_TRUE(fake_video_send_stream->IsSending());
+  std::vector<webrtc::VideoStream> simulcast_streams =
+      fake_video_send_stream->GetVideoStreams();
+  EXPECT_EQ(kNumSimulcastStreams, simulcast_streams.size());
+  EXPECT_FALSE(simulcast_streams[0].active);
+  EXPECT_FALSE(simulcast_streams[1].active);
+  EXPECT_TRUE(simulcast_streams[2].active);
+
+  EXPECT_EQ(simulcast_streams[2].min_bitrate_bps,
+            simulcast_streams[0].min_bitrate_bps);
 
   EXPECT_TRUE(channel_->SetVideoSend(primary_ssrc, nullptr, nullptr));
 }
@@ -8152,7 +8279,8 @@ class WebRtcVideoChannelSimulcastTest : public ::testing::Test {
         engine_(std::unique_ptr<cricket::FakeWebRtcVideoEncoderFactory>(
                     encoder_factory_),
                 std::unique_ptr<cricket::FakeWebRtcVideoDecoderFactory>(
-                    decoder_factory_)),
+                    decoder_factory_),
+                field_trials_),
         last_ssrc_(0) {}
 
   void SetUp() override {
@@ -8212,7 +8340,7 @@ class WebRtcVideoChannelSimulcastTest : public ::testing::Test {
       expected_streams = GetSimulcastConfig(
           /*min_layers=*/1, num_configured_streams, capture_width,
           capture_height, webrtc::kDefaultBitratePriority, kDefaultQpMax,
-          screenshare && conference_mode, true);
+          screenshare && conference_mode, true, field_trials_);
       if (screenshare && conference_mode) {
         for (const webrtc::VideoStream& stream : expected_streams) {
           // Never scale screen content.
@@ -8313,6 +8441,7 @@ class WebRtcVideoChannelSimulcastTest : public ::testing::Test {
   cricket::FakeWebRtcVideoDecoderFactory* decoder_factory_;
   std::unique_ptr<webrtc::MockVideoBitrateAllocatorFactory>
       mock_rate_allocator_factory_;
+  webrtc::FieldTrialBasedConfig field_trials_;
   WebRtcVideoEngine engine_;
   std::unique_ptr<VideoMediaChannel> channel_;
   uint32_t last_ssrc_;

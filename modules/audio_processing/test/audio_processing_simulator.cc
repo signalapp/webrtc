@@ -40,7 +40,7 @@ EchoCanceller3Config ReadAec3ConfigFromJsonFile(const std::string& filename) {
   std::ifstream f(filename.c_str());
   if (f.fail()) {
     std::cout << "Failed to open the file " << filename << std::endl;
-    RTC_CHECK(false);
+    RTC_CHECK_NOTREACHED();
   }
   while (std::getline(f, s)) {
     json_string += s;
@@ -52,13 +52,12 @@ EchoCanceller3Config ReadAec3ConfigFromJsonFile(const std::string& filename) {
   if (!parsing_successful) {
     std::cout << "Parsing of json string failed: " << std::endl
               << json_string << std::endl;
-    RTC_CHECK(false);
+    RTC_CHECK_NOTREACHED();
   }
   RTC_CHECK(EchoCanceller3Config::Validate(&cfg));
 
   return cfg;
 }
-
 
 std::string GetIndexedOutputWavFilename(const std::string& wav_name,
                                         int counter) {
@@ -260,8 +259,8 @@ void AudioProcessingSimulator::ProcessStream(bool fixed_interface) {
     for (size_t k = 0; k < linear_aec_output_buf_[0].size(); ++k) {
       for (size_t ch = 0; ch < linear_aec_output_buf_.size(); ++ch) {
         RTC_CHECK_EQ(linear_aec_output_buf_[ch].size(), 160);
-        linear_aec_output_file_writer_->WriteSamples(
-            &linear_aec_output_buf_[ch][k], 1);
+        float sample = FloatToFloatS16(linear_aec_output_buf_[ch][k]);
+        linear_aec_output_file_writer_->WriteSamples(&sample, 1);
       }
     }
   }

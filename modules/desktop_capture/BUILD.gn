@@ -11,6 +11,11 @@ import("//build/config/ui.gni")
 import("//tools/generate_stubs/rules.gni")
 import("../../webrtc.gni")
 
+if (rtc_use_pipewire) {
+  assert(rtc_pipewire_version == "0.2" || rtc_pipewire_version == "0.3",
+         "Unsupported PipeWire version")
+}
+
 use_desktop_capture_differ_sse2 = current_cpu == "x86" || current_cpu == "x64"
 
 config("x11_config") {
@@ -76,6 +81,9 @@ if (rtc_include_tests) {
         "window_finder_unittest.cc",
       ]
       public_configs = [ ":x11_config" ]
+      if (is_win) {
+        deps += [ "../../rtc_base:win32" ]
+      }
     }
   }
 
@@ -107,6 +115,9 @@ if (rtc_include_tests) {
         "win/cursor_unittest_resources.rc",
         "win/screen_capture_utils_unittest.cc",
         "win/screen_capturer_win_directx_unittest.cc",
+        "win/test_support/test_window.cc",
+        "win/test_support/test_window.h",
+        "win/window_capture_utils_unittest.cc",
       ]
     }
     deps = [
@@ -114,17 +125,24 @@ if (rtc_include_tests) {
       ":desktop_capture_mock",
       ":primitives",
       "../../rtc_base:checks",
+
+      # TODO(bugs.webrtc.org/9987): Remove this dep on rtc_base:rtc_base once
+      # rtc_base:threading is fully defined.
+      "../../rtc_base:rtc_base",
       "../../rtc_base:rtc_base_approved",
-      "../../system_wrappers:cpu_features_api",
+      "../../rtc_base:threading",
+      "../../system_wrappers",
       "../../test:test_support",
     ]
     if (rtc_desktop_capture_supported) {
       sources += [
         "screen_capturer_helper_unittest.cc",
-        "screen_capturer_mac_unittest.cc",
         "screen_capturer_unittest.cc",
         "window_capturer_unittest.cc",
       ]
+      if (is_mac) {
+        sources += [ "screen_capturer_mac_unittest.cc" ]
+      }
       deps += [ ":desktop_capture_mock" ]
       public_configs = [ ":x11_config" ]
     }
@@ -140,7 +158,7 @@ if (rtc_include_tests) {
       "screen_drawer.h",
     ]
 
-    if (is_linux) {
+    if (is_linux || is_chromeos) {
       sources += [ "screen_drawer_linux.cc" ]
     }
 
@@ -186,7 +204,7 @@ if (rtc_include_tests) {
   }
 }
 
-if (is_linux) {
+if (is_linux || is_chromeos) {
   if (rtc_use_pipewire) {
     pkg_config("gio") {
       packages = [
@@ -195,22 +213,41 @@ if (is_linux) {
       ]
     }
 
-    if (rtc_link_pipewire) {
+    if (rtc_pipewire_version == "0.3") {
       pkg_config("pipewire") {
-        packages = [ "libpipewire-0.2" ]
+        packages = [ "libpipewire-0.3" ]
+        if (!rtc_link_pipewire) {
+          ignore_libs = true
+        }
       }
     } else {
+      pkg_config("pipewire") {
+        packages = [ "libpipewire-0.2" ]
+        if (!rtc_link_pipewire) {
+          ignore_libs = true
+        }
+      }
+    }
+
+    if (!rtc_link_pipewire) {
       # When libpipewire is not directly linked, use stubs to allow for dlopening of
       # the binary.
       generate_stubs("pipewire_stubs") {
-        configs = [ "../../:common_config" ]
+        configs = [
+          "../../:common_config",
+          ":pipewire",
+        ]
         deps = [ "../../rtc_base" ]
         extra_header = "linux/pipewire_stub_header.fragment"
         logging_function = "RTC_LOG(LS_VERBOSE)"
         logging_include = "rtc_base/logging.h"
         output_name = "linux/pipewire_stubs"
         path_from_source = "modules/desktop_capture/linux"
-        sigs = [ "linux/pipewire.sigs" ]
+        if (rtc_pipewire_version == "0.3") {
+          sigs = [ "linux/pipewire03.sigs" ]
+        } else {
+          sigs = [ "linux/pipewire02.sigs" ]
+        }
       }
     }
 
@@ -258,11 +295,10 @@ if (is_mac) {
       "../../rtc_base",
       "../../rtc_base:checks",
       "../../rtc_base:rtc_base_approved",
-      "../../rtc_base/synchronization:rw_lock_wrapper",
       "../../rtc_base/system:rtc_export",
       "../../sdk:helpers_objc",
     ]
-    libs = [
+    frameworks = [
       "AppKit.framework",
       "IOKit.framework",
       "IOSurface.framework",
@@ -280,8 +316,6 @@ rtc_library("desktop_capture_generic") {
   sources = [
     "blank_detector_desktop_capturer_wrapper.cc",
     "blank_detector_desktop_capturer_wrapper.h",
-    "capture_result_desktop_capturer_wrapper.cc",
-    "capture_result_desktop_capturer_wrapper.h",
     "cropped_desktop_frame.cc",
     "cropped_desktop_frame.h",
     "cropping_window_capturer.cc",
@@ -357,7 +391,7 @@ rtc_library("desktop_capture_generic") {
       "window_capturer_linux.cc",
     ]
 
-    if (build_with_mozilla && is_linux) {
+    if (build_with_mozilla && (is_linux || is_chromeos)) {
       sources += [
         "app_capturer_linux.cc",
         "linux/app_capturer_x11.cc",
@@ -400,6 +434,7 @@ rtc_library("desktop_capture_generic") {
       "Xfixes",
       "Xrender",
       "Xrandr",
+      "Xtst",
     ]
   }
 
@@ -410,6 +445,20 @@ rtc_library("desktop_capture_generic") {
       "window_capturer_null.cc",
     ]
   }
+
+  deps = [
+    ":primitives",
+    "../../api:function_view",
+    "../../api:refcountedbase",
+    "../../api:scoped_refptr",
+    "../../rtc_base",  # TODO(kjellander): Cleanup in bugs.webrtc.org/3806.
+    "../../rtc_base:checks",
+    "../../rtc_base/synchronization:mutex",
+    "../../rtc_base/system:arch",
+    "../../rtc_base/system:rtc_export",
+    "../../system_wrappers",
+    "../../system_wrappers:metrics",
+  ]
 
   if (is_win) {
     sources += [
@@ -424,6 +473,8 @@ rtc_library("desktop_capture_generic") {
       "win/d3d_device.h",
       "win/desktop.cc",
       "win/desktop.h",
+      "win/desktop_capture_utils.cc",
+      "win/desktop_capture_utils.h",
       "win/display_configuration_monitor.cc",
       "win/display_configuration_monitor.h",
       "win/dxgi_adapter_duplicator.cc",
@@ -459,6 +510,8 @@ rtc_library("desktop_capture_generic") {
       "win/selected_window_context.h",
       "win/window_capture_utils.cc",
       "win/window_capture_utils.h",
+      "win/window_capturer_win_gdi.cc",
+      "win/window_capturer_win_gdi.h",
       "window_capturer_win.cc",
       "window_finder_win.cc",
       "window_finder_win.h",
@@ -467,25 +520,13 @@ rtc_library("desktop_capture_generic") {
       "d3d11.lib",
       "dxgi.lib",
     ]
+    deps += [ "../../rtc_base:win32" ]
   }
 
-  deps = [
-    ":primitives",
-    "../../api:function_view",
-    "../../api:refcountedbase",
-    "../../api:scoped_refptr",
-    "../../rtc_base",  # TODO(kjellander): Cleanup in bugs.webrtc.org/3806.
-    "../../rtc_base:checks",
-    "../../rtc_base/synchronization:rw_lock_wrapper",
-    "../../rtc_base/system:arch",
-    "../../rtc_base/system:rtc_export",
-    "../../system_wrappers",
-    "../../system_wrappers:cpu_features_api",
-    "../../system_wrappers:metrics",
-  ]
   absl_deps = [
     "//third_party/abseil-cpp/absl/memory",
     "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/types:optional",
   ]
 
   if (rtc_use_x11_extensions) {
@@ -506,22 +547,28 @@ rtc_library("desktop_capture_generic") {
     sources += [
       "linux/base_capturer_pipewire.cc",
       "linux/base_capturer_pipewire.h",
-      "linux/screen_capturer_pipewire.cc",
-      "linux/screen_capturer_pipewire.h",
-      "linux/window_capturer_pipewire.cc",
-      "linux/window_capturer_pipewire.h",
     ]
 
     configs += [
       ":pipewire_config",
       ":gio",
+      ":pipewire",
     ]
 
-    if (rtc_link_pipewire) {
-      configs += [ ":pipewire" ]
-    } else {
+    if (!rtc_link_pipewire) {
       deps += [ ":pipewire_stubs" ]
     }
+  }
+
+  if (rtc_enable_win_wgc) {
+    sources += [
+      "win/wgc_capture_session.cc",
+      "win/wgc_capture_session.h",
+      "win/window_capturer_win_wgc.cc",
+      "win/window_capturer_win_wgc.h",
+    ]
+
+    defines += [ "RTC_ENABLE_WIN_WGC" ]
   }
 }
 

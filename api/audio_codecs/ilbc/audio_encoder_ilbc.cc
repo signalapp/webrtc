@@ -32,7 +32,7 @@ int GetIlbcBitrate(int ptime) {
       // 50 bytes per frame of 30 ms => (approx) 13333 bits/s.
       return 13333;
     default:
-      FATAL();
+      RTC_CHECK_NOTREACHED();
   }
 }
 }  // namespace
@@ -59,6 +59,7 @@ absl::optional<AudioEncoderIlbcConfig> AudioEncoderIlbc::SdpToConfig(
 
 void AudioEncoderIlbc::AppendSupportedEncoders(
     std::vector<AudioCodecSpec>* specs) {
+  // RingRTC change to unused audio codecs
   // const SdpAudioFormat fmt = {"ILBC", 8000, 1};
   // const AudioCodecInfo info = QueryAudioEncoder(*SdpToConfig(fmt));
   // specs->push_back({fmt, info});

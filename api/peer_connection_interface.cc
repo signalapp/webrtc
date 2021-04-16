@@ -54,53 +54,37 @@ RTCError PeerConnectionInterface::SetConfiguration(
   return RTCError();
 }
 
-RTCError PeerConnectionInterface::SetBitrate(const BitrateSettings& bitrate) {
-  BitrateParameters bitrate_parameters;
-  bitrate_parameters.min_bitrate_bps = bitrate.min_bitrate_bps;
-  bitrate_parameters.current_bitrate_bps = bitrate.start_bitrate_bps;
-  bitrate_parameters.max_bitrate_bps = bitrate.max_bitrate_bps;
-  return SetBitrate(bitrate_parameters);
-}
-
-RTCError PeerConnectionInterface::SetBitrate(
-    const BitrateParameters& bitrate_parameters) {
-  BitrateSettings bitrate;
-  bitrate.min_bitrate_bps = bitrate_parameters.min_bitrate_bps;
-  bitrate.start_bitrate_bps = bitrate_parameters.current_bitrate_bps;
-  bitrate.max_bitrate_bps = bitrate_parameters.max_bitrate_bps;
-  return SetBitrate(bitrate);
-}
-
+// RingRTC change to add ICE forking
 rtc::scoped_refptr<webrtc::IceGathererInterface>
 PeerConnectionInterface::CreateSharedIceGatherer() {
   RTC_LOG(LS_ERROR) << "No shared ICE gatherer in dummy implementation";
   return nullptr;
 }
 
+// RingRTC change to add ICE forking
 bool PeerConnectionInterface::UseSharedIceGatherer(
     rtc::scoped_refptr<webrtc::IceGathererInterface> shared_ice_gatherer) {
   RTC_LOG(LS_ERROR) << "No shared ICE gatherer in dummy implementation";
   return false;
 }
 
+// RingRTC change to RTP from being processed before the call is accepted
 bool PeerConnectionInterface::SetIncomingRtpEnabled(bool enabled) {
   RTC_LOG(LS_ERROR) << "No enabling of incoming RTP in dummy implementation";
   return false;
 }
 
+// RingRTC change to send RTP data
 bool PeerConnectionInterface::SendRtp(std::unique_ptr<RtpPacket> rtp_packet) {
   RTC_LOG(LS_ERROR) << "No SendRtp in dummy implementation";
   return false;
 }
 
+// RingRTC change to receive RTP data
 bool PeerConnectionInterface::ReceiveRtp(uint8_t pt) {
   RTC_LOG(LS_ERROR) << "No SendRtp in dummy implementation";
   return false;
 }
-
-PeerConnectionInterface::BitrateParameters::BitrateParameters() = default;
-
-PeerConnectionInterface::BitrateParameters::~BitrateParameters() = default;
 
 PeerConnectionDependencies::PeerConnectionDependencies(
     PeerConnectionObserver* observer_in)
@@ -134,6 +118,13 @@ PeerConnectionFactoryInterface::CreatePeerConnection(
     const PeerConnectionInterface::RTCConfiguration& configuration,
     PeerConnectionDependencies dependencies) {
   return nullptr;
+}
+
+RTCErrorOr<rtc::scoped_refptr<PeerConnectionInterface>>
+PeerConnectionFactoryInterface::CreatePeerConnectionOrError(
+    const PeerConnectionInterface::RTCConfiguration& configuration,
+    PeerConnectionDependencies dependencies) {
+  return RTCError(RTCErrorType::INTERNAL_ERROR);
 }
 
 RtpCapabilities PeerConnectionFactoryInterface::GetRtpSenderCapabilities(

@@ -45,13 +45,13 @@
 #include "rtc_base/buffer.h"
 #include "rtc_base/callback.h"
 #include "rtc_base/copy_on_write_buffer.h"
-#include "rtc_base/critical_section.h"
 #include "rtc_base/dscp.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/network_route.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/string_encode.h"
 #include "rtc_base/strings/string_builder.h"
+#include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
 
 namespace rtc {
@@ -155,24 +155,6 @@ struct VideoOptions {
   }
 };
 
-// TODO(isheriff): Remove this once client usage is fixed to use RtpExtension.
-struct RtpHeaderExtension {
-  RtpHeaderExtension() : id(0) {}
-  RtpHeaderExtension(const std::string& uri, int id) : uri(uri), id(id) {}
-
-  std::string ToString() const {
-    rtc::StringBuilder ost;
-    ost << "{";
-    ost << "uri: " << uri;
-    ost << ", id: " << id;
-    ost << "}";
-    return ost.Release();
-  }
-
-  std::string uri;
-  int id;
-};
-
 class MediaChannel : public sigslot::has_slots<> {
  public:
   class NetworkInterface {
@@ -196,7 +178,7 @@ class MediaChannel : public sigslot::has_slots<> {
 
   // Sets the abstract interface class for sending RTP/RTCP data.
   virtual void SetInterface(NetworkInterface* iface)
-      RTC_LOCKS_EXCLUDED(network_interface_crit_);
+      RTC_LOCKS_EXCLUDED(network_interface_mutex_);
   // Called when a RTP packet is received.
   virtual void OnPacketReceived(rtc::CopyOnWriteBuffer packet,
                                 int64_t packet_time_us) = 0;
@@ -222,7 +204,8 @@ class MediaChannel : public sigslot::has_slots<> {
   // ssrc must be the first SSRC of the media stream if the stream uses
   // multiple SSRCs.
   virtual bool RemoveRecvStream(uint32_t ssrc) = 0;
-  // Resets any cached StreamParams for an unsignaled RecvStream.
+  // Resets any cached StreamParams for an unsignaled RecvStream, and removes
+  // any existing unsignaled streams.
   virtual void ResetUnsignaledRecvStream() = 0;
   // Returns the absoulte sendtime extension id value from media channel.
   virtual int GetRtpSendTimeExtnId() const;
@@ -257,8 +240,8 @@ class MediaChannel : public sigslot::has_slots<> {
 
   int SetOption(NetworkInterface::SocketType type,
                 rtc::Socket::Option opt,
-                int option) RTC_LOCKS_EXCLUDED(network_interface_crit_) {
-    rtc::CritScope cs(&network_interface_crit_);
+                int option) RTC_LOCKS_EXCLUDED(network_interface_mutex_) {
+    webrtc::MutexLock lock(&network_interface_mutex_);
     return SetOptionLocked(type, opt, option);
   }
 
@@ -287,7 +270,7 @@ class MediaChannel : public sigslot::has_slots<> {
   int SetOptionLocked(NetworkInterface::SocketType type,
                       rtc::Socket::Option opt,
                       int option)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(network_interface_crit_) {
+      RTC_EXCLUSIVE_LOCKS_REQUIRED(network_interface_mutex_) {
     if (!network_interface_)
       return -1;
     return network_interface_->SetOption(type, opt, option);
@@ -298,14 +281,14 @@ class MediaChannel : public sigslot::has_slots<> {
   // This is the DSCP value used for both RTP and RTCP channels if DSCP is
   // enabled. It can be changed at any time via |SetPreferredDscp|.
   rtc::DiffServCodePoint PreferredDscp() const
-      RTC_LOCKS_EXCLUDED(network_interface_crit_) {
-    rtc::CritScope cs(&network_interface_crit_);
+      RTC_LOCKS_EXCLUDED(network_interface_mutex_) {
+    webrtc::MutexLock lock(&network_interface_mutex_);
     return preferred_dscp_;
   }
 
   int SetPreferredDscp(rtc::DiffServCodePoint preferred_dscp)
-      RTC_LOCKS_EXCLUDED(network_interface_crit_) {
-    rtc::CritScope cs(&network_interface_crit_);
+      RTC_LOCKS_EXCLUDED(network_interface_mutex_) {
+    webrtc::MutexLock lock(&network_interface_mutex_);
     if (preferred_dscp == preferred_dscp_) {
       return 0;
     }
@@ -316,7 +299,7 @@ class MediaChannel : public sigslot::has_slots<> {
  private:
   // Apply the preferred DSCP setting to the underlying network interface RTP
   // and RTCP channels. If DSCP is disabled, then apply the default DSCP value.
-  int UpdateDscp() RTC_EXCLUSIVE_LOCKS_REQUIRED(network_interface_crit_) {
+  int UpdateDscp() RTC_EXCLUSIVE_LOCKS_REQUIRED(network_interface_mutex_) {
     rtc::DiffServCodePoint value =
         enable_dscp_ ? preferred_dscp_ : rtc::DSCP_DEFAULT;
     int ret =
@@ -331,8 +314,8 @@ class MediaChannel : public sigslot::has_slots<> {
   bool DoSendPacket(rtc::CopyOnWriteBuffer* packet,
                     bool rtcp,
                     const rtc::PacketOptions& options)
-      RTC_LOCKS_EXCLUDED(network_interface_crit_) {
-    rtc::CritScope cs(&network_interface_crit_);
+      RTC_LOCKS_EXCLUDED(network_interface_mutex_) {
+    webrtc::MutexLock lock(&network_interface_mutex_);
     if (!network_interface_)
       return false;
 
@@ -344,11 +327,11 @@ class MediaChannel : public sigslot::has_slots<> {
   // |network_interface_| can be accessed from the worker_thread and
   // from any MediaEngine threads. This critical section is to protect accessing
   // of network_interface_ object.
-  rtc::CriticalSection network_interface_crit_;
-  NetworkInterface* network_interface_ RTC_GUARDED_BY(network_interface_crit_) =
-      nullptr;
+  mutable webrtc::Mutex network_interface_mutex_;
+  NetworkInterface* network_interface_
+      RTC_GUARDED_BY(network_interface_mutex_) = nullptr;
   rtc::DiffServCodePoint preferred_dscp_
-      RTC_GUARDED_BY(network_interface_crit_) = rtc::DSCP_DEFAULT;
+      RTC_GUARDED_BY(network_interface_mutex_) = rtc::DSCP_DEFAULT;
   bool extmap_allow_mixed_ = false;
 };
 
@@ -851,7 +834,8 @@ class VoiceMediaChannel : public MediaChannel, public Delayable {
   // DTMF event 0-9, *, #, A-D.
   virtual bool InsertDtmf(uint32_t ssrc, int event, int duration) = 0;
   // Gets quality stats for the channel.
-  virtual bool GetStats(VoiceMediaInfo* info) = 0;
+  virtual bool GetStats(VoiceMediaInfo* info,
+                        bool get_and_clear_legacy_stats) = 0;
 
   virtual void SetRawAudioSink(
       uint32_t ssrc,
@@ -861,6 +845,7 @@ class VoiceMediaChannel : public MediaChannel, public Delayable {
 
   virtual std::vector<webrtc::RtpSource> GetSources(uint32_t ssrc) const = 0;
 
+  // RingRTC change to configure opus
   virtual void ConfigureEncoders(const webrtc::AudioEncoder::Config& config) {
     RTC_LOG(LS_WARNING) << "Default VoiceMediaChannel::ConfigureEncoders(...) does nothing!";
   }

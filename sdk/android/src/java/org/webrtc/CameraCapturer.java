@@ -312,6 +312,7 @@ abstract class CameraCapturer implements CameraVideoCapturer {
     Logging.d(TAG, "Stop capture done");
   }
 
+  // RingRTC change to set frame orientation
   @Override
   public void setOrientation(@Nullable Integer orientation) {
     cameraThreadHandler.post(new Runnable() {

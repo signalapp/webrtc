@@ -16,6 +16,7 @@
 #import "api/RTCVideoRendererAdapter+Private.h"
 #import "helpers/NSString+StdString.h"
 
+// RingRTC changes for low-level FFI
 @implementation RTC_OBJC_TYPE (RTCVideoTrack) {
   NSMutableArray *_adapters;
   rtc::scoped_refptr<webrtc::VideoTrackInterface> _nativeTrack;
@@ -53,6 +54,7 @@
   return self;
 }
 
+// RingRTC changes for low-level FFI
 - (instancetype)initWithFactory:(RTC_OBJC_TYPE(RTCPeerConnectionFactory) *)factory
                     nativeTrack:
                         (rtc::scoped_refptr<webrtc::MediaStreamTrackInterface>)nativeMediaTrack {

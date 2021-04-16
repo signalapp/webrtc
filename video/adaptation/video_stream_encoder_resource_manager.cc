@@ -10,6 +10,8 @@
 
 #include "video/adaptation/video_stream_encoder_resource_manager.h"
 
+#include <stdio.h>
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <memory>
@@ -22,11 +24,15 @@
 #include "api/video/video_adaptation_reason.h"
 #include "api/video/video_source_interface.h"
 #include "call/adaptation/video_source_restrictions.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/ref_counted_object.h"
 #include "rtc_base/strings/string_builder.h"
+#include "rtc_base/synchronization/sequence_checker.h"
 #include "rtc_base/time_utils.h"
+#include "system_wrappers/include/field_trial.h"
+#include "video/adaptation/quality_scaler_resource.h"
 
 namespace webrtc {
 
@@ -34,6 +40,9 @@ const int kDefaultInputPixelsWidth = 176;
 const int kDefaultInputPixelsHeight = 144;
 
 namespace {
+
+constexpr const char* kPixelLimitResourceFieldTrialName =
+    "WebRTC-PixelLimitResource";
 
 bool IsResolutionScalingEnabled(DegradationPreference degradation_preference) {
   return degradation_preference == DegradationPreference::MAINTAIN_FRAMERATE ||
@@ -52,6 +61,53 @@ std::string ToString(VideoAdaptationReason reason) {
     case VideoAdaptationReason::kCpu:
       return "cpu";
   }
+  RTC_CHECK_NOTREACHED();
+}
+
+absl::optional<uint32_t> GetSingleActiveStreamPixels(const VideoCodec& codec) {
+  int num_active = 0;
+  absl::optional<uint32_t> pixels;
+  if (codec.codecType == VideoCodecType::kVideoCodecVP9) {
+    for (int i = 0; i < codec.VP9().numberOfSpatialLayers; ++i) {
+      if (codec.spatialLayers[i].active) {
+        ++num_active;
+        pixels = codec.spatialLayers[i].width * codec.spatialLayers[i].height;
+      }
+    }
+  } else {
+    for (int i = 0; i < codec.numberOfSimulcastStreams; ++i) {
+      if (codec.simulcastStream[i].active) {
+        ++num_active;
+        pixels =
+            codec.simulcastStream[i].width * codec.simulcastStream[i].height;
+      }
+    }
+  }
+  if (num_active > 1)
+    return absl::nullopt;
+  return pixels;
+}
+
+std::vector<bool> GetActiveLayersFlags(const VideoCodec& codec) {
+  std::vector<bool> flags;
+  if (codec.codecType == VideoCodecType::kVideoCodecVP9) {
+    flags.resize(codec.VP9().numberOfSpatialLayers);
+    for (size_t i = 0; i < flags.size(); ++i) {
+      flags[i] = codec.spatialLayers[i].active;
+    }
+  } else {
+    flags.resize(codec.numberOfSimulcastStreams);
+    for (size_t i = 0; i < flags.size(); ++i) {
+      flags[i] = codec.simulcastStream[i].active;
+    }
+  }
+  return flags;
+}
+
+bool EqualFlags(const std::vector<bool>& a, const std::vector<bool>& b) {
+  if (a.size() != b.size())
+    return false;
+  return std::equal(a.begin(), a.end(), b.begin());
 }
 
 }  // namespace
@@ -65,13 +121,19 @@ class VideoStreamEncoderResourceManager::InitialFrameDropper {
         has_seen_first_bwe_drop_(false),
         set_start_bitrate_(DataRate::Zero()),
         set_start_bitrate_time_ms_(0),
-        initial_framedrop_(0) {
+        initial_framedrop_(0),
+        last_input_width_(0),
+        last_input_height_(0) {
     RTC_DCHECK(quality_scaler_resource_);
   }
 
   // Output signal.
   bool DropInitialFrames() const {
     return initial_framedrop_ < kMaxInitialFramedrop;
+  }
+
+  absl::optional<uint32_t> single_active_stream_pixels() const {
+    return single_active_stream_pixels_;
   }
 
   // Input signals.
@@ -100,9 +162,38 @@ class VideoStreamEncoderResourceManager::InitialFrameDropper {
     }
   }
 
+  void OnEncoderSettingsUpdated(
+      const VideoCodec& codec,
+      const VideoAdaptationCounters& adaptation_counters) {
+    std::vector<bool> active_flags = GetActiveLayersFlags(codec);
+    // Check if the source resolution has changed for the external reasons,
+    // i.e. without any adaptation from WebRTC.
+    const bool source_resolution_changed =
+        (last_input_width_ != codec.width ||
+         last_input_height_ != codec.height) &&
+        adaptation_counters.resolution_adaptations ==
+            last_adaptation_counters_.resolution_adaptations;
+    if (!EqualFlags(active_flags, last_active_flags_) ||
+        source_resolution_changed) {
+      // Streams configuration has changed.
+      // Initial frame drop must be enabled because BWE might be way too low
+      // for the selected resolution.
+      if (quality_scaler_resource_->is_started()) {
+        RTC_LOG(LS_INFO) << "Resetting initial_framedrop_ due to changed "
+                            "stream parameters";
+        initial_framedrop_ = 0;
+      }
+    }
+    last_adaptation_counters_ = adaptation_counters;
+    last_active_flags_ = active_flags;
+    last_input_width_ = codec.width;
+    last_input_height_ = codec.height;
+    single_active_stream_pixels_ = GetSingleActiveStreamPixels(codec);
+  }
+
   void OnFrameDroppedDueToSize() { ++initial_framedrop_; }
 
-  void OnMaybeEncodeFrame() { initial_framedrop_ = kMaxInitialFramedrop; }
+  void Disable() { initial_framedrop_ = kMaxInitialFramedrop; }
 
   void OnQualityScalerSettingsUpdated() {
     if (quality_scaler_resource_->is_started()) {
@@ -126,154 +217,30 @@ class VideoStreamEncoderResourceManager::InitialFrameDropper {
   int64_t set_start_bitrate_time_ms_;
   // Counts how many frames we've dropped in the initial framedrop phase.
   int initial_framedrop_;
+  absl::optional<uint32_t> single_active_stream_pixels_;
+
+  std::vector<bool> last_active_flags_;
+  VideoAdaptationCounters last_adaptation_counters_;
+  int last_input_width_;
+  int last_input_height_;
 };
-
-VideoStreamEncoderResourceManager::BitrateConstraint::BitrateConstraint(
-    VideoStreamEncoderResourceManager* manager)
-    : manager_(manager),
-      resource_adaptation_queue_(nullptr),
-      encoder_settings_(absl::nullopt),
-      encoder_target_bitrate_bps_(absl::nullopt) {}
-
-void VideoStreamEncoderResourceManager::BitrateConstraint::SetAdaptationQueue(
-    TaskQueueBase* resource_adaptation_queue) {
-  resource_adaptation_queue_ = resource_adaptation_queue;
-}
-
-void VideoStreamEncoderResourceManager::BitrateConstraint::
-    OnEncoderSettingsUpdated(absl::optional<EncoderSettings> encoder_settings) {
-  RTC_DCHECK_RUN_ON(manager_->encoder_queue_);
-  resource_adaptation_queue_->PostTask(
-      ToQueuedTask([this_ref = rtc::scoped_refptr<BitrateConstraint>(this),
-                    encoder_settings] {
-        RTC_DCHECK_RUN_ON(this_ref->resource_adaptation_queue_);
-        this_ref->encoder_settings_ = std::move(encoder_settings);
-      }));
-}
-
-void VideoStreamEncoderResourceManager::BitrateConstraint::
-    OnEncoderTargetBitrateUpdated(
-        absl::optional<uint32_t> encoder_target_bitrate_bps) {
-  RTC_DCHECK_RUN_ON(manager_->encoder_queue_);
-  resource_adaptation_queue_->PostTask(
-      ToQueuedTask([this_ref = rtc::scoped_refptr<BitrateConstraint>(this),
-                    encoder_target_bitrate_bps] {
-        RTC_DCHECK_RUN_ON(this_ref->resource_adaptation_queue_);
-        this_ref->encoder_target_bitrate_bps_ = encoder_target_bitrate_bps;
-      }));
-}
-
-bool VideoStreamEncoderResourceManager::BitrateConstraint::
-    IsAdaptationUpAllowed(const VideoStreamInputState& input_state,
-                          const VideoSourceRestrictions& restrictions_before,
-                          const VideoSourceRestrictions& restrictions_after,
-                          rtc::scoped_refptr<Resource> reason_resource) const {
-  RTC_DCHECK_RUN_ON(resource_adaptation_queue_);
-  VideoAdaptationReason reason =
-      manager_->GetReasonFromResource(reason_resource);
-  // If increasing resolution due to kQuality, make sure bitrate limits are not
-  // violated.
-  // TODO(hbos): Why are we allowing violating bitrate constraints if adapting
-  // due to CPU? Shouldn't this condition be checked regardless of reason?
-  if (reason == VideoAdaptationReason::kQuality &&
-      DidIncreaseResolution(restrictions_before, restrictions_after)) {
-    uint32_t bitrate_bps = encoder_target_bitrate_bps_.value_or(0);
-    absl::optional<VideoEncoder::ResolutionBitrateLimits> bitrate_limits =
-        encoder_settings_.has_value()
-            ? encoder_settings_->encoder_info()
-                  .GetEncoderBitrateLimitsForResolution(
-                      // Need some sort of expected resulting pixels to be used
-                      // instead of unrestricted.
-                      GetHigherResolutionThan(
-                          input_state.frame_size_pixels().value()))
-            : absl::nullopt;
-    if (bitrate_limits.has_value() && bitrate_bps != 0) {
-      RTC_DCHECK_GE(bitrate_limits->frame_size_pixels,
-                    input_state.frame_size_pixels().value());
-      return bitrate_bps >=
-             static_cast<uint32_t>(bitrate_limits->min_start_bitrate_bps);
-    }
-  }
-  return true;
-}
-
-VideoStreamEncoderResourceManager::BalancedConstraint::BalancedConstraint(
-    VideoStreamEncoderResourceManager* manager)
-    : manager_(manager),
-      resource_adaptation_queue_(nullptr),
-      adaptation_processor_(nullptr),
-      encoder_target_bitrate_bps_(absl::nullopt) {}
-
-void VideoStreamEncoderResourceManager::BalancedConstraint::SetAdaptationQueue(
-    TaskQueueBase* resource_adaptation_queue) {
-  resource_adaptation_queue_ = resource_adaptation_queue;
-}
-
-void VideoStreamEncoderResourceManager::BalancedConstraint::
-    SetAdaptationProcessor(
-        ResourceAdaptationProcessorInterface* adaptation_processor) {
-  RTC_DCHECK_RUN_ON(resource_adaptation_queue_);
-  adaptation_processor_ = adaptation_processor;
-}
-
-void VideoStreamEncoderResourceManager::BalancedConstraint::
-    OnEncoderTargetBitrateUpdated(
-        absl::optional<uint32_t> encoder_target_bitrate_bps) {
-  RTC_DCHECK_RUN_ON(manager_->encoder_queue_);
-  resource_adaptation_queue_->PostTask(
-      ToQueuedTask([this_ref = rtc::scoped_refptr<BalancedConstraint>(this),
-                    encoder_target_bitrate_bps] {
-        RTC_DCHECK_RUN_ON(this_ref->resource_adaptation_queue_);
-        this_ref->encoder_target_bitrate_bps_ = encoder_target_bitrate_bps;
-      }));
-}
-
-bool VideoStreamEncoderResourceManager::BalancedConstraint::
-    IsAdaptationUpAllowed(const VideoStreamInputState& input_state,
-                          const VideoSourceRestrictions& restrictions_before,
-                          const VideoSourceRestrictions& restrictions_after,
-                          rtc::scoped_refptr<Resource> reason_resource) const {
-  RTC_DCHECK_RUN_ON(resource_adaptation_queue_);
-  RTC_DCHECK(adaptation_processor_);
-  VideoAdaptationReason reason =
-      manager_->GetReasonFromResource(reason_resource);
-  // Don't adapt if BalancedDegradationSettings applies and determines this will
-  // exceed bitrate constraints.
-  // TODO(hbos): Why are we allowing violating balanced settings if adapting due
-  // CPU? Shouldn't this condition be checked regardless of reason?
-  if (reason == VideoAdaptationReason::kQuality &&
-      adaptation_processor_->effective_degradation_preference() ==
-          DegradationPreference::BALANCED &&
-      !manager_->balanced_settings_.CanAdaptUp(
-          input_state.video_codec_type(),
-          input_state.frame_size_pixels().value(),
-          encoder_target_bitrate_bps_.value_or(0))) {
-    return false;
-  }
-  if (reason == VideoAdaptationReason::kQuality &&
-      DidIncreaseResolution(restrictions_before, restrictions_after) &&
-      !manager_->balanced_settings_.CanAdaptUpResolution(
-          input_state.video_codec_type(),
-          input_state.frame_size_pixels().value(),
-          encoder_target_bitrate_bps_.value_or(0))) {
-    return false;
-  }
-  return true;
-}
 
 VideoStreamEncoderResourceManager::VideoStreamEncoderResourceManager(
     VideoStreamInputStateProvider* input_state_provider,
     VideoStreamEncoderObserver* encoder_stats_observer,
     Clock* clock,
     bool experiment_cpu_load_estimator,
-    std::unique_ptr<OveruseFrameDetector> overuse_detector)
-    : bitrate_constraint_(new rtc::RefCountedObject<BitrateConstraint>(this)),
-      balanced_constraint_(new rtc::RefCountedObject<BalancedConstraint>(this)),
+    std::unique_ptr<OveruseFrameDetector> overuse_detector,
+    DegradationPreferenceProvider* degradation_preference_provider)
+    : degradation_preference_provider_(degradation_preference_provider),
+      bitrate_constraint_(std::make_unique<BitrateConstraint>()),
+      balanced_constraint_(std::make_unique<BalancedConstraint>(
+          degradation_preference_provider_)),
       encode_usage_resource_(
           EncodeUsageResource::Create(std::move(overuse_detector))),
       quality_scaler_resource_(QualityScalerResource::Create()),
+      pixel_limit_resource_(nullptr),
       encoder_queue_(nullptr),
-      resource_adaptation_queue_(nullptr),
       input_state_provider_(input_state_provider),
       adaptation_processor_(nullptr),
       encoder_stats_observer_(encoder_stats_observer),
@@ -288,39 +255,28 @@ VideoStreamEncoderResourceManager::VideoStreamEncoderResourceManager(
       quality_rampup_experiment_(
           QualityRampUpExperimentHelper::CreateIfEnabled(this, clock_)),
       encoder_settings_(absl::nullopt) {
-  RTC_DCHECK(encoder_stats_observer_);
-  MapResourceToReason(encode_usage_resource_, VideoAdaptationReason::kCpu);
-  MapResourceToReason(quality_scaler_resource_,
-                      VideoAdaptationReason::kQuality);
+  RTC_CHECK(degradation_preference_provider_);
+  RTC_CHECK(encoder_stats_observer_);
 }
 
-VideoStreamEncoderResourceManager::~VideoStreamEncoderResourceManager() {}
+VideoStreamEncoderResourceManager::~VideoStreamEncoderResourceManager() =
+    default;
 
 void VideoStreamEncoderResourceManager::Initialize(
-    rtc::TaskQueue* encoder_queue,
-    rtc::TaskQueue* resource_adaptation_queue) {
+    rtc::TaskQueue* encoder_queue) {
   RTC_DCHECK(!encoder_queue_);
   RTC_DCHECK(encoder_queue);
-  RTC_DCHECK(!resource_adaptation_queue_);
-  RTC_DCHECK(resource_adaptation_queue);
   encoder_queue_ = encoder_queue;
-  resource_adaptation_queue_ = resource_adaptation_queue;
-  bitrate_constraint_->SetAdaptationQueue(resource_adaptation_queue_->Get());
-  balanced_constraint_->SetAdaptationQueue(resource_adaptation_queue_->Get());
   encode_usage_resource_->RegisterEncoderTaskQueue(encoder_queue_->Get());
-  encode_usage_resource_->RegisterAdaptationTaskQueue(
-      resource_adaptation_queue_->Get());
   quality_scaler_resource_->RegisterEncoderTaskQueue(encoder_queue_->Get());
-  quality_scaler_resource_->RegisterAdaptationTaskQueue(
-      resource_adaptation_queue_->Get());
 }
 
 void VideoStreamEncoderResourceManager::SetAdaptationProcessor(
-    ResourceAdaptationProcessorInterface* adaptation_processor) {
-  RTC_DCHECK_RUN_ON(resource_adaptation_queue_);
+    ResourceAdaptationProcessorInterface* adaptation_processor,
+    VideoStreamAdapter* stream_adapter) {
+  RTC_DCHECK_RUN_ON(encoder_queue_);
   adaptation_processor_ = adaptation_processor;
-  balanced_constraint_->SetAdaptationProcessor(adaptation_processor);
-  quality_scaler_resource_->SetAdaptationProcessor(adaptation_processor);
+  stream_adapter_ = stream_adapter;
 }
 
 void VideoStreamEncoderResourceManager::SetDegradationPreferences(
@@ -336,56 +292,92 @@ VideoStreamEncoderResourceManager::degradation_preference() const {
   return degradation_preference_;
 }
 
-void VideoStreamEncoderResourceManager::StartEncodeUsageResource() {
+void VideoStreamEncoderResourceManager::EnsureEncodeUsageResourceStarted() {
   RTC_DCHECK_RUN_ON(encoder_queue_);
-  RTC_DCHECK(!encode_usage_resource_->is_started());
   RTC_DCHECK(encoder_settings_.has_value());
+  if (encode_usage_resource_->is_started()) {
+    encode_usage_resource_->StopCheckForOveruse();
+  } else {
+    // If the resource has not yet started then it needs to be added.
+    AddResource(encode_usage_resource_, VideoAdaptationReason::kCpu);
+  }
   encode_usage_resource_->StartCheckForOveruse(GetCpuOveruseOptions());
+}
+
+void VideoStreamEncoderResourceManager::MaybeInitializePixelLimitResource() {
+  RTC_DCHECK_RUN_ON(encoder_queue_);
+  RTC_DCHECK(adaptation_processor_);
+  RTC_DCHECK(!pixel_limit_resource_);
+  if (!field_trial::IsEnabled(kPixelLimitResourceFieldTrialName)) {
+    // The field trial is not running.
+    return;
+  }
+  int max_pixels = 0;
+  std::string pixel_limit_field_trial =
+      field_trial::FindFullName(kPixelLimitResourceFieldTrialName);
+  if (sscanf(pixel_limit_field_trial.c_str(), "Enabled-%d", &max_pixels) != 1) {
+    RTC_LOG(LS_ERROR) << "Couldn't parse " << kPixelLimitResourceFieldTrialName
+                      << " trial config: " << pixel_limit_field_trial;
+    return;
+  }
+  RTC_LOG(LS_INFO) << "Running field trial "
+                   << kPixelLimitResourceFieldTrialName << " configured to "
+                   << max_pixels << " max pixels";
+  // Configure the specified max pixels from the field trial. The pixel limit
+  // resource is active for the lifetme of the stream (until
+  // StopManagedResources() is called).
+  pixel_limit_resource_ =
+      PixelLimitResource::Create(encoder_queue_->Get(), input_state_provider_);
+  pixel_limit_resource_->SetMaxPixels(max_pixels);
+  AddResource(pixel_limit_resource_, VideoAdaptationReason::kCpu);
 }
 
 void VideoStreamEncoderResourceManager::StopManagedResources() {
   RTC_DCHECK_RUN_ON(encoder_queue_);
-  encode_usage_resource_->StopCheckForOveruse();
-  quality_scaler_resource_->StopCheckForOveruse();
+  RTC_DCHECK(adaptation_processor_);
+  if (encode_usage_resource_->is_started()) {
+    encode_usage_resource_->StopCheckForOveruse();
+    RemoveResource(encode_usage_resource_);
+  }
+  if (quality_scaler_resource_->is_started()) {
+    quality_scaler_resource_->StopCheckForOveruse();
+    RemoveResource(quality_scaler_resource_);
+  }
+  if (pixel_limit_resource_) {
+    RemoveResource(pixel_limit_resource_);
+    pixel_limit_resource_ = nullptr;
+  }
 }
 
-void VideoStreamEncoderResourceManager::MapResourceToReason(
+void VideoStreamEncoderResourceManager::AddResource(
     rtc::scoped_refptr<Resource> resource,
     VideoAdaptationReason reason) {
-  rtc::CritScope crit(&resource_lock_);
+  RTC_DCHECK_RUN_ON(encoder_queue_);
   RTC_DCHECK(resource);
-  RTC_DCHECK(absl::c_find_if(resources_,
-                             [resource](const ResourceAndReason& r) {
-                               return r.resource == resource;
-                             }) == resources_.end())
-      << "Resource " << resource->Name() << " already was inserted";
-  resources_.emplace_back(resource, reason);
+  bool inserted;
+  std::tie(std::ignore, inserted) = resources_.emplace(resource, reason);
+  RTC_DCHECK(inserted) << "Resource " << resource->Name()
+                       << " already was inserted";
+  adaptation_processor_->AddResource(resource);
 }
 
-std::vector<rtc::scoped_refptr<Resource>>
-VideoStreamEncoderResourceManager::MappedResources() const {
-  rtc::CritScope crit(&resource_lock_);
-  std::vector<rtc::scoped_refptr<Resource>> resources;
-  for (auto const& resource_and_reason : resources_) {
-    resources.push_back(resource_and_reason.resource);
+void VideoStreamEncoderResourceManager::RemoveResource(
+    rtc::scoped_refptr<Resource> resource) {
+  {
+    RTC_DCHECK_RUN_ON(encoder_queue_);
+    RTC_DCHECK(resource);
+    const auto& it = resources_.find(resource);
+    RTC_DCHECK(it != resources_.end())
+        << "Resource \"" << resource->Name() << "\" not found.";
+    resources_.erase(it);
   }
-  return resources;
+  adaptation_processor_->RemoveResource(resource);
 }
 
 std::vector<AdaptationConstraint*>
 VideoStreamEncoderResourceManager::AdaptationConstraints() const {
-  return {bitrate_constraint_, balanced_constraint_};
-}
-
-std::vector<AdaptationListener*>
-VideoStreamEncoderResourceManager::AdaptationListeners() const {
-  return {quality_scaler_resource_};
-}
-
-rtc::scoped_refptr<QualityScalerResource>
-VideoStreamEncoderResourceManager::quality_scaler_resource_for_testing() {
-  rtc::CritScope crit(&resource_lock_);
-  return quality_scaler_resource_;
+  RTC_DCHECK_RUN_ON(encoder_queue_);
+  return {bitrate_constraint_.get(), balanced_constraint_.get()};
 }
 
 void VideoStreamEncoderResourceManager::SetEncoderSettings(
@@ -393,6 +385,8 @@ void VideoStreamEncoderResourceManager::SetEncoderSettings(
   RTC_DCHECK_RUN_ON(encoder_queue_);
   encoder_settings_ = std::move(encoder_settings);
   bitrate_constraint_->OnEncoderSettingsUpdated(encoder_settings_);
+  initial_frame_dropper_->OnEncoderSettingsUpdated(
+      encoder_settings_->video_codec(), current_adaptation_counters_);
   MaybeUpdateTargetFrameRate();
 }
 
@@ -432,21 +426,12 @@ void VideoStreamEncoderResourceManager::SetEncoderRates(
 
 void VideoStreamEncoderResourceManager::OnFrameDroppedDueToSize() {
   RTC_DCHECK_RUN_ON(encoder_queue_);
-  // The VideoStreamEncoder makes the manager outlive the adaptation queue. This
-  // means that if the task gets executed, |this| has not been freed yet.
-  // TODO(https://crbug.com/webrtc/11565): When the manager no longer outlives
-  // the adaptation queue, add logic to prevent use-after-free on |this|.
-  resource_adaptation_queue_->PostTask([this] {
-    RTC_DCHECK_RUN_ON(resource_adaptation_queue_);
-    if (!adaptation_processor_) {
-      // The processor nulled before this task had a chance to execute. This
-      // happens if the processor is destroyed. No action needed.
-      return;
-    }
-    adaptation_processor_->TriggerAdaptationDueToFrameDroppedDueToSize(
-        quality_scaler_resource_);
-  });
   initial_frame_dropper_->OnFrameDroppedDueToSize();
+  Adaptation reduce_resolution = stream_adapter_->GetAdaptDownResolution();
+  if (reduce_resolution.status() == Adaptation::Status::kValid) {
+    stream_adapter_->ApplyAdaptation(reduce_resolution,
+                                     quality_scaler_resource_);
+  }
 }
 
 void VideoStreamEncoderResourceManager::OnEncodeStarted(
@@ -468,7 +453,6 @@ void VideoStreamEncoderResourceManager::OnEncodeCompleted(
       encoded_image.capture_time_ms_ * rtc::kNumMicrosecsPerMillisec;
   encode_usage_resource_->OnEncodeCompleted(
       timestamp, time_sent_in_us, capture_time_us, encode_duration_us);
-  // Inform |quality_scaler_resource_| of the encode completed event.
   quality_scaler_resource_->OnEncodeCompleted(encoded_image, time_sent_in_us);
 }
 
@@ -483,10 +467,16 @@ bool VideoStreamEncoderResourceManager::DropInitialFrames() const {
   return initial_frame_dropper_->DropInitialFrames();
 }
 
+absl::optional<uint32_t>
+VideoStreamEncoderResourceManager::SingleActiveStreamPixels() const {
+  RTC_DCHECK_RUN_ON(encoder_queue_);
+  return initial_frame_dropper_->single_active_stream_pixels();
+}
+
 void VideoStreamEncoderResourceManager::OnMaybeEncodeFrame() {
   RTC_DCHECK_RUN_ON(encoder_queue_);
-  initial_frame_dropper_->OnMaybeEncodeFrame();
-  if (quality_rampup_experiment_) {
+  initial_frame_dropper_->Disable();
+  if (quality_rampup_experiment_ && quality_scaler_resource_->is_started()) {
     DataRate bandwidth = encoder_rates_.has_value()
                              ? encoder_rates_->bandwidth_allocation
                              : DataRate::Zero();
@@ -502,10 +492,15 @@ void VideoStreamEncoderResourceManager::UpdateQualityScalerSettings(
     absl::optional<VideoEncoder::QpThresholds> qp_thresholds) {
   RTC_DCHECK_RUN_ON(encoder_queue_);
   if (qp_thresholds.has_value()) {
+    if (quality_scaler_resource_->is_started()) {
+      quality_scaler_resource_->SetQpThresholds(qp_thresholds.value());
+    } else {
+      quality_scaler_resource_->StartCheckForOveruse(qp_thresholds.value());
+      AddResource(quality_scaler_resource_, VideoAdaptationReason::kQuality);
+    }
+  } else if (quality_scaler_resource_->is_started()) {
     quality_scaler_resource_->StopCheckForOveruse();
-    quality_scaler_resource_->StartCheckForOveruse(qp_thresholds.value());
-  } else {
-    quality_scaler_resource_->StopCheckForOveruse();
+    RemoveResource(quality_scaler_resource_);
   }
   initial_frame_dropper_->OnQualityScalerSettingsUpdated();
 }
@@ -554,14 +549,11 @@ void VideoStreamEncoderResourceManager::ConfigureQualityScaler(
 
 VideoAdaptationReason VideoStreamEncoderResourceManager::GetReasonFromResource(
     rtc::scoped_refptr<Resource> resource) const {
-  rtc::CritScope crit(&resource_lock_);
-  const auto& registered_resource =
-      absl::c_find_if(resources_, [&resource](const ResourceAndReason& r) {
-        return r.resource == resource;
-      });
+  RTC_DCHECK_RUN_ON(encoder_queue_);
+  const auto& registered_resource = resources_.find(resource);
   RTC_DCHECK(registered_resource != resources_.end())
       << resource->Name() << " not found.";
-  return registered_resource->reason;
+  return registered_resource->second;
 }
 
 // TODO(pbos): Lower these thresholds (to closer to 100%) when we handle
@@ -596,28 +588,27 @@ int VideoStreamEncoderResourceManager::LastInputFrameSizeOrDefault() const {
 void VideoStreamEncoderResourceManager::OnVideoSourceRestrictionsUpdated(
     VideoSourceRestrictions restrictions,
     const VideoAdaptationCounters& adaptation_counters,
-    rtc::scoped_refptr<Resource> reason) {
-  RTC_DCHECK_RUN_ON(resource_adaptation_queue_);
+    rtc::scoped_refptr<Resource> reason,
+    const VideoSourceRestrictions& unfiltered_restrictions) {
+  RTC_DCHECK_RUN_ON(encoder_queue_);
+  current_adaptation_counters_ = adaptation_counters;
+
   // TODO(bugs.webrtc.org/11553) Remove reason parameter and add reset callback.
   if (!reason && adaptation_counters.Total() == 0) {
     // Adaptation was manually reset - clear the per-reason counters too.
     encoder_stats_observer_->ClearAdaptationStats();
   }
 
-  // The VideoStreamEncoder makes the manager outlive the encoder queue. This
-  // means that if the task gets executed, |this| has not been freed yet.
-  encoder_queue_->PostTask([this, restrictions] {
-    RTC_DCHECK_RUN_ON(encoder_queue_);
-    video_source_restrictions_ = restrictions;
-    MaybeUpdateTargetFrameRate();
-  });
+  video_source_restrictions_ = FilterRestrictionsByDegradationPreference(
+      restrictions, degradation_preference_);
+  MaybeUpdateTargetFrameRate();
 }
 
 void VideoStreamEncoderResourceManager::OnResourceLimitationChanged(
     rtc::scoped_refptr<Resource> resource,
     const std::map<rtc::scoped_refptr<Resource>, VideoAdaptationCounters>&
         resource_limitations) {
-  RTC_DCHECK_RUN_ON(resource_adaptation_queue_);
+  RTC_DCHECK_RUN_ON(encoder_queue_);
   if (!resource) {
     encoder_stats_observer_->ClearAdaptationStats();
     return;
@@ -639,19 +630,14 @@ void VideoStreamEncoderResourceManager::OnResourceLimitationChanged(
       adaptation_reason, limitations[VideoAdaptationReason::kCpu],
       limitations[VideoAdaptationReason::kQuality]);
 
-  encoder_queue_->PostTask(ToQueuedTask(
-      [cpu_limited = limitations.at(VideoAdaptationReason::kCpu).Total() > 0,
-       qp_resolution_adaptations =
-           limitations.at(VideoAdaptationReason::kQuality)
-               .resolution_adaptations,
-       this]() {
-        RTC_DCHECK_RUN_ON(encoder_queue_);
-        if (quality_rampup_experiment_) {
-          quality_rampup_experiment_->cpu_adapted(cpu_limited);
-          quality_rampup_experiment_->qp_resolution_adaptations(
-              qp_resolution_adaptations);
-        }
-      }));
+  if (quality_rampup_experiment_) {
+    bool cpu_limited = limitations.at(VideoAdaptationReason::kCpu).Total() > 0;
+    auto qp_resolution_adaptations =
+        limitations.at(VideoAdaptationReason::kQuality).resolution_adaptations;
+    quality_rampup_experiment_->cpu_adapted(cpu_limited);
+    quality_rampup_experiment_->qp_resolution_adaptations(
+        qp_resolution_adaptations);
+  }
 
   RTC_LOG(LS_INFO) << ActiveCountsToString(limitations);
 }
@@ -714,20 +700,7 @@ std::string VideoStreamEncoderResourceManager::ActiveCountsToString(
 
 void VideoStreamEncoderResourceManager::OnQualityRampUp() {
   RTC_DCHECK_RUN_ON(encoder_queue_);
-  // The VideoStreamEncoder makes the manager outlive the adaptation queue.
-  // This means that if the task gets executed, |this| has not been freed yet.
-  // TODO(https://crbug.com/webrtc/11565): When the manager no longer outlives
-  // the adaptation queue, add logic to prevent use-after-free on |this|.
-  resource_adaptation_queue_->PostTask([this] {
-    RTC_DCHECK_RUN_ON(resource_adaptation_queue_);
-    if (!adaptation_processor_) {
-      // The processor nulled before this task had a chance to execute. This
-      // happens if the processor is destroyed. No action needed.
-      return;
-    }
-    RTC_LOG(LS_INFO) << "Reset quality limitations.";
-    adaptation_processor_->ResetVideoSourceRestrictions();
-  });
+  stream_adapter_->ClearRestrictions();
   quality_rampup_experiment_.reset();
 }
 }  // namespace webrtc

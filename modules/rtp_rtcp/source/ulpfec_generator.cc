@@ -22,7 +22,7 @@
 #include "modules/rtp_rtcp/source/forward_error_correction_internal.h"
 #include "modules/rtp_rtcp/source/rtp_utility.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/critical_section.h"
+#include "rtc_base/synchronization/mutex.h"
 
 namespace webrtc {
 
@@ -77,7 +77,7 @@ UlpfecGenerator::UlpfecGenerator(int red_payload_type,
       fec_(ForwardErrorCorrection::CreateUlpfec(kUnknownSsrc)),
       num_protected_frames_(0),
       min_num_media_packets_(1),
-      keyframe_in_process_(false),
+      media_contains_keyframe_(false),
       fec_bitrate_(/*max_window_size_ms=*/1000, RateStatistics::kBpsScale) {}
 
 // Used by FlexFecSender, payload types are unused.
@@ -89,7 +89,7 @@ UlpfecGenerator::UlpfecGenerator(std::unique_ptr<ForwardErrorCorrection> fec,
       fec_(std::move(fec)),
       num_protected_frames_(0),
       min_num_media_packets_(1),
-      keyframe_in_process_(false),
+      media_contains_keyframe_(false),
       fec_bitrate_(/*max_window_size_ms=*/1000, RateStatistics::kBpsScale) {}
 
 UlpfecGenerator::~UlpfecGenerator() = default;
@@ -103,7 +103,7 @@ void UlpfecGenerator::SetProtectionParameters(
   RTC_DCHECK_LE(key_params.fec_rate, 255);
   // Store the new params and apply them for the next set of FEC packets being
   // produced.
-  rtc::CritScope cs(&crit_);
+  MutexLock lock(&mutex_);
   pending_params_.emplace(delta_params, key_params);
 }
 
@@ -111,8 +111,8 @@ void UlpfecGenerator::AddPacketAndGenerateFec(const RtpPacketToSend& packet) {
   RTC_DCHECK_RUNS_SERIALIZED(&race_checker_);
   RTC_DCHECK(generated_fec_packets_.empty());
 
-  if (media_packets_.empty()) {
-    rtc::CritScope cs(&crit_);
+  {
+    MutexLock lock(&mutex_);
     if (pending_params_) {
       current_params_ = *pending_params_;
       pending_params_.reset();
@@ -123,13 +123,12 @@ void UlpfecGenerator::AddPacketAndGenerateFec(const RtpPacketToSend& packet) {
         min_num_media_packets_ = 1;
       }
     }
-
-    keyframe_in_process_ = packet.is_key_frame();
   }
-  RTC_DCHECK_EQ(packet.is_key_frame(), keyframe_in_process_);
 
-  bool complete_frame = false;
-  const bool marker_bit = packet.Marker();
+  if (packet.is_key_frame()) {
+    media_contains_keyframe_ = true;
+  }
+  const bool complete_frame = packet.Marker();
   if (media_packets_.size() < kUlpfecMaxMediaPackets) {
     // Our packet masks can only protect up to |kUlpfecMaxMediaPackets| packets.
     auto fec_packet = std::make_unique<ForwardErrorCorrection::Packet>();
@@ -142,9 +141,8 @@ void UlpfecGenerator::AddPacketAndGenerateFec(const RtpPacketToSend& packet) {
     last_media_packet_ = packet;
   }
 
-  if (marker_bit) {
+  if (complete_frame) {
     ++num_protected_frames_;
-    complete_frame = true;
   }
 
   auto params = CurrentParams();
@@ -154,7 +152,7 @@ void UlpfecGenerator::AddPacketAndGenerateFec(const RtpPacketToSend& packet) {
   // less than |kMaxExcessOverhead|, and
   // (2) at least |min_num_media_packets_| media packets is reached.
   if (complete_frame &&
-      (num_protected_frames_ == params.max_fec_frames ||
+      (num_protected_frames_ >= params.max_fec_frames ||
        (ExcessOverheadBelowMax() && MinimumMediaPacketsReached()))) {
     // We are not using Unequal Protection feature of the parity erasure code.
     constexpr int kNumImportantPackets = 0;
@@ -190,8 +188,8 @@ bool UlpfecGenerator::MinimumMediaPacketsReached() const {
 
 const FecProtectionParams& UlpfecGenerator::CurrentParams() const {
   RTC_DCHECK_RUNS_SERIALIZED(&race_checker_);
-  return keyframe_in_process_ ? current_params_.keyframe_params
-                              : current_params_.delta_params;
+  return media_contains_keyframe_ ? current_params_.keyframe_params
+                                  : current_params_.delta_params;
 }
 
 size_t UlpfecGenerator::MaxPacketOverhead() const {
@@ -230,19 +228,21 @@ std::vector<std::unique_ptr<RtpPacketToSend>> UlpfecGenerator::GetFecPackets() {
     total_fec_size_bytes += red_packet->size();
     red_packet->set_packet_type(RtpPacketMediaType::kForwardErrorCorrection);
     red_packet->set_allow_retransmission(false);
+    red_packet->set_is_red(true);
+    red_packet->set_fec_protect_packet(false);
     fec_packets.push_back(std::move(red_packet));
   }
 
   ResetState();
 
-  rtc::CritScope cs(&crit_);
+  MutexLock lock(&mutex_);
   fec_bitrate_.Update(total_fec_size_bytes, clock_->TimeInMilliseconds());
 
   return fec_packets;
 }
 
 DataRate UlpfecGenerator::CurrentFecRate() const {
-  rtc::CritScope cs(&crit_);
+  MutexLock lock(&mutex_);
   return DataRate::BitsPerSec(
       fec_bitrate_.Rate(clock_->TimeInMilliseconds()).value_or(0));
 }
@@ -263,6 +263,7 @@ void UlpfecGenerator::ResetState() {
   last_media_packet_.reset();
   generated_fec_packets_.clear();
   num_protected_frames_ = 0;
+  media_contains_keyframe_ = false;
 }
 
 }  // namespace webrtc

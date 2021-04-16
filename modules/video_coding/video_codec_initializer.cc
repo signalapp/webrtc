@@ -20,6 +20,7 @@
 #include "api/units/data_rate.h"
 #include "api/video/video_bitrate_allocation.h"
 #include "api/video_codecs/video_encoder.h"
+#include "modules/video_coding/codecs/av1/av1_svc_config.h"
 #include "modules/video_coding/codecs/vp9/svc_config.h"
 #include "modules/video_coding/include/video_coding_defines.h"
 #include "rtc_base/checks.h"
@@ -56,7 +57,6 @@ VideoCodec VideoCodecInitializer::VideoEncoderConfigToVideoCodec(
   RTC_DCHECK_GE(config.min_transmit_bitrate_bps, 0);
 
   VideoCodec video_codec;
-  memset(&video_codec, 0, sizeof(video_codec));
   video_codec.codecType = config.codec_type;
 
   switch (config.content_type) {
@@ -68,9 +68,10 @@ VideoCodec VideoCodecInitializer::VideoEncoderConfigToVideoCodec(
       break;
   }
 
-  // TODO(nisse): The plType field should be deleted. Luckily, our
-  // callers don't need it.
-  video_codec.plType = 0;
+  video_codec.legacy_conference_mode =
+      config.content_type == VideoEncoderConfig::ContentType::kScreen &&
+      config.legacy_conference_mode;
+
   video_codec.numberOfSimulcastStreams =
       static_cast<unsigned char>(streams.size());
   video_codec.minBitrate = streams[0].min_bitrate_bps / 1000;
@@ -93,8 +94,9 @@ VideoCodec VideoCodecInitializer::VideoEncoderConfigToVideoCodec(
 
   int max_framerate = 0;
 
+  absl::optional<std::string> scalability_mode = streams[0].scalability_mode;
   for (size_t i = 0; i < streams.size(); ++i) {
-    SimulcastStream* sim_stream = &video_codec.simulcastStream[i];
+    SpatialLayer* sim_stream = &video_codec.simulcastStream[i];
     RTC_DCHECK_GT(streams[i].width, 0);
     RTC_DCHECK_GT(streams[i].height, 0);
     RTC_DCHECK_GT(streams[i].max_framerate, 0);
@@ -125,6 +127,15 @@ VideoCodec VideoCodecInitializer::VideoEncoderConfigToVideoCodec(
     video_codec.qpMax = std::max(video_codec.qpMax,
                                  static_cast<unsigned int>(streams[i].max_qp));
     max_framerate = std::max(max_framerate, streams[i].max_framerate);
+
+    if (streams[0].scalability_mode != streams[i].scalability_mode) {
+      RTC_LOG(LS_WARNING) << "Inconsistent scalability modes configured.";
+      scalability_mode.reset();
+    }
+  }
+
+  if (scalability_mode.has_value()) {
+    video_codec.SetScalabilityMode(*scalability_mode);
   }
 
   if (video_codec.maxBitrate == 0) {
@@ -137,6 +148,12 @@ VideoCodec VideoCodecInitializer::VideoEncoderConfigToVideoCodec(
     video_codec.maxBitrate = kEncoderMinBitrateKbps;
 
   video_codec.maxFramerate = max_framerate;
+  video_codec.spatialLayers[0] = {0};
+  video_codec.spatialLayers[0].width = video_codec.width;
+  video_codec.spatialLayers[0].height = video_codec.height;
+  video_codec.spatialLayers[0].maxFramerate = max_framerate;
+  video_codec.spatialLayers[0].numberOfTemporalLayers =
+      streams[0].num_temporal_layers.value_or(1);
 
   // Set codec specific options
   if (config.encoder_specific_settings)
@@ -209,7 +226,7 @@ VideoCodec VideoCodecInitializer::VideoEncoderConfigToVideoCodec(
 
         for (size_t spatial_idx = first_active_layer;
              spatial_idx < config.simulcast_layers.size() &&
-             spatial_idx < spatial_layers.size();
+             spatial_idx < spatial_layers.size() + first_active_layer;
              ++spatial_idx) {
           spatial_layers[spatial_idx - first_active_layer].active =
               config.simulcast_layers[spatial_idx].active;
@@ -244,6 +261,11 @@ VideoCodec VideoCodecInitializer::VideoEncoderConfigToVideoCodec(
 
       break;
     }
+    case kVideoCodecAV1:
+      if (!SetAv1SvcConfig(video_codec)) {
+        RTC_LOG(LS_WARNING) << "Failed to configure svc bitrates for av1.";
+      }
+      break;
     case kVideoCodecH264: {
       if (!config.encoder_specific_settings)
         *video_codec.H264() = VideoEncoder::GetDefaultH264Settings();

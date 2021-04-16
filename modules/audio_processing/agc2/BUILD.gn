@@ -56,6 +56,7 @@ rtc_library("adaptive_digital") {
 
   deps = [
     ":common",
+    ":cpu_features",
     ":gain_applier",
     ":noise_level_estimator",
     ":rnn_vad_with_level",
@@ -65,10 +66,14 @@ rtc_library("adaptive_digital") {
     "../../../api:array_view",
     "../../../common_audio",
     "../../../rtc_base:checks",
+    "../../../rtc_base:logging",
     "../../../rtc_base:rtc_base_approved",
+    "../../../rtc_base:safe_compare",
     "../../../rtc_base:safe_minmax",
     "../../../system_wrappers:metrics",
   ]
+
+  absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
 }
 
 rtc_library("biquad_filter") {
@@ -83,15 +88,8 @@ rtc_library("biquad_filter") {
   ]
 }
 
-rtc_library("common") {
-  sources = [
-    "agc2_common.cc",
-    "agc2_common.h",
-  ]
-  deps = [
-    "../../../rtc_base:rtc_base_approved",
-    "../../../system_wrappers:field_trial",
-  ]
+rtc_source_set("common") {
+  sources = [ "agc2_common.h" ]
 }
 
 rtc_library("fixed_digital") {
@@ -153,7 +151,7 @@ rtc_library("noise_level_estimator") {
     "../../../common_audio/third_party/ooura:fft_size_128",
     "../../../rtc_base:checks",
     "../../../rtc_base:macromagic",
-    "../../../system_wrappers:cpu_features_api",
+    "../../../system_wrappers",
   ]
 
   configs += [ "..:apm_debug_dump" ]
@@ -164,12 +162,35 @@ rtc_library("rnn_vad_with_level") {
     "vad_with_level.cc",
     "vad_with_level.h",
   ]
+
+  defines = []
+  if (rtc_build_with_neon && current_cpu != "arm64") {
+    suppressed_configs += [ "//build/config/compiler:compiler_arm_fpu" ]
+    cflags = [ "-mfpu=neon" ]
+  }
+
   deps = [
+    ":common",
+    ":cpu_features",
     "..:audio_frame_view",
     "../../../api:array_view",
     "../../../common_audio",
     "../../../rtc_base:checks",
     "rnn_vad",
+    "rnn_vad:rnn_vad_common",
+  ]
+}
+
+rtc_library("cpu_features") {
+  sources = [
+    "cpu_features.cc",
+    "cpu_features.h",
+  ]
+  visibility = [ "./*" ]
+  deps = [
+    "../../../rtc_base:stringutils",
+    "../../../rtc_base/system:arch",
+    "../../../system_wrappers",
   ]
 }
 
@@ -195,6 +216,7 @@ rtc_library("adaptive_digital_unittests") {
     "../../../rtc_base:checks",
     "../../../rtc_base:gunit_helpers",
     "../../../rtc_base:rtc_base_approved",
+    "../../../test:test_support",
   ]
 }
 
@@ -261,9 +283,12 @@ rtc_library("rnn_vad_with_level_unittests") {
   testonly = true
   sources = [ "vad_with_level_unittest.cc" ]
   deps = [
+    ":common",
     ":rnn_vad_with_level",
     "..:audio_frame_view",
     "../../../rtc_base:gunit_helpers",
+    "../../../rtc_base:safe_compare",
+    "../../../test:test_support",
   ]
 }
 

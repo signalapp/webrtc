@@ -52,6 +52,7 @@ rtc_library("rtp_rtcp_format") {
     "source/rtp_packet.h",
     "source/rtp_packet_received.h",
     "source/rtp_packet_to_send.h",
+    "source/rtp_video_layers_allocation_extension.h",
   ]
   sources = [
     "include/report_block_data.cc",
@@ -95,10 +96,10 @@ rtc_library("rtp_rtcp_format") {
     "source/rtp_packet.cc",
     "source/rtp_packet_received.cc",
     "source/rtp_packet_to_send.cc",
+    "source/rtp_video_layers_allocation_extension.cc",
   ]
 
   deps = [
-    "..:module_api",
     "..:module_api_public",
     "../../api:array_view",
     "../../api:function_view",
@@ -109,6 +110,7 @@ rtc_library("rtp_rtcp_format") {
     "../../api/transport/rtp:dependency_descriptor",
     "../../api/units:time_delta",
     "../../api/video:video_frame",
+    "../../api/video:video_layers_allocation",
     "../../api/video:video_rtp_headers",
     "../../common_video",
     "../../rtc_base:checks",
@@ -250,7 +252,6 @@ rtc_library("rtp_rtcp") {
     "..:module_api",
     "..:module_api_public",
     "..:module_fec_api",
-    "../..:webrtc_common",
     "../../api:array_view",
     "../../api:frame_transformer_interface",
     "../../api:function_view",
@@ -278,6 +279,7 @@ rtc_library("rtp_rtcp") {
     "../../api/video:video_codec_constants",
     "../../api/video:video_frame",
     "../../api/video:video_frame_type",
+    "../../api/video:video_layers_allocation",
     "../../api/video:video_rtp_headers",
     "../../api/video_codecs:video_codecs_api",
     "../../call:rtp_interfaces",
@@ -294,7 +296,11 @@ rtc_library("rtp_rtcp") {
     "../../rtc_base:rtc_numerics",
     "../../rtc_base:safe_minmax",
     "../../rtc_base/experiments:field_trial_parser",
+    "../../rtc_base/synchronization:mutex",
     "../../rtc_base/synchronization:sequence_checker",
+    "../../rtc_base/system:no_unique_address",
+    "../../rtc_base/task_utils:pending_task_safety_flag",
+    "../../rtc_base/task_utils:repeating_task",
     "../../rtc_base/task_utils:to_queued_task",
     "../../rtc_base/time:timestamp_extrapolator",
     "../../system_wrappers",
@@ -313,6 +319,11 @@ rtc_library("rtp_rtcp") {
   ]
 }
 
+rtc_source_set("rtp_rtcp_legacy") {
+  # TODO(bugs.webrtc.org/11581): The files "source/rtp_rtcp_impl.cc"
+  # and "source/rtp_rtcp_impl.h" should be moved to this target.
+}
+
 rtc_library("rtcp_transceiver") {
   visibility = [ "*" ]
   public = [
@@ -328,7 +339,6 @@ rtc_library("rtcp_transceiver") {
   deps = [
     ":rtp_rtcp",
     ":rtp_rtcp_format",
-    "../../:webrtc_common",
     "../../api:array_view",
     "../../api:rtp_headers",
     "../../api:transport_api",
@@ -354,7 +364,6 @@ rtc_library("rtp_video_header") {
     "source/rtp_video_header.h",
   ]
   deps = [
-    "../../:webrtc_common",
     "../../api/transport/rtp:dependency_descriptor",
     "../../api/video:video_frame",
     "../../api/video:video_frame_type",
@@ -377,7 +386,6 @@ rtc_library("fec_test_helper") {
   deps = [
     ":rtp_rtcp",
     ":rtp_rtcp_format",
-    "..:module_api",
     "../../rtc_base:checks",
     "../../rtc_base:rtc_base_approved",
   ]
@@ -501,6 +509,7 @@ if (rtc_include_tests) {
       "source/rtp_sender_video_unittest.cc",
       "source/rtp_sequence_number_map_unittest.cc",
       "source/rtp_utility_unittest.cc",
+      "source/rtp_video_layers_allocation_extension_unittest.cc",
       "source/source_tracker_unittest.cc",
       "source/time_util_unittest.cc",
       "source/ulpfec_generator_unittest.cc",
@@ -519,8 +528,7 @@ if (rtc_include_tests) {
       ":rtcp_transceiver",
       ":rtp_rtcp",
       ":rtp_rtcp_format",
-      "..:module_api",
-      "../..:webrtc_common",
+      ":rtp_rtcp_legacy",
       "../../api:array_view",
       "../../api:libjingle_peerconnection_api",
       "../../api:mock_frame_encryptor",
@@ -538,6 +546,7 @@ if (rtc_include_tests) {
       "../../api/video:video_bitrate_allocator",
       "../../api/video:video_codec_constants",
       "../../api/video:video_frame",
+      "../../api/video:video_layers_allocation",
       "../../api/video:video_rtp_headers",
       "../../api/video_codecs:video_codecs_api",
       "../../call:rtp_receiver",
@@ -551,6 +560,7 @@ if (rtc_include_tests) {
       "../../rtc_base:rtc_base_tests_utils",
       "../../rtc_base:rtc_numerics",
       "../../rtc_base:task_queue_for_test",
+      "../../rtc_base/task_utils:to_queued_task",
       "../../system_wrappers",
       "../../test:field_trial",
       "../../test:mock_frame_transformer",
@@ -558,6 +568,7 @@ if (rtc_include_tests) {
       "../../test:rtp_test_utils",
       "../../test:test_common",
       "../../test:test_support",
+      "../../test/time_controller:time_controller",
       "../video_coding:codec_globals_headers",
     ]
     absl_deps = [

@@ -15,7 +15,7 @@
 
 #include "rtc_base/checks.h"
 #include "rtc_base/constructor_magic.h"
-#include "rtc_base/critical_section.h"
+#include "rtc_base/deprecated/recursive_critical_section.h"
 #include "rtc_base/deprecation.h"
 #include "rtc_base/message_handler.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
@@ -45,7 +45,7 @@ namespace rtc {
 ///////////////////////////////////////////////////////////////////////////////
 
 class DEPRECATED_SignalThread : public sigslot::has_slots<>,
-                                protected MessageHandler {
+                                protected MessageHandlerAutoCleanup {
  public:
   DEPRECATED_SignalThread();
 
@@ -110,14 +110,17 @@ class DEPRECATED_SignalThread : public sigslot::has_slots<>,
   class Worker : public Thread {
    public:
     explicit Worker(DEPRECATED_SignalThread* parent);
+
+    Worker() = delete;
+    Worker(const Worker&) = delete;
+    Worker& operator=(const Worker&) = delete;
+
     ~Worker() override;
     void Run() override;
     bool IsProcessingMessagesForTesting() override;
 
    private:
     DEPRECATED_SignalThread* parent_;
-
-    RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(Worker);
   };
 
   class RTC_SCOPED_LOCKABLE EnterExit {
@@ -131,6 +134,11 @@ class DEPRECATED_SignalThread : public sigslot::has_slots<>,
       RTC_DCHECK_NE(0, t_->refcount_);
       ++t_->refcount_;
     }
+
+    EnterExit() = delete;
+    EnterExit(const EnterExit&) = delete;
+    EnterExit& operator=(const EnterExit&) = delete;
+
     ~EnterExit() RTC_UNLOCK_FUNCTION() {
       bool d = (0 == --t_->refcount_);
       t_->cs_.Leave();
@@ -140,8 +148,6 @@ class DEPRECATED_SignalThread : public sigslot::has_slots<>,
 
    private:
     DEPRECATED_SignalThread* t_;
-
-    RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(EnterExit);
   };
 
   void Run();
@@ -149,7 +155,7 @@ class DEPRECATED_SignalThread : public sigslot::has_slots<>,
 
   Thread* main_;
   Worker worker_;
-  CriticalSection cs_;
+  RecursiveCriticalSection cs_;
   State state_ RTC_GUARDED_BY(cs_);
   int refcount_ RTC_GUARDED_BY(cs_);
   bool destroy_called_ RTC_GUARDED_BY(cs_) = false;

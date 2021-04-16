@@ -25,6 +25,9 @@
 #import "base/RTCVideoDecoderFactory.h"
 #import "base/RTCVideoEncoderFactory.h"
 #import "helpers/NSString+StdString.h"
+#include "sdk/objc/native/api/network_monitor_factory.h"
+#include "system_wrappers/include/field_trial.h"
+
 #ifndef HAVE_NO_MEDIA
 #import "components/video_codec/RTCVideoDecoderFactoryH264.h"
 #import "components/video_codec/RTCVideoEncoderFactoryH264.h"
@@ -34,6 +37,7 @@
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"     // nogncheck
 #include "api/rtc_event_log/rtc_event_log_factory.h"
 #include "api/task_queue/default_task_queue_factory.h"
+#include "api/transport/field_trial_based_config.h"
 #include "modules/audio_device/include/audio_device.h"          // nogncheck
 #include "modules/audio_processing/include/audio_processing.h"  // nogncheck
 
@@ -135,6 +139,9 @@
     dependencies.network_thread = _networkThread.get();
     dependencies.worker_thread = _workerThread.get();
     dependencies.signaling_thread = _signalingThread.get();
+    if (webrtc::field_trial::IsEnabled("WebRTC-Network-UseNWPathMonitor")) {
+      dependencies.network_monitor_factory = webrtc::CreateNetworkMonitorFactory();
+    }
     _nativeFactory = webrtc::CreateModularPeerConnectionFactory(std::move(dependencies));
     NSAssert(_nativeFactory, @"Failed to initialize PeerConnectionFactory!");
   }
@@ -179,8 +186,12 @@
     dependencies.network_thread = _networkThread.get();
     dependencies.worker_thread = _workerThread.get();
     dependencies.signaling_thread = _signalingThread.get();
+    if (webrtc::field_trial::IsEnabled("WebRTC-Network-UseNWPathMonitor")) {
+      dependencies.network_monitor_factory = webrtc::CreateNetworkMonitorFactory();
+    }
 #ifndef HAVE_NO_MEDIA
     dependencies.task_queue_factory = webrtc::CreateDefaultTaskQueueFactory();
+    dependencies.trials = std::make_unique<webrtc::FieldTrialBasedConfig>();
     cricket::MediaEngineDependencies media_deps;
     media_deps.adm = std::move(audioDeviceModule);
     media_deps.task_queue_factory = dependencies.task_queue_factory.get();
@@ -193,6 +204,7 @@
     } else {
       media_deps.audio_processing = webrtc::AudioProcessingBuilder().Create();
     }
+    media_deps.trials = dependencies.trials.get();
     dependencies.media_engine = cricket::CreateMediaEngine(std::move(media_deps));
     dependencies.call_factory = webrtc::CreateCallFactory();
     dependencies.event_log_factory =
@@ -240,16 +252,41 @@
   return [[RTC_OBJC_TYPE(RTCVideoTrack) alloc] initWithFactory:self source:source trackId:trackId];
 }
 
+- (RTC_OBJC_TYPE(RTCMediaStream) *)mediaStreamWithStreamId:(NSString *)streamId {
+  return [[RTC_OBJC_TYPE(RTCMediaStream) alloc] initWithFactory:self streamId:streamId];
+}
+
+// RingRTC changes for low-level FFI
 - (RTC_OBJC_TYPE(RTCVideoTrack) *)videoTrackFromNativeTrack:(void *)nativeTrack {
   webrtc::MediaStreamTrackInterface *track = (webrtc::MediaStreamTrackInterface *)nativeTrack;
 
   return [[RTC_OBJC_TYPE(RTCVideoTrack) alloc] initWithFactory:self nativeTrack:track];
 }
 
-- (RTC_OBJC_TYPE(RTCMediaStream) *)mediaStreamWithStreamId:(NSString *)streamId {
-  return [[RTC_OBJC_TYPE(RTCMediaStream) alloc] initWithFactory:self streamId:streamId];
+- (RTC_OBJC_TYPE(RTCPeerConnection) *)
+    peerConnectionWithConfiguration:(RTC_OBJC_TYPE(RTCConfiguration) *)configuration
+                        constraints:(RTC_OBJC_TYPE(RTCMediaConstraints) *)constraints
+                           delegate:
+                               (nullable id<RTC_OBJC_TYPE(RTCPeerConnectionDelegate)>)delegate {
+  return [[RTC_OBJC_TYPE(RTCPeerConnection) alloc] initWithFactory:self
+                                                     configuration:configuration
+                                                       constraints:constraints
+                                                          delegate:delegate];
 }
 
+- (RTC_OBJC_TYPE(RTCPeerConnection) *)
+    peerConnectionWithDependencies:(RTC_OBJC_TYPE(RTCConfiguration) *)configuration
+                       constraints:(RTC_OBJC_TYPE(RTCMediaConstraints) *)constraints
+                      dependencies:(std::unique_ptr<webrtc::PeerConnectionDependencies>)dependencies
+                          delegate:(id<RTC_OBJC_TYPE(RTCPeerConnectionDelegate)>)delegate {
+  return [[RTC_OBJC_TYPE(RTCPeerConnection) alloc] initWithDependencies:self
+                                                          configuration:configuration
+                                                            constraints:constraints
+                                                           dependencies:std::move(dependencies)
+                                                               delegate:delegate];
+}
+
+// RingRTC changes for low-level FFI
 - (RTC_OBJC_TYPE(RTCPeerConnection) *)
     peerConnectionWithConfiguration:(RTC_OBJC_TYPE(RTCConfiguration) *)configuration
                         constraints:(RTC_OBJC_TYPE(RTCMediaConstraints) *)constraints
@@ -260,16 +297,17 @@
                                                           observer:observer];
 }
 
+// RingRTC changes for low-level FFI
 - (RTC_OBJC_TYPE(RTCPeerConnection) *)
     peerConnectionWithDependencies:(RTC_OBJC_TYPE(RTCConfiguration) *)configuration
                        constraints:(RTC_OBJC_TYPE(RTCMediaConstraints) *)constraints
                       dependencies:(std::unique_ptr<webrtc::PeerConnectionDependencies>)dependencies
                           observer:(void *)observer {
   return [[RTC_OBJC_TYPE(RTCPeerConnection) alloc] initWithDependencies:self
-                                           configuration:configuration
-                                             constraints:constraints
-                                            dependencies:std::move(dependencies)
-                                                observer:observer];
+                                                          configuration:configuration
+                                                            constraints:constraints
+                                                           dependencies:std::move(dependencies)
+                                                               observer:observer];
 }
 
 - (void)setOptions:(nonnull RTC_OBJC_TYPE(RTCPeerConnectionFactoryOptions) *)options {

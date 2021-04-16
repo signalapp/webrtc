@@ -17,9 +17,8 @@
 namespace webrtc {
 namespace webrtc_pc_e2e {
 
-void DefaultAudioQualityAnalyzer::Start(
-    std::string test_case_name,
-    TrackIdStreamLabelMap* analyzer_helper) {
+void DefaultAudioQualityAnalyzer::Start(std::string test_case_name,
+                                        TrackIdStreamInfoMap* analyzer_helper) {
   test_case_name_ = std::move(test_case_name);
   analyzer_helper_ = analyzer_helper;
 }
@@ -48,15 +47,17 @@ void DefaultAudioQualityAnalyzer::OnStatsReports(
         stat->inserted_samples_for_deceleration.ValueOrDefault(0ul);
     sample.silent_concealed_samples =
         stat->silent_concealed_samples.ValueOrDefault(0ul);
+    sample.jitter_buffer_delay =
+        TimeDelta::Seconds(stat->jitter_buffer_delay.ValueOrDefault(0.));
     sample.jitter_buffer_target_delay =
         TimeDelta::Seconds(stat->jitter_buffer_target_delay.ValueOrDefault(0.));
     sample.jitter_buffer_emitted_count =
         stat->jitter_buffer_emitted_count.ValueOrDefault(0ul);
 
-    const std::string& stream_label =
-        analyzer_helper_->GetStreamLabelFromTrackId(*stat->track_identifier);
+    const std::string stream_label = std::string(
+        analyzer_helper_->GetStreamLabelFromTrackId(*stat->track_identifier));
 
-    rtc::CritScope crit(&lock_);
+    MutexLock lock(&lock_);
     StatsSample prev_sample = last_stats_sample_[stream_label];
     RTC_CHECK_GE(sample.total_samples_received,
                  prev_sample.total_samples_received);
@@ -91,9 +92,14 @@ void DefaultAudioQualityAnalyzer::OnStatsReports(
         sample.jitter_buffer_emitted_count -
         prev_sample.jitter_buffer_emitted_count;
     if (jitter_buffer_emitted_count_diff > 0) {
+      TimeDelta jitter_buffer_delay_diff =
+          sample.jitter_buffer_delay - prev_sample.jitter_buffer_delay;
       TimeDelta jitter_buffer_target_delay_diff =
           sample.jitter_buffer_target_delay -
           prev_sample.jitter_buffer_target_delay;
+      audio_stream_stats.average_jitter_buffer_delay_ms.AddSample(
+          jitter_buffer_delay_diff.ms<double>() /
+          jitter_buffer_emitted_count_diff);
       audio_stream_stats.preferred_buffer_size_ms.AddSample(
           jitter_buffer_target_delay_diff.ms<double>() /
           jitter_buffer_emitted_count_diff);
@@ -110,7 +116,7 @@ std::string DefaultAudioQualityAnalyzer::GetTestCaseName(
 
 void DefaultAudioQualityAnalyzer::Stop() {
   using ::webrtc::test::ImproveDirection;
-  rtc::CritScope crit(&lock_);
+  MutexLock lock(&lock_);
   for (auto& item : streams_stats_) {
     ReportResult("expand_rate", item.first, item.second.expand_rate, "unitless",
                  ImproveDirection::kSmallerIsBetter);
@@ -121,6 +127,9 @@ void DefaultAudioQualityAnalyzer::Stop() {
     ReportResult("speech_expand_rate", item.first,
                  item.second.speech_expand_rate, "unitless",
                  ImproveDirection::kSmallerIsBetter);
+    ReportResult("average_jitter_buffer_delay_ms", item.first,
+                 item.second.average_jitter_buffer_delay_ms, "ms",
+                 ImproveDirection::kNone);
     ReportResult("preferred_buffer_size_ms", item.first,
                  item.second.preferred_buffer_size_ms, "ms",
                  ImproveDirection::kNone);
@@ -129,7 +138,7 @@ void DefaultAudioQualityAnalyzer::Stop() {
 
 std::map<std::string, AudioStreamStats>
 DefaultAudioQualityAnalyzer::GetAudioStreamsStats() const {
-  rtc::CritScope crit(&lock_);
+  MutexLock lock(&lock_);
   return streams_stats_;
 }
 

@@ -135,6 +135,7 @@ class PeerConnectionWrapper {
       rtc::scoped_refptr<MediaStreamTrackInterface> track,
       const RtpTransceiverInit& init);
 
+  // RingRTC change to add methods (see interface header)
   rtc::scoped_refptr<DtlsTransportInterface> LookupDtlsTransportByMid(
       const std::string& mid);
 

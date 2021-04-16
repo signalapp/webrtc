@@ -45,6 +45,7 @@ AudioEncoderIsacFloat::SdpToConfig(const SdpAudioFormat& format) {
 
 void AudioEncoderIsacFloat::AppendSupportedEncoders(
     std::vector<AudioCodecSpec>* specs) {
+  // RingRTC change to unused audio codecs
   // for (int sample_rate_hz : {16000, 32000}) {
   //   const SdpAudioFormat fmt = {"ISAC", sample_rate_hz, 1};
   //   const AudioCodecInfo info = QueryAudioEncoder(*SdpToConfig(fmt));

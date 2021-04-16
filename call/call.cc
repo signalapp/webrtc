@@ -31,6 +31,7 @@
 #include "call/receive_time_calculator.h"
 #include "call/rtp_stream_receiver_controller.h"
 #include "call/rtp_transport_controller_send.h"
+#include "call/version.h"
 #include "logging/rtc_event_log/events/rtc_event_audio_receive_stream_config.h"
 #include "logging/rtc_event_log/events/rtc_event_rtcp_packet_incoming.h"
 #include "logging/rtc_event_log/events/rtc_event_rtp_packet_incoming.h"
@@ -51,6 +52,7 @@
 #include "rtc_base/logging.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/synchronization/sequence_checker.h"
+#include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/task_utils/pending_task_safety_flag.h"
 #include "rtc_base/thread_annotations.h"
 #include "rtc_base/time_utils.h"
@@ -260,6 +262,8 @@ class Call final : public webrtc::Call,
 
   Stats GetStats() const override;
 
+  const WebRtcKeyValueConfig& trials() const override;
+
   // Implements PacketReceiver.
   DeliveryStatus DeliverPacket(MediaType media_type,
                                rtc::CopyOnWriteBuffer packet,
@@ -306,7 +310,9 @@ class Call final : public webrtc::Call,
   void UpdateHistograms();
   void UpdateAggregateNetworkState();
 
-  void RegisterRateObserver();
+  // Ensure that necessary process threads are started, and any required
+  // callbacks have been registered.
+  void EnsureStarted() RTC_EXCLUSIVE_LOCKS_REQUIRED(worker_thread_);
 
   rtc::TaskQueue* send_transport_queue() const {
     return transport_send_ptr_->GetWorkerQueue();
@@ -433,8 +439,7 @@ class Call final : public webrtc::Call,
   // last ensures that it is destroyed first and any running tasks are finished.
   std::unique_ptr<RtpTransportControllerSendInterface> transport_send_;
 
-  bool is_target_rate_observer_registered_ RTC_GUARDED_BY(worker_thread_) =
-      false;
+  bool is_started_ RTC_GUARDED_BY(worker_thread_) = false;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(Call);
 };
@@ -455,7 +460,8 @@ std::string Call::Stats::ToString(int64_t time_ms) const {
 
 Call* Call::Create(const Call::Config& config) {
   rtc::scoped_refptr<SharedModuleThread> call_thread =
-      SharedModuleThread::Create("ModuleProcessThread", nullptr);
+      SharedModuleThread::Create(ProcessThread::Create("ModuleProcessThread"),
+                                 nullptr);
   return Create(config, std::move(call_thread));
 }
 
@@ -528,7 +534,7 @@ class SharedModuleThread::Impl {
   }
 
  private:
-  SequenceChecker sequence_checker_;
+  RTC_NO_UNIQUE_ADDRESS SequenceChecker sequence_checker_;
   mutable int ref_count_ RTC_GUARDED_BY(sequence_checker_) = 0;
   std::unique_ptr<ProcessThread> const module_thread_;
   std::function<void()> const on_one_ref_remaining_;
@@ -544,12 +550,6 @@ SharedModuleThread::SharedModuleThread(
 SharedModuleThread::~SharedModuleThread() = default;
 
 // static
-rtc::scoped_refptr<SharedModuleThread> SharedModuleThread::Create(
-    const char* name,
-    std::function<void()> on_one_ref_remaining) {
-  return new SharedModuleThread(ProcessThread::Create(name),
-                                std::move(on_one_ref_remaining));
-}
 
 rtc::scoped_refptr<SharedModuleThread> SharedModuleThread::Create(
     std::unique_ptr<ProcessThread> process_thread,
@@ -625,6 +625,10 @@ Call::Call(Clock* clock,
   RTC_DCHECK(config.trials != nullptr);
   RTC_DCHECK(worker_thread_->IsCurrent());
 
+  // Do not remove this call; it is here to convince the compiler that the
+  // WebRTC source timestamp string needs to be in the final binary.
+  LoadWebRTCVersionInRegister();
+
   call_stats_->RegisterStatsObserver(&receive_side_cc_);
 
   module_process_thread_->process_thread()->RegisterModule(
@@ -660,19 +664,18 @@ Call::~Call() {
   UpdateHistograms();
 }
 
-void Call::RegisterRateObserver() {
-  RTC_DCHECK_RUN_ON(worker_thread_);
-
-  if (is_target_rate_observer_registered_)
+void Call::EnsureStarted() {
+  if (is_started_) {
     return;
-
-  is_target_rate_observer_registered_ = true;
+  }
+  is_started_ = true;
 
   // This call seems to kick off a number of things, so probably better left
   // off being kicked off on request rather than in the ctor.
   transport_send_ptr_->RegisterTargetTransferRateObserver(this);
 
   module_process_thread_->EnsureStarted();
+  transport_send_ptr_->EnsureStarted();
 }
 
 void Call::SetClientBitratePreferences(const BitrateSettings& preferences) {
@@ -767,7 +770,7 @@ webrtc::AudioSendStream* Call::CreateAudioSendStream(
   TRACE_EVENT0("webrtc", "Call::CreateAudioSendStream");
   RTC_DCHECK_RUN_ON(worker_thread_);
 
-  RegisterRateObserver();
+  EnsureStarted();
 
   // Stream config is logged in AudioSendStream::ConfigureStream, as it may
   // change during the stream's lifetime.
@@ -827,7 +830,7 @@ webrtc::AudioReceiveStream* Call::CreateAudioReceiveStream(
     const webrtc::AudioReceiveStream::Config& config) {
   TRACE_EVENT0("webrtc", "Call::CreateAudioReceiveStream");
   RTC_DCHECK_RUN_ON(worker_thread_);
-  RegisterRateObserver();
+  EnsureStarted();
   event_log_->Log(std::make_unique<RtcEventAudioReceiveStreamConfig>(
       CreateRtcLogStreamConfig(config)));
   AudioReceiveStream* receive_stream = new AudioReceiveStream(
@@ -882,7 +885,7 @@ webrtc::VideoSendStream* Call::CreateVideoSendStream(
   TRACE_EVENT0("webrtc", "Call::CreateVideoSendStream");
   RTC_DCHECK_RUN_ON(worker_thread_);
 
-  RegisterRateObserver();
+  EnsureStarted();
 
   video_send_delay_stats_->AddSsrcs(config);
   for (size_t ssrc_index = 0; ssrc_index < config.rtp.ssrcs.size();
@@ -981,7 +984,7 @@ webrtc::VideoReceiveStream* Call::CreateVideoReceiveStream(
   receive_side_cc_.SetSendPeriodicFeedback(
       SendPeriodicFeedback(configuration.rtp.extensions));
 
-  RegisterRateObserver();
+  EnsureStarted();
 
   TaskQueueBase* current = GetCurrentTaskQueueOrThread();
   RTC_CHECK(current);
@@ -1115,6 +1118,10 @@ Call::Stats Call::GetStats() const {
   stats.max_padding_bitrate_bps = configured_max_padding_bitrate_bps_;
 
   return stats;
+}
+
+const WebRtcKeyValueConfig& Call::trials() const {
+  return *config_.trials;
 }
 
 void Call::SignalChannelNetworkState(MediaType media, NetworkState state) {

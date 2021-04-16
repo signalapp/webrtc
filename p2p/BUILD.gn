@@ -43,6 +43,7 @@ rtc_library("rtc_p2p") {
     "base/ice_controller_interface.h",
     "base/ice_credentials_iterator.cc",
     "base/ice_credentials_iterator.h",
+    # RingRTC change to add ICE forking
     "base/ice_gatherer.cc",
     "base/ice_gatherer.h",
     "base/ice_transport_internal.cc",
@@ -101,13 +102,17 @@ rtc_library("rtc_p2p") {
     "../rtc_base:checks",
     "../rtc_base:rtc_numerics",
     "../rtc_base/experiments:field_trial_parser",
+    "../rtc_base/synchronization:sequence_checker",
+    "../rtc_base/system:no_unique_address",
 
     # Needed by pseudo_tcp, which should move to a separate target.
     "../rtc_base:safe_minmax",
     "../rtc_base:weak_ptr",
     "../rtc_base/memory:fifo_buffer",
     "../rtc_base/network:sent_packet",
+    "../rtc_base/synchronization:mutex",
     "../rtc_base/system:rtc_export",
+    "../rtc_base/task_utils:pending_task_safety_flag",
     "../rtc_base/task_utils:to_queued_task",
     "../rtc_base/third_party/base64",
     "../rtc_base/third_party/sigslot",

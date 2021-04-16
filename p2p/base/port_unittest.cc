@@ -400,7 +400,7 @@ class PortTest : public ::testing::Test, public sigslot::has_slots<> {
         nat_factory2_(ss_.get(), kNatAddr2, SocketAddress()),
         nat_socket_factory1_(&nat_factory1_),
         nat_socket_factory2_(&nat_factory2_),
-        stun_server_(TestStunServer::Create(&main_, kStunAddr)),
+        stun_server_(TestStunServer::Create(ss_.get(), kStunAddr)),
         turn_server_(&main_, kTurnUdpIntAddr, kTurnUdpExtAddr),
         username_(rtc::CreateRandomString(ICE_UFRAG_LENGTH)),
         password_(rtc::CreateRandomString(ICE_PWD_LENGTH)),
@@ -2052,7 +2052,7 @@ TEST_F(PortTest, TestNetworkInfoAttribute) {
   ASSERT_TRUE_WAIT(lport->last_stun_msg() != NULL, kDefaultTimeout);
   IceMessage* msg = lport->last_stun_msg();
   const StunUInt32Attribute* network_info_attr =
-      msg->GetUInt32(STUN_ATTR_NETWORK_INFO);
+      msg->GetUInt32(STUN_ATTR_GOOG_NETWORK_INFO);
   ASSERT_TRUE(network_info_attr != NULL);
   uint32_t network_info = network_info_attr->value();
   EXPECT_EQ(lnetwork_id, network_info >> 16);
@@ -2069,7 +2069,7 @@ TEST_F(PortTest, TestNetworkInfoAttribute) {
   rconn->Ping(0);
   ASSERT_TRUE_WAIT(rport->last_stun_msg() != NULL, kDefaultTimeout);
   msg = rport->last_stun_msg();
-  network_info_attr = msg->GetUInt32(STUN_ATTR_NETWORK_INFO);
+  network_info_attr = msg->GetUInt32(STUN_ATTR_GOOG_NETWORK_INFO);
   ASSERT_TRUE(network_info_attr != NULL);
   network_info = network_info_attr->value();
   EXPECT_EQ(rnetwork_id, network_info >> 16);

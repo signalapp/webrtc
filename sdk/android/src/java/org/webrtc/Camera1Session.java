@@ -312,6 +312,7 @@ class Camera1Session implements CameraSession {
     });
   }
 
+  // RingRTC change to set frame orientation
   @Override
   public void setOrientation(Integer orientation) {
     Logging.d(TAG, "(Ignored) Set Orientation: " + orientation);

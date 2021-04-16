@@ -262,6 +262,7 @@ void RtpTransport::OnReadPacket(rtc::PacketTransportInternal* transport,
     return;
   }
 
+  // RingRTC change to avoid processing RTP packets too soon
   if (!incoming_rtp_enabled_) {
     if (packet_type == cricket::RtpPacketType::kRtcp) {
       RTC_LOG(LS_WARNING) << "Dropping RTCP packet because incoming RTP is disabled; len: " << len;
@@ -282,6 +283,7 @@ void RtpTransport::OnReadPacket(rtc::PacketTransportInternal* transport,
   }
 }
 
+// RingRTC change to avoid processing RTP packets too soon
 bool RtpTransport::SetIncomingRtpEnabled(bool enabled) {
   incoming_rtp_enabled_ = enabled;
   RTC_LOG(LS_INFO) << "RtpTransport::SetIncomingRtpEnabled(" << enabled << ")";

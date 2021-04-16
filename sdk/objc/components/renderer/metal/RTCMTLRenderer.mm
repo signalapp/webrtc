@@ -315,16 +315,10 @@ static const NSInteger kMaxInflightBuffers = 1;
   @autoreleasepool {
     // Wait until the inflight (curently sent to GPU) command buffer
     // has completed the GPU work.
-    // If we go over 1 second, the GPU has probably timed out and we should
-    // probably send it some more commands rather than waiting forever.
-    dispatch_semaphore_wait(_inflight_semaphore, 1000000000 /* 1 second */);
+    dispatch_semaphore_wait(_inflight_semaphore, DISPATCH_TIME_FOREVER);
 
     if ([self setupTexturesForFrame:frame]) {
-      @try {
-        [self render];
-      } @catch ( NSException *e ) {
-        RTCLogError(@"Metal: Failed to render frame. %@", e);
-      }
+      [self render];
     } else {
       dispatch_semaphore_signal(_inflight_semaphore);
     }

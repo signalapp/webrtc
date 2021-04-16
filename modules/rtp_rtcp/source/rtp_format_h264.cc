@@ -25,7 +25,6 @@
 #include "common_video/h264/pps_parser.h"
 #include "common_video/h264/sps_parser.h"
 #include "common_video/h264/sps_vui_rewriter.h"
-#include "modules/include/module_common_types.h"
 #include "modules/rtp_rtcp/source/byte_io.h"
 #include "modules/rtp_rtcp/source/rtp_packet_to_send.h"
 #include "rtc_base/checks.h"
@@ -46,19 +45,18 @@ enum FuDefs : uint8_t { kSBit = 0x80, kEBit = 0x40, kRBit = 0x20 };
 
 }  // namespace
 
-RtpPacketizerH264::RtpPacketizerH264(
-    rtc::ArrayView<const uint8_t> payload,
-    PayloadSizeLimits limits,
-    H264PacketizationMode packetization_mode,
-    const RTPFragmentationHeader& fragmentation)
+RtpPacketizerH264::RtpPacketizerH264(rtc::ArrayView<const uint8_t> payload,
+                                     PayloadSizeLimits limits,
+                                     H264PacketizationMode packetization_mode)
     : limits_(limits), num_packets_left_(0) {
   // Guard against uninitialized memory in packetization_mode.
   RTC_CHECK(packetization_mode == H264PacketizationMode::NonInterleaved ||
             packetization_mode == H264PacketizationMode::SingleNalUnit);
 
-  for (size_t i = 0; i < fragmentation.fragmentationVectorSize; ++i) {
+  for (const auto& nalu :
+       H264::FindNaluIndices(payload.data(), payload.size())) {
     input_fragments_.push_back(
-        payload.subview(fragmentation.Offset(i), fragmentation.Length(i)));
+        payload.subview(nalu.payload_start_offset, nalu.payload_size));
   }
 
   if (!GeneratePackets(packetization_mode)) {
@@ -179,7 +177,7 @@ size_t RtpPacketizerH264::PacketizeStapA(size_t fragment_index) {
       return fragment_size;
     }
     if (fragment_index == input_fragments_.size() - 1) {
-      // Last fragment, so StrapA might be the last packet.
+      // Last fragment, so STAP-A might be the last packet.
       return fragment_size + limits_.last_packet_reduction_len;
     }
     return fragment_size;

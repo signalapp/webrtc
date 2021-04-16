@@ -16,7 +16,6 @@
 #include <vector>
 
 #include "pc/channel.h"
-#include "pc/peer_connection.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/third_party/base64/base64.h"
 #include "system_wrappers/include/field_trial.h"
@@ -991,7 +990,8 @@ class VoiceMediaChannelStatsGatherer final : public MediaChannelStatsGatherer {
   }
 
   bool GetStatsOnWorkerThread() override {
-    return voice_media_channel_->GetStats(&voice_media_info);
+    return voice_media_channel_->GetStats(&voice_media_info,
+                                          /*get_and_clear_legacy_stats=*/true);
   }
 
   void ExtractStats(StatsCollector* collector) const override {
@@ -1146,7 +1146,7 @@ void StatsCollector::ExtractDataInfo() {
 
   rtc::Thread::ScopedDisallowBlockingCalls no_blocking_calls;
 
-  std::vector<DataChannel::Stats> data_stats = pc_->GetDataChannelStats();
+  std::vector<DataChannelStats> data_stats = pc_->GetDataChannelStats();
   for (const auto& stats : data_stats) {
     StatsReport::Id id(StatsReport::NewTypedIntId(
         StatsReport::kStatsReportTypeDataChannel, stats.id));

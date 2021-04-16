@@ -109,6 +109,7 @@ namespace cricket {
 
 using webrtc::RTCError;
 using webrtc::RTCErrorType;
+using webrtc::ToQueuedTask;
 
 bool IceCredentialsChanged(const std::string& old_ufrag,
                            const std::string& old_pwd,
@@ -192,6 +193,7 @@ P2PTransportChannel::P2PTransportChannel(
 }
 
 P2PTransportChannel::~P2PTransportChannel() {
+  RTC_DCHECK_RUN_ON(network_thread_);
   std::vector<Connection*> copy(connections().begin(), connections().end());
   for (Connection* con : copy) {
     con->Destroy();
@@ -201,6 +203,7 @@ P2PTransportChannel::~P2PTransportChannel() {
   }
   resolvers_.clear();
 
+  // RingRTC change for ICE forking
   if (shared_gatherer_) {
     shared_gatherer_->port_allocator_session()->SignalPortReady.disconnect(
         this);
@@ -215,8 +218,6 @@ P2PTransportChannel::~P2PTransportChannel() {
     shared_gatherer_->port_allocator_session()
         ->SignalCandidatesAllocationDone.disconnect(this);
   }
-
-  RTC_DCHECK_RUN_ON(network_thread_);
 }
 
 // Add the allocator session to our list so that we know which sessions
@@ -225,6 +226,7 @@ void P2PTransportChannel::AddAllocatorSession(
     std::unique_ptr<PortAllocatorSession> session) {
   RTC_DCHECK_RUN_ON(network_thread_);
 
+  // RingRTC change to add ICE forking
   uint32_t generation = rtc::checked_cast<uint32_t>(allocator_sessions_.size());
   if (shared_gatherer_) {
     // ICE restarts after the use of a shared_gatherer_ need to have a
@@ -244,6 +246,7 @@ void P2PTransportChannel::AddAllocatorSession(
   session->SignalCandidatesAllocationDone.connect(
       this, &P2PTransportChannel::OnCandidatesAllocationDone);
   if (!allocator_sessions_.empty()) {
+    // RingRTC change to add ICE forking
     allocator_sessions_.back()->PruneAllPorts();
   }
   allocator_sessions_.push_back(std::move(session));
@@ -306,10 +309,11 @@ bool P2PTransportChannel::MaybeSwitchSelectedConnection(
     // threshold, the new connection is in a better receiving state than the
     // currently selected connection. So we need to re-check whether it needs
     // to be switched at a later time.
-    invoker_.AsyncInvokeDelayed<void>(
-        RTC_FROM_HERE, thread(),
-        rtc::Bind(&P2PTransportChannel::SortConnectionsAndUpdateState, this,
-                  *result.recheck_event),
+    network_thread_->PostDelayedTask(
+        ToQueuedTask(task_safety_,
+                     [this, recheck = *result.recheck_event]() {
+                       SortConnectionsAndUpdateState(recheck);
+                     }),
         result.recheck_event->recheck_delay_ms);
   }
 
@@ -719,11 +723,17 @@ void P2PTransportChannel::SetIceConfig(const IceConfig& config) {
       // Make sure that nomination reaching ICE controlled asap.
       "send_ping_on_switch_ice_controlling",
       &field_trials_.send_ping_on_switch_ice_controlling,
+      // Make sure that nomination reaching ICE controlled asap.
+      "send_ping_on_selected_ice_controlling",
+      &field_trials_.send_ping_on_selected_ice_controlling,
       // Reply to nomination ASAP.
       "send_ping_on_nomination_ice_controlled",
       &field_trials_.send_ping_on_nomination_ice_controlled,
       // Allow connections to live untouched longer that 30s.
-      "dead_connection_timeout_ms", &field_trials_.dead_connection_timeout_ms)
+      "dead_connection_timeout_ms", &field_trials_.dead_connection_timeout_ms,
+      // Stop gathering on strongly connected.
+      "stop_gather_on_strongly_connected",
+      &field_trials_.stop_gather_on_strongly_connected)
       ->Parse(webrtc::field_trial::FindFullName("WebRTC-IceFieldTrials"));
 
   if (field_trials_.dead_connection_timeout_ms < 30000) {
@@ -858,6 +868,13 @@ void P2PTransportChannel::MaybeStartGathering() {
                                 static_cast<int>(IceRestartState::MAX_VALUE));
     }
 
+    for (const auto& session : allocator_sessions_) {
+      if (session->IsStopped()) {
+        continue;
+      }
+      session->StopGettingPorts();
+    }
+
     // Time for a new allocator.
     std::unique_ptr<PortAllocatorSession> pooled_session =
         allocator_->TakePooledSession(transport_name(), component(),
@@ -885,6 +902,7 @@ void P2PTransportChannel::MaybeStartGathering() {
   }
 }
 
+// RingRTC change to add ICE forking
 void P2PTransportChannel::StartGatheringWithSharedGatherer(
     rtc::scoped_refptr<webrtc::IceGathererInterface> shared_gatherer) {
   RTC_DCHECK(!shared_gatherer_);
@@ -947,6 +965,7 @@ void P2PTransportChannel::OnPortReady(PortAllocatorSession* session,
 
   port->SetIceRole(ice_role_);
   port->SetIceTiebreaker(tiebreaker_);
+  // RingRTC change to add ICE forking
   if (IsSharedSession(session)) {
     // Handling role conflicts at the port level breaks badly when sharing
     // a port between many transports.  So disable it until we have
@@ -1012,6 +1031,7 @@ void P2PTransportChannel::OnCandidatesAllocationDone(
   SignalGatheringState(this);
 }
 
+// RingRTC change to add ICE forking
 void P2PTransportChannel::OnUnknownAddressFromSharedSession(
     PortInterface* port,
     const rtc::SocketAddress& address,
@@ -1086,6 +1106,7 @@ void P2PTransportChannel::OnUnknownAddress(PortInterface* port,
   // Note: if not found, the remote_generation will still be 0.
   if (ice_param != nullptr) {
     remote_password = ice_param->pwd;
+  // RingRTC change to add ICE forking
   } else if (shared) {
     // If we don't know that the remote ufrag and the session is shared between
     // different transports, then don't create a peer reflexive candidate.
@@ -1118,7 +1139,7 @@ void P2PTransportChannel::OnUnknownAddress(PortInterface* port,
     uint16_t network_id = 0;
     uint16_t network_cost = 0;
     const StunUInt32Attribute* network_attr =
-        stun_msg->GetUInt32(STUN_ATTR_NETWORK_INFO);
+        stun_msg->GetUInt32(STUN_ATTR_GOOG_NETWORK_INFO);
     if (network_attr) {
       uint32_t network_info = network_attr->value();
       network_id = static_cast<uint16_t>(network_info >> 16);
@@ -1311,6 +1332,7 @@ void P2PTransportChannel::AddRemoteCandidate(const Candidate& candidate) {
     bool sharing_host = ((allocator_->candidate_filter() & CF_HOST) != 0);
     bool sharing_stun = ((allocator_->candidate_filter() & CF_REFLEXIVE) != 0);
     if (sharing_host || sharing_stun) {
+      // RingRTC change to improve privacy of IP addresses
       // Do not resolve remote candidates because doing so may cause a connection to
       // an arbitrary DNS server.
       // ResolveHostnameCandidate(new_remote_candidate);
@@ -1343,8 +1365,8 @@ void P2PTransportChannel::OnCandidateResolved(
   Candidate candidate = p->candidate_;
   resolvers_.erase(p);
   AddRemoteCandidateWithResolver(candidate, resolver);
-  thread()->PostTask(
-      webrtc::ToQueuedTask([] {}, [resolver] { resolver->Destroy(false); }));
+  network_thread_->PostTask(
+      ToQueuedTask([resolver]() { resolver->Destroy(false); }));
 }
 
 void P2PTransportChannel::AddRemoteCandidateWithResolver(
@@ -1717,10 +1739,10 @@ void P2PTransportChannel::RequestSortAndStateUpdate(
     IceControllerEvent reason_to_sort) {
   RTC_DCHECK_RUN_ON(network_thread_);
   if (!sort_dirty_) {
-    invoker_.AsyncInvoke<void>(
-        RTC_FROM_HERE, thread(),
-        rtc::Bind(&P2PTransportChannel::SortConnectionsAndUpdateState, this,
-                  reason_to_sort));
+    network_thread_->PostTask(
+        ToQueuedTask(task_safety_, [this, reason_to_sort]() {
+          SortConnectionsAndUpdateState(reason_to_sort);
+        }));
     sort_dirty_ = true;
   }
 }
@@ -1735,9 +1757,8 @@ void P2PTransportChannel::MaybeStartPinging() {
     RTC_LOG(LS_INFO) << ToString()
                      << ": Have a pingable connection for the first time; "
                         "starting to ping.";
-    invoker_.AsyncInvoke<void>(
-        RTC_FROM_HERE, thread(),
-        rtc::Bind(&P2PTransportChannel::CheckAndPing, this));
+    network_thread_->PostTask(
+        ToQueuedTask(task_safety_, [this]() { CheckAndPing(); }));
     regathering_controller_->Start();
     started_pinging_ = true;
   }
@@ -1879,9 +1900,10 @@ void P2PTransportChannel::SwitchSelectedConnection(Connection* conn,
     RTC_LOG(LS_INFO) << ToString() << ": No selected connection";
   }
 
-  if (field_trials_.send_ping_on_switch_ice_controlling &&
-      ice_role_ == ICEROLE_CONTROLLING && old_selected_connection != nullptr &&
-      conn != nullptr) {
+  if (conn != nullptr && ice_role_ == ICEROLE_CONTROLLING &&
+      ((field_trials_.send_ping_on_switch_ice_controlling &&
+        old_selected_connection != nullptr) ||
+       field_trials_.send_ping_on_selected_ice_controlling)) {
     PingConnection(conn);
     MarkConnectionPinged(conn);
   }
@@ -1895,12 +1917,31 @@ void P2PTransportChannel::SwitchSelectedConnection(Connection* conn,
     pair_change.selected_candidate_pair = *GetSelectedCandidatePair();
     pair_change.last_data_received_ms =
         selected_connection_->last_data_received();
+
+    if (old_selected_connection) {
+      pair_change.estimated_disconnected_time_ms =
+          ComputeEstimatedDisconnectedTimeMs(rtc::TimeMillis(),
+                                             old_selected_connection);
+    } else {
+      pair_change.estimated_disconnected_time_ms = 0;
+    }
+
     SignalCandidatePairChanged(pair_change);
   }
 
   ++selected_candidate_pair_changes_;
 
   ice_controller_->SetSelectedConnection(selected_connection_);
+}
+
+int64_t P2PTransportChannel::ComputeEstimatedDisconnectedTimeMs(
+    int64_t now_ms,
+    Connection* old_connection) {
+  // TODO(jonaso): nicer keeps estimate of how frequently data _should_ be
+  // received, this could be used to give better estimate (if needed).
+  int64_t last_data_or_old_ping =
+      std::max(old_connection->last_received(), last_data_received_ms_);
+  return (now_ms - last_data_or_old_ping);
 }
 
 // Warning: UpdateState should eventually be called whenever a connection
@@ -2034,9 +2075,8 @@ void P2PTransportChannel::CheckAndPing() {
     MarkConnectionPinged(conn);
   }
 
-  invoker_.AsyncInvokeDelayed<void>(
-      RTC_FROM_HERE, thread(),
-      rtc::Bind(&P2PTransportChannel::CheckAndPing, this), delay);
+  network_thread_->PostDelayedTask(
+      ToQueuedTask(task_safety_, [this]() { CheckAndPing(); }), delay);
 }
 
 // This method is only for unit testing.
@@ -2103,11 +2143,13 @@ void P2PTransportChannel::OnConnectionStateChange(Connection* connection) {
   // the connection is at the latest generation. It is not enough to check
   // that the connection becomes weakly connected because the connection may be
   // changing from (writable, receiving) to (writable, not receiving).
-  bool strongly_connected = !connection->weak();
-  bool latest_generation = connection->local_candidate().generation() >=
-                           allocator_session()->generation();
-  if (strongly_connected && latest_generation) {
-    MaybeStopPortAllocatorSessions();
+  if (field_trials_.stop_gather_on_strongly_connected) {
+    bool strongly_connected = !connection->weak();
+    bool latest_generation = connection->local_candidate().generation() >=
+                             allocator_session()->generation();
+    if (strongly_connected && latest_generation) {
+      MaybeStopPortAllocatorSessions();
+    }
   }
   // We have to unroll the stack before doing this because we may be changing
   // the state of connections while sorting.
@@ -2221,6 +2263,9 @@ void P2PTransportChannel::OnReadPacket(Connection* connection,
 
   if (connection == selected_connection_) {
     // Let the client know of an incoming packet
+    RTC_DCHECK(connection->last_data_received() >= last_data_received_ms_);
+    last_data_received_ms_ =
+        std::max(last_data_received_ms_, connection->last_data_received());
     SignalReadPacket(this, data, len, packet_time_us, 0);
     return;
   }
@@ -2228,6 +2273,10 @@ void P2PTransportChannel::OnReadPacket(Connection* connection,
   // Do not deliver, if packet doesn't belong to the correct transport channel.
   if (!FindConnection(connection))
     return;
+
+  RTC_DCHECK(connection->last_data_received() >= last_data_received_ms_);
+  last_data_received_ms_ =
+      std::max(last_data_received_ms_, connection->last_data_received());
 
   // Let the client know of an incoming packet
   SignalReadPacket(this, data, len, packet_time_us, 0);

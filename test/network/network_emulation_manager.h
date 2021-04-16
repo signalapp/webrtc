@@ -17,6 +17,7 @@
 #include <utility>
 #include <vector>
 
+#include "api/array_view.h"
 #include "api/test/network_emulation_manager.h"
 #include "api/test/simulated_network.h"
 #include "api/test/time_controller.h"
@@ -30,6 +31,7 @@
 #include "system_wrappers/include/clock.h"
 #include "test/network/cross_traffic.h"
 #include "test/network/emulated_network_manager.h"
+#include "test/network/emulated_turn_server.h"
 #include "test/network/fake_network_socket_server.h"
 #include "test/network/network_emulation.h"
 #include "test/network/traffic_route.h"
@@ -42,8 +44,8 @@ class NetworkEmulationManagerImpl : public NetworkEmulationManager {
   explicit NetworkEmulationManagerImpl(TimeMode mode);
   ~NetworkEmulationManagerImpl();
 
-  EmulatedNetworkNode* CreateEmulatedNode(
-      BuiltInNetworkBehaviorConfig config) override;
+  EmulatedNetworkNode* CreateEmulatedNode(BuiltInNetworkBehaviorConfig config,
+                                          uint64_t random_seed = 1) override;
   EmulatedNetworkNode* CreateEmulatedNode(
       std::unique_ptr<NetworkBehaviorInterface> network_behavior) override;
 
@@ -83,9 +85,16 @@ class NetworkEmulationManagerImpl : public NetworkEmulationManager {
   EmulatedNetworkManagerInterface* CreateEmulatedNetworkManagerInterface(
       const std::vector<EmulatedEndpoint*>& endpoints) override;
 
+  void GetStats(rtc::ArrayView<EmulatedEndpoint*> endpoints,
+                std::function<void(std::unique_ptr<EmulatedNetworkStats>)>
+                    stats_callback) override;
+
   TimeController* time_controller() override { return time_controller_.get(); }
 
   Timestamp Now() const;
+
+  EmulatedTURNServerInterface* CreateTURNServer(
+      EmulatedTURNServerConfig config) override;
 
  private:
   absl::optional<rtc::IPAddress> GetNextIPv4Address();
@@ -109,6 +118,7 @@ class NetworkEmulationManagerImpl : public NetworkEmulationManager {
   std::list<std::unique_ptr<TcpMessageRouteImpl>> tcp_message_routes_;
   std::vector<std::unique_ptr<EndpointsContainer>> endpoints_containers_;
   std::vector<std::unique_ptr<EmulatedNetworkManager>> network_managers_;
+  std::vector<std::unique_ptr<EmulatedTURNServer>> turn_servers_;
 
   std::map<EmulatedEndpoint*, EmulatedNetworkManager*>
       endpoint_to_network_manager_;

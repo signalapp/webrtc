@@ -16,15 +16,17 @@
 #include "absl/types/optional.h"
 #include "api/video_codecs/video_codec.h"
 #include "api/video_codecs/video_encoder.h"
-#include "modules/video_coding/codecs/av1/scalability_structure_l1t2.h"
 #include "modules/video_coding/codecs/test/encoded_video_frame_producer.h"
 #include "modules/video_coding/include/video_error_codes.h"
+#include "modules/video_coding/svc/scalability_structure_l1t2.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
 namespace webrtc {
 namespace {
 
+using ::testing::ElementsAre;
+using ::testing::IsEmpty;
 using ::testing::SizeIs;
 
 VideoCodec DefaultCodecSettings() {
@@ -81,6 +83,40 @@ TEST(LibaomAv1EncoderTest, NoBitrateOnTopLayerRefecltedInActiveDecodeTargets) {
   EXPECT_EQ(encoded_frames[0]
                 .codec_specific_info.generic_frame_info->active_decode_targets,
             0b01);
+}
+
+TEST(LibaomAv1EncoderTest, SetsEndOfPictureForLastFrameInTemporalUnit) {
+  std::unique_ptr<VideoEncoder> encoder = CreateLibaomAv1Encoder();
+  VideoCodec codec_settings = DefaultCodecSettings();
+  // Configure encoder with 3 spatial layers.
+  codec_settings.SetScalabilityMode("L3T1");
+  ASSERT_EQ(encoder->InitEncode(&codec_settings, DefaultEncoderSettings()),
+            WEBRTC_VIDEO_CODEC_OK);
+
+  std::vector<EncodedVideoFrameProducer::EncodedFrame> encoded_frames =
+      EncodedVideoFrameProducer(*encoder).SetNumInputFrames(2).Encode();
+  ASSERT_THAT(encoded_frames, SizeIs(6));
+  EXPECT_FALSE(encoded_frames[0].codec_specific_info.end_of_picture);
+  EXPECT_FALSE(encoded_frames[1].codec_specific_info.end_of_picture);
+  EXPECT_TRUE(encoded_frames[2].codec_specific_info.end_of_picture);
+  EXPECT_FALSE(encoded_frames[3].codec_specific_info.end_of_picture);
+  EXPECT_FALSE(encoded_frames[4].codec_specific_info.end_of_picture);
+  EXPECT_TRUE(encoded_frames[5].codec_specific_info.end_of_picture);
+}
+
+TEST(LibaomAv1EncoderTest, EncoderInfoProvidesFpsAllocation) {
+  std::unique_ptr<VideoEncoder> encoder = CreateLibaomAv1Encoder();
+  VideoCodec codec_settings = DefaultCodecSettings();
+  codec_settings.SetScalabilityMode("L3T3");
+  codec_settings.maxFramerate = 60;
+  ASSERT_EQ(encoder->InitEncode(&codec_settings, DefaultEncoderSettings()),
+            WEBRTC_VIDEO_CODEC_OK);
+
+  const auto& encoder_info = encoder->GetEncoderInfo();
+  EXPECT_THAT(encoder_info.fps_allocation[0], ElementsAre(15, 30, 60));
+  EXPECT_THAT(encoder_info.fps_allocation[1], ElementsAre(15, 30, 60));
+  EXPECT_THAT(encoder_info.fps_allocation[2], ElementsAre(15, 30, 60));
+  EXPECT_THAT(encoder_info.fps_allocation[3], IsEmpty());
 }
 
 }  // namespace

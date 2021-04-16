@@ -68,6 +68,7 @@ class RTC_EXPORT BasicPortAllocator : public PortAllocator {
       const std::string& ice_ufrag,
       const std::string& ice_pwd) override;
 
+  // RingRTC change to add ICE forking
   rtc::scoped_refptr<webrtc::IceGathererInterface> CreateIceGatherer(
       const std::string& content_name) override;
 

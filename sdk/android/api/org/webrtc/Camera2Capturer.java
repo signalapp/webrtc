@@ -24,6 +24,7 @@ public class Camera2Capturer extends CameraCapturer {
     this(context, cameraName, eventsHandler, new Camera2Enumerator(context));
   }
 
+  // RingRTC change to allow more control
   public Camera2Capturer(Context context, String cameraName, CameraEventsHandler eventsHandler, CameraEnumerator cameraEnumerator) {
     super(cameraName, eventsHandler, cameraEnumerator);
 

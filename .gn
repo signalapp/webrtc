@@ -21,7 +21,6 @@ secondary_source = "//build/secondary/"
 # their includes checked for proper dependencies when you run either
 # "gn check" or "gn gen --check".
 check_targets = [
-  ":webrtc_common",
   "//api/*",
   "//audio/*",
   "//backup/*",
@@ -60,6 +59,7 @@ default_args = {
   # component builds.
   is_component_build = false
 
+  # RingRTC change to control MacOS/iOS targets
   mac_sdk_min = "10.12.1"
 
   ios_deployment_target = "11.0"
@@ -76,6 +76,7 @@ default_args = {
   # for unittests, it can be disabled (see third_party/libyuv/BUILD.gn)
   libyuv_use_gflags = false
 
+  # RingRTC change to disable AV1
   enable_libaom = false
 
   gtest_enable_absl_printers = true

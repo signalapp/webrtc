@@ -19,6 +19,7 @@
 
 #include "absl/algorithm/container.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/deprecated/recursive_critical_section.h"
 #include "rtc_base/fake_clock.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/physical_socket_server.h"
@@ -220,10 +221,11 @@ int VirtualSocket::Close() {
       }
       delete data;
     }
-    // Clear incoming packets and disconnect messages
-    if (server_->msg_queue_) {
-      server_->msg_queue_->Clear(this);
-    }
+  }
+
+  // Clear incoming packets and disconnect messages
+  if (server_->msg_queue_) {
+    server_->msg_queue_->Clear(this);
   }
 
   state_ = CS_CLOSED;

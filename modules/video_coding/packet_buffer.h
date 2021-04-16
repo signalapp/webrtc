@@ -82,9 +82,9 @@ class PacketBuffer {
   PacketBuffer(Clock* clock, size_t start_buffer_size, size_t max_buffer_size);
   ~PacketBuffer();
 
-  InsertResult InsertPacket(std::unique_ptr<Packet> packet) ABSL_MUST_USE_RESULT
+  ABSL_MUST_USE_RESULT InsertResult InsertPacket(std::unique_ptr<Packet> packet)
       RTC_LOCKS_EXCLUDED(mutex_);
-  InsertResult InsertPadding(uint16_t seq_num) ABSL_MUST_USE_RESULT
+  ABSL_MUST_USE_RESULT InsertResult InsertPadding(uint16_t seq_num)
       RTC_LOCKS_EXCLUDED(mutex_);
   void ClearTo(uint16_t seq_num) RTC_LOCKS_EXCLUDED(mutex_);
   void Clear() RTC_LOCKS_EXCLUDED(mutex_);
@@ -94,6 +94,7 @@ class PacketBuffer {
       RTC_LOCKS_EXCLUDED(mutex_);
   absl::optional<int64_t> LastReceivedKeyframePacketMs() const
       RTC_LOCKS_EXCLUDED(mutex_);
+  void ForceSpsPpsIdrIsH264Keyframe();
 
  private:
   Clock* const clock_;
@@ -147,7 +148,7 @@ class PacketBuffer {
 
   // Indicates if we should require SPS, PPS, and IDR for a particular
   // RTP timestamp to treat the corresponding frame as a keyframe.
-  const bool sps_pps_idr_is_h264_keyframe_;
+  bool sps_pps_idr_is_h264_keyframe_;
 };
 
 }  // namespace video_coding

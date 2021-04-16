@@ -21,12 +21,12 @@
 #include <vector>
 
 #include "api/transport/network_types.h"
+#include "modules/pacing/pacing_controller.h"
 #include "modules/remote_bitrate_estimator/include/remote_bitrate_estimator.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/rtp_rtcp/source/rtcp_packet.h"
 #include "modules/rtp_rtcp/source/rtp_packet_to_send.h"
 #include "rtc_base/constructor_magic.h"
-#include "rtc_base/critical_section.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread_annotations.h"
 
@@ -40,7 +40,8 @@ class RtpRtcpInterface;
 // (receiver report). For the latter case, we also keep track of the
 // receive modules.
 class PacketRouter : public RemoteBitrateObserver,
-                     public TransportFeedbackSenderInterface {
+                     public TransportFeedbackSenderInterface,
+                     public PacingController::PacketSender {
  public:
   PacketRouter();
   explicit PacketRouter(uint16_t start_transport_seq);
@@ -53,11 +54,11 @@ class PacketRouter : public RemoteBitrateObserver,
                            bool remb_candidate);
   void RemoveReceiveRtpModule(RtcpFeedbackSenderInterface* rtcp_sender);
 
-  virtual void SendPacket(std::unique_ptr<RtpPacketToSend> packet,
-                          const PacedPacketInfo& cluster_info);
-
-  virtual std::vector<std::unique_ptr<RtpPacketToSend>> GeneratePadding(
-      size_t target_size_bytes);
+  void SendPacket(std::unique_ptr<RtpPacketToSend> packet,
+                  const PacedPacketInfo& cluster_info) override;
+  std::vector<std::unique_ptr<RtpPacketToSend>> FetchFec() override;
+  std::vector<std::unique_ptr<RtpPacketToSend>> GeneratePadding(
+      DataSize size) override;
 
   uint16_t CurrentTransportSequenceNumber() const;
 
@@ -126,6 +127,11 @@ class PacketRouter : public RemoteBitrateObserver,
       RTC_GUARDED_BY(modules_mutex_);
 
   uint64_t transport_seq_ RTC_GUARDED_BY(modules_mutex_);
+
+  // TODO(bugs.webrtc.org/10809): Replace lock with a sequence checker once the
+  // process thread is gone.
+  std::vector<std::unique_ptr<RtpPacketToSend>> pending_fec_packets_
+      RTC_GUARDED_BY(modules_mutex_);
 
   RTC_DISALLOW_COPY_AND_ASSIGN(PacketRouter);
 };

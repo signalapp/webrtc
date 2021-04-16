@@ -201,6 +201,7 @@ RTC_OBJC_EXPORT
 
 - (instancetype)init NS_UNAVAILABLE;
 
+// RingRTC changes for low-level FFI
 /** Given a native WebRTC stream, create an objc sdk RTCMediaStream.
  */
 - (RTCMediaStream *)createStreamFromNative:(void *)nativeStream;

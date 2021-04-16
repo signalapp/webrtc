@@ -19,7 +19,9 @@
 namespace webrtc {
 namespace webrtc_pc_e2e {
 
-void VideoQualityMetricsReporter::Start(absl::string_view test_case_name) {
+void VideoQualityMetricsReporter::Start(
+    absl::string_view test_case_name,
+    const TrackIdStreamInfoMap* /*reporter_helper*/) {
   test_case_name_ = std::string(test_case_name);
   start_time_ = Now();
 }
@@ -61,7 +63,7 @@ void VideoQualityMetricsReporter::OnStatsReports(
         DataSize::Bytes(s->header_bytes_sent.ValueOrDefault(0ul));
   }
 
-  rtc::CritScope crit(&video_bwe_stats_lock_);
+  MutexLock lock(&video_bwe_stats_lock_);
   VideoBweStats& video_bwe_stats = video_bwe_stats_[std::string(pc_label)];
   if (ice_candidate_pair_stats.available_outgoing_bitrate.is_defined()) {
     video_bwe_stats.available_send_bandwidth.AddSample(
@@ -95,7 +97,7 @@ void VideoQualityMetricsReporter::OnStatsReports(
 }
 
 void VideoQualityMetricsReporter::StopAndReportResults() {
-  rtc::CritScope video_bwe_crit(&video_bwe_stats_lock_);
+  MutexLock video_bwemutex_(&video_bwe_stats_lock_);
   for (const auto& item : video_bwe_stats_) {
     ReportVideoBweResults(GetTestCaseName(item.first), item.second);
   }

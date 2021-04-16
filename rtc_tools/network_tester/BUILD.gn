@@ -48,7 +48,9 @@ if (rtc_enable_protobuf) {
       "../../rtc_base:protobuf_utils",
       "../../rtc_base:rtc_base_approved",
       "../../rtc_base:rtc_task_queue",
+      "../../rtc_base/synchronization:mutex",
       "../../rtc_base/synchronization:sequence_checker",
+      "../../rtc_base/system:no_unique_address",
       "../../rtc_base/third_party/sigslot",
     ]
     absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
@@ -101,7 +103,7 @@ if (is_android) {
     testonly = true
     apk_name = "NetworkTesterMobile"
     android_manifest = "androidapp/AndroidManifest.xml"
-    min_sdk_version = 16
+    min_sdk_version = 21
     target_sdk_version = 24
 
     deps = [
@@ -122,6 +124,7 @@ if (is_android) {
       "androidapp/src/com/google/media/networktester/NetworkTester.java",
     ]
 
+    resources_package = "com.google.media.networktester"
     deps = [
       ":NetworkTesterMobile_resources",
       "../../rtc_base:base_java",

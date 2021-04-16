@@ -42,6 +42,7 @@ public interface VideoCapturer {
 
   void changeCaptureFormat(int width, int height, int framerate);
 
+  // RingRTC change to set frame orientation
   void setOrientation(@Nullable Integer orientation);
 
   /**

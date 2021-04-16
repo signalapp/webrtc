@@ -43,8 +43,9 @@ WavBasedSimulator::GetCustomEventChain(const std::string& filename) {
       case '\n':
         break;
       default:
-        FATAL() << "Incorrect custom call order file, reverting to using the "
-                   "default call order";
+        RTC_FATAL()
+            << "Incorrect custom call order file, reverting to using the "
+            << "default call order";
         return WavBasedSimulator::GetDefaultEventChain();
     }
 
@@ -118,7 +119,7 @@ void WavBasedSimulator::Process() {
         }
         break;
       default:
-        RTC_CHECK(false);
+        RTC_CHECK_NOTREACHED();
     }
 
     call_chain_index = (call_chain_index + 1) % call_chain_.size();

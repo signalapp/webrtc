@@ -24,7 +24,6 @@ if (rtc_include_tests) {
       "../..:fec_controller_api",
       "../..:mock_video_encoder",
       "../../../api:scoped_refptr",
-      "../../../modules:module_api",
       "../../../modules/video_coding:video_codec_interface",
       "../../../modules/video_coding:video_coding_utility",
       "../../../modules/video_coding:webrtc_vp8",
@@ -36,7 +35,6 @@ if (rtc_include_tests) {
       "../../video:encoded_image",
       "../../video:video_bitrate_allocation",
       "../../video:video_frame",
-      "../../video:video_frame_i420",
       "../../video:video_rtp_headers",
       "//testing/gtest",
     ]

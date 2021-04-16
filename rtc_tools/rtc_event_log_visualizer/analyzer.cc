@@ -21,7 +21,7 @@
 #include "absl/algorithm/container.h"
 #include "absl/strings/string_view.h"
 #include "api/function_view.h"
-#include "api/transport/bitrate_settings.h"
+#include "api/network_state_predictor.h"
 #include "api/transport/field_trial_based_config.h"
 #include "api/transport/goog_cc_factory.h"
 #include "call/audio_receive_stream.h"
@@ -39,7 +39,6 @@
 #include "modules/congestion_controller/rtp/transport_feedback_adapter.h"
 #include "modules/pacing/paced_sender.h"
 #include "modules/pacing/packet_router.h"
-#include "modules/remote_bitrate_estimator/include/bwe_defines.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/rtp_rtcp/source/rtcp_packet.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/common_header.h"
@@ -1200,10 +1199,11 @@ void EventLogAnalyzer::CreateSendSideBweSimulationGraph(Plot* plot) {
   auto factory = GoogCcNetworkControllerFactory();
   TimeDelta process_interval = factory.GetProcessInterval();
   // TODO(holmer): Log the call config and use that here instead.
+  static const uint32_t kDefaultStartBitrateBps = 300000;
   NetworkControllerConfig cc_config;
   cc_config.constraints.at_time = Timestamp::Micros(clock.TimeInMicroseconds());
   cc_config.constraints.starting_rate =
-      DataRate::BitsPerSec(BitrateConstraints::kDefaultStartBitrateBps);
+      DataRate::BitsPerSec(kDefaultStartBitrateBps);
   cc_config.event_log = &null_event_log;
   auto goog_cc = factory.Create(cc_config);
 
@@ -1380,8 +1380,9 @@ void EventLogAnalyzer::CreateReceiveSideBweSimulationGraph(Plot* plot) {
     }
 
    private:
-    // We don't know the start bitrate, but assume that it is the default.
-    uint32_t last_bitrate_bps_ = BitrateConstraints::kDefaultStartBitrateBps;
+    // We don't know the start bitrate, but assume that it is the default 300
+    // kbps.
+    uint32_t last_bitrate_bps_ = 300000;
     bool bitrate_updated_ = false;
   };
 

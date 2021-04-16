@@ -11,9 +11,12 @@
 #ifndef API_TEST_NETWORK_EMULATION_MANAGER_H_
 #define API_TEST_NETWORK_EMULATION_MANAGER_H_
 
+#include <functional>
 #include <memory>
+#include <string>
 #include <vector>
 
+#include "api/array_view.h"
 #include "api/test/network_emulation/network_emulation_interfaces.h"
 #include "api/test/simulated_network.h"
 #include "api/test/time_controller.h"
@@ -44,6 +47,13 @@ class EmulatedRoute;
 
 struct EmulatedEndpointConfig {
   enum class IpAddressFamily { kIpv4, kIpv6 };
+  enum class StatsGatheringMode {
+    // Gather main network stats counters.
+    kDefault,
+    // kDefault + also gather per packet statistics. In this mode more memory
+    // will be used.
+    kDebug
+  };
 
   IpAddressFamily generated_ip_family = IpAddressFamily::kIpv4;
   // If specified will be used as IP address for endpoint node. Must be unique
@@ -54,8 +64,40 @@ struct EmulatedEndpointConfig {
   bool start_as_enabled = true;
   // Network type which will be used to represent endpoint to WebRTC.
   rtc::AdapterType type = rtc::AdapterType::ADAPTER_TYPE_UNKNOWN;
+  StatsGatheringMode stats_gathering_mode = StatsGatheringMode::kDefault;
 };
 
+struct EmulatedTURNServerConfig {
+  EmulatedEndpointConfig client_config;
+  EmulatedEndpointConfig peer_config;
+};
+
+// EmulatedTURNServer is an abstraction for a TURN server.
+class EmulatedTURNServerInterface {
+ public:
+  struct IceServerConfig {
+    std::string username;
+    std::string password;
+    std::string url;
+  };
+
+  virtual ~EmulatedTURNServerInterface() {}
+
+  // Get an IceServer configuration suitable to add to a PeerConnection.
+  virtual IceServerConfig GetIceServerConfig() const = 0;
+
+  // Get non-null client endpoint, an endpoint that accepts TURN allocations.
+  // This shall typically be connected to one or more webrtc endpoint.
+  virtual EmulatedEndpoint* GetClientEndpoint() const = 0;
+
+  // Returns socket address, which client should use to connect to TURN server
+  // and do TURN allocation.
+  virtual rtc::SocketAddress GetClientEndpointAddress() const = 0;
+
+  // Get non-null peer endpoint, that is "connected to the internet".
+  // This shall typically be connected to another TURN server.
+  virtual EmulatedEndpoint* GetPeerEndpoint() const = 0;
+};
 
 // Provide interface to obtain all required objects to inject network emulation
 // layer into PeerConnection. Also contains information about network interfaces
@@ -64,12 +106,24 @@ class EmulatedNetworkManagerInterface {
  public:
   virtual ~EmulatedNetworkManagerInterface() = default;
 
+  // Returns non-null pointer to thread that have to be used as network thread
+  // for WebRTC to properly setup network emulation. Returned thread is owned
+  // by EmulatedNetworkManagerInterface implementation.
   virtual rtc::Thread* network_thread() = 0;
+  // Returns non-null pointer to network manager that have to be injected into
+  // WebRTC to properly setup network emulation. Returned manager is owned by
+  // EmulatedNetworkManagerInterface implementation.
   virtual rtc::NetworkManager* network_manager() = 0;
+  // Returns list of endpoints that are associated with this instance. Pointers
+  // are guaranteed to be non-null and are owned by NetworkEmulationManager.
+  virtual std::vector<EmulatedEndpoint*> endpoints() const = 0;
 
-  // Returns summarized network stats for endpoints for this manager.
+  // Passes summarized network stats for endpoints for this manager into
+  // specified |stats_callback|. Callback will be executed on network emulation
+  // internal task queue.
   virtual void GetStats(
-      std::function<void(EmulatedNetworkStats)> stats_callback) const = 0;
+      std::function<void(std::unique_ptr<EmulatedNetworkStats>)> stats_callback)
+      const = 0;
 };
 
 enum class TimeMode { kRealTime, kSimulated };
@@ -98,8 +152,9 @@ class NetworkEmulationManager {
       Builder& capacity_Mbps(int link_capacity_Mbps);
       Builder& loss(double loss_rate);
       Builder& packet_queue_length(int max_queue_length_in_packets);
-      SimulatedNetworkNode Build() const;
-      SimulatedNetworkNode Build(NetworkEmulationManager* net) const;
+      SimulatedNetworkNode Build(uint64_t random_seed = 1) const;
+      SimulatedNetworkNode Build(NetworkEmulationManager* net,
+                                 uint64_t random_seed = 1) const;
 
      private:
       NetworkEmulationManager* const net_;
@@ -111,9 +166,15 @@ class NetworkEmulationManager {
   virtual TimeController* time_controller() = 0;
 
   // Creates an emulated network node, which represents single network in
-  // the emulated network layer.
+  // the emulated network layer. Uses default implementation on network behavior
+  // which can be configured with |config|. |random_seed| can be provided to
+  // alter randomization behavior.
   virtual EmulatedNetworkNode* CreateEmulatedNode(
-      BuiltInNetworkBehaviorConfig config) = 0;
+      BuiltInNetworkBehaviorConfig config,
+      uint64_t random_seed = 1) = 0;
+  // Creates an emulated network node, which represents single network in
+  // the emulated network layer. |network_behavior| determines how created node
+  // will forward incoming packets to the next receiver.
   virtual EmulatedNetworkNode* CreateEmulatedNode(
       std::unique_ptr<NetworkBehaviorInterface> network_behavior) = 0;
 
@@ -180,6 +241,21 @@ class NetworkEmulationManager {
   virtual EmulatedNetworkManagerInterface*
   CreateEmulatedNetworkManagerInterface(
       const std::vector<EmulatedEndpoint*>& endpoints) = 0;
+
+  // Passes summarized network stats for specified |endpoints| into specified
+  // |stats_callback|. Callback will be executed on network emulation
+  // internal task queue.
+  virtual void GetStats(
+      rtc::ArrayView<EmulatedEndpoint*> endpoints,
+      std::function<void(std::unique_ptr<EmulatedNetworkStats>)>
+          stats_callback) = 0;
+
+  // Create a EmulatedTURNServer.
+  // The TURN server has 2 endpoints that need to be connected with routes,
+  // - GetClientEndpoint() - the endpoint that accepts TURN allocations.
+  // - GetPeerEndpoint() - the endpoint that is "connected to the internet".
+  virtual EmulatedTURNServerInterface* CreateTURNServer(
+      EmulatedTURNServerConfig config) = 0;
 };
 
 }  // namespace webrtc

@@ -21,7 +21,7 @@ namespace cricket {
 
 extern const int kVideoCodecClockrate;
 extern const int kDataCodecClockrate;
-extern const int kDataMaxBandwidth;  // bps
+extern const int kRtpDataMaxBandwidth;  // bps
 
 // Default CPU thresholds.
 extern const float kHighSystemCpuThreshold;
@@ -61,8 +61,6 @@ extern const char kCodecParamUseInbandFec[];
 extern const char kCodecParamUseDtx[];
 extern const char kCodecParamMaxAverageBitrate[];
 extern const char kCodecParamMaxPlaybackRate[];
-extern const char kCodecParamSctpProtocol[];
-extern const char kCodecParamSctpStreams[];
 
 extern const char kParamValueTrue[];
 // Parameters are stored as parameter/value pairs. For parameters who do not
@@ -115,8 +113,6 @@ extern const char kCodecParamMaxBitrate[];
 extern const char kCodecParamMinBitrate[];
 extern const char kCodecParamStartBitrate[];
 extern const char kCodecParamMaxQuantization[];
-extern const char kCodecParamPort[];
-extern const char kCodecParamMaxMessageSize[];
 
 // We put the data codec names here so callers of DataEngine::CreateChannel
 // don't have to import rtpdataengine.h to get the codec names they want to
@@ -130,20 +126,24 @@ RTC_EXPORT extern const char kVp8CodecName[];
 RTC_EXPORT extern const char kVp9CodecName[];
 RTC_EXPORT extern const char kAv1CodecName[];
 RTC_EXPORT extern const char kH264CodecName[];
-RTC_EXPORT extern const char kHEVCCodecName[];
 
 // RFC 6184 RTP Payload Format for H.264 video
 RTC_EXPORT extern const char kH264FmtpProfileLevelId[];
 RTC_EXPORT extern const char kH264FmtpLevelAsymmetryAllowed[];
 RTC_EXPORT extern const char kH264FmtpPacketizationMode[];
 extern const char kH264FmtpSpropParameterSets[];
+extern const char kH264FmtpSpsPpsIdrInKeyframe[];
 extern const char kH264ProfileLevelConstrainedBaseline[];
+extern const char kH264ProfileLevelConstrainedHigh[];
 
 extern const int kDefaultVideoMaxFramerate;
 
 extern const size_t kConferenceMaxNumSpatialLayers;
 extern const size_t kConferenceMaxNumTemporalLayers;
 extern const size_t kConferenceDefaultNumTemporalLayers;
+
+extern const char kApplicationSpecificBandwidth[];
+extern const char kTransportSpecificBandwidth[];
 }  // namespace cricket
 
 #endif  // MEDIA_BASE_MEDIA_CONSTANTS_H_

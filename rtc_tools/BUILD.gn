@@ -56,7 +56,6 @@ rtc_library("video_file_reader") {
   deps = [
     "../api:scoped_refptr",
     "../api/video:video_frame",
-    "../api/video:video_frame_i420",
     "../api/video:video_rtp_headers",
     "../rtc_base:checks",
     "../rtc_base:rtc_base_approved",
@@ -76,7 +75,6 @@ rtc_library("video_file_writer") {
     ":video_file_reader",
     "../api:scoped_refptr",
     "../api/video:video_frame",
-    "../api/video:video_frame_i420",
     "../api/video:video_rtp_headers",
     "../rtc_base:rtc_base_approved",
   ]
@@ -105,7 +103,6 @@ rtc_library("video_quality_analysis") {
     "../api:array_view",
     "../api:scoped_refptr",
     "../api/video:video_frame",
-    "../api/video:video_frame_i420",
     "../api/video:video_rtp_headers",
     "../common_video",
     "../rtc_base:checks",
@@ -343,6 +340,7 @@ if (!build_with_chromium) {
       deps = [
         ":chart_proto",
         "../api:function_view",
+        "../api:network_state_predictor_api",
         "../rtc_base:deprecation",
         "../rtc_base:ignore_wundef",
 
@@ -405,6 +403,7 @@ if (rtc_include_tests) {
       "../rtc_base:logging",
       "../rtc_base:rtc_event",
       "../rtc_base:rtc_task_queue",
+      "../rtc_base/synchronization:mutex",
       "../rtc_base/system:file_wrapper",
       "../test:video_test_common",
       "../test:video_test_support",
@@ -486,7 +485,6 @@ if (rtc_include_tests) {
       ":video_quality_analysis",
       "../api:scoped_refptr",
       "../api/video:video_frame",
-      "../api/video:video_frame_i420",
       "../api/video:video_rtp_headers",
       "../common_video",
       "../rtc_base",

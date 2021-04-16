@@ -171,12 +171,24 @@ void PacketRouter::SendPacket(std::unique_ptr<RtpPacketToSend> packet,
     // properties needed for payload based padding. Cache it for later use.
     last_send_module_ = rtp_module;
   }
+
+  for (auto& packet : rtp_module->FetchFecPackets()) {
+    pending_fec_packets_.push_back(std::move(packet));
+  }
+}
+
+std::vector<std::unique_ptr<RtpPacketToSend>> PacketRouter::FetchFec() {
+  MutexLock lock(&modules_mutex_);
+  std::vector<std::unique_ptr<RtpPacketToSend>> fec_packets =
+      std::move(pending_fec_packets_);
+  pending_fec_packets_.clear();
+  return fec_packets;
 }
 
 std::vector<std::unique_ptr<RtpPacketToSend>> PacketRouter::GeneratePadding(
-    size_t target_size_bytes) {
+    DataSize size) {
   TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("webrtc"),
-               "PacketRouter::GeneratePadding", "bytes", target_size_bytes);
+               "PacketRouter::GeneratePadding", "bytes", size.bytes());
 
   MutexLock lock(&modules_mutex_);
   // First try on the last rtp module to have sent media. This increases the
@@ -188,7 +200,7 @@ std::vector<std::unique_ptr<RtpPacketToSend>> PacketRouter::GeneratePadding(
   std::vector<std::unique_ptr<RtpPacketToSend>> padding_packets;
   if (last_send_module_ != nullptr &&
       last_send_module_->SupportsRtxPayloadPadding()) {
-    padding_packets = last_send_module_->GeneratePadding(target_size_bytes);
+    padding_packets = last_send_module_->GeneratePadding(size.bytes());
   }
 
   if (padding_packets.empty()) {
@@ -197,7 +209,7 @@ std::vector<std::unique_ptr<RtpPacketToSend>> PacketRouter::GeneratePadding(
     // be taken into account by the bandwidth estimator, e.g. in FF.
     for (RtpRtcpInterface* rtp_module : send_modules_list_) {
       if (rtp_module->SupportsPadding()) {
-        padding_packets = rtp_module->GeneratePadding(target_size_bytes);
+        padding_packets = rtp_module->GeneratePadding(size.bytes());
         if (!padding_packets.empty()) {
           last_send_module_ = rtp_module;
           break;

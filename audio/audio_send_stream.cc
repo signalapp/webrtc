@@ -116,18 +116,20 @@ AudioSendStream::AudioSendStream(
                       bitrate_allocator,
                       event_log,
                       suspended_rtp_state,
-                      voe::CreateChannelSend(clock,
-                                             task_queue_factory,
-                                             module_process_thread,
-                                             config.send_transport,
-                                             rtcp_rtt_stats,
-                                             event_log,
-                                             config.frame_encryptor,
-                                             config.crypto_options,
-                                             config.rtp.extmap_allow_mixed,
-                                             config.rtcp_report_interval_ms,
-                                             config.rtp.ssrc,
-                                             config.frame_transformer)) {}
+                      voe::CreateChannelSend(
+                          clock,
+                          task_queue_factory,
+                          module_process_thread,
+                          config.send_transport,
+                          rtcp_rtt_stats,
+                          event_log,
+                          config.frame_encryptor,
+                          config.crypto_options,
+                          config.rtp.extmap_allow_mixed,
+                          config.rtcp_report_interval_ms,
+                          config.rtp.ssrc,
+                          config.frame_transformer,
+                          rtp_transport->transport_feedback_observer())) {}
 
 AudioSendStream::AudioSendStream(
     Clock* clock,
@@ -141,13 +143,12 @@ AudioSendStream::AudioSendStream(
     std::unique_ptr<voe::ChannelSendInterface> channel_send)
     : clock_(clock),
       worker_queue_(rtp_transport->GetWorkerQueue()),
-      audio_send_side_bwe_(field_trial::IsEnabled("WebRTC-Audio-SendSideBwe")),
       allocate_audio_without_feedback_(
           field_trial::IsEnabled("WebRTC-Audio-ABWENoTWCC")),
       enable_audio_alr_probing_(
           !field_trial::IsDisabled("WebRTC-Audio-AlrProbing")),
       send_side_bwe_with_overhead_(
-          field_trial::IsEnabled("WebRTC-SendSideBwe-WithOverhead")),
+          !field_trial::IsDisabled("WebRTC-SendSideBwe-WithOverhead")),
       config_(Config(/*send_transport=*/nullptr)),
       audio_state_(audio_state),
       channel_send_(std::move(channel_send)),
@@ -287,7 +288,7 @@ void AudioSendStream::ConfigureStream(
 
     RtcpBandwidthObserver* bandwidth_observer = nullptr;
 
-    if (audio_send_side_bwe_ && !allocate_audio_without_feedback_ &&
+    if (!allocate_audio_without_feedback_ &&
         new_ids.transport_sequence_number != 0) {
       rtp_rtcp_module_->RegisterRtpHeaderExtension(
           TransportSequenceNumber::kUri, new_ids.transport_sequence_number);
@@ -345,7 +346,7 @@ void AudioSendStream::ConfigureStream(
 
   // Set currently known overhead (used in ANA, opus only).
   {
-    rtc::CritScope cs(&overhead_per_packet_lock_);
+    MutexLock lock(&overhead_per_packet_lock_);
     UpdateOverheadForEncoder();
   }
 
@@ -420,7 +421,7 @@ void AudioSendStream::SendAudioData(std::unique_ptr<AudioFrame> audio_frame) {
     // TODO(https://crbug.com/webrtc/10771): All "media-source" related stats
     // should move from send-streams to the local audio sources or tracks; a
     // send-stream should not be required to read the microphone audio levels.
-    rtc::CritScope cs(&audio_level_lock_);
+    MutexLock lock(&audio_level_lock_);
     audio_level_.ComputeLevel(*audio_frame, duration);
   }
   channel_send_->ProcessAndEncodeAudio(std::move(audio_frame));
@@ -486,7 +487,7 @@ webrtc::AudioSendStream::Stats AudioSendStream::GetStats(
   }
 
   {
-    rtc::CritScope cs(&audio_level_lock_);
+    MutexLock lock(&audio_level_lock_);
     stats.audio_level = audio_level_.LevelFullRange();
     stats.total_input_energy = audio_level_.TotalEnergy();
     stats.total_input_duration = audio_level_.TotalDuration();
@@ -506,15 +507,12 @@ webrtc::AudioSendStream::Stats AudioSendStream::GetStats(
 }
 
 void AudioSendStream::DeliverRtcp(const uint8_t* packet, size_t length) {
-  // TODO(solenberg): Tests call this function on a network thread, libjingle
-  // calls on the worker thread. We should move towards always using a network
-  // thread. Then this check can be enabled.
-  // RTC_DCHECK(!worker_thread_checker_.IsCurrent());
+  RTC_DCHECK_RUN_ON(&worker_thread_checker_);
   channel_send_->ReceivedRTCPPacket(packet, length);
   worker_queue_->PostTask([&]() {
     // Poll if overhead has changed, which it can do if ack triggers us to stop
     // sending mid/rid.
-    rtc::CritScope cs(&overhead_per_packet_lock_);
+    MutexLock lock(&overhead_per_packet_lock_);
     UpdateOverheadForEncoder();
   });
 }
@@ -539,7 +537,7 @@ uint32_t AudioSendStream::OnBitrateUpdated(BitrateAllocationUpdate update) {
 void AudioSendStream::SetTransportOverhead(
     int transport_overhead_per_packet_bytes) {
   RTC_DCHECK(worker_thread_checker_.IsCurrent());
-  rtc::CritScope cs(&overhead_per_packet_lock_);
+  MutexLock lock(&overhead_per_packet_lock_);
   transport_overhead_per_packet_bytes_ = transport_overhead_per_packet_bytes;
   UpdateOverheadForEncoder();
 }
@@ -571,7 +569,7 @@ void AudioSendStream::UpdateOverheadForEncoder() {
 }
 
 size_t AudioSendStream::TestOnlyGetPerPacketOverheadBytes() const {
-  rtc::CritScope cs(&overhead_per_packet_lock_);
+  MutexLock lock(&overhead_per_packet_lock_);
   return GetPerPacketOverheadBytes();
 }
 
@@ -639,11 +637,11 @@ bool AudioSendStream::SetupSendCodec(const Config& new_config) {
   if (new_config.audio_network_adaptor_config) {
     if (encoder->EnableAudioNetworkAdaptor(
             *new_config.audio_network_adaptor_config, event_log_)) {
-      RTC_DLOG(LS_INFO) << "Audio network adaptor enabled on SSRC "
-                        << new_config.rtp.ssrc;
+      RTC_LOG(LS_INFO) << "Audio network adaptor enabled on SSRC "
+                       << new_config.rtp.ssrc;
     } else {
-      RTC_DLOG(LS_INFO) << "Failed to enable Audio network adaptor on SSRC "
-                        << new_config.rtp.ssrc;
+      RTC_LOG(LS_INFO) << "Failed to enable Audio network adaptor on SSRC "
+                       << new_config.rtp.ssrc;
     }
   }
 
@@ -671,7 +669,7 @@ bool AudioSendStream::SetupSendCodec(const Config& new_config) {
   // Set currently known overhead (used in ANA, opus only).
   // If overhead changes later, it will be updated in UpdateOverheadForEncoder.
   {
-    rtc::CritScope cs(&overhead_per_packet_lock_);
+    MutexLock lock(&overhead_per_packet_lock_);
     size_t overhead = GetPerPacketOverheadBytes();
     if (overhead > 0) {
       encoder->OnReceivedOverhead(overhead);
@@ -735,21 +733,29 @@ void AudioSendStream::ReconfigureANA(const Config& new_config) {
     return;
   }
   if (new_config.audio_network_adaptor_config) {
+    // This lock needs to be acquired before CallEncoder, since it aquires
+    // another lock and we need to maintain the same order at all call sites to
+    // avoid deadlock.
+    MutexLock lock(&overhead_per_packet_lock_);
+    size_t overhead = GetPerPacketOverheadBytes();
     channel_send_->CallEncoder([&](AudioEncoder* encoder) {
       if (encoder->EnableAudioNetworkAdaptor(
               *new_config.audio_network_adaptor_config, event_log_)) {
-        RTC_DLOG(LS_INFO) << "Audio network adaptor enabled on SSRC "
-                          << new_config.rtp.ssrc;
+        RTC_LOG(LS_INFO) << "Audio network adaptor enabled on SSRC "
+                         << new_config.rtp.ssrc;
+        if (overhead > 0) {
+          encoder->OnReceivedOverhead(overhead);
+        }
       } else {
-        RTC_DLOG(LS_INFO) << "Failed to enable Audio network adaptor on SSRC "
-                          << new_config.rtp.ssrc;
+        RTC_LOG(LS_INFO) << "Failed to enable Audio network adaptor on SSRC "
+                         << new_config.rtp.ssrc;
       }
     });
   } else {
     channel_send_->CallEncoder(
         [&](AudioEncoder* encoder) { encoder->DisableAudioNetworkAdaptor(); });
-    RTC_DLOG(LS_INFO) << "Audio network adaptor disabled on SSRC "
-                      << new_config.rtp.ssrc;
+    RTC_LOG(LS_INFO) << "Audio network adaptor disabled on SSRC "
+                     << new_config.rtp.ssrc;
   }
 }
 
@@ -802,8 +808,7 @@ void AudioSendStream::ReconfigureBitrateObserver(
   if (config_.min_bitrate_bps == new_config.min_bitrate_bps &&
       config_.max_bitrate_bps == new_config.max_bitrate_bps &&
       config_.bitrate_priority == new_config.bitrate_priority &&
-      (TransportSeqNumId(config_) == TransportSeqNumId(new_config) ||
-       !audio_send_side_bwe_) &&
+      TransportSeqNumId(config_) == TransportSeqNumId(new_config) &&
       config_.audio_network_adaptor_config ==
           new_config.audio_network_adaptor_config) {
     return;
@@ -923,6 +928,7 @@ void AudioSendStream::RegisterCngPayloadType(int payload_type,
   channel_send_->RegisterCngPayloadType(payload_type, clockrate_hz);
 }
 
+// RingRTC change to configure opus
 void AudioSendStream::ConfigureEncoder(const webrtc::AudioEncoder::Config& config) {
   // This makes it so that if BWE changes cause us to change the bitrate,
   // it doesn't actually change.

@@ -40,6 +40,7 @@ interface CameraSession {
    */
   void stop();
 
+  // RingRTC change to set frame orientation
   void setOrientation(@Nullable Integer orientation);
 
   static int getDeviceOrientation(Context context) {

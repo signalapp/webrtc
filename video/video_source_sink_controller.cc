@@ -43,25 +43,33 @@ VideoSourceSinkController::VideoSourceSinkController(
   RTC_DCHECK(sink_);
 }
 
+VideoSourceSinkController::~VideoSourceSinkController() {
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
+}
+
 void VideoSourceSinkController::SetSource(
     rtc::VideoSourceInterface<VideoFrame>* source) {
-  rtc::VideoSourceInterface<VideoFrame>* old_source;
-  rtc::VideoSinkWants wants;
-  {
-    rtc::CritScope lock(&crit_);
-    old_source = source_;
-    source_ = source;
-    wants = CurrentSettingsToSinkWants();
-  }
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
+
+  rtc::VideoSourceInterface<VideoFrame>* old_source = source_;
+  source_ = source;
+
   if (old_source != source && old_source)
     old_source->RemoveSink(sink_);
+
   if (!source)
     return;
-  source->AddOrUpdateSink(sink_, wants);
+
+  source->AddOrUpdateSink(sink_, CurrentSettingsToSinkWants());
+}
+
+bool VideoSourceSinkController::HasSource() const {
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
+  return source_ != nullptr;
 }
 
 void VideoSourceSinkController::PushSourceSinkSettings() {
-  rtc::CritScope lock(&crit_);
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
   if (!source_)
     return;
   rtc::VideoSinkWants wants = CurrentSettingsToSinkWants();
@@ -70,62 +78,62 @@ void VideoSourceSinkController::PushSourceSinkSettings() {
 }
 
 VideoSourceRestrictions VideoSourceSinkController::restrictions() const {
-  rtc::CritScope lock(&crit_);
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
   return restrictions_;
 }
 
 absl::optional<size_t> VideoSourceSinkController::pixels_per_frame_upper_limit()
     const {
-  rtc::CritScope lock(&crit_);
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
   return pixels_per_frame_upper_limit_;
 }
 
 absl::optional<double> VideoSourceSinkController::frame_rate_upper_limit()
     const {
-  rtc::CritScope lock(&crit_);
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
   return frame_rate_upper_limit_;
 }
 
 bool VideoSourceSinkController::rotation_applied() const {
-  rtc::CritScope lock(&crit_);
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
   return rotation_applied_;
 }
 
 int VideoSourceSinkController::resolution_alignment() const {
-  rtc::CritScope lock(&crit_);
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
   return resolution_alignment_;
 }
 
 void VideoSourceSinkController::SetRestrictions(
     VideoSourceRestrictions restrictions) {
-  rtc::CritScope lock(&crit_);
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
   restrictions_ = std::move(restrictions);
 }
 
 void VideoSourceSinkController::SetPixelsPerFrameUpperLimit(
     absl::optional<size_t> pixels_per_frame_upper_limit) {
-  rtc::CritScope lock(&crit_);
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
   pixels_per_frame_upper_limit_ = std::move(pixels_per_frame_upper_limit);
 }
 
 void VideoSourceSinkController::SetFrameRateUpperLimit(
     absl::optional<double> frame_rate_upper_limit) {
-  rtc::CritScope lock(&crit_);
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
   frame_rate_upper_limit_ = std::move(frame_rate_upper_limit);
 }
 
 void VideoSourceSinkController::SetRotationApplied(bool rotation_applied) {
-  rtc::CritScope lock(&crit_);
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
   rotation_applied_ = rotation_applied;
 }
 
 void VideoSourceSinkController::SetResolutionAlignment(
     int resolution_alignment) {
-  rtc::CritScope lock(&crit_);
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
   resolution_alignment_ = resolution_alignment;
 }
 
-// RTC_EXCLUSIVE_LOCKS_REQUIRED(crit_)
+// RTC_EXCLUSIVE_LOCKS_REQUIRED(sequence_checker_)
 rtc::VideoSinkWants VideoSourceSinkController::CurrentSettingsToSinkWants()
     const {
   rtc::VideoSinkWants wants;

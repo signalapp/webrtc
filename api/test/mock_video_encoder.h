@@ -22,9 +22,7 @@ class MockEncodedImageCallback : public EncodedImageCallback {
  public:
   MOCK_METHOD(Result,
               OnEncodedImage,
-              (const EncodedImage& encodedImage,
-               const CodecSpecificInfo*,
-               const RTPFragmentationHeader*),
+              (const EncodedImage&, const CodecSpecificInfo*),
               (override));
   MOCK_METHOD(void, OnDroppedFrame, (DropReason reason), (override));
 };

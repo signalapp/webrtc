@@ -186,6 +186,7 @@ class FakePeerConnectionBase : public PeerConnectionInternal {
     return false;
   }
 
+  // RingRTC change to add methods (see interface header)
   rtc::scoped_refptr<webrtc::IceGathererInterface> CreateSharedIceGatherer()
       override {
     return nullptr;
@@ -270,8 +271,12 @@ class FakePeerConnectionBase : public PeerConnectionInternal {
     return {};
   }
 
-  sigslot::signal1<DataChannel*>& SignalDataChannelCreated() override {
-    return SignalDataChannelCreated_;
+  sigslot::signal1<RtpDataChannel*>& SignalRtpDataChannelCreated() override {
+    return SignalRtpDataChannelCreated_;
+  }
+
+  sigslot::signal1<SctpDataChannel*>& SignalSctpDataChannelCreated() override {
+    return SignalSctpDataChannelCreated_;
   }
 
   cricket::RtpDataChannel* rtp_data_channel() const override { return nullptr; }
@@ -316,7 +321,8 @@ class FakePeerConnectionBase : public PeerConnectionInternal {
   }
 
  protected:
-  sigslot::signal1<DataChannel*> SignalDataChannelCreated_;
+  sigslot::signal1<RtpDataChannel*> SignalRtpDataChannelCreated_;
+  sigslot::signal1<SctpDataChannel*> SignalSctpDataChannelCreated_;
 };
 
 }  // namespace webrtc

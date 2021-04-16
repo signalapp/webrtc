@@ -130,7 +130,7 @@ VideoQualityAnalyzerInjectionHelper::CreateFramePreprocessor(
                                     config.width, config.height)));
   }
   {
-    rtc::CritScope crit(&lock_);
+    MutexLock lock(&lock_);
     known_video_configs_.insert({*config.stream_label, config});
   }
   return std::make_unique<AnalyzingFramePreprocessor>(
@@ -149,6 +149,7 @@ void VideoQualityAnalyzerInjectionHelper::Start(
     rtc::ArrayView<const std::string> peer_names,
     int max_threads_count) {
   analyzer_->Start(std::move(test_case_name), peer_names, max_threads_count);
+  extractor_->Start(peer_names.size());
 }
 
 void VideoQualityAnalyzerInjectionHelper::OnStatsReports(
@@ -184,11 +185,18 @@ VideoQualityAnalyzerInjectionHelper::MaybeCreateVideoWriter(
 
 void VideoQualityAnalyzerInjectionHelper::OnFrame(absl::string_view peer_name,
                                                   const VideoFrame& frame) {
-  if (IsDummyFrameBuffer(frame.video_frame_buffer()->ToI420())) {
+  rtc::scoped_refptr<I420BufferInterface> i420_buffer =
+      frame.video_frame_buffer()->ToI420();
+  if (IsDummyFrameBuffer(i420_buffer)) {
     // This is dummy frame, so we  don't need to process it further.
     return;
   }
-  analyzer_->OnFrameRendered(peer_name, frame);
+  // Copy entire video frame including video buffer to ensure that analyzer
+  // won't hold any WebRTC internal buffers.
+  VideoFrame frame_copy = frame;
+  frame_copy.set_video_frame_buffer(I420Buffer::Copy(*i420_buffer));
+  analyzer_->OnFrameRendered(peer_name, frame_copy);
+
   std::string stream_label = analyzer_->GetStreamLabel(frame.id());
   std::vector<std::unique_ptr<rtc::VideoSinkInterface<VideoFrame>>>* sinks =
       PopulateSinks(stream_label);
@@ -203,7 +211,7 @@ void VideoQualityAnalyzerInjectionHelper::OnFrame(absl::string_view peer_name,
 std::vector<std::unique_ptr<rtc::VideoSinkInterface<VideoFrame>>>*
 VideoQualityAnalyzerInjectionHelper::PopulateSinks(
     const std::string& stream_label) {
-  rtc::CritScope crit(&lock_);
+  MutexLock lock(&lock_);
   auto sinks_it = sinks_.find(stream_label);
   if (sinks_it != sinks_.end()) {
     return &sinks_it->second;

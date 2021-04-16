@@ -39,9 +39,8 @@ TaskQueuePacedSender::TaskQueuePacedSender(
     TimeDelta hold_back_window)
     : clock_(clock),
       hold_back_window_(hold_back_window),
-      packet_router_(packet_router),
       pacing_controller_(clock,
-                         static_cast<PacingController::PacketSender*>(this),
+                         packet_router,
                          event_log,
                          field_trials,
                          PacingController::ProcessMode::kDynamic),
@@ -219,34 +218,37 @@ void TaskQueuePacedSender::MaybeProcessPackets(
     next_process_time = pacing_controller_.NextSendTime();
   }
 
-  const TimeDelta min_sleep = pacing_controller_.IsProbing()
-                                  ? PacingController::kMinSleepTime
-                                  : hold_back_window_;
-  next_process_time = std::max(now + min_sleep, next_process_time);
+  absl::optional<TimeDelta> time_to_next_process;
+  if (pacing_controller_.IsProbing() &&
+      next_process_time != next_process_time_) {
+    // If we're probing and there isn't already a wakeup scheduled for the next
+    // process time, always post a task and just round sleep time down to
+    // nearest millisecond.
+    if (next_process_time.IsMinusInfinity()) {
+      time_to_next_process = TimeDelta::Zero();
+    } else {
+      time_to_next_process =
+          std::max(TimeDelta::Zero(),
+                   (next_process_time - now).RoundDownTo(TimeDelta::Millis(1)));
+    }
+  } else if (next_process_time_.IsMinusInfinity() ||
+             next_process_time <= next_process_time_ - hold_back_window_) {
+    // Schedule a new task since there is none currently scheduled
+    // (|next_process_time_| is infinite), or the new process time is at least
+    // one holdback window earlier than whatever is currently scheduled.
+    time_to_next_process = std::max(next_process_time - now, hold_back_window_);
+  }
 
-  TimeDelta sleep_time = next_process_time - now;
-  if (next_process_time_.IsMinusInfinity() ||
-      next_process_time <=
-          next_process_time_ - PacingController::kMinSleepTime) {
+  if (time_to_next_process) {
+    // Set a new scheduled process time and post a delayed task.
     next_process_time_ = next_process_time;
 
     task_queue_.PostDelayedTask(
         [this, next_process_time]() { MaybeProcessPackets(next_process_time); },
-        sleep_time.ms<uint32_t>());
+        time_to_next_process->ms<uint32_t>());
   }
 
   MaybeUpdateStats(false);
-}
-
-std::vector<std::unique_ptr<RtpPacketToSend>>
-TaskQueuePacedSender::GeneratePadding(DataSize size) {
-  return packet_router_->GeneratePadding(size.bytes());
-}
-
-void TaskQueuePacedSender::SendRtpPacket(
-    std::unique_ptr<RtpPacketToSend> packet,
-    const PacedPacketInfo& cluster_info) {
-  packet_router_->SendPacket(std::move(packet), cluster_info);
 }
 
 void TaskQueuePacedSender::MaybeUpdateStats(bool is_scheduled_call) {

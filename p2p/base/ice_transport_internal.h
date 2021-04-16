@@ -256,6 +256,7 @@ class RTC_EXPORT IceTransportInternal : public rtc::PacketTransportInternal {
   // Start gathering candidates if not already started, or if an ICE restart
   // occurred.
   virtual void MaybeStartGathering() = 0;
+  // RingRTC change to add ICE forking
   // Start gathering with the same IceGatherer on many ICE transports to get
   // ICE forking behavior.  For example, like so:
   // rtc::scoped_refptr<webrtc::IceGathererInterface> gatherer = ...;

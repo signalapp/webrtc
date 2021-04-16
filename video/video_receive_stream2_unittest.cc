@@ -25,7 +25,6 @@
 #include "modules/rtp_rtcp/source/rtp_packet_to_send.h"
 #include "modules/utility/include/process_thread.h"
 #include "modules/video_coding/encoded_frame.h"
-#include "rtc_base/critical_section.h"
 #include "rtc_base/event.h"
 #include "system_wrappers/include/clock.h"
 #include "test/fake_decoder.h"
@@ -99,26 +98,20 @@ class VideoReceiveStream2Test : public ::testing::Test {
         task_queue_factory_(CreateDefaultTaskQueueFactory()),
         config_(&mock_transport_),
         call_stats_(Clock::GetRealTimeClock(), loop_.task_queue()),
-        h264_decoder_factory_(&mock_h264_video_decoder_),
-        null_decoder_factory_(&mock_null_video_decoder_) {}
+        h264_decoder_factory_(&mock_h264_video_decoder_) {}
 
   void SetUp() {
     constexpr int kDefaultNumCpuCores = 2;
     config_.rtp.remote_ssrc = 1111;
     config_.rtp.local_ssrc = 2222;
     config_.renderer = &fake_renderer_;
+    config_.decoder_factory = &h264_decoder_factory_;
     VideoReceiveStream::Decoder h264_decoder;
     h264_decoder.payload_type = 99;
     h264_decoder.video_format = SdpVideoFormat("H264");
     h264_decoder.video_format.parameters.insert(
         {"sprop-parameter-sets", "Z0IACpZTBYmI,aMljiA=="});
-    h264_decoder.decoder_factory = &h264_decoder_factory_;
     config_.decoders.push_back(h264_decoder);
-    VideoReceiveStream::Decoder null_decoder;
-    null_decoder.payload_type = 98;
-    null_decoder.video_format = SdpVideoFormat("null");
-    null_decoder.decoder_factory = &null_decoder_factory_;
-    config_.decoders.push_back(null_decoder);
 
     clock_ = Clock::GetRealTimeClock();
     timing_ = new VCMTiming(clock_);
@@ -138,9 +131,7 @@ class VideoReceiveStream2Test : public ::testing::Test {
   VideoReceiveStream::Config config_;
   internal::CallStats call_stats_;
   MockVideoDecoder mock_h264_video_decoder_;
-  MockVideoDecoder mock_null_video_decoder_;
   test::VideoDecoderProxyFactory h264_decoder_factory_;
-  test::VideoDecoderProxyFactory null_decoder_factory_;
   cricket::FakeVideoRenderer fake_renderer_;
   MockTransport mock_transport_;
   PacketRouter packet_router_;
@@ -179,7 +170,7 @@ TEST_F(VideoReceiveStream2Test, CreateFrameFromH264FmtpSpropAndIdr) {
 }
 
 TEST_F(VideoReceiveStream2Test, PlayoutDelay) {
-  const PlayoutDelay kPlayoutDelayMs = {123, 321};
+  const VideoPlayoutDelay kPlayoutDelayMs = {123, 321};
   std::unique_ptr<FrameObjectFake> test_frame(new FrameObjectFake());
   test_frame->id.picture_id = 0;
   test_frame->SetPlayoutDelay(kPlayoutDelayMs);
@@ -209,7 +200,7 @@ TEST_F(VideoReceiveStream2Test, PlayoutDelay) {
 
 TEST_F(VideoReceiveStream2Test, PlayoutDelayPreservesDefaultMaxValue) {
   const int default_max_playout_latency = timing_->max_playout_delay();
-  const PlayoutDelay kPlayoutDelayMs = {123, -1};
+  const VideoPlayoutDelay kPlayoutDelayMs = {123, -1};
 
   std::unique_ptr<FrameObjectFake> test_frame(new FrameObjectFake());
   test_frame->id.picture_id = 0;
@@ -225,7 +216,7 @@ TEST_F(VideoReceiveStream2Test, PlayoutDelayPreservesDefaultMaxValue) {
 
 TEST_F(VideoReceiveStream2Test, PlayoutDelayPreservesDefaultMinValue) {
   const int default_min_playout_latency = timing_->min_playout_delay();
-  const PlayoutDelay kPlayoutDelayMs = {-1, 321};
+  const VideoPlayoutDelay kPlayoutDelayMs = {-1, 321};
 
   std::unique_ptr<FrameObjectFake> test_frame(new FrameObjectFake());
   test_frame->id.picture_id = 0;
@@ -237,6 +228,40 @@ TEST_F(VideoReceiveStream2Test, PlayoutDelayPreservesDefaultMinValue) {
   EXPECT_NE(kPlayoutDelayMs.min_ms, timing_->min_playout_delay());
   EXPECT_EQ(kPlayoutDelayMs.max_ms, timing_->max_playout_delay());
   EXPECT_EQ(default_min_playout_latency, timing_->min_playout_delay());
+}
+
+TEST_F(VideoReceiveStream2Test, MaxCompositionDelayNotSetByDefault) {
+  // Default with no playout delay set.
+  std::unique_ptr<FrameObjectFake> test_frame0(new FrameObjectFake());
+  test_frame0->id.picture_id = 0;
+  video_receive_stream_->OnCompleteFrame(std::move(test_frame0));
+  EXPECT_FALSE(timing_->MaxCompositionDelayInFrames());
+
+  // Max composition delay not set for playout delay 0,0.
+  std::unique_ptr<FrameObjectFake> test_frame1(new FrameObjectFake());
+  test_frame1->id.picture_id = 1;
+  test_frame1->SetPlayoutDelay({0, 0});
+  video_receive_stream_->OnCompleteFrame(std::move(test_frame1));
+  EXPECT_FALSE(timing_->MaxCompositionDelayInFrames());
+
+  // Max composition delay not set for playout delay X,Y, where X,Y>0.
+  std::unique_ptr<FrameObjectFake> test_frame2(new FrameObjectFake());
+  test_frame2->id.picture_id = 2;
+  test_frame2->SetPlayoutDelay({10, 30});
+  video_receive_stream_->OnCompleteFrame(std::move(test_frame2));
+  EXPECT_FALSE(timing_->MaxCompositionDelayInFrames());
+}
+
+TEST_F(VideoReceiveStream2Test, MaxCompositionDelaySetFromMaxPlayoutDelay) {
+  // Max composition delay set if playout delay X,Y, where X=0,Y>0.
+  const VideoPlayoutDelay kPlayoutDelayMs = {0, 50};
+  const int kExpectedMaxCompositionDelayInFrames = 3;  // ~50 ms at 60 fps.
+  std::unique_ptr<FrameObjectFake> test_frame(new FrameObjectFake());
+  test_frame->id.picture_id = 0;
+  test_frame->SetPlayoutDelay(kPlayoutDelayMs);
+  video_receive_stream_->OnCompleteFrame(std::move(test_frame));
+  EXPECT_EQ(kExpectedMaxCompositionDelayInFrames,
+            timing_->MaxCompositionDelayInFrames());
 }
 
 class VideoReceiveStream2TestWithFakeDecoder : public ::testing::Test {
@@ -253,10 +278,10 @@ class VideoReceiveStream2TestWithFakeDecoder : public ::testing::Test {
     config_.rtp.remote_ssrc = 1111;
     config_.rtp.local_ssrc = 2222;
     config_.renderer = &fake_renderer_;
+    config_.decoder_factory = &fake_decoder_factory_;
     VideoReceiveStream::Decoder fake_decoder;
     fake_decoder.payload_type = 99;
     fake_decoder.video_format = SdpVideoFormat("VP8");
-    fake_decoder.decoder_factory = &fake_decoder_factory_;
     config_.decoders.push_back(fake_decoder);
     clock_ = Clock::GetRealTimeClock();
     ReCreateReceiveStream(VideoReceiveStream::RecordingState());
@@ -476,10 +501,10 @@ class VideoReceiveStream2TestWithSimulatedClock : public ::testing::Test {
     config.rtp.remote_ssrc = 1111;
     config.rtp.local_ssrc = 2222;
     config.renderer = renderer;
+    config.decoder_factory = decoder_factory;
     VideoReceiveStream::Decoder fake_decoder;
     fake_decoder.payload_type = 99;
     fake_decoder.video_format = SdpVideoFormat("VP8");
-    fake_decoder.decoder_factory = decoder_factory;
     config.decoders.push_back(fake_decoder);
     return config;
   }
