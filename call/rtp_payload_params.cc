@@ -195,7 +195,10 @@ void RtpPayloadParams::SetCodecSpecific(RTPVideoHeader* rtp_video_header,
 
   // Always set picture id. Set tl0_pic_idx iff temporal index is set.
   if (first_frame_in_picture) {
-    state_.picture_id = shared_frame_id & 0x7FFF;
+    // Unfortunately, with simulcast, this shares a picture ID space, not
+    // a picture ID, so this isn't what we want.
+    // state_.picture_id = shared_frame_id & 0x7FFF;
+    state_.picture_id = (static_cast<uint16_t>(state_.picture_id) + 1) & 0x7FFF;
   }
   if (rtp_video_header->codec == kVideoCodecVP8) {
     auto& vp8_header =
