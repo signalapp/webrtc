@@ -468,6 +468,11 @@ if (!build_with_chromium) {
       "rtc_base",
       "sdk",
       "video",
+
+      # Added by RingRTC
+      # Necessary for use_custom_libcxx=true,
+      # which is in turn necessary for deploying to Ubuntu 16.04.
+      "//build/config:shared_library_deps",
     ]
 
     if (rtc_include_builtin_audio_codecs) {
