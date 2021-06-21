@@ -958,10 +958,15 @@ if (is_ios) {
       deps = [ ":create_bracket_include_headers_$this_target_name" ]
     }
 
+    if (target_environment == "catalyst") {
+      headers_dir = "Versions/A/Headers"
+    } else {
+      headers_dir = "Headers"
+    }
     copy("copy_umbrella_header_$target_name") {
       sources = [ umbrella_header_path ]
       outputs =
-          [ "$root_out_dir/$output_name.framework/Headers/$output_name.h" ]
+          [ "$root_out_dir/$output_name.framework/$headers_dir/$output_name.h" ]
 
       deps = [ ":umbrella_header_$target_name" ]
     }
