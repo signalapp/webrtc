@@ -209,8 +209,9 @@ def main():
     dylib_path = os.path.join(SDK_FRAMEWORK_NAME, 'WebRTC')
     # Dylibs will be combined, all other files are the same across archs.
     # Use distutils instead of shutil to support merging folders.
-    distutils.dir_util.remove_tree(
-        os.path.join(args.output_dir, SDK_FRAMEWORK_NAME))
+    if os.path.isdir(os.path.join(args.output_dir, SDK_FRAMEWORK_NAME)):
+        distutils.dir_util.remove_tree(
+            os.path.join(args.output_dir, SDK_FRAMEWORK_NAME))
     distutils.dir_util.copy_tree(
         os.path.join(lib_paths[0], SDK_FRAMEWORK_NAME),
         os.path.join(args.output_dir, SDK_FRAMEWORK_NAME),
