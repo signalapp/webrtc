@@ -350,7 +350,7 @@ static_library("libvpx") {
   configs += [ "//build/config/compiler:no_chromium_code" ]
   configs += [ ":libvpx_config" ]
   deps = []
-  if (cpu_arch_full == "x86" || cpu_arch_full == "x64") {
+  if (cpu_arch_full == "ia32" || cpu_arch_full == "x64") {
     deps += [
       ":libvpx_asm",
       ":libvpx_intrinsics_avx",
