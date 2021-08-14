@@ -52,45 +52,48 @@
   // everything we can.
   NSError *error = nil;
 
-  if (self.category != configuration.category ||
-      self.categoryOptions != configuration.categoryOptions) {
-    NSError *categoryError = nil;
-    if (![self setCategory:configuration.category
-               withOptions:configuration.categoryOptions
-                     error:&categoryError]) {
-      RTCLogError(@"Failed to set category: %@",
-                  categoryError.localizedDescription);
-      error = categoryError;
-    } else {
-      RTCLog(@"Set category to: %@", configuration.category);
-    }
-  }
+  // RingRTC change to ignore AudioSession category changes in objc sdk.
+  // if (self.category != configuration.category ||
+  //     self.categoryOptions != configuration.categoryOptions) {
+  //   NSError *categoryError = nil;
+  //   if (![self setCategory:configuration.category
+  //              withOptions:configuration.categoryOptions
+  //                    error:&categoryError]) {
+  //     RTCLogError(@"Failed to set category: %@",
+  //                 categoryError.localizedDescription);
+  //     error = categoryError;
+  //   } else {
+  //     RTCLog(@"JimX: Set category to: %@", configuration.category);
+  //   }
+  // }
 
-  if (self.mode != configuration.mode) {
-    NSError *modeError = nil;
-    if (![self setMode:configuration.mode error:&modeError]) {
-      RTCLogError(@"Failed to set mode: %@",
-                  modeError.localizedDescription);
-      error = modeError;
-    } else {
-      RTCLog(@"Set mode to: %@", configuration.mode);
-    }
-  }
+  // RingRTC change to ignore AudioSession mode changes in objc sdk.
+  // if (self.mode != configuration.mode) {
+  //   NSError *modeError = nil;
+  //   if (![self setMode:configuration.mode error:&modeError]) {
+  //     RTCLogError(@"Failed to set mode: %@",
+  //                 modeError.localizedDescription);
+  //     error = modeError;
+  //   } else {
+  //     RTCLog(@"JimX: Set mode to: %@", configuration.mode);
+  //   }
+  // }
 
-  // Sometimes category options don't stick after setting mode.
-  if (self.categoryOptions != configuration.categoryOptions) {
-    NSError *categoryError = nil;
-    if (![self setCategory:configuration.category
-               withOptions:configuration.categoryOptions
-                     error:&categoryError]) {
-      RTCLogError(@"Failed to set category options: %@",
-                  categoryError.localizedDescription);
-      error = categoryError;
-    } else {
-      RTCLog(@"Set category options to: %ld",
-             (long)configuration.categoryOptions);
-    }
-  }
+  // RingRTC change to ignore AudioSession category options changes in objc sdk.
+  // // Sometimes category options don't stick after setting mode.
+  // if (self.categoryOptions != configuration.categoryOptions) {
+  //   NSError *categoryError = nil;
+  //   if (![self setCategory:configuration.category
+  //              withOptions:configuration.categoryOptions
+  //                    error:&categoryError]) {
+  //     RTCLogError(@"Failed to set category options: %@",
+  //                 categoryError.localizedDescription);
+  //     error = categoryError;
+  //   } else {
+  //     RTCLog(@"Set category options to: %ld",
+  //            (long)configuration.categoryOptions);
+  //   }
+  // }
 
   if (self.preferredSampleRate != configuration.sampleRate) {
     NSError *sampleRateError = nil;
@@ -133,7 +136,9 @@
 
   if (self.isActive &&
       // TODO(tkchin): Figure out which category/mode numChannels is valid for.
-      [self.mode isEqualToString:AVAudioSessionModeVoiceChat]) {
+      // RingRTC change to support VoiceChat and VideoChat in objc sdk.
+      ([self.mode isEqualToString:AVAudioSessionModeVoiceChat] ||
+       [self.mode isEqualToString:AVAudioSessionModeVideoChat])) {
     // Try to set the preferred number of hardware audio channels. These calls
     // must be done after setting the audio session’s category and mode and
     // activating the session.
