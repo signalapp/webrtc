@@ -63,7 +63,7 @@
   //                 categoryError.localizedDescription);
   //     error = categoryError;
   //   } else {
-  //     RTCLog(@"JimX: Set category to: %@", configuration.category);
+  //     RTCLog(@"Set category to: %@", configuration.category);
   //   }
   // }
 
@@ -75,7 +75,7 @@
   //                 modeError.localizedDescription);
   //     error = modeError;
   //   } else {
-  //     RTCLog(@"JimX: Set mode to: %@", configuration.mode);
+  //     RTCLog(@"Set mode to: %@", configuration.mode);
   //   }
   // }
 
