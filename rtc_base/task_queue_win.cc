@@ -175,9 +175,7 @@ class TaskQueueWin : public TaskQueueBase {
                  void* obj,
                  absl::string_view thread_name,
                  rtc::ThreadPriority priority)
-        : PlatformThread(func,
-                         obj,
-                         thread_name,
+        : PlatformThread(func, obj, thread_name,
                          rtc::ThreadAttributes().SetPriority(priority)) {}
 
     bool QueueAPC(PAPCFUNC apc_function, ULONG_PTR data) {

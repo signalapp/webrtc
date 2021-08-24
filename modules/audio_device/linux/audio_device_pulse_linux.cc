@@ -159,8 +159,7 @@ AudioDeviceGeneric::InitStatus AudioDeviceLinuxPulse::Init() {
 
   // RECORDING
   _ptrThreadRec.reset(new rtc::PlatformThread(
-      RecThreadFunc, this,
-      "webrtc_audio_module_rec_thread",
+      RecThreadFunc, this, "webrtc_audio_module_rec_thread",
       rtc::ThreadAttributes().SetPriority(rtc::kRealtimePriority)));
   _ptrThreadRec->Start();
 
