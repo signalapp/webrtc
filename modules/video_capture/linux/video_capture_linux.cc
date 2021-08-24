@@ -244,8 +244,11 @@ int32_t VideoCaptureModuleV4L2::StartCapture(
   if (!_captureThread) {
     quit_ = false;
     _captureThread.reset(
-        new rtc::PlatformThread(VideoCaptureModuleV4L2::CaptureThread, this,
-                                "CaptureThread", rtc::kHighPriority));
+        new rtc::PlatformThread(
+            VideoCaptureModuleV4L2::CaptureThread,
+            this,
+            "CaptureThread",
+            rtc::ThreadAttributes().SetPriority(rtc::kHighPriority)));
     _captureThread->Start();
   }
 
