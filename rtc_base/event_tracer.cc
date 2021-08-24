@@ -91,6 +91,7 @@ class EventLogger final {
       : logging_thread_(EventTracingThreadFunc,
                         this,
                         "EventTracingThread",
+                        // RingRTC change to update AsyncResolver.
                         ThreadAttributes().SetPriority(kLowPriority)) {}
   ~EventLogger() { RTC_DCHECK(thread_checker_.IsCurrent()); }
 

@@ -174,6 +174,7 @@ TaskQueueLibevent::TaskQueueLibevent(absl::string_view queue_name,
                                      rtc::ThreadPriority priority)
     : event_base_(event_base_new()),
       thread_(&TaskQueueLibevent::ThreadMain, this, queue_name,
+              // RingRTC change to update AsyncResolver.
               rtc::ThreadAttributes().SetPriority(priority)) {
   int fds[2];
   RTC_CHECK(pipe(fds) == 0);

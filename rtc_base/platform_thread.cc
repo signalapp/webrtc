@@ -8,6 +8,8 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+// RingRTC changes to update AsyncResolver.
+
 #include "rtc_base/platform_thread.h"
 
 #include <memory>

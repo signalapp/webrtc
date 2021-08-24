@@ -160,12 +160,14 @@ AudioDeviceGeneric::InitStatus AudioDeviceLinuxPulse::Init() {
   // RECORDING
   _ptrThreadRec.reset(new rtc::PlatformThread(
       RecThreadFunc, this, "webrtc_audio_module_rec_thread",
+      // RingRTC change to update AsyncResolver.
       rtc::ThreadAttributes().SetPriority(rtc::kRealtimePriority)));
   _ptrThreadRec->Start();
 
   // PLAYOUT
   _ptrThreadPlay.reset(new rtc::PlatformThread(
       PlayThreadFunc, this, "webrtc_audio_module_play_thread",
+      // RingRTC change to update AsyncResolver.
       rtc::ThreadAttributes().SetPriority(rtc::kRealtimePriority)));
   _ptrThreadPlay->Start();
 
