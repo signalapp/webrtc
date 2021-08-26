@@ -388,9 +388,10 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
   }
 
   if (self = [super init]) {
+    // RingRTC changes for low-level FFI
+    _customObserver.reset((webrtc::PeerConnectionObserver *)observer);
     _nativeConstraints = constraints.nativeConstraints;
     CopyConstraintsIntoRtcConfiguration(_nativeConstraints.get(), config.get());
-    _customObserver.reset((webrtc::PeerConnectionObserver *)observer);
 
     webrtc::PeerConnectionDependencies deps = std::move(*dependencies.release());
     // RingRTC changes for low-level FFI
@@ -404,7 +405,7 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
     _factory = factory;
     _localStreams = [[NSMutableArray alloc] init];
 
-    // We don't use the delegate from here.
+    // RingRTC changes for low-level FFI
     _delegate = nil;
   }
 
@@ -421,15 +422,10 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
   return [[RTC_OBJC_TYPE(RTCMediaStream) alloc] initWithFactory:_factory nativeMediaStream:stream];
 }
 
-- (void *)getRawPeerConnection {
+// RingRTC changes for low-level FFI
+- (void *)getNativePeerConnectionPointer {
   return _peerConnection;
 }
-
-- (void)releaseRawPeerConnection:(void *)rawPeerConnection {
-  rtc::scoped_refptr<webrtc::PeerConnectionInterface> _pc = (webrtc::PeerConnectionInterface *)rawPeerConnection;
-  _pc.release();
-}
-
 
 - (NSArray<RTC_OBJC_TYPE(RTCMediaStream) *> *)localStreams {
   return [_localStreams copy];
