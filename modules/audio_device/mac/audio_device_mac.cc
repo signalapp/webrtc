@@ -1268,7 +1268,9 @@ int32_t AudioDeviceMac::StartRecording() {
 
   RTC_DCHECK(!capture_worker_thread_.get());
   capture_worker_thread_.reset(new rtc::PlatformThread(
-      RunCapture, this, "CaptureWorkerThread", rtc::kRealtimePriority));
+      RunCapture, this, "CaptureWorkerThread",
+      // RingRTC change to update AsyncResolver.
+      rtc::ThreadAttributes().SetPriority(rtc::kRealtimePriority)));
   RTC_DCHECK(capture_worker_thread_.get());
   capture_worker_thread_->Start();
 
@@ -1403,7 +1405,9 @@ int32_t AudioDeviceMac::StartPlayout() {
 
   RTC_DCHECK(!render_worker_thread_.get());
   render_worker_thread_.reset(new rtc::PlatformThread(
-      RunRender, this, "RenderWorkerThread", rtc::kRealtimePriority));
+      RunRender, this, "RenderWorkerThread",
+      // RingRTC change to update AsyncResolver.
+      rtc::ThreadAttributes().SetPriority(rtc::kRealtimePriority)));
   render_worker_thread_->Start();
 
   if (_twoDevices || !_recording) {

@@ -218,7 +218,8 @@ int32_t FileAudioDevice::StartPlayout() {
 
   _ptrThreadPlay.reset(new rtc::PlatformThread(
       PlayThreadFunc, this, "webrtc_audio_module_play_thread",
-      rtc::kRealtimePriority));
+      // RingRTC change to update AsyncResolver.
+      rtc::ThreadAttributes().SetPriority(rtc::kLowPriority)));
   _ptrThreadPlay->Start();
 
   RTC_LOG(LS_INFO) << "Started playout capture to output file: "
@@ -278,7 +279,8 @@ int32_t FileAudioDevice::StartRecording() {
 
   _ptrThreadRec.reset(new rtc::PlatformThread(
       RecThreadFunc, this, "webrtc_audio_module_capture_thread",
-      rtc::kRealtimePriority));
+      // RingRTC change to update AsyncResolver.
+      rtc::ThreadAttributes().SetPriority(rtc::kLowPriority)));
 
   _ptrThreadRec->Start();
 

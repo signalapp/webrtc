@@ -175,7 +175,9 @@ class TaskQueueWin : public TaskQueueBase {
                  void* obj,
                  absl::string_view thread_name,
                  rtc::ThreadPriority priority)
-        : PlatformThread(func, obj, thread_name, priority) {}
+        : PlatformThread(func, obj, thread_name,
+                         // RingRTC change to update AsyncResolver.
+                         rtc::ThreadAttributes().SetPriority(priority)) {}
 
     bool QueueAPC(PAPCFUNC apc_function, ULONG_PTR data) {
       return rtc::PlatformThread::QueueAPC(apc_function, data);
