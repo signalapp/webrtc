@@ -388,10 +388,10 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
   }
 
   if (self = [super init]) {
-    // RingRTC changes for low-level FFI
-    _customObserver.reset((webrtc::PeerConnectionObserver *)observer);
     _nativeConstraints = constraints.nativeConstraints;
     CopyConstraintsIntoRtcConfiguration(_nativeConstraints.get(), config.get());
+    // RingRTC changes for low-level FFI
+    _customObserver.reset((webrtc::PeerConnectionObserver *)observer);
 
     webrtc::PeerConnectionDependencies deps = std::move(*dependencies.release());
     // RingRTC changes for low-level FFI
