@@ -206,13 +206,10 @@ RTC_OBJC_EXPORT
  */
 - (RTCMediaStream *)createStreamFromNative:(void *)nativeStream;
 
-/** Return the underlying WebRTC Peer Connection object pointer.
+// RingRTC changes for low-level FFI
+/** Get the pointer to the native WebRTC Peer Connection.
  */
-- (void *)getRawPeerConnection;
-
-/** Releases the underlying WebRTC Peer Connection.
- */
-- (void)releaseRawPeerConnection:(void *)rawPeerConnection;
+- (void *)getNativePeerConnectionPointer;
 
 /** Sets the PeerConnection's global configuration to |configuration|.
  *  Any changes to STUN/TURN servers or ICE candidate policy will affect the
