@@ -424,7 +424,7 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
 
 // RingRTC changes for low-level FFI
 - (void *)getNativePeerConnectionPointer {
-  return _peerConnection;
+  return _peerConnection.get();
 }
 
 - (NSArray<RTC_OBJC_TYPE(RTCMediaStream) *> *)localStreams {
