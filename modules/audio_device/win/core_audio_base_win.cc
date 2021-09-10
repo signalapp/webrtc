@@ -560,7 +560,8 @@ bool CoreAudioBase::Start() {
   if (!audio_thread_) {
     audio_thread_ = std::make_unique<rtc::PlatformThread>(
         Run, this, IsInput() ? "wasapi_capture_thread" : "wasapi_render_thread",
-        rtc::kRealtimePriority);
+        // RingRTC change to update AsyncResolver.
+        rtc::ThreadAttributes().SetPriority(rtc::kRealtimePriority));
     RTC_DCHECK(audio_thread_);
     audio_thread_->Start();
     if (!audio_thread_->IsRunning()) {
