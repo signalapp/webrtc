@@ -158,4 +158,11 @@ NSString * const kRTCMediaStreamTrackKindVideo =
   }
 }
 
+// RingRTC changes for low-level FFI
+/** Return the underlying native WebRTC track pointer.
+ */
+- (void *)getOwnedNativeTrack {
+  return self.nativeTrack.release();
+}
+
 @end
