@@ -97,6 +97,11 @@ RTC_OBJC_EXPORT
 /* Stop an active AecDump recording */
 - (void)stopAecDump;
 
+// RingRTC changes for low-level FFI
+/** Return the underlying native WebRTC PeerConnectionFactory pointer.
+ */
+- (void *)getOwnedNativeFactory;
+
 @end
 
 NS_ASSUME_NONNULL_END
