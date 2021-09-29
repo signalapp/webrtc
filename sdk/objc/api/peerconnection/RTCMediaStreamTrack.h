@@ -43,6 +43,11 @@ RTC_OBJC_EXPORT
 /** The state of the track. */
 @property(nonatomic, readonly) RTCMediaStreamTrackState readyState;
 
+// RingRTC changes for low-level FFI
+/** Return the underlying native WebRTC track pointer.
+ */
+- (void *)getOwnedNativeTrack;
+
 - (instancetype)init NS_UNAVAILABLE;
 
 @end

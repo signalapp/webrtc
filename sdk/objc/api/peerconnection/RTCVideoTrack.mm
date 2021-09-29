@@ -16,10 +16,8 @@
 #import "api/RTCVideoRendererAdapter+Private.h"
 #import "helpers/NSString+StdString.h"
 
-// RingRTC changes for low-level FFI
 @implementation RTC_OBJC_TYPE (RTCVideoTrack) {
   NSMutableArray *_adapters;
-  rtc::scoped_refptr<webrtc::VideoTrackInterface> _nativeTrack;
 }
 
 @synthesize source = _source;
@@ -36,7 +34,6 @@
                                               source.nativeVideoSource);
   if (self = [self initWithFactory:factory nativeTrack:track type:RTCMediaStreamTrackTypeVideo]) {
     _source = source;
-    _nativeTrack = track;
   }
   return self;
 }
@@ -49,18 +46,6 @@
   NSParameterAssert(nativeMediaTrack);
   NSParameterAssert(type == RTCMediaStreamTrackTypeVideo);
   if (self = [super initWithFactory:factory nativeTrack:nativeMediaTrack type:type]) {
-    _adapters = [NSMutableArray array];
-  }
-  return self;
-}
-
-// RingRTC changes for low-level FFI
-- (instancetype)initWithFactory:(RTC_OBJC_TYPE(RTCPeerConnectionFactory) *)factory
-                    nativeTrack:
-                        (rtc::scoped_refptr<webrtc::MediaStreamTrackInterface>)nativeMediaTrack {
-  NSParameterAssert(factory);
-  NSParameterAssert(nativeMediaTrack);
-  if (self = [super initWithFactory:factory nativeTrack:nativeMediaTrack type:RTCMediaStreamTrackTypeVideo]) {
     _adapters = [NSMutableArray array];
   }
   return self;
@@ -117,10 +102,6 @@
       [_adapters objectAtIndex:indexToRemove];
   self.nativeVideoTrack->RemoveSink(adapterToRemove.nativeVideoRenderer);
   [_adapters removeObjectAtIndex:indexToRemove];
-}
-
-- (void *)getNativeVideoTrack {
-  return _nativeTrack.release();
 }
 
 #pragma mark - Private

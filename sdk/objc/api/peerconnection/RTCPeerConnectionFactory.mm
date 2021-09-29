@@ -263,7 +263,9 @@
 - (RTC_OBJC_TYPE(RTCVideoTrack) *)videoTrackFromNativeTrack:(void *)nativeTrack {
   webrtc::MediaStreamTrackInterface *track = (webrtc::MediaStreamTrackInterface *)nativeTrack;
 
-  return [[RTC_OBJC_TYPE(RTCVideoTrack) alloc] initWithFactory:self nativeTrack:track];
+  return [[RTC_OBJC_TYPE(RTCVideoTrack) alloc] initWithFactory:self
+                                                   nativeTrack:track
+                                                          type:RTCMediaStreamTrackTypeVideo];
 }
 
 - (RTC_OBJC_TYPE(RTCPeerConnection) *)
