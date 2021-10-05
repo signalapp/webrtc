@@ -130,7 +130,13 @@ void AudioState::SetPlayout(bool enabled) {
     if (enabled) {
       UpdateNullAudioPollerState();
       if (!receiving_streams_.empty()) {
-        config_.audio_device_module->StartPlayout();
+        // WebRTC change to ensure the ADM is initialized before attempting
+        // to start playout (preventing a crash on some ADMs).
+        if (config_.audio_device_module->InitPlayout() == 0) {
+          config_.audio_device_module->StartPlayout();
+        } else {
+          RTC_DLOG_F(LS_ERROR) << "Failed to initialize playout.";
+        }
       }
     } else {
       config_.audio_device_module->StopPlayout();
