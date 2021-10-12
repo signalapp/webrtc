@@ -210,11 +210,6 @@ bool IsEnabled(const webrtc::WebRtcKeyValueConfig& config,
   return absl::StartsWith(config.Lookup(trial), "Enabled");
 }
 
-bool IsDisabled(const webrtc::WebRtcKeyValueConfig& config,
-                absl::string_view trial) {
-  return absl::StartsWith(config.Lookup(trial), "Disabled");
-}
-
 struct AdaptivePtimeConfig {
   bool enabled = false;
   webrtc::DataRate min_payload_bitrate = webrtc::DataRate::KilobitsPerSec(16);
@@ -312,7 +307,7 @@ WebRtcVoiceEngine::WebRtcVoiceEngine(
       apm_(audio_processing),
       audio_frame_processor_(audio_frame_processor),
       audio_red_for_opus_enabled_(
-          !IsDisabled(trials, "WebRTC-Audio-Red-For-Opus")),
+          IsEnabled(trials, "WebRTC-Audio-Red-For-Opus")),
       minimized_remsampling_on_mobile_trial_enabled_(
           IsEnabled(trials, "WebRTC-Audio-MinimizeResamplingOnMobile")) {
   // This may be called from any thread, so detach thread checkers.
@@ -1349,7 +1344,7 @@ WebRtcVoiceMediaChannel::WebRtcVoiceMediaChannel(
       audio_config_(config.audio),
       crypto_options_(crypto_options),
       audio_red_for_opus_enabled_(
-          !IsDisabled(call->trials(), "WebRTC-Audio-Red-For-Opus")) {
+          IsEnabled(call->trials(), "WebRTC-Audio-Red-For-Opus")) {
   network_thread_checker_.Detach();
   RTC_LOG(LS_VERBOSE) << "WebRtcVoiceMediaChannel::WebRtcVoiceMediaChannel";
   RTC_DCHECK(call);
