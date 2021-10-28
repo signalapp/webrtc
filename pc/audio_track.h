@@ -16,7 +16,7 @@
 #include "api/media_stream_interface.h"
 #include "api/media_stream_track.h"
 #include "api/scoped_refptr.h"
-#include "rtc_base/thread_checker.h"
+#include "api/sequence_checker.h"
 
 namespace webrtc {
 
@@ -41,19 +41,19 @@ class AudioTrack : public MediaStreamTrack<AudioTrackInterface>,
   // MediaStreamTrack implementation.
   std::string kind() const override;
 
- private:
   // AudioTrackInterface implementation.
   AudioSourceInterface* GetSource() const override;
 
   void AddSink(AudioTrackSinkInterface* sink) override;
   void RemoveSink(AudioTrackSinkInterface* sink) override;
 
+ private:
   // ObserverInterface implementation.
   void OnChanged() override;
 
  private:
   const rtc::scoped_refptr<AudioSourceInterface> audio_source_;
-  rtc::ThreadChecker thread_checker_;
+  SequenceChecker thread_checker_;
 };
 
 }  // namespace webrtc

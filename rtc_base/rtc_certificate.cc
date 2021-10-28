@@ -13,7 +13,6 @@
 #include <memory>
 
 #include "rtc_base/checks.h"
-#include "rtc_base/ref_counted_object.h"
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_identity.h"
 #include "rtc_base/time_utils.h"
@@ -22,14 +21,14 @@ namespace rtc {
 
 scoped_refptr<RTCCertificate> RTCCertificate::Create(
     std::unique_ptr<SSLIdentity> identity) {
-  return new RefCountedObject<RTCCertificate>(identity.release());
+  return new RTCCertificate(identity.release());
 }
 
 RTCCertificate::RTCCertificate(SSLIdentity* identity) : identity_(identity) {
   RTC_DCHECK(identity_);
 }
 
-RTCCertificate::~RTCCertificate() {}
+RTCCertificate::~RTCCertificate() = default;
 
 uint64_t RTCCertificate::Expires() const {
   int64_t expires = GetSSLCertificate().CertificateExpirationTime();
@@ -44,11 +43,6 @@ bool RTCCertificate::HasExpired(uint64_t now) const {
 }
 
 const SSLCertificate& RTCCertificate::GetSSLCertificate() const {
-  return identity_->certificate();
-}
-
-// Deprecated: TODO(benwright) - Remove once chromium is updated.
-const SSLCertificate& RTCCertificate::ssl_certificate() const {
   return identity_->certificate();
 }
 
@@ -67,7 +61,7 @@ scoped_refptr<RTCCertificate> RTCCertificate::FromPEM(
       SSLIdentity::CreateFromPEMStrings(pem.private_key(), pem.certificate()));
   if (!identity)
     return nullptr;
-  return new RefCountedObject<RTCCertificate>(identity.release());
+  return new RTCCertificate(identity.release());
 }
 
 bool RTCCertificate::operator==(const RTCCertificate& certificate) const {

@@ -18,16 +18,17 @@
 #include <vector>
 
 #include "absl/container/inlined_vector.h"
+#include "api/sequence_checker.h"
 #include "api/video/encoded_frame.h"
 #include "modules/video_coding/include/video_coding_defines.h"
 #include "modules/video_coding/inter_frame_delay.h"
 #include "modules/video_coding/jitter_estimator.h"
 #include "modules/video_coding/utility/decoded_frames_history.h"
 #include "rtc_base/event.h"
+#include "rtc_base/experiments/field_trial_parser.h"
 #include "rtc_base/experiments/rtt_mult_experiment.h"
 #include "rtc_base/numerics/sequence_number_util.h"
 #include "rtc_base/synchronization/mutex.h"
-#include "rtc_base/synchronization/sequence_checker.h"
 #include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/task_queue.h"
 #include "rtc_base/task_utils/repeating_task.h"
@@ -58,11 +59,10 @@ class FrameBuffer {
 
   // Insert a frame into the frame buffer. Returns the picture id
   // of the last continuous frame or -1 if there is no continuous frame.
-  // TODO(philipel): Return a VideoLayerFrameId and not only the picture id.
   int64_t InsertFrame(std::unique_ptr<EncodedFrame> frame);
 
   // Get the next frame for decoding. Will return at latest after
-  // |max_wait_time_ms|.
+  // `max_wait_time_ms`.
   void NextFrame(
       int64_t max_wait_time_ms,
       bool keyframe_required,
@@ -95,7 +95,7 @@ class FrameBuffer {
 
     // Which other frames that have direct unfulfilled dependencies
     // on this frame.
-    absl::InlinedVector<VideoLayerFrameId, 8> dependent_frames;
+    absl::InlinedVector<int64_t, 8> dependent_frames;
 
     // A frame is continiuous if it has all its referenced/indirectly
     // referenced frames.
@@ -115,9 +115,9 @@ class FrameBuffer {
     std::unique_ptr<EncodedFrame> frame;
   };
 
-  using FrameMap = std::map<VideoLayerFrameId, FrameInfo>;
+  using FrameMap = std::map<int64_t, FrameInfo>;
 
-  // Check that the references of |frame| are valid.
+  // Check that the references of `frame` are valid.
   bool ValidReferences(const EncodedFrame& frame) const;
 
   int64_t FindNextFrame(int64_t now_ms) RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
@@ -135,9 +135,9 @@ class FrameBuffer {
   void PropagateDecodability(const FrameInfo& info)
       RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
-  // Update the corresponding FrameInfo of |frame| and all FrameInfos that
-  // |frame| references.
-  // Return false if |frame| will never be decodable, true otherwise.
+  // Update the corresponding FrameInfo of `frame` and all FrameInfos that
+  // `frame` references.
+  // Return false if `frame` will never be decodable, true otherwise.
   bool UpdateFrameInfoWithIncomingFrame(const EncodedFrame& frame,
                                         FrameMap::iterator info)
       RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
@@ -178,8 +178,7 @@ class FrameBuffer {
   VCMJitterEstimator jitter_estimator_ RTC_GUARDED_BY(mutex_);
   VCMTiming* const timing_ RTC_GUARDED_BY(mutex_);
   VCMInterFrameDelay inter_frame_delay_ RTC_GUARDED_BY(mutex_);
-  absl::optional<VideoLayerFrameId> last_continuous_frame_
-      RTC_GUARDED_BY(mutex_);
+  absl::optional<int64_t> last_continuous_frame_ RTC_GUARDED_BY(mutex_);
   std::vector<FrameMap::iterator> frames_to_decode_ RTC_GUARDED_BY(mutex_);
   bool stopped_ RTC_GUARDED_BY(mutex_);
   VCMVideoProtection protection_mode_ RTC_GUARDED_BY(mutex_);
@@ -190,6 +189,13 @@ class FrameBuffer {
 
   // rtt_mult experiment settings.
   const absl::optional<RttMultExperiment::Settings> rtt_mult_settings_;
+
+  // Maximum number of frames in the decode queue to allow pacing. If the
+  // queue grows beyond the max limit, pacing will be disabled and frames will
+  // be pushed to the decoder as soon as possible. This only has an effect
+  // when the low-latency rendering path is active, which is indicated by
+  // the frame's render time == 0.
+  FieldTrialParameter<unsigned> zero_playout_delay_max_decode_queue_size_;
 };
 
 }  // namespace video_coding

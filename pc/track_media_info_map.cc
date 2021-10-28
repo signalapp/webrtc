@@ -10,10 +10,15 @@
 
 #include "pc/track_media_info_map.h"
 
+#include <cstdint>
 #include <set>
 #include <string>
 #include <utility>
 
+#include "api/media_types.h"
+#include "api/rtp_parameters.h"
+#include "media/base/stream_params.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/thread.h"
 
 namespace webrtc {
@@ -51,7 +56,7 @@ void GetAudioAndVideoTrackBySsrc(
     if (!track) {
       continue;
     }
-    // TODO(deadbeef): |ssrc| should be removed in favor of |GetParameters|.
+    // TODO(deadbeef): `ssrc` should be removed in favor of `GetParameters`.
     uint32_t ssrc = rtp_sender->ssrc();
     if (ssrc != 0) {
       if (media_type == cricket::MEDIA_TYPE_AUDIO) {

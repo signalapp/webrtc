@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "api/video/i420_buffer.h"
+#include "api/video_codecs/video_decoder.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/time_controller/simulated_time_controller.h"
@@ -28,10 +29,7 @@ class MockVideoStreamDecoderCallbacks
     : public VideoStreamDecoderInterface::Callbacks {
  public:
   MOCK_METHOD(void, OnNonDecodableState, (), (override));
-  MOCK_METHOD(void,
-              OnContinuousUntil,
-              (const video_coding::VideoLayerFrameId& key),
-              (override));
+  MOCK_METHOD(void, OnContinuousUntil, (int64_t frame_id), (override));
   MOCK_METHOD(
       void,
       OnDecodedFrame,
@@ -42,10 +40,9 @@ class MockVideoStreamDecoderCallbacks
 
 class StubVideoDecoder : public VideoDecoder {
  public:
-  MOCK_METHOD(int32_t,
-              InitDecode,
-              (const VideoCodec*, int32_t number_of_cores),
-              (override));
+  StubVideoDecoder() { ON_CALL(*this, Configure).WillByDefault(Return(true)); }
+
+  MOCK_METHOD(bool, Configure, (const Settings&), (override));
 
   int32_t Decode(const EncodedImage& input_image,
                  bool missing_frames,
@@ -84,9 +81,8 @@ class WrappedVideoDecoder : public VideoDecoder {
  public:
   explicit WrappedVideoDecoder(StubVideoDecoder* decoder) : decoder_(decoder) {}
 
-  int32_t InitDecode(const VideoCodec* codec_settings,
-                     int32_t number_of_cores) override {
-    return decoder_->InitDecode(codec_settings, number_of_cores);
+  bool Configure(const Settings& settings) override {
+    return decoder_->Configure(settings);
   }
   int32_t Decode(const EncodedImage& input_image,
                  bool missing_frames,
@@ -130,7 +126,7 @@ class FakeVideoDecoderFactory : public VideoDecoderFactory {
   NiceMock<StubVideoDecoder> av1_decoder_;
 };
 
-class FakeEncodedFrame : public video_coding::EncodedFrame {
+class FakeEncodedFrame : public EncodedFrame {
  public:
   int64_t ReceivedTime() const override { return 0; }
   int64_t RenderTime() const override { return 0; }
@@ -149,7 +145,7 @@ class FrameBuilder {
   }
 
   FrameBuilder& WithPictureId(int picture_id) {
-    frame_->id.picture_id = picture_id;
+    frame_->SetId(picture_id);
     return *this;
   }
 
@@ -206,8 +202,8 @@ TEST_F(VideoStreamDecoderImplTest, InsertAndDecodeFrameWithKeyframeRequest) {
 
 TEST_F(VideoStreamDecoderImplTest, FailToInitDecoder) {
   video_stream_decoder_.OnFrame(FrameBuilder().WithPayloadType(1).Build());
-  ON_CALL(decoder_factory_.Vp8Decoder(), InitDecode)
-      .WillByDefault(Return(WEBRTC_VIDEO_CODEC_ERROR));
+  ON_CALL(decoder_factory_.Vp8Decoder(), Configure)
+      .WillByDefault(Return(false));
   EXPECT_CALL(callbacks_, OnNonDecodableState);
   time_controller_.AdvanceTime(TimeDelta::Millis(1));
 }

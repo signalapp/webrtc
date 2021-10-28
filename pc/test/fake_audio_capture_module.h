@@ -20,13 +20,20 @@
 #ifndef PC_TEST_FAKE_AUDIO_CAPTURE_MODULE_H_
 #define PC_TEST_FAKE_AUDIO_CAPTURE_MODULE_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <memory>
 
 #include "api/scoped_refptr.h"
+#include "api/sequence_checker.h"
 #include "modules/audio_device/include/audio_device.h"
+#include "modules/audio_device/include/audio_device_defines.h"
 #include "rtc_base/message_handler.h"
 #include "rtc_base/synchronization/mutex.h"
-#include "rtc_base/synchronization/sequence_checker.h"
+#include "rtc_base/thread.h"
+#include "rtc_base/thread_annotations.h"
+#include "rtc_base/thread_message.h"
 
 namespace rtc {
 class Thread;
@@ -163,12 +170,12 @@ class FakeAudioCaptureModule : public webrtc::AudioDeviceModule,
   // Initializes the state of the FakeAudioCaptureModule. This API is called on
   // creation by the Create() API.
   bool Initialize();
-  // SetBuffer() sets all samples in send_buffer_ to |value|.
+  // SetBuffer() sets all samples in send_buffer_ to `value`.
   void SetSendBuffer(int value);
   // Resets rec_buffer_. I.e., sets all rec_buffer_ samples to 0.
   void ResetRecBuffer();
   // Returns true if rec_buffer_ contains one or more sample greater than or
-  // equal to |value|.
+  // equal to `value`.
   bool CheckRecBuffer(int value);
 
   // Returns true/false depending on if recording or playback has been

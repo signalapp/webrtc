@@ -56,7 +56,8 @@ class VCMTimingFake : public VCMTiming {
   }
 
   int64_t MaxWaitingTime(int64_t render_time_ms,
-                         int64_t now_ms) const override {
+                         int64_t now_ms,
+                         bool too_many_frames_queued) const override {
     return render_time_ms - now_ms - kDecodeTime;
   }
 
@@ -164,7 +165,7 @@ class TestFrameBuffer2 : public ::testing::Test {
         {rtc::checked_cast<uint16_t>(refs)...}};
 
     auto frame = std::make_unique<FrameObjectFake>();
-    frame->id.picture_id = picture_id;
+    frame->SetId(picture_id);
     frame->SetSpatialIndex(spatial_layer);
     frame->SetTimestamp(ts_ms * 90);
     frame->num_references = references.size();
@@ -199,7 +200,7 @@ class TestFrameBuffer2 : public ::testing::Test {
     time_task_queue_.PostTask([this, max_wait_time, keyframe_required]() {
       buffer_->NextFrame(
           max_wait_time, keyframe_required, &time_task_queue_,
-          [this](std::unique_ptr<video_coding::EncodedFrame> frame,
+          [this](std::unique_ptr<EncodedFrame> frame,
                  video_coding::FrameBuffer::ReturnReason reason) {
             if (reason != FrameBuffer::ReturnReason::kStopped) {
               frames_.emplace_back(std::move(frame));
@@ -214,7 +215,7 @@ class TestFrameBuffer2 : public ::testing::Test {
   void CheckFrame(size_t index, int picture_id, int spatial_layer) {
     ASSERT_LT(index, frames_.size());
     ASSERT_TRUE(frames_[index]);
-    ASSERT_EQ(picture_id, frames_[index]->id.picture_id);
+    ASSERT_EQ(picture_id, frames_[index]->Id());
     ASSERT_EQ(spatial_layer, frames_[index]->SpatialIndex().value_or(0));
   }
 
@@ -278,7 +279,7 @@ TEST_F(TestFrameBuffer2, ZeroPlayoutDelay) {
       new FrameBuffer(time_controller_.GetClock(), &timing, &stats_callback_));
   const VideoPlayoutDelay kPlayoutDelayMs = {0, 0};
   std::unique_ptr<FrameObjectFake> test_frame(new FrameObjectFake());
-  test_frame->id.picture_id = 0;
+  test_frame->SetId(0);
   test_frame->SetPlayoutDelay(kPlayoutDelayMs);
   buffer_->InsertFrame(std::move(test_frame));
   ExtractFrame(0, false);
@@ -544,7 +545,7 @@ TEST_F(TestFrameBuffer2, StatsCallback) {
   {
     std::unique_ptr<FrameObjectFake> frame(new FrameObjectFake());
     frame->SetEncodedData(EncodedImageBuffer::Create(kFrameSize));
-    frame->id.picture_id = pid;
+    frame->SetId(pid);
     frame->SetTimestamp(ts);
     frame->num_references = 0;
 

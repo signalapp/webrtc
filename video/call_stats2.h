@@ -35,6 +35,9 @@ class CallStats {
   CallStats(Clock* clock, TaskQueueBase* task_queue);
   ~CallStats();
 
+  // Ensure that necessary repeating tasks are started.
+  void EnsureStarted();
+
   // Expose an RtcpRttStats implementation without inheriting from RtcpRttStats.
   // That allows us to separate the threading model of how RtcpRttStats is
   // used (mostly on a process thread) and how CallStats is used (mostly on
@@ -47,7 +50,7 @@ class CallStats {
   void RegisterStatsObserver(CallStatsObserver* observer);
   void DeregisterStatsObserver(CallStatsObserver* observer);
 
-  // Expose |LastProcessedRtt()| from RtcpRttStats to the public interface, as
+  // Expose `LastProcessedRtt()` from RtcpRttStats to the public interface, as
   // it is the part of the API that is needed by direct users of CallStats.
   int64_t LastProcessedRtt() const;
 

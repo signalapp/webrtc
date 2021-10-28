@@ -19,7 +19,6 @@
 #include "api/rtp_parameters.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/deprecation.h"
 
 namespace webrtc {
 
@@ -31,6 +30,8 @@ class RtpHeaderExtensionMap {
   RtpHeaderExtensionMap();
   explicit RtpHeaderExtensionMap(bool extmap_allow_mixed);
   explicit RtpHeaderExtensionMap(rtc::ArrayView<const RtpExtension> extensions);
+
+  void Reset(rtc::ArrayView<const RtpExtension> extensions);
 
   template <typename Extension>
   bool Register(int id) {

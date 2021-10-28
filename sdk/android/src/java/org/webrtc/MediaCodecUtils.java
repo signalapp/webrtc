@@ -14,7 +14,7 @@ import android.annotation.TargetApi;
 import android.media.MediaCodecInfo;
 import android.media.MediaCodecInfo.CodecCapabilities;
 import android.os.Build;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -91,6 +91,7 @@ class MediaCodecUtils {
     switch (type) {
       case VP8:
       case VP9:
+      case AV1:
         return new HashMap<String, String>();
       case H264:
         return H264Utils.getDefaultH264Params(highProfile);

@@ -23,6 +23,7 @@
 #include "modules/audio_processing/agc/agc_manager_direct.h"
 #include "modules/audio_processing/agc/gain_control.h"
 #include "modules/audio_processing/audio_buffer.h"
+#include "modules/audio_processing/capture_levels_adjuster/capture_levels_adjuster.h"
 #include "modules/audio_processing/echo_control_mobile_impl.h"
 #include "modules/audio_processing/gain_control_impl.h"
 #include "modules/audio_processing/gain_controller2.h"
@@ -82,6 +83,7 @@ class AudioProcessingImpl : public AudioProcessing {
   void AttachAecDump(std::unique_ptr<AecDump> aec_dump) override;
   void DetachAecDump() override;
   void SetRuntimeSetting(RuntimeSetting setting) override;
+  bool PostRuntimeSetting(RuntimeSetting setting) override;
 
   // Capture-side exclusive methods possibly running APM in a
   // multi-threaded manner. Acquire the capture lock.
@@ -96,6 +98,8 @@ class AudioProcessingImpl : public AudioProcessing {
   bool GetLinearAecOutput(
       rtc::ArrayView<std::array<float, 160>> linear_output) const override;
   void set_output_will_be_muted(bool muted) override;
+  void HandleCaptureOutputUsedSetting(bool capture_output_used)
+      RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_capture_);
   int set_stream_delay_ms(int delay) override;
   void set_stream_key_pressed(bool key_pressed) override;
   void set_stream_analog_level(int level) override;
@@ -133,14 +137,17 @@ class AudioProcessingImpl : public AudioProcessing {
     return stats_reporter_.GetStatistics();
   }
 
-  // TODO(peah): Remove MutateConfig once the new API allows that.
-  void MutateConfig(rtc::FunctionView<void(AudioProcessing::Config*)> mutator);
   AudioProcessing::Config GetConfig() const override;
 
  protected:
   // Overridden in a mock.
   virtual void InitializeLocked()
       RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_render_, mutex_capture_);
+  void AssertLockedForTest()
+      RTC_ASSERT_EXCLUSIVE_LOCK(mutex_render_, mutex_capture_) {
+    mutex_render_.AssertHeld();
+    mutex_capture_.AssertHeld();
+  }
 
  private:
   // TODO(peah): These friend classes should be removed as soon as the new
@@ -162,13 +169,15 @@ class AudioProcessingImpl : public AudioProcessing {
       const ApmSubmoduleCreationOverrides& overrides);
 
   // Class providing thread-safe message pipe functionality for
-  // |runtime_settings_|.
+  // `runtime_settings_`.
   class RuntimeSettingEnqueuer {
    public:
     explicit RuntimeSettingEnqueuer(
         SwapQueue<RuntimeSetting>* runtime_settings);
     ~RuntimeSettingEnqueuer();
-    void Enqueue(RuntimeSetting setting);
+
+    // Enqueue setting and return whether the setting was successfully enqueued.
+    bool Enqueue(RuntimeSetting setting);
 
    private:
     SwapQueue<RuntimeSetting>& runtime_settings_;
@@ -177,6 +186,8 @@ class AudioProcessingImpl : public AudioProcessing {
   std::unique_ptr<ApmDataDumper> data_dumper_;
   static int instance_count_;
   const bool use_setup_specific_default_aec3_config_;
+
+  const bool use_denormal_disabler_;
 
   SwapQueue<RuntimeSetting> capture_runtime_settings_;
   SwapQueue<RuntimeSetting> render_runtime_settings_;
@@ -199,7 +210,7 @@ class AudioProcessingImpl : public AudioProcessing {
                 bool noise_suppressor_enabled,
                 bool adaptive_gain_controller_enabled,
                 bool gain_controller2_enabled,
-                bool pre_amplifier_enabled,
+                bool gain_adjustment_enabled,
                 bool echo_controller_enabled,
                 bool voice_detector_enabled,
                 bool transient_suppressor_enabled);
@@ -223,7 +234,7 @@ class AudioProcessingImpl : public AudioProcessing {
     bool noise_suppressor_enabled_ = false;
     bool adaptive_gain_controller_enabled_ = false;
     bool gain_controller2_enabled_ = false;
-    bool pre_amplifier_enabled_ = false;
+    bool gain_adjustment_enabled_ = false;
     bool echo_controller_enabled_ = false;
     bool voice_detector_enabled_ = false;
     bool transient_suppressor_enabled_ = false;
@@ -267,7 +278,8 @@ class AudioProcessingImpl : public AudioProcessing {
       RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_capture_);
   void InitializeGainController2() RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_capture_);
   void InitializeNoiseSuppressor() RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_capture_);
-  void InitializePreAmplifier() RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_capture_);
+  void InitializeCaptureLevelsAdjuster()
+      RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_capture_);
   void InitializePostProcessor() RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_capture_);
   void InitializeAnalyzer() RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_capture_);
 
@@ -310,8 +322,8 @@ class AudioProcessingImpl : public AudioProcessing {
 
   // Collects configuration settings from public and private
   // submodules to be saved as an audioproc::Config message on the
-  // AecDump if it is attached.  If not |forced|, only writes the current
-  // config if it is different from the last saved one; if |forced|,
+  // AecDump if it is attached.  If not `forced`, only writes the current
+  // config if it is different from the last saved one; if `forced`,
   // writes the config regardless of the last saved.
   void WriteAecDumpConfigMessage(bool forced)
       RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_capture_);
@@ -337,6 +349,12 @@ class AudioProcessingImpl : public AudioProcessing {
 
   // Notifies attached AecDump about current state (delay, drift, etc).
   void RecordAudioProcessingState()
+      RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_capture_);
+
+  // Ensures that overruns in the capture runtime settings queue is properly
+  // handled by the code, providing safe-fallbacks to mitigate the implications
+  // of any settings being missed.
+  void HandleOverrunInCaptureRuntimeSettingsQueue()
       RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_capture_);
 
   // AecDump instance used for optionally logging APM config, input
@@ -383,10 +401,10 @@ class AudioProcessingImpl : public AudioProcessing {
     std::unique_ptr<TransientSuppressor> transient_suppressor;
     std::unique_ptr<CustomProcessing> capture_post_processor;
     std::unique_ptr<CustomProcessing> render_pre_processor;
-    std::unique_ptr<GainApplier> pre_amplifier;
     std::unique_ptr<CustomAudioAnalyzer> capture_analyzer;
     std::unique_ptr<LevelEstimator> output_level_estimator;
     std::unique_ptr<VoiceDetection> voice_detector;
+    std::unique_ptr<CaptureLevelsAdjuster> capture_levels_adjuster;
   } submodules_;
 
   // State that is written to while holding both the render and capture locks
@@ -410,20 +428,28 @@ class AudioProcessingImpl : public AudioProcessing {
   const struct ApmConstants {
     ApmConstants(bool multi_channel_render_support,
                  bool multi_channel_capture_support,
-                 bool enforce_split_band_hpf)
+                 bool enforce_split_band_hpf,
+                 bool minimize_processing_for_unused_output,
+                 bool transient_suppressor_forced_off)
         : multi_channel_render_support(multi_channel_render_support),
           multi_channel_capture_support(multi_channel_capture_support),
-          enforce_split_band_hpf(enforce_split_band_hpf) {}
+          enforce_split_band_hpf(enforce_split_band_hpf),
+          minimize_processing_for_unused_output(
+              minimize_processing_for_unused_output),
+          transient_suppressor_forced_off(transient_suppressor_forced_off) {}
     bool multi_channel_render_support;
     bool multi_channel_capture_support;
     bool enforce_split_band_hpf;
+    bool minimize_processing_for_unused_output;
+    bool transient_suppressor_forced_off;
   } constants_;
 
   struct ApmCaptureState {
     ApmCaptureState();
     ~ApmCaptureState();
     bool was_stream_delay_set;
-    bool output_will_be_muted;
+    bool capture_output_used;
+    bool capture_output_used_last_frame;
     bool key_pressed;
     std::unique_ptr<AudioBuffer> capture_audio;
     std::unique_ptr<AudioBuffer> capture_fullband_audio;
@@ -435,7 +461,7 @@ class AudioProcessingImpl : public AudioProcessing {
     int split_rate;
     bool echo_path_gain_change;
     int prev_analog_mic_level;
-    float prev_pre_amp_gain;
+    float prev_pre_adjustment_gain;
     int playout_volume;
     int prev_playout_volume;
     AudioProcessingStats stats;

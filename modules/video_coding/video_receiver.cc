@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "api/rtp_headers.h"
+#include "api/sequence_checker.h"
 #include "api/video_codecs/video_codec.h"
 #include "api/video_codecs/video_decoder.h"
 #include "modules/utility/include/process_thread.h"
@@ -33,7 +34,6 @@
 #include "rtc_base/location.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/one_time_event.h"
-#include "rtc_base/thread_checker.h"
 #include "rtc_base/trace_event.h"
 #include "system_wrappers/include/clock.h"
 
@@ -141,7 +141,7 @@ void VideoReceiver::RegisterExternalDecoder(VideoDecoder* externalDecoder,
     RTC_CHECK(_codecDataBase.DeregisterExternalDecoder(payloadType));
     return;
   }
-  _codecDataBase.RegisterExternalDecoder(externalDecoder, payloadType);
+  _codecDataBase.RegisterExternalDecoder(payloadType, externalDecoder);
 }
 
 // Register a frame type request callback.
@@ -246,18 +246,11 @@ int32_t VideoReceiver::Decode(const VCMEncodedFrame& frame) {
 }
 
 // Register possible receive codecs, can be called multiple times
-int32_t VideoReceiver::RegisterReceiveCodec(uint8_t payload_type,
-                                            const VideoCodec* receiveCodec,
-                                            int32_t numberOfCores) {
+void VideoReceiver::RegisterReceiveCodec(
+    uint8_t payload_type,
+    const VideoDecoder::Settings& settings) {
   RTC_DCHECK_RUN_ON(&construction_thread_checker_);
-  if (receiveCodec == nullptr) {
-    return VCM_PARAMETER_ERROR;
-  }
-  if (!_codecDataBase.RegisterReceiveCodec(payload_type, receiveCodec,
-                                           numberOfCores)) {
-    return -1;
-  }
-  return 0;
+  _codecDataBase.RegisterReceiveCodec(payload_type, settings);
 }
 
 // Incoming packet from network parsed and ready for decode, non blocking.
@@ -279,7 +272,7 @@ int32_t VideoReceiver::IncomingPacket(const uint8_t* incomingPayload,
   // Callers don't provide any ntp time.
   const VCMPacket packet(incomingPayload, payloadLength, rtp_header,
                          video_header, /*ntp_time_ms=*/0,
-                         clock_->TimeInMilliseconds());
+                         clock_->CurrentTime());
   int32_t ret = _receiver.InsertPacket(packet);
 
   // TODO(holmer): Investigate if this somehow should use the key frame

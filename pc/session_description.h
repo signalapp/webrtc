@@ -14,6 +14,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <algorithm>
 #include <iosfwd>
 #include <memory>
 #include <string>
@@ -24,15 +25,18 @@
 #include "api/crypto_params.h"
 #include "api/media_types.h"
 #include "api/rtp_parameters.h"
+#include "api/rtp_transceiver_direction.h"
 #include "api/rtp_transceiver_interface.h"
+#include "media/base/codec.h"
 #include "media/base/media_channel.h"
 #include "media/base/media_constants.h"
+#include "media/base/rid_description.h"
 #include "media/base/stream_params.h"
 #include "p2p/base/transport_description.h"
 #include "p2p/base/transport_info.h"
 #include "pc/media_protocol_names.h"
 #include "pc/simulcast_description.h"
-#include "rtc_base/deprecation.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/system/rtc_export.h"
 
@@ -40,7 +44,6 @@ namespace cricket {
 
 typedef std::vector<AudioCodec> AudioCodecs;
 typedef std::vector<VideoCodec> VideoCodecs;
-typedef std::vector<RtpDataCodec> RtpDataCodecs;
 typedef std::vector<CryptoParams> CryptoParamsVec;
 typedef std::vector<webrtc::RtpExtension> RtpHeaderExtensions;
 
@@ -56,7 +59,6 @@ const int kAutoBandwidth = -1;
 
 class AudioContentDescription;
 class VideoContentDescription;
-class RtpDataContentDescription;
 class SctpDataContentDescription;
 class UnsupportedContentDescription;
 
@@ -79,11 +81,6 @@ class MediaContentDescription {
   virtual VideoContentDescription* as_video() { return nullptr; }
   virtual const VideoContentDescription* as_video() const { return nullptr; }
 
-  virtual RtpDataContentDescription* as_rtp_data() { return nullptr; }
-  virtual const RtpDataContentDescription* as_rtp_data() const {
-    return nullptr;
-  }
-
   virtual SctpDataContentDescription* as_sctp() { return nullptr; }
   virtual const SctpDataContentDescription* as_sctp() const { return nullptr; }
 
@@ -102,7 +99,7 @@ class MediaContentDescription {
     return absl::WrapUnique(CloneInternal());
   }
 
-  // |protocol| is the expected media transport protocol, such as RTP/AVPF,
+  // `protocol` is the expected media transport protocol, such as RTP/AVPF,
   // RTP/SAVPF or SCTP/DTLS.
   virtual std::string protocol() const { return protocol_; }
   virtual void set_protocol(const std::string& protocol) {
@@ -146,6 +143,11 @@ class MediaContentDescription {
     cryptos_ = cryptos;
   }
 
+  // List of RTP header extensions. URIs are **NOT** guaranteed to be unique
+  // as they can appear twice when both encrypted and non-encrypted extensions
+  // are present.
+  // Use RtpExtension::FindHeaderExtensionByUri for finding and
+  // RtpExtension::DeduplicateHeaderExtensions for filtering.
   virtual const RtpHeaderExtensions& rtp_header_extensions() const {
     return rtp_header_extensions_;
   }
@@ -272,10 +274,7 @@ class MediaContentDescription {
   webrtc::RtpTransceiverDirection direction_ =
       webrtc::RtpTransceiverDirection::kSendRecv;
   rtc::SocketAddress connection_address_;
-  // Mixed one- and two-byte header not included in offer on media level or
-  // session level, but we will respond that we support it. The plan is to add
-  // it to our offer on session level. See todo in SessionDescription.
-  ExtmapAllowMixed extmap_allow_mixed_enum_ = kNo;
+  ExtmapAllowMixed extmap_allow_mixed_enum_ = kMedia;
 
   SimulcastDescription simulcast_;
   std::vector<RidDescription> receive_rids_;
@@ -357,20 +356,6 @@ class VideoContentDescription : public MediaContentDescriptionImpl<VideoCodec> {
  private:
   virtual VideoContentDescription* CloneInternal() const {
     return new VideoContentDescription(*this);
-  }
-};
-
-class RtpDataContentDescription
-    : public MediaContentDescriptionImpl<RtpDataCodec> {
- public:
-  RtpDataContentDescription() {}
-  MediaType type() const override { return MEDIA_TYPE_DATA; }
-  RtpDataContentDescription* as_rtp_data() override { return this; }
-  const RtpDataContentDescription* as_rtp_data() const override { return this; }
-
- private:
-  RtpDataContentDescription* CloneInternal() const override {
-    return new RtpDataContentDescription(*this);
   }
 };
 
@@ -458,11 +443,11 @@ class RTC_EXPORT ContentInfo {
   ContentInfo(ContentInfo&& o) = default;
   ContentInfo& operator=(ContentInfo&& o) = default;
 
-  // Alias for |name|.
+  // Alias for `name`.
   std::string mid() const { return name; }
   void set_mid(const std::string& mid) { this->name = mid; }
 
-  // Alias for |description|.
+  // Alias for `description`.
   MediaContentDescription* media_description();
   const MediaContentDescription* media_description() const;
 
@@ -485,7 +470,7 @@ typedef std::vector<std::string> ContentNames;
 
 // This class provides a mechanism to aggregate different media contents into a
 // group. This group can also be shared with the peers in a pre-defined format.
-// GroupInfo should be populated only with the |content_name| of the
+// GroupInfo should be populated only with the `content_name` of the
 // MediaDescription.
 class ContentGroup {
  public:
@@ -503,6 +488,8 @@ class ContentGroup {
   bool HasContentName(const std::string& content_name) const;
   void AddContentName(const std::string& content_name);
   bool RemoveContentName(const std::string& content_name);
+  // for debugging
+  std::string ToString() const;
 
  private:
   std::string semantics_;
@@ -587,11 +574,13 @@ class SessionDescription {
   // Group accessors.
   const ContentGroups& groups() const { return content_groups_; }
   const ContentGroup* GetGroupByName(const std::string& name) const;
+  std::vector<const ContentGroup*> GetGroupsByName(
+      const std::string& name) const;
   bool HasGroup(const std::string& name) const;
 
   // Group mutators.
   void AddGroup(const ContentGroup& group) { content_groups_.push_back(group); }
-  // Remove the first group with the same semantics specified by |name|.
+  // Remove the first group with the same semantics specified by `name`.
   void RemoveGroupByName(const std::string& name);
 
   // Global attributes.
@@ -633,12 +622,7 @@ class SessionDescription {
   // Default to what Plan B would do.
   // TODO(bugs.webrtc.org/8530): Change default to kMsidSignalingMediaSection.
   int msid_signaling_ = kMsidSignalingSsrcAttribute;
-  // TODO(webrtc:9985): Activate mixed one- and two-byte header extension in
-  // offer at session level. It's currently not included in offer by default
-  // because clients prior to https://bugs.webrtc.org/9712 cannot parse this
-  // correctly. If it's included in offer to us we will respond that we support
-  // it.
-  bool extmap_allow_mixed_ = false;
+  bool extmap_allow_mixed_ = true;
 };
 
 // Indicates whether a session description was sent by the local client or

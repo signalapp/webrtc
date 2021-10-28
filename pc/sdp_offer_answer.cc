@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <iterator>
 #include <map>
+#include <memory>
 #include <queue>
 #include <type_traits>
 #include <utility>
@@ -22,50 +23,45 @@
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/crypto/crypto_options.h"
-#include "api/data_channel_interface.h"
 #include "api/dtls_transport_interface.h"
-#include "api/media_stream_proxy.h"
 #include "api/rtp_parameters.h"
 #include "api/rtp_receiver_interface.h"
 #include "api/rtp_sender_interface.h"
-#include "api/uma_metrics.h"
 #include "api/video/builtin_video_bitrate_allocator_factory.h"
 #include "media/base/codec.h"
 #include "media/base/media_engine.h"
 #include "media/base/rid_description.h"
+#include "p2p/base/ice_transport_internal.h"
 #include "p2p/base/p2p_constants.h"
 #include "p2p/base/p2p_transport_channel.h"
 #include "p2p/base/port.h"
 #include "p2p/base/transport_description.h"
 #include "p2p/base/transport_description_factory.h"
 #include "p2p/base/transport_info.h"
-#include "pc/connection_context.h"
 #include "pc/data_channel_utils.h"
-#include "pc/media_protocol_names.h"
+#include "pc/dtls_transport.h"
 #include "pc/media_stream.h"
+#include "pc/media_stream_proxy.h"
 #include "pc/peer_connection.h"
 #include "pc/peer_connection_message_handler.h"
-#include "pc/rtp_data_channel.h"
 #include "pc/rtp_media_utils.h"
 #include "pc/rtp_sender.h"
 #include "pc/rtp_transport_internal.h"
-#include "pc/sctp_transport.h"
 #include "pc/simulcast_description.h"
 #include "pc/stats_collector.h"
 #include "pc/usage_pattern.h"
 #include "pc/webrtc_session_description_factory.h"
-#include "rtc_base/bind.h"
 #include "rtc_base/helpers.h"
 #include "rtc_base/location.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/ref_counted_object.h"
 #include "rtc_base/rtc_certificate.h"
-#include "rtc_base/socket_address.h"
 #include "rtc_base/ssl_stream_adapter.h"
 #include "rtc_base/string_encode.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/trace_event.h"
+#include "system_wrappers/include/field_trial.h"
 #include "system_wrappers/include/metrics.h"
 
 using cricket::ContentInfo;
@@ -92,6 +88,9 @@ namespace {
 
 typedef webrtc::PeerConnectionInterface::RTCOfferAnswerOptions
     RTCOfferAnswerOptions;
+
+constexpr const char* kAlwaysAllowPayloadTypeDemuxingFieldTrialName =
+    "WebRTC-AlwaysAllowPayloadTypeDemuxing";
 
 // Error messages
 const char kInvalidSdp[] = "Invalid session description.";
@@ -170,7 +169,20 @@ void NoteKeyProtocolAndMedia(KeyExchangeProtocolType protocol_type,
   }
 }
 
-// Returns true if |new_desc| requests an ICE restart (i.e., new ufrag/pwd).
+std::map<std::string, const cricket::ContentGroup*> GetBundleGroupsByMid(
+    const SessionDescription* desc) {
+  std::vector<const cricket::ContentGroup*> bundle_groups =
+      desc->GetGroupsByName(cricket::GROUP_TYPE_BUNDLE);
+  std::map<std::string, const cricket::ContentGroup*> bundle_groups_by_mid;
+  for (const cricket::ContentGroup* bundle_group : bundle_groups) {
+    for (const std::string& content_name : bundle_group->content_names()) {
+      bundle_groups_by_mid[content_name] = bundle_group;
+    }
+  }
+  return bundle_groups_by_mid;
+}
+
+// Returns true if `new_desc` requests an ICE restart (i.e., new ufrag/pwd).
 bool CheckForRemoteIceRestart(const SessionDescriptionInterface* old_desc,
                               const SessionDescriptionInterface* new_desc,
                               const std::string& content_name) {
@@ -253,7 +265,7 @@ void ReportSimulcastApiVersion(const char* name,
 }
 
 const ContentInfo* FindTransceiverMSection(
-    RtpTransceiverProxyWithInternal<RtpTransceiver>* transceiver,
+    RtpTransceiver* transceiver,
     const SessionDescriptionInterface* session_description) {
   return transceiver->mid()
              ? session_description->description()->GetContentByName(
@@ -273,7 +285,7 @@ std::vector<cricket::StreamParams> GetActiveStreams(
 
 // Logic to decide if an m= section can be recycled. This means that the new
 // m= section is not rejected, but the old local or remote m= section is
-// rejected. |old_content_one| and |old_content_two| refer to the m= section
+// rejected. `old_content_one` and `old_content_two` refer to the m= section
 // of the old remote and old local descriptions in no particular order.
 // We need to check both the old local and remote because either
 // could be the most current from the latest negotation.
@@ -286,15 +298,15 @@ bool IsMediaSectionBeingRecycled(SdpType type,
           (old_content_two && old_content_two->rejected));
 }
 
-// Verify that the order of media sections in |new_desc| matches
-// |current_desc|. The number of m= sections in |new_desc| should be no
-// less than |current_desc|. In the case of checking an answer's
-// |new_desc|, the |current_desc| is the last offer that was set as the
-// local or remote. In the case of checking an offer's |new_desc| we
+// Verify that the order of media sections in `new_desc` matches
+// `current_desc`. The number of m= sections in `new_desc` should be no
+// less than `current_desc`. In the case of checking an answer's
+// `new_desc`, the `current_desc` is the last offer that was set as the
+// local or remote. In the case of checking an offer's `new_desc` we
 // check against the local and remote descriptions stored from the last
 // negotiation, because either of these could be the most up to date for
-// possible rejected m sections. These are the |current_desc| and
-// |secondary_current_desc|.
+// possible rejected m sections. These are the `current_desc` and
+// `secondary_current_desc`.
 bool MediaSectionsInSameOrder(const SessionDescription& current_desc,
                               const SessionDescription* secondary_current_desc,
                               const SessionDescription& new_desc,
@@ -339,10 +351,11 @@ bool MediaSectionsHaveSameCount(const SessionDescription& desc1,
 // BUNDLE-tag section (first media section/description in the BUNDLE group)
 // needs a ufrag and pwd. Mismatches, such as replying with a DTLS fingerprint
 // to SDES keys, will be caught in JsepTransport negotiation, and backstopped
-// by Channel's |srtp_required| check.
-RTCError VerifyCrypto(const SessionDescription* desc, bool dtls_enabled) {
-  const cricket::ContentGroup* bundle =
-      desc->GetGroupByName(cricket::GROUP_TYPE_BUNDLE);
+// by Channel's `srtp_required` check.
+RTCError VerifyCrypto(const SessionDescription* desc,
+                      bool dtls_enabled,
+                      const std::map<std::string, const cricket::ContentGroup*>&
+                          bundle_groups_by_mid) {
   for (const cricket::ContentInfo& content_info : desc->contents()) {
     if (content_info.rejected) {
       continue;
@@ -352,8 +365,10 @@ RTCError VerifyCrypto(const SessionDescription* desc, bool dtls_enabled) {
                                          : webrtc::kEnumCounterKeyProtocolSdes,
                             content_info.media_description()->type());
     const std::string& mid = content_info.name;
-    if (bundle && bundle->HasContentName(mid) &&
-        mid != *(bundle->FirstContentName())) {
+    auto it = bundle_groups_by_mid.find(mid);
+    const cricket::ContentGroup* bundle =
+        it != bundle_groups_by_mid.end() ? it->second : nullptr;
+    if (bundle && mid != *(bundle->FirstContentName())) {
       // This isn't the first media section in the BUNDLE group, so it's not
       // required to have crypto attributes, since only the crypto attributes
       // from the first section actually get used.
@@ -390,16 +405,19 @@ RTCError VerifyCrypto(const SessionDescription* desc, bool dtls_enabled) {
 // Checks that each non-rejected content has ice-ufrag and ice-pwd set, unless
 // it's in a BUNDLE group, in which case only the BUNDLE-tag section (first
 // media section/description in the BUNDLE group) needs a ufrag and pwd.
-bool VerifyIceUfragPwdPresent(const SessionDescription* desc) {
-  const cricket::ContentGroup* bundle =
-      desc->GetGroupByName(cricket::GROUP_TYPE_BUNDLE);
+bool VerifyIceUfragPwdPresent(
+    const SessionDescription* desc,
+    const std::map<std::string, const cricket::ContentGroup*>&
+        bundle_groups_by_mid) {
   for (const cricket::ContentInfo& content_info : desc->contents()) {
     if (content_info.rejected) {
       continue;
     }
     const std::string& mid = content_info.name;
-    if (bundle && bundle->HasContentName(mid) &&
-        mid != *(bundle->FirstContentName())) {
+    auto it = bundle_groups_by_mid.find(mid);
+    const cricket::ContentGroup* bundle =
+        it != bundle_groups_by_mid.end() ? it->second : nullptr;
+    if (bundle && mid != *(bundle->FirstContentName())) {
       // This isn't the first media section in the BUNDLE group, so it's not
       // required to have ufrag/password, since only the ufrag/password from
       // the first section actually get used.
@@ -423,7 +441,7 @@ bool VerifyIceUfragPwdPresent(const SessionDescription* desc) {
   return true;
 }
 
-static RTCError ValidateMids(const cricket::SessionDescription& description) {
+RTCError ValidateMids(const cricket::SessionDescription& description) {
   std::set<std::string> mids;
   for (const cricket::ContentInfo& content : description.contents()) {
     if (content.name.empty()) {
@@ -475,7 +493,7 @@ std::string GetSignalingStateString(
 // This method will extract any send encodings that were sent by the remote
 // connection. This is currently only relevant for Simulcast scenario (where
 // the number of layers may be communicated by the server).
-static std::vector<RtpEncodingParameters> GetSendEncodingsFromRemoteDescription(
+std::vector<RtpEncodingParameters> GetSendEncodingsFromRemoteDescription(
     const MediaContentDescription& desc) {
   if (!desc.HasSimulcast()) {
     return {};
@@ -499,7 +517,7 @@ static std::vector<RtpEncodingParameters> GetSendEncodingsFromRemoteDescription(
   return result;
 }
 
-static RTCError UpdateSimulcastLayerStatusInSender(
+RTCError UpdateSimulcastLayerStatusInSender(
     const std::vector<SimulcastLayer>& layers,
     rtc::scoped_refptr<RtpSenderInternal> sender) {
   RTC_DCHECK(sender);
@@ -530,19 +548,22 @@ static RTCError UpdateSimulcastLayerStatusInSender(
   return result;
 }
 
-static bool SimulcastIsRejected(
-    const ContentInfo* local_content,
-    const MediaContentDescription& answer_media_desc) {
+bool SimulcastIsRejected(const ContentInfo* local_content,
+                         const MediaContentDescription& answer_media_desc,
+                         bool enable_encrypted_rtp_header_extensions) {
   bool simulcast_offered = local_content &&
                            local_content->media_description() &&
                            local_content->media_description()->HasSimulcast();
   bool simulcast_answered = answer_media_desc.HasSimulcast();
   bool rids_supported = RtpExtension::FindHeaderExtensionByUri(
-      answer_media_desc.rtp_header_extensions(), RtpExtension::kRidUri);
+      answer_media_desc.rtp_header_extensions(), RtpExtension::kRidUri,
+      enable_encrypted_rtp_header_extensions
+          ? RtpExtension::Filter::kPreferEncryptedExtension
+          : RtpExtension::Filter::kDiscardEncryptedExtension);
   return simulcast_offered && (!simulcast_answered || !rids_supported);
 }
 
-static RTCError DisableSimulcastInSender(
+RTCError DisableSimulcastInSender(
     rtc::scoped_refptr<RtpSenderInternal> sender) {
   RTC_DCHECK(sender);
   RtpParameters parameters = sender->GetParametersInternal();
@@ -560,7 +581,7 @@ static RTCError DisableSimulcastInSender(
 
 // The SDP parser used to populate these values by default for the 'content
 // name' if an a=mid line was absent.
-static absl::string_view GetDefaultMidForPlanB(cricket::MediaType media_type) {
+absl::string_view GetDefaultMidForPlanB(cricket::MediaType media_type) {
   switch (media_type) {
     case cricket::MEDIA_TYPE_AUDIO:
       return cricket::CN_AUDIO;
@@ -575,7 +596,7 @@ static absl::string_view GetDefaultMidForPlanB(cricket::MediaType media_type) {
   return "";
 }
 
-// Add options to |[audio/video]_media_description_options| from |senders|.
+// Add options to |[audio/video]_media_description_options| from `senders`.
 void AddPlanBRtpSenderOptions(
     const std::vector<rtc::scoped_refptr<
         RtpSenderProxyWithInternal<RtpSenderInternal>>>& senders,
@@ -599,10 +620,8 @@ void AddPlanBRtpSenderOptions(
   }
 }
 
-static cricket::MediaDescriptionOptions
-GetMediaDescriptionOptionsForTransceiver(
-    rtc::scoped_refptr<RtpTransceiverProxyWithInternal<RtpTransceiver>>
-        transceiver,
+cricket::MediaDescriptionOptions GetMediaDescriptionOptionsForTransceiver(
+    RtpTransceiver* transceiver,
     const std::string& mid,
     bool is_create_offer) {
   // NOTE: a stopping transceiver should be treated as a stopped one in
@@ -622,7 +641,7 @@ GetMediaDescriptionOptionsForTransceiver(
   // 2. If the MSID is included, then it must be included in any subsequent
   //    offer/answer exactly the same until the RtpTransceiver is stopped.
   if (stopped || (!RtpTransceiverDirectionHasSend(transceiver->direction()) &&
-                  !transceiver->internal()->has_ever_been_used_to_send())) {
+                  !transceiver->has_ever_been_used_to_send())) {
     return media_description_options;
   }
 
@@ -633,7 +652,7 @@ GetMediaDescriptionOptionsForTransceiver(
   // The following sets up RIDs and Simulcast.
   // RIDs are included if Simulcast is requested or if any RID was specified.
   RtpParameters send_parameters =
-      transceiver->internal()->sender_internal()->GetParametersInternal();
+      transceiver->sender_internal()->GetParametersInternal();
   bool has_rids = std::any_of(send_parameters.encodings.begin(),
                               send_parameters.encodings.end(),
                               [](const RtpEncodingParameters& encoding) {
@@ -664,10 +683,9 @@ GetMediaDescriptionOptionsForTransceiver(
   return media_description_options;
 }
 
-// Returns the ContentInfo at mline index |i|, or null if none exists.
-static const ContentInfo* GetContentByIndex(
-    const SessionDescriptionInterface* sdesc,
-    size_t i) {
+// Returns the ContentInfo at mline index `i`, or null if none exists.
+const ContentInfo* GetContentByIndex(const SessionDescriptionInterface* sdesc,
+                                     size_t i) {
   if (!sdesc) {
     return nullptr;
   }
@@ -675,7 +693,7 @@ static const ContentInfo* GetContentByIndex(
   return (i < contents.size() ? &contents[i] : nullptr);
 }
 
-// From |rtc_options|, fill parts of |session_options| shared by all generated
+// From `rtc_options`, fill parts of `session_options` shared by all generated
 // m= sectionss (in other words, nothing that involves a map/array).
 void ExtractSharedMediaSessionOptions(
     const PeerConnectionInterface::RTCOfferAnswerOptions& rtc_options,
@@ -696,28 +714,7 @@ std::string GenerateRtcpCname() {
   return cname;
 }
 
-// Add options to |session_options| from |rtp_data_channels|.
-void AddRtpDataChannelOptions(
-    const std::map<std::string, rtc::scoped_refptr<RtpDataChannel>>&
-        rtp_data_channels,
-    cricket::MediaDescriptionOptions* data_media_description_options) {
-  if (!data_media_description_options) {
-    return;
-  }
-  // Check for data channels.
-  for (const auto& kv : rtp_data_channels) {
-    const RtpDataChannel* channel = kv.second;
-    if (channel->state() == RtpDataChannel::kConnecting ||
-        channel->state() == RtpDataChannel::kOpen) {
-      // Legacy RTP data channels are signaled with the track/stream ID set to
-      // the data channel's label.
-      data_media_description_options->AddRtpDataChannel(channel->label(),
-                                                        channel->label());
-    }
-  }
-}
-
-// Check if we can send |new_stream| on a PeerConnection.
+// Check if we can send `new_stream` on a PeerConnection.
 bool CanAddLocalMediaStream(webrtc::StreamCollectionInterface* current_streams,
                             webrtc::MediaStreamInterface* new_stream) {
   if (!new_stream || !current_streams) {
@@ -729,6 +726,32 @@ bool CanAddLocalMediaStream(webrtc::StreamCollectionInterface* current_streams,
     return false;
   }
   return true;
+}
+
+rtc::scoped_refptr<webrtc::DtlsTransport> LookupDtlsTransportByMid(
+    rtc::Thread* network_thread,
+    JsepTransportController* controller,
+    const std::string& mid) {
+  // TODO(tommi): Can we post this (and associated operations where this
+  // function is called) to the network thread and avoid this Invoke?
+  // We might be able to simplify a few things if we set the transport on
+  // the network thread and then update the implementation to check that
+  // the set_ and relevant get methods are always called on the network
+  // thread (we'll need to update proxy maps).
+  return network_thread->Invoke<rtc::scoped_refptr<webrtc::DtlsTransport>>(
+      RTC_FROM_HERE,
+      [controller, &mid] { return controller->LookupDtlsTransportByMid(mid); });
+}
+
+bool ContentHasHeaderExtension(const cricket::ContentInfo& content_info,
+                               absl::string_view header_extension_uri) {
+  for (const RtpExtension& rtp_header_extension :
+       content_info.media_description()->rtp_header_extensions()) {
+    if (rtp_header_extension.uri == header_extension_uri) {
+      return true;
+    }
+  }
+  return false;
 }
 
 }  // namespace
@@ -762,13 +785,13 @@ class SdpOfferAnswerHandler::ImplicitCreateSessionDescriptionObserver
     std::unique_ptr<SessionDescriptionInterface> desc(desc_ptr);
     was_called_ = true;
 
-    // Abort early if |pc_| is no longer valid.
+    // Abort early if `pc_` is no longer valid.
     if (!sdp_handler_) {
       operation_complete_callback_();
       return;
     }
     // DoSetLocalDescription() is a synchronous operation that invokes
-    // |set_local_description_observer_| with the result.
+    // `set_local_description_observer_` with the result.
     sdp_handler_->DoSetLocalDescription(
         std::move(desc), std::move(set_local_description_observer_));
     operation_complete_callback_();
@@ -904,7 +927,7 @@ class SdpOfferAnswerHandler::LocalIceCredentialsToReplace {
   // Returns true if we have ICE credentials that need restarting.
   bool HasIceCredentials() const { return !ice_credentials_.empty(); }
 
-  // Returns true if |local_description| shares no ICE credentials with the
+  // Returns true if `local_description` shares no ICE credentials with the
   // ICE credentials that need restarting.
   bool SatisfiesIceRestart(
       const SessionDescriptionInterface& local_description) const {
@@ -1094,7 +1117,7 @@ void SdpOfferAnswerHandler::CreateOffer(
        observer_refptr =
            rtc::scoped_refptr<CreateSessionDescriptionObserver>(observer),
        options](std::function<void()> operations_chain_callback) {
-        // Abort early if |this_weak_ptr| is no longer valid.
+        // Abort early if `this_weak_ptr` is no longer valid.
         if (!this_weak_ptr) {
           observer_refptr->OnFailure(
               RTCError(RTCErrorType::INTERNAL_ERROR,
@@ -1103,11 +1126,9 @@ void SdpOfferAnswerHandler::CreateOffer(
           return;
         }
         // The operation completes asynchronously when the wrapper is invoked.
-        rtc::scoped_refptr<CreateSessionDescriptionObserverOperationWrapper>
-            observer_wrapper(new rtc::RefCountedObject<
-                             CreateSessionDescriptionObserverOperationWrapper>(
-                std::move(observer_refptr),
-                std::move(operations_chain_callback)));
+        auto observer_wrapper = rtc::make_ref_counted<
+            CreateSessionDescriptionObserverOperationWrapper>(
+            std::move(observer_refptr), std::move(operations_chain_callback));
         this_weak_ptr->DoCreateOffer(options, observer_wrapper);
       });
 }
@@ -1125,21 +1146,20 @@ void SdpOfferAnswerHandler::SetLocalDescription(
            rtc::scoped_refptr<SetSessionDescriptionObserver>(observer),
        desc = std::unique_ptr<SessionDescriptionInterface>(desc_ptr)](
           std::function<void()> operations_chain_callback) mutable {
-        // Abort early if |this_weak_ptr| is no longer valid.
+        // Abort early if `this_weak_ptr` is no longer valid.
         if (!this_weak_ptr) {
           // For consistency with SetSessionDescriptionObserverAdapter whose
           // posted messages doesn't get processed when the PC is destroyed, we
-          // do not inform |observer_refptr| that the operation failed.
+          // do not inform `observer_refptr` that the operation failed.
           operations_chain_callback();
           return;
         }
         // SetSessionDescriptionObserverAdapter takes care of making sure the
-        // |observer_refptr| is invoked in a posted message.
+        // `observer_refptr` is invoked in a posted message.
         this_weak_ptr->DoSetLocalDescription(
             std::move(desc),
-            rtc::scoped_refptr<SetLocalDescriptionObserverInterface>(
-                new rtc::RefCountedObject<SetSessionDescriptionObserverAdapter>(
-                    this_weak_ptr, observer_refptr)));
+            rtc::make_ref_counted<SetSessionDescriptionObserverAdapter>(
+                this_weak_ptr, observer_refptr));
         // For backwards-compatability reasons, we declare the operation as
         // completed here (rather than in a post), so that the operation chain
         // is not blocked by this operation when the observer is invoked. This
@@ -1160,7 +1180,7 @@ void SdpOfferAnswerHandler::SetLocalDescription(
       [this_weak_ptr = weak_ptr_factory_.GetWeakPtr(), observer,
        desc = std::move(desc)](
           std::function<void()> operations_chain_callback) mutable {
-        // Abort early if |this_weak_ptr| is no longer valid.
+        // Abort early if `this_weak_ptr` is no longer valid.
         if (!this_weak_ptr) {
           observer->OnSetLocalDescriptionComplete(RTCError(
               RTCErrorType::INTERNAL_ERROR,
@@ -1170,7 +1190,7 @@ void SdpOfferAnswerHandler::SetLocalDescription(
         }
         this_weak_ptr->DoSetLocalDescription(std::move(desc), observer);
         // DoSetLocalDescription() is implemented as a synchronous operation.
-        // The |observer| will already have been informed that it completed, and
+        // The `observer` will already have been informed that it completed, and
         // we can mark this operation as complete without any loose ends.
         operations_chain_callback();
       });
@@ -1180,30 +1200,29 @@ void SdpOfferAnswerHandler::SetLocalDescription(
     SetSessionDescriptionObserver* observer) {
   RTC_DCHECK_RUN_ON(signaling_thread());
   SetLocalDescription(
-      new rtc::RefCountedObject<SetSessionDescriptionObserverAdapter>(
+      rtc::make_ref_counted<SetSessionDescriptionObserverAdapter>(
           weak_ptr_factory_.GetWeakPtr(), observer));
 }
 
 void SdpOfferAnswerHandler::SetLocalDescription(
     rtc::scoped_refptr<SetLocalDescriptionObserverInterface> observer) {
   RTC_DCHECK_RUN_ON(signaling_thread());
-  // The |create_sdp_observer| handles performing DoSetLocalDescription() with
+  // The `create_sdp_observer` handles performing DoSetLocalDescription() with
   // the resulting description as well as completing the operation.
-  rtc::scoped_refptr<ImplicitCreateSessionDescriptionObserver>
-      create_sdp_observer(
-          new rtc::RefCountedObject<ImplicitCreateSessionDescriptionObserver>(
-              weak_ptr_factory_.GetWeakPtr(), observer));
+  auto create_sdp_observer =
+      rtc::make_ref_counted<ImplicitCreateSessionDescriptionObserver>(
+          weak_ptr_factory_.GetWeakPtr(), observer);
   // Chain this operation. If asynchronous operations are pending on the chain,
   // this operation will be queued to be invoked, otherwise the contents of the
   // lambda will execute immediately.
   operations_chain_->ChainOperation(
       [this_weak_ptr = weak_ptr_factory_.GetWeakPtr(),
        create_sdp_observer](std::function<void()> operations_chain_callback) {
-        // The |create_sdp_observer| is responsible for completing the
+        // The `create_sdp_observer` is responsible for completing the
         // operation.
         create_sdp_observer->SetOperationCompleteCallback(
             std::move(operations_chain_callback));
-        // Abort early if |this_weak_ptr| is no longer valid. This triggers the
+        // Abort early if `this_weak_ptr` is no longer valid. This triggers the
         // same code path as if DoCreateOffer() or DoCreateAnswer() failed.
         if (!this_weak_ptr) {
           create_sdp_observer->OnFailure(RTCError(
@@ -1241,7 +1260,10 @@ void SdpOfferAnswerHandler::SetLocalDescription(
 }
 
 RTCError SdpOfferAnswerHandler::ApplyLocalDescription(
-    std::unique_ptr<SessionDescriptionInterface> desc) {
+    std::unique_ptr<SessionDescriptionInterface> desc,
+    const std::map<std::string, const cricket::ContentGroup*>&
+        bundle_groups_by_mid) {
+  TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::ApplyLocalDescription");
   RTC_DCHECK_RUN_ON(signaling_thread());
   RTC_DCHECK(desc);
 
@@ -1252,7 +1274,7 @@ RTCError SdpOfferAnswerHandler::ApplyLocalDescription(
   // Take a reference to the old local description since it's used below to
   // compare against the new local description. When setting the new local
   // description, grab ownership of the replaced session description in case it
-  // is the same as |old_local_description|, to keep it alive for the duration
+  // is the same as `old_local_description`, to keep it alive for the duration
   // of the method.
   const SessionDescriptionInterface* old_local_description =
       local_description();
@@ -1270,7 +1292,7 @@ RTCError SdpOfferAnswerHandler::ApplyLocalDescription(
     pending_local_description_ = std::move(desc);
   }
   // The session description to apply now must be accessed by
-  // |local_description()|.
+  // `local_description()`.
   RTC_DCHECK(local_description());
 
   // Report statistics about any use of simulcast.
@@ -1295,13 +1317,14 @@ RTCError SdpOfferAnswerHandler::ApplyLocalDescription(
   if (IsUnifiedPlan()) {
     RTCError error = UpdateTransceiversAndDataChannels(
         cricket::CS_LOCAL, *local_description(), old_local_description,
-        remote_description());
+        remote_description(), bundle_groups_by_mid);
     if (!error.ok()) {
       return error;
     }
     std::vector<rtc::scoped_refptr<RtpTransceiverInterface>> remove_list;
     std::vector<rtc::scoped_refptr<MediaStreamInterface>> removed_streams;
-    for (const auto& transceiver : transceivers()->List()) {
+    for (const auto& transceiver_ext : transceivers()->List()) {
+      auto transceiver = transceiver_ext->internal();
       if (transceiver->stopped()) {
         continue;
       }
@@ -1310,12 +1333,10 @@ RTCError SdpOfferAnswerHandler::ApplyLocalDescription(
       // Note that code paths that don't set MID won't be able to use
       // information about DTLS transports.
       if (transceiver->mid()) {
-        auto dtls_transport = transport_controller()->LookupDtlsTransportByMid(
-            *transceiver->mid());
-        transceiver->internal()->sender_internal()->set_transport(
-            dtls_transport);
-        transceiver->internal()->receiver_internal()->set_transport(
-            dtls_transport);
+        auto dtls_transport = LookupDtlsTransportByMid(
+            pc_->network_thread(), transport_controller(), *transceiver->mid());
+        transceiver->sender_internal()->set_transport(dtls_transport);
+        transceiver->receiver_internal()->set_transport(dtls_transport);
       }
 
       const ContentInfo* content =
@@ -1332,16 +1353,15 @@ RTCError SdpOfferAnswerHandler::ApplyLocalDescription(
         // "recvonly", process the removal of a remote track for the media
         // description, given transceiver, removeList, and muteTracks.
         if (!RtpTransceiverDirectionHasRecv(media_desc->direction()) &&
-            (transceiver->internal()->fired_direction() &&
-             RtpTransceiverDirectionHasRecv(
-                 *transceiver->internal()->fired_direction()))) {
-          ProcessRemovalOfRemoteTrack(transceiver, &remove_list,
+            (transceiver->fired_direction() &&
+             RtpTransceiverDirectionHasRecv(*transceiver->fired_direction()))) {
+          ProcessRemovalOfRemoteTrack(transceiver_ext, &remove_list,
                                       &removed_streams);
         }
         // 2.2.7.1.6.2: Set transceiver's [[CurrentDirection]] and
         // [[FiredDirection]] slots to direction.
-        transceiver->internal()->set_current_direction(media_desc->direction());
-        transceiver->internal()->set_fired_direction(media_desc->direction());
+        transceiver->set_current_direction(media_desc->direction());
+        transceiver->set_fired_direction(media_desc->direction());
       }
     }
     auto observer = pc_->Observer();
@@ -1367,7 +1387,8 @@ RTCError SdpOfferAnswerHandler::ApplyLocalDescription(
   }
 
   error = UpdateSessionState(type, cricket::CS_LOCAL,
-                             local_description()->description());
+                             local_description()->description(),
+                             bundle_groups_by_mid);
   if (!error.ok()) {
     return error;
   }
@@ -1385,12 +1406,15 @@ RTCError SdpOfferAnswerHandler::ApplyLocalDescription(
   // If setting the description decided our SSL role, allocate any necessary
   // SCTP sids.
   rtc::SSLRole role;
-  if (IsSctpLike(pc_->data_channel_type()) && pc_->GetSctpSslRole(&role)) {
+  if (pc_->GetSctpSslRole(&role)) {
     data_channel_controller()->AllocateSctpSids(role);
   }
 
   if (IsUnifiedPlan()) {
-    for (const auto& transceiver : transceivers()->List()) {
+    // We must use List and not ListInternal here because
+    // transceivers()->StableState() is indexed by the non-internal refptr.
+    for (const auto& transceiver_ext : transceivers()->List()) {
+      auto transceiver = transceiver_ext->internal();
       if (transceiver->stopped()) {
         continue;
       }
@@ -1399,20 +1423,24 @@ RTCError SdpOfferAnswerHandler::ApplyLocalDescription(
       if (!content) {
         continue;
       }
-      cricket::ChannelInterface* channel = transceiver->internal()->channel();
+      cricket::ChannelInterface* channel = transceiver->channel();
       if (content->rejected || !channel || channel->local_streams().empty()) {
         // 0 is a special value meaning "this sender has no associated send
         // stream". Need to call this so the sender won't attempt to configure
         // a no longer existing stream and run into DCHECKs in the lower
         // layers.
-        transceiver->internal()->sender_internal()->SetSsrc(0);
+        transceiver->sender_internal()->SetSsrc(0);
       } else {
         // Get the StreamParams from the channel which could generate SSRCs.
         const std::vector<StreamParams>& streams = channel->local_streams();
-        transceiver->internal()->sender_internal()->set_stream_ids(
-            streams[0].stream_ids());
-        transceiver->internal()->sender_internal()->SetSsrc(
-            streams[0].first_ssrc());
+        transceiver->sender_internal()->set_stream_ids(streams[0].stream_ids());
+        auto encodings = transceiver->sender_internal()->init_send_encodings();
+        transceiver->sender_internal()->SetSsrc(streams[0].first_ssrc());
+        if (!encodings.empty()) {
+          transceivers()
+              ->StableState(transceiver_ext)
+              ->SetInitSendEncodings(encodings);
+        }
       }
     }
   } else {
@@ -1445,17 +1473,7 @@ RTCError SdpOfferAnswerHandler::ApplyLocalDescription(
     }
   }
 
-  const cricket::ContentInfo* data_content =
-      GetFirstDataContent(local_description()->description());
-  if (data_content) {
-    const cricket::RtpDataContentDescription* rtp_data_desc =
-        data_content->media_description()->as_rtp_data();
-    // rtp_data_desc will be null if this is an SCTP description.
-    if (rtp_data_desc) {
-      data_channel_controller()->UpdateLocalRtpDataChannels(
-          rtp_data_desc->streams());
-    }
-  }
+  // This function does nothing with data content.
 
   if (type == SdpType::kAnswer &&
       local_ice_credentials_to_replace_->SatisfiesIceRestart(
@@ -1479,21 +1497,20 @@ void SdpOfferAnswerHandler::SetRemoteDescription(
            rtc::scoped_refptr<SetSessionDescriptionObserver>(observer),
        desc = std::unique_ptr<SessionDescriptionInterface>(desc_ptr)](
           std::function<void()> operations_chain_callback) mutable {
-        // Abort early if |this_weak_ptr| is no longer valid.
+        // Abort early if `this_weak_ptr` is no longer valid.
         if (!this_weak_ptr) {
           // For consistency with SetSessionDescriptionObserverAdapter whose
           // posted messages doesn't get processed when the PC is destroyed, we
-          // do not inform |observer_refptr| that the operation failed.
+          // do not inform `observer_refptr` that the operation failed.
           operations_chain_callback();
           return;
         }
         // SetSessionDescriptionObserverAdapter takes care of making sure the
-        // |observer_refptr| is invoked in a posted message.
+        // `observer_refptr` is invoked in a posted message.
         this_weak_ptr->DoSetRemoteDescription(
             std::move(desc),
-            rtc::scoped_refptr<SetRemoteDescriptionObserverInterface>(
-                new rtc::RefCountedObject<SetSessionDescriptionObserverAdapter>(
-                    this_weak_ptr, observer_refptr)));
+            rtc::make_ref_counted<SetSessionDescriptionObserverAdapter>(
+                this_weak_ptr, observer_refptr));
         // For backwards-compatability reasons, we declare the operation as
         // completed here (rather than in a post), so that the operation chain
         // is not blocked by this operation when the observer is invoked. This
@@ -1514,7 +1531,7 @@ void SdpOfferAnswerHandler::SetRemoteDescription(
       [this_weak_ptr = weak_ptr_factory_.GetWeakPtr(), observer,
        desc = std::move(desc)](
           std::function<void()> operations_chain_callback) mutable {
-        // Abort early if |this_weak_ptr| is no longer valid.
+        // Abort early if `this_weak_ptr` is no longer valid.
         if (!this_weak_ptr) {
           observer->OnSetRemoteDescriptionComplete(RTCError(
               RTCErrorType::INTERNAL_ERROR,
@@ -1525,14 +1542,17 @@ void SdpOfferAnswerHandler::SetRemoteDescription(
         this_weak_ptr->DoSetRemoteDescription(std::move(desc),
                                               std::move(observer));
         // DoSetRemoteDescription() is implemented as a synchronous operation.
-        // The |observer| will already have been informed that it completed, and
+        // The `observer` will already have been informed that it completed, and
         // we can mark this operation as complete without any loose ends.
         operations_chain_callback();
       });
 }
 
 RTCError SdpOfferAnswerHandler::ApplyRemoteDescription(
-    std::unique_ptr<SessionDescriptionInterface> desc) {
+    std::unique_ptr<SessionDescriptionInterface> desc,
+    const std::map<std::string, const cricket::ContentGroup*>&
+        bundle_groups_by_mid) {
+  TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::ApplyRemoteDescription");
   RTC_DCHECK_RUN_ON(signaling_thread());
   RTC_DCHECK(desc);
 
@@ -1543,7 +1563,7 @@ RTCError SdpOfferAnswerHandler::ApplyRemoteDescription(
   // Take a reference to the old remote description since it's used below to
   // compare against the new remote description. When setting the new remote
   // description, grab ownership of the replaced session description in case it
-  // is the same as |old_remote_description|, to keep it alive for the duration
+  // is the same as `old_remote_description`, to keep it alive for the duration
   // of the method.
   const SessionDescriptionInterface* old_remote_description =
       remote_description();
@@ -1561,7 +1581,7 @@ RTCError SdpOfferAnswerHandler::ApplyRemoteDescription(
     pending_remote_description_ = std::move(desc);
   }
   // The session description to apply now must be accessed by
-  // |remote_description()|.
+  // `remote_description()`.
   RTC_DCHECK(remote_description());
 
   // Report statistics about any use of simulcast.
@@ -1576,7 +1596,7 @@ RTCError SdpOfferAnswerHandler::ApplyRemoteDescription(
   if (IsUnifiedPlan()) {
     RTCError error = UpdateTransceiversAndDataChannels(
         cricket::CS_REMOTE, *remote_description(), local_description(),
-        old_remote_description);
+        old_remote_description, bundle_groups_by_mid);
     if (!error.ok()) {
       return error;
     }
@@ -1598,7 +1618,8 @@ RTCError SdpOfferAnswerHandler::ApplyRemoteDescription(
   // NOTE: Candidates allocation will be initiated only when
   // SetLocalDescription is called.
   error = UpdateSessionState(type, cricket::CS_REMOTE,
-                             remote_description()->description());
+                             remote_description()->description(),
+                             bundle_groups_by_mid);
   if (!error.ok()) {
     return error;
   }
@@ -1657,7 +1678,7 @@ RTCError SdpOfferAnswerHandler::ApplyRemoteDescription(
   // If setting the description decided our SSL role, allocate any necessary
   // SCTP sids.
   rtc::SSLRole role;
-  if (IsSctpLike(pc_->data_channel_type()) && pc_->GetSctpSslRole(&role)) {
+  if (pc_->GetSctpSslRole(&role)) {
     data_channel_controller()->AllocateSctpSids(role);
   }
 
@@ -1667,7 +1688,8 @@ RTCError SdpOfferAnswerHandler::ApplyRemoteDescription(
     std::vector<rtc::scoped_refptr<RtpTransceiverInterface>> remove_list;
     std::vector<rtc::scoped_refptr<MediaStreamInterface>> added_streams;
     std::vector<rtc::scoped_refptr<MediaStreamInterface>> removed_streams;
-    for (const auto& transceiver : transceivers()->List()) {
+    for (const auto& transceiver_ext : transceivers()->List()) {
+      const auto transceiver = transceiver_ext->internal();
       const ContentInfo* content =
           FindMediaSectionForTransceiver(transceiver, remote_description());
       if (!content) {
@@ -1687,14 +1709,13 @@ RTCError SdpOfferAnswerHandler::ApplyRemoteDescription(
           stream_ids = media_desc->streams()[0].stream_ids();
         }
         transceivers()
-            ->StableState(transceiver)
+            ->StableState(transceiver_ext)
             ->SetRemoteStreamIdsIfUnset(transceiver->receiver()->stream_ids());
 
         RTC_LOG(LS_INFO) << "Processing the MSIDs for MID=" << content->name
                          << " (" << GetStreamIdsString(stream_ids) << ").";
-        SetAssociatedRemoteStreams(transceiver->internal()->receiver_internal(),
-                                   stream_ids, &added_streams,
-                                   &removed_streams);
+        SetAssociatedRemoteStreams(transceiver->receiver_internal(), stream_ids,
+                                   &added_streams, &removed_streams);
         // From the WebRTC specification, steps 2.2.8.5/6 of section 4.4.1.6
         // "Set the RTCSessionDescription: If direction is sendrecv or recvonly,
         // and transceiver's current direction is neither sendrecv nor recvonly,
@@ -1714,26 +1735,24 @@ RTCError SdpOfferAnswerHandler::ApplyRemoteDescription(
       if (!RtpTransceiverDirectionHasRecv(local_direction) &&
           (transceiver->fired_direction() &&
            RtpTransceiverDirectionHasRecv(*transceiver->fired_direction()))) {
-        ProcessRemovalOfRemoteTrack(transceiver, &remove_list,
+        ProcessRemovalOfRemoteTrack(transceiver_ext, &remove_list,
                                     &removed_streams);
       }
       // 2.2.8.1.10: Set transceiver's [[FiredDirection]] slot to direction.
-      transceiver->internal()->set_fired_direction(local_direction);
+      transceiver->set_fired_direction(local_direction);
       // 2.2.8.1.11: If description is of type "answer" or "pranswer", then run
       // the following steps:
       if (type == SdpType::kPrAnswer || type == SdpType::kAnswer) {
         // 2.2.8.1.11.1: Set transceiver's [[CurrentDirection]] slot to
         // direction.
-        transceiver->internal()->set_current_direction(local_direction);
+        transceiver->set_current_direction(local_direction);
         // 2.2.8.1.11.[3-6]: Set the transport internal slots.
         if (transceiver->mid()) {
-          auto dtls_transport =
-              transport_controller()->LookupDtlsTransportByMid(
-                  *transceiver->mid());
-          transceiver->internal()->sender_internal()->set_transport(
-              dtls_transport);
-          transceiver->internal()->receiver_internal()->set_transport(
-              dtls_transport);
+          auto dtls_transport = LookupDtlsTransportByMid(pc_->network_thread(),
+                                                         transport_controller(),
+                                                         *transceiver->mid());
+          transceiver->sender_internal()->set_transport(dtls_transport);
+          transceiver->receiver_internal()->set_transport(dtls_transport);
         }
       }
       // 2.2.8.1.12: If the media description is rejected, and transceiver is
@@ -1741,18 +1760,16 @@ RTCError SdpOfferAnswerHandler::ApplyRemoteDescription(
       if (content->rejected && !transceiver->stopped()) {
         RTC_LOG(LS_INFO) << "Stopping transceiver for MID=" << content->name
                          << " since the media section was rejected.";
-        transceiver->internal()->StopTransceiverProcedure();
+        transceiver->StopTransceiverProcedure();
       }
       if (!content->rejected &&
           RtpTransceiverDirectionHasRecv(local_direction)) {
         if (!media_desc->streams().empty() &&
             media_desc->streams()[0].has_ssrcs()) {
           uint32_t ssrc = media_desc->streams()[0].first_ssrc();
-          transceiver->internal()->receiver_internal()->SetupMediaChannel(ssrc);
+          transceiver->receiver_internal()->SetupMediaChannel(ssrc);
         } else {
-          transceiver->internal()
-              ->receiver_internal()
-              ->SetupUnsignaledMediaChannel();
+          transceiver->receiver_internal()->SetupUnsignaledMediaChannel();
         }
       }
     }
@@ -1783,8 +1800,6 @@ RTCError SdpOfferAnswerHandler::ApplyRemoteDescription(
       GetFirstAudioContentDescription(remote_description()->description());
   const cricket::VideoContentDescription* video_desc =
       GetFirstVideoContentDescription(remote_description()->description());
-  const cricket::RtpDataContentDescription* rtp_data_desc =
-      GetFirstRtpDataContentDescription(remote_description()->description());
 
   // Check if the descriptions include streams, just in case the peer supports
   // MSID, but doesn't indicate so with "a=msid-semantic".
@@ -1835,13 +1850,6 @@ RTCError SdpOfferAnswerHandler::ApplyRemoteDescription(
                                 default_video_track_needed, video_desc->type(),
                                 new_streams);
       }
-    }
-
-    // If this is an RTP data transport, update the DataChannels with the
-    // information from the remote peer.
-    if (rtp_data_desc) {
-      data_channel_controller()->UpdateRemoteRtpDataChannels(
-          GetActiveStreams(rtp_data_desc));
     }
 
     // Iterate new_streams and notify the observer about new MediaStreams.
@@ -1904,7 +1912,10 @@ void SdpOfferAnswerHandler::DoSetLocalDescription(
     return;
   }
 
-  RTCError error = ValidateSessionDescription(desc.get(), cricket::CS_LOCAL);
+  std::map<std::string, const cricket::ContentGroup*> bundle_groups_by_mid =
+      GetBundleGroupsByMid(desc->description());
+  RTCError error = ValidateSessionDescription(desc.get(), cricket::CS_LOCAL,
+                                              bundle_groups_by_mid);
   if (!error.ok()) {
     std::string error_message = GetSetDescriptionErrorMessage(
         cricket::CS_LOCAL, desc->GetType(), error);
@@ -1918,8 +1929,8 @@ void SdpOfferAnswerHandler::DoSetLocalDescription(
   // which may destroy it before returning.
   const SdpType type = desc->GetType();
 
-  error = ApplyLocalDescription(std::move(desc));
-  // |desc| may be destroyed at this point.
+  error = ApplyLocalDescription(std::move(desc), bundle_groups_by_mid);
+  // `desc` may be destroyed at this point.
 
   if (!error.ok()) {
     // If ApplyLocalDescription fails, the PeerConnection could be in an
@@ -1941,8 +1952,7 @@ void SdpOfferAnswerHandler::DoSetLocalDescription(
     // TODO(deadbeef): We already had to hop to the network thread for
     // MaybeStartGathering...
     pc_->network_thread()->Invoke<void>(
-        RTC_FROM_HERE, rtc::Bind(&cricket::PortAllocator::DiscardCandidatePool,
-                                 port_allocator()));
+        RTC_FROM_HERE, [this] { port_allocator()->DiscardCandidatePool(); });
     // Make UMA notes about what was agreed to.
     ReportNegotiatedSdpSemantics(*local_description());
   }
@@ -2033,6 +2043,7 @@ void SdpOfferAnswerHandler::DoCreateOffer(
 void SdpOfferAnswerHandler::CreateAnswer(
     CreateSessionDescriptionObserver* observer,
     const PeerConnectionInterface::RTCOfferAnswerOptions& options) {
+  TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::CreateAnswer");
   RTC_DCHECK_RUN_ON(signaling_thread());
   // Chain this operation. If asynchronous operations are pending on the chain,
   // this operation will be queued to be invoked, otherwise the contents of the
@@ -2042,7 +2053,7 @@ void SdpOfferAnswerHandler::CreateAnswer(
        observer_refptr =
            rtc::scoped_refptr<CreateSessionDescriptionObserver>(observer),
        options](std::function<void()> operations_chain_callback) {
-        // Abort early if |this_weak_ptr| is no longer valid.
+        // Abort early if `this_weak_ptr` is no longer valid.
         if (!this_weak_ptr) {
           observer_refptr->OnFailure(RTCError(
               RTCErrorType::INTERNAL_ERROR,
@@ -2051,11 +2062,9 @@ void SdpOfferAnswerHandler::CreateAnswer(
           return;
         }
         // The operation completes asynchronously when the wrapper is invoked.
-        rtc::scoped_refptr<CreateSessionDescriptionObserverOperationWrapper>
-            observer_wrapper(new rtc::RefCountedObject<
-                             CreateSessionDescriptionObserverOperationWrapper>(
-                std::move(observer_refptr),
-                std::move(operations_chain_callback)));
+        auto observer_wrapper = rtc::make_ref_counted<
+            CreateSessionDescriptionObserverOperationWrapper>(
+            std::move(observer_refptr), std::move(operations_chain_callback));
         this_weak_ptr->DoCreateAnswer(options, observer_wrapper);
       });
 }
@@ -2163,13 +2172,17 @@ void SdpOfferAnswerHandler::DoSetRemoteDescription(
       desc->GetType() == SdpType::kAnswer) {
     // Report to UMA the format of the received offer or answer.
     pc_->ReportSdpFormatReceived(*desc);
+    pc_->ReportSdpBundleUsage(*desc);
   }
 
   // Handle remote descriptions missing a=mid lines for interop with legacy end
   // points.
   FillInMissingRemoteMids(desc->description());
 
-  RTCError error = ValidateSessionDescription(desc.get(), cricket::CS_REMOTE);
+  std::map<std::string, const cricket::ContentGroup*> bundle_groups_by_mid =
+      GetBundleGroupsByMid(desc->description());
+  RTCError error = ValidateSessionDescription(desc.get(), cricket::CS_REMOTE,
+                                              bundle_groups_by_mid);
   if (!error.ok()) {
     std::string error_message = GetSetDescriptionErrorMessage(
         cricket::CS_REMOTE, desc->GetType(), error);
@@ -2183,8 +2196,8 @@ void SdpOfferAnswerHandler::DoSetRemoteDescription(
   // ApplyRemoteDescription, which may destroy it before returning.
   const SdpType type = desc->GetType();
 
-  error = ApplyRemoteDescription(std::move(desc));
-  // |desc| may be destroyed at this point.
+  error = ApplyRemoteDescription(std::move(desc), bundle_groups_by_mid);
+  // `desc` may be destroyed at this point.
 
   if (!error.ok()) {
     // If ApplyRemoteDescription fails, the PeerConnection could be in an
@@ -2205,8 +2218,7 @@ void SdpOfferAnswerHandler::DoSetRemoteDescription(
     // TODO(deadbeef): We already had to hop to the network thread for
     // MaybeStartGathering...
     pc_->network_thread()->Invoke<void>(
-        RTC_FROM_HERE, rtc::Bind(&cricket::PortAllocator::DiscardCandidatePool,
-                                 port_allocator()));
+        RTC_FROM_HERE, [this] { port_allocator()->DiscardCandidatePool(); });
     // Make UMA notes about what was agreed to.
     ReportNegotiatedSdpSemantics(*remote_description());
   }
@@ -2273,60 +2285,64 @@ void SdpOfferAnswerHandler::SetAssociatedRemoteStreams(
 
 bool SdpOfferAnswerHandler::AddIceCandidate(
     const IceCandidateInterface* ice_candidate) {
+  const AddIceCandidateResult result = AddIceCandidateInternal(ice_candidate);
+  NoteAddIceCandidateResult(result);
+  // If the return value is kAddIceCandidateFailNotReady, the candidate has been
+  // added, although not 'ready', but that's a success.
+  return result == kAddIceCandidateSuccess ||
+         result == kAddIceCandidateFailNotReady;
+}
+
+AddIceCandidateResult SdpOfferAnswerHandler::AddIceCandidateInternal(
+    const IceCandidateInterface* ice_candidate) {
   RTC_DCHECK_RUN_ON(signaling_thread());
   TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::AddIceCandidate");
   if (pc_->IsClosed()) {
     RTC_LOG(LS_ERROR) << "AddIceCandidate: PeerConnection is closed.";
-    NoteAddIceCandidateResult(kAddIceCandidateFailClosed);
-    return false;
+    return kAddIceCandidateFailClosed;
   }
 
   if (!remote_description()) {
     RTC_LOG(LS_ERROR) << "AddIceCandidate: ICE candidates can't be added "
                          "without any remote session description.";
-    NoteAddIceCandidateResult(kAddIceCandidateFailNoRemoteDescription);
-    return false;
+    return kAddIceCandidateFailNoRemoteDescription;
   }
 
   if (!ice_candidate) {
     RTC_LOG(LS_ERROR) << "AddIceCandidate: Candidate is null.";
-    NoteAddIceCandidateResult(kAddIceCandidateFailNullCandidate);
-    return false;
+    return kAddIceCandidateFailNullCandidate;
   }
 
   bool valid = false;
   bool ready = ReadyToUseRemoteCandidate(ice_candidate, nullptr, &valid);
   if (!valid) {
-    NoteAddIceCandidateResult(kAddIceCandidateFailNotValid);
-    return false;
+    return kAddIceCandidateFailNotValid;
   }
 
   // Add this candidate to the remote session description.
   if (!mutable_remote_description()->AddCandidate(ice_candidate)) {
     RTC_LOG(LS_ERROR) << "AddIceCandidate: Candidate cannot be used.";
-    NoteAddIceCandidateResult(kAddIceCandidateFailInAddition);
-    return false;
+    return kAddIceCandidateFailInAddition;
   }
 
-  if (ready) {
-    bool result = UseCandidate(ice_candidate);
-    if (result) {
-      pc_->NoteUsageEvent(UsageEvent::ADD_ICE_CANDIDATE_SUCCEEDED);
-      NoteAddIceCandidateResult(kAddIceCandidateSuccess);
-    } else {
-      NoteAddIceCandidateResult(kAddIceCandidateFailNotUsable);
-    }
-    return result;
-  } else {
+  if (!ready) {
     RTC_LOG(LS_INFO) << "AddIceCandidate: Not ready to use candidate.";
-    NoteAddIceCandidateResult(kAddIceCandidateFailNotReady);
-    return true;
+    return kAddIceCandidateFailNotReady;
   }
+
+  if (!UseCandidate(ice_candidate)) {
+    return kAddIceCandidateFailNotUsable;
+  }
+
+  pc_->NoteUsageEvent(UsageEvent::ADD_ICE_CANDIDATE_SUCCEEDED);
+
+  return kAddIceCandidateSuccess;
 }
 
 void SdpOfferAnswerHandler::AddIceCandidate(
     std::unique_ptr<IceCandidateInterface> candidate,
     std::function<void(RTCError)> callback) {
+  TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::AddIceCandidate");
   RTC_DCHECK_RUN_ON(signaling_thread());
   // Chain this operation. If asynchronous operations are pending on the chain,
   // this operation will be queued to be invoked, otherwise the contents of the
@@ -2335,23 +2351,25 @@ void SdpOfferAnswerHandler::AddIceCandidate(
       [this_weak_ptr = weak_ptr_factory_.GetWeakPtr(),
        candidate = std::move(candidate), callback = std::move(callback)](
           std::function<void()> operations_chain_callback) {
-        if (!this_weak_ptr) {
-          operations_chain_callback();
+        auto result =
+            this_weak_ptr
+                ? this_weak_ptr->AddIceCandidateInternal(candidate.get())
+                : kAddIceCandidateFailClosed;
+        NoteAddIceCandidateResult(result);
+        operations_chain_callback();
+        if (result == kAddIceCandidateFailClosed) {
           callback(RTCError(
               RTCErrorType::INVALID_STATE,
               "AddIceCandidate failed because the session was shut down"));
-          return;
-        }
-        if (!this_weak_ptr->AddIceCandidate(candidate.get())) {
-          operations_chain_callback();
+        } else if (result != kAddIceCandidateSuccess &&
+                   result != kAddIceCandidateFailNotReady) {
           // Fail with an error type and message consistent with Chromium.
           // TODO(hbos): Fail with error types according to spec.
           callback(RTCError(RTCErrorType::UNSUPPORTED_OPERATION,
                             "Error processing ICE candidate"));
-          return;
+        } else {
+          callback(RTCError::OK());
         }
-        operations_chain_callback();
-        callback(RTCError::OK());
       });
 }
 
@@ -2456,6 +2474,7 @@ PeerConnectionInterface::SignalingState SdpOfferAnswerHandler::signaling_state()
 
 void SdpOfferAnswerHandler::ChangeSignalingState(
     PeerConnectionInterface::SignalingState signaling_state) {
+  TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::ChangeSignalingState");
   RTC_DCHECK_RUN_ON(signaling_thread());
   if (signaling_state_ == signaling_state) {
     return;
@@ -2471,12 +2490,19 @@ void SdpOfferAnswerHandler::ChangeSignalingState(
 RTCError SdpOfferAnswerHandler::UpdateSessionState(
     SdpType type,
     cricket::ContentSource source,
-    const cricket::SessionDescription* description) {
+    const cricket::SessionDescription* description,
+    const std::map<std::string, const cricket::ContentGroup*>&
+        bundle_groups_by_mid) {
   RTC_DCHECK_RUN_ON(signaling_thread());
 
   // If there's already a pending error then no state transition should happen.
   // But all call-sites should be verifying this before calling us!
   RTC_DCHECK(session_error() == SessionError::kNone);
+
+  // If this is answer-ish we're ready to let media flow.
+  if (type == SdpType::kPrAnswer || type == SdpType::kAnswer) {
+    EnableSending();
+  }
 
   // Update the signaling state according to the specified state machine (see
   // https://w3c.github.io/webrtc-pc/#rtcsignalingstate-enum).
@@ -2492,17 +2518,11 @@ RTCError SdpOfferAnswerHandler::UpdateSessionState(
     RTC_DCHECK(type == SdpType::kAnswer);
     ChangeSignalingState(PeerConnectionInterface::kStable);
     transceivers()->DiscardStableStates();
-    have_pending_rtp_data_channel_ = false;
   }
 
   // Update internal objects according to the session description's media
   // descriptions.
-  RTCError error = PushdownMediaDescription(type, source);
-  if (!error.ok()) {
-    return error;
-  }
-
-  return RTCError::OK();
+  return PushdownMediaDescription(type, source, bundle_groups_by_mid);
 }
 
 bool SdpOfferAnswerHandler::ShouldFireNegotiationNeededEvent(
@@ -2524,7 +2544,7 @@ bool SdpOfferAnswerHandler::ShouldFireNegotiationNeededEvent(
     // Since we just suppressed an event that would have been fired, if
     // negotiation is still needed by the time the chain becomes empty again, we
     // must make sure to generate another event if negotiation is needed then.
-    // This happens when |is_negotiation_needed_| goes from false to true, so we
+    // This happens when `is_negotiation_needed_` goes from false to true, so we
     // set it to false until UpdateNegotiationNeeded() is called.
     is_negotiation_needed_ = false;
     update_negotiation_needed_on_empty_chain_ = true;
@@ -2570,16 +2590,29 @@ bool SdpOfferAnswerHandler::AddStream(MediaStreamInterface* local_stream) {
   }
 
   local_streams_->AddStream(local_stream);
-  MediaStreamObserver* observer = new MediaStreamObserver(local_stream);
-  observer->SignalAudioTrackAdded.connect(
-      this, &SdpOfferAnswerHandler::OnAudioTrackAdded);
-  observer->SignalAudioTrackRemoved.connect(
-      this, &SdpOfferAnswerHandler::OnAudioTrackRemoved);
-  observer->SignalVideoTrackAdded.connect(
-      this, &SdpOfferAnswerHandler::OnVideoTrackAdded);
-  observer->SignalVideoTrackRemoved.connect(
-      this, &SdpOfferAnswerHandler::OnVideoTrackRemoved);
-  stream_observers_.push_back(std::unique_ptr<MediaStreamObserver>(observer));
+  auto observer = std::make_unique<MediaStreamObserver>(
+      local_stream,
+      [this](AudioTrackInterface* audio_track,
+             MediaStreamInterface* media_stream) {
+        RTC_DCHECK_RUN_ON(signaling_thread());
+        OnAudioTrackAdded(audio_track, media_stream);
+      },
+      [this](AudioTrackInterface* audio_track,
+             MediaStreamInterface* media_stream) {
+        RTC_DCHECK_RUN_ON(signaling_thread());
+        OnAudioTrackRemoved(audio_track, media_stream);
+      },
+      [this](VideoTrackInterface* video_track,
+             MediaStreamInterface* media_stream) {
+        RTC_DCHECK_RUN_ON(signaling_thread());
+        OnVideoTrackAdded(video_track, media_stream);
+      },
+      [this](VideoTrackInterface* video_track,
+             MediaStreamInterface* media_stream) {
+        RTC_DCHECK_RUN_ON(signaling_thread());
+        OnVideoTrackRemoved(video_track, media_stream);
+      });
+  stream_observers_.push_back(std::move(observer));
 
   for (const auto& track : local_stream->GetAudioTracks()) {
     rtp_manager()->AddAudioTrack(track.get(), local_stream);
@@ -2659,6 +2692,7 @@ void SdpOfferAnswerHandler::OnVideoTrackRemoved(VideoTrackInterface* track,
 }
 
 RTCError SdpOfferAnswerHandler::Rollback(SdpType desc_type) {
+  TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::Rollback");
   auto state = signaling_state();
   if (state != PeerConnectionInterface::kHaveLocalOffer &&
       state != PeerConnectionInterface::kHaveRemoteOffer) {
@@ -2706,15 +2740,18 @@ RTCError SdpOfferAnswerHandler::Rollback(SdpType desc_type) {
         transceivers()->Remove(transceiver);
       }
     }
+    if (state.init_send_encodings()) {
+      transceiver->internal()->sender_internal()->set_init_send_encodings(
+          state.init_send_encodings().value());
+    }
     transceiver->internal()->sender_internal()->set_transport(nullptr);
     transceiver->internal()->receiver_internal()->set_transport(nullptr);
     transceiver->internal()->set_mid(state.mid());
     transceiver->internal()->set_mline_index(state.mline_index());
   }
-  transport_controller()->RollbackTransports();
-  if (have_pending_rtp_data_channel_) {
-    DestroyDataChannelTransport();
-    have_pending_rtp_data_channel_ = false;
+  RTCError e = transport_controller()->RollbackTransports();
+  if (!e.ok()) {
+    return e;
   }
   transceivers()->DiscardStableStates();
   pending_local_description_.reset();
@@ -2782,7 +2819,7 @@ bool SdpOfferAnswerHandler::IceRestartPending(
 
 bool SdpOfferAnswerHandler::NeedsIceRestart(
     const std::string& content_name) const {
-  return transport_controller()->NeedsIceRestart(content_name);
+  return pc_->NeedsIceRestart(content_name);
 }
 
 absl::optional<rtc::SSLRole> SdpOfferAnswerHandler::GetDtlsRole(
@@ -2878,12 +2915,12 @@ bool SdpOfferAnswerHandler::CheckIfNegotiationIsNeeded() {
 
   // 5. For each transceiver in connection's set of transceivers, perform the
   // following checks:
-  for (const auto& transceiver : transceivers()->List()) {
+  for (const auto& transceiver : transceivers()->ListInternal()) {
     const ContentInfo* current_local_msection =
-        FindTransceiverMSection(transceiver.get(), description);
+        FindTransceiverMSection(transceiver, description);
 
-    const ContentInfo* current_remote_msection = FindTransceiverMSection(
-        transceiver.get(), current_remote_description());
+    const ContentInfo* current_remote_msection =
+        FindTransceiverMSection(transceiver, current_remote_description());
 
     // 5.4 If transceiver is stopped and is associated with an m= section,
     // but the associated m= section is not yet rejected in
@@ -2971,7 +3008,7 @@ bool SdpOfferAnswerHandler::CheckIfNegotiationIsNeeded() {
         return true;
 
       const ContentInfo* offered_remote_msection =
-          FindTransceiverMSection(transceiver.get(), remote_description());
+          FindTransceiverMSection(transceiver, remote_description());
 
       RtpTransceiverDirection offered_direction =
           offered_remote_msection
@@ -3000,7 +3037,9 @@ void SdpOfferAnswerHandler::GenerateNegotiationNeededEvent() {
 
 RTCError SdpOfferAnswerHandler::ValidateSessionDescription(
     const SessionDescriptionInterface* sdesc,
-    cricket::ContentSource source) {
+    cricket::ContentSource source,
+    const std::map<std::string, const cricket::ContentGroup*>&
+        bundle_groups_by_mid) {
   if (session_error() != SessionError::kNone) {
     LOG_AND_RETURN_ERROR(RTCErrorType::INTERNAL_ERROR, GetSessionErrorMsg());
   }
@@ -3026,20 +3065,21 @@ RTCError SdpOfferAnswerHandler::ValidateSessionDescription(
   std::string crypto_error;
   if (webrtc_session_desc_factory_->SdesPolicy() == cricket::SEC_REQUIRED ||
       pc_->dtls_enabled()) {
-    RTCError crypto_error =
-        VerifyCrypto(sdesc->description(), pc_->dtls_enabled());
+    RTCError crypto_error = VerifyCrypto(
+        sdesc->description(), pc_->dtls_enabled(), bundle_groups_by_mid);
     if (!crypto_error.ok()) {
       return crypto_error;
     }
   }
 
   // Verify ice-ufrag and ice-pwd.
-  if (!VerifyIceUfragPwdPresent(sdesc->description())) {
+  if (!VerifyIceUfragPwdPresent(sdesc->description(), bundle_groups_by_mid)) {
     LOG_AND_RETURN_ERROR(RTCErrorType::INVALID_PARAMETER,
                          kSdpWithoutIceUfragPwd);
   }
 
-  if (!pc_->ValidateBundleSettings(sdesc->description())) {
+  if (!pc_->ValidateBundleSettings(sdesc->description(),
+                                   bundle_groups_by_mid)) {
     LOG_AND_RETURN_ERROR(RTCErrorType::INVALID_PARAMETER,
                          kBundleWithoutRtcpMux);
   }
@@ -3112,18 +3152,25 @@ RTCError SdpOfferAnswerHandler::UpdateTransceiversAndDataChannels(
     cricket::ContentSource source,
     const SessionDescriptionInterface& new_session,
     const SessionDescriptionInterface* old_local_description,
-    const SessionDescriptionInterface* old_remote_description) {
+    const SessionDescriptionInterface* old_remote_description,
+    const std::map<std::string, const cricket::ContentGroup*>&
+        bundle_groups_by_mid) {
+  TRACE_EVENT0("webrtc",
+               "SdpOfferAnswerHandler::UpdateTransceiversAndDataChannels");
   RTC_DCHECK_RUN_ON(signaling_thread());
   RTC_DCHECK(IsUnifiedPlan());
 
-  const cricket::ContentGroup* bundle_group = nullptr;
   if (new_session.GetType() == SdpType::kOffer) {
-    auto bundle_group_or_error =
-        GetEarlyBundleGroup(*new_session.description());
-    if (!bundle_group_or_error.ok()) {
-      return bundle_group_or_error.MoveError();
+    // If the BUNDLE policy is max-bundle, then we know for sure that all
+    // transports will be bundled from the start. Return an error if max-bundle
+    // is specified but the session description does not have a BUNDLE group.
+    if (pc_->configuration()->bundle_policy ==
+            PeerConnectionInterface::kBundlePolicyMaxBundle &&
+        bundle_groups_by_mid.empty()) {
+      LOG_AND_RETURN_ERROR(RTCErrorType::INVALID_PARAMETER,
+                           "max-bundle configured but session description "
+                           "has no BUNDLE group");
     }
-    bundle_group = bundle_group_or_error.MoveValue();
   }
 
   const ContentInfos& new_contents = new_session.description()->contents();
@@ -3131,6 +3178,9 @@ RTCError SdpOfferAnswerHandler::UpdateTransceiversAndDataChannels(
     const cricket::ContentInfo& new_content = new_contents[i];
     cricket::MediaType media_type = new_content.media_description()->type();
     mid_generator_.AddKnownId(new_content.name);
+    auto it = bundle_groups_by_mid.find(new_content.name);
+    const cricket::ContentGroup* bundle_group =
+        it != bundle_groups_by_mid.end() ? it->second : nullptr;
     if (media_type == cricket::MEDIA_TYPE_AUDIO ||
         media_type == cricket::MEDIA_TYPE_VIDEO) {
       const cricket::ContentInfo* old_local_content = nullptr;
@@ -3193,6 +3243,7 @@ SdpOfferAnswerHandler::AssociateTransceiver(
     const ContentInfo& content,
     const ContentInfo* old_local_content,
     const ContentInfo* old_remote_content) {
+  TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::AssociateTransceiver");
   RTC_DCHECK(IsUnifiedPlan());
 #if RTC_DCHECK_IS_ON
   // If this is an offer then the m= section might be recycled. If the m=
@@ -3269,7 +3320,9 @@ SdpOfferAnswerHandler::AssociateTransceiver(
 
     // Check if the offer indicated simulcast but the answer rejected it.
     // This can happen when simulcast is not supported on the remote party.
-    if (SimulcastIsRejected(old_local_content, *media_desc)) {
+    if (SimulcastIsRejected(old_local_content, *media_desc,
+                            pc_->GetCryptoOptions()
+                                .srtp.enable_encrypted_rtp_header_extensions)) {
       RTC_HISTOGRAM_BOOLEAN(kSimulcastDisabled, true);
       RTCError error =
           DisableSimulcastInSender(transceiver->internal()->sender_internal());
@@ -3319,27 +3372,12 @@ SdpOfferAnswerHandler::AssociateTransceiver(
   return std::move(transceiver);
 }
 
-RTCErrorOr<const cricket::ContentGroup*>
-SdpOfferAnswerHandler::GetEarlyBundleGroup(
-    const SessionDescription& desc) const {
-  const cricket::ContentGroup* bundle_group = nullptr;
-  if (pc_->configuration()->bundle_policy ==
-      PeerConnectionInterface::kBundlePolicyMaxBundle) {
-    bundle_group = desc.GetGroupByName(cricket::GROUP_TYPE_BUNDLE);
-    if (!bundle_group) {
-      LOG_AND_RETURN_ERROR(RTCErrorType::INVALID_PARAMETER,
-                           "max-bundle configured but session description "
-                           "has no BUNDLE group");
-    }
-  }
-  return bundle_group;
-}
-
 RTCError SdpOfferAnswerHandler::UpdateTransceiverChannel(
     rtc::scoped_refptr<RtpTransceiverProxyWithInternal<RtpTransceiver>>
         transceiver,
     const cricket::ContentInfo& content,
     const cricket::ContentGroup* bundle_group) {
+  TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::UpdateTransceiverChannel");
   RTC_DCHECK(IsUnifiedPlan());
   RTC_DCHECK(transceiver);
   cricket::ChannelInterface* channel = transceiver->internal()->channel();
@@ -3371,28 +3409,21 @@ RTCError SdpOfferAnswerHandler::UpdateDataChannel(
     cricket::ContentSource source,
     const cricket::ContentInfo& content,
     const cricket::ContentGroup* bundle_group) {
-  if (pc_->data_channel_type() == cricket::DCT_NONE) {
-    // If data channels are disabled, ignore this media section. CreateAnswer
-    // will take care of rejecting it.
-    return RTCError::OK();
-  }
   if (content.rejected) {
-    RTC_LOG(LS_INFO) << "Rejected data channel, mid=" << content.mid();
-    DestroyDataChannelTransport();
+    RTC_LOG(LS_INFO) << "Rejected data channel transport with mid="
+                     << content.mid();
+
+    rtc::StringBuilder sb;
+    sb << "Rejected data channel transport with mid=" << content.mid();
+    RTCError error(RTCErrorType::OPERATION_ERROR_WITH_DATA, sb.Release());
+    error.set_error_detail(RTCErrorDetailType::DATA_CHANNEL_FAILURE);
+    DestroyDataChannelTransport(error);
   } else {
-    if (!data_channel_controller()->rtp_data_channel() &&
-        !data_channel_controller()->data_channel_transport()) {
+    if (!data_channel_controller()->data_channel_transport()) {
       RTC_LOG(LS_INFO) << "Creating data channel, mid=" << content.mid();
       if (!CreateDataChannel(content.name)) {
         LOG_AND_RETURN_ERROR(RTCErrorType::INTERNAL_ERROR,
                              "Failed to create data channel.");
-      }
-    }
-    if (source == cricket::CS_REMOTE) {
-      const MediaContentDescription* data_desc = content.media_description();
-      if (data_desc && cricket::IsRtpProtocol(data_desc->protocol())) {
-        data_channel_controller()->UpdateRemoteRtpDataChannels(
-            GetActiveStreams(data_desc));
       }
     }
   }
@@ -3488,19 +3519,17 @@ SdpOfferAnswerHandler::FindAvailableTransceiverToReceive(
 
 const cricket::ContentInfo*
 SdpOfferAnswerHandler::FindMediaSectionForTransceiver(
-    rtc::scoped_refptr<RtpTransceiverProxyWithInternal<RtpTransceiver>>
-        transceiver,
+    const RtpTransceiver* transceiver,
     const SessionDescriptionInterface* sdesc) const {
   RTC_DCHECK_RUN_ON(signaling_thread());
   RTC_DCHECK(transceiver);
   RTC_DCHECK(sdesc);
   if (IsUnifiedPlan()) {
-    if (!transceiver->internal()->mid()) {
+    if (!transceiver->mid()) {
       // This transceiver is not associated with a media section yet.
       return nullptr;
     }
-    return sdesc->description()->GetContentByName(
-        *transceiver->internal()->mid());
+    return sdesc->description()->GetContentByName(*transceiver->mid());
   } else {
     // Plan B only allows at most one audio and one video section, so use the
     // first media section of that type.
@@ -3519,16 +3548,6 @@ void SdpOfferAnswerHandler::GetOptionsForOffer(
     GetOptionsForUnifiedPlanOffer(offer_answer_options, session_options);
   } else {
     GetOptionsForPlanBOffer(offer_answer_options, session_options);
-  }
-
-  // Intentionally unset the data channel type for RTP data channel with the
-  // second condition. Otherwise the RTP data channels would be successfully
-  // negotiated by default and the unit tests in WebRtcDataBrowserTest will fail
-  // when building with chromium. We want to leave RTP data channels broken, so
-  // people won't try to use them.
-  if (data_channel_controller()->HasRtpDataChannels() ||
-      pc_->data_channel_type() != cricket::DCT_RTP) {
-    session_options->data_channel_type = pc_->data_channel_type();
   }
 
   // Apply ICE restart flag and renomination flag.
@@ -3551,15 +3570,14 @@ void SdpOfferAnswerHandler::GetOptionsForOffer(
     session_options->ice_credentials =
         pc_->network_thread()->Invoke<std::vector<cricket::IceParameters>>(
             RTC_FROM_HERE,
-            rtc::Bind(&cricket::PortAllocator::GetPooledIceCredentials,
-                      port_allocator()));
+            [this] { return port_allocator()->GetPooledIceCredentials(); });
   }
   session_options->offer_extmap_allow_mixed =
       pc_->configuration()->offer_extmap_allow_mixed;
 
   // Allow fallback for using obsolete SCTP syntax.
-  // Note that the default in |session_options| is true, while
-  // the default in |options| is false.
+  // Note that the default in `session_options` is true, while
+  // the default in `options` is false.
   session_options->use_obsolete_sctp_sdp =
       offer_answer_options.use_obsolete_sctp_sdp;
 }
@@ -3673,7 +3691,7 @@ void SdpOfferAnswerHandler::GetOptionsForUnifiedPlanOffer(
   // default, rejected media section here that can be later overwritten.
   for (size_t i = 0;
        i < std::max(local_contents.size(), remote_contents.size()); ++i) {
-    // Either |local_content| or |remote_content| is non-null.
+    // Either `local_content` or `remote_content` is non-null.
     const ContentInfo* local_content =
         (i < local_contents.size() ? &local_contents[i] : nullptr);
     const ContentInfo* current_local_content =
@@ -3716,7 +3734,7 @@ void SdpOfferAnswerHandler::GetOptionsForUnifiedPlanOffer(
         } else {
           session_options->media_description_options.push_back(
               GetMediaDescriptionOptionsForTransceiver(
-                  transceiver, mid,
+                  transceiver->internal(), mid,
                   /*is_create_offer=*/true));
           // CreateOffer shouldn't really cause any state changes in
           // PeerConnection, but we need a way to match new transceivers to new
@@ -3754,7 +3772,7 @@ void SdpOfferAnswerHandler::GetOptionsForUnifiedPlanOffer(
   // and not associated). Reuse media sections marked as recyclable first,
   // otherwise append to the end of the offer. New media sections should be
   // added in the order they were added to the PeerConnection.
-  for (const auto& transceiver : transceivers()->List()) {
+  for (const auto& transceiver : transceivers()->ListInternal()) {
     if (transceiver->mid() || transceiver->stopping()) {
       continue;
     }
@@ -3774,7 +3792,7 @@ void SdpOfferAnswerHandler::GetOptionsForUnifiedPlanOffer(
               /*is_create_offer=*/true));
     }
     // See comment above for why CreateOffer changes the transceiver's state.
-    transceiver->internal()->set_mline_index(mline_index);
+    transceiver->set_mline_index(mline_index);
   }
   // Lastly, add a m-section if we have local data channels and an m section
   // does not already exist.
@@ -3797,15 +3815,6 @@ void SdpOfferAnswerHandler::GetOptionsForAnswer(
     GetOptionsForPlanBAnswer(offer_answer_options, session_options);
   }
 
-  // Intentionally unset the data channel type for RTP data channel. Otherwise
-  // the RTP data channels would be successfully negotiated by default and the
-  // unit tests in WebRtcDataBrowserTest will fail when building with chromium.
-  // We want to leave RTP data channels broken, so people won't try to use them.
-  if (data_channel_controller()->HasRtpDataChannels() ||
-      pc_->data_channel_type() != cricket::DCT_RTP) {
-    session_options->data_channel_type = pc_->data_channel_type();
-  }
-
   // Apply ICE renomination flag.
   for (auto& options : session_options->media_description_options) {
     options.transport_options.enable_ice_renomination =
@@ -3824,8 +3833,7 @@ void SdpOfferAnswerHandler::GetOptionsForAnswer(
     session_options->ice_credentials =
         pc_->network_thread()->Invoke<std::vector<cricket::IceParameters>>(
             RTC_FROM_HERE,
-            rtc::Bind(&cricket::PortAllocator::GetPooledIceCredentials,
-                      port_allocator()));
+            [this] { return port_allocator()->GetPooledIceCredentials(); });
   }
 }
 
@@ -3895,7 +3903,7 @@ void SdpOfferAnswerHandler::GetOptionsForUnifiedPlanAnswer(
       if (transceiver) {
         session_options->media_description_options.push_back(
             GetMediaDescriptionOptionsForTransceiver(
-                transceiver, content.name,
+                transceiver->internal(), content.name,
                 /*is_create_offer=*/false));
       } else {
         // This should only happen with rejected transceivers.
@@ -3916,8 +3924,7 @@ void SdpOfferAnswerHandler::GetOptionsForUnifiedPlanAnswer(
       // Reject all data sections if data channels are disabled.
       // Reject a data section if it has already been rejected.
       // Reject all data sections except for the first one.
-      if (pc_->data_channel_type() == cricket::DCT_NONE || content.rejected ||
-          content.name != *(pc_->GetDataMid())) {
+      if (content.rejected || content.name != *(pc_->GetDataMid())) {
         session_options->media_description_options.push_back(
             GetMediaDescriptionOptionsForRejectedData(content.name));
       } else {
@@ -4077,6 +4084,7 @@ void SdpOfferAnswerHandler::RemoveSenders(cricket::MediaType media_type) {
 void SdpOfferAnswerHandler::UpdateLocalSenders(
     const std::vector<cricket::StreamParams>& streams,
     cricket::MediaType media_type) {
+  TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::UpdateLocalSenders");
   RTC_DCHECK_RUN_ON(signaling_thread());
   std::vector<RtpSenderInfo>* current_senders =
       rtp_manager()->GetLocalSenderInfos(media_type);
@@ -4100,7 +4108,7 @@ void SdpOfferAnswerHandler::UpdateLocalSenders(
 
   // Find new and active senders.
   for (const cricket::StreamParams& params : streams) {
-    // The sync_label is the MediaStream label and the |stream.id| is the
+    // The sync_label is the MediaStream label and the `stream.id` is the
     // sender id.
     const std::string& stream_id = params.first_stream_id();
     const std::string& sender_id = params.id;
@@ -4119,6 +4127,7 @@ void SdpOfferAnswerHandler::UpdateRemoteSendersList(
     bool default_sender_needed,
     cricket::MediaType media_type,
     StreamCollection* new_streams) {
+  TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::UpdateRemoteSendersList");
   RTC_DCHECK_RUN_ON(signaling_thread());
   RTC_DCHECK(!IsUnifiedPlan());
 
@@ -4162,8 +4171,8 @@ void SdpOfferAnswerHandler::UpdateRemoteSendersList(
       break;
     }
 
-    // |params.id| is the sender id and the stream id uses the first of
-    // |params.stream_ids|. The remote description could come from a Unified
+    // `params.id` is the sender id and the stream id uses the first of
+    // `params.stream_ids`. The remote description could come from a Unified
     // Plan endpoint, with multiple or no stream_ids() signaled. Since this is
     // not supported in Plan B, we just take the first here and create the
     // default stream ID if none is specified.
@@ -4217,69 +4226,94 @@ void SdpOfferAnswerHandler::UpdateRemoteSendersList(
   }
 }
 
+void SdpOfferAnswerHandler::EnableSending() {
+  TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::EnableSending");
+  RTC_DCHECK_RUN_ON(signaling_thread());
+  for (const auto& transceiver : transceivers()->ListInternal()) {
+    cricket::ChannelInterface* channel = transceiver->channel();
+    if (channel) {
+      channel->Enable(true);
+    }
+  }
+}
+
 RTCError SdpOfferAnswerHandler::PushdownMediaDescription(
     SdpType type,
-    cricket::ContentSource source) {
+    cricket::ContentSource source,
+    const std::map<std::string, const cricket::ContentGroup*>&
+        bundle_groups_by_mid) {
+  TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::PushdownMediaDescription");
   const SessionDescriptionInterface* sdesc =
       (source == cricket::CS_LOCAL ? local_description()
                                    : remote_description());
   RTC_DCHECK_RUN_ON(signaling_thread());
   RTC_DCHECK(sdesc);
 
-  // Gather lists of updates to be made on cricket channels on the signaling
-  // thread, before performing them all at once on the worker thread. Necessary
-  // due to threading restrictions.
-  auto payload_type_demuxing_updates = GetPayloadTypeDemuxingUpdates(source);
-  std::vector<ContentUpdate> content_updates;
+  if (!UpdatePayloadTypeDemuxingState(source, bundle_groups_by_mid)) {
+    // Note that this is never expected to fail, since RtpDemuxer doesn't return
+    // an error when changing payload type demux criteria, which is all this
+    // does.
+    LOG_AND_RETURN_ERROR(RTCErrorType::INTERNAL_ERROR,
+                         "Failed to update payload type demuxing state.");
+  }
 
-  // Collect updates for each audio/video transceiver.
-  for (const auto& transceiver : transceivers()->List()) {
+  // Push down the new SDP media section for each audio/video transceiver.
+  auto rtp_transceivers = transceivers()->ListInternal();
+  std::vector<
+      std::pair<cricket::ChannelInterface*, const MediaContentDescription*>>
+      channels;
+  for (const auto& transceiver : rtp_transceivers) {
     const ContentInfo* content_info =
         FindMediaSectionForTransceiver(transceiver, sdesc);
-    cricket::ChannelInterface* channel = transceiver->internal()->channel();
+    cricket::ChannelInterface* channel = transceiver->channel();
     if (!channel || !content_info || content_info->rejected) {
       continue;
     }
     const MediaContentDescription* content_desc =
         content_info->media_description();
-    if (content_desc) {
-      content_updates.emplace_back(channel, content_desc);
+    if (!content_desc) {
+      continue;
     }
+
+    transceiver->OnNegotiationUpdate(type, content_desc);
+    channels.push_back(std::make_pair(channel, content_desc));
   }
 
-  // If using the RtpDataChannel, add it to the list of updates.
-  if (data_channel_controller()->rtp_data_channel()) {
-    const ContentInfo* data_content =
-        cricket::GetFirstDataContent(sdesc->description());
-    if (data_content && !data_content->rejected) {
-      const MediaContentDescription* data_desc =
-          data_content->media_description();
-      if (data_desc) {
-        content_updates.push_back(
-            {data_channel_controller()->rtp_data_channel(), data_desc});
-      }
+  // This for-loop of invokes helps audio impairment during re-negotiations.
+  // One of the causes is that downstairs decoder creation is synchronous at the
+  // moment, and that a decoder is created for each codec listed in the SDP.
+  //
+  // TODO(bugs.webrtc.org/12840): consider merging the invokes again after
+  // these projects have shipped:
+  // - bugs.webrtc.org/12462
+  // - crbug.com/1157227
+  // - crbug.com/1187289
+  for (const auto& entry : channels) {
+    RTCError error =
+        pc_->worker_thread()->Invoke<RTCError>(RTC_FROM_HERE, [&]() {
+          std::string error;
+          bool success =
+              (source == cricket::CS_LOCAL)
+                  ? entry.first->SetLocalContent(entry.second, type, &error)
+                  : entry.first->SetRemoteContent(entry.second, type, &error);
+          if (!success) {
+            LOG_AND_RETURN_ERROR(RTCErrorType::INVALID_PARAMETER, error);
+          }
+          return RTCError::OK();
+        });
+    if (!error.ok()) {
+      return error;
     }
-  }
-
-  RTCError error = pc_->worker_thread()->Invoke<RTCError>(
-      RTC_FROM_HERE,
-      rtc::Bind(&SdpOfferAnswerHandler::ApplyChannelUpdates, this, type, source,
-                std::move(payload_type_demuxing_updates),
-                std::move(content_updates)));
-  if (!error.ok()) {
-    return error;
   }
 
   // Need complete offer/answer with an SCTP m= section before starting SCTP,
   // according to https://tools.ietf.org/html/draft-ietf-mmusic-sctp-sdp-19
   if (pc_->sctp_mid() && local_description() && remote_description()) {
-    rtc::scoped_refptr<SctpTransport> sctp_transport =
-        transport_controller()->GetSctpTransport(*(pc_->sctp_mid()));
     auto local_sctp_description = cricket::GetFirstSctpDataContentDescription(
         local_description()->description());
     auto remote_sctp_description = cricket::GetFirstSctpDataContentDescription(
         remote_description()->description());
-    if (sctp_transport && local_sctp_description && remote_sctp_description) {
+    if (local_sctp_description && remote_sctp_description) {
       int max_message_size;
       // A remote max message size of zero means "any size supported".
       // We configure the connection with our own max message size.
@@ -4290,60 +4324,19 @@ RTCError SdpOfferAnswerHandler::PushdownMediaDescription(
             std::min(local_sctp_description->max_message_size(),
                      remote_sctp_description->max_message_size());
       }
-      sctp_transport->Start(local_sctp_description->port(),
-                            remote_sctp_description->port(), max_message_size);
+      pc_->StartSctpTransport(local_sctp_description->port(),
+                              remote_sctp_description->port(),
+                              max_message_size);
     }
   }
 
   return RTCError::OK();
 }
 
-RTCError SdpOfferAnswerHandler::ApplyChannelUpdates(
-    SdpType type,
-    cricket::ContentSource source,
-    std::vector<PayloadTypeDemuxingUpdate> payload_type_demuxing_updates,
-    std::vector<ContentUpdate> content_updates) {
-  RTC_DCHECK_RUN_ON(pc_->worker_thread());
-  // If this is answer-ish we're ready to let media flow.
-  bool enable_sending = type == SdpType::kPrAnswer || type == SdpType::kAnswer;
-  std::set<cricket::ChannelInterface*> modified_channels;
-  for (const auto& update : payload_type_demuxing_updates) {
-    modified_channels.insert(update.channel);
-    update.channel->SetPayloadTypeDemuxingEnabled(update.enabled);
-  }
-  for (const auto& update : content_updates) {
-    modified_channels.insert(update.channel);
-    std::string error;
-    bool success = (source == cricket::CS_LOCAL)
-                       ? update.channel->SetLocalContent(
-                             update.content_description, type, &error)
-                       : update.channel->SetRemoteContent(
-                             update.content_description, type, &error);
-    if (!success) {
-      LOG_AND_RETURN_ERROR(RTCErrorType::INVALID_PARAMETER, error);
-    }
-    if (enable_sending && !update.channel->enabled()) {
-      update.channel->Enable(true);
-    }
-  }
-  // The above calls may have modified properties of the channel (header
-  // extension mappings, demuxer criteria) which still need to be applied to the
-  // RtpTransport.
-  return pc_->network_thread()->Invoke<RTCError>(
-      RTC_FROM_HERE, [modified_channels] {
-        for (auto channel : modified_channels) {
-          std::string error;
-          if (!channel->UpdateRtpTransport(&error)) {
-            LOG_AND_RETURN_ERROR(RTCErrorType::INVALID_PARAMETER, error);
-          }
-        }
-        return RTCError::OK();
-      });
-}
-
 RTCError SdpOfferAnswerHandler::PushdownTransportDescription(
     cricket::ContentSource source,
     SdpType type) {
+  TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::PushdownTransportDescription");
   RTC_DCHECK_RUN_ON(signaling_thread());
 
   if (source == cricket::CS_LOCAL) {
@@ -4360,6 +4353,7 @@ RTCError SdpOfferAnswerHandler::PushdownTransportDescription(
 }
 
 void SdpOfferAnswerHandler::RemoveStoppedTransceivers() {
+  TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::RemoveStoppedTransceivers");
   RTC_DCHECK_RUN_ON(signaling_thread());
   // 3.2.10.1: For each transceiver in the connection's set of transceivers
   //           run the following steps:
@@ -4376,27 +4370,23 @@ void SdpOfferAnswerHandler::RemoveStoppedTransceivers() {
     if (!transceiver->stopped()) {
       continue;
     }
-    const ContentInfo* local_content =
-        FindMediaSectionForTransceiver(transceiver, local_description());
-    const ContentInfo* remote_content =
-        FindMediaSectionForTransceiver(transceiver, remote_description());
+    const ContentInfo* local_content = FindMediaSectionForTransceiver(
+        transceiver->internal(), local_description());
+    const ContentInfo* remote_content = FindMediaSectionForTransceiver(
+        transceiver->internal(), remote_description());
     if ((local_content && local_content->rejected) ||
         (remote_content && remote_content->rejected)) {
       RTC_LOG(LS_INFO) << "Dissociating transceiver"
-                       << " since the media section is being recycled.";
+                          " since the media section is being recycled.";
       transceiver->internal()->set_mid(absl::nullopt);
       transceiver->internal()->set_mline_index(absl::nullopt);
-      transceivers()->Remove(transceiver);
-      continue;
-    }
-    if (!local_content && !remote_content) {
+    } else if (!local_content && !remote_content) {
       // TODO(bugs.webrtc.org/11973): Consider if this should be removed already
       // See https://github.com/w3c/webrtc-pc/issues/2576
       RTC_LOG(LS_INFO)
           << "Dropping stopped transceiver that was never associated";
-      transceivers()->Remove(transceiver);
-      continue;
     }
+    transceivers()->Remove(transceiver);
   }
 }
 
@@ -4416,8 +4406,18 @@ void SdpOfferAnswerHandler::RemoveUnusedChannels(
   }
 
   const cricket::ContentInfo* data_info = cricket::GetFirstDataContent(desc);
-  if (!data_info || data_info->rejected) {
-    DestroyDataChannelTransport();
+  if (!data_info) {
+    RTCError error(RTCErrorType::OPERATION_ERROR_WITH_DATA,
+                   "No data channel section in the description.");
+    error.set_error_detail(RTCErrorDetailType::DATA_CHANNEL_FAILURE);
+    DestroyDataChannelTransport(error);
+  } else if (data_info->rejected) {
+    rtc::StringBuilder sb;
+    sb << "Rejected data channel with mid=" << data_info->name << ".";
+
+    RTCError error(RTCErrorType::OPERATION_ERROR_WITH_DATA, sb.Release());
+    error.set_error_detail(RTCErrorDetailType::DATA_CHANNEL_FAILURE);
+    DestroyDataChannelTransport(error);
   }
 }
 
@@ -4494,40 +4494,23 @@ bool SdpOfferAnswerHandler::UseCandidatesInSessionDescription(
 bool SdpOfferAnswerHandler::UseCandidate(
     const IceCandidateInterface* candidate) {
   RTC_DCHECK_RUN_ON(signaling_thread());
+
+  rtc::Thread::ScopedDisallowBlockingCalls no_blocking_calls;
+
   RTCErrorOr<const cricket::ContentInfo*> result =
       FindContentInfo(remote_description(), candidate);
-  if (!result.ok()) {
-    RTC_LOG(LS_ERROR) << "UseCandidate: Invalid candidate. "
-                      << result.error().message();
+  if (!result.ok())
     return false;
+
+  const cricket::Candidate& c = candidate->candidate();
+  RTCError error = cricket::VerifyCandidate(c);
+  if (!error.ok()) {
+    RTC_LOG(LS_WARNING) << "Invalid candidate: " << c.ToString();
+    return true;
   }
-  std::vector<cricket::Candidate> candidates;
-  candidates.push_back(candidate->candidate());
-  // Invoking BaseSession method to handle remote candidates.
-  RTCError error = transport_controller()->AddRemoteCandidates(
-      result.value()->name, candidates);
-  if (error.ok()) {
-    ReportRemoteIceCandidateAdded(candidate->candidate());
-    // Candidates successfully submitted for checking.
-    if (pc_->ice_connection_state() ==
-            PeerConnectionInterface::kIceConnectionNew ||
-        pc_->ice_connection_state() ==
-            PeerConnectionInterface::kIceConnectionDisconnected) {
-      // If state is New, then the session has just gotten its first remote ICE
-      // candidates, so go to Checking.
-      // If state is Disconnected, the session is re-using old candidates or
-      // receiving additional ones, so go to Checking.
-      // If state is Connected, stay Connected.
-      // TODO(bemasc): If state is Connected, and the new candidates are for a
-      // newly added transport, then the state actually _should_ move to
-      // checking.  Add a way to distinguish that case.
-      pc_->SetIceConnectionState(
-          PeerConnectionInterface::kIceConnectionChecking);
-    }
-    // TODO(bemasc): If state is Completed, go back to Connected.
-  } else {
-    RTC_LOG(LS_WARNING) << error.message();
-  }
+
+  pc_->AddRemoteCandidate(result.value()->name, c);
+
   return true;
 }
 
@@ -4560,41 +4543,13 @@ bool SdpOfferAnswerHandler::ReadyToUseRemoteCandidate(
     return false;
   }
 
-  std::string transport_name = GetTransportName(result.value()->name);
-  return !transport_name.empty();
-}
-
-void SdpOfferAnswerHandler::ReportRemoteIceCandidateAdded(
-    const cricket::Candidate& candidate) {
-  pc_->NoteUsageEvent(UsageEvent::REMOTE_CANDIDATE_ADDED);
-  if (candidate.address().IsPrivateIP()) {
-    pc_->NoteUsageEvent(UsageEvent::REMOTE_PRIVATE_CANDIDATE_ADDED);
-  }
-  if (candidate.address().IsUnresolvedIP()) {
-    pc_->NoteUsageEvent(UsageEvent::REMOTE_MDNS_CANDIDATE_ADDED);
-  }
-  if (candidate.address().family() == AF_INET6) {
-    pc_->NoteUsageEvent(UsageEvent::REMOTE_IPV6_CANDIDATE_ADDED);
-  }
+  return true;
 }
 
 RTCErrorOr<const cricket::ContentInfo*> SdpOfferAnswerHandler::FindContentInfo(
     const SessionDescriptionInterface* description,
     const IceCandidateInterface* candidate) {
-  if (candidate->sdp_mline_index() >= 0) {
-    size_t mediacontent_index =
-        static_cast<size_t>(candidate->sdp_mline_index());
-    size_t content_size = description->description()->contents().size();
-    if (mediacontent_index < content_size) {
-      return &description->description()->contents()[mediacontent_index];
-    } else {
-      return RTCError(RTCErrorType::INVALID_RANGE,
-                      "Media line index (" +
-                          rtc::ToString(candidate->sdp_mline_index()) +
-                          ") out of range (number of mlines: " +
-                          rtc::ToString(content_size) + ").");
-    }
-  } else if (!candidate->sdp_mid().empty()) {
+  if (!candidate->sdp_mid().empty()) {
     auto& contents = description->description()->contents();
     auto it = absl::c_find_if(
         contents, [candidate](const cricket::ContentInfo& content_info) {
@@ -4608,6 +4563,19 @@ RTCErrorOr<const cricket::ContentInfo*> SdpOfferAnswerHandler::FindContentInfo(
     } else {
       return &*it;
     }
+  } else if (candidate->sdp_mline_index() >= 0) {
+    size_t mediacontent_index =
+        static_cast<size_t>(candidate->sdp_mline_index());
+    size_t content_size = description->description()->contents().size();
+    if (mediacontent_index < content_size) {
+      return &description->description()->contents()[mediacontent_index];
+    } else {
+      return RTCError(RTCErrorType::INVALID_RANGE,
+                      "Media line index (" +
+                          rtc::ToString(candidate->sdp_mline_index()) +
+                          ") out of range (number of mlines: " +
+                          rtc::ToString(content_size) + ").");
+    }
   }
 
   return RTCError(RTCErrorType::INVALID_PARAMETER,
@@ -4615,6 +4583,7 @@ RTCErrorOr<const cricket::ContentInfo*> SdpOfferAnswerHandler::FindContentInfo(
 }
 
 RTCError SdpOfferAnswerHandler::CreateChannels(const SessionDescription& desc) {
+  TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::CreateChannels");
   // Creating the media channels. Transports should already have been created
   // at this point.
   RTC_DCHECK_RUN_ON(signaling_thread());
@@ -4641,8 +4610,7 @@ RTCError SdpOfferAnswerHandler::CreateChannels(const SessionDescription& desc) {
   }
 
   const cricket::ContentInfo* data = cricket::GetFirstDataContent(&desc);
-  if (pc_->data_channel_type() != cricket::DCT_NONE && data &&
-      !data->rejected && !data_channel_controller()->rtp_data_channel() &&
+  if (data && !data->rejected &&
       !data_channel_controller()->data_channel_transport()) {
     if (!CreateDataChannel(data->name)) {
       LOG_AND_RETURN_ERROR(RTCErrorType::INTERNAL_ERROR,
@@ -4656,141 +4624,123 @@ RTCError SdpOfferAnswerHandler::CreateChannels(const SessionDescription& desc) {
 // TODO(steveanton): Perhaps this should be managed by the RtpTransceiver.
 cricket::VoiceChannel* SdpOfferAnswerHandler::CreateVoiceChannel(
     const std::string& mid) {
+  TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::CreateVoiceChannel");
   RTC_DCHECK_RUN_ON(signaling_thread());
+  if (!channel_manager()->media_engine())
+    return nullptr;
+
   RtpTransportInternal* rtp_transport = pc_->GetRtpTransport(mid);
 
   // TODO(bugs.webrtc.org/11992): CreateVoiceChannel internally switches to the
-  // worker thread. We shouldn't be using the |call_ptr_| hack here but simply
-  // be on the worker thread and use |call_| (update upstream code).
-  cricket::VoiceChannel* voice_channel;
-  {
-    RTC_DCHECK_RUN_ON(pc_->signaling_thread());
-    voice_channel = channel_manager()->CreateVoiceChannel(
-        pc_->call_ptr(), pc_->configuration()->media_config, rtp_transport,
-        signaling_thread(), mid, pc_->SrtpRequired(), pc_->GetCryptoOptions(),
-        &ssrc_generator_, audio_options());
-  }
-  if (!voice_channel) {
-    return nullptr;
-  }
-  voice_channel->SignalSentPacket().connect(pc_,
-                                            &PeerConnection::OnSentPacket_w);
-  voice_channel->SetRtpTransport(rtp_transport);
-
-  return voice_channel;
+  // worker thread. We shouldn't be using the `call_ptr_` hack here but simply
+  // be on the worker thread and use `call_` (update upstream code).
+  return channel_manager()->CreateVoiceChannel(
+      pc_->call_ptr(), pc_->configuration()->media_config, rtp_transport,
+      signaling_thread(), mid, pc_->SrtpRequired(), pc_->GetCryptoOptions(),
+      &ssrc_generator_, audio_options());
 }
 
 // TODO(steveanton): Perhaps this should be managed by the RtpTransceiver.
 cricket::VideoChannel* SdpOfferAnswerHandler::CreateVideoChannel(
     const std::string& mid) {
+  TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::CreateVideoChannel");
   RTC_DCHECK_RUN_ON(signaling_thread());
+  if (!channel_manager()->media_engine())
+    return nullptr;
+
+  // NOTE: This involves a non-ideal hop (Invoke) over to the network thread.
   RtpTransportInternal* rtp_transport = pc_->GetRtpTransport(mid);
 
   // TODO(bugs.webrtc.org/11992): CreateVideoChannel internally switches to the
-  // worker thread. We shouldn't be using the |call_ptr_| hack here but simply
-  // be on the worker thread and use |call_| (update upstream code).
-  cricket::VideoChannel* video_channel;
-  {
-    RTC_DCHECK_RUN_ON(pc_->signaling_thread());
-    video_channel = channel_manager()->CreateVideoChannel(
-        pc_->call_ptr(), pc_->configuration()->media_config, rtp_transport,
-        signaling_thread(), mid, pc_->SrtpRequired(), pc_->GetCryptoOptions(),
-        &ssrc_generator_, video_options(),
-        video_bitrate_allocator_factory_.get());
-  }
-  if (!video_channel) {
-    return nullptr;
-  }
-  video_channel->SignalSentPacket().connect(pc_,
-                                            &PeerConnection::OnSentPacket_w);
-  video_channel->SetRtpTransport(rtp_transport);
-
-  return video_channel;
+  // worker thread. We shouldn't be using the `call_ptr_` hack here but simply
+  // be on the worker thread and use `call_` (update upstream code).
+  return channel_manager()->CreateVideoChannel(
+      pc_->call_ptr(), pc_->configuration()->media_config, rtp_transport,
+      signaling_thread(), mid, pc_->SrtpRequired(), pc_->GetCryptoOptions(),
+      &ssrc_generator_, video_options(),
+      video_bitrate_allocator_factory_.get());
 }
 
 bool SdpOfferAnswerHandler::CreateDataChannel(const std::string& mid) {
   RTC_DCHECK_RUN_ON(signaling_thread());
-  switch (pc_->data_channel_type()) {
-    case cricket::DCT_SCTP:
-      if (pc_->network_thread()->Invoke<bool>(
-              RTC_FROM_HERE,
-              rtc::Bind(&PeerConnection::SetupDataChannelTransport_n, pc_,
-                        mid))) {
-        pc_->SetSctpDataMid(mid);
-      } else {
-        return false;
-      }
-      return true;
-    case cricket::DCT_RTP:
-    default:
-      RtpTransportInternal* rtp_transport = pc_->GetRtpTransport(mid);
-      // TODO(bugs.webrtc.org/9987): set_rtp_data_channel() should be called on
-      // the network thread like set_data_channel_transport is.
-      {
-        RTC_DCHECK_RUN_ON(pc_->signaling_thread());
-        data_channel_controller()->set_rtp_data_channel(
-            channel_manager()->CreateRtpDataChannel(
-                pc_->configuration()->media_config, rtp_transport,
-                signaling_thread(), mid, pc_->SrtpRequired(),
-                pc_->GetCryptoOptions(), &ssrc_generator_));
-      }
-      if (!data_channel_controller()->rtp_data_channel()) {
-        return false;
-      }
-      data_channel_controller()->rtp_data_channel()->SignalSentPacket().connect(
-          pc_, &PeerConnection::OnSentPacket_w);
-      data_channel_controller()->rtp_data_channel()->SetRtpTransport(
-          rtp_transport);
-      SetHavePendingRtpDataChannel();
-      return true;
+  if (!pc_->network_thread()->Invoke<bool>(RTC_FROM_HERE, [this, &mid] {
+        RTC_DCHECK_RUN_ON(pc_->network_thread());
+        return pc_->SetupDataChannelTransport_n(mid);
+      })) {
+    return false;
   }
-  return false;
+  // TODO(tommi): Is this necessary? SetupDataChannelTransport_n() above
+  // will have queued up updating the transport name on the signaling thread
+  // and could update the mid at the same time. This here is synchronous
+  // though, but it changes the state of PeerConnection and makes it be
+  // out of sync (transport name not set while the mid is set).
+  pc_->SetSctpDataMid(mid);
+  return true;
 }
 
 void SdpOfferAnswerHandler::DestroyTransceiverChannel(
     rtc::scoped_refptr<RtpTransceiverProxyWithInternal<RtpTransceiver>>
         transceiver) {
+  TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::DestroyTransceiverChannel");
   RTC_DCHECK(transceiver);
+  RTC_LOG_THREAD_BLOCK_COUNT();
+
+  // TODO(tommi): We're currently on the signaling thread.
+  // There are multiple hops to the worker ahead.
+  // Consider if we can make the call to SetChannel() on the worker thread
+  // (and require that to be the context it's always called in) and also
+  // call DestroyChannelInterface there, since it also needs to hop to the
+  // worker.
 
   cricket::ChannelInterface* channel = transceiver->internal()->channel();
+  RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(0);
   if (channel) {
+    // TODO(tommi): VideoRtpReceiver::SetMediaChannel blocks and jumps to the
+    // worker thread. When being set to nullptr, there are additional
+    // blocking calls to e.g. ClearRecordableEncodedFrameCallback which triggers
+    // another blocking call or Stop() for video channels.
+    // The channel object also needs to be de-initialized on the network thread
+    // so if ownership of the channel object lies with the transceiver, we could
+    // un-set the channel pointer and uninitialize/destruct the channel object
+    // at the same time, rather than in separate steps.
     transceiver->internal()->SetChannel(nullptr);
+    // TODO(tommi): All channel objects end up getting deleted on the
+    // worker thread (ideally should be on the network thread but the
+    // MediaChannel objects are tied to the worker. Can the teardown be done
+    // asynchronously across the threads rather than blocking?
     DestroyChannelInterface(channel);
   }
 }
 
-void SdpOfferAnswerHandler::DestroyDataChannelTransport() {
+void SdpOfferAnswerHandler::DestroyDataChannelTransport(RTCError error) {
   RTC_DCHECK_RUN_ON(signaling_thread());
-  if (data_channel_controller()->rtp_data_channel()) {
-    data_channel_controller()->OnTransportChannelClosed();
-    DestroyChannelInterface(data_channel_controller()->rtp_data_channel());
-    data_channel_controller()->set_rtp_data_channel(nullptr);
-  }
+  const bool has_sctp = pc_->sctp_mid().has_value();
 
-  // Note: Cannot use rtc::Bind to create a functor to invoke because it will
-  // grab a reference to this PeerConnection. If this is called from the
-  // PeerConnection destructor, the RefCountedObject vtable will have already
-  // been destroyed (since it is a subclass of PeerConnection) and using
-  // rtc::Bind will cause "Pure virtual function called" error to appear.
+  if (has_sctp)
+    data_channel_controller()->OnTransportChannelClosed(error);
 
-  if (pc_->sctp_mid()) {
-    RTC_DCHECK_RUN_ON(pc_->signaling_thread());
-    data_channel_controller()->OnTransportChannelClosed();
-    pc_->network_thread()->Invoke<void>(RTC_FROM_HERE, [this] {
-      RTC_DCHECK_RUN_ON(pc_->network_thread());
-      pc_->TeardownDataChannelTransport_n();
-    });
+  pc_->network_thread()->Invoke<void>(RTC_FROM_HERE, [this] {
+    RTC_DCHECK_RUN_ON(pc_->network_thread());
+    pc_->TeardownDataChannelTransport_n();
+  });
+
+  if (has_sctp)
     pc_->ResetSctpDataMid();
-  }
 }
 
 void SdpOfferAnswerHandler::DestroyChannelInterface(
     cricket::ChannelInterface* channel) {
+  TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::DestroyChannelInterface");
+  RTC_DCHECK_RUN_ON(signaling_thread());
+  RTC_DCHECK(channel_manager()->media_engine());
+  RTC_DCHECK(channel);
+
   // TODO(bugs.webrtc.org/11992): All the below methods should be called on the
   // worker thread. (they switch internally anyway). Change
   // DestroyChannelInterface to either be called on the worker thread, or do
   // this asynchronously on the worker.
-  RTC_DCHECK(channel);
+  RTC_LOG_THREAD_BLOCK_COUNT();
+
   switch (channel->media_type()) {
     case cricket::MEDIA_TYPE_AUDIO:
       channel_manager()->DestroyVoiceChannel(
@@ -4801,13 +4751,19 @@ void SdpOfferAnswerHandler::DestroyChannelInterface(
           static_cast<cricket::VideoChannel*>(channel));
       break;
     case cricket::MEDIA_TYPE_DATA:
-      channel_manager()->DestroyRtpDataChannel(
-          static_cast<cricket::RtpDataChannel*>(channel));
+      RTC_NOTREACHED()
+          << "Trying to destroy datachannel through DestroyChannelInterface";
       break;
     default:
       RTC_NOTREACHED() << "Unknown media type: " << channel->media_type();
       break;
   }
+
+  // TODO(tommi): Figure out why we can get 2 blocking calls when running
+  // PeerConnectionCryptoTest.CreateAnswerWithDifferentSslRoles.
+  // and 3 when running
+  // PeerConnectionCryptoTest.CreateAnswerWithDifferentSslRoles
+  // RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(1);
 }
 
 void SdpOfferAnswerHandler::DestroyAllChannels() {
@@ -4815,19 +4771,26 @@ void SdpOfferAnswerHandler::DestroyAllChannels() {
   if (!transceivers()) {
     return;
   }
+
+  RTC_LOG_THREAD_BLOCK_COUNT();
+
   // Destroy video channels first since they may have a pointer to a voice
   // channel.
-  for (const auto& transceiver : transceivers()->List()) {
+  auto list = transceivers()->List();
+  RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(0);
+
+  for (const auto& transceiver : list) {
     if (transceiver->media_type() == cricket::MEDIA_TYPE_VIDEO) {
       DestroyTransceiverChannel(transceiver);
     }
   }
-  for (const auto& transceiver : transceivers()->List()) {
+  for (const auto& transceiver : list) {
     if (transceiver->media_type() == cricket::MEDIA_TYPE_AUDIO) {
       DestroyTransceiverChannel(transceiver);
     }
   }
-  DestroyDataChannelTransport();
+
+  DestroyDataChannelTransport({});
 }
 
 void SdpOfferAnswerHandler::GenerateMediaDescriptionOptions(
@@ -4905,8 +4868,6 @@ SdpOfferAnswerHandler::GetMediaDescriptionOptionsForActiveData(
   cricket::MediaDescriptionOptions options(cricket::MEDIA_TYPE_DATA, mid,
                                            RtpTransceiverDirection::kSendRecv,
                                            /*stopped=*/false);
-  AddRtpDataChannelOptions(*(data_channel_controller()->rtp_data_channels()),
-                           &options);
   return options;
 }
 
@@ -4917,31 +4878,15 @@ SdpOfferAnswerHandler::GetMediaDescriptionOptionsForRejectedData(
   cricket::MediaDescriptionOptions options(cricket::MEDIA_TYPE_DATA, mid,
                                            RtpTransceiverDirection::kInactive,
                                            /*stopped=*/true);
-  AddRtpDataChannelOptions(*(data_channel_controller()->rtp_data_channels()),
-                           &options);
   return options;
 }
 
-const std::string SdpOfferAnswerHandler::GetTransportName(
-    const std::string& content_name) {
-  RTC_DCHECK_RUN_ON(signaling_thread());
-  cricket::ChannelInterface* channel = pc_->GetChannel(content_name);
-  if (channel) {
-    return channel->transport_name();
-  }
-  if (data_channel_controller()->data_channel_transport()) {
-    RTC_DCHECK(pc_->sctp_mid());
-    if (content_name == *(pc_->sctp_mid())) {
-      return *(pc_->sctp_transport_name());
-    }
-  }
-  // Return an empty string if failed to retrieve the transport name.
-  return "";
-}
-
-std::vector<SdpOfferAnswerHandler::PayloadTypeDemuxingUpdate>
-SdpOfferAnswerHandler::GetPayloadTypeDemuxingUpdates(
-    cricket::ContentSource source) {
+bool SdpOfferAnswerHandler::UpdatePayloadTypeDemuxingState(
+    cricket::ContentSource source,
+    const std::map<std::string, const cricket::ContentGroup*>&
+        bundle_groups_by_mid) {
+  TRACE_EVENT0("webrtc",
+               "SdpOfferAnswerHandler::UpdatePayloadTypeDemuxingState");
   RTC_DCHECK_RUN_ON(signaling_thread());
   // We may need to delete any created default streams and disable creation of
   // new ones on the basis of payload type. This is needed to avoid SSRC
@@ -4954,19 +4899,27 @@ SdpOfferAnswerHandler::GetPayloadTypeDemuxingUpdates(
   const SessionDescriptionInterface* sdesc =
       (source == cricket::CS_LOCAL ? local_description()
                                    : remote_description());
-  const cricket::ContentGroup* bundle_group =
-      sdesc->description()->GetGroupByName(cricket::GROUP_TYPE_BUNDLE);
-  std::set<int> audio_payload_types;
-  std::set<int> video_payload_types;
-  bool pt_demuxing_enabled_audio = true;
-  bool pt_demuxing_enabled_video = true;
+  struct PayloadTypes {
+    std::set<int> audio_payload_types;
+    std::set<int> video_payload_types;
+    bool pt_demuxing_possible_audio = true;
+    bool pt_demuxing_possible_video = true;
+  };
+  std::map<const cricket::ContentGroup*, PayloadTypes> payload_types_by_bundle;
+  // If the MID is missing from *any* receiving m= section, this is set to true.
+  bool mid_header_extension_missing_audio = false;
+  bool mid_header_extension_missing_video = false;
   for (auto& content_info : sdesc->description()->contents()) {
+    auto it = bundle_groups_by_mid.find(content_info.name);
+    const cricket::ContentGroup* bundle_group =
+        it != bundle_groups_by_mid.end() ? it->second : nullptr;
     // If this m= section isn't bundled, it's safe to demux by payload type
     // since other m= sections using the same payload type will also be using
     // different transports.
-    if (!bundle_group || !bundle_group->HasContentName(content_info.name)) {
+    if (!bundle_group) {
       continue;
     }
+    PayloadTypes* payload_types = &payload_types_by_bundle[bundle_group];
     if (content_info.rejected ||
         (source == cricket::ContentSource::CS_LOCAL &&
          !RtpTransceiverDirectionHasRecv(
@@ -4979,28 +4932,36 @@ SdpOfferAnswerHandler::GetPayloadTypeDemuxingUpdates(
     }
     switch (content_info.media_description()->type()) {
       case cricket::MediaType::MEDIA_TYPE_AUDIO: {
+        if (!mid_header_extension_missing_audio) {
+          mid_header_extension_missing_audio =
+              !ContentHasHeaderExtension(content_info, RtpExtension::kMidUri);
+        }
         const cricket::AudioContentDescription* audio_desc =
             content_info.media_description()->as_audio();
         for (const cricket::AudioCodec& audio : audio_desc->codecs()) {
-          if (audio_payload_types.count(audio.id)) {
+          if (payload_types->audio_payload_types.count(audio.id)) {
             // Two m= sections are using the same payload type, thus demuxing
             // by payload type is not possible.
-            pt_demuxing_enabled_audio = false;
+            payload_types->pt_demuxing_possible_audio = false;
           }
-          audio_payload_types.insert(audio.id);
+          payload_types->audio_payload_types.insert(audio.id);
         }
         break;
       }
       case cricket::MediaType::MEDIA_TYPE_VIDEO: {
+        if (!mid_header_extension_missing_video) {
+          mid_header_extension_missing_video =
+              !ContentHasHeaderExtension(content_info, RtpExtension::kMidUri);
+        }
         const cricket::VideoContentDescription* video_desc =
             content_info.media_description()->as_video();
         for (const cricket::VideoCodec& video : video_desc->codecs()) {
-          if (video_payload_types.count(video.id)) {
+          if (payload_types->video_payload_types.count(video.id)) {
             // Two m= sections are using the same payload type, thus demuxing
             // by payload type is not possible.
-            pt_demuxing_enabled_video = false;
+            payload_types->pt_demuxing_possible_video = false;
           }
-          video_payload_types.insert(video.id);
+          payload_types->video_payload_types.insert(video.id);
         }
         break;
       }
@@ -5012,9 +4973,10 @@ SdpOfferAnswerHandler::GetPayloadTypeDemuxingUpdates(
 
   // Gather all updates ahead of time so that all channels can be updated in a
   // single Invoke; necessary due to thread guards.
-  std::vector<PayloadTypeDemuxingUpdate> channel_updates;
-  for (const auto& transceiver : transceivers()->List()) {
-    cricket::ChannelInterface* channel = transceiver->internal()->channel();
+  std::vector<std::pair<RtpTransceiverDirection, cricket::ChannelInterface*>>
+      channels_to_update;
+  for (const auto& transceiver : transceivers()->ListInternal()) {
+    cricket::ChannelInterface* channel = transceiver->channel();
     const ContentInfo* content =
         FindMediaSectionForTransceiver(transceiver, sdesc);
     if (!channel || !content) {
@@ -5025,22 +4987,81 @@ SdpOfferAnswerHandler::GetPayloadTypeDemuxingUpdates(
     if (source == cricket::CS_REMOTE) {
       local_direction = RtpTransceiverDirectionReversed(local_direction);
     }
-    cricket::MediaType media_type = channel->media_type();
-    bool in_bundle_group =
-        (bundle_group && bundle_group->HasContentName(channel->content_name()));
-    bool payload_type_demuxing_enabled = false;
-    if (media_type == cricket::MediaType::MEDIA_TYPE_AUDIO) {
-      payload_type_demuxing_enabled =
-          (!in_bundle_group || pt_demuxing_enabled_audio) &&
-          RtpTransceiverDirectionHasRecv(local_direction);
-    } else if (media_type == cricket::MediaType::MEDIA_TYPE_VIDEO) {
-      payload_type_demuxing_enabled =
-          (!in_bundle_group || pt_demuxing_enabled_video) &&
-          RtpTransceiverDirectionHasRecv(local_direction);
-    }
-    channel_updates.emplace_back(channel, payload_type_demuxing_enabled);
+    channels_to_update.emplace_back(local_direction, transceiver->channel());
   }
-  return channel_updates;
+
+  if (channels_to_update.empty()) {
+    return true;
+  }
+
+  // In Unified Plan, payload type demuxing is useful for legacy endpoints that
+  // don't support the MID header extension, but it can also cause incorrrect
+  // forwarding of packets when going from one m= section to multiple m=
+  // sections in the same BUNDLE. This only happens if media arrives prior to
+  // negotiation, but this can cause missing video and unsignalled ssrc bugs
+  // severe enough to warrant disabling PT demuxing in such cases. Therefore, if
+  // a MID header extension is present on all m= sections for a given kind
+  // (audio/video) then we use that as an OK to disable payload type demuxing in
+  // BUNDLEs of that kind. However if PT demuxing was ever turned on (e.g. MID
+  // was ever removed on ANY m= section of that kind) then we continue to allow
+  // PT demuxing in order to prevent disabling it in follow-up O/A exchanges and
+  // allowing early media by PT.
+  bool bundled_pt_demux_allowed_audio = !IsUnifiedPlan() ||
+                                        mid_header_extension_missing_audio ||
+                                        pt_demuxing_has_been_used_audio_;
+  bool bundled_pt_demux_allowed_video = !IsUnifiedPlan() ||
+                                        mid_header_extension_missing_video ||
+                                        pt_demuxing_has_been_used_video_;
+  // Kill switch for the above change.
+  if (field_trial::IsEnabled(kAlwaysAllowPayloadTypeDemuxingFieldTrialName)) {
+    // TODO(https://crbug.com/webrtc/12814): If disabling PT-based demux does
+    // not trigger regressions, remove this kill switch.
+    bundled_pt_demux_allowed_audio = true;
+    bundled_pt_demux_allowed_video = true;
+  }
+
+  return pc_->worker_thread()->Invoke<bool>(
+      RTC_FROM_HERE,
+      [&channels_to_update, &bundle_groups_by_mid, &payload_types_by_bundle,
+       bundled_pt_demux_allowed_audio, bundled_pt_demux_allowed_video,
+       pt_demuxing_has_been_used_audio = &pt_demuxing_has_been_used_audio_,
+       pt_demuxing_has_been_used_video = &pt_demuxing_has_been_used_video_]() {
+        for (const auto& it : channels_to_update) {
+          RtpTransceiverDirection local_direction = it.first;
+          cricket::ChannelInterface* channel = it.second;
+          cricket::MediaType media_type = channel->media_type();
+          auto bundle_it = bundle_groups_by_mid.find(channel->content_name());
+          const cricket::ContentGroup* bundle_group =
+              bundle_it != bundle_groups_by_mid.end() ? bundle_it->second
+                                                      : nullptr;
+          if (media_type == cricket::MediaType::MEDIA_TYPE_AUDIO) {
+            bool pt_demux_enabled =
+                RtpTransceiverDirectionHasRecv(local_direction) &&
+                (!bundle_group || (bundled_pt_demux_allowed_audio &&
+                                   payload_types_by_bundle[bundle_group]
+                                       .pt_demuxing_possible_audio));
+            if (pt_demux_enabled) {
+              *pt_demuxing_has_been_used_audio = true;
+            }
+            if (!channel->SetPayloadTypeDemuxingEnabled(pt_demux_enabled)) {
+              return false;
+            }
+          } else if (media_type == cricket::MediaType::MEDIA_TYPE_VIDEO) {
+            bool pt_demux_enabled =
+                RtpTransceiverDirectionHasRecv(local_direction) &&
+                (!bundle_group || (bundled_pt_demux_allowed_video &&
+                                   payload_types_by_bundle[bundle_group]
+                                       .pt_demuxing_possible_video));
+            if (pt_demux_enabled) {
+              *pt_demuxing_has_been_used_video = true;
+            }
+            if (!channel->SetPayloadTypeDemuxingEnabled(pt_demux_enabled)) {
+              return false;
+            }
+          }
+        }
+        return true;
+      });
 }
 
 }  // namespace webrtc

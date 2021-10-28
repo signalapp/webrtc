@@ -15,9 +15,9 @@
 #include <vector>
 
 #include "api/test/videocodec_test_stats.h"
+#include "api/video_codecs/h264_profile_level_id.h"
 #include "api/video_codecs/video_decoder_factory.h"
 #include "api/video_codecs/video_encoder_factory.h"
-#include "media/base/h264_profile_level_id.h"
 #include "modules/video_coding/include/video_codec_interface.h"
 
 namespace webrtc {
@@ -59,7 +59,7 @@ class VideoCodecTestFixture {
   class EncodedFrameChecker {
    public:
     virtual ~EncodedFrameChecker() = default;
-    virtual void CheckEncodedFrame(webrtc::VideoCodecType codec,
+    virtual void CheckEncodedFrame(VideoCodecType codec,
                                    const EncodedImage& encoded_frame) const = 0;
   };
 
@@ -123,16 +123,16 @@ class VideoCodecTestFixture {
     bool encode_in_real_time = false;
 
     // Codec settings to use.
-    webrtc::VideoCodec codec_settings;
+    VideoCodec codec_settings;
 
     // Name of the codec being tested.
     std::string codec_name;
 
     // H.264 specific settings.
     struct H264CodecSettings {
-      H264::Profile profile = H264::kProfileConstrainedBaseline;
+      H264Profile profile = H264Profile::kProfileConstrainedBaseline;
       H264PacketizationMode packetization_mode =
-          webrtc::H264PacketizationMode::NonInterleaved;
+          H264PacketizationMode::NonInterleaved;
     } h264_codec_settings;
 
     // Custom checker that will be called for each frame.

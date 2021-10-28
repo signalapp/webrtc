@@ -10,6 +10,8 @@
 
 #include <queue>
 
+#include "api/test/network_emulation/create_cross_traffic.h"
+#include "api/test/network_emulation/cross_traffic.h"
 #include "api/transport/goog_cc_factory.h"
 #include "api/units/data_rate.h"
 #include "logging/rtc_event_log/mock/mock_rtc_event_log.h"
@@ -121,6 +123,35 @@ void UpdatesTargetRateBasedOnLinkCapacity(std::string test_name = "") {
   s.RunFor(TimeDelta::Seconds(50));
   truth->PrintRow();
   EXPECT_NEAR(client->target_rate().kbps(), 90, 25);
+}
+
+DataRate RunRembDipScenario(std::string test_name) {
+  Scenario s(test_name);
+  NetworkSimulationConfig net_conf;
+  net_conf.bandwidth = DataRate::KilobitsPerSec(2000);
+  net_conf.delay = TimeDelta::Millis(50);
+  auto* client = s.CreateClient("send", [&](CallClientConfig* c) {
+    c->transport.rates.start_rate = DataRate::KilobitsPerSec(1000);
+  });
+  auto send_net = {s.CreateSimulationNode(net_conf)};
+  auto ret_net = {s.CreateSimulationNode(net_conf)};
+  auto* route = s.CreateRoutes(
+      client, send_net, s.CreateClient("return", CallClientConfig()), ret_net);
+  s.CreateVideoStream(route->forward(), VideoStreamConfig());
+
+  s.RunFor(TimeDelta::Seconds(10));
+  EXPECT_GT(client->send_bandwidth().kbps(), 1500);
+
+  DataRate RembLimit = DataRate::KilobitsPerSec(250);
+  client->SetRemoteBitrate(RembLimit);
+  s.RunFor(TimeDelta::Seconds(1));
+  EXPECT_EQ(client->send_bandwidth(), RembLimit);
+
+  DataRate RembLimitLifted = DataRate::KilobitsPerSec(10000);
+  client->SetRemoteBitrate(RembLimitLifted);
+  s.RunFor(TimeDelta::Seconds(10));
+
+  return client->send_bandwidth();
 }
 }  // namespace
 
@@ -547,8 +578,9 @@ DataRate AverageBitrateAfterCrossInducedLoss(std::string name) {
   s.RunFor(TimeDelta::Seconds(10));
   for (int i = 0; i < 4; ++i) {
     // Sends TCP cross traffic inducing loss.
-    auto* tcp_traffic =
-        s.net()->StartFakeTcpCrossTraffic(send_net, ret_net, FakeTcpConfig());
+    auto* tcp_traffic = s.net()->StartCrossTraffic(CreateFakeTcpCrossTraffic(
+        s.net()->CreateRoute(send_net), s.net()->CreateRoute(ret_net),
+        FakeTcpConfig()));
     s.RunFor(TimeDelta::Seconds(2));
     // Allow the ccongestion controller to recover.
     s.net()->StopCrossTraffic(tcp_traffic);
@@ -836,7 +868,9 @@ TEST_F(GoogCcNetworkControllerTest, IsFairToTCP) {
   auto* route = s.CreateRoutes(
       client, send_net, s.CreateClient("return", CallClientConfig()), ret_net);
   s.CreateVideoStream(route->forward(), VideoStreamConfig());
-  s.net()->StartFakeTcpCrossTraffic(send_net, ret_net, FakeTcpConfig());
+  s.net()->StartCrossTraffic(CreateFakeTcpCrossTraffic(
+      s.net()->CreateRoute(send_net), s.net()->CreateRoute(ret_net),
+      FakeTcpConfig()));
   s.RunFor(TimeDelta::Seconds(10));
 
   // Currently only testing for the upper limit as we in practice back out
@@ -845,33 +879,17 @@ TEST_F(GoogCcNetworkControllerTest, IsFairToTCP) {
   EXPECT_LT(client->send_bandwidth().kbps(), 750);
 }
 
-TEST(GoogCcScenario, RampupOnRembCapLifted) {
+TEST(GoogCcScenario, FastRampupOnRembCapLiftedWithFieldTrial) {
   ScopedFieldTrials trial("WebRTC-Bwe-ReceiverLimitCapsOnly/Enabled/");
-  Scenario s("googcc_unit/rampup_ramb_cap_lifted");
-  NetworkSimulationConfig net_conf;
-  net_conf.bandwidth = DataRate::KilobitsPerSec(2000);
-  net_conf.delay = TimeDelta::Millis(50);
-  auto* client = s.CreateClient("send", [&](CallClientConfig* c) {
-    c->transport.rates.start_rate = DataRate::KilobitsPerSec(1000);
-  });
-  auto send_net = {s.CreateSimulationNode(net_conf)};
-  auto ret_net = {s.CreateSimulationNode(net_conf)};
-  auto* route = s.CreateRoutes(
-      client, send_net, s.CreateClient("return", CallClientConfig()), ret_net);
-  s.CreateVideoStream(route->forward(), VideoStreamConfig());
+  DataRate final_estimate =
+      RunRembDipScenario("googcc_unit/fast_rampup_on_remb_cap_lifted");
+  EXPECT_GT(final_estimate.kbps(), 1500);
+}
 
-  s.RunFor(TimeDelta::Seconds(10));
-  EXPECT_GT(client->send_bandwidth().kbps(), 1500);
-
-  DataRate RembLimit = DataRate::KilobitsPerSec(250);
-  client->SetRemoteBitrate(RembLimit);
-  s.RunFor(TimeDelta::Seconds(1));
-  EXPECT_EQ(client->send_bandwidth(), RembLimit);
-
-  DataRate RembLimitLifted = DataRate::KilobitsPerSec(10000);
-  client->SetRemoteBitrate(RembLimitLifted);
-  s.RunFor(TimeDelta::Seconds(10));
-  EXPECT_GT(client->send_bandwidth().kbps(), 1500);
+TEST(GoogCcScenario, SlowRampupOnRembCapLifted) {
+  DataRate final_estimate =
+      RunRembDipScenario("googcc_unit/default_slow_rampup_on_remb_cap_lifted");
+  EXPECT_LT(final_estimate.kbps(), 1000);
 }
 
 }  // namespace test

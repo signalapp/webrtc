@@ -13,9 +13,9 @@
 
 #include <atomic>
 
+#include "absl/base/attributes.h"
 #include "absl/base/const_init.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/system/unused.h"
 #include "rtc_base/thread_annotations.h"
 
 #if defined(WEBRTC_ABSL_MUTEX)
@@ -41,9 +41,13 @@ class RTC_LOCKABLE Mutex final {
   void Lock() RTC_EXCLUSIVE_LOCK_FUNCTION() {
     impl_.Lock();
   }
-  RTC_WARN_UNUSED_RESULT bool TryLock() RTC_EXCLUSIVE_TRYLOCK_FUNCTION(true) {
+  ABSL_MUST_USE_RESULT bool TryLock() RTC_EXCLUSIVE_TRYLOCK_FUNCTION(true) {
     return impl_.TryLock();
   }
+  // Return immediately if this thread holds the mutex, or RTC_DCHECK_IS_ON==0.
+  // Otherwise, may report an error (typically by crashing with a diagnostic),
+  // or may return immediately.
+  void AssertHeld() const RTC_ASSERT_EXCLUSIVE_LOCK() { impl_.AssertHeld(); }
   void Unlock() RTC_UNLOCK_FUNCTION() {
     impl_.Unlock();
   }

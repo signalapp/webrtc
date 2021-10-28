@@ -20,6 +20,7 @@
 #include "api/array_view.h"
 #include "api/frame_transformer_interface.h"
 #include "api/scoped_refptr.h"
+#include "api/sequence_checker.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/transport/rtp/dependency_descriptor.h"
 #include "api/video/video_codec_type.h"
@@ -37,7 +38,6 @@
 #include "rtc_base/race_checker.h"
 #include "rtc_base/rate_statistics.h"
 #include "rtc_base/synchronization/mutex.h"
-#include "rtc_base/synchronization/sequence_checker.h"
 #include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
@@ -67,7 +67,7 @@ class RTPSenderVideo {
     Config(const Config&) = delete;
     Config(Config&&) = default;
 
-    // All members of this struct, with the exception of |field_trials|, are
+    // All members of this struct, with the exception of `field_trials`, are
     // expected to outlive the RTPSenderVideo object they are passed to.
     Clock* clock = nullptr;
     RTPSender* rtp_sender = nullptr;
@@ -89,8 +89,9 @@ class RTPSenderVideo {
   virtual ~RTPSenderVideo();
 
   // expected_retransmission_time_ms.has_value() -> retransmission allowed.
+  // `capture_time_ms` and `clock::CurrentTime` should be using the same epoch.
   // Calls to this method is assumed to be externally serialized.
-  // |estimated_capture_clock_offset_ms| is an estimated clock offset between
+  // `estimated_capture_clock_offset_ms` is an estimated clock offset between
   // this sender and the original capturer, for this video packet. See
   // http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time for more
   // details. If the sender and the capture has the same clock, it is supposed
@@ -207,12 +208,12 @@ class RTPSenderVideo {
       RTC_GUARDED_BY(send_checker_);
   absl::optional<VideoLayersAllocation> allocation_
       RTC_GUARDED_BY(send_checker_);
-  // Flag indicating if we should send |allocation_|.
+  // Flag indicating if we should send `allocation_`.
   SendVideoLayersAllocation send_allocation_ RTC_GUARDED_BY(send_checker_);
 
   // Current target playout delay.
   VideoPlayoutDelay current_playout_delay_ RTC_GUARDED_BY(send_checker_);
-  // Flag indicating if we need to send |current_playout_delay_| in order
+  // Flag indicating if we need to send `current_playout_delay_` in order
   // to guarantee it gets delivered.
   bool playout_delay_pending_;
   // Set by the field trial WebRTC-ForceSendPlayoutDelay to override the playout

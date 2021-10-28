@@ -8,9 +8,6 @@ specific_include_rules = {
   "dummy_peer_connection\.h": [
     "+rtc_base/ref_counted_object.h",
   ],
-  "fake_constraints\.h": [
-    "+rtc_base/string_encode.h",
-  ],
   "neteq_factory_with_codecs\.h": [
     "+system_wrappers/include/clock.h",
   ],
@@ -34,8 +31,5 @@ specific_include_rules = {
   ],
   "create_frame_generator\.h": [
     "+system_wrappers/include/clock.h",
-  ],
-  "videocodec_test_fixture\.h": [
-    "+media/base/h264_profile_level_id.h"
   ],
 }

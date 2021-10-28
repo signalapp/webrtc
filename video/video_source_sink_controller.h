@@ -12,13 +12,14 @@
 #define VIDEO_VIDEO_SOURCE_SINK_CONTROLLER_H_
 
 #include <string>
+#include <vector>
 
 #include "absl/types/optional.h"
+#include "api/sequence_checker.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_sink_interface.h"
 #include "api/video/video_source_interface.h"
 #include "call/adaptation/video_source_restrictions.h"
-#include "rtc_base/synchronization/sequence_checker.h"
 #include "rtc_base/system/no_unique_address.h"
 
 namespace webrtc {
@@ -46,6 +47,7 @@ class VideoSourceSinkController {
   absl::optional<double> frame_rate_upper_limit() const;
   bool rotation_applied() const;
   int resolution_alignment() const;
+  const std::vector<rtc::VideoSinkWants::FrameSize>& resolutions() const;
 
   // Updates the settings stored internally. In order for these settings to be
   // applied to the sink, PushSourceSinkSettings() must subsequently be called.
@@ -55,6 +57,7 @@ class VideoSourceSinkController {
   void SetFrameRateUpperLimit(absl::optional<double> frame_rate_upper_limit);
   void SetRotationApplied(bool rotation_applied);
   void SetResolutionAlignment(int resolution_alignment);
+  void SetResolutions(std::vector<rtc::VideoSinkWants::FrameSize> resolutions);
 
  private:
   rtc::VideoSinkWants CurrentSettingsToSinkWants() const
@@ -71,14 +74,16 @@ class VideoSourceSinkController {
   // Pixel and frame rate restrictions.
   VideoSourceRestrictions restrictions_ RTC_GUARDED_BY(&sequence_checker_);
   // Ensures that even if we are not restricted, the sink is never configured
-  // above this limit. Example: We are not CPU limited (no |restrictions_|) but
-  // our encoder is capped at 30 fps (= |frame_rate_upper_limit_|).
+  // above this limit. Example: We are not CPU limited (no `restrictions_`) but
+  // our encoder is capped at 30 fps (= `frame_rate_upper_limit_`).
   absl::optional<size_t> pixels_per_frame_upper_limit_
       RTC_GUARDED_BY(&sequence_checker_);
   absl::optional<double> frame_rate_upper_limit_
       RTC_GUARDED_BY(&sequence_checker_);
   bool rotation_applied_ RTC_GUARDED_BY(&sequence_checker_) = false;
   int resolution_alignment_ RTC_GUARDED_BY(&sequence_checker_) = 1;
+  std::vector<rtc::VideoSinkWants::FrameSize> resolutions_
+      RTC_GUARDED_BY(&sequence_checker_);
 };
 
 }  // namespace webrtc

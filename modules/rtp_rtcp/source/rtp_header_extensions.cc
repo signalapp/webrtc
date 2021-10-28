@@ -13,6 +13,7 @@
 #include <string.h>
 
 #include <cmath>
+#include <cstdint>
 #include <limits>
 
 #include "modules/rtp_rtcp/include/rtp_cvo.h"
@@ -186,6 +187,60 @@ bool AudioLevel::Write(rtc::ArrayView<uint8_t> data,
   return true;
 }
 
+// An RTP Header Extension for Mixer-to-Client Audio Level Indication
+//
+// https://tools.ietf.org/html/rfc6465
+//
+// The form of the audio level extension block:
+//
+//  0                   1                   2                   3
+//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |  ID   | len=2 |0|   level 1   |0|   level 2   |0|   level 3   |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// Sample Audio Level Encoding Using the One-Byte Header Format
+//
+//  0                   1                   2                   3
+//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |      ID       |     len=3     |0|   level 1   |0|   level 2   |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |0|   level 3   |    0 (pad)    |               ...             |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// Sample Audio Level Encoding Using the Two-Byte Header Format
+constexpr RTPExtensionType CsrcAudioLevel::kId;
+constexpr uint8_t CsrcAudioLevel::kMaxValueSizeBytes;
+constexpr const char CsrcAudioLevel::kUri[];
+
+bool CsrcAudioLevel::Parse(rtc::ArrayView<const uint8_t> data,
+                           std::vector<uint8_t>* csrc_audio_levels) {
+  if (data.size() > kRtpCsrcSize) {
+    return false;
+  }
+  csrc_audio_levels->resize(data.size());
+  for (size_t i = 0; i < data.size(); i++) {
+    (*csrc_audio_levels)[i] = data[i] & 0x7F;
+  }
+  return true;
+}
+
+size_t CsrcAudioLevel::ValueSize(
+    rtc::ArrayView<const uint8_t> csrc_audio_levels) {
+  return csrc_audio_levels.size();
+}
+
+bool CsrcAudioLevel::Write(rtc::ArrayView<uint8_t> data,
+                           rtc::ArrayView<const uint8_t> csrc_audio_levels) {
+  RTC_CHECK_LE(csrc_audio_levels.size(), kRtpCsrcSize);
+  if (csrc_audio_levels.size() != data.size()) {
+    return false;
+  }
+  for (size_t i = 0; i < csrc_audio_levels.size(); i++) {
+    data[i] = csrc_audio_levels[i] & 0x7F;
+  }
+  return true;
+}
+
 // From RFC 5450: Transmission Time Offsets in RTP Streams.
 //
 // The transmission time is signaled to the receiver in-band using the
@@ -260,9 +315,9 @@ bool TransportSequenceNumber::Write(rtc::ArrayView<uint8_t> data,
 //  |seq count cont.|
 //  +-+-+-+-+-+-+-+-+
 //
-// The bit |T| determines whether the feedback should include timing information
-// or not and |seq_count| determines how many packets the feedback packet should
-// cover including the current packet. If |seq_count| is zero no feedback is
+// The bit `T` determines whether the feedback should include timing information
+// or not and `seq_count` determines how many packets the feedback packet should
+// cover including the current packet. If `seq_count` is zero no feedback is
 // requested.
 constexpr RTPExtensionType TransportSequenceNumberV2::kId;
 constexpr uint8_t TransportSequenceNumberV2::kValueSizeBytes;
@@ -289,7 +344,7 @@ bool TransportSequenceNumberV2::Parse(
         (feedback_request_raw & kIncludeTimestampsBit) != 0;
     uint16_t sequence_count = feedback_request_raw & ~kIncludeTimestampsBit;
 
-    // If |sequence_count| is zero no feedback is requested.
+    // If `sequence_count` is zero no feedback is requested.
     if (sequence_count != 0) {
       *feedback_request = {include_timestamps, sequence_count};
     }
@@ -432,7 +487,7 @@ bool VideoContentTypeExtension::Write(rtc::ArrayView<uint8_t> data,
 // Video Timing.
 // 6 timestamps in milliseconds counted from capture time stored in rtp header:
 // encode start/finish, packetization complete, pacer exit and reserved for
-// modification by the network modification. |flags| is a bitmask and has the
+// modification by the network modification. `flags` is a bitmask and has the
 // following allowed values:
 // 0 = Valid data, but no flags available (backwards compatibility)
 // 1 = Frame marked as timing frame due to cyclic timer.
@@ -749,7 +804,7 @@ bool BaseRtpStringExtension::Parse(rtc::ArrayView<const uint8_t> data,
   if (data.empty() || data[0] == 0)  // Valid string extension can't be empty.
     return false;
   const char* cstr = reinterpret_cast<const char*>(data.data());
-  // If there is a \0 character in the middle of the |data|, treat it as end
+  // If there is a \0 character in the middle of the `data`, treat it as end
   // of the string. Well-formed string extensions shouldn't contain it.
   str->assign(cstr, strnlen(cstr, data.size()));
   RTC_DCHECK(!str->empty());
@@ -820,6 +875,34 @@ bool InbandComfortNoiseExtension::Write(rtc::ArrayView<uint8_t> data,
     }
     data[0] = 0b1000'0000 | *level;
   }
+  return true;
+}
+
+// VideoFrameTrackingIdExtension
+//
+//   0                   1                   2
+//   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//  |  ID   | L=1   |    video-frame-tracking-id    |
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+constexpr RTPExtensionType VideoFrameTrackingIdExtension::kId;
+constexpr uint8_t VideoFrameTrackingIdExtension::kValueSizeBytes;
+constexpr const char VideoFrameTrackingIdExtension::kUri[];
+
+bool VideoFrameTrackingIdExtension::Parse(rtc::ArrayView<const uint8_t> data,
+                                          uint16_t* video_frame_tracking_id) {
+  if (data.size() != kValueSizeBytes) {
+    return false;
+  }
+  *video_frame_tracking_id = ByteReader<uint16_t>::ReadBigEndian(data.data());
+  return true;
+}
+
+bool VideoFrameTrackingIdExtension::Write(rtc::ArrayView<uint8_t> data,
+                                          uint16_t video_frame_tracking_id) {
+  RTC_DCHECK_EQ(data.size(), kValueSizeBytes);
+  ByteWriter<uint16_t>::WriteBigEndian(data.data(), video_frame_tracking_id);
   return true;
 }
 

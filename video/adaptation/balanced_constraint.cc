@@ -8,12 +8,13 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#include "video/adaptation/balanced_constraint.h"
+
 #include <string>
 #include <utility>
 
-#include "rtc_base/synchronization/sequence_checker.h"
+#include "api/sequence_checker.h"
 #include "rtc_base/task_utils/to_queued_task.h"
-#include "video/adaptation/balanced_constraint.h"
 
 namespace webrtc {
 
@@ -40,16 +41,16 @@ bool BalancedConstraint::IsAdaptationUpAllowed(
   // exceed bitrate constraints.
   if (degradation_preference_provider_->degradation_preference() ==
       DegradationPreference::BALANCED) {
+    int frame_size_pixels = input_state.single_active_stream_pixels().value_or(
+        input_state.frame_size_pixels().value());
     if (!balanced_settings_.CanAdaptUp(
-            input_state.video_codec_type(),
-            input_state.frame_size_pixels().value(),
+            input_state.video_codec_type(), frame_size_pixels,
             encoder_target_bitrate_bps_.value_or(0))) {
       return false;
     }
     if (DidIncreaseResolution(restrictions_before, restrictions_after) &&
         !balanced_settings_.CanAdaptUpResolution(
-            input_state.video_codec_type(),
-            input_state.frame_size_pixels().value(),
+            input_state.video_codec_type(), frame_size_pixels,
             encoder_target_bitrate_bps_.value_or(0))) {
       return false;
     }

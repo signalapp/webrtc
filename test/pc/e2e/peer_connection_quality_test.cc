@@ -27,8 +27,10 @@
 #include "pc/test/mock_peer_connection_observers.h"
 #include "rtc_base/gunit.h"
 #include "rtc_base/numerics/safe_conversions.h"
+#include "rtc_base/strings/string_builder.h"
 #include "system_wrappers/include/cpu_info.h"
 #include "system_wrappers/include/field_trial.h"
+#include "test/field_trial.h"
 #include "test/pc/e2e/analyzer/audio/default_audio_quality_analyzer.h"
 #include "test/pc/e2e/analyzer/video/default_video_quality_analyzer.h"
 #include "test/pc/e2e/analyzer/video/video_quality_metrics_reporter.h"
@@ -63,12 +65,14 @@ constexpr TimeDelta kQuickTestModeRunDuration = TimeDelta::Millis(100);
 // Field trials to enable Flex FEC advertising and receiving.
 constexpr char kFlexFecEnabledFieldTrials[] =
     "WebRTC-FlexFEC-03-Advertised/Enabled/WebRTC-FlexFEC-03/Enabled/";
+constexpr char kUseStandardsBytesStats[] =
+    "WebRTC-UseStandardBytesStats/Enabled/";
 
 class FixturePeerConnectionObserver : public MockPeerConnectionObserver {
  public:
-  // |on_track_callback| will be called when any new track will be added to peer
+  // `on_track_callback` will be called when any new track will be added to peer
   // connection.
-  // |on_connected_callback| will be called when peer connection will come to
+  // `on_connected_callback` will be called when peer connection will come to
   // either connected or completed state. Client should notice that in the case
   // of reconnect this callback can be called again, so it should be tolerant
   // to such behavior.
@@ -99,6 +103,21 @@ class FixturePeerConnectionObserver : public MockPeerConnectionObserver {
   std::function<void()> on_connected_callback_;
 };
 
+void ValidateP2PSimulcastParams(
+    const std::vector<std::unique_ptr<PeerConfigurerImpl>>& peers) {
+  for (size_t i = 0; i < peers.size(); ++i) {
+    Params* p = peers[i]->params();
+    for (const VideoConfig& video_config : p->video_configs) {
+      if (video_config.simulcast_config) {
+        // When we simulate SFU we support only one video codec.
+        RTC_CHECK_EQ(p->video_codecs.size(), 1)
+            << "Only 1 video codec is supported when simulcast is enabled in "
+            << "at least 1 video config";
+      }
+    }
+  }
+}
+
 }  // namespace
 
 PeerConnectionE2EQualityTest::PeerConnectionE2EQualityTest(
@@ -118,12 +137,13 @@ PeerConnectionE2EQualityTest::PeerConnectionE2EQualityTest(
     video_quality_analyzer = std::make_unique<DefaultVideoQualityAnalyzer>(
         time_controller_.GetClock());
   }
-  encoded_image_id_controller_ =
+  encoded_image_data_propagator_ =
       std::make_unique<SingleProcessEncodedImageDataInjector>();
   video_quality_analyzer_injection_helper_ =
       std::make_unique<VideoQualityAnalyzerInjectionHelper>(
-          std::move(video_quality_analyzer), encoded_image_id_controller_.get(),
-          encoded_image_id_controller_.get());
+          std::move(video_quality_analyzer),
+          encoded_image_data_propagator_.get(),
+          encoded_image_data_propagator_.get());
 
   if (audio_quality_analyzer == nullptr) {
     audio_quality_analyzer = std::make_unique<DefaultAudioQualityAnalyzer>();
@@ -149,18 +169,21 @@ void PeerConnectionE2EQualityTest::AddQualityMetricsReporter(
   quality_metrics_reporters_.push_back(std::move(quality_metrics_reporter));
 }
 
-void PeerConnectionE2EQualityTest::AddPeer(
+PeerConnectionE2EQualityTest::PeerHandle* PeerConnectionE2EQualityTest::AddPeer(
     rtc::Thread* network_thread,
     rtc::NetworkManager* network_manager,
     rtc::FunctionView<void(PeerConfigurer*)> configurer) {
   peer_configurations_.push_back(
       std::make_unique<PeerConfigurerImpl>(network_thread, network_manager));
   configurer(peer_configurations_.back().get());
+  peer_handles_.push_back(PeerHandleImpl());
+  return &peer_handles_.back();
 }
 
 void PeerConnectionE2EQualityTest::Run(RunParams run_params) {
   SetDefaultValuesForMissingParams(&run_params, &peer_configurations_);
   ValidateParams(run_params, peer_configurations_);
+  ValidateP2PSimulcastParams(peer_configurations_);
   RTC_CHECK_EQ(peer_configurations_.size(), 2)
       << "Only peer to peer calls are allowed, please add 2 peers";
 
@@ -176,7 +199,7 @@ void PeerConnectionE2EQualityTest::Run(RunParams run_params) {
         << "Only simulcast stream from first peer is supported";
   }
 
-  SetupRequiredFieldTrials(run_params);
+  test::ScopedFieldTrials field_trials(GetFieldTrials(run_params));
 
   // Print test summary
   RTC_LOG(INFO) << "Media quality test: " << *alice_configurer->params()->name
@@ -197,7 +220,7 @@ void PeerConnectionE2EQualityTest::Run(RunParams run_params) {
       video_quality_analyzer_injection_helper_.get(), task_queue_factory_.get(),
       time_controller_.GetClock());
 
-  // Create a |task_queue_|.
+  // Create a `task_queue_`.
   task_queue_ = std::make_unique<webrtc::TaskQueueForTest>(
       time_controller_.GetTaskQueueFactory()->CreateTaskQueue(
           "pc_e2e_quality_test", webrtc::TaskQueueFactory::Priority::NORMAL));
@@ -350,7 +373,7 @@ void PeerConnectionE2EQualityTest::Run(RunParams run_params) {
         stats_poller.PollStatsAndNotifyObservers();
       },
       RTC_FROM_HERE);
-  // We need to detach AEC dumping from peers, because dump uses |task_queue_|
+  // We need to detach AEC dumping from peers, because dump uses `task_queue_`
   // inside.
   alice_->DetachAecDump();
   bob_->DetachAecDump();
@@ -372,7 +395,7 @@ void PeerConnectionE2EQualityTest::Run(RunParams run_params) {
     reporter->StopAndReportResults();
   }
 
-  // Reset |task_queue_| after test to cleanup.
+  // Reset `task_queue_` after test to cleanup.
   task_queue_.reset();
 
   alice_ = nullptr;
@@ -383,16 +406,19 @@ void PeerConnectionE2EQualityTest::Run(RunParams run_params) {
   RTC_CHECK(bob_video_sources_.empty());
 }
 
-void PeerConnectionE2EQualityTest::SetupRequiredFieldTrials(
+std::string PeerConnectionE2EQualityTest::GetFieldTrials(
     const RunParams& run_params) {
-  std::string field_trials = "";
+  std::vector<absl::string_view> default_field_trials = {
+      kUseStandardsBytesStats};
   if (run_params.use_flex_fec) {
-    field_trials += kFlexFecEnabledFieldTrials;
+    default_field_trials.push_back(kFlexFecEnabledFieldTrials);
   }
-  if (!field_trials.empty()) {
-    override_field_trials_ = std::make_unique<test::ScopedFieldTrials>(
-        field_trial::GetFieldTrialString() + field_trials);
+  rtc::StringBuilder sb;
+  sb << field_trial::GetFieldTrialString();
+  for (const absl::string_view& field_trial : default_field_trials) {
+    sb << field_trial;
   }
+  return sb.Release();
 }
 
 void PeerConnectionE2EQualityTest::OnTrackCallback(
@@ -444,11 +470,12 @@ void PeerConnectionE2EQualityTest::SetupCallOnSignalingThread(
     RtpTransceiverInit transceiver_params;
     if (video_config.simulcast_config) {
       transceiver_params.direction = RtpTransceiverDirection::kSendOnly;
-      // Because simulcast enabled |run_params.video_codecs| has only 1 element.
-      if (run_params.video_codecs[0].name == cricket::kVp8CodecName) {
+      // Because simulcast enabled `alice_->params()->video_codecs` has only 1
+      // element.
+      if (alice_->params()->video_codecs[0].name == cricket::kVp8CodecName) {
         // For Vp8 simulcast we need to add as many RtpEncodingParameters to the
         // track as many simulcast streams requested. If they specified in
-        // |video_config.simulcast_config| it should be copied from there.
+        // `video_config.simulcast_config` it should be copied from there.
         for (int i = 0;
              i < video_config.simulcast_config->simulcast_streams_count; ++i) {
           RtpEncodingParameters enc_params;
@@ -508,14 +535,14 @@ void PeerConnectionE2EQualityTest::SetPeerCodecPreferences(
     const RunParams& run_params) {
   std::vector<RtpCodecCapability> with_rtx_video_capabilities =
       FilterVideoCodecCapabilities(
-          run_params.video_codecs, true, run_params.use_ulp_fec,
+          peer->params()->video_codecs, true, run_params.use_ulp_fec,
           run_params.use_flex_fec,
           peer->pc_factory()
               ->GetRtpSenderCapabilities(cricket::MediaType::MEDIA_TYPE_VIDEO)
               .codecs);
   std::vector<RtpCodecCapability> without_rtx_video_capabilities =
       FilterVideoCodecCapabilities(
-          run_params.video_codecs, false, run_params.use_ulp_fec,
+          peer->params()->video_codecs, false, run_params.use_ulp_fec,
           run_params.use_flex_fec,
           peer->pc_factory()
               ->GetRtpSenderCapabilities(cricket::MediaType::MEDIA_TYPE_VIDEO)
@@ -552,8 +579,7 @@ PeerConnectionE2EQualityTest::CreateSignalingInterceptor(
            video_config.simulcast_config->simulcast_streams_count});
     }
   }
-  PatchingParams patching_params(run_params.video_codecs,
-                                 run_params.use_conference_mode,
+  PatchingParams patching_params(run_params.use_conference_mode,
                                  stream_label_to_simulcast_streams_count);
   return std::make_unique<SignalingInterceptor>(patching_params);
 }
@@ -594,8 +620,8 @@ void PeerConnectionE2EQualityTest::ExchangeOfferAnswer(
   RTC_CHECK(offer);
   offer->ToString(&log_output);
   RTC_LOG(INFO) << "Original offer: " << log_output;
-  LocalAndRemoteSdp patch_result =
-      signaling_interceptor->PatchOffer(std::move(offer));
+  LocalAndRemoteSdp patch_result = signaling_interceptor->PatchOffer(
+      std::move(offer), alice_->params()->video_codecs[0]);
   patch_result.local_sdp->ToString(&log_output);
   RTC_LOG(INFO) << "Offer to set as local description: " << log_output;
   patch_result.remote_sdp->ToString(&log_output);
@@ -611,7 +637,8 @@ void PeerConnectionE2EQualityTest::ExchangeOfferAnswer(
   RTC_CHECK(answer);
   answer->ToString(&log_output);
   RTC_LOG(INFO) << "Original answer: " << log_output;
-  patch_result = signaling_interceptor->PatchAnswer(std::move(answer));
+  patch_result = signaling_interceptor->PatchAnswer(
+      std::move(answer), bob_->params()->video_codecs[0]);
   patch_result.local_sdp->ToString(&log_output);
   RTC_LOG(INFO) << "Answer to set as local description: " << log_output;
   patch_result.remote_sdp->ToString(&log_output);
@@ -670,11 +697,11 @@ void PeerConnectionE2EQualityTest::TearDownCall() {
     video_source->Stop();
   }
 
-  alice_->pc()->Close();
-  bob_->pc()->Close();
-
   alice_video_sources_.clear();
   bob_video_sources_.clear();
+
+  alice_->Close();
+  bob_->Close();
 
   media_helper_ = nullptr;
 }

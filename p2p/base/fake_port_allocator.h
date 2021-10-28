@@ -21,7 +21,6 @@
 #include "p2p/base/ice_gatherer.h"
 #include "p2p/base/port_allocator.h"
 #include "p2p/base/udp_port.h"
-#include "rtc_base/bind.h"
 #include "rtc_base/net_helpers.h"
 #include "rtc_base/thread.h"
 
@@ -122,8 +121,8 @@ class FakePortAllocatorSession : public PortAllocatorSession {
                                       username(), password(), std::string(),
                                       false));
       RTC_DCHECK(port_);
-      port_->SignalDestroyed.connect(
-          this, &FakePortAllocatorSession::OnPortDestroyed);
+      port_->SubscribePortDestroyed(
+          [this](PortInterface* port) { OnPortDestroyed(port); });
       AddPort(port_.get());
     }
     ++port_config_count_;
@@ -225,9 +224,7 @@ class FakePortAllocator : public cricket::PortAllocator {
       Initialize();
       return;
     }
-    network_thread_->Invoke<void>(RTC_FROM_HERE,
-                                  rtc::Bind(&PortAllocator::Initialize,
-                                            static_cast<PortAllocator*>(this)));
+    network_thread_->Invoke<void>(RTC_FROM_HERE, [this] { Initialize(); });
   }
 
   void SetNetworkIgnoreMask(int network_ignore_mask) override {}
@@ -256,10 +253,19 @@ class FakePortAllocator : public cricket::PortAllocator {
 
   bool initialized() const { return initialized_; }
 
+  // For testing: Manipulate MdnsObfuscationEnabled()
+  bool MdnsObfuscationEnabled() const override {
+    return mdns_obfuscation_enabled_;
+  }
+  void SetMdnsObfuscationEnabledForTesting(bool enabled) {
+    mdns_obfuscation_enabled_ = enabled;
+  }
+
  private:
   rtc::Thread* network_thread_;
   rtc::PacketSocketFactory* factory_;
   std::unique_ptr<rtc::BasicPacketSocketFactory> owned_factory_;
+  bool mdns_obfuscation_enabled_ = false;
 };
 
 }  // namespace cricket

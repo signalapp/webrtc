@@ -69,4 +69,18 @@
   return nil;
 }
 
+- (NSInteger)resolutionAlignment {
+  RTC_NOTREACHED();
+  return 1;
+}
+
+- (BOOL)applyAlignmentToAllSimulcastLayers {
+  RTC_NOTREACHED();
+  return NO;
+}
+
+- (BOOL)supportsNativeHandle {
+  RTC_NOTREACHED();
+  return NO;
+}
 @end

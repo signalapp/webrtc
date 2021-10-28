@@ -12,6 +12,7 @@ rtc_library("emulated_network") {
   visibility = [
     ":*",
     "../../api:create_network_emulation_manager",
+    "../../api/test/network_emulation:create_cross_traffic",
   ]
   if (rtc_include_tests) {
     visibility += [
@@ -40,9 +41,12 @@ rtc_library("emulated_network") {
     "../../api:array_view",
     "../../api:network_emulation_manager_api",
     "../../api:packet_socket_factory",
+    "../../api:scoped_refptr",
+    "../../api:sequence_checker",
     "../../api:simulated_network_api",
     "../../api:time_controller",
     "../../api/numerics",
+    "../../api/test/network_emulation",
     "../../api/transport:stun_types",
     "../../api/units:data_rate",
     "../../api/units:data_size",
@@ -51,14 +55,21 @@ rtc_library("emulated_network") {
     "../../call:simulated_network",
     "../../p2p:p2p_server_utils",
     "../../rtc_base",
+    "../../rtc_base:ip_address",
+    "../../rtc_base:network_constants",
     "../../rtc_base:rtc_base_tests_utils",
     "../../rtc_base:rtc_task_queue",
     "../../rtc_base:safe_minmax",
+    "../../rtc_base:socket",
+    "../../rtc_base:socket_address",
+    "../../rtc_base:socket_server",
+    "../../rtc_base:stringutils",
     "../../rtc_base:task_queue_for_test",
+    "../../rtc_base:threading",
     "../../rtc_base/synchronization:mutex",
-    "../../rtc_base/synchronization:sequence_checker",
+    "../../rtc_base/task_utils:pending_task_safety_flag",
     "../../rtc_base/task_utils:repeating_task",
-    "../../rtc_base/third_party/sigslot",
+    "../../rtc_base/task_utils:to_queued_task",
     "../../system_wrappers",
     "../scenario:column_printer",
     "../time_controller",
@@ -86,7 +97,7 @@ rtc_library("network_emulation_unittest") {
   ]
 }
 
-if (rtc_include_tests) {
+if (rtc_include_tests && !build_with_chromium) {
   rtc_library("network_emulation_pc_unittest") {
     testonly = true
     sources = [ "network_emulation_pc_unittest.cc" ]
@@ -126,10 +137,14 @@ rtc_library("cross_traffic_unittest") {
     "../../call:simulated_network",
     "../../rtc_base",
     "../../rtc_base:logging",
+    "../../rtc_base:network_constants",
     "../../rtc_base:rtc_event",
     "../time_controller",
   ]
-  absl_deps = [ "//third_party/abseil-cpp/absl/memory" ]
+  absl_deps = [
+    "//third_party/abseil-cpp/absl/memory",
+    "//third_party/abseil-cpp/absl/types:optional",
+  ]
 }
 
 if (rtc_include_tests) {
@@ -158,13 +173,15 @@ if (rtc_include_tests) {
     ]
   }
 
-  rtc_library("network_emulation_unittests") {
-    testonly = true
-    deps = [
-      ":cross_traffic_unittest",
-      ":feedback_generator_unittest",
-      ":network_emulation_pc_unittest",
-      ":network_emulation_unittest",
-    ]
+  if (!build_with_chromium) {
+    rtc_library("network_emulation_unittests") {
+      testonly = true
+      deps = [
+        ":cross_traffic_unittest",
+        ":feedback_generator_unittest",
+        ":network_emulation_pc_unittest",
+        ":network_emulation_unittest",
+      ]
+    }
   }
 }

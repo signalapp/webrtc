@@ -40,7 +40,6 @@
 #include "p2p/client/relay_port_factory_interface.h"
 #include "rtc_base/arraysize.h"
 #include "rtc_base/async_packet_socket.h"
-#include "rtc_base/async_socket.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/byte_buffer.h"
 #include "rtc_base/checks.h"
@@ -266,11 +265,12 @@ static void SendPingAndReceiveResponse(Connection* lconn,
 
 class TestChannel : public sigslot::has_slots<> {
  public:
-  // Takes ownership of |p1| (but not |p2|).
+  // Takes ownership of `p1` (but not `p2`).
   explicit TestChannel(std::unique_ptr<Port> p1) : port_(std::move(p1)) {
     port_->SignalPortComplete.connect(this, &TestChannel::OnPortComplete);
     port_->SignalUnknownAddress.connect(this, &TestChannel::OnUnknownAddress);
-    port_->SignalDestroyed.connect(this, &TestChannel::OnSrcPortDestroyed);
+    port_->SubscribePortDestroyed(
+        [this](PortInterface* port) { OnSrcPortDestroyed(port); });
   }
 
   int complete_count() { return complete_count_; }
@@ -587,7 +587,7 @@ class PortTest : public ::testing::Test, public sigslot::has_slots<> {
 
   void ExpectPortsCanConnect(bool can_connect, Port* p1, Port* p2);
 
-  // This does all the work and then deletes |port1| and |port2|.
+  // This does all the work and then deletes `port1` and `port2`.
   void TestConnectivity(const char* name1,
                         std::unique_ptr<Port> port1,
                         const char* name2,
@@ -597,7 +597,7 @@ class PortTest : public ::testing::Test, public sigslot::has_slots<> {
                         bool same_addr2,
                         bool possible);
 
-  // This connects the provided channels which have already started.  |ch1|
+  // This connects the provided channels which have already started.  `ch1`
   // should have its Connection created (either through CreateConnection() or
   // TCP reconnecting mechanism before entering this function.
   void ConnectStartedChannels(TestChannel* ch1, TestChannel* ch2) {
@@ -615,7 +615,7 @@ class PortTest : public ::testing::Test, public sigslot::has_slots<> {
   }
 
   // This connects and disconnects the provided channels in the same sequence as
-  // TestConnectivity with all options set to |true|.  It does not delete either
+  // TestConnectivity with all options set to `true`.  It does not delete either
   // channel.
   void StartConnectAndStopChannels(TestChannel* ch1, TestChannel* ch2) {
     // Acquire addresses.
@@ -777,7 +777,8 @@ class PortTest : public ::testing::Test, public sigslot::has_slots<> {
   bool role_conflict() const { return role_conflict_; }
 
   void ConnectToSignalDestroyed(PortInterface* port) {
-    port->SignalDestroyed.connect(this, &PortTest::OnDestroyed);
+    port->SubscribePortDestroyed(
+        [this](PortInterface* port) { OnDestroyed(port); });
   }
 
   void OnDestroyed(PortInterface* port) { ++ports_destroyed_; }
@@ -1215,8 +1216,8 @@ TEST_F(PortTest, TestTcpNeverConnect) {
   ch1.Start();
   ASSERT_EQ_WAIT(1, ch1.complete_count(), kDefaultTimeout);
 
-  std::unique_ptr<rtc::AsyncSocket> server(
-      vss()->CreateAsyncSocket(kLocalAddr2.family(), SOCK_STREAM));
+  std::unique_ptr<rtc::Socket> server(
+      vss()->CreateSocket(kLocalAddr2.family(), SOCK_STREAM));
   // Bind but not listen.
   EXPECT_EQ(0, server->Bind(kLocalAddr2));
 
@@ -1412,7 +1413,7 @@ TEST_F(PortTest, TestLoopbackCall) {
   // response.
   lport->Reset();
   lport->AddCandidateAddress(kLocalAddr2);
-  // Creating a different connection as |conn| is receiving.
+  // Creating a different connection as `conn` is receiving.
   Connection* conn1 =
       lport->CreateConnection(lport->Candidates()[1], Port::ORIGIN_MESSAGE);
   conn1->Ping(0);
@@ -1444,8 +1445,8 @@ TEST_F(PortTest, TestLoopbackCall) {
 
 // This test verifies role conflict signal is received when there is
 // conflict in the role. In this case both ports are in controlling and
-// |rport| has higher tiebreaker value than |lport|. Since |lport| has lower
-// value of tiebreaker, when it receives ping request from |rport| it will
+// `rport` has higher tiebreaker value than `lport`. Since `lport` has lower
+// value of tiebreaker, when it receives ping request from `rport` it will
 // send role conflict signal.
 TEST_F(PortTest, TestIceRoleConflict) {
   auto lport = CreateTestPort(kLocalAddr1, "lfrag", "lpass");
@@ -1724,9 +1725,8 @@ TEST_F(PortTest, TestSendStunMessage) {
   EXPECT_EQ(kDefaultPrflxPriority, priority_attr->value());
   EXPECT_EQ("rfrag:lfrag", username_attr->GetString());
   EXPECT_TRUE(msg->GetByteString(STUN_ATTR_MESSAGE_INTEGRITY) != NULL);
-  EXPECT_TRUE(StunMessage::ValidateMessageIntegrity(
-      lport->last_stun_buf()->data<char>(), lport->last_stun_buf()->size(),
-      "rpass"));
+  EXPECT_EQ(StunMessage::IntegrityStatus::kIntegrityOk,
+            msg->ValidateMessageIntegrity("rpass"));
   const StunUInt64Attribute* ice_controlling_attr =
       msg->GetUInt64(STUN_ATTR_ICE_CONTROLLING);
   ASSERT_TRUE(ice_controlling_attr != NULL);
@@ -1765,9 +1765,8 @@ TEST_F(PortTest, TestSendStunMessage) {
   ASSERT_TRUE(addr_attr != NULL);
   EXPECT_EQ(lport->Candidates()[0].address(), addr_attr->GetAddress());
   EXPECT_TRUE(msg->GetByteString(STUN_ATTR_MESSAGE_INTEGRITY) != NULL);
-  EXPECT_TRUE(StunMessage::ValidateMessageIntegrity(
-      rport->last_stun_buf()->data<char>(), rport->last_stun_buf()->size(),
-      "rpass"));
+  EXPECT_EQ(StunMessage::IntegrityStatus::kIntegrityOk,
+            msg->ValidateMessageIntegrity("rpass"));
   EXPECT_TRUE(msg->GetUInt32(STUN_ATTR_FINGERPRINT) != NULL);
   EXPECT_TRUE(StunMessage::ValidateFingerprint(
       lport->last_stun_buf()->data<char>(), lport->last_stun_buf()->size()));
@@ -1796,9 +1795,8 @@ TEST_F(PortTest, TestSendStunMessage) {
   EXPECT_EQ(STUN_ERROR_SERVER_ERROR, error_attr->code());
   EXPECT_EQ(std::string(STUN_ERROR_REASON_SERVER_ERROR), error_attr->reason());
   EXPECT_TRUE(msg->GetByteString(STUN_ATTR_MESSAGE_INTEGRITY) != NULL);
-  EXPECT_TRUE(StunMessage::ValidateMessageIntegrity(
-      rport->last_stun_buf()->data<char>(), rport->last_stun_buf()->size(),
-      "rpass"));
+  EXPECT_EQ(StunMessage::IntegrityStatus::kIntegrityOk,
+            msg->ValidateMessageIntegrity("rpass"));
   EXPECT_TRUE(msg->GetUInt32(STUN_ATTR_FINGERPRINT) != NULL);
   EXPECT_TRUE(StunMessage::ValidateFingerprint(
       lport->last_stun_buf()->data<char>(), lport->last_stun_buf()->size()));
@@ -1872,7 +1870,7 @@ TEST_F(PortTest, TestNomination) {
   Connection* rconn =
       rport->CreateConnection(lport->Candidates()[0], Port::ORIGIN_MESSAGE);
 
-  // |lconn| is controlling, |rconn| is controlled.
+  // `lconn` is controlling, `rconn` is controlled.
   uint32_t nomination = 1234;
   lconn->set_nomination(nomination);
 
@@ -1881,8 +1879,8 @@ TEST_F(PortTest, TestNomination) {
   EXPECT_EQ(lconn->nominated(), lconn->stats().nominated);
   EXPECT_EQ(rconn->nominated(), rconn->stats().nominated);
 
-  // Send ping (including the nomination value) from |lconn| to |rconn|. This
-  // should set the remote nomination of |rconn|.
+  // Send ping (including the nomination value) from `lconn` to `rconn`. This
+  // should set the remote nomination of `rconn`.
   lconn->Ping(0);
   ASSERT_TRUE_WAIT(lport->last_stun_msg(), kDefaultTimeout);
   ASSERT_TRUE(lport->last_stun_buf());
@@ -1894,8 +1892,8 @@ TEST_F(PortTest, TestNomination) {
   EXPECT_EQ(lconn->nominated(), lconn->stats().nominated);
   EXPECT_EQ(rconn->nominated(), rconn->stats().nominated);
 
-  // This should result in an acknowledgment sent back from |rconn| to |lconn|,
-  // updating the acknowledged nomination of |lconn|.
+  // This should result in an acknowledgment sent back from `rconn` to `lconn`,
+  // updating the acknowledged nomination of `lconn`.
   ASSERT_TRUE_WAIT(rport->last_stun_msg(), kDefaultTimeout);
   ASSERT_TRUE(rport->last_stun_buf());
   lconn->OnReadPacket(rport->last_stun_buf()->data<char>(),
@@ -2649,11 +2647,11 @@ TEST_F(PortTest, TestConnectionPriority) {
 }
 
 // Note that UpdateState takes into account the estimated RTT, and the
-// correctness of using |kMaxExpectedSimulatedRtt| as an upper bound of RTT in
+// correctness of using `kMaxExpectedSimulatedRtt` as an upper bound of RTT in
 // the following tests depends on the link rate and the delay distriubtion
 // configured in VirtualSocketServer::AddPacketToNetwork. The tests below use
 // the default setup where the RTT is deterministically one, which generates an
-// estimate given by |MINIMUM_RTT| = 100.
+// estimate given by `MINIMUM_RTT` = 100.
 TEST_F(PortTest, TestWritableState) {
   rtc::ScopedFakeClock clock;
   auto port1 = CreateUdpPort(kLocalAddr1);
@@ -2729,8 +2727,8 @@ TEST_F(PortTest, TestWritableState) {
 }
 
 // Test writability states using the configured threshold value to replace
-// the default value given by |CONNECTION_WRITE_CONNECT_TIMEOUT| and
-// |CONNECTION_WRITE_CONNECT_FAILURES|.
+// the default value given by `CONNECTION_WRITE_CONNECT_TIMEOUT` and
+// `CONNECTION_WRITE_CONNECT_FAILURES`.
 TEST_F(PortTest, TestWritableStateWithConfiguredThreshold) {
   rtc::ScopedFakeClock clock;
   auto port1 = CreateUdpPort(kLocalAddr1);
@@ -2814,7 +2812,7 @@ TEST_F(PortTest, TestTimeoutForNeverWritable) {
 
 // This test verifies the connection setup between ICEMODE_FULL
 // and ICEMODE_LITE.
-// In this test |ch1| behaves like FULL mode client and we have created
+// In this test `ch1` behaves like FULL mode client and we have created
 // port which responds to the ping message just like LITE client.
 TEST_F(PortTest, TestIceLiteConnectivity) {
   auto ice_full_port =

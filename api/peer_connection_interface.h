@@ -67,19 +67,25 @@
 #ifndef API_PEER_CONNECTION_INTERFACE_H_
 #define API_PEER_CONNECTION_INTERFACE_H_
 
+#include <stdint.h>
 #include <stdio.h>
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include "absl/base/attributes.h"
+#include "absl/types/optional.h"
 #include "api/adaptation/resource.h"
+#include "api/async_dns_resolver.h"
 #include "api/async_resolver_factory.h"
 #include "api/audio/audio_mixer.h"
 #include "api/audio_codecs/audio_decoder_factory.h"
 #include "api/audio_codecs/audio_encoder_factory.h"
 #include "api/audio_options.h"
 #include "api/call/call_factory_interface.h"
+#include "api/candidate.h"
 #include "api/crypto/crypto_options.h"
 #include "api/data_channel_interface.h"
 #include "api/dtls_transport_interface.h"
@@ -88,15 +94,18 @@
 #include "api/ice_transport_interface.h"
 #include "api/jsep.h"
 #include "api/media_stream_interface.h"
+#include "api/media_types.h"
 #include "api/neteq/neteq_factory.h"
 #include "api/network_state_predictor.h"
 #include "api/packet_socket_factory.h"
 #include "api/rtc_error.h"
 #include "api/rtc_event_log/rtc_event_log_factory_interface.h"
 #include "api/rtc_event_log_output.h"
+#include "api/rtp_parameters.h"
 #include "api/rtp_receiver_interface.h"
 #include "api/rtp_sender_interface.h"
 #include "api/rtp_transceiver_interface.h"
+#include "api/scoped_refptr.h"
 #include "api/sctp_transport_interface.h"
 #include "api/set_local_description_observer_interface.h"
 #include "api/set_remote_description_observer_interface.h"
@@ -109,22 +118,29 @@
 #include "api/transport/sctp_transport_factory_interface.h"
 #include "api/transport/webrtc_key_value_config.h"
 #include "api/turn_customizer.h"
+#include "api/video/video_bitrate_allocator_factory.h"
 #include "call/rtp_packet_sink_interface.h"
+#include "call/rtp_transport_controller_send_factory_interface.h"
 #include "media/base/media_config.h"
 #include "media/base/media_engine.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "pc/rtp_transport.h"
 // TODO(bugs.webrtc.org/7447): We plan to provide a way to let applications
 // inject a PacketSocketFactory and/or NetworkManager, and not expose
-// PortAllocator in the PeerConnection api.
+// PortAllocator in the PeerConnection api. This will let us remove nogncheck.
+#include "p2p/base/port.h"            // nogncheck
 #include "p2p/base/port_allocator.h"  // nogncheck
+#include "rtc_base/network.h"
+#include "rtc_base/network_constants.h"
 #include "rtc_base/network_monitor_factory.h"
+#include "rtc_base/ref_count.h"
 #include "rtc_base/rtc_certificate.h"
 #include "rtc_base/rtc_certificate_generator.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_stream_adapter.h"
 #include "rtc_base/system/rtc_export.h"
+#include "rtc_base/thread.h"
 
 namespace rtc {
 class Thread;
@@ -223,9 +239,9 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
     std::string username;
     std::string password;
     TlsCertPolicy tls_cert_policy = kTlsCertPolicySecure;
-    // If the URIs in |urls| only contain IP addresses, this field can be used
+    // If the URIs in `urls` only contain IP addresses, this field can be used
     // to indicate the hostname, which may be necessary for TLS (using the SNI
-    // extension). If |urls| itself contains the hostname, this isn't
+    // extension). If `urls` itself contains the hostname, this isn't
     // necessary.
     std::string hostname;
     // List of protocols to be used in the TLS ALPN extension.
@@ -407,12 +423,6 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
     // from consideration for gathering ICE candidates.
     bool disable_link_local_networks = false;
 
-    // If set to true, use RTP data channels instead of SCTP.
-    // TODO(deadbeef): Remove this. We no longer commit to supporting RTP data
-    // channels, though some applications are still working on moving off of
-    // them.
-    bool enable_rtp_data_channel = false;
-
     // Minimum bitrate at which screencast video tracks will be encoded at.
     // This means adding padding bits up to this bitrate, which can help
     // when switching from a static scene to one with motion.
@@ -520,7 +530,7 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
     // re-determining was removed in ICEbis (ICE v2).
     bool redetermine_role_on_ice_restart = true;
 
-    // This flag is only effective when |continual_gathering_policy| is
+    // This flag is only effective when `continual_gathering_policy` is
     // GATHER_CONTINUALLY.
     //
     // If true, after the ICE transport type is changed such that new types of
@@ -625,12 +635,8 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
     absl::optional<CryptoOptions> crypto_options;
 
     // Configure if we should include the SDP attribute extmap-allow-mixed in
-    // our offer. Although we currently do support this, it's not included in
-    // our offer by default due to a previous bug that caused the SDP parser to
-    // abort parsing if this attribute was present. This is fixed in Chrome 71.
-    // TODO(webrtc:9985): Change default to true once sufficient time has
-    // passed.
-    bool offer_extmap_allow_mixed = false;
+    // our offer on session level.
+    bool offer_extmap_allow_mixed = true;
 
     // TURN logging identifier.
     // This identifier is added to a TURN allocation
@@ -647,6 +653,22 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
     // The delay before doing a usage histogram report for long-lived
     // PeerConnections. Used for testing only.
     absl::optional<int> report_usage_pattern_delay_ms;
+
+    // The ping interval (ms) when the connection is stable and writable. This
+    // parameter overrides the default value in the ICE implementation if set.
+    absl::optional<int> stable_writable_connection_ping_interval_ms;
+
+    // Whether this PeerConnection will avoid VPNs (kAvoidVpn), prefer VPNs
+    // (kPreferVpn), only work over VPN (kOnlyUseVpn) or only work over non-VPN
+    // (kNeverUseVpn) interfaces. This controls which local interfaces the
+    // PeerConnection will prefer to connect over. Since VPN detection is not
+    // perfect, adherence to this preference cannot be guaranteed.
+    VpnPreference vpn_preference = VpnPreference::kDefault;
+
+    // List of address/length subnets that should be treated like
+    // VPN (in case webrtc fails to auto detect them).
+    std::vector<rtc::NetworkMask> vpn_list;
+
     //
     // Don't forget to update operator== if adding something.
     //
@@ -706,8 +728,8 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
   };
 
   // Used by GetStats to decide which stats to include in the stats reports.
-  // |kStatsOutputLevelStandard| includes the standard stats for Javascript API;
-  // |kStatsOutputLevelDebug| includes both the standard stats and additional
+  // `kStatsOutputLevelStandard` includes the standard stats for Javascript API;
+  // `kStatsOutputLevelDebug` includes both the standard stats and additional
   // stats for debugging purposes.
   enum StatsOutputLevel {
     kStatsOutputLevelStandard,
@@ -748,10 +770,10 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
 
   // Add a new MediaStreamTrack to be sent on this PeerConnection, and return
   // the newly created RtpSender. The RtpSender will be associated with the
-  // streams specified in the |stream_ids| list.
+  // streams specified in the `stream_ids` list.
   //
   // Errors:
-  // - INVALID_PARAMETER: |track| is null, has a kind other than audio or video,
+  // - INVALID_PARAMETER: `track` is null, has a kind other than audio or video,
   //       or a sender already exists for the track.
   // - INVALID_STATE: The PeerConnection is closed.
   virtual RTCErrorOr<rtc::scoped_refptr<RtpSenderInterface>> AddTrack(
@@ -768,7 +790,7 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
   // corresponding RtpTransceiver direction as no longer sending.
   //
   // Errors:
-  // - INVALID_PARAMETER: |sender| is null or (Plan B only) the sender is not
+  // - INVALID_PARAMETER: `sender` is null or (Plan B only) the sender is not
   //       associated with this PeerConnection.
   // - INVALID_STATE: PeerConnection is closed.
   // TODO(bugs.webrtc.org/9534): Rename to RemoveTrack once the other signature
@@ -780,7 +802,7 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
   // transceivers. Adding a transceiver will cause future calls to CreateOffer
   // to add a media description for the corresponding transceiver.
   //
-  // The initial value of |mid| in the returned transceiver is null. Setting a
+  // The initial value of `mid` in the returned transceiver is null. Setting a
   // new session description may change it to a non-null value.
   //
   // https://w3c.github.io/webrtc-pc/#dom-rtcpeerconnection-addtransceiver
@@ -799,7 +821,7 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
   // of the transceiver (and sender/receiver) will be derived from the kind of
   // the track.
   // Errors:
-  // - INVALID_PARAMETER: |track| is null.
+  // - INVALID_PARAMETER: `track` is null.
   virtual RTCErrorOr<rtc::scoped_refptr<RtpTransceiverInterface>>
   AddTransceiver(rtc::scoped_refptr<MediaStreamTrackInterface> track) = 0;
   virtual RTCErrorOr<rtc::scoped_refptr<RtpTransceiverInterface>>
@@ -809,7 +831,7 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
   // Adds a transceiver with the given kind. Can either be MEDIA_TYPE_AUDIO or
   // MEDIA_TYPE_VIDEO.
   // Errors:
-  // - INVALID_PARAMETER: |media_type| is not MEDIA_TYPE_AUDIO or
+  // - INVALID_PARAMETER: `media_type` is not MEDIA_TYPE_AUDIO or
   //                      MEDIA_TYPE_VIDEO.
   virtual RTCErrorOr<rtc::scoped_refptr<RtpTransceiverInterface>>
   AddTransceiver(cricket::MediaType media_type) = 0;
@@ -824,9 +846,9 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
   // The standard way to do this would be through "addTransceiver", but we
   // don't support that API yet.
   //
-  // |kind| must be "audio" or "video".
+  // `kind` must be "audio" or "video".
   //
-  // |stream_id| is used to populate the msid attribute; if empty, one will
+  // `stream_id` is used to populate the msid attribute; if empty, one will
   // be generated automatically.
   //
   // This method is not supported with kUnifiedPlan semantics. Please use
@@ -913,9 +935,24 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
   // Also, calling CreateDataChannel is the only way to get a data "m=" section
   // in SDP, so it should be done before CreateOffer is called, if the
   // application plans to use data channels.
+  virtual RTCErrorOr<rtc::scoped_refptr<DataChannelInterface>>
+  CreateDataChannelOrError(const std::string& label,
+                           const DataChannelInit* config) {
+    return RTCError(RTCErrorType::INTERNAL_ERROR, "dummy function called");
+  }
+  // TODO(crbug.com/788659): Remove "virtual" below and default implementation
+  // above once mock in Chrome is fixed.
+  ABSL_DEPRECATED("Use CreateDataChannelOrError")
   virtual rtc::scoped_refptr<DataChannelInterface> CreateDataChannel(
       const std::string& label,
-      const DataChannelInit* config) = 0;
+      const DataChannelInit* config) {
+    auto result = CreateDataChannelOrError(label, config);
+    if (!result.ok()) {
+      return nullptr;
+    } else {
+      return result.MoveValue();
+    }
+  }
 
   // NOTE: For the following 6 methods, it's only safe to dereference the
   // SessionDescriptionInterface on signaling_thread() (for example, calling
@@ -965,7 +1002,7 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
   // returned by CreateOffer() or CreateAnswer() or else the operation should
   // fail. Our implementation however allows some amount of "SDP munging", but
   // please note that this is HIGHLY DISCOURAGED. If you do not intent to munge
-  // SDP, the method below that doesn't take |desc| as an argument will create
+  // SDP, the method below that doesn't take `desc` as an argument will create
   // the offer or answer for you.
   //
   // The observer is invoked as soon as the operation completes, which could be
@@ -1023,10 +1060,10 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
 
   virtual PeerConnectionInterface::RTCConfiguration GetConfiguration() = 0;
 
-  // Sets the PeerConnection's global configuration to |config|.
+  // Sets the PeerConnection's global configuration to `config`.
   //
-  // The members of |config| that may be changed are |type|, |servers|,
-  // |ice_candidate_pool_size| and |prune_turn_ports| (though the candidate
+  // The members of `config` that may be changed are `type`, `servers`,
+  // `ice_candidate_pool_size` and `prune_turn_ports` (though the candidate
   // pool size can't be changed after the first call to SetLocalDescription).
   // Note that this means the BUNDLE and RTCP-multiplexing policies cannot be
   // changed with this method.
@@ -1034,14 +1071,14 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
   // Any changes to STUN/TURN servers or ICE candidate policy will affect the
   // next gathering phase, and cause the next call to createOffer to generate
   // new ICE credentials, as described in JSEP. This also occurs when
-  // |prune_turn_ports| changes, for the same reasoning.
+  // `prune_turn_ports` changes, for the same reasoning.
   //
-  // If an error occurs, returns false and populates |error| if non-null:
-  // - INVALID_MODIFICATION if |config| contains a modified parameter other
+  // If an error occurs, returns false and populates `error` if non-null:
+  // - INVALID_MODIFICATION if `config` contains a modified parameter other
   //   than one of the parameters listed above.
-  // - INVALID_RANGE if |ice_candidate_pool_size| is out of range.
+  // - INVALID_RANGE if `ice_candidate_pool_size` is out of range.
   // - SYNTAX_ERROR if parsing an ICE server URL failed.
-  // - INVALID_PARAMETER if a TURN server is missing |username| or |password|.
+  // - INVALID_PARAMETER if a TURN server is missing `username` or `password`.
   // - INTERNAL_ERROR if an unexpected error occurred.
   //
   // TODO(nisse): Make this pure virtual once all Chrome subclasses of
@@ -1050,9 +1087,9 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
       const PeerConnectionInterface::RTCConfiguration& config);
 
   // Provides a remote candidate to the ICE Agent.
-  // A copy of the |candidate| will be created and added to the remote
+  // A copy of the `candidate` will be created and added to the remote
   // description. So the caller of this method still has the ownership of the
-  // |candidate|.
+  // `candidate`.
   // TODO(hbos): The spec mandates chaining this operation onto the operations
   // chain; deprecate and remove this version in favor of the callback-based
   // signature.
@@ -1064,7 +1101,10 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
 
   // Removes a group of remote candidates from the ICE agent. Needed mainly for
   // continual gathering, to avoid an ever-growing list of candidates as
-  // networks come and go.
+  // networks come and go. Note that the candidates' transport_name must be set
+  // to the MID of the m= section that generated the candidate.
+  // TODO(bugs.webrtc.org/8395): Use IceCandidateInterface instead of
+  // cricket::Candidate, which would avoid the transport_name oddity.
   virtual bool RemoveIceCandidates(
       const std::vector<cricket::Candidate>& candidates) = 0;
 
@@ -1108,23 +1148,21 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
   // this PeerConnection. Other limitations might affect these limits and
   // are respected (for example "b=AS" in SDP).
   //
-  // Setting |current_bitrate_bps| will reset the current bitrate estimate
+  // Setting `current_bitrate_bps` will reset the current bitrate estimate
   // to the provided value.
   virtual RTCError SetBitrate(const BitrateSettings& bitrate) = 0;
 
   // Enable/disable playout of received audio streams. Enabled by default. Note
   // that even if playout is enabled, streams will only be played out if the
-  // appropriate SDP is also applied. Setting |playout| to false will stop
+  // appropriate SDP is also applied. Setting `playout` to false will stop
   // playout of the underlying audio device but starts a task which will poll
   // for audio data every 10ms to ensure that audio processing happens and the
   // audio statistics are updated.
-  // TODO(henrika): deprecate and remove this.
   virtual void SetAudioPlayout(bool playout) {}
 
   // Enable/disable recording of transmitted audio streams. Enabled by default.
   // Note that even if recording is enabled, streams will only be recorded if
   // the appropriate SDP is also applied.
-  // TODO(henrika): deprecate and remove this.
   virtual void SetAudioRecording(bool recording) {}
 
   // Looks up the DtlsTransport associated with a MID value.
@@ -1171,13 +1209,13 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
   virtual void AddAdaptationResource(rtc::scoped_refptr<Resource> resource) {}
 
   // Start RtcEventLog using an existing output-sink. Takes ownership of
-  // |output| and passes it on to Call, which will take the ownership. If the
+  // `output` and passes it on to Call, which will take the ownership. If the
   // operation fails the output will be closed and deallocated. The event log
-  // will send serialized events to the output object every |output_period_ms|.
+  // will send serialized events to the output object every `output_period_ms`.
   // Applications using the event log should generally make their own trade-off
   // regarding the output period. A long period is generally more efficient,
   // with potential drawbacks being more bursty thread usage, and more events
-  // lost in case the application crashes. If the |output_period_ms| argument is
+  // lost in case the application crashes. If the `output_period_ms` argument is
   // omitted, webrtc selects a default deemed to be workable in most cases.
   virtual bool StartRtcEventLog(std::unique_ptr<RtcEventLogOutput> output,
                                 int64_t output_period_ms) = 0;
@@ -1236,7 +1274,7 @@ class PeerConnectionObserver : public RtpPacketSinkInterface {
   // Used to fire spec-compliant onnegotiationneeded events, which should only
   // fire when the Operations Chain is empty. The observer is responsible for
   // queuing a task (e.g. Chromium: jump to main thread) to maybe fire the
-  // event. The event identified using |event_id| must only fire if
+  // event. The event identified using `event_id` must only fire if
   // PeerConnection::ShouldFireNegotiationNeededEvent() returns true since it is
   // possible for the event to become invalidated by operations subsequently
   // chained.
@@ -1270,7 +1308,7 @@ class PeerConnectionObserver : public RtpPacketSinkInterface {
 
   // Gathering of an ICE candidate failed.
   // See https://w3c.github.io/webrtc-pc/#event-icecandidateerror
-  // |host_candidate| is a stringified socket address.
+  // `host_candidate` is a stringified socket address.
   virtual void OnIceCandidateError(const std::string& host_candidate,
                                    const std::string& url,
                                    int error_code,
@@ -1309,8 +1347,8 @@ class PeerConnectionObserver : public RtpPacketSinkInterface {
   // This is called when signaling indicates a transceiver will be receiving
   // media from the remote endpoint. This is fired during a call to
   // SetRemoteDescription. The receiving track can be accessed by:
-  // |transceiver->receiver()->track()| and its associated streams by
-  // |transceiver->receiver()->streams()|.
+  // `transceiver->receiver()->track()` and its associated streams by
+  // `transceiver->receiver()->streams()`.
   // Note: This will only be called if Unified Plan semantics are specified.
   // This behavior is specified in section 2.2.8.2.5 of the "Set the
   // RTCSessionDescription" algorithm:
@@ -1365,6 +1403,10 @@ struct RTC_EXPORT PeerConnectionDependencies final {
   // packet_socket_factory, not both.
   std::unique_ptr<cricket::PortAllocator> allocator;
   std::unique_ptr<rtc::PacketSocketFactory> packet_socket_factory;
+  // Factory for creating resolvers that look up hostnames in DNS
+  std::unique_ptr<webrtc::AsyncDnsResolverFactoryInterface>
+      async_dns_resolver_factory;
+  // Deprecated - use async_dns_resolver_factory
   std::unique_ptr<webrtc::AsyncResolverFactory> async_resolver_factory;
   std::unique_ptr<webrtc::IceTransportFactory> ice_transport_factory;
   std::unique_ptr<rtc::RTCCertificateGeneratorInterface> cert_generator;
@@ -1405,12 +1447,14 @@ struct RTC_EXPORT PeerConnectionFactoryDependencies final {
       network_state_predictor_factory;
   std::unique_ptr<NetworkControllerFactoryInterface> network_controller_factory;
   // This will only be used if CreatePeerConnection is called without a
-  // |port_allocator|, causing the default allocator and network manager to be
+  // `port_allocator`, causing the default allocator and network manager to be
   // used.
   std::unique_ptr<rtc::NetworkMonitorFactory> network_monitor_factory;
   std::unique_ptr<NetEqFactory> neteq_factory;
   std::unique_ptr<SctpTransportFactoryInterface> sctp_factory;
   std::unique_ptr<WebRtcKeyValueConfig> trials;
+  std::unique_ptr<RtpTransportControllerSendFactoryInterface>
+      transport_controller_send_factory;
 };
 
 // PeerConnectionFactoryInterface is the factory interface used for creating
@@ -1437,10 +1481,6 @@ class RTC_EXPORT PeerConnectionFactoryInterface
     // requirement, allowing unsecured media. Should only be used for
     // testing/debugging.
     bool disable_encryption = false;
-
-    // Deprecated. The only effect of setting this to true is that
-    // CreateDataChannel will fail, which is not that useful.
-    bool disable_sctp_data_channels = false;
 
     // If set to true, any platform-supported network monitoring capability
     // won't be used, and instead networks will only be updated via polling.
@@ -1476,32 +1516,34 @@ class RTC_EXPORT PeerConnectionFactoryInterface
       PeerConnectionDependencies dependencies);
   // Deprecated creator - does not return an error code on error.
   // TODO(bugs.webrtc.org:12238): Deprecate and remove.
+  ABSL_DEPRECATED("Use CreatePeerConnectionOrError")
   virtual rtc::scoped_refptr<PeerConnectionInterface> CreatePeerConnection(
       const PeerConnectionInterface::RTCConfiguration& configuration,
       PeerConnectionDependencies dependencies);
 
-  // Deprecated; |allocator| and |cert_generator| may be null, in which case
+  // Deprecated; `allocator` and `cert_generator` may be null, in which case
   // default implementations will be used.
   //
-  // |observer| must not be null.
+  // `observer` must not be null.
   //
-  // Note that this method does not take ownership of |observer|; it's the
+  // Note that this method does not take ownership of `observer`; it's the
   // responsibility of the caller to delete it. It can be safely deleted after
   // Close has been called on the returned PeerConnection, which ensures no
   // more observer callbacks will be invoked.
+  ABSL_DEPRECATED("Use CreatePeerConnectionOrError")
   virtual rtc::scoped_refptr<PeerConnectionInterface> CreatePeerConnection(
       const PeerConnectionInterface::RTCConfiguration& configuration,
       std::unique_ptr<cricket::PortAllocator> allocator,
       std::unique_ptr<rtc::RTCCertificateGeneratorInterface> cert_generator,
       PeerConnectionObserver* observer);
 
-  // Returns the capabilities of an RTP sender of type |kind|.
+  // Returns the capabilities of an RTP sender of type `kind`.
   // If for some reason you pass in MEDIA_TYPE_DATA, returns an empty structure.
   // TODO(orphis): Make pure virtual when all subclasses implement it.
   virtual RtpCapabilities GetRtpSenderCapabilities(
       cricket::MediaType kind) const;
 
-  // Returns the capabilities of an RTP receiver of type |kind|.
+  // Returns the capabilities of an RTP receiver of type `kind`.
   // If for some reason you pass in MEDIA_TYPE_DATA, returns an empty structure.
   // TODO(orphis): Make pure virtual when all subclasses implement it.
   virtual RtpCapabilities GetRtpReceiverCapabilities(
@@ -1511,22 +1553,22 @@ class RTC_EXPORT PeerConnectionFactoryInterface
       const std::string& stream_id) = 0;
 
   // Creates an AudioSourceInterface.
-  // |options| decides audio processing settings.
+  // `options` decides audio processing settings.
   virtual rtc::scoped_refptr<AudioSourceInterface> CreateAudioSource(
       const cricket::AudioOptions& options) = 0;
 
-  // Creates a new local VideoTrack. The same |source| can be used in several
+  // Creates a new local VideoTrack. The same `source` can be used in several
   // tracks.
   virtual rtc::scoped_refptr<VideoTrackInterface> CreateVideoTrack(
       const std::string& label,
       VideoTrackSourceInterface* source) = 0;
 
-  // Creates an new AudioTrack. At the moment |source| can be null.
+  // Creates an new AudioTrack. At the moment `source` can be null.
   virtual rtc::scoped_refptr<AudioTrackInterface> CreateAudioTrack(
       const std::string& label,
       AudioSourceInterface* source) = 0;
 
-  // Starts AEC dump using existing file. Takes ownership of |file| and passes
+  // Starts AEC dump using existing file. Takes ownership of `file` and passes
   // it on to VoiceEngine (via other objects) immediately, which will take
   // the ownerhip. If the operation fails, the file will be closed.
   // A maximum file size in bytes can be specified. When the file size limit is
@@ -1561,8 +1603,8 @@ class RTC_EXPORT PeerConnectionFactoryInterface
 // video-specific interfaces, and omit the corresponding modules from its
 // build.
 //
-// If |network_thread| or |worker_thread| are null, the PeerConnectionFactory
-// will create the necessary thread internally. If |signaling_thread| is null,
+// If `network_thread` or `worker_thread` are null, the PeerConnectionFactory
+// will create the necessary thread internally. If `signaling_thread` is null,
 // the PeerConnectionFactory will use the thread on which this method is called
 // as the signaling thread, wrapping it in an rtc::Thread object if needed.
 RTC_EXPORT rtc::scoped_refptr<PeerConnectionFactoryInterface>

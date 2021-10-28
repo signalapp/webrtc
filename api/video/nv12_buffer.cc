@@ -49,7 +49,7 @@ NV12Buffer::~NV12Buffer() = default;
 
 // static
 rtc::scoped_refptr<NV12Buffer> NV12Buffer::Create(int width, int height) {
-  return new rtc::RefCountedObject<NV12Buffer>(width, height);
+  return rtc::make_ref_counted<NV12Buffer>(width, height);
 }
 
 // static
@@ -57,8 +57,7 @@ rtc::scoped_refptr<NV12Buffer> NV12Buffer::Create(int width,
                                                   int height,
                                                   int stride_y,
                                                   int stride_uv) {
-  return new rtc::RefCountedObject<NV12Buffer>(width, height, stride_y,
-                                               stride_uv);
+  return rtc::make_ref_counted<NV12Buffer>(width, height, stride_y, stride_uv);
 }
 
 // static
@@ -145,11 +144,10 @@ void NV12Buffer::CropAndScaleFrom(const NV12BufferInterface& src,
   const uint8_t* uv_plane =
       src.DataUV() + src.StrideUV() * uv_offset_y + uv_offset_x * 2;
 
-  // kFilterBox is unsupported in libyuv, so using kFilterBilinear instead.
   int res = libyuv::NV12Scale(y_plane, src.StrideY(), uv_plane, src.StrideUV(),
                               crop_width, crop_height, MutableDataY(),
                               StrideY(), MutableDataUV(), StrideUV(), width(),
-                              height(), libyuv::kFilterBilinear);
+                              height(), libyuv::kFilterBox);
 
   RTC_DCHECK_EQ(res, 0);
 }

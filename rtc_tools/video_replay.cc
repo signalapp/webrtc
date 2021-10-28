@@ -20,10 +20,13 @@
 #include "api/task_queue/default_task_queue_factory.h"
 #include "api/test/video/function_video_decoder_factory.h"
 #include "api/transport/field_trial_based_config.h"
+#include "api/video/video_codec_type.h"
 #include "api/video_codecs/video_decoder.h"
 #include "call/call.h"
 #include "common_video/libyuv/include/webrtc_libyuv.h"
 #include "media/engine/internal_decoder_factory.h"
+#include "modules/rtp_rtcp/source/rtp_packet.h"
+#include "modules/video_coding/utility/ivf_file_writer.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/string_to_number.h"
 #include "rtc_base/strings/json.h"
@@ -37,7 +40,6 @@
 #include "test/gtest.h"
 #include "test/null_transport.h"
 #include "test/rtp_file_reader.h"
-#include "test/rtp_header_parser.h"
 #include "test/run_loop.h"
 #include "test/run_test.h"
 #include "test/test_video_capturer.h"
@@ -72,20 +74,15 @@ ABSL_FLAG(int,
           webrtc::test::CallTest::kRtxRedPayloadType,
           "RED over RTX payload type");
 
-// Flag for SSRC.
-const std::string& DefaultSsrc() {
-  static const std::string ssrc =
-      std::to_string(webrtc::test::CallTest::kVideoSendSsrcs[0]);
-  return ssrc;
-}
-ABSL_FLAG(std::string, ssrc, DefaultSsrc().c_str(), "Incoming SSRC");
-
-const std::string& DefaultSsrcRtx() {
-  static const std::string ssrc_rtx =
-      std::to_string(webrtc::test::CallTest::kSendRtxSsrcs[0]);
-  return ssrc_rtx;
-}
-ABSL_FLAG(std::string, ssrc_rtx, DefaultSsrcRtx().c_str(), "Incoming RTX SSRC");
+// Flag for SSRC and RTX SSRC.
+ABSL_FLAG(uint32_t,
+          ssrc,
+          webrtc::test::CallTest::kVideoSendSsrcs[0],
+          "Incoming SSRC");
+ABSL_FLAG(uint32_t,
+          ssrc_rtx,
+          webrtc::test::CallTest::kSendRtxSsrcs[0],
+          "Incoming RTX SSRC");
 
 // Flag for abs-send-time id.
 ABSL_FLAG(int, abs_send_time_id, -1, "RTP extension ID for abs-send-time");
@@ -112,17 +109,31 @@ ABSL_FLAG(std::string,
           "",
           "Decoder bitstream output file");
 
+ABSL_FLAG(std::string, decoder_ivf_filename, "", "Decoder ivf output file");
+
 // Flag for video codec.
 ABSL_FLAG(std::string, codec, "VP8", "Video codec");
+
+// Flags for rtp start and stop timestamp.
+ABSL_FLAG(uint32_t,
+          start_timestamp,
+          0,
+          "RTP start timestamp, packets with smaller timestamp will be ignored "
+          "(no wraparound)");
+ABSL_FLAG(uint32_t,
+          stop_timestamp,
+          4294967295,
+          "RTP stop timestamp, packets with larger timestamp will be ignored "
+          "(no wraparound)");
+
+// Flags for render window width and height
+ABSL_FLAG(uint32_t, render_width, 640, "Width of render window");
+ABSL_FLAG(uint32_t, render_height, 480, "Height of render window");
 
 namespace {
 
 static bool ValidatePayloadType(int32_t payload_type) {
   return payload_type > 0 && payload_type <= 127;
-}
-
-static bool ValidateSsrc(const char* ssrc_string) {
-  return rtc::StringToNumber<uint32_t>(ssrc_string).has_value();
 }
 
 static bool ValidateOptionalPayloadType(int32_t payload_type) {
@@ -158,11 +169,11 @@ static int RedPayloadTypeRtx() {
 }
 
 static uint32_t Ssrc() {
-  return rtc::StringToNumber<uint32_t>(absl::GetFlag(FLAGS_ssrc)).value();
+  return absl::GetFlag(FLAGS_ssrc);
 }
 
 static uint32_t SsrcRtx() {
-  return rtc::StringToNumber<uint32_t>(absl::GetFlag(FLAGS_ssrc_rtx)).value();
+  return absl::GetFlag(FLAGS_ssrc_rtx);
 }
 
 static int AbsSendTimeId() {
@@ -189,8 +200,20 @@ static std::string DecoderBitstreamFilename() {
   return absl::GetFlag(FLAGS_decoder_bitstream_filename);
 }
 
+static std::string IVFFilename() {
+  return absl::GetFlag(FLAGS_decoder_ivf_filename);
+}
+
 static std::string Codec() {
   return absl::GetFlag(FLAGS_codec);
+}
+
+static uint32_t RenderWidth() {
+  return absl::GetFlag(FLAGS_render_width);
+}
+
+static uint32_t RenderHeight() {
+  return absl::GetFlag(FLAGS_render_height);
 }
 
 }  // namespace
@@ -253,6 +276,39 @@ class DecoderBitstreamFileWriter : public test::FakeDecoder {
 
  private:
   FILE* file_;
+};
+
+class DecoderIvfFileWriter : public test::FakeDecoder {
+ public:
+  explicit DecoderIvfFileWriter(const char* filename, const std::string& codec)
+      : file_writer_(
+            IvfFileWriter::Wrap(FileWrapper::OpenWriteOnly(filename), 0)) {
+    RTC_DCHECK(file_writer_.get());
+    if (codec == "VP8") {
+      video_codec_type_ = VideoCodecType::kVideoCodecVP8;
+    } else if (codec == "VP9") {
+      video_codec_type_ = VideoCodecType::kVideoCodecVP9;
+    } else if (codec == "H264") {
+      video_codec_type_ = VideoCodecType::kVideoCodecH264;
+    } else {
+      RTC_LOG(LS_ERROR) << "Unsupported video codec " << codec;
+      RTC_NOTREACHED();
+    }
+  }
+  ~DecoderIvfFileWriter() override { file_writer_->Close(); }
+
+  int32_t Decode(const EncodedImage& encoded_frame,
+                 bool /* missing_frames */,
+                 int64_t render_time_ms) override {
+    if (!file_writer_->WriteFrame(encoded_frame, video_codec_type_)) {
+      return WEBRTC_VIDEO_CODEC_ERROR;
+    }
+    return WEBRTC_VIDEO_CODEC_OK;
+  }
+
+ private:
+  std::unique_ptr<IvfFileWriter> file_writer_;
+  VideoCodecType video_codec_type_;
 };
 
 // The RtpReplayer is responsible for parsing the configuration provided by the
@@ -346,11 +402,14 @@ class RtpReplayer final {
     std::stringstream raw_json_buffer;
     raw_json_buffer << config_file.rdbuf();
     std::string raw_json = raw_json_buffer.str();
-    Json::Reader json_reader;
+    Json::CharReaderBuilder builder;
     Json::Value json_configs;
-    if (!json_reader.parse(raw_json, json_configs)) {
+    std::string error_message;
+    std::unique_ptr<Json::CharReader> json_reader(builder.newCharReader());
+    if (!json_reader->parse(raw_json.data(), raw_json.data() + raw_json.size(),
+                            &json_configs, &error_message)) {
       fprintf(stderr, "Error parsing JSON config\n");
-      fprintf(stderr, "%s\n", json_reader.getFormatedErrorMessages().c_str());
+      fprintf(stderr, "%s\n", error_message.c_str());
       return nullptr;
     }
 
@@ -368,8 +427,8 @@ class RtpReplayer final {
       // Create a window for this config.
       std::stringstream window_title;
       window_title << "Playback Video (" << config_count++ << ")";
-      stream_state->sinks.emplace_back(
-          test::VideoRenderer::Create(window_title.str().c_str(), 640, 480));
+      stream_state->sinks.emplace_back(test::VideoRenderer::Create(
+          window_title.str().c_str(), RenderWidth(), RenderHeight()));
       // Create a receive stream for this config.
       receive_config.renderer = stream_state->sinks.back().get();
       receive_config.decoder_factory = stream_state->decoder_factory.get();
@@ -389,7 +448,8 @@ class RtpReplayer final {
     std::stringstream window_title;
     window_title << "Playback Video (" << rtp_dump_path << ")";
     std::unique_ptr<test::VideoRenderer> playback_video(
-        test::VideoRenderer::Create(window_title.str().c_str(), 640, 480));
+        test::VideoRenderer::Create(window_title.str().c_str(), RenderWidth(),
+                                    RenderHeight()));
     auto file_passthrough = std::make_unique<FileRenderPassthrough>(
         OutBase(), playback_video.get());
     stream_state->sinks.push_back(std::move(playback_video));
@@ -419,10 +479,7 @@ class RtpReplayer final {
     // Setup the receiving stream
     VideoReceiveStream::Decoder decoder;
     decoder = test::CreateMatchingDecoder(MediaPayloadType(), Codec());
-    if (DecoderBitstreamFilename().empty()) {
-      stream_state->decoder_factory =
-          std::make_unique<InternalDecoderFactory>();
-    } else {
+    if (!DecoderBitstreamFilename().empty()) {
       // Replace decoder with file writer if we're writing the bitstream to a
       // file instead.
       stream_state->decoder_factory =
@@ -430,6 +487,17 @@ class RtpReplayer final {
             return std::make_unique<DecoderBitstreamFileWriter>(
                 DecoderBitstreamFilename().c_str());
           });
+    } else if (!IVFFilename().empty()) {
+      // Replace decoder with file writer if we're writing the ivf to a
+      // file instead.
+      stream_state->decoder_factory =
+          std::make_unique<test::FunctionVideoDecoderFactory>([]() {
+            return std::make_unique<DecoderIvfFileWriter>(IVFFilename().c_str(),
+                                                          Codec());
+          });
+    } else {
+      stream_state->decoder_factory =
+          std::make_unique<InternalDecoderFactory>();
     }
     receive_config.decoder_factory = stream_state->decoder_factory.get();
     receive_config.decoders.push_back(decoder);
@@ -471,6 +539,8 @@ class RtpReplayer final {
     int num_packets = 0;
     std::map<uint32_t, int> unknown_packets;
     rtc::Event event(/*manual_reset=*/false, /*initially_signalled=*/false);
+    uint32_t start_timestamp = absl::GetFlag(FLAGS_start_timestamp);
+    uint32_t stop_timestamp = absl::GetFlag(FLAGS_stop_timestamp);
     while (true) {
       int64_t now_ms = rtc::TimeMillis();
       if (replay_start_ms == -1) {
@@ -481,6 +551,13 @@ class RtpReplayer final {
       if (!rtp_reader->NextPacket(&packet)) {
         break;
       }
+      rtc::CopyOnWriteBuffer packet_buffer(packet.data, packet.length);
+      RtpPacket header;
+      header.Parse(packet_buffer);
+      if (header.Timestamp() < start_timestamp ||
+          header.Timestamp() > stop_timestamp) {
+        continue;
+      }
 
       int64_t deliver_in_ms = replay_start_ms + packet.time_ms - now_ms;
       if (deliver_in_ms > 0) {
@@ -490,10 +567,9 @@ class RtpReplayer final {
       ++num_packets;
       PacketReceiver::DeliveryStatus result = PacketReceiver::DELIVERY_OK;
       worker_thread->PostTask(ToQueuedTask([&]() {
-        result = call->Receiver()->DeliverPacket(
-            webrtc::MediaType::VIDEO,
-            rtc::CopyOnWriteBuffer(packet.data, packet.length),
-            /* packet_time_us */ -1);
+        result = call->Receiver()->DeliverPacket(webrtc::MediaType::VIDEO,
+                                                 std::move(packet_buffer),
+                                                 /* packet_time_us */ -1);
         event.Set();
       }));
       event.Wait(/*give_up_after_ms=*/10000);
@@ -501,25 +577,17 @@ class RtpReplayer final {
         case PacketReceiver::DELIVERY_OK:
           break;
         case PacketReceiver::DELIVERY_UNKNOWN_SSRC: {
-          RTPHeader header;
-          std::unique_ptr<RtpHeaderParser> parser(
-              RtpHeaderParser::CreateForTest());
-          parser->Parse(packet.data, packet.length, &header);
-          if (unknown_packets[header.ssrc] == 0)
-            fprintf(stderr, "Unknown SSRC: %u!\n", header.ssrc);
-          ++unknown_packets[header.ssrc];
+          if (unknown_packets[header.Ssrc()] == 0)
+            fprintf(stderr, "Unknown SSRC: %u!\n", header.Ssrc());
+          ++unknown_packets[header.Ssrc()];
           break;
         }
         case PacketReceiver::DELIVERY_PACKET_ERROR: {
           fprintf(stderr,
                   "Packet error, corrupt packets or incorrect setup?\n");
-          RTPHeader header;
-          std::unique_ptr<RtpHeaderParser> parser(
-              RtpHeaderParser::CreateForTest());
-          parser->Parse(packet.data, packet.length, &header);
           fprintf(stderr, "Packet len=%zu pt=%u seq=%u ts=%u ssrc=0x%8x\n",
-                  packet.length, header.payloadType, header.sequenceNumber,
-                  header.timestamp, header.ssrc);
+                  packet.length, header.PayloadType(), header.SequenceNumber(),
+                  header.Timestamp(), header.Ssrc());
           break;
         }
       }
@@ -551,8 +619,6 @@ int main(int argc, char* argv[]) {
       ValidateOptionalPayloadType(absl::GetFlag(FLAGS_red_payload_type_rtx)));
   RTC_CHECK(
       ValidateOptionalPayloadType(absl::GetFlag(FLAGS_ulpfec_payload_type)));
-  RTC_CHECK(ValidateSsrc(absl::GetFlag(FLAGS_ssrc).c_str()));
-  RTC_CHECK(ValidateSsrc(absl::GetFlag(FLAGS_ssrc_rtx).c_str()));
   RTC_CHECK(
       ValidateRtpHeaderExtensionId(absl::GetFlag(FLAGS_abs_send_time_id)));
   RTC_CHECK(ValidateRtpHeaderExtensionId(

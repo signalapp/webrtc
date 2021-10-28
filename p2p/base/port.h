@@ -33,6 +33,7 @@
 #include "p2p/base/port_interface.h"
 #include "p2p/base/stun_request.h"
 #include "rtc_base/async_packet_socket.h"
+#include "rtc_base/callback_list.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/net_helper.h"
 #include "rtc_base/network.h"
@@ -98,14 +99,24 @@ class StunStats {
 // Stats that we can return about a candidate.
 class CandidateStats {
  public:
-  CandidateStats();
-  explicit CandidateStats(Candidate candidate);
-  CandidateStats(const CandidateStats&);
-  ~CandidateStats();
+  CandidateStats() = default;
+  CandidateStats(const CandidateStats&) = default;
+  CandidateStats(CandidateStats&&) = default;
+  CandidateStats(Candidate candidate,
+                 absl::optional<StunStats> stats = absl::nullopt)
+      : candidate_(std::move(candidate)), stun_stats_(std::move(stats)) {}
+  ~CandidateStats() = default;
 
-  Candidate candidate;
+  CandidateStats& operator=(const CandidateStats& other) = default;
+
+  const Candidate& candidate() const { return candidate_; }
+
+  const absl::optional<StunStats>& stun_stats() const { return stun_stats_; }
+
+ private:
+  Candidate candidate_;
   // STUN port stats if this candidate is a STUN candidate.
-  absl::optional<StunStats> stun_stats;
+  absl::optional<StunStats> stun_stats_;
 };
 
 typedef std::vector<CandidateStats> CandidateStatsList;
@@ -217,9 +228,6 @@ class Port : public PortInterface,
 
   // The factory used to create the sockets of this port.
   rtc::PacketSocketFactory* socket_factory() const { return factory_; }
-  void set_socket_factory(rtc::PacketSocketFactory* factory) {
-    factory_ = factory;
-  }
 
   // For debugging purposes.
   const std::string& content_name() const { return content_name_; }
@@ -269,6 +277,9 @@ class Port : public PortInterface,
   // connection.
   sigslot::signal1<Port*> SignalPortError;
 
+  void SubscribePortDestroyed(
+      std::function<void(PortInterface*)> callback) override;
+  void SendPortDestroyed(Port* port);
   // Returns a map containing all of the connections of this port, keyed by the
   // remote address.
   typedef std::map<rtc::SocketAddress, Connection*> AddressMap;
@@ -281,7 +292,7 @@ class Port : public PortInterface,
   sigslot::signal2<Port*, Connection*> SignalConnectionCreated;
 
   // In a shared socket mode each port which shares the socket will decide
-  // to accept the packet based on the |remote_addr|. Currently only UDP
+  // to accept the packet based on the `remote_addr`. Currently only UDP
   // port implemented this method.
   // TODO(mallinath) - Make it pure virtual.
   virtual bool HandleIncomingPacket(rtc::AsyncPacketSocket* socket,
@@ -290,7 +301,7 @@ class Port : public PortInterface,
                                     const rtc::SocketAddress& remote_addr,
                                     int64_t packet_time_us);
 
-  // Shall the port handle packet from this |remote_addr|.
+  // Shall the port handle packet from this `remote_addr`.
   // This method is overridden by TurnPort.
   virtual bool CanHandleIncomingPacketsFrom(
       const rtc::SocketAddress& remote_addr) const;
@@ -441,7 +452,7 @@ class Port : public PortInterface,
   void OnNetworkTypeChanged(const rtc::Network* network);
 
   rtc::Thread* const thread_;
-  rtc::PacketSocketFactory* factory_;
+  rtc::PacketSocketFactory* const factory_;
   std::string type_;
   bool send_retransmit_count_attribute_;
   rtc::Network* network_;
@@ -456,7 +467,7 @@ class Port : public PortInterface,
   // PortAllocatorSession will provide these username_fragment and password.
   //
   // Note: we should always use username_fragment() instead of using
-  // |ice_username_fragment_| directly. For the details see the comment on
+  // `ice_username_fragment_` directly. For the details see the comment on
   // username_fragment().
   std::string ice_username_fragment_;
   std::string password_;
@@ -487,6 +498,7 @@ class Port : public PortInterface,
                              bool is_final);
 
   friend class Connection;
+  webrtc::CallbackList<PortInterface*> port_destroyed_callback_list_;
 };
 
 }  // namespace cricket

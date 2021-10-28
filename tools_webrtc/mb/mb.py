@@ -81,8 +81,6 @@ class MetaBuildWrapper(object):
       subp.add_argument('-b', '--builder',
                         help='builder name to look up config from')
       subp.add_argument('-m', '--builder-group',
-                        # TODO(crbug.com/1117773): Remove the 'master' args.
-                        '--master',
                         help='builder group name to look up config from')
       subp.add_argument('-c', '--config',
                         help='configuration to analyze')
@@ -98,6 +96,9 @@ class MetaBuildWrapper(object):
                         default=self.default_isolate_map,
                         help='path to isolate map file '
                              '(default is %(default)s)')
+      subp.add_argument('-r', '--realm', default='webrtc:try',
+                        help='optional LUCI realm to use (for '
+                             'example when triggering tasks on Swarming)')
       subp.add_argument('-g', '--goma-dir',
                         help='path to goma directory')
       subp.add_argument('--android-version-code',
@@ -325,11 +326,14 @@ class MetaBuildWrapper(object):
       return ret
 
     if self.args.swarmed:
-      return self._RunUnderSwarming(build_dir, target)
+      cmd, _ = self.GetSwarmingCommand(self.args.target[0], vals)
+      return self._RunUnderSwarming(build_dir, target, cmd)
     else:
       return self._RunLocallyIsolated(build_dir, target)
 
-  def _RunUnderSwarming(self, build_dir, target):
+  def _RunUnderSwarming(self, build_dir, target, isolate_cmd):
+    cas_instance = 'chromium-swarm'
+    swarming_server = 'chromium-swarm.appspot.com'
     # TODO(dpranke): Look up the information for the target in
     # the //testing/buildbot.json file, if possible, so that we
     # can determine the isolate target, command line, and additional
@@ -338,7 +342,7 @@ class MetaBuildWrapper(object):
     # TODO(dpranke): Also, add support for sharding and merging results.
     dimensions = []
     for k, v in self.args.dimensions:
-      dimensions += ['-d', k, v]
+      dimensions += ['-d', '%s=%s' % (k, v)]
 
     archive_json_path = self.ToSrcRelPath(
         '%s/%s.archive.json' % (build_dir, target))
@@ -347,13 +351,24 @@ class MetaBuildWrapper(object):
         'archive',
         '-i',
         self.ToSrcRelPath('%s/%s.isolate' % (build_dir, target)),
-        '-s',
-        self.ToSrcRelPath('%s/%s.isolated' % (build_dir, target)),
-        '-I', 'isolateserver.appspot.com',
-        '-dump-json', archive_json_path,
-      ]
-    ret, _, _ = self.Run(cmd, force_verbose=False)
+        '-cas-instance',
+        cas_instance,
+        '-dump-json',
+        archive_json_path,
+    ]
+
+    # Talking to the isolateserver may fail because we're not logged in.
+    # We trap the command explicitly and rewrite the error output so that
+    # the error message is actually correct for a Chromium check out.
+    self.PrintCmd(cmd, env=None)
+    ret, out, err = self.Run(cmd, force_verbose=False)
     if ret:
+      self.Print('  -> returned %d' % ret)
+      if out:
+        self.Print(out, end='')
+      if err:
+        self.Print(err, end='', file=sys.stderr)
+
       return ret
 
     try:
@@ -363,7 +378,7 @@ class MetaBuildWrapper(object):
           'Failed to read JSON file "%s"' % archive_json_path, file=sys.stderr)
       return 1
     try:
-      isolated_hash = archive_hashes[target]
+      cas_digest = archive_hashes[target]
     except Exception:
       self.Print(
           'Cannot find hash for "%s" in "%s", file content: %s' %
@@ -371,16 +386,46 @@ class MetaBuildWrapper(object):
           file=sys.stderr)
       return 1
 
+    try:
+      json_dir = self.TempDir()
+      json_file = self.PathJoin(json_dir, 'task.json')
+
+      cmd = [
+          self.PathJoin('tools', 'luci-go', 'swarming'),
+          'trigger',
+          '-realm',
+          self.args.realm,
+          '-digest',
+          cas_digest,
+          '-server',
+          swarming_server,
+          '-tag=purpose:user-debug-mb',
+          '-relative-cwd',
+          self.ToSrcRelPath(build_dir),
+          '-dump-json',
+          json_file,
+      ] + dimensions + ['--'] + list(isolate_cmd)
+
+      if self.args.extra_args:
+        cmd += ['--'] + self.args.extra_args
+      self.Print('')
+      ret, _, _ = self.Run(cmd, force_verbose=True, buffer_output=False)
+      if ret:
+        return ret
+      task_json = self.ReadFile(json_file)
+      task_id = json.loads(task_json)["tasks"][0]['task_id']
+    finally:
+      if json_dir:
+        self.RemoveDirectory(json_dir)
+
     cmd = [
-        self.executable,
-        self.PathJoin('tools', 'swarming_client', 'swarming.py'),
-          'run',
-          '-s', isolated_hash,
-          '-I', 'isolateserver.appspot.com',
-          '-S', 'chromium-swarm.appspot.com',
-      ] + dimensions
-    if self.args.extra_args:
-      cmd += ['--'] + self.args.extra_args
+        self.PathJoin('tools', 'luci-go', 'swarming'),
+        'collect',
+        '-server',
+        swarming_server,
+        '-task-output-stdout=console',
+        task_id,
+    ]
     ret, _, _ = self.Run(cmd, force_verbose=True, buffer_output=False)
     return ret
 
@@ -685,7 +730,7 @@ class MetaBuildWrapper(object):
         raise MBErr('did not generate any of %s' %
                     ', '.join(runtime_deps_targets))
 
-      command, extra_files = self.GetIsolateCommand(target, vals)
+      command, extra_files = self.GetSwarmingCommand(target, vals)
 
       runtime_deps = self.ReadFile(runtime_deps_path).splitlines()
 
@@ -703,7 +748,7 @@ class MetaBuildWrapper(object):
     label = labels[0]
 
     build_dir = self.args.path[0]
-    command, extra_files = self.GetIsolateCommand(target, vals)
+    command, extra_files = self.GetSwarmingCommand(target, vals)
 
     cmd = self.GNCmd('desc', build_dir, label, 'runtime_deps')
     ret, out, _ = self.Call(cmd)
@@ -826,7 +871,7 @@ class MetaBuildWrapper(object):
       gn_args = ('import("%s")\n' % vals['args_file']) + gn_args
     return gn_args
 
-  def GetIsolateCommand(self, target, vals):
+  def GetSwarmingCommand(self, target, vals):
     isolate_map = self.ReadIsolateMap()
     test_type = isolate_map[target]['type']
 
@@ -1189,6 +1234,10 @@ class MetaBuildWrapper(object):
       self.Run(['cmd.exe', '/c', 'rmdir', '/q', '/s', abs_path])
     else:
       shutil.rmtree(abs_path, ignore_errors=True)
+
+  def TempDir(self):
+    # This function largely exists so it can be overriden for testing.
+    return tempfile.mkdtemp(prefix='mb_')
 
   def TempFile(self, mode='w'):
     # This function largely exists so it can be overriden for testing.

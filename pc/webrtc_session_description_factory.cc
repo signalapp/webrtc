@@ -142,7 +142,7 @@ WebRtcSessionDescriptionFactory::WebRtcSessionDescriptionFactory(
       // RFC 4566 suggested a Network Time Protocol (NTP) format timestamp
       // as the session id and session version. To simplify, it should be fine
       // to just use a random number as session id and start version from
-      // |kInitSessionVersion|.
+      // `kInitSessionVersion`.
       session_version_(kInitSessionVersion),
       cert_generator_(dtls_enabled ? std::move(cert_generator) : nullptr),
       sdp_info_(sdp_info),
@@ -160,13 +160,13 @@ WebRtcSessionDescriptionFactory::WebRtcSessionDescriptionFactory(
   // SRTP-SDES is disabled if DTLS is on.
   SetSdesPolicy(cricket::SEC_DISABLED);
   if (certificate) {
-    // Use |certificate|.
+    // Use `certificate`.
     certificate_request_state_ = CERTIFICATE_WAITING;
 
     RTC_LOG(LS_VERBOSE) << "DTLS-SRTP enabled; has certificate parameter.";
-    // We already have a certificate but we wait to do |SetIdentity|; if we do
+    // We already have a certificate but we wait to do `SetIdentity`; if we do
     // it in the constructor then the caller has not had a chance to connect to
-    // |SignalCertificateReady|.
+    // `SignalCertificateReady`.
     signaling_thread_->Post(
         RTC_FROM_HERE, this, MSG_USE_CONSTRUCTOR_CERTIFICATE,
         new rtc::ScopedRefMessageData<rtc::RTCCertificate>(certificate));
@@ -174,8 +174,7 @@ WebRtcSessionDescriptionFactory::WebRtcSessionDescriptionFactory(
     // Generate certificate.
     certificate_request_state_ = CERTIFICATE_WAITING;
 
-    rtc::scoped_refptr<WebRtcCertificateGeneratorCallback> callback(
-        new rtc::RefCountedObject<WebRtcCertificateGeneratorCallback>());
+    auto callback = rtc::make_ref_counted<WebRtcCertificateGeneratorCallback>();
     callback->SignalRequestFailed.connect(
         this, &WebRtcSessionDescriptionFactory::OnCertificateRequestFailed);
     callback->SignalCertificateReady.connect(
@@ -187,14 +186,14 @@ WebRtcSessionDescriptionFactory::WebRtcSessionDescriptionFactory(
         << key_params.type() << ").";
 
     // Request certificate. This happens asynchronously, so that the caller gets
-    // a chance to connect to |SignalCertificateReady|.
+    // a chance to connect to `SignalCertificateReady`.
     cert_generator_->GenerateCertificateAsync(key_params, absl::nullopt,
                                               callback);
   }
 }
 
 WebRtcSessionDescriptionFactory::~WebRtcSessionDescriptionFactory() {
-  RTC_DCHECK(signaling_thread_->IsCurrent());
+  RTC_DCHECK_RUN_ON(signaling_thread_);
 
   // Fail any requests that were asked for before identity generation completed.
   FailPendingRequests(kFailedDueToSessionShutdown);
@@ -222,6 +221,7 @@ void WebRtcSessionDescriptionFactory::CreateOffer(
     CreateSessionDescriptionObserver* observer,
     const PeerConnectionInterface::RTCOfferAnswerOptions& options,
     const cricket::MediaSessionOptions& session_options) {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
   std::string error = "CreateOffer";
   if (certificate_request_state_ == CERTIFICATE_FAILED) {
     error += kFailedDueToIdentityFailed;
@@ -361,7 +361,7 @@ void WebRtcSessionDescriptionFactory::InternalCreateOffer(
 
   // Just increase the version number by one each time when a new offer
   // is created regardless if it's identical to the previous one or not.
-  // The |session_version_| is a uint64_t, the wrap around should not happen.
+  // The `session_version_` is a uint64_t, the wrap around should not happen.
   RTC_DCHECK(session_version_ + 1 > session_version_);
   auto offer = std::make_unique<JsepSessionDescription>(
       SdpType::kOffer, std::move(desc), session_id_,
@@ -419,8 +419,8 @@ void WebRtcSessionDescriptionFactory::InternalCreateAnswer(
   // addresses, ports, etc.), the origin line MUST be different in the answer.
   // In that case, the version number in the "o=" line of the answer is
   // unrelated to the version number in the o line of the offer.
-  // Get a new version number by increasing the |session_version_answer_|.
-  // The |session_version_| is a uint64_t, the wrap around should not happen.
+  // Get a new version number by increasing the `session_version_answer_`.
+  // The `session_version_` is a uint64_t, the wrap around should not happen.
   RTC_DCHECK(session_version_ + 1 > session_version_);
   auto answer = std::make_unique<JsepSessionDescription>(
       SdpType::kAnswer, std::move(desc), session_id_,
@@ -441,7 +441,7 @@ void WebRtcSessionDescriptionFactory::InternalCreateAnswer(
 
 void WebRtcSessionDescriptionFactory::FailPendingRequests(
     const std::string& reason) {
-  RTC_DCHECK(signaling_thread_->IsCurrent());
+  RTC_DCHECK_RUN_ON(signaling_thread_);
   while (!create_session_description_requests_.empty()) {
     const CreateSessionDescriptionRequest& request =
         create_session_description_requests_.front();
@@ -476,7 +476,7 @@ void WebRtcSessionDescriptionFactory::PostCreateSessionDescriptionSucceeded(
 }
 
 void WebRtcSessionDescriptionFactory::OnCertificateRequestFailed() {
-  RTC_DCHECK(signaling_thread_->IsCurrent());
+  RTC_DCHECK_RUN_ON(signaling_thread_);
 
   RTC_LOG(LS_ERROR) << "Asynchronous certificate generation request failed.";
   certificate_request_state_ = CERTIFICATE_FAILED;

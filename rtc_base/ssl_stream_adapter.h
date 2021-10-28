@@ -18,7 +18,6 @@
 #include <vector>
 
 #include "absl/memory/memory.h"
-#include "rtc_base/deprecation.h"
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_identity.h"
 #include "rtc_base/stream.h"
@@ -27,34 +26,26 @@
 namespace rtc {
 
 // Constants for SSL profile.
-const int TLS_NULL_WITH_NULL_NULL = 0;
-const int SSL_CIPHER_SUITE_MAX_VALUE = 0xFFFF;
+constexpr int kTlsNullWithNullNull = 0;
+constexpr int kSslCipherSuiteMaxValue = 0xFFFF;
 
 // Constants for SRTP profiles.
-const int SRTP_INVALID_CRYPTO_SUITE = 0;
-#ifndef SRTP_AES128_CM_SHA1_80
-const int SRTP_AES128_CM_SHA1_80 = 0x0001;
-#endif
-#ifndef SRTP_AES128_CM_SHA1_32
-const int SRTP_AES128_CM_SHA1_32 = 0x0002;
-#endif
-#ifndef SRTP_AEAD_AES_128_GCM
-const int SRTP_AEAD_AES_128_GCM = 0x0007;
-#endif
-#ifndef SRTP_AEAD_AES_256_GCM
-const int SRTP_AEAD_AES_256_GCM = 0x0008;
-#endif
-const int SRTP_CRYPTO_SUITE_MAX_VALUE = 0xFFFF;
+constexpr int kSrtpInvalidCryptoSuite = 0;
+constexpr int kSrtpAes128CmSha1_80 = 0x0001;
+constexpr int kSrtpAes128CmSha1_32 = 0x0002;
+constexpr int kSrtpAeadAes128Gcm = 0x0007;
+constexpr int kSrtpAeadAes256Gcm = 0x0008;
+constexpr int kSrtpCryptoSuiteMaxValue = 0xFFFF;
 
 // Names of SRTP profiles listed above.
 // 128-bit AES with 80-bit SHA-1 HMAC.
-extern const char CS_AES_CM_128_HMAC_SHA1_80[];
+extern const char kCsAesCm128HmacSha1_80[];
 // 128-bit AES with 32-bit SHA-1 HMAC.
-extern const char CS_AES_CM_128_HMAC_SHA1_32[];
+extern const char kCsAesCm128HmacSha1_32[];
 // 128-bit AES GCM with 16 byte AEAD auth tag.
-extern const char CS_AEAD_AES_128_GCM[];
+extern const char kCsAeadAes128Gcm[];
 // 256-bit AES GCM with 16 byte AEAD auth tag.
-extern const char CS_AEAD_AES_256_GCM[];
+extern const char kCsAeadAes256Gcm[];
 
 // Given the DTLS-SRTP protection profile ID, as defined in
 // https://tools.ietf.org/html/rfc4568#section-6.2 , return the SRTP profile
@@ -119,7 +110,7 @@ enum { SSE_MSG_TRUNC = 0xff0001 };
 // Used to send back UMA histogram value. Logged when Dtls handshake fails.
 enum class SSLHandshakeError { UNKNOWN, INCOMPATIBLE_CIPHERSUITE, MAX_VALUE };
 
-class SSLStreamAdapter : public StreamAdapterInterface {
+class SSLStreamAdapter : public StreamInterface, public sigslot::has_slots<> {
  public:
   // Instantiate an SSLStreamAdapter wrapping the given stream,
   // (using the selected implementation for the platform).
@@ -127,8 +118,8 @@ class SSLStreamAdapter : public StreamAdapterInterface {
   static std::unique_ptr<SSLStreamAdapter> Create(
       std::unique_ptr<StreamInterface> stream);
 
-  explicit SSLStreamAdapter(std::unique_ptr<StreamInterface> stream);
-  ~SSLStreamAdapter() override;
+  SSLStreamAdapter() = default;
+  ~SSLStreamAdapter() override = default;
 
   // Specify our SSL identity: key and certificate. SSLStream takes ownership
   // of the SSLIdentity object and will free it when appropriate. Should be
@@ -183,7 +174,7 @@ class SSLStreamAdapter : public StreamAdapterInterface {
   // certificate, not just a CA. SSLStream makes a copy of the digest value.
   //
   // Returns true if successful.
-  // |error| is optional and provides more information about the failure.
+  // `error` is optional and provides more information about the failure.
   virtual bool SetPeerCertificateDigest(
       const std::string& digest_alg,
       const unsigned char* digest_val,

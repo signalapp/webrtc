@@ -15,12 +15,12 @@
 #include <utility>
 
 #include "absl/algorithm/container.h"
+#include "api/sequence_checker.h"
 #include "api/video/video_adaptation_counters.h"
 #include "call/adaptation/video_stream_adapter.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/ref_counted_object.h"
 #include "rtc_base/strings/string_builder.h"
-#include "rtc_base/synchronization/sequence_checker.h"
 #include "rtc_base/task_utils/to_queued_task.h"
 
 namespace webrtc {
@@ -72,7 +72,7 @@ ResourceAdaptationProcessor::ResourceAdaptationProcessor(
     VideoStreamAdapter* stream_adapter)
     : task_queue_(nullptr),
       resource_listener_delegate_(
-          new rtc::RefCountedObject<ResourceListenerDelegate>(this)),
+          rtc::make_ref_counted<ResourceListenerDelegate>(this)),
       resources_(),
       stream_adapter_(stream_adapter),
       last_reported_source_restrictions_(),
@@ -200,7 +200,7 @@ void ResourceAdaptationProcessor::OnResourceUsageStateMeasured(
     ResourceUsageState usage_state) {
   RTC_DCHECK_RUN_ON(task_queue_);
   RTC_DCHECK(resource);
-  // |resource| could have been removed after signalling.
+  // `resource` could have been removed after signalling.
   {
     MutexLock crit(&resources_lock_);
     if (absl::c_find(resources_, resource) == resources_.end()) {
@@ -261,7 +261,7 @@ ResourceAdaptationProcessor::OnResourceUnderuse(
   if (!most_limited_resources.empty() &&
       most_limited_restrictions.counters.Total() >=
           stream_adapter_->adaptation_counters().Total()) {
-    // If |reason_resource| is not one of the most limiting resources then abort
+    // If `reason_resource` is not one of the most limiting resources then abort
     // adaptation.
     if (absl::c_find(most_limited_resources, reason_resource) ==
         most_limited_resources.end()) {

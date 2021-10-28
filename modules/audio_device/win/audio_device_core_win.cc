@@ -25,7 +25,6 @@
 
 #include "modules/audio_device/win/audio_device_core_win.h"
 
-#include <assert.h>
 #include <string.h>
 
 #include <comdef.h>
@@ -174,7 +173,7 @@ class MediaBufferImpl final : public IMediaBuffer {
 // ----------------------------------------------------------------------------
 
 bool AudioDeviceWindowsCore::CoreAudioIsSupported() {
-  RTC_LOG(LS_VERBOSE) << __FUNCTION__;
+  RTC_DLOG(LS_VERBOSE) << __FUNCTION__;
 
   bool MMDeviceIsAvailable(false);
   bool coreAudioIsSupported(false);
@@ -281,7 +280,7 @@ bool AudioDeviceWindowsCore::CoreAudioIsSupported() {
     DWORD messageLength = ::FormatMessageW(dwFlags, 0, hr, dwLangID, errorText,
                                            MAXERRORLENGTH, NULL);
 
-    assert(messageLength <= MAXERRORLENGTH);
+    RTC_DCHECK_LE(messageLength, MAXERRORLENGTH);
 
     // Trims tailing white space (FormatMessage() leaves a trailing cr-lf.).
     for (; messageLength && ::isspace(errorText[messageLength - 1]);
@@ -395,7 +394,7 @@ AudioDeviceWindowsCore::AudioDeviceWindowsCore()
       _outputDevice(AudioDeviceModule::kDefaultCommunicationDevice),
       _inputDeviceIndex(0),
       _outputDeviceIndex(0) {
-  RTC_LOG(LS_INFO) << __FUNCTION__ << " created";
+  RTC_DLOG(LS_INFO) << __FUNCTION__ << " created";
   RTC_DCHECK(_comInit.Succeeded());
 
   // Try to load the Avrt DLL
@@ -469,7 +468,7 @@ AudioDeviceWindowsCore::AudioDeviceWindowsCore()
   CoCreateInstance(__uuidof(MMDeviceEnumerator), NULL, CLSCTX_ALL,
                    __uuidof(IMMDeviceEnumerator),
                    reinterpret_cast<void**>(&_ptrEnumerator));
-  assert(NULL != _ptrEnumerator);
+  RTC_DCHECK(_ptrEnumerator);
 
   // DMO initialization for built-in WASAPI AEC.
   {
@@ -492,7 +491,7 @@ AudioDeviceWindowsCore::AudioDeviceWindowsCore()
 // ----------------------------------------------------------------------------
 
 AudioDeviceWindowsCore::~AudioDeviceWindowsCore() {
-  RTC_LOG(LS_INFO) << __FUNCTION__ << " destroyed";
+  RTC_DLOG(LS_INFO) << __FUNCTION__ << " destroyed";
 
   Terminate();
 
@@ -1347,7 +1346,7 @@ Exit:
 // ----------------------------------------------------------------------------
 
 int32_t AudioDeviceWindowsCore::MaxMicrophoneVolume(uint32_t& maxVolume) const {
-  RTC_LOG(LS_VERBOSE) << __FUNCTION__;
+  RTC_DLOG(LS_VERBOSE) << __FUNCTION__;
 
   if (!_microphoneIsInitialized) {
     return -1;
@@ -1411,7 +1410,7 @@ int32_t AudioDeviceWindowsCore::SetPlayoutDevice(uint16_t index) {
 
   HRESULT hr(S_OK);
 
-  assert(_ptrRenderCollection != NULL);
+  RTC_DCHECK(_ptrRenderCollection);
 
   //  Select an endpoint rendering device given the specified index
   SAFE_RELEASE(_ptrDeviceOut);
@@ -1461,7 +1460,7 @@ int32_t AudioDeviceWindowsCore::SetPlayoutDevice(
 
   HRESULT hr(S_OK);
 
-  assert(_ptrEnumerator != NULL);
+  RTC_DCHECK(_ptrEnumerator);
 
   //  Select an endpoint rendering device given the specified role
   SAFE_RELEASE(_ptrDeviceOut);
@@ -1677,7 +1676,7 @@ int32_t AudioDeviceWindowsCore::SetRecordingDevice(uint16_t index) {
 
   HRESULT hr(S_OK);
 
-  assert(_ptrCaptureCollection != NULL);
+  RTC_DCHECK(_ptrCaptureCollection);
 
   // Select an endpoint capture device given the specified index
   SAFE_RELEASE(_ptrDeviceIn);
@@ -1727,7 +1726,7 @@ int32_t AudioDeviceWindowsCore::SetRecordingDevice(
 
   HRESULT hr(S_OK);
 
-  assert(_ptrEnumerator != NULL);
+  RTC_DCHECK(_ptrEnumerator);
 
   //  Select an endpoint capture device given the specified role
   SAFE_RELEASE(_ptrDeviceIn);
@@ -2036,8 +2035,8 @@ Exit:
 // handles device initialization itself.
 // Reference: http://msdn.microsoft.com/en-us/library/ff819492(v=vs.85).aspx
 int32_t AudioDeviceWindowsCore::InitRecordingDMO() {
-  assert(_builtInAecEnabled);
-  assert(_dmo != NULL);
+  RTC_DCHECK(_builtInAecEnabled);
+  RTC_DCHECK(_dmo);
 
   if (SetDMOProperties() == -1) {
     return -1;
@@ -2356,7 +2355,7 @@ int32_t AudioDeviceWindowsCore::StartRecording() {
       }
     }
 
-    assert(_hRecThread == NULL);
+    RTC_DCHECK(_hRecThread == NULL);
     _hRecThread = CreateThread(NULL, 0, lpStartAddress, this, 0, NULL);
     if (_hRecThread == NULL) {
       RTC_LOG(LS_ERROR) << "failed to create the recording thread";
@@ -2421,8 +2420,8 @@ int32_t AudioDeviceWindowsCore::StopRecording() {
 
   ResetEvent(_hShutdownCaptureEvent);  // Must be manually reset.
   // Ensure that the thread has released these interfaces properly.
-  assert(err == -1 || _ptrClientIn == NULL);
-  assert(err == -1 || _ptrCaptureClient == NULL);
+  RTC_DCHECK(err == -1 || _ptrClientIn == NULL);
+  RTC_DCHECK(err == -1 || _ptrCaptureClient == NULL);
 
   _recIsInitialized = false;
   _recording = false;
@@ -2433,7 +2432,7 @@ int32_t AudioDeviceWindowsCore::StopRecording() {
   _hRecThread = NULL;
 
   if (_builtInAecEnabled) {
-    assert(_dmo != NULL);
+    RTC_DCHECK(_dmo);
     // This is necessary. Otherwise the DMO can generate garbage render
     // audio even after rendering has stopped.
     HRESULT hr = _dmo->FreeStreamingResources();
@@ -2493,7 +2492,7 @@ int32_t AudioDeviceWindowsCore::StartPlayout() {
     MutexLock lockScoped(&mutex_);
 
     // Create thread which will drive the rendering.
-    assert(_hPlayThread == NULL);
+    RTC_DCHECK(_hPlayThread == NULL);
     _hPlayThread = CreateThread(NULL, 0, WSAPIRenderThread, this, 0, NULL);
     if (_hPlayThread == NULL) {
       RTC_LOG(LS_ERROR) << "failed to create the playout thread";
@@ -2954,7 +2953,7 @@ void AudioDeviceWindowsCore::RevertCaptureThreadPriority() {
 }
 
 DWORD AudioDeviceWindowsCore::DoCaptureThreadPollDMO() {
-  assert(_mediaBuffer != NULL);
+  RTC_DCHECK(_mediaBuffer);
   bool keepRecording = true;
 
   // Initialize COM as MTA in this thread.
@@ -3001,8 +3000,8 @@ DWORD AudioDeviceWindowsCore::DoCaptureThreadPollDMO() {
         dmoBuffer.pBuffer->AddRef();
 
         // Poll the DMO for AEC processed capture data. The DMO will
-        // copy available data to |dmoBuffer|, and should only return
-        // 10 ms frames. The value of |dwStatus| should be ignored.
+        // copy available data to `dmoBuffer`, and should only return
+        // 10 ms frames. The value of `dwStatus` should be ignored.
         hr = _dmo->ProcessOutput(0, 1, &dmoBuffer, &dwStatus);
         SAFE_RELEASE(dmoBuffer.pBuffer);
         dwStatus = dmoBuffer.dwStatus;
@@ -3010,7 +3009,7 @@ DWORD AudioDeviceWindowsCore::DoCaptureThreadPollDMO() {
       if (FAILED(hr)) {
         _TraceCOMError(hr);
         keepRecording = false;
-        assert(false);
+        RTC_NOTREACHED();
         break;
       }
 
@@ -3022,7 +3021,7 @@ DWORD AudioDeviceWindowsCore::DoCaptureThreadPollDMO() {
       if (FAILED(hr)) {
         _TraceCOMError(hr);
         keepRecording = false;
-        assert(false);
+        RTC_NOTREACHED();
         break;
       }
 
@@ -3031,8 +3030,8 @@ DWORD AudioDeviceWindowsCore::DoCaptureThreadPollDMO() {
         // TODO(andrew): verify that this is always satisfied. It might
         // be that ProcessOutput will try to return more than 10 ms if
         // we fail to call it frequently enough.
-        assert(kSamplesProduced == static_cast<int>(_recBlockSize));
-        assert(sizeof(BYTE) == sizeof(int8_t));
+        RTC_DCHECK_EQ(kSamplesProduced, static_cast<int>(_recBlockSize));
+        RTC_DCHECK_EQ(sizeof(BYTE), sizeof(int8_t));
         _ptrAudioBuffer->SetRecordedBuffer(reinterpret_cast<int8_t*>(data),
                                            kSamplesProduced);
         _ptrAudioBuffer->SetVQEData(0, 0);
@@ -3047,7 +3046,7 @@ DWORD AudioDeviceWindowsCore::DoCaptureThreadPollDMO() {
       if (FAILED(hr)) {
         _TraceCOMError(hr);
         keepRecording = false;
-        assert(false);
+        RTC_NOTREACHED();
         break;
       }
 
@@ -3228,7 +3227,7 @@ DWORD AudioDeviceWindowsCore::DoCaptureThread() {
           pData = NULL;
         }
 
-        assert(framesAvailable != 0);
+        RTC_DCHECK_NE(framesAvailable, 0);
 
         if (pData) {
           CopyMemory(&syncBuffer[syncBufIndex * _recAudioFrameSize], pData,
@@ -3237,8 +3236,8 @@ DWORD AudioDeviceWindowsCore::DoCaptureThread() {
           ZeroMemory(&syncBuffer[syncBufIndex * _recAudioFrameSize],
                      framesAvailable * _recAudioFrameSize);
         }
-        assert(syncBufferSize >= (syncBufIndex * _recAudioFrameSize) +
-                                     framesAvailable * _recAudioFrameSize);
+        RTC_DCHECK_GE(syncBufferSize, (syncBufIndex * _recAudioFrameSize) +
+                                          framesAvailable * _recAudioFrameSize);
 
         // Release the capture buffer
         //
@@ -3377,7 +3376,7 @@ void AudioDeviceWindowsCore::_UnLock() RTC_NO_THREAD_SAFETY_ANALYSIS {
 
 int AudioDeviceWindowsCore::SetDMOProperties() {
   HRESULT hr = S_OK;
-  assert(_dmo != NULL);
+  RTC_DCHECK(_dmo);
 
   rtc::scoped_refptr<IPropertyStore> ps;
   {
@@ -3512,13 +3511,13 @@ int AudioDeviceWindowsCore::SetVtI4Property(IPropertyStore* ptrPS,
 // ----------------------------------------------------------------------------
 
 int32_t AudioDeviceWindowsCore::_RefreshDeviceList(EDataFlow dir) {
-  RTC_LOG(LS_VERBOSE) << __FUNCTION__;
+  RTC_DLOG(LS_VERBOSE) << __FUNCTION__;
 
   HRESULT hr = S_OK;
   IMMDeviceCollection* pCollection = NULL;
 
-  assert(dir == eRender || dir == eCapture);
-  assert(_ptrEnumerator != NULL);
+  RTC_DCHECK(dir == eRender || dir == eCapture);
+  RTC_DCHECK(_ptrEnumerator);
 
   // Create a fresh list of devices using the specified direction
   hr = _ptrEnumerator->EnumAudioEndpoints(dir, DEVICE_STATE_ACTIVE,
@@ -3548,12 +3547,12 @@ int32_t AudioDeviceWindowsCore::_RefreshDeviceList(EDataFlow dir) {
 // ----------------------------------------------------------------------------
 
 int16_t AudioDeviceWindowsCore::_DeviceListCount(EDataFlow dir) {
-  RTC_LOG(LS_VERBOSE) << __FUNCTION__;
+  RTC_DLOG(LS_VERBOSE) << __FUNCTION__;
 
   HRESULT hr = S_OK;
   UINT count = 0;
 
-  assert(eRender == dir || eCapture == dir);
+  RTC_DCHECK(eRender == dir || eCapture == dir);
 
   if (eRender == dir && NULL != _ptrRenderCollection) {
     hr = _ptrRenderCollection->GetCount(&count);
@@ -3584,12 +3583,12 @@ int32_t AudioDeviceWindowsCore::_GetListDeviceName(EDataFlow dir,
                                                    int index,
                                                    LPWSTR szBuffer,
                                                    int bufferLen) {
-  RTC_LOG(LS_VERBOSE) << __FUNCTION__;
+  RTC_DLOG(LS_VERBOSE) << __FUNCTION__;
 
   HRESULT hr = S_OK;
   IMMDevice* pDevice = NULL;
 
-  assert(dir == eRender || dir == eCapture);
+  RTC_DCHECK(dir == eRender || dir == eCapture);
 
   if (eRender == dir && NULL != _ptrRenderCollection) {
     hr = _ptrRenderCollection->Item(index, &pDevice);
@@ -3621,14 +3620,14 @@ int32_t AudioDeviceWindowsCore::_GetDefaultDeviceName(EDataFlow dir,
                                                       ERole role,
                                                       LPWSTR szBuffer,
                                                       int bufferLen) {
-  RTC_LOG(LS_VERBOSE) << __FUNCTION__;
+  RTC_DLOG(LS_VERBOSE) << __FUNCTION__;
 
   HRESULT hr = S_OK;
   IMMDevice* pDevice = NULL;
 
-  assert(dir == eRender || dir == eCapture);
-  assert(role == eConsole || role == eCommunications);
-  assert(_ptrEnumerator != NULL);
+  RTC_DCHECK(dir == eRender || dir == eCapture);
+  RTC_DCHECK(role == eConsole || role == eCommunications);
+  RTC_DCHECK(_ptrEnumerator);
 
   hr = _ptrEnumerator->GetDefaultAudioEndpoint(dir, role, &pDevice);
 
@@ -3658,12 +3657,12 @@ int32_t AudioDeviceWindowsCore::_GetListDeviceID(EDataFlow dir,
                                                  int index,
                                                  LPWSTR szBuffer,
                                                  int bufferLen) {
-  RTC_LOG(LS_VERBOSE) << __FUNCTION__;
+  RTC_DLOG(LS_VERBOSE) << __FUNCTION__;
 
   HRESULT hr = S_OK;
   IMMDevice* pDevice = NULL;
 
-  assert(dir == eRender || dir == eCapture);
+  RTC_DCHECK(dir == eRender || dir == eCapture);
 
   if (eRender == dir && NULL != _ptrRenderCollection) {
     hr = _ptrRenderCollection->Item(index, &pDevice);
@@ -3695,14 +3694,14 @@ int32_t AudioDeviceWindowsCore::_GetDefaultDeviceID(EDataFlow dir,
                                                     ERole role,
                                                     LPWSTR szBuffer,
                                                     int bufferLen) {
-  RTC_LOG(LS_VERBOSE) << __FUNCTION__;
+  RTC_DLOG(LS_VERBOSE) << __FUNCTION__;
 
   HRESULT hr = S_OK;
   IMMDevice* pDevice = NULL;
 
-  assert(dir == eRender || dir == eCapture);
-  assert(role == eConsole || role == eCommunications);
-  assert(_ptrEnumerator != NULL);
+  RTC_DCHECK(dir == eRender || dir == eCapture);
+  RTC_DCHECK(role == eConsole || role == eCommunications);
+  RTC_DCHECK(_ptrEnumerator);
 
   hr = _ptrEnumerator->GetDefaultAudioEndpoint(dir, role, &pDevice);
 
@@ -3720,15 +3719,15 @@ int32_t AudioDeviceWindowsCore::_GetDefaultDeviceID(EDataFlow dir,
 int32_t AudioDeviceWindowsCore::_GetDefaultDeviceIndex(EDataFlow dir,
                                                        ERole role,
                                                        int* index) {
-  RTC_LOG(LS_VERBOSE) << __FUNCTION__;
+  RTC_DLOG(LS_VERBOSE) << __FUNCTION__;
 
   HRESULT hr = S_OK;
   WCHAR szDefaultDeviceID[MAX_PATH] = {0};
   WCHAR szDeviceID[MAX_PATH] = {0};
 
   const size_t kDeviceIDLength = sizeof(szDeviceID) / sizeof(szDeviceID[0]);
-  assert(kDeviceIDLength ==
-         sizeof(szDefaultDeviceID) / sizeof(szDefaultDeviceID[0]));
+  RTC_DCHECK_EQ(kDeviceIDLength,
+                sizeof(szDefaultDeviceID) / sizeof(szDefaultDeviceID[0]));
 
   if (_GetDefaultDeviceID(dir, role, szDefaultDeviceID, kDeviceIDLength) ==
       -1) {
@@ -3793,7 +3792,7 @@ int32_t AudioDeviceWindowsCore::_GetDefaultDeviceIndex(EDataFlow dir,
 int32_t AudioDeviceWindowsCore::_GetDeviceName(IMMDevice* pDevice,
                                                LPWSTR pszBuffer,
                                                int bufferLen) {
-  RTC_LOG(LS_VERBOSE) << __FUNCTION__;
+  RTC_DLOG(LS_VERBOSE) << __FUNCTION__;
 
   static const WCHAR szDefault[] = L"<Device not available>";
 
@@ -3801,8 +3800,8 @@ int32_t AudioDeviceWindowsCore::_GetDeviceName(IMMDevice* pDevice,
   IPropertyStore* pProps = NULL;
   PROPVARIANT varName;
 
-  assert(pszBuffer != NULL);
-  assert(bufferLen > 0);
+  RTC_DCHECK(pszBuffer);
+  RTC_DCHECK_GT(bufferLen, 0);
 
   if (pDevice != NULL) {
     hr = pDevice->OpenPropertyStore(STGM_READ, &pProps);
@@ -3860,15 +3859,15 @@ int32_t AudioDeviceWindowsCore::_GetDeviceName(IMMDevice* pDevice,
 int32_t AudioDeviceWindowsCore::_GetDeviceID(IMMDevice* pDevice,
                                              LPWSTR pszBuffer,
                                              int bufferLen) {
-  RTC_LOG(LS_VERBOSE) << __FUNCTION__;
+  RTC_DLOG(LS_VERBOSE) << __FUNCTION__;
 
   static const WCHAR szDefault[] = L"<Device not available>";
 
   HRESULT hr = E_FAIL;
   LPWSTR pwszID = NULL;
 
-  assert(pszBuffer != NULL);
-  assert(bufferLen > 0);
+  RTC_DCHECK(pszBuffer);
+  RTC_DCHECK_GT(bufferLen, 0);
 
   if (pDevice != NULL) {
     hr = pDevice->GetId(&pwszID);
@@ -3893,11 +3892,11 @@ int32_t AudioDeviceWindowsCore::_GetDeviceID(IMMDevice* pDevice,
 int32_t AudioDeviceWindowsCore::_GetDefaultDevice(EDataFlow dir,
                                                   ERole role,
                                                   IMMDevice** ppDevice) {
-  RTC_LOG(LS_VERBOSE) << __FUNCTION__;
+  RTC_DLOG(LS_VERBOSE) << __FUNCTION__;
 
   HRESULT hr(S_OK);
 
-  assert(_ptrEnumerator != NULL);
+  RTC_DCHECK(_ptrEnumerator);
 
   hr = _ptrEnumerator->GetDefaultAudioEndpoint(dir, role, ppDevice);
   if (FAILED(hr)) {
@@ -3917,7 +3916,7 @@ int32_t AudioDeviceWindowsCore::_GetListDevice(EDataFlow dir,
                                                IMMDevice** ppDevice) {
   HRESULT hr(S_OK);
 
-  assert(_ptrEnumerator != NULL);
+  RTC_DCHECK(_ptrEnumerator);
 
   IMMDeviceCollection* pCollection = NULL;
 
@@ -3938,6 +3937,8 @@ int32_t AudioDeviceWindowsCore::_GetListDevice(EDataFlow dir,
     return -1;
   }
 
+  SAFE_RELEASE(pCollection);
+
   return 0;
 }
 
@@ -3947,9 +3948,9 @@ int32_t AudioDeviceWindowsCore::_GetListDevice(EDataFlow dir,
 
 int32_t AudioDeviceWindowsCore::_EnumerateEndpointDevicesAll(
     EDataFlow dataFlow) const {
-  RTC_LOG(LS_VERBOSE) << __FUNCTION__;
+  RTC_DLOG(LS_VERBOSE) << __FUNCTION__;
 
-  assert(_ptrEnumerator != NULL);
+  RTC_DCHECK(_ptrEnumerator);
 
   HRESULT hr = S_OK;
   IMMDeviceCollection* pCollection = NULL;
@@ -4141,7 +4142,7 @@ void AudioDeviceWindowsCore::_TraceCOMError(HRESULT hr) const {
   DWORD messageLength = ::FormatMessageW(dwFlags, 0, hr, dwLangID, errorText,
                                          MAXERRORLENGTH, NULL);
 
-  assert(messageLength <= MAXERRORLENGTH);
+  RTC_DCHECK_LE(messageLength, MAXERRORLENGTH);
 
   // Trims tailing white space (FormatMessage() leaves a trailing cr-lf.).
   for (; messageLength && ::isspace(errorText[messageLength - 1]);

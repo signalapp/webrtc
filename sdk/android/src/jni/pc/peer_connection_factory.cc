@@ -242,9 +242,9 @@ static void JNI_PeerConnectionFactory_ShutdownInternalTracer(JNIEnv* jni) {
 }
 
 // Following parameters are optional:
-// |audio_device_module|, |jencoder_factory|, |jdecoder_factory|,
-// |audio_processor|, |fec_controller_factory|,
-// |network_state_predictor_factory|, |neteq_factory|.
+// `audio_device_module`, `jencoder_factory`, `jdecoder_factory`,
+// `audio_processor`, `fec_controller_factory`,
+// `network_state_predictor_factory`, `neteq_factory`.
 ScopedJavaLocalRef<jobject> CreatePeerConnectionFactoryForJava(
     JNIEnv* jni,
     const JavaParamRef<jobject>& jcontext,
@@ -471,14 +471,14 @@ static jlong JNI_PeerConnectionFactory_CreatePeerConnection(
             jni, j_sslCertificateVerifier);
   }
 
-  rtc::scoped_refptr<PeerConnectionInterface> pc =
-      PeerConnectionFactoryFromJava(factory)->CreatePeerConnection(
+  auto result =
+      PeerConnectionFactoryFromJava(factory)->CreatePeerConnectionOrError(
           rtc_config, std::move(peer_connection_dependencies));
-  if (!pc)
+  if (!result.ok())
     return 0;
 
-  return jlongFromPointer(
-      new OwnedPeerConnection(pc, std::move(observer), std::move(constraints)));
+  return jlongFromPointer(new OwnedPeerConnection(
+      result.MoveValue(), std::move(observer), std::move(constraints)));
 }
 
 static jlong JNI_PeerConnectionFactory_CreateVideoSource(

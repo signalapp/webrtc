@@ -55,6 +55,7 @@ constexpr int kFramerate = 30;
 
 VideoCodec DefaultCodecSettings() {
   VideoCodec codec_settings;
+  codec_settings.SetScalabilityMode("NONE");
   codec_settings.width = kWidth;
   codec_settings.height = kHeight;
   codec_settings.maxFramerate = kFramerate;
@@ -76,9 +77,7 @@ class TestAv1Decoder {
       ADD_FAILURE() << "Failed to create a decoder#" << decoder_id_;
       return;
     }
-    EXPECT_EQ(decoder_->InitDecode(/*codec_settings=*/nullptr,
-                                   /*number_of_cores=*/1),
-              WEBRTC_VIDEO_CODEC_OK);
+    EXPECT_TRUE(decoder_->Configure({}));
     EXPECT_EQ(decoder_->RegisterDecodeCompleteCallback(&callback_),
               WEBRTC_VIDEO_CODEC_OK);
   }
@@ -250,10 +249,10 @@ TEST_P(LibaomAv1SvcTest, SetRatesMatchMeasuredBitrate) {
                           kv.second.bps());
   }
 
-  std::unique_ptr<VideoEncoder> encoder =
-      CreateLibaomAv1Encoder(CreateScalabilityStructure(param.name));
+  std::unique_ptr<VideoEncoder> encoder = CreateLibaomAv1Encoder();
   ASSERT_TRUE(encoder);
   VideoCodec codec_settings = DefaultCodecSettings();
+  codec_settings.SetScalabilityMode(param.name);
   codec_settings.maxBitrate = allocation.get_sum_kbps();
   codec_settings.maxFramerate = 30;
   ASSERT_EQ(encoder->InitEncode(&codec_settings, DefaultEncoderSettings()),
@@ -314,6 +313,7 @@ INSTANTIATE_TEST_SUITE_P(
            SvcTestParam{"L3T1", /*num_frames_to_generate=*/3},
            SvcTestParam{"L3T3", /*num_frames_to_generate=*/8},
            SvcTestParam{"S2T1", /*num_frames_to_generate=*/3},
+           SvcTestParam{"S3T3", /*num_frames_to_generate=*/8},
            SvcTestParam{"L2T2", /*num_frames_to_generate=*/4},
            SvcTestParam{"L2T2_KEY", /*num_frames_to_generate=*/4},
            SvcTestParam{"L2T2_KEY_SHIFT",

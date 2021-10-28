@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "api/ice_gatherer_interface.h"
+#include "api/sequence_checker.h"
 #include "api/transport/enums.h"
 #include "p2p/base/port.h"
 #include "p2p/base/port_interface.h"
@@ -26,7 +27,6 @@
 #include "rtc_base/system/rtc_export.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
-#include "rtc_base/thread_checker.h"
 
 namespace webrtc {
 class TurnCustomizer;
@@ -289,7 +289,6 @@ class RTC_EXPORT PortAllocatorSession : public sigslot::has_slots<> {
 
   virtual uint32_t generation();
   virtual void set_generation(uint32_t generation);
-  sigslot::signal1<PortAllocatorSession*> SignalDestroyed;
 
  protected:
   // This method is called when a pooled session (which doesn't have these
@@ -406,6 +405,16 @@ class RTC_EXPORT PortAllocator : public sigslot::has_slots<> {
   // ADAPTER_TYPE_ETHERNET | ADAPTER_TYPE_LOOPBACK will ignore Ethernet and
   // loopback interfaces.
   virtual void SetNetworkIgnoreMask(int network_ignore_mask) = 0;
+
+  // Set whether VPN connections should be preferred, avoided, mandated or
+  // blocked.
+  virtual void SetVpnPreference(webrtc::VpnPreference preference) {
+    vpn_preference_ = preference;
+  }
+
+  // Set list of <ipaddress, mask> that shall be categorized as VPN.
+  // Implemented by BasicPortAllocator.
+  virtual void SetVpnList(const std::vector<rtc::NetworkMask>& vpn_list) {}
 
   std::unique_ptr<PortAllocatorSession> CreateSession(
       const std::string& content_name,
@@ -568,7 +577,7 @@ class RTC_EXPORT PortAllocator : public sigslot::has_slots<> {
   // taken via TakePooledSession.
   //
   // A change in the candidate filter also fires a signal
-  // |SignalCandidateFilterChanged|, so that objects subscribed to this signal
+  // `SignalCandidateFilterChanged`, so that objects subscribed to this signal
   // can, for example, update the candidate filter for sessions created by this
   // allocator and already taken by the object.
   //
@@ -618,7 +627,7 @@ class RTC_EXPORT PortAllocator : public sigslot::has_slots<> {
   // Return IceParameters of the pooled sessions.
   std::vector<IceParameters> GetPooledIceCredentials();
 
-  // Fired when |candidate_filter_| changes.
+  // Fired when `candidate_filter_` changes.
   sigslot::signal2<uint32_t /* prev_filter */, uint32_t /* cur_filter */>
       SignalCandidateFilterChanged;
 
@@ -657,7 +666,8 @@ class RTC_EXPORT PortAllocator : public sigslot::has_slots<> {
   bool allow_tcp_listen_;
   uint32_t candidate_filter_;
   std::string origin_;
-  rtc::ThreadChecker thread_checker_;
+  webrtc::SequenceChecker thread_checker_;
+  webrtc::VpnPreference vpn_preference_ = webrtc::VpnPreference::kDefault;
 
  private:
   ServerAddresses stun_servers_;

@@ -31,8 +31,6 @@ char kTSanDefaultSuppressions[] =
     // rtc_unittests
     // https://code.google.com/p/webrtc/issues/detail?id=2080
     "race:rtc_base/logging.cc\n"
-    "race:rtc_base/shared_exclusive_lock_unittest.cc\n"
-    "race:rtc_base/signal_thread_unittest.cc\n"
 
     // rtc_pc_unittests
     // https://code.google.com/p/webrtc/issues/detail?id=2079
@@ -46,6 +44,11 @@ char kTSanDefaultSuppressions[] =
 
     // https://code.google.com/p/webrtc/issues/detail?id=5151
     "race:sctp_close\n"
+
+    // lock-order-inversion in usrsctp
+    // TODO(orphis): https://crbug.com/webrtc/12823
+    "deadlock:usrsctp_conninput\n"
+    "deadlock:usrsctp_connect\n"
 
     // Potential deadlocks detected after roll in r6516.
     // https://code.google.com/p/webrtc/issues/detail?id=3509

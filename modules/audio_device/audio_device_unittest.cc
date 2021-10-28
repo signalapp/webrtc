@@ -19,6 +19,7 @@
 #include "absl/types/optional.h"
 #include "api/array_view.h"
 #include "api/scoped_refptr.h"
+#include "api/sequence_checker.h"
 #include "api/task_queue/default_task_queue_factory.h"
 #include "api/task_queue/task_queue_factory.h"
 #include "modules/audio_device/audio_device_impl.h"
@@ -31,7 +32,6 @@
 #include "rtc_base/race_checker.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread_annotations.h"
-#include "rtc_base/thread_checker.h"
 #include "rtc_base/time_utils.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
@@ -162,14 +162,14 @@ class FifoAudioStream : public AudioStream {
         // channel configuration. No conversion is needed.
         std::copy(buffer.begin(), buffer.end(), destination.begin());
       } else if (destination.size() == 2 * buffer.size()) {
-        // Recorded input signal in |buffer| is in mono. Do channel upmix to
+        // Recorded input signal in `buffer` is in mono. Do channel upmix to
         // match stereo output (1 -> 2).
         for (size_t i = 0; i < buffer.size(); ++i) {
           destination[2 * i] = buffer[i];
           destination[2 * i + 1] = buffer[i];
         }
       } else if (buffer.size() == 2 * destination.size()) {
-        // Recorded input signal in |buffer| is in stereo. Do channel downmix
+        // Recorded input signal in `buffer` is in stereo. Do channel downmix
         // to match mono output (2 -> 1).
         for (size_t i = 0; i < destination.size(); ++i) {
           destination[i] =
@@ -219,7 +219,7 @@ class LatencyAudioStream : public AudioStream {
     write_thread_checker_.Detach();
   }
 
-  // Insert periodic impulses in first two samples of |destination|.
+  // Insert periodic impulses in first two samples of `destination`.
   void Read(rtc::ArrayView<int16_t> destination) override {
     RTC_DCHECK_RUN_ON(&read_thread_checker_);
     if (read_count_ == 0) {
@@ -240,7 +240,7 @@ class LatencyAudioStream : public AudioStream {
     }
   }
 
-  // Detect received impulses in |source|, derive time between transmission and
+  // Detect received impulses in `source`, derive time between transmission and
   // detection and add the calculated delay to list of latencies.
   void Write(rtc::ArrayView<const int16_t> source) override {
     RTC_DCHECK_RUN_ON(&write_thread_checker_);
@@ -249,7 +249,7 @@ class LatencyAudioStream : public AudioStream {
     write_count_++;
     if (!pulse_time_) {
       // Avoid detection of new impulse response until a new impulse has
-      // been transmitted (sets |pulse_time_| to value larger than zero).
+      // been transmitted (sets `pulse_time_` to value larger than zero).
       return;
     }
     // Find index (element position in vector) of the max element.
@@ -267,7 +267,7 @@ class LatencyAudioStream : public AudioStream {
       // Total latency is the difference between transmit time and detection
       // tome plus the extra delay within the buffer in which we detected the
       // received impulse. It is transmitted at sample 0 but can be received
-      // at sample N where N > 0. The term |extra_delay| accounts for N and it
+      // at sample N where N > 0. The term `extra_delay` accounts for N and it
       // is a value between 0 and 10ms.
       latencies_.push_back(now_time - *pulse_time_ + extra_delay);
       pulse_time_.reset();
@@ -317,8 +317,8 @@ class LatencyAudioStream : public AudioStream {
 
   Mutex lock_;
   rtc::RaceChecker race_checker_;
-  rtc::ThreadChecker read_thread_checker_;
-  rtc::ThreadChecker write_thread_checker_;
+  SequenceChecker read_thread_checker_;
+  SequenceChecker write_thread_checker_;
 
   absl::optional<int64_t> pulse_time_ RTC_GUARDED_BY(lock_);
   std::vector<int> latencies_ RTC_GUARDED_BY(race_checker_);
@@ -586,7 +586,7 @@ class MAYBE_AudioDeviceTest
   rtc::scoped_refptr<AudioDeviceModuleForTest> CreateAudioDevice() {
     // Use the default factory for kPlatformDefaultAudio and a special factory
     // CreateWindowsCoreAudioAudioDeviceModuleForTest() for kWindowsCoreAudio2.
-    // The value of |audio_layer_| is set at construction by GetParam() and two
+    // The value of `audio_layer_` is set at construction by GetParam() and two
     // different layers are tested on Windows only.
     if (audio_layer_ == AudioDeviceModule::kPlatformDefaultAudio) {
       return AudioDeviceModule::CreateForTest(audio_layer_,

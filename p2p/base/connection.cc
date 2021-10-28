@@ -480,6 +480,7 @@ void Connection::OnReadPacket(const char* data,
     // If this is a STUN response, then update the writable bit.
     // Log at LS_INFO if we receive a ping on an unwritable connection.
     rtc::LoggingSeverity sev = (!writable() ? rtc::LS_INFO : rtc::LS_VERBOSE);
+    msg->ValidateMessageIntegrity(remote_candidate().password());
     switch (msg->type()) {
       case STUN_BINDING_REQUEST:
         RTC_LOG_V(sev) << ToString() << ": Received "
@@ -505,15 +506,14 @@ void Connection::OnReadPacket(const char* data,
       // id's match.
       case STUN_BINDING_RESPONSE:
       case STUN_BINDING_ERROR_RESPONSE:
-        if (msg->ValidateMessageIntegrity(data, size,
-                                          remote_candidate().password())) {
+        if (msg->IntegrityOk()) {
           requests_.CheckResponse(msg.get());
         }
         // Otherwise silently discard the response message.
         break;
 
       // Remote end point sent an STUN indication instead of regular binding
-      // request. In this case |last_ping_received_| will be updated but no
+      // request. In this case `last_ping_received_` will be updated but no
       // response will be sent.
       case STUN_BINDING_INDICATION:
         ReceivedPing(msg->transaction_id());
@@ -523,8 +523,7 @@ void Connection::OnReadPacket(const char* data,
         break;
       case GOOG_PING_RESPONSE:
       case GOOG_PING_ERROR_RESPONSE:
-        if (msg->ValidateMessageIntegrity32(data, size,
-                                            remote_candidate().password())) {
+        if (msg->IntegrityOk()) {
           requests_.CheckResponse(msg.get());
         }
         break;
@@ -929,7 +928,7 @@ bool Connection::dead(int64_t now) const {
     // working. This also allows a remote peer to continue pinging over a
     // locally inactive (pruned) connection. This also allows the local agent to
     // ping with longer interval than 30s as long as it shorter than
-    // |dead_connection_timeout_ms|.
+    // `dead_connection_timeout_ms`.
     if (now <= (last_received() + DEAD_CONNECTION_RECEIVE_TIMEOUT)) {
       // Not dead since we have received the last 30s.
       return false;
@@ -1139,8 +1138,6 @@ void Connection::OnConnectionRequestErrorResponse(ConnectionRequest* request,
       error_code == STUN_ERROR_SERVER_ERROR ||
       error_code == STUN_ERROR_UNAUTHORIZED) {
     // Recoverable error, retry
-  } else if (error_code == STUN_ERROR_STALE_CREDENTIALS) {
-    // Race failure, retry
   } else if (error_code == STUN_ERROR_ROLE_CONFLICT) {
     HandleRoleConflictFromPeer();
   } else if (request->msg()->type() == GOOG_PING_REQUEST) {
