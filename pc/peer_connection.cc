@@ -2914,14 +2914,16 @@ bool PeerConnection::SetIncomingRtpEnabled(bool enabled) {
 
 bool PeerConnection::SendRtp(std::unique_ptr<RtpPacket> rtp_packet) {
   RTC_DCHECK_RUN_ON(signaling_thread());
-  RtpTransportInternal* rtp_transport = transport_controller_->GetBundledRtpTransport();
-  if (!rtp_transport) {
-    return false;
-  }
 
+  JsepTransportController* transport_controller = this->transport_controller();
   // Is there a better way to std::move the unique_ptr?
   RtpPacket* raw_rtp_packet = rtp_packet.release();
-  return network_thread()->Invoke<bool>(RTC_FROM_HERE, [rtp_transport, raw_rtp_packet] {
+  return network_thread()->Invoke<bool>(RTC_FROM_HERE, [transport_controller, raw_rtp_packet] {
+    RtpTransportInternal* rtp_transport = transport_controller->GetBundledRtpTransport();
+    if (!rtp_transport) {
+      return false;
+    }
+
     std::unique_ptr<RtpPacket> rtp_packet(raw_rtp_packet);
 
     // Doesn't copy because we're not writing to it.
@@ -2935,15 +2937,16 @@ bool PeerConnection::SendRtp(std::unique_ptr<RtpPacket> rtp_packet) {
 
 bool PeerConnection::ReceiveRtp(uint8_t pt) {
   RTC_DCHECK_RUN_ON(signaling_thread());
-  RtpTransportInternal* rtp_transport = transport_controller_->GetBundledRtpTransport();
-  if (!rtp_transport) {
-    return false;
-  }
 
+  JsepTransportController* transport_controller = this->transport_controller();
   RtpDemuxerCriteria demux_criteria;
   demux_criteria.payload_types.insert(pt);
   RtpPacketSinkInterface* sink = Observer();
-  return network_thread()->Invoke<bool>(RTC_FROM_HERE, [rtp_transport, demux_criteria, sink] {
+  return network_thread()->Invoke<bool>(RTC_FROM_HERE, [transport_controller, demux_criteria, sink] {
+    RtpTransportInternal* rtp_transport = transport_controller->GetBundledRtpTransport();
+    if (!rtp_transport) {
+      return false;
+    }
     return rtp_transport->RegisterRtpDemuxerSink(demux_criteria, sink);
   });
 }
