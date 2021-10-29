@@ -887,6 +887,8 @@ bool AudioEncoderOpusImpl::Configure(const webrtc::AudioEncoder::Config& config)
       return false;
     }
   }
+
+  return true;
 }
 
 
