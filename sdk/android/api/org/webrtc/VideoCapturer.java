@@ -11,7 +11,7 @@
 package org.webrtc;
 
 import android.content.Context;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 
 // Base interface for all VideoCapturers to implement.
 public interface VideoCapturer {
