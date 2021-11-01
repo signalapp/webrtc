@@ -50,8 +50,8 @@ class RTCCertificatePEM {
 // A thin abstraction layer between "lower level crypto stuff" like
 // SSLCertificate and WebRTC usage. Takes ownership of some lower level objects,
 // reference counting protects these from premature destruction.
-class RTC_EXPORT RTCCertificate final
-    : public RefCountedNonVirtual<RTCCertificate> {
+  // RingRTC change to make it easier to deal with RTCCertificate ref counts
+class RTC_EXPORT RTCCertificate: public RefCountInterface {
  public:
   // Takes ownership of `identity`.
   static scoped_refptr<RTCCertificate> Create(
@@ -81,9 +81,8 @@ class RTC_EXPORT RTCCertificate final
 
  protected:
   explicit RTCCertificate(SSLIdentity* identity);
-
-  friend class RefCountedNonVirtual<RTCCertificate>;
-  ~RTCCertificate();
+  // RingRTC change to make it easier to deal with RTCCertificate ref counts
+  ~RTCCertificate() override;
 
  private:
   // The SSLIdentity is the owner of the SSLCertificate. To protect our

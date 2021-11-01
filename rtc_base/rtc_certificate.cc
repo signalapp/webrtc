@@ -13,6 +13,8 @@
 #include <memory>
 
 #include "rtc_base/checks.h"
+// RingRTC change to make it easier to deal with RTCCertificate ref counts
+#include "rtc_base/ref_counted_object.h"
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_identity.h"
 #include "rtc_base/time_utils.h"
@@ -21,14 +23,16 @@ namespace rtc {
 
 scoped_refptr<RTCCertificate> RTCCertificate::Create(
     std::unique_ptr<SSLIdentity> identity) {
-  return new RTCCertificate(identity.release());
+  // RingRTC change to make it easier to deal with RTCCertificate ref counts
+  return new RefCountedObject<RTCCertificate>(identity.release());
 }
 
 RTCCertificate::RTCCertificate(SSLIdentity* identity) : identity_(identity) {
   RTC_DCHECK(identity_);
 }
 
-RTCCertificate::~RTCCertificate() = default;
+// RingRTC change to make it easier to deal with RTCCertificate ref counts
+RTCCertificate::~RTCCertificate() {}
 
 uint64_t RTCCertificate::Expires() const {
   int64_t expires = GetSSLCertificate().CertificateExpirationTime();
@@ -61,7 +65,8 @@ scoped_refptr<RTCCertificate> RTCCertificate::FromPEM(
       SSLIdentity::CreateFromPEMStrings(pem.private_key(), pem.certificate()));
   if (!identity)
     return nullptr;
-  return new RTCCertificate(identity.release());
+  // RingRTC change to make it easier to deal with RTCCertificate ref counts
+  return new RefCountedObject<RTCCertificate>(identity.release());
 }
 
 bool RTCCertificate::operator==(const RTCCertificate& certificate) const {
