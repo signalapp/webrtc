@@ -43,7 +43,7 @@ IOS_DEPLOYMENT_TARGET = {
     # RingRTC change to control iOS targets
     'device': '11.0',
     'simulator': '11.0',
-    'catalyst': '11.0'
+    'catalyst': '14.0'
 }
 LIBVPX_BUILD_VP9 = False
 
