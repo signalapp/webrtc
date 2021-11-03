@@ -404,11 +404,12 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
     webrtc::PeerConnectionDependencies deps = std::move(*dependencies.release());
     // RingRTC changes for low-level FFI
     deps.observer = _customObserver.get();
-    _peerConnection = factory.nativeFactory->CreatePeerConnection(*config, std::move(deps));
+    auto result = factory.nativeFactory->CreatePeerConnectionOrError(*config, std::move(deps));
 
-    if (!_peerConnection) {
+    if (!result.ok()) {
       return nil;
     }
+    _peerConnection = result.MoveValue();
 
     _factory = factory;
     _localStreams = [[NSMutableArray alloc] init];
