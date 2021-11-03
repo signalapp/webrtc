@@ -204,7 +204,6 @@ class EventLogger final {
     // Finally start, everything should be set up now.
     logging_thread_ =
         PlatformThread::SpawnJoinable([this] { Log(); }, "EventTracingThread", 
-                        // RingRTC change to update AsyncResolver.
                         ThreadAttributes().SetPriority(ThreadPriority::kLow));
     TRACE_EVENT_INSTANT0("webrtc", "EventLogger::Start");
   }
