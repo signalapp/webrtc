@@ -26,7 +26,9 @@
 #include "api/media_stream_interface.h"
 #include "api/rtc_error.h"
 #include "api/rtp_parameters.h"
+#include "api/transport/data_channel_transport_interface.h"
 #include "api/transport/rtp/rtp_source.h"
+#include "api/units/time_delta.h"
 #include "api/video/video_content_type.h"
 #include "api/video/video_sink_interface.h"
 #include "api/video/video_source_interface.h"
@@ -43,7 +45,6 @@
 #include "modules/rtp_rtcp/include/report_block_data.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/buffer.h"
-#include "rtc_base/callback.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/dscp.h"
 #include "rtc_base/logging.h"
@@ -51,8 +52,7 @@
 #include "rtc_base/socket.h"
 #include "rtc_base/string_encode.h"
 #include "rtc_base/strings/string_builder.h"
-#include "rtc_base/synchronization/mutex.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
+#include "rtc_base/task_utils/pending_task_safety_flag.h"
 
 namespace rtc {
 class Timing;
@@ -155,7 +155,7 @@ struct VideoOptions {
   }
 };
 
-class MediaChannel : public sigslot::has_slots<> {
+class MediaChannel {
  public:
   class NetworkInterface {
    public:
@@ -170,18 +170,21 @@ class MediaChannel : public sigslot::has_slots<> {
     virtual ~NetworkInterface() {}
   };
 
-  explicit MediaChannel(const MediaConfig& config);
-  MediaChannel();
-  ~MediaChannel() override;
+  MediaChannel(const MediaConfig& config,
+               webrtc::TaskQueueBase* network_thread);
+  explicit MediaChannel(webrtc::TaskQueueBase* network_thread);
+  virtual ~MediaChannel();
 
   virtual cricket::MediaType media_type() const = 0;
 
   // Sets the abstract interface class for sending RTP/RTCP data.
-  virtual void SetInterface(NetworkInterface* iface)
-      RTC_LOCKS_EXCLUDED(network_interface_mutex_);
-  // Called when a RTP packet is received.
+  virtual void SetInterface(NetworkInterface* iface);
+  // Called on the network when an RTP packet is received.
   virtual void OnPacketReceived(rtc::CopyOnWriteBuffer packet,
                                 int64_t packet_time_us) = 0;
+  // Called on the network thread after a transport has finished sending a
+  // packet.
+  virtual void OnPacketSent(const rtc::SentPacket& sent_packet) = 0;
   // Called when the socket's ability to send has changed.
   virtual void OnReadyToSend(bool ready) = 0;
   // Called when the network route used for sending packets changed.
@@ -207,6 +210,17 @@ class MediaChannel : public sigslot::has_slots<> {
   // Resets any cached StreamParams for an unsignaled RecvStream, and removes
   // any existing unsignaled streams.
   virtual void ResetUnsignaledRecvStream() = 0;
+  // Informs the media channel when the transport's demuxer criteria is updated.
+  // * OnDemuxerCriteriaUpdatePending() happens on the same thread that the
+  //   channel's streams are added and removed (worker thread).
+  // * OnDemuxerCriteriaUpdateComplete() happens on the thread where the demuxer
+  //   lives (network thread).
+  // Because the demuxer is updated asynchronously, there is a window of time
+  // where packets are arriving to the channel for streams that have already
+  // been removed on the worker thread. It is important NOT to treat these as
+  // new unsignalled ssrcs.
+  virtual void OnDemuxerCriteriaUpdatePending() = 0;
+  virtual void OnDemuxerCriteriaUpdateComplete() = 0;
   // Returns the absoulte sendtime extension id value from media channel.
   virtual int GetRtpSendTimeExtnId() const;
   // Set the frame encryptor to use on all outgoing frames. This is optional.
@@ -229,30 +243,21 @@ class MediaChannel : public sigslot::has_slots<> {
 
   // Base method to send packet using NetworkInterface.
   bool SendPacket(rtc::CopyOnWriteBuffer* packet,
-                  const rtc::PacketOptions& options) {
-    return DoSendPacket(packet, false, options);
-  }
+                  const rtc::PacketOptions& options);
 
   bool SendRtcp(rtc::CopyOnWriteBuffer* packet,
-                const rtc::PacketOptions& options) {
-    return DoSendPacket(packet, true, options);
-  }
+                const rtc::PacketOptions& options);
 
   int SetOption(NetworkInterface::SocketType type,
                 rtc::Socket::Option opt,
-                int option) RTC_LOCKS_EXCLUDED(network_interface_mutex_) {
-    webrtc::MutexLock lock(&network_interface_mutex_);
-    return SetOptionLocked(type, opt, option);
-  }
+                int option);
 
   // Corresponds to the SDP attribute extmap-allow-mixed, see RFC8285.
   // Set to true if it's allowed to mix one- and two-byte RTP header extensions
   // in the same stream. The setter and getter must only be called from
   // worker_thread.
-  void SetExtmapAllowMixed(bool extmap_allow_mixed) {
-    extmap_allow_mixed_ = extmap_allow_mixed;
-  }
-  bool ExtmapAllowMixed() const { return extmap_allow_mixed_; }
+  void SetExtmapAllowMixed(bool extmap_allow_mixed);
+  bool ExtmapAllowMixed() const;
 
   virtual webrtc::RtpParameters GetRtpSendParameters(uint32_t ssrc) const = 0;
   virtual webrtc::RTCError SetRtpSendParameters(
@@ -269,69 +274,42 @@ class MediaChannel : public sigslot::has_slots<> {
  protected:
   int SetOptionLocked(NetworkInterface::SocketType type,
                       rtc::Socket::Option opt,
-                      int option)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(network_interface_mutex_) {
-    if (!network_interface_)
-      return -1;
-    return network_interface_->SetOption(type, opt, option);
-  }
+                      int option) RTC_RUN_ON(network_thread_);
 
-  bool DscpEnabled() const { return enable_dscp_; }
+  bool DscpEnabled() const;
 
   // This is the DSCP value used for both RTP and RTCP channels if DSCP is
-  // enabled. It can be changed at any time via |SetPreferredDscp|.
-  rtc::DiffServCodePoint PreferredDscp() const
-      RTC_LOCKS_EXCLUDED(network_interface_mutex_) {
-    webrtc::MutexLock lock(&network_interface_mutex_);
-    return preferred_dscp_;
-  }
+  // enabled. It can be changed at any time via `SetPreferredDscp`.
+  rtc::DiffServCodePoint PreferredDscp() const;
+  void SetPreferredDscp(rtc::DiffServCodePoint new_dscp);
 
-  int SetPreferredDscp(rtc::DiffServCodePoint preferred_dscp)
-      RTC_LOCKS_EXCLUDED(network_interface_mutex_) {
-    webrtc::MutexLock lock(&network_interface_mutex_);
-    if (preferred_dscp == preferred_dscp_) {
-      return 0;
-    }
-    preferred_dscp_ = preferred_dscp;
-    return UpdateDscp();
-  }
+  rtc::scoped_refptr<webrtc::PendingTaskSafetyFlag> network_safety();
+
+  // Utility implementation for derived classes (video/voice) that applies
+  // the packet options and passes the data onwards to `SendPacket`.
+  void SendRtp(const uint8_t* data,
+               size_t len,
+               const webrtc::PacketOptions& options);
+
+  void SendRtcp(const uint8_t* data, size_t len);
 
  private:
   // Apply the preferred DSCP setting to the underlying network interface RTP
   // and RTCP channels. If DSCP is disabled, then apply the default DSCP value.
-  int UpdateDscp() RTC_EXCLUSIVE_LOCKS_REQUIRED(network_interface_mutex_) {
-    rtc::DiffServCodePoint value =
-        enable_dscp_ ? preferred_dscp_ : rtc::DSCP_DEFAULT;
-    int ret =
-        SetOptionLocked(NetworkInterface::ST_RTP, rtc::Socket::OPT_DSCP, value);
-    if (ret == 0) {
-      ret = SetOptionLocked(NetworkInterface::ST_RTCP, rtc::Socket::OPT_DSCP,
-                            value);
-    }
-    return ret;
-  }
+  void UpdateDscp() RTC_RUN_ON(network_thread_);
 
   bool DoSendPacket(rtc::CopyOnWriteBuffer* packet,
                     bool rtcp,
-                    const rtc::PacketOptions& options)
-      RTC_LOCKS_EXCLUDED(network_interface_mutex_) {
-    webrtc::MutexLock lock(&network_interface_mutex_);
-    if (!network_interface_)
-      return false;
-
-    return (!rtcp) ? network_interface_->SendPacket(packet, options)
-                   : network_interface_->SendRtcp(packet, options);
-  }
+                    const rtc::PacketOptions& options);
 
   const bool enable_dscp_;
-  // |network_interface_| can be accessed from the worker_thread and
-  // from any MediaEngine threads. This critical section is to protect accessing
-  // of network_interface_ object.
-  mutable webrtc::Mutex network_interface_mutex_;
-  NetworkInterface* network_interface_
-      RTC_GUARDED_BY(network_interface_mutex_) = nullptr;
-  rtc::DiffServCodePoint preferred_dscp_
-      RTC_GUARDED_BY(network_interface_mutex_) = rtc::DSCP_DEFAULT;
+  const rtc::scoped_refptr<webrtc::PendingTaskSafetyFlag> network_safety_
+      RTC_PT_GUARDED_BY(network_thread_);
+  webrtc::TaskQueueBase* const network_thread_;
+  NetworkInterface* network_interface_ RTC_GUARDED_BY(network_thread_) =
+      nullptr;
+  rtc::DiffServCodePoint preferred_dscp_ RTC_GUARDED_BY(network_thread_) =
+      rtc::DSCP_DEFAULT;
   bool extmap_allow_mixed_ = false;
 };
 
@@ -395,6 +373,8 @@ struct MediaSenderInfo {
   int packets_sent = 0;
   // https://w3c.github.io/webrtc-stats/#dom-rtcoutboundrtpstreamstats-retransmittedpacketssent
   uint64_t retransmitted_packets_sent = 0;
+  // https://w3c.github.io/webrtc-stats/#dom-rtcoutboundrtpstreamstats-nackcount
+  uint32_t nacks_rcvd = 0;
   int packets_lost = 0;
   float fraction_lost = 0.0f;
   int64_t rtt_ms = 0;
@@ -449,6 +429,13 @@ struct MediaReceiverInfo {
   int64_t header_and_padding_bytes_rcvd = 0;
   int packets_rcvd = 0;
   int packets_lost = 0;
+  absl::optional<uint32_t> nacks_sent;
+  // Jitter (network-related) latency (cumulative).
+  // https://w3c.github.io/webrtc-stats/#dom-rtcinboundrtpstreamstats-jitterbufferdelay
+  double jitter_buffer_delay_seconds = 0.0;
+  // Number of observations for cumulative jitter latency.
+  // https://w3c.github.io/webrtc-stats/#dom-rtcinboundrtpstreamstats-jitterbufferemittedcount
+  uint64_t jitter_buffer_emitted_count = 0;
   // The timestamp at which the last packet was received, i.e. the time of the
   // local clock when it was received - not the RTP timestamp of that packet.
   // https://w3c.github.io/webrtc-stats/#dom-rtcinboundrtpstreamstats-lastpacketreceivedtimestamp
@@ -485,20 +472,21 @@ struct VoiceReceiverInfo : public MediaReceiverInfo {
   int delay_estimate_ms = 0;
   int audio_level = 0;
   // Stats below correspond to similarly-named fields in the WebRTC stats spec.
-  // https://w3c.github.io/webrtc-stats/#dom-rtcmediastreamtrackstats
+  // https://w3c.github.io/webrtc-stats/#dom-rtcinboundrtpstreamstats
   double total_output_energy = 0.0;
   uint64_t total_samples_received = 0;
   double total_output_duration = 0.0;
   uint64_t concealed_samples = 0;
   uint64_t silent_concealed_samples = 0;
   uint64_t concealment_events = 0;
-  double jitter_buffer_delay_seconds = 0.0;
-  uint64_t jitter_buffer_emitted_count = 0;
   double jitter_buffer_target_delay_seconds = 0.0;
   uint64_t inserted_samples_for_deceleration = 0;
   uint64_t removed_samples_for_acceleration = 0;
   uint64_t fec_packets_received = 0;
   uint64_t fec_packets_discarded = 0;
+  // Stats below correspond to similarly-named fields in the WebRTC stats spec.
+  // https://w3c.github.io/webrtc-stats/#dom-rtcreceivedrtpstreamstats
+  uint64_t packets_discarded = 0;
   // Stats below DO NOT correspond directly to anything in the WebRTC stats
   // fraction of synthesized audio inserted through expansion.
   float expand_rate = 0.0f;
@@ -537,6 +525,16 @@ struct VoiceReceiverInfo : public MediaReceiverInfo {
   // longer than 150 ms).
   int32_t interruption_count = 0;
   int32_t total_interruption_duration_ms = 0;
+  // Remote outbound stats derived by the received RTCP sender reports.
+  // https://w3c.github.io/webrtc-stats/#remoteoutboundrtpstats-dict*
+  absl::optional<int64_t> last_sender_report_timestamp_ms;
+  absl::optional<int64_t> last_sender_report_remote_timestamp_ms;
+  uint32_t sender_reports_packets_sent = 0;
+  uint64_t sender_reports_bytes_sent = 0;
+  uint64_t sender_reports_reports_count = 0;
+  absl::optional<webrtc::TimeDelta> round_trip_time;
+  webrtc::TimeDelta total_round_trip_time = webrtc::TimeDelta::Zero();
+  int round_trip_time_measurements = 0;
 };
 
 struct VideoSenderInfo : public MediaSenderInfo {
@@ -546,9 +544,9 @@ struct VideoSenderInfo : public MediaSenderInfo {
   std::string encoder_implementation_name;
   int firs_rcvd = 0;
   int plis_rcvd = 0;
-  int nacks_rcvd = 0;
   int send_frame_width = 0;
   int send_frame_height = 0;
+  int frames = 0;
   int framerate_input = 0;
   int framerate_sent = 0;
   int aggregated_framerate_sent = 0;
@@ -590,7 +588,6 @@ struct VideoReceiverInfo : public MediaReceiverInfo {
   int packets_concealed = 0;
   int firs_sent = 0;
   int plis_sent = 0;
-  int nacks_sent = 0;
   int frame_width = 0;
   int frame_height = 0;
   int framerate_rcvd = 0;
@@ -617,6 +614,7 @@ struct VideoReceiverInfo : public MediaReceiverInfo {
   uint32_t total_pauses_duration_ms = 0;
   uint32_t total_frames_duration_ms = 0;
   double sum_squared_frame_durations = 0.0;
+  uint32_t jitter_ms = 0;
 
   webrtc::VideoContentType content_type = webrtc::VideoContentType::UNSPECIFIED;
 
@@ -630,12 +628,6 @@ struct VideoReceiverInfo : public MediaReceiverInfo {
   int max_decode_ms = 0;
   // Jitter (network-related) latency.
   int jitter_buffer_ms = 0;
-  // Jitter (network-related) latency (cumulative).
-  // https://w3c.github.io/webrtc-stats/#dom-rtcvideoreceiverstats-jitterbufferdelay
-  double jitter_buffer_delay_seconds = 0;
-  // Number of observations for cumulative jitter latency.
-  // https://w3c.github.io/webrtc-stats/#dom-rtcvideoreceiverstats-jitterbufferemittedcount
-  uint64_t jitter_buffer_emitted_count = 0;
   // Requested minimum playout latency.
   int min_playout_delay_ms = 0;
   // Requested latency to account for rendering delay.
@@ -657,14 +649,6 @@ struct VideoReceiverInfo : public MediaReceiverInfo {
   absl::optional<webrtc::TimingFrameInfo> timing_frame_info;
 };
 
-struct DataSenderInfo : public MediaSenderInfo {
-  uint32_t ssrc = 0;
-};
-
-struct DataReceiverInfo : public MediaReceiverInfo {
-  uint32_t ssrc = 0;
-};
-
 struct BandwidthEstimationInfo {
   int available_send_bandwidth = 0;
   int available_recv_bandwidth = 0;
@@ -675,7 +659,7 @@ struct BandwidthEstimationInfo {
   int64_t bucket_delay = 0;
 };
 
-// Maps from payload type to |RtpCodecParameters|.
+// Maps from payload type to `RtpCodecParameters`.
 typedef std::map<int, webrtc::RtpCodecParameters> RtpCodecParametersMap;
 
 struct VoiceMediaInfo {
@@ -716,17 +700,6 @@ struct VideoMediaInfo {
   std::vector<VideoReceiverInfo> receivers;
   RtpCodecParametersMap send_codecs;
   RtpCodecParametersMap receive_codecs;
-};
-
-struct DataMediaInfo {
-  DataMediaInfo();
-  ~DataMediaInfo();
-  void Clear() {
-    senders.clear();
-    receivers.clear();
-  }
-  std::vector<DataSenderInfo> senders;
-  std::vector<DataReceiverInfo> receivers;
 };
 
 struct RtcpParameters {
@@ -799,15 +772,17 @@ struct AudioRecvParameters : RtpParameters<AudioCodec> {};
 
 class VoiceMediaChannel : public MediaChannel, public Delayable {
  public:
-  VoiceMediaChannel() {}
-  explicit VoiceMediaChannel(const MediaConfig& config)
-      : MediaChannel(config) {}
+  explicit VoiceMediaChannel(webrtc::TaskQueueBase* network_thread)
+      : MediaChannel(network_thread) {}
+  VoiceMediaChannel(const MediaConfig& config,
+                    webrtc::TaskQueueBase* network_thread)
+      : MediaChannel(config, network_thread) {}
   ~VoiceMediaChannel() override {}
 
   cricket::MediaType media_type() const override;
   virtual bool SetSendParameters(const AudioSendParameters& params) = 0;
   virtual bool SetRecvParameters(const AudioRecvParameters& params) = 0;
-  // Get the receive parameters for the incoming stream identified by |ssrc|.
+  // Get the receive parameters for the incoming stream identified by `ssrc`.
   virtual webrtc::RtpParameters GetRtpReceiveParameters(
       uint32_t ssrc) const = 0;
   // Retrieve the receive parameters for the default receive
@@ -828,9 +803,9 @@ class VoiceMediaChannel : public MediaChannel, public Delayable {
   virtual bool SetDefaultOutputVolume(double volume) = 0;
   // Returns if the telephone-event has been negotiated.
   virtual bool CanInsertDtmf() = 0;
-  // Send a DTMF |event|. The DTMF out-of-band signal will be used.
-  // The |ssrc| should be either 0 or a valid send stream ssrc.
-  // The valid value for the |event| are 0 to 15 which corresponding to
+  // Send a DTMF `event`. The DTMF out-of-band signal will be used.
+  // The `ssrc` should be either 0 or a valid send stream ssrc.
+  // The valid value for the `event` are 0 to 15 which corresponding to
   // DTMF event 0-9, *, #, A-D.
   virtual bool InsertDtmf(uint32_t ssrc, int event, int duration) = 0;
   // Gets quality stats for the channel.
@@ -874,15 +849,17 @@ struct VideoRecvParameters : RtpParameters<VideoCodec> {};
 
 class VideoMediaChannel : public MediaChannel, public Delayable {
  public:
-  VideoMediaChannel() {}
-  explicit VideoMediaChannel(const MediaConfig& config)
-      : MediaChannel(config) {}
+  explicit VideoMediaChannel(webrtc::TaskQueueBase* network_thread)
+      : MediaChannel(network_thread) {}
+  VideoMediaChannel(const MediaConfig& config,
+                    webrtc::TaskQueueBase* network_thread)
+      : MediaChannel(config, network_thread) {}
   ~VideoMediaChannel() override {}
 
   cricket::MediaType media_type() const override;
   virtual bool SetSendParameters(const VideoSendParameters& params) = 0;
   virtual bool SetRecvParameters(const VideoRecvParameters& params) = 0;
-  // Get the receive parameters for the incoming stream identified by |ssrc|.
+  // Get the receive parameters for the incoming stream identified by `ssrc`.
   virtual webrtc::RtpParameters GetRtpReceiveParameters(
       uint32_t ssrc) const = 0;
   // Retrieve the receive parameters for the default receive
@@ -893,7 +870,7 @@ class VideoMediaChannel : public MediaChannel, public Delayable {
   // Starts or stops transmission (and potentially capture) of local video.
   virtual bool SetSend(bool send) = 0;
   // Configure stream for sending and register a source.
-  // The |ssrc| must correspond to a registered send stream.
+  // The `ssrc` must correspond to a registered send stream.
   virtual bool SetVideoSend(
       uint32_t ssrc,
       const VideoOptions* options,
@@ -915,25 +892,16 @@ class VideoMediaChannel : public MediaChannel, public Delayable {
   virtual void FillBitrateInfo(BandwidthEstimationInfo* bwe_info) = 0;
   // Gets quality stats for the channel.
   virtual bool GetStats(VideoMediaInfo* info) = 0;
-  // Set recordable encoded frame callback for |ssrc|
+  // Set recordable encoded frame callback for `ssrc`
   virtual void SetRecordableEncodedFrameCallback(
       uint32_t ssrc,
       std::function<void(const webrtc::RecordableEncodedFrame&)> callback) = 0;
-  // Clear recordable encoded frame callback for |ssrc|
+  // Clear recordable encoded frame callback for `ssrc`
   virtual void ClearRecordableEncodedFrameCallback(uint32_t ssrc) = 0;
-  // Cause generation of a keyframe for |ssrc|
+  // Cause generation of a keyframe for `ssrc`
   virtual void GenerateKeyFrame(uint32_t ssrc) = 0;
 
   virtual std::vector<webrtc::RtpSource> GetSources(uint32_t ssrc) const = 0;
-};
-
-enum DataMessageType {
-  // Chrome-Internal use only.  See SctpDataMediaChannel for the actual PPID
-  // values.
-  DMT_NONE = 0,
-  DMT_CONTROL = 1,
-  DMT_BINARY = 2,
-  DMT_TEXT = 3,
 };
 
 // Info about data received in DataMediaChannel.  For use in
@@ -941,87 +909,15 @@ enum DataMessageType {
 // signal fires, on up the chain.
 struct ReceiveDataParams {
   // The in-packet stream indentifier.
-  // RTP data channels use SSRCs, SCTP data channels use SIDs.
-  union {
-    uint32_t ssrc;
-    int sid = 0;
-  };
+  // SCTP data channels use SIDs.
+  int sid = 0;
   // The type of message (binary, text, or control).
-  DataMessageType type = DMT_TEXT;
+  webrtc::DataMessageType type = webrtc::DataMessageType::kText;
   // A per-stream value incremented per packet in the stream.
   int seq_num = 0;
-  // A per-stream value monotonically increasing with time.
-  int timestamp = 0;
-};
-
-struct SendDataParams {
-  // The in-packet stream indentifier.
-  // RTP data channels use SSRCs, SCTP data channels use SIDs.
-  union {
-    uint32_t ssrc;
-    int sid = 0;
-  };
-  // The type of message (binary, text, or control).
-  DataMessageType type = DMT_TEXT;
-
-  // TODO(pthatcher): Make |ordered| and |reliable| true by default?
-  // For SCTP, whether to send messages flagged as ordered or not.
-  // If false, messages can be received out of order.
-  bool ordered = false;
-  // For SCTP, whether the messages are sent reliably or not.
-  // If false, messages may be lost.
-  bool reliable = false;
-  // For SCTP, if reliable == false, provide partial reliability by
-  // resending up to this many times.  Either count or millis
-  // is supported, not both at the same time.
-  int max_rtx_count = 0;
-  // For SCTP, if reliable == false, provide partial reliability by
-  // resending for up to this many milliseconds.  Either count or millis
-  // is supported, not both at the same time.
-  int max_rtx_ms = 0;
 };
 
 enum SendDataResult { SDR_SUCCESS, SDR_ERROR, SDR_BLOCK };
-
-struct DataSendParameters : RtpSendParameters<DataCodec> {};
-
-struct DataRecvParameters : RtpParameters<DataCodec> {};
-
-class DataMediaChannel : public MediaChannel {
- public:
-  DataMediaChannel();
-  explicit DataMediaChannel(const MediaConfig& config);
-  ~DataMediaChannel() override;
-
-  cricket::MediaType media_type() const override;
-  virtual bool SetSendParameters(const DataSendParameters& params) = 0;
-  virtual bool SetRecvParameters(const DataRecvParameters& params) = 0;
-
-  // RtpParameter methods are not supported for Data channel.
-  webrtc::RtpParameters GetRtpSendParameters(uint32_t ssrc) const override;
-  webrtc::RTCError SetRtpSendParameters(
-      uint32_t ssrc,
-      const webrtc::RtpParameters& parameters) override;
-
-  // TODO(pthatcher): Implement this.
-  virtual bool GetStats(DataMediaInfo* info);
-
-  virtual bool SetSend(bool send) = 0;
-  virtual bool SetReceive(bool receive) = 0;
-
-  void OnNetworkRouteChanged(const std::string& transport_name,
-                             const rtc::NetworkRoute& network_route) override {}
-
-  virtual bool SendData(const SendDataParams& params,
-                        const rtc::CopyOnWriteBuffer& payload,
-                        SendDataResult* result = NULL) = 0;
-  // Signals when data is received (params, data, len)
-  sigslot::signal3<const ReceiveDataParams&, const char*, size_t>
-      SignalDataReceived;
-  // Signal when the media channel is ready to send the stream. Arguments are:
-  //     writable(bool)
-  sigslot::signal1<bool> SignalReadyToSend;
-};
 
 }  // namespace cricket
 

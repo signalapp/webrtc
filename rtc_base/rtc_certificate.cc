@@ -13,6 +13,7 @@
 #include <memory>
 
 #include "rtc_base/checks.h"
+// RingRTC change to make it easier to deal with RTCCertificate ref counts
 #include "rtc_base/ref_counted_object.h"
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_identity.h"
@@ -22,6 +23,7 @@ namespace rtc {
 
 scoped_refptr<RTCCertificate> RTCCertificate::Create(
     std::unique_ptr<SSLIdentity> identity) {
+  // RingRTC change to make it easier to deal with RTCCertificate ref counts
   return new RefCountedObject<RTCCertificate>(identity.release());
 }
 
@@ -29,6 +31,7 @@ RTCCertificate::RTCCertificate(SSLIdentity* identity) : identity_(identity) {
   RTC_DCHECK(identity_);
 }
 
+// RingRTC change to make it easier to deal with RTCCertificate ref counts
 RTCCertificate::~RTCCertificate() {}
 
 uint64_t RTCCertificate::Expires() const {
@@ -47,11 +50,6 @@ const SSLCertificate& RTCCertificate::GetSSLCertificate() const {
   return identity_->certificate();
 }
 
-// Deprecated: TODO(benwright) - Remove once chromium is updated.
-const SSLCertificate& RTCCertificate::ssl_certificate() const {
-  return identity_->certificate();
-}
-
 const SSLCertChain& RTCCertificate::GetSSLCertificateChain() const {
   return identity_->cert_chain();
 }
@@ -67,6 +65,7 @@ scoped_refptr<RTCCertificate> RTCCertificate::FromPEM(
       SSLIdentity::CreateFromPEMStrings(pem.private_key(), pem.certificate()));
   if (!identity)
     return nullptr;
+  // RingRTC change to make it easier to deal with RTCCertificate ref counts
   return new RefCountedObject<RTCCertificate>(identity.release());
 }
 

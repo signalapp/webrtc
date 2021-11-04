@@ -15,6 +15,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/numerics/samples_stats_counter.h"
 
@@ -40,16 +41,16 @@ enum class ImproveDirection {
 //
 // (test binary name) > (bot) > ramp_up_time_turn_over_tcp > bwe_15s.
 //
-// The |measurement| + |modifier| is what we're measuring. |user_story| is the
+// The `measurement` + `modifier` is what we're measuring. `user_story` is the
 // scenario we're testing under.
 //
 // The binary this runs in must be hooked up as a perf test in the WebRTC
 // recipes for this to actually be uploaded to chromeperf.appspot.com.
-void PrintResult(const std::string& measurement,
-                 const std::string& modifier,
-                 const std::string& user_story,
+void PrintResult(absl::string_view measurement,
+                 absl::string_view modifier,
+                 absl::string_view user_story,
                  const double value,
-                 const std::string& units,
+                 absl::string_view units,
                  bool important,
                  ImproveDirection improve_direction = ImproveDirection::kNone);
 
@@ -58,35 +59,35 @@ void PrintResult(const std::string& measurement,
 // standard deviation (or other error metric) of the measurement.
 // DEPRECATED: soon unsupported.
 void PrintResultMeanAndError(
-    const std::string& measurement,
-    const std::string& modifier,
-    const std::string& user_story,
+    absl::string_view measurement,
+    absl::string_view modifier,
+    absl::string_view user_story,
     const double mean,
     const double error,
-    const std::string& units,
+    absl::string_view units,
     bool important,
     ImproveDirection improve_direction = ImproveDirection::kNone);
 
-// Like PrintResult(), but prints an entire list of results. The |values|
+// Like PrintResult(), but prints an entire list of results. The `values`
 // will generally be a list of comma-separated numbers. A typical
 // post-processing step might produce plots of their mean and standard
 // deviation.
 void PrintResultList(
-    const std::string& measurement,
-    const std::string& modifier,
-    const std::string& user_story,
+    absl::string_view measurement,
+    absl::string_view modifier,
+    absl::string_view user_story,
     rtc::ArrayView<const double> values,
-    const std::string& units,
+    absl::string_view units,
     bool important,
     ImproveDirection improve_direction = ImproveDirection::kNone);
 
 // Like PrintResult(), but prints a (mean, standard deviation) from stats
 // counter. Also add specified metric to the plotable metrics output.
-void PrintResult(const std::string& measurement,
-                 const std::string& modifier,
-                 const std::string& user_story,
+void PrintResult(absl::string_view measurement,
+                 absl::string_view modifier,
+                 absl::string_view user_story,
                  const SamplesStatsCounter& counter,
-                 const std::string& units,
+                 absl::string_view units,
                  const bool important,
                  ImproveDirection improve_direction = ImproveDirection::kNone);
 
@@ -98,8 +99,8 @@ void PrintResult(const std::string& measurement,
 std::string GetPerfResults();
 
 // Print into stdout plottable metrics for further post processing.
-// |desired_graphs| - list of metrics, that should be plotted. If empty - all
-// available metrics will be plotted. If some of |desired_graphs| are missing
+// `desired_graphs` - list of metrics, that should be plotted. If empty - all
+// available metrics will be plotted. If some of `desired_graphs` are missing
 // they will be skipped.
 void PrintPlottableResults(const std::vector<std::string>& desired_graphs);
 

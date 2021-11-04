@@ -120,10 +120,11 @@ class FakePeerConnectionBase : public PeerConnectionInternal {
     return nullptr;
   }
 
-  rtc::scoped_refptr<DataChannelInterface> CreateDataChannel(
+  RTCErrorOr<rtc::scoped_refptr<DataChannelInterface>> CreateDataChannelOrError(
       const std::string& label,
       const DataChannelInit* config) override {
-    return nullptr;
+    return RTCError(RTCErrorType::UNSUPPORTED_OPERATION,
+                    "Fake function called");
   }
 
   const SessionDescriptionInterface* local_description() const override {
@@ -271,22 +272,16 @@ class FakePeerConnectionBase : public PeerConnectionInternal {
     return {};
   }
 
-  sigslot::signal1<RtpDataChannel*>& SignalRtpDataChannelCreated() override {
-    return SignalRtpDataChannelCreated_;
-  }
-
   sigslot::signal1<SctpDataChannel*>& SignalSctpDataChannelCreated() override {
     return SignalSctpDataChannelCreated_;
   }
-
-  cricket::RtpDataChannel* rtp_data_channel() const override { return nullptr; }
 
   absl::optional<std::string> sctp_transport_name() const override {
     return absl::nullopt;
   }
 
-  std::map<std::string, std::string> GetTransportNamesByMid() const override {
-    return {};
+  absl::optional<std::string> sctp_mid() const override {
+    return absl::nullopt;
   }
 
   std::map<std::string, cricket::TransportStats> GetTransportStatsByNames(
@@ -321,7 +316,6 @@ class FakePeerConnectionBase : public PeerConnectionInternal {
   }
 
  protected:
-  sigslot::signal1<RtpDataChannel*> SignalRtpDataChannelCreated_;
   sigslot::signal1<SctpDataChannel*> SignalSctpDataChannelCreated_;
 };
 

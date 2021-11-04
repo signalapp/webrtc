@@ -39,8 +39,8 @@ class VideoSourceRestrictionsListener {
  public:
   virtual ~VideoSourceRestrictionsListener();
 
-  // The |restrictions| are filtered by degradation preference but not the
-  // |adaptation_counters|, which are currently only reported for legacy stats
+  // The `restrictions` are filtered by degradation preference but not the
+  // `adaptation_counters`, which are currently only reported for legacy stats
   // calculation purposes.
   virtual void OnVideoSourceRestrictionsUpdated(
       VideoSourceRestrictions restrictions,
@@ -162,6 +162,9 @@ class VideoStreamAdapter {
     VideoSourceRestrictions restrictions;
     VideoAdaptationCounters counters;
   };
+
+  static absl::optional<uint32_t> GetSingleActiveLayerPixels(
+      const VideoCodec& codec);
 
  private:
   void BroadcastVideoRestrictionsUpdate(

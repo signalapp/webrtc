@@ -10,28 +10,40 @@
 
 #include "p2p/base/p2p_transport_channel.h"
 
-#include <iterator>
+#include <errno.h>
+#include <stdlib.h>
+
+#include <algorithm>
+#include <functional>
 #include <memory>
 #include <set>
 #include <utility>
 
 #include "absl/algorithm/container.h"
+#include "absl/memory/memory.h"
 #include "absl/strings/match.h"
+#include "api/async_dns_resolver.h"
 #include "api/candidate.h"
+#include "api/task_queue/queued_task.h"
 #include "logging/rtc_event_log/ice_logger.h"
+#include "p2p/base/basic_async_resolver_factory.h"
 #include "p2p/base/basic_ice_controller.h"
-#include "p2p/base/candidate_pair_interface.h"
 #include "p2p/base/connection.h"
+#include "p2p/base/connection_info.h"
 #include "p2p/base/port.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/crc32.h"
 #include "rtc_base/experiments/struct_parameters_parser.h"
+#include "rtc_base/ip_address.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/net_helper.h"
-#include "rtc_base/net_helpers.h"
+#include "rtc_base/network.h"
+#include "rtc_base/network_constants.h"
 #include "rtc_base/string_encode.h"
 #include "rtc_base/task_utils/to_queued_task.h"
+#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/time_utils.h"
+#include "rtc_base/trace_event.h"
 #include "system_wrappers/include/field_trial.h"
 #include "system_wrappers/include/metrics.h"
 
@@ -122,26 +134,50 @@ bool IceCredentialsChanged(const std::string& old_ufrag,
   return (old_ufrag != new_ufrag) || (old_pwd != new_pwd);
 }
 
+// static
+std::unique_ptr<P2PTransportChannel> P2PTransportChannel::Create(
+    const std::string& transport_name,
+    int component,
+    PortAllocator* allocator,
+    webrtc::AsyncDnsResolverFactoryInterface* async_dns_resolver_factory,
+    webrtc::RtcEventLog* event_log,
+    IceControllerFactoryInterface* ice_controller_factory) {
+  return absl::WrapUnique(new P2PTransportChannel(
+      transport_name, component, allocator, async_dns_resolver_factory,
+      /* owned_dns_resolver_factory= */ nullptr, event_log,
+      ice_controller_factory));
+}
+
 P2PTransportChannel::P2PTransportChannel(const std::string& transport_name,
                                          int component,
                                          PortAllocator* allocator)
     : P2PTransportChannel(transport_name,
                           component,
                           allocator,
-                          nullptr,
-                          nullptr) {}
+                          /* async_dns_resolver_factory= */ nullptr,
+                          /* owned_dns_resolver_factory= */ nullptr,
+                          /* event_log= */ nullptr,
+                          /* ice_controller_factory= */ nullptr) {}
 
+// Private constructor, called from Create()
 P2PTransportChannel::P2PTransportChannel(
     const std::string& transport_name,
     int component,
     PortAllocator* allocator,
-    webrtc::AsyncResolverFactory* async_resolver_factory,
+    webrtc::AsyncDnsResolverFactoryInterface* async_dns_resolver_factory,
+    std::unique_ptr<webrtc::AsyncDnsResolverFactoryInterface>
+        owned_dns_resolver_factory,
     webrtc::RtcEventLog* event_log,
     IceControllerFactoryInterface* ice_controller_factory)
     : transport_name_(transport_name),
       component_(component),
       allocator_(allocator),
-      async_resolver_factory_(async_resolver_factory),
+      // If owned_dns_resolver_factory is given, async_dns_resolver_factory is
+      // ignored.
+      async_dns_resolver_factory_(owned_dns_resolver_factory
+                                      ? owned_dns_resolver_factory.get()
+                                      : async_dns_resolver_factory),
+      owned_dns_resolver_factory_(std::move(owned_dns_resolver_factory)),
       network_thread_(rtc::Thread::Current()),
       incoming_only_(false),
       error_(0),
@@ -158,6 +194,7 @@ P2PTransportChannel::P2PTransportChannel(
               true /* presume_writable_when_fully_relayed */,
               REGATHER_ON_FAILED_NETWORKS_INTERVAL,
               RECEIVING_SWITCHING_DELAY) {
+  TRACE_EVENT0("webrtc", "P2PTransportChannel::P2PTransportChannel");
   RTC_DCHECK(allocator_ != nullptr);
   weak_ping_interval_ = GetWeakPingIntervalInFieldTrial();
   // Validate IceConfig even for mostly built-in constant default values in case
@@ -192,14 +229,31 @@ P2PTransportChannel::P2PTransportChannel(
   }
 }
 
+// Public constructor, exposed for backwards compatibility.
+// Deprecated.
+P2PTransportChannel::P2PTransportChannel(
+    const std::string& transport_name,
+    int component,
+    PortAllocator* allocator,
+    webrtc::AsyncResolverFactory* async_resolver_factory,
+    webrtc::RtcEventLog* event_log,
+    IceControllerFactoryInterface* ice_controller_factory)
+    : P2PTransportChannel(
+          transport_name,
+          component,
+          allocator,
+          nullptr,
+          std::make_unique<webrtc::WrappingAsyncDnsResolverFactory>(
+              async_resolver_factory),
+          event_log,
+          ice_controller_factory) {}
+
 P2PTransportChannel::~P2PTransportChannel() {
+  TRACE_EVENT0("webrtc", "P2PTransportChannel::~P2PTransportChannel");
   RTC_DCHECK_RUN_ON(network_thread_);
   std::vector<Connection*> copy(connections().begin(), connections().end());
   for (Connection* con : copy) {
     con->Destroy();
-  }
-  for (auto& p : resolvers_) {
-    p.resolver_->Destroy(false);
   }
   resolvers_.clear();
 
@@ -767,6 +821,9 @@ void P2PTransportChannel::SetIceConfig(const IceConfig& config) {
       config_.regather_on_failed_networks_interval_or_default();
   regathering_controller_->SetConfig(regathering_config);
 
+  config_.vpn_preference = config.vpn_preference;
+  allocator_->SetVpnPreference(config_.vpn_preference);
+
   ice_controller_->SetIceConfig(config_);
 
   RTC_DCHECK(ValidateIceConfig(config_).ok());
@@ -982,7 +1039,8 @@ void P2PTransportChannel::OnPortReady(PortAllocatorSession* session,
   }
 
   ports_.push_back(port);
-  port->SignalDestroyed.connect(this, &P2PTransportChannel::OnPortDestroyed);
+  port->SubscribePortDestroyed(
+      [this](PortInterface* port) { OnPortDestroyed(port); });
   port->SignalSentPacket.connect(this, &P2PTransportChannel::OnSentPacket);
 
   // Attempt to create a connection from this new port to all of the remote
@@ -1278,16 +1336,17 @@ void P2PTransportChannel::OnNominated(Connection* conn) {
 
 void P2PTransportChannel::ResolveHostnameCandidate(const Candidate& candidate) {
   RTC_DCHECK_RUN_ON(network_thread_);
-  if (!async_resolver_factory_) {
+  if (!async_dns_resolver_factory_) {
     RTC_LOG(LS_WARNING) << "Dropping ICE candidate with hostname address "
                            "(no AsyncResolverFactory)";
     return;
   }
 
-  rtc::AsyncResolverInterface* resolver = async_resolver_factory_->Create();
-  resolvers_.emplace_back(candidate, resolver);
-  resolver->SignalDone.connect(this, &P2PTransportChannel::OnCandidateResolved);
-  resolver->Start(candidate.address());
+  auto resolver = async_dns_resolver_factory_->Create();
+  auto resptr = resolver.get();
+  resolvers_.emplace_back(candidate, std::move(resolver));
+  resptr->Start(candidate.address(),
+                [this, resptr]() { OnCandidateResolved(resptr); });
   RTC_LOG(LS_INFO) << "Asynchronously resolving ICE candidate hostname "
                    << candidate.address().HostAsSensitiveURIString();
 }
@@ -1345,38 +1404,44 @@ void P2PTransportChannel::AddRemoteCandidate(const Candidate& candidate) {
 
 P2PTransportChannel::CandidateAndResolver::CandidateAndResolver(
     const Candidate& candidate,
-    rtc::AsyncResolverInterface* resolver)
-    : candidate_(candidate), resolver_(resolver) {}
+    std::unique_ptr<webrtc::AsyncDnsResolverInterface>&& resolver)
+    : candidate_(candidate), resolver_(std::move(resolver)) {}
 
 P2PTransportChannel::CandidateAndResolver::~CandidateAndResolver() {}
 
 void P2PTransportChannel::OnCandidateResolved(
-    rtc::AsyncResolverInterface* resolver) {
+    webrtc::AsyncDnsResolverInterface* resolver) {
   RTC_DCHECK_RUN_ON(network_thread_);
   auto p =
       absl::c_find_if(resolvers_, [resolver](const CandidateAndResolver& cr) {
-        return cr.resolver_ == resolver;
+        return cr.resolver_.get() == resolver;
       });
   if (p == resolvers_.end()) {
-    RTC_LOG(LS_ERROR) << "Unexpected AsyncResolver signal";
+    RTC_LOG(LS_ERROR) << "Unexpected AsyncDnsResolver return";
     RTC_NOTREACHED();
     return;
   }
   Candidate candidate = p->candidate_;
-  resolvers_.erase(p);
-  AddRemoteCandidateWithResolver(candidate, resolver);
+  AddRemoteCandidateWithResult(candidate, resolver->result());
+  // Now we can delete the resolver.
+  // TODO(bugs.webrtc.org/12651): Replace the stuff below with
+  // resolvers_.erase(p);
+  std::unique_ptr<webrtc::AsyncDnsResolverInterface> to_delete =
+      std::move(p->resolver_);
+  // Delay the actual deletion of the resolver until the lambda executes.
   network_thread_->PostTask(
-      ToQueuedTask([resolver]() { resolver->Destroy(false); }));
+      ToQueuedTask([delete_this = std::move(to_delete)] {}));
+  resolvers_.erase(p);
 }
 
-void P2PTransportChannel::AddRemoteCandidateWithResolver(
+void P2PTransportChannel::AddRemoteCandidateWithResult(
     Candidate candidate,
-    rtc::AsyncResolverInterface* resolver) {
+    const webrtc::AsyncDnsResolverResult& result) {
   RTC_DCHECK_RUN_ON(network_thread_);
-  if (resolver->GetError()) {
+  if (result.GetError()) {
     RTC_LOG(LS_WARNING) << "Failed to resolve ICE candidate hostname "
                         << candidate.address().HostAsSensitiveURIString()
-                        << " with error " << resolver->GetError();
+                        << " with error " << result.GetError();
     return;
   }
 
@@ -1384,9 +1449,8 @@ void P2PTransportChannel::AddRemoteCandidateWithResolver(
   // Prefer IPv6 to IPv4 if we have it (see RFC 5245 Section 15.1).
   // TODO(zstein): This won't work if we only have IPv4 locally but receive an
   // AAAA DNS record.
-  bool have_address =
-      resolver->GetResolvedAddress(AF_INET6, &resolved_address) ||
-      resolver->GetResolvedAddress(AF_INET, &resolved_address);
+  bool have_address = result.GetResolvedAddress(AF_INET6, &resolved_address) ||
+                      result.GetResolvedAddress(AF_INET, &resolved_address);
   if (!have_address) {
     RTC_LOG(LS_INFO) << "ICE candidate hostname "
                      << candidate.address().HostAsSensitiveURIString()
@@ -1796,7 +1860,7 @@ void P2PTransportChannel::SortConnectionsAndUpdateState(
   // Any changes after this point will require a re-sort.
   sort_dirty_ = false;
 
-  // If necessary, switch to the new choice. Note that |top_connection| doesn't
+  // If necessary, switch to the new choice. Note that `top_connection` doesn't
   // have to be writable to become the selected connection although it will
   // have higher priority if it is writable.
   MaybeSwitchSelectedConnection(
@@ -1852,7 +1916,7 @@ void P2PTransportChannel::PruneConnections() {
 void P2PTransportChannel::SwitchSelectedConnection(Connection* conn,
                                                    IceControllerEvent reason) {
   RTC_DCHECK_RUN_ON(network_thread_);
-  // Note: if conn is NULL, the previous |selected_connection_| has been
+  // Note: if conn is NULL, the previous `selected_connection_` has been
   // destroyed, so don't use it.
   Connection* old_selected_connection = selected_connection_;
   selected_connection_ = conn;
@@ -2097,9 +2161,9 @@ void P2PTransportChannel::MarkConnectionPinged(Connection* conn) {
   ice_controller_->MarkConnectionPinged(conn);
 }
 
-// Apart from sending ping from |conn| this method also updates
-// |use_candidate_attr| and |nomination| flags. One of the flags is set to
-// nominate |conn| if this channel is in CONTROLLING.
+// Apart from sending ping from `conn` this method also updates
+// `use_candidate_attr` and `nomination` flags. One of the flags is set to
+// nominate `conn` if this channel is in CONTROLLING.
 void P2PTransportChannel::PingConnection(Connection* conn) {
   RTC_DCHECK_RUN_ON(network_thread_);
   bool use_candidate_attr = false;

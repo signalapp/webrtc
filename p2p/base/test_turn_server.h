@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 
+#include "api/sequence_checker.h"
 #include "api/transport/stun.h"
 #include "p2p/base/basic_packet_socket_factory.h"
 #include "p2p/base/turn_server.h"
@@ -21,7 +22,6 @@
 #include "rtc_base/ssl_adapter.h"
 #include "rtc_base/ssl_identity.h"
 #include "rtc_base/thread.h"
-#include "rtc_base/thread_checker.h"
 
 namespace cricket {
 
@@ -99,8 +99,8 @@ class TestTurnServer : public TurnAuthInterface {
     } else if (proto == cricket::PROTO_TCP || proto == cricket::PROTO_TLS) {
       // For TCP we need to create a server socket which can listen for incoming
       // new connections.
-      rtc::AsyncSocket* socket =
-          thread_->socketserver()->CreateAsyncSocket(AF_INET, SOCK_STREAM);
+      rtc::Socket* socket =
+          thread_->socketserver()->CreateSocket(AF_INET, SOCK_STREAM);
       if (proto == cricket::PROTO_TLS) {
         // For TLS, wrap the TCP socket with an SSL adapter. The adapter must
         // be configured with a self-signed certificate for testing.
@@ -147,7 +147,7 @@ class TestTurnServer : public TurnAuthInterface {
 
   TurnServer server_;
   rtc::Thread* thread_;
-  rtc::ThreadChecker thread_checker_;
+  webrtc::SequenceChecker thread_checker_;
 };
 
 }  // namespace cricket

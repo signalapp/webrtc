@@ -18,12 +18,12 @@
 
 #include "absl/types/optional.h"
 #include "api/scoped_refptr.h"
+#include "api/sequence_checker.h"
 #include "api/video_codecs/video_encoder.h"
 #include "rtc_base/experiments/quality_scaling_experiment.h"
 #include "rtc_base/numerics/moving_average.h"
 #include "rtc_base/ref_count.h"
 #include "rtc_base/ref_counted_object.h"
-#include "rtc_base/synchronization/sequence_checker.h"
 #include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/task_queue.h"
 
@@ -38,7 +38,7 @@ class QualityScalerQpUsageHandlerInterface;
 // video stream down or up).
 class QualityScaler {
  public:
-  // Construct a QualityScaler with given |thresholds| and |handler|.
+  // Construct a QualityScaler with given `thresholds` and `handler`.
   // This starts the quality scaler periodically checking what the average QP
   // has been recently.
   QualityScaler(QualityScalerQpUsageHandlerInterface* handler,

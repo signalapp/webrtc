@@ -15,9 +15,9 @@
 #include <memory>
 #include <utility>
 
+#include "absl/base/attributes.h"
 #include "api/scoped_refptr.h"
 #include "rtc_base/async_invoker_inl.h"
-#include "rtc_base/bind.h"
 #include "rtc_base/constructor_magic.h"
 #include "rtc_base/event.h"
 #include "rtc_base/ref_counted_object.h"
@@ -87,12 +87,12 @@ namespace rtc {
 //   destruction. This can be done by starting each chain of invocations on the
 //   same thread on which it will be destroyed, or by using some other
 //   synchronization method.
-class AsyncInvoker : public MessageHandlerAutoCleanup {
+class DEPRECATED_AsyncInvoker : public MessageHandlerAutoCleanup {
  public:
-  AsyncInvoker();
-  ~AsyncInvoker() override;
+  DEPRECATED_AsyncInvoker();
+  ~DEPRECATED_AsyncInvoker() override;
 
-  // Call |functor| asynchronously on |thread|, with no callback upon
+  // Call `functor` asynchronously on `thread`, with no callback upon
   // completion. Returns immediately.
   template <class ReturnT, class FunctorT>
   void AsyncInvoke(const Location& posted_from,
@@ -105,7 +105,7 @@ class AsyncInvoker : public MessageHandlerAutoCleanup {
     DoInvoke(posted_from, thread, std::move(closure), id);
   }
 
-  // Call |functor| asynchronously on |thread| with |delay_ms|, with no callback
+  // Call `functor` asynchronously on `thread` with `delay_ms`, with no callback
   // upon completion. Returns immediately.
   template <class ReturnT, class FunctorT>
   void AsyncInvokeDelayed(const Location& posted_from,
@@ -119,8 +119,8 @@ class AsyncInvoker : public MessageHandlerAutoCleanup {
     DoInvokeDelayed(posted_from, thread, std::move(closure), delay_ms, id);
   }
 
-  // Synchronously execute on |thread| all outstanding calls we own
-  // that are pending on |thread|, and wait for calls to complete
+  // Synchronously execute on `thread` all outstanding calls we own
+  // that are pending on `thread`, and wait for calls to complete
   // before returning. Optionally filter by message id.
   // The destructor will not wait for outstanding calls, so if that
   // behavior is desired, call Flush() before destroying this object.
@@ -157,7 +157,7 @@ class AsyncInvoker : public MessageHandlerAutoCleanup {
   // an AsyncClosure's destructor that's about to call
   // "invocation_complete_->Set()", it's not dereferenced after being
   // destroyed.
-  scoped_refptr<RefCountedObject<Event>> invocation_complete_;
+  rtc::Ref<Event>::Ptr invocation_complete_;
 
   // This flag is used to ensure that if an application AsyncInvokes tasks that
   // recursively AsyncInvoke other tasks ad infinitum, the cycle eventually
@@ -166,8 +166,11 @@ class AsyncInvoker : public MessageHandlerAutoCleanup {
 
   friend class AsyncClosure;
 
-  RTC_DISALLOW_COPY_AND_ASSIGN(AsyncInvoker);
+  RTC_DISALLOW_COPY_AND_ASSIGN(DEPRECATED_AsyncInvoker);
 };
+
+using AsyncInvoker ABSL_DEPRECATED("bugs.webrtc.org/12339") =
+    DEPRECATED_AsyncInvoker;
 
 }  // namespace rtc
 

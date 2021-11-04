@@ -18,6 +18,7 @@
 #include "call/simulated_network.h"
 #include "rtc_base/fake_network.h"
 #include "test/network/emulated_turn_server.h"
+#include "test/network/traffic_route.h"
 #include "test/time_controller/real_time_controller.h"
 #include "test/time_controller/simulated_time_controller.h"
 
@@ -45,7 +46,8 @@ std::unique_ptr<TimeController> CreateTimeController(TimeMode mode) {
 }  // namespace
 
 NetworkEmulationManagerImpl::NetworkEmulationManagerImpl(TimeMode mode)
-    : time_controller_(CreateTimeController(mode)),
+    : time_mode_(mode),
+      time_controller_(CreateTimeController(mode)),
       clock_(time_controller_->GetClock()),
       next_node_id_(1),
       next_ip4_address_(kMinIPv4Address),
@@ -85,7 +87,7 @@ NetworkEmulationManagerImpl::NodeBuilder() {
   return SimulatedNetworkNode::Builder(this);
 }
 
-EmulatedEndpoint* NetworkEmulationManagerImpl::CreateEndpoint(
+EmulatedEndpointImpl* NetworkEmulationManagerImpl::CreateEndpoint(
     EmulatedEndpointConfig config) {
   absl::optional<rtc::IPAddress> ip = config.ip;
   if (!ip) {
@@ -105,9 +107,9 @@ EmulatedEndpoint* NetworkEmulationManagerImpl::CreateEndpoint(
   bool res = used_ip_addresses_.insert(*ip).second;
   RTC_CHECK(res) << "IP=" << ip->ToString() << " already in use";
   auto node = std::make_unique<EmulatedEndpointImpl>(
-      next_node_id_++, *ip, config.stats_gathering_mode,
-      config.start_as_enabled, config.type, &task_queue_, clock_);
-  EmulatedEndpoint* out = node.get();
+      EmulatedEndpointImpl::Options(next_node_id_++, *ip, config),
+      config.start_as_enabled, &task_queue_, clock_);
+  EmulatedEndpointImpl* out = node.get();
   endpoints_.push_back(std::move(node));
   return out;
 }
@@ -146,7 +148,7 @@ EmulatedRoute* NetworkEmulationManagerImpl::CreateRoute(
 
   std::unique_ptr<EmulatedRoute> route = std::make_unique<EmulatedRoute>(
       static_cast<EmulatedEndpointImpl*>(from), std::move(via_nodes),
-      static_cast<EmulatedEndpointImpl*>(to));
+      static_cast<EmulatedEndpointImpl*>(to), /*is_default=*/false);
   EmulatedRoute* out = route.get();
   routes_.push_back(std::move(route));
   return out;
@@ -159,96 +161,54 @@ EmulatedRoute* NetworkEmulationManagerImpl::CreateRoute(
   return CreateRoute(from, via_nodes, to);
 }
 
+EmulatedRoute* NetworkEmulationManagerImpl::CreateDefaultRoute(
+    EmulatedEndpoint* from,
+    const std::vector<EmulatedNetworkNode*>& via_nodes,
+    EmulatedEndpoint* to) {
+  // Because endpoint has no send node by default at least one should be
+  // provided here.
+  RTC_CHECK(!via_nodes.empty());
+
+  static_cast<EmulatedEndpointImpl*>(from)->router()->SetDefaultReceiver(
+      via_nodes[0]);
+  EmulatedNetworkNode* cur_node = via_nodes[0];
+  for (size_t i = 1; i < via_nodes.size(); ++i) {
+    cur_node->router()->SetDefaultReceiver(via_nodes[i]);
+    cur_node = via_nodes[i];
+  }
+  cur_node->router()->SetDefaultReceiver(to);
+
+  std::unique_ptr<EmulatedRoute> route = std::make_unique<EmulatedRoute>(
+      static_cast<EmulatedEndpointImpl*>(from), std::move(via_nodes),
+      static_cast<EmulatedEndpointImpl*>(to), /*is_default=*/true);
+  EmulatedRoute* out = route.get();
+  routes_.push_back(std::move(route));
+  return out;
+}
+
 void NetworkEmulationManagerImpl::ClearRoute(EmulatedRoute* route) {
   RTC_CHECK(route->active) << "Route already cleared";
   task_queue_.SendTask(
       [route]() {
         // Remove receiver from intermediate nodes.
         for (auto* node : route->via_nodes) {
-          node->router()->RemoveReceiver(route->to->GetPeerLocalAddress());
+          if (route->is_default) {
+            node->router()->RemoveDefaultReceiver();
+          } else {
+            node->router()->RemoveReceiver(route->to->GetPeerLocalAddress());
+          }
         }
         // Remove destination endpoint from source endpoint's router.
-        route->from->router()->RemoveReceiver(route->to->GetPeerLocalAddress());
+        if (route->is_default) {
+          route->from->router()->RemoveDefaultReceiver();
+        } else {
+          route->from->router()->RemoveReceiver(
+              route->to->GetPeerLocalAddress());
+        }
 
         route->active = false;
       },
       RTC_FROM_HERE);
-}
-
-TrafficRoute* NetworkEmulationManagerImpl::CreateTrafficRoute(
-    const std::vector<EmulatedNetworkNode*>& via_nodes) {
-  RTC_CHECK(!via_nodes.empty());
-  EmulatedEndpoint* endpoint = CreateEndpoint(EmulatedEndpointConfig());
-
-  // Setup a route via specified nodes.
-  EmulatedNetworkNode* cur_node = via_nodes[0];
-  for (size_t i = 1; i < via_nodes.size(); ++i) {
-    cur_node->router()->SetReceiver(endpoint->GetPeerLocalAddress(),
-                                    via_nodes[i]);
-    cur_node = via_nodes[i];
-  }
-  cur_node->router()->SetReceiver(endpoint->GetPeerLocalAddress(), endpoint);
-
-  std::unique_ptr<TrafficRoute> traffic_route =
-      std::make_unique<TrafficRoute>(clock_, via_nodes[0], endpoint);
-  TrafficRoute* out = traffic_route.get();
-  traffic_routes_.push_back(std::move(traffic_route));
-  return out;
-}
-
-RandomWalkCrossTraffic*
-NetworkEmulationManagerImpl::CreateRandomWalkCrossTraffic(
-    TrafficRoute* traffic_route,
-    RandomWalkConfig config) {
-  auto traffic =
-      std::make_unique<RandomWalkCrossTraffic>(config, traffic_route);
-  RandomWalkCrossTraffic* out = traffic.get();
-
-  task_queue_.PostTask(
-      [this, config, traffic = std::move(traffic)]() mutable {
-        auto* traffic_ptr = traffic.get();
-        random_cross_traffics_.push_back(std::move(traffic));
-        RepeatingTaskHandle::Start(task_queue_.Get(),
-                                   [this, config, traffic_ptr] {
-                                     traffic_ptr->Process(Now());
-                                     return config.min_packet_interval;
-                                   });
-      });
-  return out;
-}
-
-PulsedPeaksCrossTraffic*
-NetworkEmulationManagerImpl::CreatePulsedPeaksCrossTraffic(
-    TrafficRoute* traffic_route,
-    PulsedPeaksConfig config) {
-  auto traffic =
-      std::make_unique<PulsedPeaksCrossTraffic>(config, traffic_route);
-  PulsedPeaksCrossTraffic* out = traffic.get();
-  task_queue_.PostTask(
-      [this, config, traffic = std::move(traffic)]() mutable {
-        auto* traffic_ptr = traffic.get();
-        pulsed_cross_traffics_.push_back(std::move(traffic));
-        RepeatingTaskHandle::Start(task_queue_.Get(),
-                                   [this, config, traffic_ptr] {
-                                     traffic_ptr->Process(Now());
-                                     return config.min_packet_interval;
-                                   });
-      });
-  return out;
-}
-
-FakeTcpCrossTraffic* NetworkEmulationManagerImpl::StartFakeTcpCrossTraffic(
-    std::vector<EmulatedNetworkNode*> send_link,
-    std::vector<EmulatedNetworkNode*> ret_link,
-    FakeTcpConfig config) {
-  auto traffic = std::make_unique<FakeTcpCrossTraffic>(
-      clock_, config, CreateRoute(send_link), CreateRoute(ret_link));
-  auto* traffic_ptr = traffic.get();
-  task_queue_.PostTask([this, traffic = std::move(traffic)]() mutable {
-    traffic->Start(task_queue_.Get());
-    tcp_cross_traffics_.push_back(std::move(traffic));
-  });
-  return traffic_ptr;
 }
 
 TcpMessageRoute* NetworkEmulationManagerImpl::CreateTcpRoute(
@@ -263,14 +223,54 @@ TcpMessageRoute* NetworkEmulationManagerImpl::CreateTcpRoute(
   return route_ptr;
 }
 
-void NetworkEmulationManagerImpl::StopCrossTraffic(
-    FakeTcpCrossTraffic* traffic) {
-  task_queue_.PostTask([=]() {
-    traffic->Stop();
-    tcp_cross_traffics_.remove_if(
-        [=](const std::unique_ptr<FakeTcpCrossTraffic>& ptr) {
-          return ptr.get() == traffic;
+CrossTrafficRoute* NetworkEmulationManagerImpl::CreateCrossTrafficRoute(
+    const std::vector<EmulatedNetworkNode*>& via_nodes) {
+  RTC_CHECK(!via_nodes.empty());
+  EmulatedEndpointImpl* endpoint = CreateEndpoint(EmulatedEndpointConfig());
+
+  // Setup a route via specified nodes.
+  EmulatedNetworkNode* cur_node = via_nodes[0];
+  for (size_t i = 1; i < via_nodes.size(); ++i) {
+    cur_node->router()->SetReceiver(endpoint->GetPeerLocalAddress(),
+                                    via_nodes[i]);
+    cur_node = via_nodes[i];
+  }
+  cur_node->router()->SetReceiver(endpoint->GetPeerLocalAddress(), endpoint);
+
+  std::unique_ptr<CrossTrafficRoute> traffic_route =
+      std::make_unique<CrossTrafficRouteImpl>(clock_, via_nodes[0], endpoint);
+  CrossTrafficRoute* out = traffic_route.get();
+  traffic_routes_.push_back(std::move(traffic_route));
+  return out;
+}
+
+CrossTrafficGenerator* NetworkEmulationManagerImpl::StartCrossTraffic(
+    std::unique_ptr<CrossTrafficGenerator> generator) {
+  CrossTrafficGenerator* out = generator.get();
+  task_queue_.PostTask([this, generator = std::move(generator)]() mutable {
+    auto* generator_ptr = generator.get();
+
+    auto repeating_task_handle =
+        RepeatingTaskHandle::Start(task_queue_.Get(), [this, generator_ptr] {
+          generator_ptr->Process(Now());
+          return generator_ptr->GetProcessInterval();
         });
+
+    cross_traffics_.push_back(CrossTrafficSource(
+        std::move(generator), std::move(repeating_task_handle)));
+  });
+  return out;
+}
+
+void NetworkEmulationManagerImpl::StopCrossTraffic(
+    CrossTrafficGenerator* generator) {
+  task_queue_.PostTask([=]() {
+    auto it = std::find_if(cross_traffics_.begin(), cross_traffics_.end(),
+                           [=](const CrossTrafficSource& el) {
+                             return el.first.get() == generator;
+                           });
+    it->second.Stop();
+    cross_traffics_.erase(it);
   });
 }
 
@@ -278,6 +278,7 @@ EmulatedNetworkManagerInterface*
 NetworkEmulationManagerImpl::CreateEmulatedNetworkManagerInterface(
     const std::vector<EmulatedEndpoint*>& endpoints) {
   std::vector<EmulatedEndpointImpl*> endpoint_impls;
+  endpoint_impls.reserve(endpoints.size());
   for (EmulatedEndpoint* endpoint : endpoints) {
     endpoint_impls.push_back(static_cast<EmulatedEndpointImpl*>(endpoint));
   }
@@ -303,7 +304,7 @@ NetworkEmulationManagerImpl::CreateEmulatedNetworkManagerInterface(
 }
 
 void NetworkEmulationManagerImpl::GetStats(
-    rtc::ArrayView<EmulatedEndpoint*> endpoints,
+    rtc::ArrayView<EmulatedEndpoint* const> endpoints,
     std::function<void(std::unique_ptr<EmulatedNetworkStats>)> stats_callback) {
   task_queue_.PostTask([endpoints, stats_callback]() {
     EmulatedNetworkStatsBuilder stats_builder;

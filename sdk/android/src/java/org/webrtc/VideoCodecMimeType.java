@@ -14,7 +14,8 @@ package org.webrtc;
 enum VideoCodecMimeType {
   VP8("video/x-vnd.on2.vp8"),
   VP9("video/x-vnd.on2.vp9"),
-  H264("video/avc");
+  H264("video/avc"),
+  AV1("video/av01");
 
   private final String mimeType;
 
@@ -24,5 +25,13 @@ enum VideoCodecMimeType {
 
   String mimeType() {
     return mimeType;
+  }
+
+  static VideoCodecMimeType fromSdpCodecName(String codecName) {
+    return codecName.equals("AV1X") ? AV1 : valueOf(codecName);
+  }
+
+  String toSdpCodecName() {
+    return this == AV1 ? "AV1X" : name();
   }
 }

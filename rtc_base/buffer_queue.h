@@ -16,9 +16,9 @@
 #include <deque>
 #include <vector>
 
+#include "api/sequence_checker.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/constructor_magic.h"
-#include "rtc_base/synchronization/sequence_checker.h"
 #include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/thread_annotations.h"
 
@@ -33,7 +33,7 @@ class BufferQueue final {
   // Return number of queued buffers.
   size_t size() const;
 
-  // Clear the BufferQueue by moving all Buffers from |queue_| to |free_list_|.
+  // Clear the BufferQueue by moving all Buffers from `queue_` to `free_list_`.
   void Clear();
 
   // ReadFront will only read one buffer at a time and will truncate buffers

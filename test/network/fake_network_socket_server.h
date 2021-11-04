@@ -15,11 +15,10 @@
 #include <vector>
 
 #include "api/units/timestamp.h"
-#include "rtc_base/async_socket.h"
 #include "rtc_base/event.h"
+#include "rtc_base/socket.h"
 #include "rtc_base/socket_server.h"
 #include "rtc_base/synchronization/mutex.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "system_wrappers/include/clock.h"
 #include "test/network/network_emulation.h"
 
@@ -28,8 +27,7 @@ namespace test {
 class FakeNetworkSocket;
 
 // FakeNetworkSocketServer must outlive any sockets it creates.
-class FakeNetworkSocketServer : public rtc::SocketServer,
-                                public sigslot::has_slots<> {
+class FakeNetworkSocketServer : public rtc::SocketServer {
  public:
   explicit FakeNetworkSocketServer(EndpointsContainer* endpoints_controller);
   ~FakeNetworkSocketServer() override;
@@ -37,7 +35,6 @@ class FakeNetworkSocketServer : public rtc::SocketServer,
 
   // rtc::SocketFactory methods:
   rtc::Socket* CreateSocket(int family, int type) override;
-  rtc::AsyncSocket* CreateAsyncSocket(int family, int type) override;
 
   // rtc::SocketServer methods:
   // Called by the network thread when this server is installed, kicking off the
@@ -52,8 +49,6 @@ class FakeNetworkSocketServer : public rtc::SocketServer,
   void Unregister(FakeNetworkSocket* socket);
 
  private:
-  void OnMessageQueueDestroyed();
-
   const EndpointsContainer* endpoints_container_;
   rtc::Event wakeup_;
   rtc::Thread* thread_ = nullptr;

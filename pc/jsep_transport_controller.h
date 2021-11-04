@@ -11,32 +11,63 @@
 #ifndef PC_JSEP_TRANSPORT_CONTROLLER_H_
 #define PC_JSEP_TRANSPORT_CONTROLLER_H_
 
+#include <stdint.h>
+
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "absl/types/optional.h"
+#include "api/async_dns_resolver.h"
 #include "api/candidate.h"
 #include "api/crypto/crypto_options.h"
 #include "api/ice_transport_factory.h"
+#include "api/ice_transport_interface.h"
+#include "api/jsep.h"
 #include "api/peer_connection_interface.h"
+#include "api/rtc_error.h"
 #include "api/rtc_event_log/rtc_event_log.h"
+#include "api/scoped_refptr.h"
+#include "api/sequence_checker.h"
+#include "api/transport/data_channel_transport_interface.h"
+#include "api/transport/sctp_transport_factory_interface.h"
 #include "media/sctp/sctp_transport_internal.h"
 #include "p2p/base/dtls_transport.h"
 #include "p2p/base/dtls_transport_factory.h"
+#include "p2p/base/dtls_transport_internal.h"
+#include "p2p/base/ice_transport_internal.h"
 #include "p2p/base/p2p_transport_channel.h"
+#include "p2p/base/packet_transport_internal.h"
+#include "p2p/base/port.h"
+#include "p2p/base/port_allocator.h"
+#include "p2p/base/transport_description.h"
+#include "p2p/base/transport_info.h"
 #include "pc/channel.h"
 #include "pc/dtls_srtp_transport.h"
 #include "pc/dtls_transport.h"
 #include "pc/jsep_transport.h"
+#include "pc/jsep_transport_collection.h"
 #include "pc/rtp_transport.h"
+#include "pc/rtp_transport_internal.h"
+#include "pc/sctp_transport.h"
+#include "pc/session_description.h"
 #include "pc/srtp_transport.h"
-#include "rtc_base/async_invoker.h"
-#include "rtc_base/constructor_magic.h"
-#include "rtc_base/ref_counted_object.h"
+#include "pc/transport_stats.h"
 #include "rtc_base/callback_list.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/constructor_magic.h"
+#include "rtc_base/copy_on_write_buffer.h"
+#include "rtc_base/helpers.h"
+#include "rtc_base/ref_counted_object.h"
+#include "rtc_base/rtc_certificate.h"
+#include "rtc_base/ssl_certificate.h"
+#include "rtc_base/ssl_stream_adapter.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
+#include "rtc_base/thread.h"
+#include "rtc_base/thread_annotations.h"
 
 namespace rtc {
 class Thread;
@@ -53,20 +84,20 @@ class JsepTransportController : public sigslot::has_slots<> {
    public:
     virtual ~Observer() {}
 
-    // Returns true if media associated with |mid| was successfully set up to be
-    // demultiplexed on |rtp_transport|. Could return false if two bundled m=
+    // Returns true if media associated with `mid` was successfully set up to be
+    // demultiplexed on `rtp_transport`. Could return false if two bundled m=
     // sections use the same SSRC, for example.
     //
-    // If a data channel transport must be negotiated, |data_channel_transport|
-    // and |negotiation_state| indicate negotiation status.  If
-    // |data_channel_transport| is null, the data channel transport should not
+    // If a data channel transport must be negotiated, `data_channel_transport`
+    // and `negotiation_state` indicate negotiation status.  If
+    // `data_channel_transport` is null, the data channel transport should not
     // be used.  Otherwise, the value is a pointer to the transport to be used
-    // for data channels on |mid|, if any.
+    // for data channels on `mid`, if any.
     //
-    // The observer should not send data on |data_channel_transport| until
-    // |negotiation_state| is provisional or final.  It should not delete
-    // |data_channel_transport| or any fallback transport until
-    // |negotiation_state| is final.
+    // The observer should not send data on `data_channel_transport` until
+    // `negotiation_state` is provisional or final.  It should not delete
+    // `data_channel_transport` or any fallback transport until
+    // `negotiation_state` is final.
     virtual bool OnTransportChanged(
         const std::string& mid,
         RtpTransportInternal* rtp_transport,
@@ -75,12 +106,12 @@ class JsepTransportController : public sigslot::has_slots<> {
   };
 
   struct Config {
-    // If |redetermine_role_on_ice_restart| is true, ICE role is redetermined
+    // If `redetermine_role_on_ice_restart` is true, ICE role is redetermined
     // upon setting a local transport description that indicates an ICE
     // restart.
     bool redetermine_role_on_ice_restart = true;
     rtc::SSLProtocolVersion ssl_max_version = rtc::SSL_PROTOCOL_DTLS_12;
-    // |crypto_options| is used to determine if created DTLS transports
+    // `crypto_options` is used to determine if created DTLS transports
     // negotiate GCM crypto suites or not.
     webrtc::CryptoOptions crypto_options;
     PeerConnectionInterface::BundlePolicy bundle_policy =
@@ -98,20 +129,25 @@ class JsepTransportController : public sigslot::has_slots<> {
     std::function<void(const rtc::CopyOnWriteBuffer& packet,
                        int64_t packet_time_us)>
         rtcp_handler;
+    // Initial value for whether DtlsTransport reset causes a reset
+    // of SRTP parameters.
     bool active_reset_srtp_params = false;
     RtcEventLog* event_log = nullptr;
 
     // Factory for SCTP transports.
     SctpTransportFactoryInterface* sctp_factory = nullptr;
+    std::function<void(const rtc::SSLHandshakeError)> on_dtls_handshake_error_;
   };
 
-  // The ICE related events are signaled on the |signaling_thread|.
-  // All the transport related methods are called on the |network_thread|.
-  JsepTransportController(rtc::Thread* signaling_thread,
-                          rtc::Thread* network_thread,
-                          cricket::PortAllocator* port_allocator,
-                          AsyncResolverFactory* async_resolver_factory,
-                          Config config);
+  // The ICE related events are fired on the `network_thread`.
+  // All the transport related methods are called on the `network_thread`
+  // and destruction of the JsepTransportController must occur on the
+  // `network_thread`.
+  JsepTransportController(
+      rtc::Thread* network_thread,
+      cricket::PortAllocator* port_allocator,
+      AsyncDnsResolverFactoryInterface* async_dns_resolver_factory,
+      Config config);
   virtual ~JsepTransportController();
 
   // The main method to be called; applies a description at the transport
@@ -124,7 +160,7 @@ class JsepTransportController : public sigslot::has_slots<> {
   RTCError SetRemoteDescription(SdpType type,
                                 const cricket::SessionDescription* description);
 
-  // Get transports to be used for the provided |mid|. If bundling is enabled,
+  // Get transports to be used for the provided `mid`. If bundling is enabled,
   // calling GetRtpTransport for multiple MIDs may yield the same object.
   RtpTransportInternal* GetRtpTransport(const std::string& mid) const;
 
@@ -132,11 +168,17 @@ class JsepTransportController : public sigslot::has_slots<> {
   // If bundling, return the transport used for it.
   // If not, return nullptr.
   RtpTransportInternal* GetBundledRtpTransport() {
-      if (!bundled_mid()) {
-          return nullptr;
-      }
-      return GetRtpTransport(*bundled_mid());
+    auto& bundle_groups = bundles_.bundle_groups();
+    if (bundle_groups.empty()) {
+      return nullptr;
+    }
+    auto* first_content_name = bundle_groups[0]->FirstContentName();
+    if (!first_content_name) {
+        return nullptr;
+    }
+    return GetRtpTransport(*first_content_name);
   }
+
   cricket::DtlsTransportInternal* GetDtlsTransport(const std::string& mid);
   const cricket::DtlsTransportInternal* GetRtcpDtlsTransport(
       const std::string& mid) const;
@@ -200,63 +242,117 @@ class JsepTransportController : public sigslot::has_slots<> {
 
   void SetActiveResetSrtpParams(bool active_reset_srtp_params);
 
-  // For now the rollback only removes mid to transport mappings
-  // and deletes unused transports, but doesn't consider anything more complex.
-  void RollbackTransports();
+  RTCError RollbackTransports();
 
   bool SetIncomingRtpEnabled(bool enabled);
 
-  // All of these signals are fired on the signaling thread.
+  // F: void(const std::string&, const std::vector<cricket::Candidate>&)
+  template <typename F>
+  void SubscribeIceCandidateGathered(F&& callback) {
+    RTC_DCHECK_RUN_ON(network_thread_);
+    signal_ice_candidates_gathered_.AddReceiver(std::forward<F>(callback));
+  }
+
+  // F: void(cricket::IceConnectionState)
+  template <typename F>
+  void SubscribeIceConnectionState(F&& callback) {
+    RTC_DCHECK_RUN_ON(network_thread_);
+    signal_ice_connection_state_.AddReceiver(std::forward<F>(callback));
+  }
+
+  // F: void(PeerConnectionInterface::PeerConnectionState)
+  template <typename F>
+  void SubscribeConnectionState(F&& callback) {
+    RTC_DCHECK_RUN_ON(network_thread_);
+    signal_connection_state_.AddReceiver(std::forward<F>(callback));
+  }
+
+  // F: void(PeerConnectionInterface::IceConnectionState)
+  template <typename F>
+  void SubscribeStandardizedIceConnectionState(F&& callback) {
+    RTC_DCHECK_RUN_ON(network_thread_);
+    signal_standardized_ice_connection_state_.AddReceiver(
+        std::forward<F>(callback));
+  }
+
+  // F: void(cricket::IceGatheringState)
+  template <typename F>
+  void SubscribeIceGatheringState(F&& callback) {
+    RTC_DCHECK_RUN_ON(network_thread_);
+    signal_ice_gathering_state_.AddReceiver(std::forward<F>(callback));
+  }
+
+  // F: void(const cricket::IceCandidateErrorEvent&)
+  template <typename F>
+  void SubscribeIceCandidateError(F&& callback) {
+    RTC_DCHECK_RUN_ON(network_thread_);
+    signal_ice_candidate_error_.AddReceiver(std::forward<F>(callback));
+  }
+
+  // F: void(const std::vector<cricket::Candidate>&)
+  template <typename F>
+  void SubscribeIceCandidatesRemoved(F&& callback) {
+    RTC_DCHECK_RUN_ON(network_thread_);
+    signal_ice_candidates_removed_.AddReceiver(std::forward<F>(callback));
+  }
+
+  // F: void(const cricket::CandidatePairChangeEvent&)
+  template <typename F>
+  void SubscribeIceCandidatePairChanged(F&& callback) {
+    RTC_DCHECK_RUN_ON(network_thread_);
+    signal_ice_candidate_pair_changed_.AddReceiver(std::forward<F>(callback));
+  }
+
+ private:
+  // All of these callbacks are fired on the network thread.
 
   // If any transport failed => failed,
   // Else if all completed => completed,
   // Else if all connected => connected,
   // Else => connecting
-  CallbackList<cricket::IceConnectionState> SignalIceConnectionState;
+  CallbackList<cricket::IceConnectionState> signal_ice_connection_state_
+      RTC_GUARDED_BY(network_thread_);
 
-  sigslot::signal1<PeerConnectionInterface::PeerConnectionState>
-      SignalConnectionState;
+  CallbackList<PeerConnectionInterface::PeerConnectionState>
+      signal_connection_state_ RTC_GUARDED_BY(network_thread_);
 
-  sigslot::signal1<PeerConnectionInterface::IceConnectionState>
-      SignalStandardizedIceConnectionState;
+  CallbackList<PeerConnectionInterface::IceConnectionState>
+      signal_standardized_ice_connection_state_ RTC_GUARDED_BY(network_thread_);
 
   // If all transports done gathering => complete,
   // Else if any are gathering => gathering,
   // Else => new
-  sigslot::signal1<cricket::IceGatheringState> SignalIceGatheringState;
+  CallbackList<cricket::IceGatheringState> signal_ice_gathering_state_
+      RTC_GUARDED_BY(network_thread_);
 
-  // (mid, candidates)
-  sigslot::signal2<const std::string&, const std::vector<cricket::Candidate>&>
-      SignalIceCandidatesGathered;
+  // [mid, candidates]
+  CallbackList<const std::string&, const std::vector<cricket::Candidate>&>
+      signal_ice_candidates_gathered_ RTC_GUARDED_BY(network_thread_);
 
-  sigslot::signal1<const cricket::IceCandidateErrorEvent&>
-      SignalIceCandidateError;
+  CallbackList<const cricket::IceCandidateErrorEvent&>
+      signal_ice_candidate_error_ RTC_GUARDED_BY(network_thread_);
 
-  sigslot::signal1<const std::vector<cricket::Candidate>&>
-      SignalIceCandidatesRemoved;
+  CallbackList<const std::vector<cricket::Candidate>&>
+      signal_ice_candidates_removed_ RTC_GUARDED_BY(network_thread_);
 
-  sigslot::signal1<const cricket::CandidatePairChangeEvent&>
-      SignalIceCandidatePairChanged;
+  CallbackList<const cricket::CandidatePairChangeEvent&>
+      signal_ice_candidate_pair_changed_ RTC_GUARDED_BY(network_thread_);
 
-  sigslot::signal1<rtc::SSLHandshakeError> SignalDtlsHandshakeError;
-
- private:
   RTCError ApplyDescription_n(bool local,
                               SdpType type,
-                              const cricket::SessionDescription* description);
-  RTCError ValidateAndMaybeUpdateBundleGroup(
+                              const cricket::SessionDescription* description)
+      RTC_RUN_ON(network_thread_);
+  RTCError ValidateAndMaybeUpdateBundleGroups(
       bool local,
       SdpType type,
       const cricket::SessionDescription* description);
   RTCError ValidateContent(const cricket::ContentInfo& content_info);
 
-  void HandleRejectedContent(const cricket::ContentInfo& content_info,
-                             const cricket::SessionDescription* description);
-  bool HandleBundledContent(const cricket::ContentInfo& content_info);
-
-  bool SetTransportForMid(const std::string& mid,
-                          cricket::JsepTransport* jsep_transport);
-  void RemoveTransportForMid(const std::string& mid);
+  void HandleRejectedContent(const cricket::ContentInfo& content_info)
+      RTC_RUN_ON(network_thread_);
+  bool HandleBundledContent(const cricket::ContentInfo& content_info,
+                            const cricket::ContentGroup& bundle_group)
+      RTC_RUN_ON(network_thread_);
 
   cricket::JsepTransportDescription CreateJsepTransportDescription(
       const cricket::ContentInfo& content_info,
@@ -264,22 +360,8 @@ class JsepTransportController : public sigslot::has_slots<> {
       const std::vector<int>& encrypted_extension_ids,
       int rtp_abs_sendtime_extn_id);
 
-  absl::optional<std::string> bundled_mid() const {
-    absl::optional<std::string> bundled_mid;
-    if (bundle_group_ && bundle_group_->FirstContentName()) {
-      bundled_mid = *(bundle_group_->FirstContentName());
-    }
-    return bundled_mid;
-  }
-
-  bool IsBundled(const std::string& mid) const {
-    return bundle_group_ && bundle_group_->HasContentName(mid);
-  }
-
-  bool ShouldUpdateBundleGroup(SdpType type,
-                               const cricket::SessionDescription* description);
-
-  std::vector<int> MergeEncryptedHeaderExtensionIdsForBundle(
+  std::map<const cricket::ContentGroup*, std::vector<int>>
+  MergeEncryptedHeaderExtensionIdsForBundles(
       const cricket::SessionDescription* description);
   std::vector<int> GetEncryptedHeaderExtensionIds(
       const cricket::ContentInfo& content_info);
@@ -292,29 +374,30 @@ class JsepTransportController : public sigslot::has_slots<> {
   // transports are bundled on (In current implementation, it is the first
   // content in the BUNDLE group).
   const cricket::JsepTransport* GetJsepTransportForMid(
-      const std::string& mid) const;
-  cricket::JsepTransport* GetJsepTransportForMid(const std::string& mid);
+      const std::string& mid) const RTC_RUN_ON(network_thread_);
+  cricket::JsepTransport* GetJsepTransportForMid(const std::string& mid)
+      RTC_RUN_ON(network_thread_);
 
   // Get the JsepTransport without considering the BUNDLE group. Return nullptr
   // if the JsepTransport is destroyed.
   const cricket::JsepTransport* GetJsepTransportByName(
-      const std::string& transport_name) const;
+      const std::string& transport_name) const RTC_RUN_ON(network_thread_);
   cricket::JsepTransport* GetJsepTransportByName(
-      const std::string& transport_name);
+      const std::string& transport_name) RTC_RUN_ON(network_thread_);
 
   // Creates jsep transport. Noop if transport is already created.
-  // Transport is created either during SetLocalDescription (|local| == true) or
-  // during SetRemoteDescription (|local| == false). Passing |local| helps to
+  // Transport is created either during SetLocalDescription (`local` == true) or
+  // during SetRemoteDescription (`local` == false). Passing `local` helps to
   // differentiate initiator (caller) from answerer (callee).
   RTCError MaybeCreateJsepTransport(
       bool local,
       const cricket::ContentInfo& content_info,
-      const cricket::SessionDescription& description);
+      const cricket::SessionDescription& description)
+      RTC_RUN_ON(network_thread_);
 
-  void MaybeDestroyJsepTransport(const std::string& mid);
-  void DestroyAllJsepTransports_n();
+  void DestroyAllJsepTransports_n() RTC_RUN_ON(network_thread_);
 
-  void SetIceRole_n(cricket::IceRole ice_role);
+  void SetIceRole_n(cricket::IceRole ice_role) RTC_RUN_ON(network_thread_);
 
   cricket::IceRole DetermineIceRole(
       cricket::JsepTransport* jsep_transport,
@@ -343,44 +426,53 @@ class JsepTransportController : public sigslot::has_slots<> {
       cricket::DtlsTransportInternal* rtcp_dtls_transport);
 
   // Collect all the DtlsTransports, including RTP and RTCP, from the
-  // JsepTransports. JsepTransportController can iterate all the DtlsTransports
-  // and update the aggregate states.
+  // JsepTransports, including those not mapped to a MID because they are being
+  // kept alive in case of rollback.
   std::vector<cricket::DtlsTransportInternal*> GetDtlsTransports();
+  // Same as the above, but doesn't include rollback transports.
+  // JsepTransportController can iterate all the DtlsTransports and update the
+  // aggregate states.
+  std::vector<cricket::DtlsTransportInternal*> GetActiveDtlsTransports();
 
   // Handlers for signals from Transport.
-  void OnTransportWritableState_n(rtc::PacketTransportInternal* transport);
-  void OnTransportReceivingState_n(rtc::PacketTransportInternal* transport);
-  void OnTransportGatheringState_n(cricket::IceTransportInternal* transport);
+  void OnTransportWritableState_n(rtc::PacketTransportInternal* transport)
+      RTC_RUN_ON(network_thread_);
+  void OnTransportReceivingState_n(rtc::PacketTransportInternal* transport)
+      RTC_RUN_ON(network_thread_);
+  void OnTransportGatheringState_n(cricket::IceTransportInternal* transport)
+      RTC_RUN_ON(network_thread_);
   void OnTransportCandidateGathered_n(cricket::IceTransportInternal* transport,
-                                      const cricket::Candidate& candidate);
-  void OnTransportCandidateError_n(
-      cricket::IceTransportInternal* transport,
-      const cricket::IceCandidateErrorEvent& event);
+                                      const cricket::Candidate& candidate)
+      RTC_RUN_ON(network_thread_);
+  void OnTransportCandidateError_n(cricket::IceTransportInternal* transport,
+                                   const cricket::IceCandidateErrorEvent& event)
+      RTC_RUN_ON(network_thread_);
   void OnTransportCandidatesRemoved_n(cricket::IceTransportInternal* transport,
-                                      const cricket::Candidates& candidates);
-  void OnTransportRoleConflict_n(cricket::IceTransportInternal* transport);
-  void OnTransportStateChanged_n(cricket::IceTransportInternal* transport);
+                                      const cricket::Candidates& candidates)
+      RTC_RUN_ON(network_thread_);
+  void OnTransportRoleConflict_n(cricket::IceTransportInternal* transport)
+      RTC_RUN_ON(network_thread_);
+  void OnTransportStateChanged_n(cricket::IceTransportInternal* transport)
+      RTC_RUN_ON(network_thread_);
   void OnTransportCandidatePairChanged_n(
-      const cricket::CandidatePairChangeEvent& event);
-  void UpdateAggregateStates_n();
+      const cricket::CandidatePairChangeEvent& event)
+      RTC_RUN_ON(network_thread_);
+  void UpdateAggregateStates_n() RTC_RUN_ON(network_thread_);
 
   void OnRtcpPacketReceived_n(rtc::CopyOnWriteBuffer* packet,
-                              int64_t packet_time_us);
+                              int64_t packet_time_us)
+      RTC_RUN_ON(network_thread_);
 
   void OnDtlsHandshakeError(rtc::SSLHandshakeError error);
 
-  rtc::Thread* const signaling_thread_ = nullptr;
+  bool OnTransportChanged(const std::string& mid,
+                          cricket::JsepTransport* transport);
+
   rtc::Thread* const network_thread_ = nullptr;
   cricket::PortAllocator* const port_allocator_ = nullptr;
-  AsyncResolverFactory* const async_resolver_factory_ = nullptr;
+  AsyncDnsResolverFactoryInterface* const async_dns_resolver_factory_ = nullptr;
 
-  std::map<std::string, std::unique_ptr<cricket::JsepTransport>>
-      jsep_transports_by_name_;
-  // This keeps track of the mapping between media section
-  // (BaseChannel/SctpTransport) and the JsepTransport underneath.
-  std::map<std::string, cricket::JsepTransport*> mid_to_transport_;
-  // Keep track of mids that have been mapped to transports. Used for rollback.
-  std::vector<std::string> pending_mids_ RTC_GUARDED_BY(network_thread_);
+  JsepTransportCollection transports_ RTC_GUARDED_BY(network_thread_);
   // Aggregate states for Transports.
   // standardized_ice_connection_state_ is intended to replace
   // ice_connection_state, see bugs.webrtc.org/9308
@@ -393,19 +485,19 @@ class JsepTransportController : public sigslot::has_slots<> {
       PeerConnectionInterface::PeerConnectionState::kNew;
   cricket::IceGatheringState ice_gathering_state_ = cricket::kIceGatheringNew;
 
-  Config config_;
+  const Config config_;
+  bool active_reset_srtp_params_ RTC_GUARDED_BY(network_thread_);
 
   const cricket::SessionDescription* local_desc_ = nullptr;
   const cricket::SessionDescription* remote_desc_ = nullptr;
   absl::optional<bool> initial_offerer_;
 
-  absl::optional<cricket::ContentGroup> bundle_group_;
-
   cricket::IceConfig ice_config_;
   cricket::IceRole ice_role_ = cricket::ICEROLE_CONTROLLING;
   uint64_t ice_tiebreaker_ = rtc::CreateRandomId64();
   rtc::scoped_refptr<rtc::RTCCertificate> certificate_;
-  rtc::AsyncInvoker invoker_;
+
+  BundleManager bundles_;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(JsepTransportController);
 };

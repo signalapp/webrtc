@@ -14,6 +14,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+
 #include <memory>
 #include <string>
 
@@ -30,17 +31,20 @@
 #include "api/rtc_event_log/rtc_event_log_factory_interface.h"
 #include "api/rtp_parameters.h"
 #include "api/scoped_refptr.h"
+#include "api/sequence_checker.h"
 #include "api/task_queue/task_queue_factory.h"
 #include "api/transport/network_control.h"
 #include "api/transport/sctp_transport_factory_interface.h"
 #include "api/transport/webrtc_key_value_config.h"
 #include "call/call.h"
-#include "media/sctp/sctp_transport_internal.h"
+#include "call/rtp_transport_controller_send_factory_interface.h"
 #include "p2p/base/port_allocator.h"
 #include "pc/channel_manager.h"
 #include "pc/connection_context.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/rtc_certificate_generator.h"
 #include "rtc_base/thread.h"
+#include "rtc_base/thread_annotations.h"
 
 namespace rtc {
 class BasicNetworkManager;
@@ -62,16 +66,6 @@ class PeerConnectionFactory : public PeerConnectionFactoryInterface {
       PeerConnectionFactoryDependencies dependencies);
 
   void SetOptions(const Options& options) override;
-
-  rtc::scoped_refptr<PeerConnectionInterface> CreatePeerConnection(
-      const PeerConnectionInterface::RTCConfiguration& configuration,
-      std::unique_ptr<cricket::PortAllocator> allocator,
-      std::unique_ptr<rtc::RTCCertificateGeneratorInterface> cert_generator,
-      PeerConnectionObserver* observer) override;
-
-  rtc::scoped_refptr<PeerConnectionInterface> CreatePeerConnection(
-      const PeerConnectionInterface::RTCConfiguration& configuration,
-      PeerConnectionDependencies dependencies) override;
 
   RTCErrorOr<rtc::scoped_refptr<PeerConnectionInterface>>
   CreatePeerConnectionOrError(
@@ -113,6 +107,8 @@ class PeerConnectionFactory : public PeerConnectionFactoryInterface {
     return context_->signaling_thread();
   }
 
+  rtc::Thread* worker_thread() const { return context_->worker_thread(); }
+
   const Options& options() const {
     RTC_DCHECK_RUN_ON(signaling_thread());
     return options_;
@@ -133,7 +129,6 @@ class PeerConnectionFactory : public PeerConnectionFactoryInterface {
   virtual ~PeerConnectionFactory();
 
  private:
-  rtc::Thread* worker_thread() const { return context_->worker_thread(); }
   rtc::Thread* network_thread() const { return context_->network_thread(); }
 
   bool IsTrialEnabled(absl::string_view key) const;
@@ -155,6 +150,8 @@ class PeerConnectionFactory : public PeerConnectionFactoryInterface {
   std::unique_ptr<NetworkControllerFactoryInterface>
       injected_network_controller_factory_;
   std::unique_ptr<NetEqFactory> neteq_factory_;
+  const std::unique_ptr<RtpTransportControllerSendFactoryInterface>
+      transport_controller_send_factory_;
 };
 
 }  // namespace webrtc

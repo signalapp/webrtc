@@ -15,6 +15,7 @@
 #include "common_video/h264/h264_common.h"
 #include "modules/video_coding/include/video_codec_interface.h"
 #include "modules/video_coding/include/video_error_codes.h"
+#include "modules/video_coding/svc/scalable_video_controller_no_layering.h"
 #include "modules/video_coding/utility/vp8_header_parser.h"
 #include "modules/video_coding/utility/vp9_uncompressed_header_parser.h"
 #include "rtc_base/logging.h"
@@ -26,6 +27,7 @@
 #include "sdk/android/native_api/jni/java_types.h"
 #include "sdk/android/src/jni/encoded_image.h"
 #include "sdk/android/src/jni/video_codec_status.h"
+#include "sdk/android/src/jni/video_frame.h"
 
 namespace webrtc {
 namespace jni {
@@ -36,10 +38,8 @@ VideoEncoderWrapper::VideoEncoderWrapper(JNIEnv* jni,
   initialized_ = false;
   num_resets_ = 0;
 
-  // Get bitrate limits in the constructor. This is a static property of the
-  // encoder and is expected to be available before it is initialized.
-  encoder_info_.resolution_bitrate_limits = JavaToNativeResolutionBitrateLimits(
-      jni, Java_VideoEncoder_getResolutionBitrateLimits(jni, encoder_));
+  // Fetch and update encoder info.
+  UpdateEncoderInfo(jni);
 }
 VideoEncoderWrapper::~VideoEncoderWrapper() = default;
 
@@ -89,16 +89,30 @@ int32_t VideoEncoderWrapper::InitEncodeInternal(JNIEnv* jni) {
       jni, Java_VideoEncoder_initEncode(jni, encoder_, settings, callback));
   RTC_LOG(LS_INFO) << "initEncode: " << status;
 
-  encoder_info_.supports_native_handle = true;
-  encoder_info_.implementation_name = GetImplementationName(jni);
-  encoder_info_.scaling_settings = GetScalingSettingsInternal(jni);
-  encoder_info_.is_hardware_accelerated = IsHardwareVideoEncoder(jni, encoder_);
-  encoder_info_.has_internal_source = false;
+  // Some encoder's properties depend on settings and may change after
+  // initialization.
+  UpdateEncoderInfo(jni);
 
   if (status == WEBRTC_VIDEO_CODEC_OK) {
     initialized_ = true;
   }
   return status;
+}
+
+void VideoEncoderWrapper::UpdateEncoderInfo(JNIEnv* jni) {
+  encoder_info_.supports_native_handle = true;
+  encoder_info_.has_internal_source = false;
+
+  encoder_info_.implementation_name = JavaToStdString(
+      jni, Java_VideoEncoder_getImplementationName(jni, encoder_));
+
+  encoder_info_.is_hardware_accelerated =
+      Java_VideoEncoder_isHardwareEncoder(jni, encoder_);
+
+  encoder_info_.scaling_settings = GetScalingSettingsInternal(jni);
+
+  encoder_info_.resolution_bitrate_limits = JavaToNativeResolutionBitrateLimits(
+      jni, Java_VideoEncoder_getResolutionBitrateLimits(jni, encoder_));
 }
 
 int32_t VideoEncoderWrapper::RegisterEncodeCompleteCallback(
@@ -153,15 +167,14 @@ int32_t VideoEncoderWrapper::Encode(
   return HandleReturnCode(jni, ret, "encode");
 }
 
-void VideoEncoderWrapper::SetRates(const RateControlParameters& parameters) {
+void VideoEncoderWrapper::SetRates(const RateControlParameters& rc_parameters) {
   JNIEnv* jni = AttachCurrentThreadIfNeeded();
 
-  ScopedJavaLocalRef<jobject> j_bitrate_allocation =
-      ToJavaBitrateAllocation(jni, parameters.bitrate);
-  ScopedJavaLocalRef<jobject> ret = Java_VideoEncoder_setRateAllocation(
-      jni, encoder_, j_bitrate_allocation,
-      (jint)(parameters.framerate_fps + 0.5));
-  HandleReturnCode(jni, ret, "setRateAllocation");
+  ScopedJavaLocalRef<jobject> j_rc_parameters =
+      ToJavaRateControlParameters(jni, rc_parameters);
+  ScopedJavaLocalRef<jobject> ret =
+      Java_VideoEncoder_setRates(jni, encoder_, j_rc_parameters);
+  HandleReturnCode(jni, ret, "setRates");
 }
 
 VideoEncoder::EncoderInfo VideoEncoderWrapper::GetEncoderInfo() const {
@@ -253,7 +266,7 @@ void VideoEncoderWrapper::OnEncodedFrame(
     frame_extra_infos_.pop_front();
   }
 
-  // This is a bit subtle. The |frame| variable from the lambda capture is
+  // This is a bit subtle. The `frame` variable from the lambda capture is
   // const. Which implies that (i) we need to make a copy to be able to
   // write to the metadata, and (ii) we should avoid using the .data()
   // method (including implicit conversion to ArrayView) on the non-const
@@ -325,6 +338,19 @@ CodecSpecificInfo VideoEncoderWrapper::ParseCodecSpecificInfo(
   const bool key_frame = frame._frameType == VideoFrameType::kVideoFrameKey;
 
   CodecSpecificInfo info;
+  // For stream with scalability, NextFrameConfig should be called before
+  // encoding and used to configure encoder, then passed here e.g. via
+  // FrameExtraInfo structure. But while this encoder wrapper uses only trivial
+  // scalability, NextFrameConfig can be called here.
+  auto layer_frames = svc_controller_.NextFrameConfig(/*reset=*/key_frame);
+  RTC_DCHECK_EQ(layer_frames.size(), 1);
+  info.generic_frame_info = svc_controller_.OnEncodeDone(layer_frames[0]);
+  if (key_frame) {
+    info.template_structure = svc_controller_.DependencyStructure();
+    info.template_structure->resolutions = {
+        RenderResolution(frame._encodedWidth, frame._encodedHeight)};
+  }
+
   info.codecType = codec_settings_.codecType;
 
   switch (codec_settings_.codecType) {
@@ -383,9 +409,14 @@ ScopedJavaLocalRef<jobject> VideoEncoderWrapper::ToJavaBitrateAllocation(
   return Java_BitrateAllocation_Constructor(jni, j_allocation_array);
 }
 
-std::string VideoEncoderWrapper::GetImplementationName(JNIEnv* jni) const {
-  return JavaToStdString(
-      jni, Java_VideoEncoder_getImplementationName(jni, encoder_));
+ScopedJavaLocalRef<jobject> VideoEncoderWrapper::ToJavaRateControlParameters(
+    JNIEnv* jni,
+    const VideoEncoder::RateControlParameters& rc_parameters) {
+  ScopedJavaLocalRef<jobject> j_bitrate_allocation =
+      ToJavaBitrateAllocation(jni, rc_parameters.bitrate);
+
+  return Java_RateControlParameters_Constructor(jni, j_bitrate_allocation,
+                                                rc_parameters.framerate_fps);
 }
 
 std::unique_ptr<VideoEncoder> JavaToNativeVideoEncoder(
@@ -400,10 +431,6 @@ std::unique_ptr<VideoEncoder> JavaToNativeVideoEncoder(
     encoder = reinterpret_cast<VideoEncoder*>(native_encoder);
   }
   return std::unique_ptr<VideoEncoder>(encoder);
-}
-
-bool IsHardwareVideoEncoder(JNIEnv* jni, const JavaRef<jobject>& j_encoder) {
-  return Java_VideoEncoder_isHardwareEncoder(jni, j_encoder);
 }
 
 std::vector<VideoEncoder::ResolutionBitrateLimits>

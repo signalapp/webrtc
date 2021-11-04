@@ -115,7 +115,7 @@ bool AddSHA256SignatureAlgorithm(CBB* cbb, KeyType key_type) {
   return true;
 }
 
-// Adds an X.509 Common Name to |cbb|.
+// Adds an X.509 Common Name to `cbb`.
 bool AddCommonName(CBB* cbb, const std::string& common_name) {
   // See RFC 4519.
   static const uint8_t kCommonName[] = {0x55, 0x04, 0x03};
@@ -291,7 +291,7 @@ std::unique_ptr<BoringSSLCertificate> BoringSSLCertificate::FromPEMString(
 
 #define OID_MATCHES(oid, oid_other)      \
   (CBS_len(&oid) == sizeof(oid_other) && \
-  0 == memcmp(CBS_data(&oid), oid_other, sizeof(oid_other)))
+   0 == memcmp(CBS_data(&oid), oid_other, sizeof(oid_other)))
 
 bool BoringSSLCertificate::GetSignatureDigestAlgorithm(
     std::string* algorithm) const {

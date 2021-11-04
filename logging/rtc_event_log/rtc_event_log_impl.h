@@ -21,9 +21,9 @@
 #include "api/rtc_event_log/rtc_event.h"
 #include "api/rtc_event_log/rtc_event_log.h"
 #include "api/rtc_event_log_output.h"
+#include "api/sequence_checker.h"
 #include "api/task_queue/task_queue_factory.h"
 #include "logging/rtc_event_log/encoder/rtc_event_log_encoder.h"
-#include "rtc_base/synchronization/sequence_checker.h"
 #include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/task_queue.h"
 #include "rtc_base/thread_annotations.h"
@@ -82,8 +82,8 @@ class RtcEventLogImpl final : public RtcEventLog {
   RTC_NO_UNIQUE_ADDRESS SequenceChecker logging_state_checker_;
   bool logging_state_started_ RTC_GUARDED_BY(logging_state_checker_);
 
-  // Since we are posting tasks bound to |this|,  it is critical that the event
-  // log and its members outlive |task_queue_|. Keep the |task_queue_|
+  // Since we are posting tasks bound to `this`,  it is critical that the event
+  // log and its members outlive `task_queue_`. Keep the `task_queue_`
   // last to ensure it destructs first, or else tasks living on the queue might
   // access other members after they've been torn down.
   std::unique_ptr<rtc::TaskQueue> task_queue_;

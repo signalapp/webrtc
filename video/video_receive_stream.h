@@ -14,6 +14,7 @@
 #include <memory>
 #include <vector>
 
+#include "api/sequence_checker.h"
 #include "api/task_queue/task_queue_factory.h"
 #include "api/video/recordable_encoded_frame.h"
 #include "call/rtp_packet_sink_interface.h"
@@ -24,7 +25,6 @@
 #include "modules/video_coding/frame_buffer2.h"
 #include "modules/video_coding/video_receiver2.h"
 #include "rtc_base/synchronization/mutex.h"
-#include "rtc_base/synchronization/sequence_checker.h"
 #include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/task_queue.h"
 #include "system_wrappers/include/clock.h"
@@ -45,12 +45,13 @@ class VCMTiming;
 
 namespace internal {
 
-class VideoReceiveStream : public webrtc::VideoReceiveStream,
-                           public rtc::VideoSinkInterface<VideoFrame>,
-                           public NackSender,
-                           public video_coding::OnCompleteFrameCallback,
-                           public Syncable,
-                           public CallStatsObserver {
+class VideoReceiveStream
+    : public webrtc::DEPRECATED_VideoReceiveStream,
+      public rtc::VideoSinkInterface<VideoFrame>,
+      public NackSender,
+      public RtpVideoStreamReceiver::OnCompleteFrameCallback,
+      public Syncable,
+      public CallStatsObserver {
  public:
   // The default number of milliseconds to pass before re-requesting a key frame
   // to be sent.
@@ -86,10 +87,13 @@ class VideoReceiveStream : public webrtc::VideoReceiveStream,
   void Start() override;
   void Stop() override;
 
+  const RtpConfig& rtp_config() const override { return config_.rtp; }
+
   webrtc::VideoReceiveStream::Stats GetStats() const override;
 
   void AddSecondarySink(RtpPacketSinkInterface* sink) override;
   void RemoveSecondarySink(const RtpPacketSinkInterface* sink) override;
+  void SetRtpExtensions(std::vector<RtpExtension> extensions) override;
 
   // SetBaseMinimumPlayoutDelayMs and GetBaseMinimumPlayoutDelayMs are called
   // from webrtc/api level and requested by user code. For e.g. blink/js layer
@@ -111,9 +115,8 @@ class VideoReceiveStream : public webrtc::VideoReceiveStream,
   void SendNack(const std::vector<uint16_t>& sequence_numbers,
                 bool buffering_allowed) override;
 
-  // Implements video_coding::OnCompleteFrameCallback.
-  void OnCompleteFrame(
-      std::unique_ptr<video_coding::EncodedFrame> frame) override;
+  // Implements RtpVideoStreamReceiver::OnCompleteFrameCallback.
+  void OnCompleteFrame(std::unique_ptr<EncodedFrame> frame) override;
 
   // Implements CallStatsObserver::OnRttUpdate
   void OnRttUpdate(int64_t avg_rtt_ms, int64_t max_rtt_ms) override;
@@ -138,7 +141,7 @@ class VideoReceiveStream : public webrtc::VideoReceiveStream,
  private:
   int64_t GetWaitMs() const;
   void StartNextDecode() RTC_RUN_ON(decode_queue_);
-  void HandleEncodedFrame(std::unique_ptr<video_coding::EncodedFrame> frame)
+  void HandleEncodedFrame(std::unique_ptr<EncodedFrame> frame)
       RTC_RUN_ON(decode_queue_);
   void HandleFrameBufferTimeout() RTC_RUN_ON(decode_queue_);
   void UpdatePlayoutDelays() const
@@ -208,9 +211,9 @@ class VideoReceiveStream : public webrtc::VideoReceiveStream,
 
   mutable Mutex playout_delay_lock_;
 
-  // All of them tries to change current min_playout_delay on |timing_| but
+  // All of them tries to change current min_playout_delay on `timing_` but
   // source of the change request is different in each case. Among them the
-  // biggest delay is used. -1 means use default value from the |timing_|.
+  // biggest delay is used. -1 means use default value from the `timing_`.
   //
   // Minimum delay as decided by the RTP playout delay extension.
   int frame_minimum_playout_delay_ms_ RTC_GUARDED_BY(playout_delay_lock_) = -1;

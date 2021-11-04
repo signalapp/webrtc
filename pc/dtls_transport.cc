@@ -12,29 +12,16 @@
 
 #include <utility>
 
+#include "absl/types/optional.h"
+#include "api/dtls_transport_interface.h"
+#include "api/sequence_checker.h"
 #include "pc/ice_transport.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/logging.h"
+#include "rtc_base/ref_counted_object.h"
+#include "rtc_base/ssl_certificate.h"
 
 namespace webrtc {
-
-namespace {
-
-DtlsTransportState TranslateState(cricket::DtlsTransportState internal_state) {
-  switch (internal_state) {
-    case cricket::DTLS_TRANSPORT_NEW:
-      return DtlsTransportState::kNew;
-    case cricket::DTLS_TRANSPORT_CONNECTING:
-      return DtlsTransportState::kConnecting;
-    case cricket::DTLS_TRANSPORT_CONNECTED:
-      return DtlsTransportState::kConnected;
-    case cricket::DTLS_TRANSPORT_CLOSED:
-      return DtlsTransportState::kClosed;
-    case cricket::DTLS_TRANSPORT_FAILED:
-      return DtlsTransportState::kFailed;
-  }
-  RTC_CHECK_NOTREACHED();
-}
-
-}  // namespace
 
 // Implementation of DtlsTransportInterface
 DtlsTransport::DtlsTransport(
@@ -42,11 +29,14 @@ DtlsTransport::DtlsTransport(
     : owner_thread_(rtc::Thread::Current()),
       info_(DtlsTransportState::kNew),
       internal_dtls_transport_(std::move(internal)),
-      ice_transport_(new rtc::RefCountedObject<IceTransportWithPointer>(
+      ice_transport_(rtc::make_ref_counted<IceTransportWithPointer>(
           internal_dtls_transport_->ice_transport())) {
   RTC_DCHECK(internal_dtls_transport_.get());
-  internal_dtls_transport_->SignalDtlsState.connect(
-      this, &DtlsTransport::OnInternalDtlsState);
+  internal_dtls_transport_->SubscribeDtlsTransportState(
+      [this](cricket::DtlsTransportInternal* transport,
+             DtlsTransportState state) {
+        OnInternalDtlsState(transport, state);
+      });
   UpdateInformation();
 }
 
@@ -81,7 +71,7 @@ void DtlsTransport::Clear() {
   RTC_DCHECK_RUN_ON(owner_thread_);
   RTC_DCHECK(internal());
   bool must_send_event =
-      (internal()->dtls_state() != cricket::DTLS_TRANSPORT_CLOSED);
+      (internal()->dtls_state() != DtlsTransportState::kClosed);
   // The destructor of cricket::DtlsTransportInternal calls back
   // into DtlsTransport, so we can't hold the lock while releasing.
   std::unique_ptr<cricket::DtlsTransportInternal> transport_to_release;
@@ -98,7 +88,7 @@ void DtlsTransport::Clear() {
 
 void DtlsTransport::OnInternalDtlsState(
     cricket::DtlsTransportInternal* transport,
-    cricket::DtlsTransportState state) {
+    DtlsTransportState state) {
   RTC_DCHECK_RUN_ON(owner_thread_);
   RTC_DCHECK(transport == internal());
   RTC_DCHECK(state == internal()->dtls_state());
@@ -113,7 +103,7 @@ void DtlsTransport::UpdateInformation() {
   MutexLock lock(&lock_);
   if (internal_dtls_transport_) {
     if (internal_dtls_transport_->dtls_state() ==
-        cricket::DTLS_TRANSPORT_CONNECTED) {
+        DtlsTransportState::kConnected) {
       bool success = true;
       int ssl_cipher_suite;
       int tls_version;
@@ -123,20 +113,19 @@ void DtlsTransport::UpdateInformation() {
       success &= internal_dtls_transport_->GetSrtpCryptoSuite(&srtp_cipher);
       if (success) {
         info_ = DtlsTransportInformation(
-            TranslateState(internal_dtls_transport_->dtls_state()), tls_version,
+            internal_dtls_transport_->dtls_state(), tls_version,
             ssl_cipher_suite, srtp_cipher,
             internal_dtls_transport_->GetRemoteSSLCertChain());
       } else {
         RTC_LOG(LS_ERROR) << "DtlsTransport in connected state has incomplete "
                              "TLS information";
         info_ = DtlsTransportInformation(
-            TranslateState(internal_dtls_transport_->dtls_state()),
-            absl::nullopt, absl::nullopt, absl::nullopt,
+            internal_dtls_transport_->dtls_state(), absl::nullopt,
+            absl::nullopt, absl::nullopt,
             internal_dtls_transport_->GetRemoteSSLCertChain());
       }
     } else {
-      info_ = DtlsTransportInformation(
-          TranslateState(internal_dtls_transport_->dtls_state()));
+      info_ = DtlsTransportInformation(internal_dtls_transport_->dtls_state());
     }
   } else {
     info_ = DtlsTransportInformation(DtlsTransportState::kClosed);

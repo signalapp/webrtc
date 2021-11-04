@@ -55,7 +55,7 @@ struct IceControllerEvent {
 //
 // The P2PTransportChannel owns (creates and destroys) Connections,
 // but P2PTransportChannel gives const pointers to the the IceController using
-// |AddConnection|, i.e the IceController should not call any non-const methods
+// `AddConnection`, i.e the IceController should not call any non-const methods
 // on a Connection but signal back in the interface if any mutable function
 // shall be called.
 //
@@ -87,7 +87,9 @@ class IceControllerInterface {
   // This represents the result of a call to SelectConnectionToPing.
   struct PingResult {
     PingResult(const Connection* conn, int _recheck_delay_ms)
-        : connection(conn), recheck_delay_ms(_recheck_delay_ms) {}
+        : connection(conn ? absl::optional<const Connection*>(conn)
+                          : absl::nullopt),
+          recheck_delay_ms(_recheck_delay_ms) {}
 
     // Connection that we should (optionally) ping.
     const absl::optional<const Connection*> connection;
@@ -121,7 +123,7 @@ class IceControllerInterface {
   // Select a connection to Ping, or nullptr if none.
   virtual PingResult SelectConnectionToPing(int64_t last_ping_sent_ms) = 0;
 
-  // Compute the "STUN_ATTR_USE_CANDIDATE" for |conn|.
+  // Compute the "STUN_ATTR_USE_CANDIDATE" for `conn`.
   virtual bool GetUseCandidateAttr(const Connection* conn,
                                    NominationMode mode,
                                    IceMode remote_ice_mode) const = 0;
@@ -131,7 +133,7 @@ class IceControllerInterface {
   virtual const Connection* FindNextPingableConnection() = 0;
   virtual void MarkConnectionPinged(const Connection* con) = 0;
 
-  // Check if we should switch to |connection|.
+  // Check if we should switch to `connection`.
   // This method is called for IceControllerEvent's that can switch directly
   // i.e without resorting.
   virtual SwitchResult ShouldSwitchConnection(IceControllerEvent reason,

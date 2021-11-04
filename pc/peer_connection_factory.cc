@@ -10,9 +10,7 @@
 
 #include "pc/peer_connection_factory.h"
 
-#include <cstdio>
 #include <memory>
-#include <type_traits>
 #include <utility>
 
 #include "absl/strings/match.h"
@@ -20,29 +18,31 @@
 #include "api/call/call_factory_interface.h"
 #include "api/fec_controller.h"
 #include "api/ice_transport_interface.h"
-#include "api/media_stream_proxy.h"
-#include "api/media_stream_track_proxy.h"
 #include "api/network_state_predictor.h"
 #include "api/packet_socket_factory.h"
-#include "api/peer_connection_factory_proxy.h"
-#include "api/peer_connection_proxy.h"
 #include "api/rtc_event_log/rtc_event_log.h"
+#include "api/sequence_checker.h"
 #include "api/transport/bitrate_settings.h"
 #include "api/units/data_rate.h"
 #include "call/audio_state.h"
+#include "call/rtp_transport_controller_send_factory.h"
 #include "media/base/media_engine.h"
 #include "p2p/base/basic_async_resolver_factory.h"
 #include "p2p/base/basic_packet_socket_factory.h"
 #include "p2p/base/default_ice_transport_factory.h"
+#include "p2p/base/port_allocator.h"
 #include "p2p/client/basic_port_allocator.h"
 #include "pc/audio_track.h"
 #include "pc/local_audio_source.h"
 #include "pc/media_stream.h"
+#include "pc/media_stream_proxy.h"
+#include "pc/media_stream_track_proxy.h"
 #include "pc/peer_connection.h"
+#include "pc/peer_connection_factory_proxy.h"
+#include "pc/peer_connection_proxy.h"
 #include "pc/rtp_parameters_conversion.h"
 #include "pc/session_description.h"
 #include "pc/video_track.h"
-#include "rtc_base/bind.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/experiments/field_trial_parser.h"
 #include "rtc_base/experiments/field_trial_units.h"
@@ -50,7 +50,7 @@
 #include "rtc_base/logging.h"
 #include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/ref_counted_object.h"
-#include "rtc_base/synchronization/sequence_checker.h"
+#include "rtc_base/rtc_certificate_generator.h"
 #include "rtc_base/system/file_wrapper.h"
 
 namespace webrtc {
@@ -76,8 +76,8 @@ CreateModularPeerConnectionFactory(
   // Verify that the invocation and the initialization ended up agreeing on the
   // thread.
   RTC_DCHECK_RUN_ON(pc_factory->signaling_thread());
-  return PeerConnectionFactoryProxy::Create(pc_factory->signaling_thread(),
-                                            pc_factory);
+  return PeerConnectionFactoryProxy::Create(
+      pc_factory->signaling_thread(), pc_factory->worker_thread(), pc_factory);
 }
 
 // Static
@@ -87,8 +87,7 @@ rtc::scoped_refptr<PeerConnectionFactory> PeerConnectionFactory::Create(
   if (!context) {
     return nullptr;
   }
-  return new rtc::RefCountedObject<PeerConnectionFactory>(context,
-                                                          &dependencies);
+  return rtc::make_ref_counted<PeerConnectionFactory>(context, &dependencies);
 }
 
 PeerConnectionFactory::PeerConnectionFactory(
@@ -102,7 +101,11 @@ PeerConnectionFactory::PeerConnectionFactory(
           std::move(dependencies->network_state_predictor_factory)),
       injected_network_controller_factory_(
           std::move(dependencies->network_controller_factory)),
-      neteq_factory_(std::move(dependencies->neteq_factory)) {}
+      neteq_factory_(std::move(dependencies->neteq_factory)),
+      transport_controller_send_factory_(
+          (dependencies->transport_controller_send_factory)
+              ? std::move(dependencies->transport_controller_send_factory)
+              : std::make_unique<RtpTransportControllerSendFactory>()) {}
 
 PeerConnectionFactory::PeerConnectionFactory(
     PeerConnectionFactoryDependencies dependencies)
@@ -141,6 +144,7 @@ RtpCapabilities PeerConnectionFactory::GetRtpSenderCapabilities(
     case cricket::MEDIA_TYPE_UNSUPPORTED:
       return RtpCapabilities();
   }
+  RTC_DLOG(LS_ERROR) << "Got unexpected MediaType " << kind;
   RTC_CHECK_NOTREACHED();
 }
 
@@ -167,6 +171,7 @@ RtpCapabilities PeerConnectionFactory::GetRtpReceiverCapabilities(
     case cricket::MEDIA_TYPE_UNSUPPORTED:
       return RtpCapabilities();
   }
+  RTC_DLOG(LS_ERROR) << "Got unexpected MediaType " << kind;
   RTC_CHECK_NOTREACHED();
 }
 
@@ -179,40 +184,13 @@ PeerConnectionFactory::CreateAudioSource(const cricket::AudioOptions& options) {
 }
 
 bool PeerConnectionFactory::StartAecDump(FILE* file, int64_t max_size_bytes) {
-  RTC_DCHECK(signaling_thread()->IsCurrent());
+  RTC_DCHECK_RUN_ON(worker_thread());
   return channel_manager()->StartAecDump(FileWrapper(file), max_size_bytes);
 }
 
 void PeerConnectionFactory::StopAecDump() {
-  RTC_DCHECK(signaling_thread()->IsCurrent());
+  RTC_DCHECK_RUN_ON(worker_thread());
   channel_manager()->StopAecDump();
-}
-
-rtc::scoped_refptr<PeerConnectionInterface>
-PeerConnectionFactory::CreatePeerConnection(
-    const PeerConnectionInterface::RTCConfiguration& configuration,
-    std::unique_ptr<cricket::PortAllocator> allocator,
-    std::unique_ptr<rtc::RTCCertificateGeneratorInterface> cert_generator,
-    PeerConnectionObserver* observer) {
-  // Convert the legacy API into the new dependency structure.
-  PeerConnectionDependencies dependencies(observer);
-  dependencies.allocator = std::move(allocator);
-  dependencies.cert_generator = std::move(cert_generator);
-  // Pass that into the new API.
-  return CreatePeerConnection(configuration, std::move(dependencies));
-}
-
-rtc::scoped_refptr<PeerConnectionInterface>
-PeerConnectionFactory::CreatePeerConnection(
-    const PeerConnectionInterface::RTCConfiguration& configuration,
-    PeerConnectionDependencies dependencies) {
-  auto result =
-      CreatePeerConnectionOrError(configuration, std::move(dependencies));
-  if (result.ok()) {
-    return result.MoveValue();
-  } else {
-    return nullptr;
-  }
 }
 
 RTCErrorOr<rtc::scoped_refptr<PeerConnectionInterface>>
@@ -253,15 +231,15 @@ PeerConnectionFactory::CreatePeerConnectionOrError(
   }
 
   dependencies.allocator->SetNetworkIgnoreMask(options().network_ignore_mask);
+  dependencies.allocator->SetVpnList(configuration.vpn_list);
 
   std::unique_ptr<RtcEventLog> event_log =
       worker_thread()->Invoke<std::unique_ptr<RtcEventLog>>(
-          RTC_FROM_HERE,
-          rtc::Bind(&PeerConnectionFactory::CreateRtcEventLog_w, this));
+          RTC_FROM_HERE, [this] { return CreateRtcEventLog_w(); });
 
   std::unique_ptr<Call> call = worker_thread()->Invoke<std::unique_ptr<Call>>(
       RTC_FROM_HERE,
-      rtc::Bind(&PeerConnectionFactory::CreateCall_w, this, event_log.get()));
+      [this, &event_log] { return CreateCall_w(event_log.get()); });
 
   auto result = PeerConnection::Create(context_, options_, std::move(event_log),
                                        std::move(call), configuration,
@@ -269,8 +247,15 @@ PeerConnectionFactory::CreatePeerConnectionOrError(
   if (!result.ok()) {
     return result.MoveError();
   }
+  // We configure the proxy with a pointer to the network thread for methods
+  // that need to be invoked there rather than on the signaling thread.
+  // Internally, the proxy object has a member variable named `worker_thread_`
+  // which will point to the network thread (and not the factory's
+  // worker_thread()).  All such methods have thread checks though, so the code
+  // should still be clear (outside of macro expansion).
   rtc::scoped_refptr<PeerConnectionInterface> result_proxy =
-      PeerConnectionProxy::Create(signaling_thread(), result.MoveValue());
+      PeerConnectionProxy::Create(signaling_thread(), network_thread(),
+                                  result.MoveValue());
   return result_proxy;
 }
 
@@ -317,7 +302,7 @@ std::unique_ptr<Call> PeerConnectionFactory::CreateCall_w(
     RtcEventLog* event_log) {
   RTC_DCHECK_RUN_ON(worker_thread());
 
-  webrtc::Call::Config call_config(event_log);
+  webrtc::Call::Config call_config(event_log, network_thread());
   if (!channel_manager()->media_engine() || !context_->call_factory()) {
     return nullptr;
   }
@@ -356,7 +341,8 @@ std::unique_ptr<Call> PeerConnectionFactory::CreateCall_w(
   }
 
   call_config.trials = &trials();
-
+  call_config.rtp_transport_controller_send_factory =
+      transport_controller_send_factory_.get();
   return std::unique_ptr<Call>(
       context_->call_factory()->CreateCall(call_config));
 }

@@ -98,6 +98,24 @@ class RTC_EXPORT DesktopCaptureOptions {
   }
 
 #if defined(WEBRTC_WIN)
+  // Enumerating windows owned by the current process on Windows has some
+  // complications due to |GetWindowText*()| APIs potentially causing a
+  // deadlock (see the comments in the `GetWindowListHandler()` function in
+  // window_capture_utils.cc for more details on the deadlock).
+  // To avoid this issue, consumers can either ensure that the thread that runs
+  // their message loop never waits on `GetSourceList()`, or they can set this
+  // flag to false which will prevent windows running in the current process
+  // from being enumerated and included in the results. Consumers can still
+  // provide the WindowId for their own windows to `SelectSource()` and capture
+  // them.
+  bool enumerate_current_process_windows() const {
+    return enumerate_current_process_windows_;
+  }
+  void set_enumerate_current_process_windows(
+      bool enumerate_current_process_windows) {
+    enumerate_current_process_windows_ = enumerate_current_process_windows;
+  }
+
   bool allow_use_magnification_api() const {
     return allow_use_magnification_api_;
   }
@@ -126,7 +144,19 @@ class RTC_EXPORT DesktopCaptureOptions {
   void set_allow_cropping_window_capturer(bool allow) {
     allow_cropping_window_capturer_ = allow;
   }
-#endif
+
+#if defined(RTC_ENABLE_WIN_WGC)
+  // This flag enables the WGC capturer for both window and screen capture.
+  // This capturer should offer similar or better performance than the cropping
+  // capturer without the disadvantages listed above. However, the WGC capturer
+  // is only available on Windows 10 version 1809 (Redstone 5) and up. This flag
+  // will have no affect on older versions.
+  // If set, and running a supported version of Win10, this flag will take
+  // precedence over the cropping, directx, and magnification flags.
+  bool allow_wgc_capturer() const { return allow_wgc_capturer_; }
+  void set_allow_wgc_capturer(bool allow) { allow_wgc_capturer_ = allow; }
+#endif  // defined(RTC_ENABLE_WIN_WGC)
+#endif  // defined(WEBRTC_WIN)
 
 #if defined(WEBRTC_USE_PIPEWIRE)
   bool allow_pipewire() const { return allow_pipewire_; }
@@ -146,9 +176,13 @@ class RTC_EXPORT DesktopCaptureOptions {
   rtc::scoped_refptr<FullScreenWindowDetector> full_screen_window_detector_;
 
 #if defined(WEBRTC_WIN)
+  bool enumerate_current_process_windows_ = true;
   bool allow_use_magnification_api_ = false;
   bool allow_directx_capturer_ = false;
   bool allow_cropping_window_capturer_ = false;
+#if defined(RTC_ENABLE_WIN_WGC)
+  bool allow_wgc_capturer_ = false;
+#endif
 #endif
 #if defined(WEBRTC_USE_X11)
   bool use_update_notifications_ = false;

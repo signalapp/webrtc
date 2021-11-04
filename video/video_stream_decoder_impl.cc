@@ -50,8 +50,7 @@ VideoStreamDecoderImpl::~VideoStreamDecoderImpl() {
   shut_down_ = true;
 }
 
-void VideoStreamDecoderImpl::OnFrame(
-    std::unique_ptr<video_coding::EncodedFrame> frame) {
+void VideoStreamDecoderImpl::OnFrame(std::unique_ptr<EncodedFrame> frame) {
   if (!bookkeeping_queue_.IsCurrent()) {
     bookkeeping_queue_.PostTask([this, frame = std::move(frame)]() mutable {
       OnFrame(std::move(frame));
@@ -63,11 +62,10 @@ void VideoStreamDecoderImpl::OnFrame(
 
   RTC_DCHECK_RUN_ON(&bookkeeping_queue_);
 
-  uint64_t continuous_pid = frame_buffer_.InsertFrame(std::move(frame));
-  video_coding::VideoLayerFrameId continuous_id(continuous_pid, 0);
-  if (last_continuous_id_ < continuous_id) {
-    last_continuous_id_ = continuous_id;
-    callbacks_->OnContinuousUntil(last_continuous_id_);
+  int64_t continuous_frame_id = frame_buffer_.InsertFrame(std::move(frame));
+  if (last_continuous_frame_id_ < continuous_frame_id) {
+    last_continuous_frame_id_ = continuous_frame_id;
+    callbacks_->OnContinuousUntil(last_continuous_frame_id_);
   }
 }
 
@@ -104,9 +102,9 @@ VideoDecoder* VideoStreamDecoderImpl::GetDecoder(int payload_type) {
     return nullptr;
   }
 
-  int num_cores = decoder_settings_it->second.second;
-  int32_t init_result = decoder->InitDecode(nullptr, num_cores);
-  if (init_result != WEBRTC_VIDEO_CODEC_OK) {
+  VideoDecoder::Settings settings;
+  settings.set_number_of_cores(decoder_settings_it->second.second);
+  if (!decoder->Configure(settings)) {
     RTC_LOG(LS_WARNING) << "Failed to initialize decoder for payload type "
                         << payload_type << ".";
     return nullptr;
@@ -124,8 +122,7 @@ VideoDecoder* VideoStreamDecoderImpl::GetDecoder(int payload_type) {
   return decoder_.get();
 }
 
-void VideoStreamDecoderImpl::SaveFrameInfo(
-    const video_coding::EncodedFrame& frame) {
+void VideoStreamDecoderImpl::SaveFrameInfo(const EncodedFrame& frame) {
   FrameInfo* frame_info = &frame_info_[next_frame_info_index_];
   frame_info->timestamp = frame.Timestamp();
   frame_info->decode_start_time_ms = rtc::TimeMillis();
@@ -140,7 +137,7 @@ void VideoStreamDecoderImpl::StartNextDecode() {
 
   frame_buffer_.NextFrame(
       max_wait_time, keyframe_required_, &bookkeeping_queue_,
-      [this](std::unique_ptr<video_coding::EncodedFrame> frame,
+      [this](std::unique_ptr<EncodedFrame> frame,
              video_coding::FrameBuffer::ReturnReason res) mutable {
         RTC_DCHECK_RUN_ON(&bookkeeping_queue_);
         OnNextFrameCallback(std::move(frame), res);
@@ -148,7 +145,7 @@ void VideoStreamDecoderImpl::StartNextDecode() {
 }
 
 void VideoStreamDecoderImpl::OnNextFrameCallback(
-    std::unique_ptr<video_coding::EncodedFrame> frame,
+    std::unique_ptr<EncodedFrame> frame,
     video_coding::FrameBuffer::ReturnReason result) {
   switch (result) {
     case video_coding::FrameBuffer::kFrameFound: {
@@ -188,7 +185,7 @@ void VideoStreamDecoderImpl::OnNextFrameCallback(
     }
     case video_coding::FrameBuffer::kTimeout: {
       callbacks_->OnNonDecodableState();
-      // The |frame_buffer_| requires the frame callback function to complete
+      // The `frame_buffer_` requires the frame callback function to complete
       // before NextFrame is called again. For this reason we call
       // StartNextDecode in a later task to allow this task to complete first.
       bookkeeping_queue_.PostTask([this]() {
@@ -205,7 +202,7 @@ void VideoStreamDecoderImpl::OnNextFrameCallback(
 }
 
 VideoStreamDecoderImpl::DecodeResult VideoStreamDecoderImpl::DecodeFrame(
-    std::unique_ptr<video_coding::EncodedFrame> frame) {
+    std::unique_ptr<EncodedFrame> frame) {
   RTC_DCHECK(frame);
 
   VideoDecoder* decoder = GetDecoder(frame->PayloadType());

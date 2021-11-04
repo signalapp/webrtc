@@ -36,7 +36,7 @@ constexpr int kOverheadIpv4Udp = 20 + 8;
 
 class SocketReader : public sigslot::has_slots<> {
  public:
-  explicit SocketReader(rtc::AsyncSocket* socket, rtc::Thread* network_thread)
+  explicit SocketReader(rtc::Socket* socket, rtc::Thread* network_thread)
       : socket_(socket), network_thread_(network_thread) {
     socket_->SignalReadEvent.connect(this, &SocketReader::OnReadEvent);
     size_ = 128 * 1024;
@@ -44,7 +44,7 @@ class SocketReader : public sigslot::has_slots<> {
   }
   ~SocketReader() override { delete[] buf_; }
 
-  void OnReadEvent(rtc::AsyncSocket* socket) {
+  void OnReadEvent(rtc::Socket* socket) {
     RTC_DCHECK(socket_ == socket);
     RTC_DCHECK(network_thread_->IsCurrent());
     int64_t timestamp;
@@ -60,7 +60,7 @@ class SocketReader : public sigslot::has_slots<> {
   }
 
  private:
-  rtc::AsyncSocket* const socket_;
+  rtc::Socket* const socket_;
   rtc::Thread* const network_thread_;
   char* buf_;
   size_t size_;
@@ -207,8 +207,14 @@ TEST(NetworkEmulationManagerTest, Run) {
 
   rtc::CopyOnWriteBuffer data("Hello");
   for (uint64_t j = 0; j < 2; j++) {
-    auto* s1 = t1->socketserver()->CreateAsyncSocket(AF_INET, SOCK_DGRAM);
-    auto* s2 = t2->socketserver()->CreateAsyncSocket(AF_INET, SOCK_DGRAM);
+    rtc::Socket* s1 = nullptr;
+    rtc::Socket* s2 = nullptr;
+    t1->Invoke<void>(RTC_FROM_HERE, [&] {
+      s1 = t1->socketserver()->CreateSocket(AF_INET, SOCK_DGRAM);
+    });
+    t2->Invoke<void>(RTC_FROM_HERE, [&] {
+      s2 = t2->socketserver()->CreateSocket(AF_INET, SOCK_DGRAM);
+    });
 
     SocketReader r1(s1, t1);
     SocketReader r2(s2, t2);
@@ -357,8 +363,14 @@ TEST(NetworkEmulationManagerTest, DebugStatsCollectedInDebugMode) {
 
   rtc::CopyOnWriteBuffer data("Hello");
   for (uint64_t j = 0; j < 2; j++) {
-    auto* s1 = t1->socketserver()->CreateAsyncSocket(AF_INET, SOCK_DGRAM);
-    auto* s2 = t2->socketserver()->CreateAsyncSocket(AF_INET, SOCK_DGRAM);
+    rtc::Socket* s1 = nullptr;
+    rtc::Socket* s2 = nullptr;
+    t1->Invoke<void>(RTC_FROM_HERE, [&] {
+      s1 = t1->socketserver()->CreateSocket(AF_INET, SOCK_DGRAM);
+    });
+    t2->Invoke<void>(RTC_FROM_HERE, [&] {
+      s2 = t2->socketserver()->CreateSocket(AF_INET, SOCK_DGRAM);
+    });
 
     SocketReader r1(s1, t1);
     SocketReader r2(s2, t2);
@@ -454,8 +466,15 @@ TEST(NetworkEmulationManagerTest, ThroughputStats) {
   constexpr int64_t kUdpPayloadSize = 100;
   constexpr int64_t kSinglePacketSize = kUdpPayloadSize + kOverheadIpv4Udp;
   rtc::CopyOnWriteBuffer data(kUdpPayloadSize);
-  auto* s1 = t1->socketserver()->CreateAsyncSocket(AF_INET, SOCK_DGRAM);
-  auto* s2 = t2->socketserver()->CreateAsyncSocket(AF_INET, SOCK_DGRAM);
+
+  rtc::Socket* s1 = nullptr;
+  rtc::Socket* s2 = nullptr;
+  t1->Invoke<void>(RTC_FROM_HERE, [&] {
+    s1 = t1->socketserver()->CreateSocket(AF_INET, SOCK_DGRAM);
+  });
+  t2->Invoke<void>(RTC_FROM_HERE, [&] {
+    s2 = t2->socketserver()->CreateSocket(AF_INET, SOCK_DGRAM);
+  });
 
   SocketReader r1(s1, t1);
   SocketReader r2(s2, t2);
@@ -565,6 +584,51 @@ TEST(NetworkEmulationManagerTest, EndpointLoopback) {
   endpoint->SendPacket(rtc::SocketAddress(endpoint->GetPeerLocalAddress(), 80),
                        rtc::SocketAddress(endpoint->GetPeerLocalAddress(), 80),
                        "Hello");
+  network_manager.time_controller()->AdvanceTime(TimeDelta::Seconds(1));
+}
+
+TEST(NetworkEmulationManagerTest, EndpointCanSendWithDifferentSourceIp) {
+  constexpr uint32_t kEndpointIp = 0xC0A80011;  // 192.168.0.17
+  constexpr uint32_t kSourceIp = 0xC0A80012;    // 192.168.0.18
+  NetworkEmulationManagerImpl network_manager(TimeMode::kSimulated);
+  EmulatedEndpointConfig endpoint_config;
+  endpoint_config.ip = rtc::IPAddress(kEndpointIp);
+  endpoint_config.allow_send_packet_with_different_source_ip = true;
+  auto endpoint = network_manager.CreateEndpoint(endpoint_config);
+
+  MockReceiver receiver;
+  EXPECT_CALL(receiver, OnPacketReceived(::testing::_)).Times(1);
+  ASSERT_EQ(endpoint->BindReceiver(80, &receiver), 80);
+
+  endpoint->SendPacket(rtc::SocketAddress(kSourceIp, 80),
+                       rtc::SocketAddress(endpoint->GetPeerLocalAddress(), 80),
+                       "Hello");
+  network_manager.time_controller()->AdvanceTime(TimeDelta::Seconds(1));
+}
+
+TEST(NetworkEmulationManagerTest,
+     EndpointCanReceiveWithDifferentDestIpThroughDefaultRoute) {
+  constexpr uint32_t kDestEndpointIp = 0xC0A80011;  // 192.168.0.17
+  constexpr uint32_t kDestIp = 0xC0A80012;          // 192.168.0.18
+  NetworkEmulationManagerImpl network_manager(TimeMode::kSimulated);
+  auto sender_endpoint =
+      network_manager.CreateEndpoint(EmulatedEndpointConfig());
+  EmulatedEndpointConfig endpoint_config;
+  endpoint_config.ip = rtc::IPAddress(kDestEndpointIp);
+  endpoint_config.allow_receive_packets_with_different_dest_ip = true;
+  auto receiver_endpoint = network_manager.CreateEndpoint(endpoint_config);
+
+  MockReceiver receiver;
+  EXPECT_CALL(receiver, OnPacketReceived(::testing::_)).Times(1);
+  ASSERT_EQ(receiver_endpoint->BindReceiver(80, &receiver), 80);
+
+  network_manager.CreateDefaultRoute(
+      sender_endpoint, {network_manager.NodeBuilder().Build().node},
+      receiver_endpoint);
+
+  sender_endpoint->SendPacket(
+      rtc::SocketAddress(sender_endpoint->GetPeerLocalAddress(), 80),
+      rtc::SocketAddress(kDestIp, 80), "Hello");
   network_manager.time_controller()->AdvanceTime(TimeDelta::Seconds(1));
 }
 

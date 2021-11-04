@@ -20,17 +20,16 @@
 #include <vector>
 
 #include "absl/types/optional.h"
+#include "api/sequence_checker.h"
 #include "api/task_queue/task_queue_factory.h"
 #include "api/units/data_size.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "modules/include/module.h"
 #include "modules/pacing/pacing_controller.h"
-#include "modules/pacing/packet_router.h"
 #include "modules/pacing/rtp_packet_pacer.h"
 #include "modules/rtp_rtcp/source/rtp_packet_to_send.h"
 #include "rtc_base/synchronization/mutex.h"
-#include "rtc_base/synchronization/sequence_checker.h"
 #include "rtc_base/task_queue.h"
 #include "rtc_base/thread_annotations.h"
 
@@ -40,14 +39,14 @@ class RtcEventLog;
 
 class TaskQueuePacedSender : public RtpPacketPacer, public RtpPacketSender {
  public:
-  // The |hold_back_window| parameter sets a lower bound on time to sleep if
+  // The `hold_back_window` parameter sets a lower bound on time to sleep if
   // there is currently a pacer queue and packets can't immediately be
   // processed. Increasing this reduces thread wakeups at the expense of higher
   // latency.
   // TODO(bugs.webrtc.org/10809): Remove default value for hold_back_window.
   TaskQueuePacedSender(
       Clock* clock,
-      PacketRouter* packet_router,
+      PacingController::PacketSender* packet_sender,
       RtcEventLog* event_log,
       const WebRtcKeyValueConfig* field_trials,
       TaskQueueFactory* task_queue_factory,
@@ -55,10 +54,13 @@ class TaskQueuePacedSender : public RtpPacketPacer, public RtpPacketSender {
 
   ~TaskQueuePacedSender() override;
 
+  // Ensure that necessary delayed tasks are scheduled.
+  void EnsureStarted();
+
   // Methods implementing RtpPacketSender.
 
-  // Adds the packet to the queue and calls PacketRouter::SendPacket() when
-  // it's time to send.
+  // Adds the packet to the queue and calls
+  // PacingController::PacketSender::SendPacket() when it's time to send.
   void EnqueuePackets(
       std::vector<std::unique_ptr<RtpPacketToSend>> packets) override;
 
@@ -134,7 +136,7 @@ class TaskQueuePacedSender : public RtpPacketPacer, public RtpPacketSender {
   PacingController pacing_controller_ RTC_GUARDED_BY(task_queue_);
 
   // We want only one (valid) delayed process task in flight at a time.
-  // If the value of |next_process_time_| is finite, it is an id for a
+  // If the value of `next_process_time_` is finite, it is an id for a
   // delayed task that will call MaybeProcessPackets() with that time
   // as parameter.
   // Timestamp::MinusInfinity() indicates no valid pending task.
@@ -142,13 +144,17 @@ class TaskQueuePacedSender : public RtpPacketPacer, public RtpPacketSender {
 
   // Since we don't want to support synchronous calls that wait for a
   // task execution, we poll the stats at some interval and update
-  // |current_stats_|, which can in turn be polled at any time.
+  // `current_stats_`, which can in turn be polled at any time.
 
   // True iff there is delayed task in flight that that will call
   // UdpateStats().
   bool stats_update_scheduled_ RTC_GUARDED_BY(task_queue_);
   // Last time stats were updated.
   Timestamp last_stats_time_ RTC_GUARDED_BY(task_queue_);
+
+  // Indicates if this task queue is started. If not, don't allow
+  // posting delayed tasks yet.
+  bool is_started_ RTC_GUARDED_BY(task_queue_) = false;
 
   // Indicates if this task queue is shutting down. If so, don't allow
   // posting any more delayed tasks as that can cause the task queue to

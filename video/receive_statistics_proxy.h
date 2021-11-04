@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "absl/types/optional.h"
+#include "api/sequence_checker.h"
 #include "call/video_receive_stream.h"
 #include "modules/include/module_common_types.h"
 #include "modules/video_coding/include/video_coding_defines.h"
@@ -27,7 +28,6 @@
 #include "rtc_base/rate_tracker.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread_annotations.h"
-#include "rtc_base/thread_checker.h"
 #include "video/quality_threshold.h"
 #include "video/stats_counter.h"
 #include "video/video_quality_observer.h"
@@ -140,7 +140,7 @@ class ReceiveStatisticsProxy : public VCMReceiveStatisticsCallback,
 
   Clock* const clock_;
   // Ownership of this object lies with the owner of the ReceiveStatisticsProxy
-  // instance.  Lifetime is guaranteed to outlive |this|.
+  // instance.  Lifetime is guaranteed to outlive `this`.
   // TODO(tommi): In practice the config_ reference is only used for accessing
   // config_.rtp.ulpfec.ulpfec_payload_type.  Instead of holding a pointer back,
   // we could just store the value of ulpfec_payload_type and change the
@@ -158,7 +158,7 @@ class ReceiveStatisticsProxy : public VCMReceiveStatisticsCallback,
   rtc::SampleCounter qp_sample_ RTC_GUARDED_BY(mutex_);
   int num_bad_states_ RTC_GUARDED_BY(mutex_);
   int num_certain_states_ RTC_GUARDED_BY(mutex_);
-  // Note: The |stats_.rtp_stats| member is not used or populated by this class.
+  // Note: The `stats_.rtp_stats` member is not used or populated by this class.
   mutable VideoReceiveStream::Stats stats_ RTC_GUARDED_BY(mutex_);
   RateStatistics decode_fps_estimator_ RTC_GUARDED_BY(mutex_);
   RateStatistics renders_fps_estimator_ RTC_GUARDED_BY(mutex_);
@@ -196,9 +196,9 @@ class ReceiveStatisticsProxy : public VCMReceiveStatisticsCallback,
       RTC_GUARDED_BY(&mutex_);
   absl::optional<int64_t> last_estimated_playout_time_ms_
       RTC_GUARDED_BY(&mutex_);
-  rtc::ThreadChecker decode_thread_;
-  rtc::ThreadChecker network_thread_;
-  rtc::ThreadChecker main_thread_;
+  SequenceChecker decode_thread_;
+  SequenceChecker network_thread_;
+  SequenceChecker main_thread_;
 };
 
 }  // namespace webrtc

@@ -125,7 +125,7 @@ class RtcEventLogSession
     temp_filename_ = test::OutputPath() + test_name;
   }
 
-  // Create and buffer the config events and |num_events_before_log_start|
+  // Create and buffer the config events and `num_events_before_log_start`
   // randomized non-config events. Then call StartLogging and finally create and
   // write the remaining non-config events.
   void WriteLog(EventCounts count, size_t num_events_before_log_start);
@@ -899,9 +899,9 @@ TEST_P(RtcEventLogCircularBufferTest, KeepsMostRecentEvents) {
 
   auto task_queue_factory = CreateDefaultTaskQueueFactory();
   RtcEventLogFactory rtc_event_log_factory(task_queue_factory.get());
-  // When log_dumper goes out of scope, it causes the log file to be flushed
+  // When `log` goes out of scope, it causes the log file to be flushed
   // to disk.
-  std::unique_ptr<RtcEventLog> log_dumper =
+  std::unique_ptr<RtcEventLog> log =
       rtc_event_log_factory.CreateRtcEventLog(encoding_type_);
 
   for (size_t i = 0; i < kNumEvents; i++) {
@@ -911,18 +911,18 @@ TEST_P(RtcEventLogCircularBufferTest, KeepsMostRecentEvents) {
     // simplicity.
     // We base the various values on the index. We use this for some basic
     // consistency checks when we read back.
-    log_dumper->Log(std::make_unique<RtcEventProbeResultSuccess>(
+    log->Log(std::make_unique<RtcEventProbeResultSuccess>(
         i, kStartBitrate + i * 1000));
     fake_clock->AdvanceTime(TimeDelta::Millis(10));
   }
   int64_t start_time_us = rtc::TimeMicros();
   int64_t utc_start_time_us = rtc::TimeUTCMicros();
-  log_dumper->StartLogging(
+  log->StartLogging(
       std::make_unique<RtcEventLogOutputFile>(temp_filename, 10000000),
       RtcEventLog::kImmediateOutput);
   fake_clock->AdvanceTime(TimeDelta::Millis(10));
   int64_t stop_time_us = rtc::TimeMicros();
-  log_dumper->StopLogging();
+  log->StopLogging();
 
   // Read the generated file from disk.
   ParsedRtcEventLog parsed_log;
@@ -944,7 +944,7 @@ TEST_P(RtcEventLogCircularBufferTest, KeepsMostRecentEvents) {
   EXPECT_LT(probe_success_events.size(), kNumEvents);
 
   ASSERT_GT(probe_success_events.size(), 1u);
-  int64_t first_timestamp_us = probe_success_events[0].timestamp_us;
+  int64_t first_timestamp_ms = probe_success_events[0].timestamp.ms();
   uint32_t first_id = probe_success_events[0].id;
   int32_t first_bitrate_bps = probe_success_events[0].bitrate_bps;
   // We want to reset the time to what we used when generating the events, but
@@ -953,13 +953,16 @@ TEST_P(RtcEventLogCircularBufferTest, KeepsMostRecentEvents) {
   // destroyed before the new one is created, so we have to reset() first.
   fake_clock.reset();
   fake_clock = std::make_unique<rtc::ScopedFakeClock>();
-  fake_clock->SetTime(Timestamp::Micros(first_timestamp_us));
+  fake_clock->SetTime(Timestamp::Millis(first_timestamp_ms));
   for (size_t i = 1; i < probe_success_events.size(); i++) {
     fake_clock->AdvanceTime(TimeDelta::Millis(10));
     verifier_.VerifyLoggedBweProbeSuccessEvent(
         RtcEventProbeResultSuccess(first_id + i, first_bitrate_bps + i * 1000),
         probe_success_events[i]);
   }
+
+  // Clean up temporary file - can be pretty slow.
+  remove(temp_filename.c_str());
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -970,5 +973,65 @@ INSTANTIATE_TEST_SUITE_P(
 
 // TODO(terelius): Verify parser behavior if the timestamps are not
 // monotonically increasing in the log.
+
+TEST(DereferencingVectorTest, NonConstVector) {
+  std::vector<int> v{0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+  DereferencingVector<int> even;
+  EXPECT_TRUE(even.empty());
+  EXPECT_EQ(even.size(), 0u);
+  EXPECT_EQ(even.begin(), even.end());
+  for (size_t i = 0; i < v.size(); i += 2) {
+    even.push_back(&v[i]);
+  }
+  EXPECT_FALSE(even.empty());
+  EXPECT_EQ(even.size(), 5u);
+  EXPECT_NE(even.begin(), even.end());
+
+  // Test direct access.
+  for (size_t i = 0; i < even.size(); i++) {
+    EXPECT_EQ(even[i], 2 * static_cast<int>(i));
+  }
+
+  // Test iterator.
+  for (int val : even) {
+    EXPECT_EQ(val % 2, 0);
+  }
+
+  // Test modification through iterator.
+  for (int& val : even) {
+    val = val * 2;
+    EXPECT_EQ(val % 2, 0);
+  }
+
+  // Backing vector should have been modified.
+  std::vector<int> expected{0, 1, 4, 3, 8, 5, 12, 7, 16, 9};
+  for (size_t i = 0; i < v.size(); i++) {
+    EXPECT_EQ(v[i], expected[i]);
+  }
+}
+
+TEST(DereferencingVectorTest, ConstVector) {
+  std::vector<int> v{0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+  DereferencingVector<const int> odd;
+  EXPECT_TRUE(odd.empty());
+  EXPECT_EQ(odd.size(), 0u);
+  EXPECT_EQ(odd.begin(), odd.end());
+  for (size_t i = 1; i < v.size(); i += 2) {
+    odd.push_back(&v[i]);
+  }
+  EXPECT_FALSE(odd.empty());
+  EXPECT_EQ(odd.size(), 5u);
+  EXPECT_NE(odd.begin(), odd.end());
+
+  // Test direct access.
+  for (size_t i = 0; i < odd.size(); i++) {
+    EXPECT_EQ(odd[i], 2 * static_cast<int>(i) + 1);
+  }
+
+  // Test iterator.
+  for (int val : odd) {
+    EXPECT_EQ(val % 2, 1);
+  }
+}
 
 }  // namespace webrtc

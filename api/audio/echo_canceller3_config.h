@@ -43,6 +43,7 @@ struct RTC_EXPORT EchoCanceller3Config {
     size_t hysteresis_limit_blocks = 1;
     size_t fixed_capture_delay_samples = 0;
     float delay_estimate_smoothing = 0.7f;
+    float delay_estimate_smoothing_delay_found = 0.7f;
     float delay_candidate_detection_threshold = 0.2f;
     struct DelaySelectionThresholds {
       int initial;
@@ -90,6 +91,7 @@ struct RTC_EXPORT EchoCanceller3Config {
     bool conservative_initial_phase = false;
     bool enable_coarse_filter_output_usage = true;
     bool use_linear_filter = true;
+    bool high_pass_filter_echo_reference = false;
     bool export_linear_aec_output = false;
   } filter;
 
@@ -106,8 +108,11 @@ struct RTC_EXPORT EchoCanceller3Config {
   struct EpStrength {
     float default_gain = 1.f;
     float default_len = 0.83f;
+    float nearend_len = 0.83f;
     bool echo_can_saturate = true;
     bool bounded_erl = false;
+    bool erle_onset_compensation_in_dominant_nearend = false;
+    bool use_conservative_tail_frequency_response = false;
   } ep_strength;
 
   struct EchoAudibility {
@@ -190,6 +195,12 @@ struct RTC_EXPORT EchoCanceller3Config {
                                    MaskingThresholds(.1f, .3f, .3f),
                                    2.0f,
                                    0.25f);
+
+    bool lf_smoothing_during_initial_phase = true;
+    int last_permanent_lf_smoothing_band = 0;
+    int last_lf_smoothing_band = 5;
+    int last_lf_band = 5;
+    int first_hf_band = 8;
 
     struct DominantNearendDetection {
       float enr_threshold = .25f;

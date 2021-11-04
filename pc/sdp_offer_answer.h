@@ -13,6 +13,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+
 #include <functional>
 #include <map>
 #include <memory>
@@ -33,10 +34,12 @@
 #include "api/rtp_transceiver_direction.h"
 #include "api/rtp_transceiver_interface.h"
 #include "api/scoped_refptr.h"
+#include "api/sequence_checker.h"
 #include "api/set_local_description_observer_interface.h"
 #include "api/set_remote_description_observer_interface.h"
 #include "api/transport/data_channel_transport_interface.h"
 #include "api/turn_customizer.h"
+#include "api/uma_metrics.h"
 #include "api/video/video_bitrate_allocator_factory.h"
 #include "media/base/media_channel.h"
 #include "media/base/stream_params.h"
@@ -69,7 +72,6 @@
 #include "rtc_base/race_checker.h"
 #include "rtc_base/rtc_certificate.h"
 #include "rtc_base/ssl_stream_adapter.h"
-#include "rtc_base/synchronization/sequence_checker.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
@@ -172,19 +174,6 @@ class SdpOfferAnswerHandler : public SdpStateProvider,
   absl::optional<bool> is_caller();
   bool HasNewIceCredentials();
   void UpdateNegotiationNeeded();
-  void SetHavePendingRtpDataChannel() {
-    RTC_DCHECK_RUN_ON(signaling_thread());
-    have_pending_rtp_data_channel_ = true;
-  }
-
-  // Returns the media section in the given session description that is
-  // associated with the RtpTransceiver. Returns null if none found or this
-  // RtpTransceiver is not associated. Logic varies depending on the
-  // SdpSemantics specified in the configuration.
-  const cricket::ContentInfo* FindMediaSectionForTransceiver(
-      rtc::scoped_refptr<RtpTransceiverProxyWithInternal<RtpTransceiver>>
-          transceiver,
-      const SessionDescriptionInterface* sdesc) const;
 
   // Destroys all BaseChannels and destroys the SCTP data channel, if present.
   void DestroyAllChannels();
@@ -239,12 +228,16 @@ class SdpOfferAnswerHandler : public SdpStateProvider,
   // Synchronous implementations of SetLocalDescription/SetRemoteDescription
   // that return an RTCError instead of invoking a callback.
   RTCError ApplyLocalDescription(
-      std::unique_ptr<SessionDescriptionInterface> desc);
+      std::unique_ptr<SessionDescriptionInterface> desc,
+      const std::map<std::string, const cricket::ContentGroup*>&
+          bundle_groups_by_mid);
   RTCError ApplyRemoteDescription(
-      std::unique_ptr<SessionDescriptionInterface> desc);
+      std::unique_ptr<SessionDescriptionInterface> desc,
+      const std::map<std::string, const cricket::ContentGroup*>&
+          bundle_groups_by_mid);
 
   // Implementation of the offer/answer exchange operations. These are chained
-  // onto the |operations_chain_| when the public CreateOffer(), CreateAnswer(),
+  // onto the `operations_chain_` when the public CreateOffer(), CreateAnswer(),
   // SetLocalDescription() and SetRemoteDescription() methods are invoked.
   void DoCreateOffer(
       const PeerConnectionInterface::RTCOfferAnswerOptions& options,
@@ -263,9 +256,12 @@ class SdpOfferAnswerHandler : public SdpStateProvider,
   void ChangeSignalingState(
       PeerConnectionInterface::SignalingState signaling_state);
 
-  RTCError UpdateSessionState(SdpType type,
-                              cricket::ContentSource source,
-                              const cricket::SessionDescription* description);
+  RTCError UpdateSessionState(
+      SdpType type,
+      cricket::ContentSource source,
+      const cricket::SessionDescription* description,
+      const std::map<std::string, const cricket::ContentGroup*>&
+          bundle_groups_by_mid);
 
   bool IsUnifiedPlan() const RTC_RUN_ON(signaling_thread());
 
@@ -298,9 +294,11 @@ class SdpOfferAnswerHandler : public SdpStateProvider,
   bool CheckIfNegotiationIsNeeded();
   void GenerateNegotiationNeededEvent();
   // Helper method which verifies SDP.
-  RTCError ValidateSessionDescription(const SessionDescriptionInterface* sdesc,
-                                      cricket::ContentSource source)
-      RTC_RUN_ON(signaling_thread());
+  RTCError ValidateSessionDescription(
+      const SessionDescriptionInterface* sdesc,
+      cricket::ContentSource source,
+      const std::map<std::string, const cricket::ContentGroup*>&
+          bundle_groups_by_mid) RTC_RUN_ON(signaling_thread());
 
   // Updates the local RtpTransceivers according to the JSEP rules. Called as
   // part of setting the local/remote description.
@@ -308,7 +306,9 @@ class SdpOfferAnswerHandler : public SdpStateProvider,
       cricket::ContentSource source,
       const SessionDescriptionInterface& new_session,
       const SessionDescriptionInterface* old_local_description,
-      const SessionDescriptionInterface* old_remote_description);
+      const SessionDescriptionInterface* old_remote_description,
+      const std::map<std::string, const cricket::ContentGroup*>&
+          bundle_groups_by_mid);
 
   // Associate the given transceiver according to the JSEP rules.
   RTCErrorOr<
@@ -321,14 +321,13 @@ class SdpOfferAnswerHandler : public SdpStateProvider,
                        const cricket::ContentInfo* old_remote_content)
       RTC_RUN_ON(signaling_thread());
 
-  // If the BUNDLE policy is max-bundle, then we know for sure that all
-  // transports will be bundled from the start. This method returns the BUNDLE
-  // group if that's the case, or null if BUNDLE will be negotiated later. An
-  // error is returned if max-bundle is specified but the session description
-  // does not have a BUNDLE group.
-  RTCErrorOr<const cricket::ContentGroup*> GetEarlyBundleGroup(
-      const cricket::SessionDescription& desc) const
-      RTC_RUN_ON(signaling_thread());
+  // Returns the media section in the given session description that is
+  // associated with the RtpTransceiver. Returns null if none found or this
+  // RtpTransceiver is not associated. Logic varies depending on the
+  // SdpSemantics specified in the configuration.
+  const cricket::ContentInfo* FindMediaSectionForTransceiver(
+      const RtpTransceiver* transceiver,
+      const SessionDescriptionInterface* sdesc) const;
 
   // Either creates or destroys the transceiver's BaseChannel according to the
   // given media section.
@@ -362,7 +361,7 @@ class SdpOfferAnswerHandler : public SdpStateProvider,
   rtc::scoped_refptr<RtpTransceiverProxyWithInternal<RtpTransceiver>>
   FindAvailableTransceiverToReceive(cricket::MediaType media_type) const;
 
-  // Returns a MediaSessionOptions struct with options decided by |options|,
+  // Returns a MediaSessionOptions struct with options decided by `options`,
   // the local MediaStreams and DataChannels.
   void GetOptionsForOffer(const PeerConnectionInterface::RTCOfferAnswerOptions&
                               offer_answer_options,
@@ -379,7 +378,7 @@ class SdpOfferAnswerHandler : public SdpStateProvider,
       RTC_RUN_ON(signaling_thread());
 
   // Returns a MediaSessionOptions struct with options decided by
-  // |constraints|, the local MediaStreams and DataChannels.
+  // `constraints`, the local MediaStreams and DataChannels.
   void GetOptionsForAnswer(const PeerConnectionInterface::RTCOfferAnswerOptions&
                                offer_answer_options,
                            cricket::MediaSessionOptions* session_options);
@@ -417,12 +416,12 @@ class SdpOfferAnswerHandler : public SdpStateProvider,
   // Runs the algorithm specified in
   // https://w3c.github.io/webrtc-pc/#process-remote-track-removal
   // This method will update the following lists:
-  // |remove_list| is the list of transceivers for which the receiving track is
+  // `remove_list` is the list of transceivers for which the receiving track is
   //     being removed.
-  // |removed_streams| is the list of streams which no longer have a receiving
+  // `removed_streams` is the list of streams which no longer have a receiving
   //     track so should be removed.
   void ProcessRemovalOfRemoteTrack(
-      rtc::scoped_refptr<RtpTransceiverProxyWithInternal<RtpTransceiver>>
+      const rtc::scoped_refptr<RtpTransceiverProxyWithInternal<RtpTransceiver>>
           transceiver,
       std::vector<rtc::scoped_refptr<RtpTransceiverInterface>>* remove_list,
       std::vector<rtc::scoped_refptr<MediaStreamInterface>>* removed_streams);
@@ -432,61 +431,46 @@ class SdpOfferAnswerHandler : public SdpStateProvider,
           remote_streams,
       std::vector<rtc::scoped_refptr<MediaStreamInterface>>* removed_streams);
 
-  // Remove all local and remote senders of type |media_type|.
+  // Remove all local and remote senders of type `media_type`.
   // Called when a media type is rejected (m-line set to port 0).
   void RemoveSenders(cricket::MediaType media_type);
 
-  // Loops through the vector of |streams| and finds added and removed
+  // Loops through the vector of `streams` and finds added and removed
   // StreamParams since last time this method was called.
   // For each new or removed StreamParam, OnLocalSenderSeen or
   // OnLocalSenderRemoved is invoked.
   void UpdateLocalSenders(const std::vector<cricket::StreamParams>& streams,
                           cricket::MediaType media_type);
 
-  // Makes sure a MediaStreamTrack is created for each StreamParam in |streams|,
+  // Makes sure a MediaStreamTrack is created for each StreamParam in `streams`,
   // and existing MediaStreamTracks are removed if there is no corresponding
-  // StreamParam. If |default_track_needed| is true, a default MediaStreamTrack
+  // StreamParam. If `default_track_needed` is true, a default MediaStreamTrack
   // is created if it doesn't exist; if false, it's removed if it exists.
-  // |media_type| is the type of the |streams| and can be either audio or video.
-  // If a new MediaStream is created it is added to |new_streams|.
+  // `media_type` is the type of the `streams` and can be either audio or video.
+  // If a new MediaStream is created it is added to `new_streams`.
   void UpdateRemoteSendersList(
       const std::vector<cricket::StreamParams>& streams,
       bool default_track_needed,
       cricket::MediaType media_type,
       StreamCollection* new_streams);
 
+  // Enables media channels to allow sending of media.
+  // This enables media to flow on all configured audio/video channels.
+  void EnableSending();
   // Push the media parts of the local or remote session description
-  // down to all of the channels, and enable sending if applicable.
-  RTCError PushdownMediaDescription(SdpType type,
-                                    cricket::ContentSource source);
-
-  struct PayloadTypeDemuxingUpdate {
-    PayloadTypeDemuxingUpdate(cricket::ChannelInterface* channel, bool enabled)
-        : channel(channel), enabled(enabled) {}
-    cricket::ChannelInterface* channel;
-    bool enabled;
-  };
-  struct ContentUpdate {
-    ContentUpdate(cricket::ChannelInterface* channel,
-                  const cricket::MediaContentDescription* content_description)
-        : channel(channel), content_description(content_description) {}
-    cricket::ChannelInterface* channel;
-    const cricket::MediaContentDescription* content_description;
-  };
-  // Helper method used by PushdownMediaDescription to apply a batch of updates
-  // to BaseChannels on the worker thread.
-  RTCError ApplyChannelUpdates(
+  // down to all of the channels.
+  RTCError PushdownMediaDescription(
       SdpType type,
       cricket::ContentSource source,
-      std::vector<PayloadTypeDemuxingUpdate> payload_type_demuxing_updates,
-      std::vector<ContentUpdate> content_updates);
+      const std::map<std::string, const cricket::ContentGroup*>&
+          bundle_groups_by_mid);
 
   RTCError PushdownTransportDescription(cricket::ContentSource source,
                                         SdpType type);
   // Helper function to remove stopped transceivers.
   void RemoveStoppedTransceivers();
-  // Deletes the corresponding channel of contents that don't exist in |desc|.
-  // |desc| can be null. This means that all channels are deleted.
+  // Deletes the corresponding channel of contents that don't exist in `desc`.
+  // `desc` can be null. This means that all channels are deleted.
   void RemoveUnusedChannels(const cricket::SessionDescription* desc);
 
   // Report inferred negotiated SDP semantics from a local/remote answer to the
@@ -494,24 +478,22 @@ class SdpOfferAnswerHandler : public SdpStateProvider,
   void ReportNegotiatedSdpSemantics(const SessionDescriptionInterface& answer);
 
   // Finds remote MediaStreams without any tracks and removes them from
-  // |remote_streams_| and notifies the observer that the MediaStreams no longer
+  // `remote_streams_` and notifies the observer that the MediaStreams no longer
   // exist.
   void UpdateEndedRemoteMediaStreams();
 
-  // Uses all remote candidates in |remote_desc| in this session.
+  // Uses all remote candidates in `remote_desc` in this session.
   bool UseCandidatesInSessionDescription(
       const SessionDescriptionInterface* remote_desc);
-  // Uses |candidate| in this session.
+  // Uses `candidate` in this session.
   bool UseCandidate(const IceCandidateInterface* candidate);
   // Returns true if we are ready to push down the remote candidate.
-  // |remote_desc| is the new remote description, or NULL if the current remote
-  // description should be used. Output |valid| is true if the candidate media
+  // `remote_desc` is the new remote description, or NULL if the current remote
+  // description should be used. Output `valid` is true if the candidate media
   // index is valid.
   bool ReadyToUseRemoteCandidate(const IceCandidateInterface* candidate,
                                  const SessionDescriptionInterface* remote_desc,
                                  bool* valid);
-  void ReportRemoteIceCandidateAdded(const cricket::Candidate& candidate)
-      RTC_RUN_ON(signaling_thread());
 
   RTCErrorOr<const cricket::ContentInfo*> FindContentInfo(
       const SessionDescriptionInterface* description,
@@ -521,7 +503,7 @@ class SdpOfferAnswerHandler : public SdpStateProvider,
   // Note that cricket code uses the term "channel" for what other code
   // refers to as "transport".
 
-  // Allocates media channels based on the |desc|. If |desc| doesn't have
+  // Allocates media channels based on the `desc`. If `desc` doesn't have
   // the BUNDLE option, this method will disable BUNDLE in PortAllocator.
   // This method will also delete any existing media channels before creating.
   RTCError CreateChannels(const cricket::SessionDescription& desc);
@@ -539,12 +521,12 @@ class SdpOfferAnswerHandler : public SdpStateProvider,
 
   // Destroys the RTP data channel transport and/or the SCTP data channel
   // transport and clears it.
-  void DestroyDataChannelTransport();
+  void DestroyDataChannelTransport(RTCError error);
 
   // Destroys the given ChannelInterface.
   // The channel cannot be accessed after this method is called.
   void DestroyChannelInterface(cricket::ChannelInterface* channel);
-  // Generates MediaDescriptionOptions for the |session_opts| based on existing
+  // Generates MediaDescriptionOptions for the `session_opts` based on existing
   // local description or remote description.
 
   void GenerateMediaDescriptionOptions(
@@ -566,15 +548,12 @@ class SdpOfferAnswerHandler : public SdpStateProvider,
   cricket::MediaDescriptionOptions GetMediaDescriptionOptionsForRejectedData(
       const std::string& mid) const;
 
-  const std::string GetTransportName(const std::string& content_name);
-
-  // Based on number of transceivers per media type, and their bundle status and
-  // payload types, determine whether payload type based demuxing should be
-  // enabled or disabled. Returns a list of channels and the corresponding
-  // value to be passed into SetPayloadTypeDemuxingEnabled, so that this action
-  // can be combined with other operations on the worker thread.
-  std::vector<PayloadTypeDemuxingUpdate> GetPayloadTypeDemuxingUpdates(
-      cricket::ContentSource source);
+  // Based on number of transceivers per media type, enabled or disable
+  // payload type based demuxing in the affected channels.
+  bool UpdatePayloadTypeDemuxingState(
+      cricket::ContentSource source,
+      const std::map<std::string, const cricket::ContentGroup*>&
+          bundle_groups_by_mid);
 
   // ==================================================================
   // Access to pc_ variables
@@ -651,6 +630,11 @@ class SdpOfferAnswerHandler : public SdpStateProvider,
   uint32_t negotiation_needed_event_id_ = 0;
   bool update_negotiation_needed_on_empty_chain_
       RTC_GUARDED_BY(signaling_thread()) = false;
+  // If PT demuxing is successfully negotiated one time we will allow PT
+  // demuxing for the rest of the session so that PT-based apps default to PT
+  // demuxing in follow-up O/A exchanges.
+  bool pt_demuxing_has_been_used_audio_ = false;
+  bool pt_demuxing_has_been_used_video_ = false;
 
   // In Unified Plan, if we encounter remote SDP that does not contain an a=msid
   // line we create and use a stream with a random ID for our receivers. This is
@@ -659,12 +643,14 @@ class SdpOfferAnswerHandler : public SdpStateProvider,
   rtc::scoped_refptr<MediaStreamInterface> missing_msid_default_stream_
       RTC_GUARDED_BY(signaling_thread());
 
-  // Used when rolling back RTP data channels.
-  bool have_pending_rtp_data_channel_ RTC_GUARDED_BY(signaling_thread()) =
-      false;
-
   // Updates the error state, signaling if necessary.
   void SetSessionError(SessionError error, const std::string& error_desc);
+
+  // Implements AddIceCandidate without reporting usage, but returns the
+  // particular success/error value that should be reported (and can be utilized
+  // for other purposes).
+  AddIceCandidateResult AddIceCandidateInternal(
+      const IceCandidateInterface* candidate);
 
   SessionError session_error_ RTC_GUARDED_BY(signaling_thread()) =
       SessionError::kNone;
@@ -678,8 +664,9 @@ class SdpOfferAnswerHandler : public SdpStateProvider,
   // specified by the user (or by the remote party).
   // The generator is not used directly, instead it is passed on to the
   // channel manager and the session description factory.
-  rtc::UniqueRandomIdGenerator ssrc_generator_
-      RTC_GUARDED_BY(signaling_thread());
+  // TODO(bugs.webrtc.org/12666): This variable is used from both the signaling
+  // and worker threads. See if we can't restrict usage to a single thread.
+  rtc::UniqueRandomIdGenerator ssrc_generator_;
 
   // A video bitrate allocator factory.
   // This can be injected using the PeerConnectionDependencies,

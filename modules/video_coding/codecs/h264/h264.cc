@@ -17,6 +17,7 @@
 #include "absl/types/optional.h"
 #include "api/video_codecs/sdp_video_format.h"
 #include "media/base/media_constants.h"
+#include "rtc_base/trace_event.h"
 
 #if defined(WEBRTC_USE_H264)
 #include "modules/video_coding/codecs/h264/h264_decoder_impl.h"
@@ -45,11 +46,11 @@ bool IsH264CodecSupported() {
 
 }  // namespace
 
-SdpVideoFormat CreateH264Format(H264::Profile profile,
-                                H264::Level level,
+SdpVideoFormat CreateH264Format(H264Profile profile,
+                                H264Level level,
                                 const std::string& packetization_mode) {
   const absl::optional<std::string> profile_string =
-      H264::ProfileLevelIdToString(H264::ProfileLevelId(profile, level));
+      H264ProfileLevelIdToString(H264ProfileLevelId(profile, level));
   RTC_CHECK(profile_string);
   return SdpVideoFormat(
       cricket::kH264CodecName,
@@ -65,6 +66,7 @@ void DisableRtcUseH264() {
 }
 
 std::vector<SdpVideoFormat> SupportedH264Codecs() {
+  TRACE_EVENT0("webrtc", __func__);
   if (!IsH264CodecSupported())
     return std::vector<SdpVideoFormat>();
   // We only support encoding Constrained Baseline Profile (CBP), but the
@@ -76,12 +78,14 @@ std::vector<SdpVideoFormat> SupportedH264Codecs() {
   //
   // We support both packetization modes 0 (mandatory) and 1 (optional,
   // preferred).
-  return {
-      CreateH264Format(H264::kProfileBaseline, H264::kLevel3_1, "1"),
-      CreateH264Format(H264::kProfileBaseline, H264::kLevel3_1, "0"),
-      CreateH264Format(H264::kProfileConstrainedBaseline, H264::kLevel3_1, "1"),
-      CreateH264Format(H264::kProfileConstrainedBaseline, H264::kLevel3_1,
-                       "0")};
+  return {CreateH264Format(H264Profile::kProfileBaseline, H264Level::kLevel3_1,
+                           "1"),
+          CreateH264Format(H264Profile::kProfileBaseline, H264Level::kLevel3_1,
+                           "0"),
+          CreateH264Format(H264Profile::kProfileConstrainedBaseline,
+                           H264Level::kLevel3_1, "1"),
+          CreateH264Format(H264Profile::kProfileConstrainedBaseline,
+                           H264Level::kLevel3_1, "0")};
 }
 
 std::unique_ptr<H264Encoder> H264Encoder::Create(

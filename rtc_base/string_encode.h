@@ -41,7 +41,7 @@ size_t hex_decode(char* buffer,
 
 // hex_decode, assuming that there is a delimiter between every byte
 // pair.
-// |delimiter| == 0 means no delimiter
+// `delimiter` == 0 means no delimiter
 // If the buffer is too short or the data is invalid, we return 0.
 size_t hex_decode_with_delimiter(char* buffer,
                                  size_t buflen,
@@ -70,29 +70,6 @@ size_t split(const std::string& source,
 // with duplicates of delimiter ignored.  Trailing delimiter ignored.
 size_t tokenize(const std::string& source,
                 char delimiter,
-                std::vector<std::string>* fields);
-
-// Tokenize, including the empty tokens.
-size_t tokenize_with_empty_tokens(const std::string& source,
-                                  char delimiter,
-                                  std::vector<std::string>* fields);
-
-// Tokenize and append the tokens to fields. Return the new size of fields.
-size_t tokenize_append(const std::string& source,
-                       char delimiter,
-                       std::vector<std::string>* fields);
-
-// Splits the source string into multiple fields separated by delimiter, with
-// duplicates of delimiter ignored. Trailing delimiter ignored. A substring in
-// between the start_mark and the end_mark is treated as a single field. Return
-// the size of fields. For example, if source is "filename
-// \"/Library/Application Support/media content.txt\"", delimiter is ' ', and
-// the start_mark and end_mark are '"', this method returns two fields:
-// "filename" and "/Library/Application Support/media content.txt".
-size_t tokenize(const std::string& source,
-                char delimiter,
-                char start_mark,
-                char end_mark,
                 std::vector<std::string>* fields);
 
 // Extract the first token from source as separated by delimiter, with

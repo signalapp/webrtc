@@ -15,7 +15,6 @@
 
 #include "api/task_queue/task_queue_factory.h"
 #include "api/video/encoded_image.h"
-#include "api/video_codecs/video_codec.h"
 #include "api/video_codecs/video_decoder.h"
 #include "modules/video_coding/include/video_codec_interface.h"
 #include "rtc_base/task_queue.h"
@@ -25,12 +24,13 @@ namespace test {
 
 class FakeDecoder : public VideoDecoder {
  public:
+  enum { kDefaultWidth = 320, kDefaultHeight = 180 };
+
   FakeDecoder();
   explicit FakeDecoder(TaskQueueFactory* task_queue_factory);
   virtual ~FakeDecoder() {}
 
-  int32_t InitDecode(const VideoCodec* config,
-                     int32_t number_of_cores) override;
+  bool Configure(const Settings& settings) override;
 
   int32_t Decode(const EncodedImage& input,
                  bool missing_frames,

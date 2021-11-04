@@ -34,7 +34,6 @@
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "modules/rtp_rtcp/source/rtp_rtcp_impl2.h"
 #include "modules/rtp_rtcp/source/rtp_video_layers_allocation_extension.h"
-#include "modules/rtp_rtcp/source/time_util.h"
 #include "rtc_base/arraysize.h"
 #include "rtc_base/rate_limiter.h"
 #include "rtc_base/task_queue_for_test.h"
@@ -573,6 +572,60 @@ TEST_P(RtpSenderVideoTest, SendsDependencyDescriptorWhenVideoStructureIsSet) {
               ElementsAre(1, 501));
 }
 
+TEST_P(RtpSenderVideoTest,
+       SkipsDependencyDescriptorOnDeltaFrameWhenFailedToAttachToKeyFrame) {
+  const int64_t kFrameId = 100000;
+  uint8_t kFrame[100];
+  rtp_module_->RegisterRtpHeaderExtension(
+      RtpDependencyDescriptorExtension::kUri, kDependencyDescriptorId);
+  rtp_module_->SetExtmapAllowMixed(false);
+  FrameDependencyStructure video_structure;
+  video_structure.num_decode_targets = 2;
+  // Use many templates so that key dependency descriptor would be too large
+  // to fit into 16 bytes (max size of one byte header rtp header extension)
+  video_structure.templates = {
+      FrameDependencyTemplate().S(0).T(0).Dtis("SS"),
+      FrameDependencyTemplate().S(1).T(0).Dtis("-S"),
+      FrameDependencyTemplate().S(1).T(1).Dtis("-D").FrameDiffs({1, 2, 3, 4}),
+      FrameDependencyTemplate().S(1).T(1).Dtis("-D").FrameDiffs({2, 3, 4, 5}),
+      FrameDependencyTemplate().S(1).T(1).Dtis("-D").FrameDiffs({3, 4, 5, 6}),
+      FrameDependencyTemplate().S(1).T(1).Dtis("-D").FrameDiffs({4, 5, 6, 7}),
+  };
+  rtp_sender_video_->SetVideoStructure(&video_structure);
+
+  // Send key frame.
+  RTPVideoHeader hdr;
+  RTPVideoHeader::GenericDescriptorInfo& generic = hdr.generic.emplace();
+  generic.frame_id = kFrameId;
+  generic.temporal_index = 0;
+  generic.spatial_index = 0;
+  generic.decode_target_indications = {DecodeTargetIndication::kSwitch,
+                                       DecodeTargetIndication::kSwitch};
+  hdr.frame_type = VideoFrameType::kVideoFrameKey;
+  rtp_sender_video_->SendVideo(kPayload, kType, kTimestamp, 0, kFrame, hdr,
+                               kDefaultExpectedRetransmissionTimeMs);
+
+  ASSERT_EQ(transport_.packets_sent(), 1);
+  DependencyDescriptor descriptor_key;
+  ASSERT_FALSE(transport_.last_sent_packet()
+                   .HasExtension<RtpDependencyDescriptorExtension>());
+
+  // Send delta frame.
+  generic.frame_id = kFrameId + 1;
+  generic.temporal_index = 1;
+  generic.spatial_index = 1;
+  generic.dependencies = {kFrameId, kFrameId - 500};
+  generic.decode_target_indications = {DecodeTargetIndication::kNotPresent,
+                                       DecodeTargetIndication::kRequired};
+  hdr.frame_type = VideoFrameType::kVideoFrameDelta;
+  rtp_sender_video_->SendVideo(kPayload, kType, kTimestamp, 0, kFrame, hdr,
+                               kDefaultExpectedRetransmissionTimeMs);
+
+  EXPECT_EQ(transport_.packets_sent(), 2);
+  EXPECT_FALSE(transport_.last_sent_packet()
+                   .HasExtension<RtpDependencyDescriptorExtension>());
+}
+
 TEST_P(RtpSenderVideoTest, PropagatesChainDiffsIntoDependencyDescriptor) {
   const int64_t kFrameId = 100000;
   uint8_t kFrame[100];
@@ -1054,8 +1107,10 @@ TEST_P(RtpSenderVideoTest, AbsoluteCaptureTime) {
         packet.GetExtension<AbsoluteCaptureTimeExtension>();
     if (absolute_capture_time) {
       ++packets_with_abs_capture_time;
-      EXPECT_EQ(absolute_capture_time->absolute_capture_timestamp,
-                Int64MsToUQ32x32(kAbsoluteCaptureTimestampMs + NtpOffsetMs()));
+      EXPECT_EQ(
+          absolute_capture_time->absolute_capture_timestamp,
+          Int64MsToUQ32x32(fake_clock_.ConvertTimestampToNtpTimeInMilliseconds(
+              kAbsoluteCaptureTimestampMs)));
       EXPECT_FALSE(
           absolute_capture_time->estimated_capture_clock_offset.has_value());
     }
@@ -1092,8 +1147,10 @@ TEST_P(RtpSenderVideoTest, AbsoluteCaptureTimeWithCaptureClockOffset) {
         packet.GetExtension<AbsoluteCaptureTimeExtension>();
     if (absolute_capture_time) {
       ++packets_with_abs_capture_time;
-      EXPECT_EQ(absolute_capture_time->absolute_capture_timestamp,
-                Int64MsToUQ32x32(kAbsoluteCaptureTimestampMs + NtpOffsetMs()));
+      EXPECT_EQ(
+          absolute_capture_time->absolute_capture_timestamp,
+          Int64MsToUQ32x32(fake_clock_.ConvertTimestampToNtpTimeInMilliseconds(
+              kAbsoluteCaptureTimestampMs)));
       EXPECT_EQ(kExpectedCaptureClockOffset,
                 absolute_capture_time->estimated_capture_clock_offset);
     }
@@ -1156,6 +1213,55 @@ TEST_P(RtpSenderVideoTest, PopulatesPlayoutDelay) {
   ASSERT_TRUE(transport_.last_sent_packet().GetExtension<PlayoutDelayLimits>(
       &received_delay));
   EXPECT_EQ(received_delay, kExpectedDelay);
+}
+
+TEST_P(RtpSenderVideoTest, SendGenericVideo) {
+  const uint8_t kPayloadType = 127;
+  const VideoCodecType kCodecType = VideoCodecType::kVideoCodecGeneric;
+  const uint8_t kPayload[] = {47, 11, 32, 93, 89};
+
+  // Send keyframe.
+  RTPVideoHeader video_header;
+  video_header.frame_type = VideoFrameType::kVideoFrameKey;
+  ASSERT_TRUE(rtp_sender_video_->SendVideo(kPayloadType, kCodecType, 1234, 4321,
+                                           kPayload, video_header,
+                                           absl::nullopt));
+
+  rtc::ArrayView<const uint8_t> sent_payload =
+      transport_.last_sent_packet().payload();
+  uint8_t generic_header = sent_payload[0];
+  EXPECT_TRUE(generic_header & RtpFormatVideoGeneric::kKeyFrameBit);
+  EXPECT_TRUE(generic_header & RtpFormatVideoGeneric::kFirstPacketBit);
+  EXPECT_THAT(sent_payload.subview(1), ElementsAreArray(kPayload));
+
+  // Send delta frame.
+  const uint8_t kDeltaPayload[] = {13, 42, 32, 93, 13};
+  video_header.frame_type = VideoFrameType::kVideoFrameDelta;
+  ASSERT_TRUE(rtp_sender_video_->SendVideo(kPayloadType, kCodecType, 1234, 4321,
+                                           kDeltaPayload, video_header,
+                                           absl::nullopt));
+
+  sent_payload = sent_payload = transport_.last_sent_packet().payload();
+  generic_header = sent_payload[0];
+  EXPECT_FALSE(generic_header & RtpFormatVideoGeneric::kKeyFrameBit);
+  EXPECT_TRUE(generic_header & RtpFormatVideoGeneric::kFirstPacketBit);
+  EXPECT_THAT(sent_payload.subview(1), ElementsAreArray(kDeltaPayload));
+}
+
+TEST_P(RtpSenderVideoTest, SendRawVideo) {
+  const uint8_t kPayloadType = 111;
+  const uint8_t kPayload[] = {11, 22, 33, 44, 55};
+
+  // Send a frame.
+  RTPVideoHeader video_header;
+  video_header.frame_type = VideoFrameType::kVideoFrameKey;
+  ASSERT_TRUE(rtp_sender_video_->SendVideo(kPayloadType, absl::nullopt, 1234,
+                                           4321, kPayload, video_header,
+                                           absl::nullopt));
+
+  rtc::ArrayView<const uint8_t> sent_payload =
+      transport_.last_sent_packet().payload();
+  EXPECT_THAT(sent_payload, ElementsAreArray(kPayload));
 }
 
 INSTANTIATE_TEST_SUITE_P(WithAndWithoutOverhead,
@@ -1241,6 +1347,32 @@ TEST_F(RtpSenderVideoWithFrameTransformerTest,
                                      *encoded_image, video_header,
                                      kDefaultExpectedRetransmissionTimeMs);
 }
+
+#if RTC_DCHECK_IS_ON && GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
+TEST_F(RtpSenderVideoWithFrameTransformerTest, ValidPayloadTypes) {
+  rtc::scoped_refptr<MockFrameTransformer> mock_frame_transformer =
+      new rtc::RefCountedObject<NiceMock<MockFrameTransformer>>();
+  std::unique_ptr<RTPSenderVideo> rtp_sender_video =
+      CreateSenderWithFrameTransformer(mock_frame_transformer);
+  auto encoded_image = CreateDefaultEncodedImage();
+  RTPVideoHeader video_header;
+
+  EXPECT_TRUE(rtp_sender_video->SendEncodedImage(
+      0, kType, kTimestamp, *encoded_image, video_header,
+      kDefaultExpectedRetransmissionTimeMs));
+  EXPECT_TRUE(rtp_sender_video->SendEncodedImage(
+      127, kType, kTimestamp, *encoded_image, video_header,
+      kDefaultExpectedRetransmissionTimeMs));
+  EXPECT_DEATH(rtp_sender_video->SendEncodedImage(
+                   -1, kType, kTimestamp, *encoded_image, video_header,
+                   kDefaultExpectedRetransmissionTimeMs),
+               "");
+  EXPECT_DEATH(rtp_sender_video->SendEncodedImage(
+                   128, kType, kTimestamp, *encoded_image, video_header,
+                   kDefaultExpectedRetransmissionTimeMs),
+               "");
+}
+#endif
 
 TEST_F(RtpSenderVideoWithFrameTransformerTest, OnTransformedFrameSendsVideo) {
   rtc::scoped_refptr<MockFrameTransformer> mock_frame_transformer =

@@ -43,6 +43,8 @@ class SuppressionGain {
       rtc::ArrayView<const std::array<float, kFftLengthBy2Plus1>>
           residual_echo_spectrum,
       rtc::ArrayView<const std::array<float, kFftLengthBy2Plus1>>
+          residual_echo_spectrum_unbounded,
+      rtc::ArrayView<const std::array<float, kFftLengthBy2Plus1>>
           comfort_noise_spectrum,
       const RenderSignalAnalyzer& render_signal_analyzer,
       const AecState& aec_state,
@@ -50,6 +52,10 @@ class SuppressionGain {
       bool clock_drift,
       float* high_bands_gain,
       std::array<float, kFftLengthBy2Plus1>* low_band_gain);
+
+  bool IsDominantNearend() {
+    return dominant_nearend_detector_->IsNearendState();
+  }
 
   // Toggles the usage of the initial state.
   void SetInitialState(bool state);
@@ -99,6 +105,8 @@ class SuppressionGain {
 
   struct GainParameters {
     explicit GainParameters(
+        int last_lf_band,
+        int first_hf_band,
         const EchoCanceller3Config::Suppressor::Tuning& tuning);
     const float max_inc_factor;
     const float max_dec_factor_lf;
@@ -122,6 +130,9 @@ class SuppressionGain {
   std::vector<aec3::MovingAverage> nearend_smoothers_;
   const GainParameters nearend_params_;
   const GainParameters normal_params_;
+  // Determines if the dominant nearend detector uses the unbounded residual
+  // echo spectrum.
+  const bool use_unbounded_echo_spectrum_;
   std::unique_ptr<NearendDetector> dominant_nearend_detector_;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(SuppressionGain);

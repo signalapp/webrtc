@@ -14,6 +14,7 @@
 #include <stdint.h>
 
 #include <string>
+#include <vector>
 
 #include "api/array_view.h"
 #include "api/rtp_headers.h"
@@ -75,6 +76,20 @@ class AudioLevel {
   static bool Write(rtc::ArrayView<uint8_t> data,
                     bool voice_activity,
                     uint8_t audio_level);
+};
+
+class CsrcAudioLevel {
+ public:
+  static constexpr RTPExtensionType kId = kRtpExtensionCsrcAudioLevel;
+  static constexpr uint8_t kMaxValueSizeBytes = 15;
+  static constexpr const char kUri[] =
+      "urn:ietf:params:rtp-hdrext:csrc-audio-level";
+
+  static bool Parse(rtc::ArrayView<const uint8_t> data,
+                    std::vector<uint8_t>* csrc_audio_levels);
+  static size_t ValueSize(rtc::ArrayView<const uint8_t> csrc_audio_levels);
+  static bool Write(rtc::ArrayView<uint8_t> data,
+                    rtc::ArrayView<const uint8_t> csrc_audio_levels);
 };
 
 class TransmissionOffset {
@@ -305,6 +320,22 @@ class InbandComfortNoiseExtension {
   }
   static bool Write(rtc::ArrayView<uint8_t> data,
                     absl::optional<uint8_t> level);
+};
+
+class VideoFrameTrackingIdExtension {
+ public:
+  using value_type = uint16_t;
+  static constexpr RTPExtensionType kId = kRtpExtensionVideoFrameTrackingId;
+  static constexpr uint8_t kValueSizeBytes = 2;
+  static constexpr const char kUri[] =
+      "http://www.webrtc.org/experiments/rtp-hdrext/video-frame-tracking-id";
+  static bool Parse(rtc::ArrayView<const uint8_t> data,
+                    uint16_t* video_frame_tracking_id);
+  static size_t ValueSize(uint16_t /*video_frame_tracking_id*/) {
+    return kValueSizeBytes;
+  }
+  static bool Write(rtc::ArrayView<uint8_t> data,
+                    uint16_t video_frame_tracking_id);
 };
 
 }  // namespace webrtc

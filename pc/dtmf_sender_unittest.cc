@@ -18,7 +18,6 @@
 
 #include "rtc_base/fake_clock.h"
 #include "rtc_base/gunit.h"
-#include "rtc_base/ref_counted_object.h"
 #include "rtc_base/time_utils.h"
 #include "test/gtest.h"
 
@@ -118,8 +117,7 @@ class FakeDtmfProvider : public DtmfProviderInterface {
 class DtmfSenderTest : public ::testing::Test {
  protected:
   DtmfSenderTest()
-      : observer_(new rtc::RefCountedObject<FakeDtmfObserver>()),
-        provider_(new FakeDtmfProvider()) {
+      : observer_(new FakeDtmfObserver()), provider_(new FakeDtmfProvider()) {
     provider_->SetCanInsertDtmf(true);
     dtmf_ = DtmfSender::Create(rtc::Thread::Current(), provider_.get());
     dtmf_->RegisterObserver(observer_.get());
@@ -131,8 +129,8 @@ class DtmfSenderTest : public ::testing::Test {
     }
   }
 
-  // Constructs a list of DtmfInfo from |tones|, |duration| and
-  // |inter_tone_gap|.
+  // Constructs a list of DtmfInfo from `tones`, `duration` and
+  // `inter_tone_gap`.
   void GetDtmfInfoFromString(
       const std::string& tones,
       int duration,

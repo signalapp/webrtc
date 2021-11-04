@@ -21,6 +21,7 @@
 #include "absl/types/optional.h"
 #include "api/candidate.h"
 #include "api/ice_gatherer_interface.h"
+#include "api/rtc_error.h"
 #include "api/transport/enums.h"
 #include "p2p/base/connection.h"
 #include "p2p/base/packet_transport_internal.h"
@@ -79,6 +80,17 @@ enum class NominationMode {
                    // The details are described in P2PTransportChannel.
 };
 
+// Utility method that checks if various required Candidate fields are filled in
+// and contain valid values. If conditions are not met, an RTCError with the
+// appropriated error number and description is returned. If the configuration
+// is valid RTCError::OK() is returned.
+webrtc::RTCError VerifyCandidate(const Candidate& cand);
+
+// Runs through a list of cricket::Candidate instances and calls VerifyCandidate
+// for each one, stopping on the first error encounted and returning that error
+// value if so. On success returns RTCError::OK().
+webrtc::RTCError VerifyCandidates(const Candidates& candidates);
+
 // Information about ICE configuration.
 // TODO(deadbeef): Use absl::optional to represent unset values, instead of
 // -1.
@@ -129,12 +141,12 @@ struct IceConfig {
   // The interval in milliseconds at which ICE checks (STUN pings) will be sent
   // for a candidate pair when it is both writable and receiving (strong
   // connectivity). This parameter overrides the default value given by
-  // |STRONG_PING_INTERVAL| in p2ptransport.h if set.
+  // `STRONG_PING_INTERVAL` in p2ptransport.h if set.
   absl::optional<int> ice_check_interval_strong_connectivity;
   // The interval in milliseconds at which ICE checks (STUN pings) will be sent
   // for a candidate pair when it is either not writable or not receiving (weak
   // connectivity). This parameter overrides the default value given by
-  // |WEAK_PING_INTERVAL| in p2ptransport.h if set.
+  // `WEAK_PING_INTERVAL` in p2ptransport.h if set.
   absl::optional<int> ice_check_interval_weak_connectivity;
   // ICE checks (STUN pings) will not be sent at higher rate (lower interval)
   // than this, no matter what other settings there are.
@@ -146,19 +158,19 @@ struct IceConfig {
   absl::optional<int> ice_check_min_interval;
   // The min time period for which a candidate pair must wait for response to
   // connectivity checks before it becomes unwritable. This parameter
-  // overrides the default value given by |CONNECTION_WRITE_CONNECT_TIMEOUT|
+  // overrides the default value given by `CONNECTION_WRITE_CONNECT_TIMEOUT`
   // in port.h if set, when determining the writability of a candidate pair.
   absl::optional<int> ice_unwritable_timeout;
 
   // The min number of connectivity checks that a candidate pair must sent
   // without receiving response before it becomes unwritable. This parameter
-  // overrides the default value given by |CONNECTION_WRITE_CONNECT_FAILURES| in
+  // overrides the default value given by `CONNECTION_WRITE_CONNECT_FAILURES` in
   // port.h if set, when determining the writability of a candidate pair.
   absl::optional<int> ice_unwritable_min_checks;
 
   // The min time period for which a candidate pair must wait for response to
   // connectivity checks it becomes inactive. This parameter overrides the
-  // default value given by |CONNECTION_WRITE_TIMEOUT| in port.h if set, when
+  // default value given by `CONNECTION_WRITE_TIMEOUT` in port.h if set, when
   // determining the writability of a candidate pair.
   absl::optional<int> ice_inactive_timeout;
 
@@ -167,6 +179,8 @@ struct IceConfig {
   absl::optional<int> stun_keepalive_interval;
 
   absl::optional<rtc::AdapterType> network_preference;
+
+  webrtc::VpnPreference vpn_preference = webrtc::VpnPreference::kDefault;
 
   IceConfig();
   IceConfig(int receiving_timeout_ms,
@@ -243,7 +257,7 @@ class RTC_EXPORT IceTransportInternal : public rtc::PacketTransportInternal {
   virtual void SetRemoteIceCredentials(const std::string& ice_ufrag,
                                        const std::string& ice_pwd);
 
-  // The ufrag and pwd in |ice_params| must be set
+  // The ufrag and pwd in `ice_params` must be set
   // before candidate gathering can start.
   virtual void SetIceParameters(const IceParameters& ice_params) = 0;
 

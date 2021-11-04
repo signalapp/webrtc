@@ -91,18 +91,30 @@ void VCMDecodedFrameCallback::Decoded(VideoFrame& decodedImage,
                        "timestamp", decodedImage.timestamp());
   // TODO(holmer): We should improve this so that we can handle multiple
   // callbacks from one call to Decode().
-  VCMFrameInformation* frameInfo;
+  absl::optional<VCMFrameInformation> frameInfo;
   int timestamp_map_size = 0;
+  int dropped_frames = 0;
   {
     MutexLock lock(&lock_);
+    int initial_timestamp_map_size = _timestampMap.Size();
     frameInfo = _timestampMap.Pop(decodedImage.timestamp());
     timestamp_map_size = _timestampMap.Size();
+    // _timestampMap.Pop() erases all frame upto the specified timestamp and
+    // return the frame info for this timestamp if it exists. Thus, the
+    // difference in the _timestampMap size before and after Pop() will show
+    // internally dropped frames.
+    dropped_frames =
+        initial_timestamp_map_size - timestamp_map_size - (frameInfo ? 1 : 0);
   }
 
-  if (frameInfo == NULL) {
+  if (dropped_frames > 0) {
+    _receiveCallback->OnDroppedFrames(dropped_frames);
+  }
+
+  if (!frameInfo) {
     RTC_LOG(LS_WARNING) << "Too many frames backed up in the decoder, dropping "
-                           "this one.";
-    _receiveCallback->OnDroppedFrames(1);
+                           "frame with timestamp "
+                        << decodedImage.timestamp();
     return;
   }
 
@@ -196,86 +208,85 @@ void VCMDecodedFrameCallback::OnDecoderImplementationName(
 }
 
 void VCMDecodedFrameCallback::Map(uint32_t timestamp,
-                                  VCMFrameInformation* frameInfo) {
-  MutexLock lock(&lock_);
-  _timestampMap.Add(timestamp, frameInfo);
-}
-
-int32_t VCMDecodedFrameCallback::Pop(uint32_t timestamp) {
-  MutexLock lock(&lock_);
-  if (_timestampMap.Pop(timestamp) == NULL) {
-    return VCM_GENERAL_ERROR;
+                                  const VCMFrameInformation& frameInfo) {
+  int dropped_frames = 0;
+  {
+    MutexLock lock(&lock_);
+    int initial_size = _timestampMap.Size();
+    _timestampMap.Add(timestamp, frameInfo);
+    // If no frame is dropped, the new size should be `initial_size` + 1
+    dropped_frames = (initial_size + 1) - _timestampMap.Size();
   }
-  _receiveCallback->OnDroppedFrames(1);
-  return VCM_OK;
+  if (dropped_frames > 0) {
+    _receiveCallback->OnDroppedFrames(dropped_frames);
+  }
 }
 
-VCMGenericDecoder::VCMGenericDecoder(std::unique_ptr<VideoDecoder> decoder)
-    : VCMGenericDecoder(decoder.release(), false /* isExternal */) {}
+void VCMDecodedFrameCallback::ClearTimestampMap() {
+  int dropped_frames = 0;
+  {
+    MutexLock lock(&lock_);
+    dropped_frames = _timestampMap.Size();
+    _timestampMap.Clear();
+  }
+  if (dropped_frames > 0) {
+    _receiveCallback->OnDroppedFrames(dropped_frames);
+  }
+}
 
-VCMGenericDecoder::VCMGenericDecoder(VideoDecoder* decoder, bool isExternal)
+VCMGenericDecoder::VCMGenericDecoder(VideoDecoder* decoder)
     : _callback(NULL),
-      _frameInfos(),
-      _nextFrameInfoIdx(0),
       decoder_(decoder),
-      _codecType(kVideoCodecGeneric),
-      _isExternal(isExternal),
       _last_keyframe_content_type(VideoContentType::UNSPECIFIED) {
   RTC_DCHECK(decoder_);
 }
 
 VCMGenericDecoder::~VCMGenericDecoder() {
   decoder_->Release();
-  if (_isExternal)
-    decoder_.release();
-  RTC_DCHECK(_isExternal || decoder_);
 }
 
-int32_t VCMGenericDecoder::InitDecode(const VideoCodec* settings,
-                                      int32_t numberOfCores) {
-  TRACE_EVENT0("webrtc", "VCMGenericDecoder::InitDecode");
-  _codecType = settings->codecType;
+bool VCMGenericDecoder::Configure(const VideoDecoder::Settings& settings) {
+  TRACE_EVENT0("webrtc", "VCMGenericDecoder::Configure");
 
-  int err = decoder_->InitDecode(settings, numberOfCores);
+  bool ok = decoder_->Configure(settings);
   decoder_info_ = decoder_->GetDecoderInfo();
   RTC_LOG(LS_INFO) << "Decoder implementation: " << decoder_info_.ToString();
   if (_callback) {
     _callback->OnDecoderImplementationName(
         decoder_info_.implementation_name.c_str());
   }
-  return err;
+  return ok;
 }
 
 int32_t VCMGenericDecoder::Decode(const VCMEncodedFrame& frame, Timestamp now) {
   TRACE_EVENT1("webrtc", "VCMGenericDecoder::Decode", "timestamp",
                frame.Timestamp());
-  _frameInfos[_nextFrameInfoIdx].decodeStart = now;
-  _frameInfos[_nextFrameInfoIdx].renderTimeMs = frame.RenderTimeMs();
-  _frameInfos[_nextFrameInfoIdx].rotation = frame.rotation();
-  _frameInfos[_nextFrameInfoIdx].timing = frame.video_timing();
-  _frameInfos[_nextFrameInfoIdx].ntp_time_ms =
-      frame.EncodedImage().ntp_time_ms_;
-  _frameInfos[_nextFrameInfoIdx].packet_infos = frame.PacketInfos();
+  VCMFrameInformation frame_info;
+  frame_info.decodeStart = now;
+  frame_info.renderTimeMs = frame.RenderTimeMs();
+  frame_info.rotation = frame.rotation();
+  frame_info.timing = frame.video_timing();
+  frame_info.ntp_time_ms = frame.EncodedImage().ntp_time_ms_;
+  frame_info.packet_infos = frame.PacketInfos();
 
   // Set correctly only for key frames. Thus, use latest key frame
   // content type. If the corresponding key frame was lost, decode will fail
   // and content type will be ignored.
   if (frame.FrameType() == VideoFrameType::kVideoFrameKey) {
-    _frameInfos[_nextFrameInfoIdx].content_type = frame.contentType();
+    frame_info.content_type = frame.contentType();
     _last_keyframe_content_type = frame.contentType();
   } else {
-    _frameInfos[_nextFrameInfoIdx].content_type = _last_keyframe_content_type;
+    frame_info.content_type = _last_keyframe_content_type;
   }
-  _callback->Map(frame.Timestamp(), &_frameInfos[_nextFrameInfoIdx]);
+  _callback->Map(frame.Timestamp(), frame_info);
 
-  _nextFrameInfoIdx = (_nextFrameInfoIdx + 1) % kDecoderFrameMemoryLength;
   int32_t ret = decoder_->Decode(frame.EncodedImage(), frame.MissingFrame(),
                                  frame.RenderTimeMs());
   VideoDecoder::DecoderInfo decoder_info = decoder_->GetDecoderInfo();
   if (decoder_info != decoder_info_) {
     RTC_LOG(LS_INFO) << "Changed decoder implementation to: "
                      << decoder_info.ToString();
-
+    decoder_info_ = decoder_info;
     _callback->OnDecoderImplementationName(
         decoder_info.implementation_name.empty()
             ? "unknown"
@@ -284,11 +295,10 @@ int32_t VCMGenericDecoder::Decode(const VCMEncodedFrame& frame, Timestamp now) {
   if (ret < WEBRTC_VIDEO_CODEC_OK) {
     RTC_LOG(LS_WARNING) << "Failed to decode frame with timestamp "
                         << frame.Timestamp() << ", error code: " << ret;
-    _callback->Pop(frame.Timestamp());
-    return ret;
+    _callback->ClearTimestampMap();
   } else if (ret == WEBRTC_VIDEO_CODEC_NO_OUTPUT) {
-    // No output
-    _callback->Pop(frame.Timestamp());
+    // No output.
+    _callback->ClearTimestampMap();
   }
   return ret;
 }

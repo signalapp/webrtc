@@ -14,6 +14,7 @@
 
 import("//build/config/linux/pkg_config.gni")
 import("//build/config/sanitizers/sanitizers.gni")
+import("//third_party/google_benchmark/buildconfig.gni")
 import("webrtc.gni")
 if (rtc_enable_protobuf) {
   import("//third_party/protobuf/proto_library.gni")
@@ -54,6 +55,7 @@ if (!build_with_chromium) {
         "modules/remote_bitrate_estimator:rtp_to_text",
         "modules/rtp_rtcp:test_packet_masks_metrics",
         "modules/video_capture:video_capture_internal_impl",
+        "net/dcsctp:dcsctp_unittests",
         "pc:peerconnection_unittests",
         "pc:rtc_pc_unittests",
         "rtc_tools:rtp_generator",
@@ -119,6 +121,9 @@ config("common_inherited_config") {
   if (rtc_enable_symbol_export || is_component_build) {
     defines = [ "WEBRTC_ENABLE_SYMBOL_EXPORT" ]
   }
+  if (rtc_enable_objc_symbol_export) {
+    defines = [ "WEBRTC_ENABLE_OBJC_SYMBOL_EXPORT" ]
+  }
 
   if (build_with_mozilla) {
     defines += [ "WEBRTC_MOZILLA_BUILD" ]
@@ -134,6 +139,10 @@ config("common_inherited_config") {
 
   if (rtc_enable_avx2) {
     defines += [ "WEBRTC_ENABLE_AVX2" ]
+  }
+
+  if (rtc_enable_win_wgc) {
+    defines += [ "RTC_ENABLE_WIN_WGC" ]
   }
 
   # Some tests need to declare their own trace event handlers. If this define is
@@ -261,7 +270,7 @@ config("common_config") {
   }
 
   if (rtc_enable_sctp) {
-    defines += [ "HAVE_SCTP" ]
+    defines += [ "WEBRTC_HAVE_SCTP" ]
   }
 
   if (rtc_enable_external_auth) {
@@ -334,9 +343,6 @@ config("common_config") {
     if (is_clang) {
       cflags += [
         "-Wc++11-narrowing",
-        "-Wimplicit-fallthrough",
-        "-Wthread-safety",
-        "-Winconsistent-missing-override",
         "-Wundef",
       ]
 
@@ -347,6 +353,13 @@ config("common_config") {
         # Flags NaCl (Clang 3.7) and Xcode 7.3 (Clang clang-703.0.31) do not
         # recognize.
         cflags += [ "-Wunused-lambda-capture" ]
+      }
+
+      if (use_xcode_clang) {
+        # This may be removed if the clang version in xcode > 12.4 includes the
+        # fix https://reviews.llvm.org/D73007.
+        # https://bugs.llvm.org/show_bug.cgi?id=44556
+        cflags += [ "-Wno-range-loop-analysis" ]
       }
     }
 
@@ -422,10 +435,6 @@ config("common_config") {
 
 config("common_objc") {
   frameworks = [ "Foundation.framework" ]
-
-  if (rtc_use_metal_rendering) {
-    defines = [ "RTC_SUPPORTS_METAL" ]
-  }
 }
 
 if (!build_with_chromium) {
@@ -513,6 +522,10 @@ if (!build_with_chromium) {
     rtc_executable("webrtc_lib_link_test") {
       testonly = true
 
+      # This target is used for checking to link, so do not check dependencies
+      # on gn check.
+      check_includes = false  # no-presubmit-check TODO(bugs.webrtc.org/12785)
+
       sources = [ "webrtc_lib_link_test.cc" ]
       deps = [
         # NOTE: Don't add deps here. If this test fails to link, it means you
@@ -532,7 +545,7 @@ if (use_libfuzzer || use_afl) {
   }
 }
 
-if (rtc_include_tests) {
+if (rtc_include_tests && !build_with_chromium) {
   rtc_test("rtc_unittests") {
     testonly = true
 
@@ -545,6 +558,7 @@ if (rtc_include_tests) {
       "api/transport:stun_unittest",
       "api/video/test:rtc_api_video_unittests",
       "api/video_codecs/test:video_codecs_api_unittests",
+      "api/voip:compile_all_headers",
       "call:fake_network_pipe_unittests",
       "p2p:libstunprober_unittests",
       "p2p:rtc_p2p_unittests",
@@ -559,7 +573,7 @@ if (rtc_include_tests) {
       "rtc_base:untyped_function_unittest",
       "rtc_base:weak_ptr_unittests",
       "rtc_base/experiments:experiments_unittests",
-      "rtc_base/synchronization:sequence_checker_unittests",
+      "rtc_base/system:file_wrapper_unittests",
       "rtc_base/task_utils:pending_task_safety_flag_unittests",
       "rtc_base/task_utils:to_queued_task_unittests",
       "sdk:sdk_tests",
@@ -589,12 +603,14 @@ if (rtc_include_tests) {
     }
   }
 
-  rtc_test("benchmarks") {
-    testonly = true
-    deps = [
-      "rtc_base/synchronization:mutex_benchmark",
-      "test:benchmark_main",
-    ]
+  if (enable_google_benchmarks) {
+    rtc_test("benchmarks") {
+      testonly = true
+      deps = [
+        "rtc_base/synchronization:mutex_benchmark",
+        "test:benchmark_main",
+      ]
+    }
   }
 
   # This runs tests that must run in real time and therefore can take some
@@ -704,6 +720,7 @@ if (rtc_include_tests) {
   rtc_test("voip_unittests") {
     testonly = true
     deps = [
+      "api/voip:compile_all_headers",
       "api/voip:voip_engine_factory_unittests",
       "audio/voip/test:audio_channel_unittests",
       "audio/voip/test:audio_egress_unittests",

@@ -19,8 +19,8 @@ import android.opengl.EGLDisplay;
 import android.opengl.EGLExt;
 import android.opengl.EGLSurface;
 import android.os.Build;
-import android.support.annotation.Nullable;
 import android.view.Surface;
+import androidx.annotation.Nullable;
 import org.webrtc.EglBase;
 
 /**
@@ -69,7 +69,7 @@ class EglBase14Impl implements EglBase14 {
   }
 
   // Create a new context with the specified config type, sharing data with sharedContext.
-  // |sharedContext| may be null.
+  // `sharedContext` may be null.
   public EglBase14Impl(EGLContext sharedContext, int[] configAttributes) {
     eglDisplay = getEglDisplay();
     eglConfig = getEglConfig(eglDisplay, configAttributes);

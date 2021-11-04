@@ -96,7 +96,7 @@ class FakeAudioTrack : public MediaStreamTrack<AudioTrackInterface> {
  public:
   explicit FakeAudioTrack(const std::string& id)
       : MediaStreamTrack<AudioTrackInterface>(id),
-        processor_(new rtc::RefCountedObject<FakeAudioProcessor>()) {}
+        processor_(rtc::make_ref_counted<FakeAudioProcessor>()) {}
   std::string kind() const override { return "audio"; }
   AudioSourceInterface* GetSource() const override { return NULL; }
   void AddSink(AudioTrackSinkInterface* sink) override {}
@@ -134,8 +134,7 @@ class FakeAudioTrackWithInitValue
  public:
   explicit FakeAudioTrackWithInitValue(const std::string& id)
       : MediaStreamTrack<AudioTrackInterface>(id),
-        processor_(
-            new rtc::RefCountedObject<FakeAudioProcessorWithInitValue>()) {}
+        processor_(rtc::make_ref_counted<FakeAudioProcessorWithInitValue>()) {}
   std::string kind() const override { return "audio"; }
   AudioSourceInterface* GetSource() const override { return NULL; }
   void AddSink(AudioTrackSinkInterface* sink) override {}
@@ -198,8 +197,8 @@ StatsReport::Id IdFromCertIdString(const std::string& cert_id) {
   return TypedIdFromIdString(StatsReport::kStatsReportTypeCertificate, cert_id);
 }
 
-// Finds the |n|-th report of type |type| in |reports|.
-// |n| starts from 1 for finding the first report.
+// Finds the `n`-th report of type `type` in `reports`.
+// `n` starts from 1 for finding the first report.
 const StatsReport* FindNthReportByType(const StatsReports& reports,
                                        const StatsReport::StatsType& type,
                                        int n) {
@@ -213,10 +212,10 @@ const StatsReport* FindNthReportByType(const StatsReports& reports,
   return nullptr;
 }
 
-// Returns the value of the stat identified by |name| in the |n|-th report of
-// type |type| in |reports|.
-// |n| starts from 1 for finding the first report.
-// If either the |n|-th report is not found, or the stat is not present in that
+// Returns the value of the stat identified by `name` in the `n`-th report of
+// type `type` in `reports`.
+// `n` starts from 1 for finding the first report.
+// If either the `n`-th report is not found, or the stat is not present in that
 // report, then nullopt is returned.
 absl::optional<std::string> GetValueInNthReportByType(
     const StatsReports& reports,
@@ -600,7 +599,7 @@ class StatsCollectorForTest : public StatsCollector {
 class StatsCollectorTest : public ::testing::Test {
  protected:
   rtc::scoped_refptr<FakePeerConnectionForStats> CreatePeerConnection() {
-    return new rtc::RefCountedObject<FakePeerConnectionForStats>();
+    return rtc::make_ref_counted<FakePeerConnectionForStats>();
   }
 
   std::unique_ptr<StatsCollectorForTest> CreateStatsCollector(
@@ -675,7 +674,7 @@ class StatsCollectorTest : public ::testing::Test {
     // Fake stats to process.
     TransportChannelStats channel_stats;
     channel_stats.component = 1;
-    channel_stats.srtp_crypto_suite = rtc::SRTP_AES128_CM_SHA1_80;
+    channel_stats.srtp_crypto_suite = rtc::kSrtpAes128CmSha1_80;
     channel_stats.ssl_cipher_suite =
         internal::TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA;
     pc->SetTransportStats(kTransportName, channel_stats);
@@ -730,7 +729,7 @@ class StatsCollectorTest : public ::testing::Test {
     std::string srtp_crypto_suite =
         ExtractStatsValue(StatsReport::kStatsReportTypeComponent, reports,
                           StatsReport::kStatsValueNameSrtpCipher);
-    EXPECT_EQ(rtc::SrtpCryptoSuiteToName(rtc::SRTP_AES128_CM_SHA1_80),
+    EXPECT_EQ(rtc::SrtpCryptoSuiteToName(rtc::kSrtpAes128CmSha1_80),
               srtp_crypto_suite);
   }
 };
@@ -738,8 +737,7 @@ class StatsCollectorTest : public ::testing::Test {
 static rtc::scoped_refptr<MockRtpSenderInternal> CreateMockSender(
     rtc::scoped_refptr<MediaStreamTrackInterface> track,
     uint32_t ssrc) {
-  rtc::scoped_refptr<MockRtpSenderInternal> sender(
-      new rtc::RefCountedObject<MockRtpSenderInternal>());
+  auto sender = rtc::make_ref_counted<MockRtpSenderInternal>();
   EXPECT_CALL(*sender, track()).WillRepeatedly(Return(track));
   EXPECT_CALL(*sender, ssrc()).WillRepeatedly(Return(ssrc));
   EXPECT_CALL(*sender, media_type())
@@ -753,8 +751,7 @@ static rtc::scoped_refptr<MockRtpSenderInternal> CreateMockSender(
 static rtc::scoped_refptr<MockRtpReceiverInternal> CreateMockReceiver(
     rtc::scoped_refptr<MediaStreamTrackInterface> track,
     uint32_t ssrc) {
-  rtc::scoped_refptr<MockRtpReceiverInternal> receiver(
-      new rtc::RefCountedObject<MockRtpReceiverInternal>());
+  auto receiver = rtc::make_ref_counted<MockRtpReceiverInternal>();
   EXPECT_CALL(*receiver, track()).WillRepeatedly(Return(track));
   EXPECT_CALL(*receiver, ssrc()).WillRepeatedly(Return(ssrc));
   EXPECT_CALL(*receiver, media_type())
@@ -808,7 +805,7 @@ class StatsCollectorTrackTest : public StatsCollectorTest,
   rtc::scoped_refptr<RtpSenderInterface> AddOutgoingAudioTrack(
       FakePeerConnectionForStats* pc,
       StatsCollectorForTest* stats) {
-    audio_track_ = new rtc::RefCountedObject<FakeAudioTrack>(kLocalTrackId);
+    audio_track_ = rtc::make_ref_counted<FakeAudioTrack>(kLocalTrackId);
     if (GetParam()) {
       if (!stream_)
         stream_ = MediaStream::Create("streamid");
@@ -823,7 +820,7 @@ class StatsCollectorTrackTest : public StatsCollectorTest,
   // Adds a incoming audio track with a given SSRC into the stats.
   void AddIncomingAudioTrack(FakePeerConnectionForStats* pc,
                              StatsCollectorForTest* stats) {
-    audio_track_ = new rtc::RefCountedObject<FakeAudioTrack>(kRemoteTrackId);
+    audio_track_ = rtc::make_ref_counted<FakeAudioTrack>(kRemoteTrackId);
     if (GetParam()) {
       if (stream_ == NULL)
         stream_ = MediaStream::Create("streamid");
@@ -1104,17 +1101,17 @@ TEST_P(StatsCollectorTrackTest, TrackAndSsrcObjectExistAfterUpdateSsrcStats) {
   StatsReports reports;
   stats->GetStats(nullptr, &reports);
 
-  // |reports| should contain at least one session report, one track report,
+  // `reports` should contain at least one session report, one track report,
   // and one ssrc report.
   EXPECT_LE(3u, reports.size());
   const StatsReport* track_report =
       FindNthReportByType(reports, StatsReport::kStatsReportTypeTrack, 1);
   EXPECT_TRUE(track_report);
 
-  // Get report for the specific |track|.
+  // Get report for the specific `track`.
   reports.clear();
   stats->GetStats(track_, &reports);
-  // |reports| should contain at least one session report, one track report,
+  // `reports` should contain at least one session report, one track report,
   // and one ssrc report.
   EXPECT_LE(3u, reports.size());
   track_report =
@@ -1251,7 +1248,7 @@ TEST_P(StatsCollectorTrackTest, ReportsFromRemoteTrack) {
   StatsReports reports;
   stats->GetStats(nullptr, &reports);
 
-  // |reports| should contain at least one session report, one track report,
+  // `reports` should contain at least one session report, one track report,
   // and one ssrc report.
   EXPECT_LE(3u, reports.size());
   const StatsReport* track_report =
@@ -1483,8 +1480,8 @@ TEST_P(StatsCollectorTrackTest, FilterOutNegativeInitialValues) {
 
   // Create a local stream with a local audio track and adds it to the stats.
   stream_ = MediaStream::Create("streamid");
-  rtc::scoped_refptr<FakeAudioTrackWithInitValue> local_track(
-      new rtc::RefCountedObject<FakeAudioTrackWithInitValue>(kLocalTrackId));
+  auto local_track =
+      rtc::make_ref_counted<FakeAudioTrackWithInitValue>(kLocalTrackId);
   stream_->AddTrack(local_track);
   pc->AddSender(CreateMockSender(local_track, kSsrcOfTrack));
   if (GetParam()) {
@@ -1495,8 +1492,8 @@ TEST_P(StatsCollectorTrackTest, FilterOutNegativeInitialValues) {
   // Create a remote stream with a remote audio track and adds it to the stats.
   rtc::scoped_refptr<MediaStream> remote_stream(
       MediaStream::Create("remotestreamid"));
-  rtc::scoped_refptr<FakeAudioTrackWithInitValue> remote_track(
-      new rtc::RefCountedObject<FakeAudioTrackWithInitValue>(kRemoteTrackId));
+  auto remote_track =
+      rtc::make_ref_counted<FakeAudioTrackWithInitValue>(kRemoteTrackId);
   remote_stream->AddTrack(remote_track);
   pc->AddReceiver(CreateMockReceiver(remote_track, kSsrcOfTrack));
   if (GetParam()) {
@@ -1511,8 +1508,8 @@ TEST_P(StatsCollectorTrackTest, FilterOutNegativeInitialValues) {
   voice_sender_info.packets_lost = -1;
   voice_sender_info.jitter_ms = -1;
 
-  // Some of the contents in |voice_sender_info| needs to be updated from the
-  // |audio_track_|.
+  // Some of the contents in `voice_sender_info` needs to be updated from the
+  // `audio_track_`.
   UpdateVoiceSenderInfoFromAudioTrack(local_track.get(), &voice_sender_info,
                                       true);
 
@@ -1665,16 +1662,15 @@ TEST_P(StatsCollectorTrackTest, LocalAndRemoteTracksWithSameSsrc) {
   // Create a remote stream with a remote audio track and adds it to the stats.
   rtc::scoped_refptr<MediaStream> remote_stream(
       MediaStream::Create("remotestreamid"));
-  rtc::scoped_refptr<FakeAudioTrack> remote_track(
-      new rtc::RefCountedObject<FakeAudioTrack>(kRemoteTrackId));
+  auto remote_track = rtc::make_ref_counted<FakeAudioTrack>(kRemoteTrackId);
   pc->AddReceiver(CreateMockReceiver(remote_track, kSsrcOfTrack));
   remote_stream->AddTrack(remote_track);
   stats->AddStream(remote_stream);
 
   VoiceSenderInfo voice_sender_info;
   InitVoiceSenderInfo(&voice_sender_info);
-  // Some of the contents in |voice_sender_info| needs to be updated from the
-  // |audio_track_|.
+  // Some of the contents in `voice_sender_info` needs to be updated from the
+  // `audio_track_`.
   UpdateVoiceSenderInfoFromAudioTrack(audio_track_.get(), &voice_sender_info,
                                       true);
 
@@ -1755,8 +1751,7 @@ TEST_P(StatsCollectorTrackTest, TwoLocalTracksWithSameSsrc) {
 
   // Create a new audio track and adds it to the stream and stats.
   static const std::string kNewTrackId = "new_track_id";
-  rtc::scoped_refptr<FakeAudioTrack> new_audio_track(
-      new rtc::RefCountedObject<FakeAudioTrack>(kNewTrackId));
+  auto new_audio_track = rtc::make_ref_counted<FakeAudioTrack>(kNewTrackId);
   pc->AddSender(CreateMockSender(new_audio_track, kSsrcOfTrack));
   stream_->AddTrack(new_audio_track);
 
@@ -1785,8 +1780,8 @@ TEST_P(StatsCollectorTrackTest, TwoLocalSendersWithSameTrack) {
   auto pc = CreatePeerConnection();
   auto stats = CreateStatsCollector(pc);
 
-  rtc::scoped_refptr<FakeAudioTrackWithInitValue> local_track(
-      new rtc::RefCountedObject<FakeAudioTrackWithInitValue>(kLocalTrackId));
+  auto local_track =
+      rtc::make_ref_counted<FakeAudioTrackWithInitValue>(kLocalTrackId);
   pc->AddSender(CreateMockSender(local_track, kFirstSsrc));
   stats->AddLocalAudioTrack(local_track.get(), kFirstSsrc);
   pc->AddSender(CreateMockSender(local_track, kSecondSsrc));

@@ -121,7 +121,7 @@ std::unique_ptr<MockAudioEncoder> SetupAudioEncoderMock(
 
 rtc::scoped_refptr<MockAudioEncoderFactory> SetupEncoderFactoryMock() {
   rtc::scoped_refptr<MockAudioEncoderFactory> factory =
-      new rtc::RefCountedObject<MockAudioEncoderFactory>();
+      rtc::make_ref_counted<MockAudioEncoderFactory>();
   ON_CALL(*factory.get(), GetSupportedEncoders())
       .WillByDefault(Return(std::vector<AudioCodecSpec>(
           std::begin(kCodecSpecs), std::end(kCodecSpecs))));
@@ -154,7 +154,7 @@ struct ConfigHelper {
         audio_processing_(
             use_null_audio_processing
                 ? nullptr
-                : new rtc::RefCountedObject<NiceMock<MockAudioProcessing>>()),
+                : rtc::make_ref_counted<NiceMock<MockAudioProcessing>>()),
         bitrate_allocator_(&limit_observer_),
         worker_queue_(task_queue_factory_->CreateTaskQueue(
             "ConfigHelper_worker_queue",
@@ -165,15 +165,14 @@ struct ConfigHelper {
     AudioState::Config config;
     config.audio_mixer = AudioMixerImpl::Create();
     config.audio_processing = audio_processing_;
-    config.audio_device_module =
-        new rtc::RefCountedObject<MockAudioDeviceModule>();
+    config.audio_device_module = rtc::make_ref_counted<MockAudioDeviceModule>();
     audio_state_ = AudioState::Create(config);
 
     SetupDefaultChannelSend(audio_bwe_enabled);
     SetupMockForSetupSendCodec(expect_set_encoder_call);
     SetupMockForCallEncoder();
 
-    // Use ISAC as default codec so as to prevent unnecessary |channel_proxy_|
+    // Use ISAC as default codec so as to prevent unnecessary `channel_proxy_`
     // calls from the default ctor behavior.
     stream_config_.send_codec_spec =
         AudioSendStream::Config::SendCodecSpec(kIsacPayloadType, kIsacFormat);
@@ -337,7 +336,7 @@ struct ConfigHelper {
   ::testing::NiceMock<MockRtpRtcpInterface> rtp_rtcp_;
   ::testing::NiceMock<MockLimitObserver> limit_observer_;
   BitrateAllocator bitrate_allocator_;
-  // |worker_queue| is defined last to ensure all pending tasks are cancelled
+  // `worker_queue` is defined last to ensure all pending tasks are cancelled
   // and deleted before any other members.
   TaskQueueForTest worker_queue_;
   std::unique_ptr<AudioEncoder> audio_encoder_;
@@ -388,7 +387,8 @@ TEST(AudioSendStreamTest, ConfigToString) {
       "min_bitrate_bps: 12000, max_bitrate_bps: 34000, has "
       "audio_network_adaptor_config: false, has_dscp: true, "
       "send_codec_spec: {nack_enabled: true, transport_cc_enabled: false, "
-      "cng_payload_type: 42, red_payload_type: 43, payload_type: 103, "
+      "enable_non_sender_rtt: false, cng_payload_type: 42, "
+      "red_payload_type: 43, payload_type: 103, "
       "format: {name: isac, clockrate_hz: 16000, num_channels: 1, "
       "parameters: {}}}}",
       config.ToString());
@@ -923,7 +923,7 @@ TEST(AudioSendStreamTest, ReconfigureWithFrameEncryptor) {
     auto new_config = helper.config();
 
     rtc::scoped_refptr<FrameEncryptorInterface> mock_frame_encryptor_0(
-        new rtc::RefCountedObject<MockFrameEncryptor>());
+        rtc::make_ref_counted<MockFrameEncryptor>());
     new_config.frame_encryptor = mock_frame_encryptor_0;
     EXPECT_CALL(*helper.channel_send(), SetFrameEncryptor(Ne(nullptr)))
         .Times(1);
@@ -936,7 +936,7 @@ TEST(AudioSendStreamTest, ReconfigureWithFrameEncryptor) {
     // Updating frame encryptor to a new object should force a call to the
     // proxy.
     rtc::scoped_refptr<FrameEncryptorInterface> mock_frame_encryptor_1(
-        new rtc::RefCountedObject<MockFrameEncryptor>());
+        rtc::make_ref_counted<MockFrameEncryptor>());
     new_config.frame_encryptor = mock_frame_encryptor_1;
     new_config.crypto_options.sframe.require_frame_encryption = true;
     EXPECT_CALL(*helper.channel_send(), SetFrameEncryptor(Ne(nullptr)))

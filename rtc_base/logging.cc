@@ -76,6 +76,7 @@ const char* FilenameFromPath(const char* file) {
 // TODO(bugs.webrtc.org/11665): this is not currently constant initialized and
 // trivially destructible.
 webrtc::Mutex g_log_mutex_;
+
 }  // namespace
 
 /////////////////////////////////////////////////////////////////////////////

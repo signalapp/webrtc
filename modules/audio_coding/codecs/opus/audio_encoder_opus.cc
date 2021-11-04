@@ -564,9 +564,9 @@ void AudioEncoderOpusImpl::OnReceivedOverhead(
 void AudioEncoderOpusImpl::SetReceiverFrameLengthRange(
     int min_frame_length_ms,
     int max_frame_length_ms) {
-  // Ensure that |SetReceiverFrameLengthRange| is called before
-  // |EnableAudioNetworkAdaptor|, otherwise we need to recreate
-  // |audio_network_adaptor_|, which is not a needed use case.
+  // Ensure that `SetReceiverFrameLengthRange` is called before
+  // `EnableAudioNetworkAdaptor`, otherwise we need to recreate
+  // `audio_network_adaptor_`, which is not a needed use case.
   RTC_DCHECK(!audio_network_adaptor_);
   FindSupportedFrameLengths(min_frame_length_ms, max_frame_length_ms,
                             &config_.supported_frame_lengths_ms);
@@ -704,6 +704,11 @@ bool AudioEncoderOpusImpl::RecreateEncoderInstance(
 }
 
 void AudioEncoderOpusImpl::SetFrameLength(int frame_length_ms) {
+  if (next_frame_length_ms_ != frame_length_ms) {
+    RTC_LOG(LS_VERBOSE) << "Update Opus frame length "
+                        << "from " << next_frame_length_ms_ << " ms "
+                        << "to " << frame_length_ms << " ms.";
+  }
   next_frame_length_ms_ = frame_length_ms;
 }
 
@@ -882,7 +887,6 @@ bool AudioEncoderOpusImpl::Configure(const webrtc::AudioEncoder::Config& config)
       return false;
     }
   }
-  RTC_LOG(LS_INFO) << "Successfully configured OPUS to enable_vbr=" << config.enable_vbr;
 
   return true;
 }
