@@ -94,7 +94,9 @@ class MockAudioProcessing : public AudioProcessing {
   MOCK_METHOD(size_t, num_proc_channels, (), (const, override));
   MOCK_METHOD(size_t, num_output_channels, (), (const, override));
   MOCK_METHOD(size_t, num_reverse_channels, (), (const, override));
-  MOCK_METHOD(void, set_output_will_be_muted, (bool muted), (override));
+  // RingRTC change to RingRTC change to make it possible to share an APM.
+  // See set_capture_output_used in audio_processing.h.
+  MOCK_METHOD(void, set_capture_output_used, (void* user, bool muted), (override));
   MOCK_METHOD(void, SetRuntimeSetting, (RuntimeSetting setting), (override));
   MOCK_METHOD(bool, PostRuntimeSetting, (RuntimeSetting setting), (override));
   MOCK_METHOD(int,

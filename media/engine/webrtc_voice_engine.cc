@@ -2299,13 +2299,15 @@ bool WebRtcVoiceMediaChannel::MuteStream(uint32_t ssrc, bool muted) {
   // This implementation is not ideal, instead we should signal the AGC when
   // the mic channel is muted/unmuted. We can't do it today because there
   // is no good way to know which stream is mapping to the mic channel.
-  bool all_muted = muted;
+  // RingRTC change to RingRTC change to make it possible to share an APM.
+  // See set_capture_output_used in audio_processing.h.
+  bool capture_output_used = false;
   for (const auto& kv : send_streams_) {
-    all_muted = all_muted && kv.second->muted();
+    capture_output_used = capture_output_used || !kv.second->muted();
   }
   webrtc::AudioProcessing* ap = engine()->apm();
   if (ap) {
-    ap->set_output_will_be_muted(all_muted);
+    ap->set_capture_output_used(this, capture_output_used);
   }
 
   return true;
