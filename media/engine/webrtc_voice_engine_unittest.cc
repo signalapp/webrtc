@@ -255,7 +255,7 @@ class WebRtcVoiceEngineTestFake : public ::testing::TestWithParam<bool> {
       return false;
     }
     if (!use_null_apm_) {
-      EXPECT_CALL(*apm_, set_output_will_be_muted(false));
+      EXPECT_CALL(*apm_, set_capture_output_used(nullptr, true));
     }
     return channel_->SetAudioSend(kSsrcX, true, nullptr, &fake_source_);
   }
@@ -323,7 +323,7 @@ class WebRtcVoiceEngineTestFake : public ::testing::TestWithParam<bool> {
                     const cricket::AudioOptions* options = nullptr) {
     ASSERT_TRUE(channel_);
     if (!use_null_apm_) {
-      EXPECT_CALL(*apm_, set_output_will_be_muted(!enable));
+      EXPECT_CALL(*apm_, set_capture_output_used(nullptr, enable));
     }
     EXPECT_TRUE(channel_->SetAudioSend(ssrc, enable, options, source));
   }

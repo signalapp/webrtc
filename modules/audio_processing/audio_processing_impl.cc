@@ -675,9 +675,15 @@ size_t AudioProcessingImpl::num_output_channels() const {
   return formats_.api_format.output_stream().num_channels();
 }
 
-void AudioProcessingImpl::set_output_will_be_muted(bool muted) {
+void AudioProcessingImpl::set_capture_output_used(void* user, bool used) {
   MutexLock lock(&mutex_capture_);
-  HandleCaptureOutputUsedSetting(!muted);
+  if (used) {
+    capture_output_users_.insert(user);
+  } else {
+    capture_output_users_.erase(user);
+  }
+  bool capture_output_used = !capture_output_users_.empty();
+  HandleCaptureOutputUsedSetting(capture_output_used);
 }
 
 void AudioProcessingImpl::HandleCaptureOutputUsedSetting(

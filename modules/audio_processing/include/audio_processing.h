@@ -601,12 +601,22 @@ class RTC_EXPORT AudioProcessing : public rtc::RefCountInterface {
   virtual size_t num_output_channels() const = 0;
   virtual size_t num_reverse_channels() const = 0;
 
+  // RingRTC change to make it possible to share an APM (and thus, WebRtcVoiceEngine)
+  // between PeerConnections created from the same PeerConnectionFactory.
+  // Without this change, the code has a "last user wins" behavior,
+  // which breaks when creating multiple PeerConnections from the
+  // same PeerConnectionFactory.  In particular, this happens when using
+  // ICE forking and the unused PeerConnections signal they are not using
+  // captured output after the used PeerConnection signals that it is using
+  // captured output.  In that case, the call will end up
+  // without APM processing, which means it will have noise and echo.
+  //
   // Set to true when the output of AudioProcessing will be muted or in some
   // other way not used. Ideally, the captured audio would still be processed,
   // but some components may change behavior based on this information.
   // Default false. This method takes a lock. To achieve this in a lock-less
   // manner the PostRuntimeSetting can instead be used.
-  virtual void set_output_will_be_muted(bool muted) = 0;
+  virtual void set_capture_output_used(void* user, bool muted) = 0;
 
   // Enqueues a runtime setting.
   virtual void SetRuntimeSetting(RuntimeSetting setting) = 0;
