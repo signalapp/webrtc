@@ -250,7 +250,6 @@ P2PTransportChannel::P2PTransportChannel(
 
 P2PTransportChannel::~P2PTransportChannel() {
   TRACE_EVENT0("webrtc", "P2PTransportChannel::~P2PTransportChannel");
-  RTC_LOG(LS_ERROR) << "FLUFF P2PTransportChannel::~P2PTransportChannel this: " << this;
   RTC_DCHECK_RUN_ON(network_thread_);
   std::vector<Connection*> copy(connections().begin(), connections().end());
   for (Connection* con : copy) {
@@ -273,7 +272,7 @@ P2PTransportChannel::~P2PTransportChannel() {
     shared_gatherer_->port_allocator_session()
         ->SignalCandidatesAllocationDone.disconnect(this);
 
-    // With shared gatheres (ICE forking), the ports may stay alive
+    // With shared gatherers (ICE forking), the ports may stay alive
     // after the P2pTransportChannel, so we need to make sure we disconnect
     // from the signals that we listen to in OnPortReady.
     for (auto* port : ports_) {
@@ -1057,6 +1056,7 @@ void P2PTransportChannel::OnPortReady(PortAllocatorSession* session,
   }
 
   ports_.push_back(port);
+  // RingRTC change to support ICE forking
   port->SignalDestroyed.connect(this, &P2PTransportChannel::OnPortDestroyed);
   port->SignalSentPacket.connect(this, &P2PTransportChannel::OnSentPacket);
 
@@ -2276,11 +2276,7 @@ void P2PTransportChannel::OnConnectionDestroyed(Connection* connection) {
 // When a port is destroyed, remove it from our list of ports to use for
 // connection attempts.
 void P2PTransportChannel::OnPortDestroyed(PortInterface* port) {
-  RTC_LOG(LS_ERROR) << "FLUFF P2PTransportChannel::OnPortDestroyed this: " << this;
-  RTC_LOG(LS_ERROR) << "FLUFF P2PTransportChannel::OnPortDestroyed port: " << port;
   RTC_DCHECK_RUN_ON(network_thread_);
-  RTC_LOG(LS_ERROR) << "FLUFF P2PTransportChannel::OnPortDestroyed 2 this: " << this;
-  RTC_LOG(LS_ERROR) << "FLUFF P2PTransportChannel::OnPortDestroyed this.ports_.size(): " << this->ports_.size();
 
   ports_.erase(std::remove(ports_.begin(), ports_.end(), port), ports_.end());
   pruned_ports_.erase(

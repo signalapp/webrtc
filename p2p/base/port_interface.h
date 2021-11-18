@@ -115,6 +115,7 @@ class PortInterface {
   // Signaled when Port discovers ice role conflict with the peer.
   sigslot::signal1<PortInterface*> SignalRoleConflict;
 
+  // RingRTC change to support ICE forking
   sigslot::signal1<PortInterface*> SignalDestroyed;
 
   // Normally, packets arrive through a connection (or they result signaling of

@@ -354,6 +354,7 @@ class TurnPortTest : public ::testing::Test,
         this, &TurnPortTest::OnTurnRefreshResult);
     turn_port_->SignalTurnPortClosed.connect(this,
                                              &TurnPortTest::OnTurnPortClosed);
+    // RingRTC change to support ICE forking
     turn_port_->SignalDestroyed.connect(this, &TurnPortTest::OnTurnPortClosed);
   }
 
