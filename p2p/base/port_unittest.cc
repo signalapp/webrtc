@@ -269,8 +269,8 @@ class TestChannel : public sigslot::has_slots<> {
   explicit TestChannel(std::unique_ptr<Port> p1) : port_(std::move(p1)) {
     port_->SignalPortComplete.connect(this, &TestChannel::OnPortComplete);
     port_->SignalUnknownAddress.connect(this, &TestChannel::OnUnknownAddress);
-    port_->SubscribePortDestroyed(
-        [this](PortInterface* port) { OnSrcPortDestroyed(port); });
+    // RingRTC change to support ICE forking
+    port_->SignalDestroyed.connect(this, &TestChannel::OnPortDestroyed);
   }
 
   int complete_count() { return complete_count_; }
@@ -777,8 +777,8 @@ class PortTest : public ::testing::Test, public sigslot::has_slots<> {
   bool role_conflict() const { return role_conflict_; }
 
   void ConnectToSignalDestroyed(PortInterface* port) {
-    port->SubscribePortDestroyed(
-        [this](PortInterface* port) { OnDestroyed(port); });
+    // RingRTC change to support ICE forking
+    port->SignalDestroyed.connect(this, &PortTest::OnDestroyed);
   }
 
   void OnDestroyed(PortInterface* port) { ++ports_destroyed_; }

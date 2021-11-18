@@ -112,13 +112,11 @@ class PortInterface {
                                         int error_code,
                                         const std::string& reason) = 0;
 
-  // Signaled when this port decides to delete itself because it no longer has
-  // any usefulness.
-  virtual void SubscribePortDestroyed(
-      std::function<void(PortInterface*)> callback) = 0;
-
   // Signaled when Port discovers ice role conflict with the peer.
   sigslot::signal1<PortInterface*> SignalRoleConflict;
+
+  // RingRTC change to support ICE forking
+  sigslot::signal1<PortInterface*> SignalDestroyed;
 
   // Normally, packets arrive through a connection (or they result signaling of
   // unknown address).  Calling this method turns off delivery of packets

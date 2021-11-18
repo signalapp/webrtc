@@ -277,9 +277,6 @@ class Port : public PortInterface,
   // connection.
   sigslot::signal1<Port*> SignalPortError;
 
-  void SubscribePortDestroyed(
-      std::function<void(PortInterface*)> callback) override;
-  void SendPortDestroyed(Port* port);
   // Returns a map containing all of the connections of this port, keyed by the
   // remote address.
   typedef std::map<rtc::SocketAddress, Connection*> AddressMap;
