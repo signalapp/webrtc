@@ -250,6 +250,7 @@ P2PTransportChannel::P2PTransportChannel(
 
 P2PTransportChannel::~P2PTransportChannel() {
   TRACE_EVENT0("webrtc", "P2PTransportChannel::~P2PTransportChannel");
+  RTC_LOG(LS_ERROR) << "FLUFF P2PTransportChannel::~P2PTransportChannel this: " << this;
   RTC_DCHECK_RUN_ON(network_thread_);
   std::vector<Connection*> copy(connections().begin(), connections().end());
   for (Connection* con : copy) {
@@ -2259,7 +2260,11 @@ void P2PTransportChannel::OnConnectionDestroyed(Connection* connection) {
 // When a port is destroyed, remove it from our list of ports to use for
 // connection attempts.
 void P2PTransportChannel::OnPortDestroyed(PortInterface* port) {
+  RTC_LOG(LS_ERROR) << "FLUFF P2PTransportChannel::OnPortDestroyed this: " << this;
+  RTC_LOG(LS_ERROR) << "FLUFF P2PTransportChannel::OnPortDestroyed port: " << port;
   RTC_DCHECK_RUN_ON(network_thread_);
+  RTC_LOG(LS_ERROR) << "FLUFF P2PTransportChannel::OnPortDestroyed 2 this: " << this;
+  RTC_LOG(LS_ERROR) << "FLUFF P2PTransportChannel::OnPortDestroyed this.ports_.size(): " << this->ports_.size();
 
   ports_.erase(std::remove(ports_.begin(), ports_.end(), port), ports_.end());
   pruned_ports_.erase(
