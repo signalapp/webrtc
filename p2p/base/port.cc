@@ -844,14 +844,6 @@ void Port::OnMessage(rtc::Message* pmsg) {
   }
 }
 
-void Port::SubscribePortDestroyed(
-    std::function<void(PortInterface*)> callback) {
-  port_destroyed_callback_list_.AddReceiver(callback);
-}
-
-void Port::SendPortDestroyed(Port* port) {
-  port_destroyed_callback_list_.Send(port);
-}
 void Port::OnNetworkTypeChanged(const rtc::Network* network) {
   RTC_DCHECK(network == network_);
 
@@ -916,8 +908,8 @@ void Port::OnConnectionDestroyed(Connection* conn) {
 void Port::Destroy() {
   RTC_DCHECK(connections_.empty());
   RTC_LOG(LS_INFO) << ToString() << ": Port deleted";
-  RTC_LOG(LS_ERROR) << "FLUFF Port::Destory => SendPortDestroyed this: " << this;
-  SendPortDestroyed(this);
+  RTC_LOG(LS_ERROR) << "FLUFF Port::Destory => SignalDestroyed this: " << this;
+  SignalDestroyed(this);
   delete this;
 }
 

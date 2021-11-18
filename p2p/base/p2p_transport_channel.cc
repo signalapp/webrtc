@@ -1039,9 +1039,9 @@ void P2PTransportChannel::OnPortReady(PortAllocatorSession* session,
         this, &P2PTransportChannel::OnUnknownAddressFromOwnedSession);
   }
 
+  // %%%% unsubscribe
   ports_.push_back(port);
-  port->SubscribePortDestroyed(
-      [this](PortInterface* port) { OnPortDestroyed(port); });
+  port->SignalDestroyed.connect(this, &P2PTransportChannel::OnPortDestroyed);
   port->SignalSentPacket.connect(this, &P2PTransportChannel::OnSentPacket);
 
   // Attempt to create a connection from this new port to all of the remote

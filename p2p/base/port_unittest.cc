@@ -269,8 +269,7 @@ class TestChannel : public sigslot::has_slots<> {
   explicit TestChannel(std::unique_ptr<Port> p1) : port_(std::move(p1)) {
     port_->SignalPortComplete.connect(this, &TestChannel::OnPortComplete);
     port_->SignalUnknownAddress.connect(this, &TestChannel::OnUnknownAddress);
-    port_->SubscribePortDestroyed(
-        [this](PortInterface* port) { OnSrcPortDestroyed(port); });
+    port_->SignalDestroyed.connect(this, &TestChannel::OnPortDestroyed);
   }
 
   int complete_count() { return complete_count_; }
@@ -777,8 +776,7 @@ class PortTest : public ::testing::Test, public sigslot::has_slots<> {
   bool role_conflict() const { return role_conflict_; }
 
   void ConnectToSignalDestroyed(PortInterface* port) {
-    port->SubscribePortDestroyed(
-        [this](PortInterface* port) { OnDestroyed(port); });
+    port->SignalDestroyed.connect(this, &TestChannel::OnPortDestroyed);
   }
 
   void OnDestroyed(PortInterface* port) { ++ports_destroyed_; }

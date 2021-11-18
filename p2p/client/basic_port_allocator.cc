@@ -969,8 +969,8 @@ void BasicPortAllocatorSession::AddAllocatedPort(Port* port,
       this, &BasicPortAllocatorSession::OnCandidateError);
   port->SignalPortComplete.connect(this,
                                    &BasicPortAllocatorSession::OnPortComplete);
-  port->SubscribePortDestroyed(
-      [this](PortInterface* port) { OnPortDestroyed(port); });
+
+  port->SignalDestroyed.connect(this, &BasicPortAllocatorSession::OnPortDestroyed);
 
   port->SignalPortError.connect(this, &BasicPortAllocatorSession::OnPortError);
   RTC_LOG(LS_INFO) << port->ToString() << ": Added port to allocator";
@@ -1503,8 +1503,8 @@ void AllocationSequence::CreateUDPPorts() {
     // UDPPort.
     if (IsFlagSet(PORTALLOCATOR_ENABLE_SHARED_SOCKET)) {
       udp_port_ = port.get();
-      port->SubscribePortDestroyed(
-          [this](PortInterface* port) { OnPortDestroyed(port); });
+
+      port->SignalDestroyed.connect(this, &AllocationSequence::OnPortDestroyed);
 
       // If STUN is not disabled, setting stun server address to port.
       if (!IsFlagSet(PORTALLOCATOR_DISABLE_STUN)) {
@@ -1643,9 +1643,7 @@ void AllocationSequence::CreateTurnPort(const RelayServerConfig& config) {
       relay_ports_.push_back(port.get());
       // Listen to the port destroyed signal, to allow AllocationSequence to
       // remove the entry from it's map.
-      port->SubscribePortDestroyed(
-          [this](PortInterface* port) { OnPortDestroyed(port); });
-
+      port->SignalDestroyed.connect(this, &AllocationSequence::OnPortDestroyed);
     } else {
       port = session_->allocator()->relay_port_factory()->Create(
           args, session_->allocator()->min_port(),
