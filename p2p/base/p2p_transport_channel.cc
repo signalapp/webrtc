@@ -272,6 +272,23 @@ P2PTransportChannel::~P2PTransportChannel() {
         ->SignalCandidatesRemoved.disconnect(this);
     shared_gatherer_->port_allocator_session()
         ->SignalCandidatesAllocationDone.disconnect(this);
+
+    // With shared gatheres (ICE forking), the ports may stay alive
+    // after the P2pTransportChannel, so we need to make sure we disconnect
+    // from the signals that we listen to in OnPortReady.
+    for (auto* port : ports_) {
+      port->SignalDestroyed.disconnect(this);
+      port->SignalSentPacket.disconnect(this);
+      port->SignalRoleConflict.disconnect(this);
+      port->SignalUnknownAddress.disconnect(this);
+    }
+    // And make sure you do it for pruned ports as well.
+    for (auto* port : pruned_ports_) {
+      port->SignalDestroyed.disconnect(this);
+      port->SignalSentPacket.disconnect(this);
+      port->SignalRoleConflict.disconnect(this);
+      port->SignalUnknownAddress.disconnect(this);
+    }
   }
 }
 
@@ -1039,7 +1056,6 @@ void P2PTransportChannel::OnPortReady(PortAllocatorSession* session,
         this, &P2PTransportChannel::OnUnknownAddressFromOwnedSession);
   }
 
-  // %%%% unsubscribe
   ports_.push_back(port);
   port->SignalDestroyed.connect(this, &P2PTransportChannel::OnPortDestroyed);
   port->SignalSentPacket.connect(this, &P2PTransportChannel::OnSentPacket);
