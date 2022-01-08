@@ -2602,7 +2602,6 @@ void WebRtcVoiceMediaChannel::GetAudioLevels(
   for (const auto& kv : send_streams_) {
     captured = kv.second->GetAudioLevel();
   }
-  RTC_LOG(LS_INFO) << "FLUFF %%% captured: " << captured;
 
   size_t received_size = 0;
   for (const auto& kv : recv_streams_) {
@@ -2610,7 +2609,6 @@ void WebRtcVoiceMediaChannel::GetAudioLevels(
       kv.first,
       kv.second->GetAudioLevel()
     };
-    RTC_LOG(LS_INFO) << "FLUFF %%% received: " << received_out[received_size-1].ssrc << " " << received_out[received_size-1].level;
   }
 
   *captured_out = captured;
