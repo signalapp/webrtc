@@ -2605,6 +2605,9 @@ void WebRtcVoiceMediaChannel::GetAudioLevels(
 
   size_t received_size = 0;
   for (const auto& kv : recv_streams_) {
+    if (received_size >= received_out_size) {
+      break;
+    }
     received_out[received_size++] = cricket::ReceivedAudioLevel {
       kv.first,
       kv.second->GetAudioLevel()
