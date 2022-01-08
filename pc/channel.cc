@@ -944,6 +944,17 @@ void VoiceChannel::ConfigureEncoders(const webrtc::AudioEncoder::Config& config)
   });
 }
 
+// RingRTC change to get audio levels
+void VoiceChannel::GetAudioLevels(
+    cricket::AudioLevel* captured_out,
+    cricket::ReceivedAudioLevel* received_out,
+    size_t received_out_size,
+    size_t* received_size_out) {
+  worker_thread()->Invoke<void>(RTC_FROM_HERE, [this, captured_out, received_out, received_out_size, received_size_out] {
+    media_channel()->GetAudioLevels(captured_out, received_out, received_out_size, received_size_out);
+  });
+}
+
 VideoChannel::VideoChannel(rtc::Thread* worker_thread,
                            rtc::Thread* network_thread,
                            rtc::Thread* signaling_thread,

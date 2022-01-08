@@ -246,6 +246,13 @@ class WebRtcVoiceMediaChannel final : public VoiceMediaChannel,
   // RingRTC change to configure opus
   void ConfigureEncoders(const webrtc::AudioEncoder::Config& config) override;
 
+  // RingRTC change to get audio levels
+  void GetAudioLevels(
+      cricket::AudioLevel* captured_out,
+      cricket::ReceivedAudioLevel* received_out,
+      size_t received_out_size,
+      size_t* received_size_out) override;
+
  private:
   bool SetOptions(const AudioOptions& options);
   bool SetRecvCodecs(const std::vector<AudioCodec>& codecs);

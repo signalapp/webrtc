@@ -1095,6 +1095,11 @@ class WebRtcVoiceMediaChannel::WebRtcAudioSendStream
     stream_->ConfigureEncoder(config);
   }
 
+  uint16_t GetAudioLevel() {
+    return stream_->GetAudioLevel();
+  }
+
+
  private:
   void UpdateSendState() {
     RTC_DCHECK_RUN_ON(&worker_thread_checker_);
@@ -1328,6 +1333,11 @@ class WebRtcVoiceMediaChannel::WebRtcAudioReceiveStream {
       rtc::scoped_refptr<webrtc::FrameTransformerInterface> frame_transformer) {
     RTC_DCHECK_RUN_ON(&worker_thread_checker_);
     stream_->SetDepacketizerToDecoderFrameTransformer(frame_transformer);
+  }
+
+  // RingRTC change to get audio level
+  uint16_t GetAudioLevel() {
+    return stream_->GetAudioLevel();
   }
 
  private:
@@ -2580,6 +2590,31 @@ void WebRtcVoiceMediaChannel::ConfigureEncoders(const webrtc::AudioEncoder::Conf
   } else {
     RTC_LOG(LS_INFO) << "WebRtcVoiceMediaChannel::ConfigureEncoders(...) changed " << count << " transceivers.";
   }
+}
+
+void WebRtcVoiceMediaChannel::GetAudioLevels(
+    cricket::AudioLevel* captured_out,
+    cricket::ReceivedAudioLevel* received_out,
+    size_t received_out_size,
+    size_t* received_size_out) {
+
+  cricket::AudioLevel captured = 0;
+  for (const auto& kv : send_streams_) {
+    captured = kv.second->GetAudioLevel();
+  }
+  RTC_LOG(LS_INFO) << "FLUFF %%% captured: " << captured;
+
+  size_t received_size = 0;
+  for (const auto& kv : recv_streams_) {
+    received_out[received_size++] = cricket::ReceivedAudioLevel {
+      kv.first,
+      kv.second->GetAudioLevel()
+    };
+    RTC_LOG(LS_INFO) << "FLUFF %%% received: " << received_out[received_size-1].ssrc << " " << received_out[received_size-1].level;
+  }
+
+  *captured_out = captured;
+  *received_size_out = received_size;
 }
 
 }  // namespace cricket

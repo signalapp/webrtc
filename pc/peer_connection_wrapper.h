@@ -149,6 +149,12 @@ class PeerConnectionWrapper {
   bool SendRtp(std::unique_ptr<RtpPacket> rtp_packet);
   bool ReceiveRtp(uint8_t pt);
 
+  void GetAudioLevels(
+      cricket::AudioLevel* captured_out,
+      cricket::ReceivedAudioLevel* received_out,
+      size_t received_out_size,
+      size_t* received_size_out);
+
   // Returns a new dummy audio track with the given label.
   rtc::scoped_refptr<AudioTrackInterface> CreateAudioTrack(
       const std::string& label);

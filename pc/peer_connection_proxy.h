@@ -144,6 +144,12 @@ PROXY_METHOD1(bool,
 PROXY_METHOD1(void,
               ConfigureAudioEncoders,
               const webrtc::AudioEncoder::Config&)
+PROXY_METHOD4(void, 
+              GetAudioLevels,
+              cricket::AudioLevel*,
+              cricket::ReceivedAudioLevel*,
+              size_t,
+              size_t*)
 PROXY_METHOD1(bool, SetIncomingRtpEnabled, bool)
 PROXY_METHOD1(RTCError, SetBitrate, const BitrateSettings&)
 PROXY_METHOD1(void, SetAudioPlayout, bool)

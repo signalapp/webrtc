@@ -196,6 +196,12 @@ class AudioSendStream : public AudioSender {
   virtual void ConfigureEncoder(const webrtc::AudioEncoder::Config& config) {
     RTC_LOG(LS_WARNING) << "Default AudioSendStream::ConfigureEncoder(...) does nothing!";
   }
+
+  // RingRTC change to configure opus to get audio levels
+  virtual uint16_t GetAudioLevel() {
+    RTC_LOG(LS_WARNING) << "Default AudioSendStream::GetAudioLevel() does nothing!";
+    return 0;
+  }
 };
 
 }  // namespace webrtc

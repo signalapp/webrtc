@@ -141,6 +141,9 @@ class AudioReceiveStream final : public webrtc::AudioReceiveStream,
   // TODO(tommi): Remove this method.
   void ReconfigureForTesting(const webrtc::AudioReceiveStream::Config& config);
 
+  // RingRTC change to get recv audio levels
+  uint16_t GetAudioLevel() override;
+
  private:
   AudioState* audio_state() const;
 

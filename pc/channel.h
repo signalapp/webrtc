@@ -407,6 +407,13 @@ class VoiceChannel : public BaseChannel {
   // RingRTC change to configure OPUS
   void ConfigureEncoders(const webrtc::AudioEncoder::Config& config);
 
+  // RingRTC change to get audio levels
+  void GetAudioLevels(
+    cricket::AudioLevel* captured_out,
+    cricket::ReceivedAudioLevel* received_out,
+    size_t received_out_size,
+    size_t* received_size_out);
+
  private:
   // overrides from BaseChannel
   void UpdateMediaSendRecvState_w() override;
