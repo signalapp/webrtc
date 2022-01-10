@@ -301,6 +301,15 @@ bool PeerConnectionWrapper::ReceiveRtp(uint8_t pt) {
   return pc()->ReceiveRtp(pt);
 }
 
+void PeerConnectionWrapper::GetAudioLevels(
+      cricket::AudioLevel* captured_out,
+      cricket::ReceivedAudioLevel* received_out,
+      size_t received_out_size,
+      size_t* received_size_out) {
+  pc()->GetAudioLevels(captured_out, received_out, received_out_size, received_size_out);
+}
+
+
 rtc::scoped_refptr<AudioTrackInterface> PeerConnectionWrapper::CreateAudioTrack(
     const std::string& label) {
   return pc_factory()->CreateAudioTrack(label, nullptr);

@@ -155,6 +155,16 @@ struct VideoOptions {
   }
 };
 
+
+// RingRTC change for audio level methods
+// Higher is louder.
+typedef uint16_t AudioLevel;
+
+typedef struct {
+  uint32_t ssrc;
+  AudioLevel level;
+} ReceivedAudioLevel;
+
 class MediaChannel {
  public:
   class NetworkInterface {
@@ -823,6 +833,17 @@ class VoiceMediaChannel : public MediaChannel, public Delayable {
   // RingRTC change to configure opus
   virtual void ConfigureEncoders(const webrtc::AudioEncoder::Config& config) {
     RTC_LOG(LS_WARNING) << "Default VoiceMediaChannel::ConfigureEncoders(...) does nothing!";
+  }
+
+  // RingRTC change to get audio levels
+  virtual void GetAudioLevels(
+      cricket::AudioLevel* captured_out,
+      cricket::ReceivedAudioLevel* received_out,
+      size_t received_out_size,
+      size_t* received_size_out) {
+    RTC_LOG(LS_WARNING) << "Default VoiceMediaChannel::GetAudioLevels does nothing!";
+    *captured_out = 0;
+    *received_size_out = 0;
   }
 };
 

@@ -2967,4 +2967,17 @@ void PeerConnection::ConfigureAudioEncoders(const webrtc::AudioEncoder::Config& 
   }
 }
 
+void PeerConnection::GetAudioLevels(cricket::AudioLevel* captured_out,
+                                    cricket::ReceivedAudioLevel* received_out,
+                                    size_t received_out_size,
+                                    size_t* received_size_out) {
+  auto* voice_channel = static_cast<cricket::VoiceChannel*>(rtp_manager()->GetAudioTransceiver()->internal()->channel());
+  if (voice_channel) {
+    voice_channel->GetAudioLevels(captured_out, received_out, received_out_size, received_size_out);
+  } else {
+    *captured_out = 0;
+    *received_size_out = 0;
+  }
+}
+
 }  // namespace webrtc

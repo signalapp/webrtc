@@ -84,6 +84,17 @@ bool PeerConnectionInterface::ReceiveRtp(uint8_t pt) {
   return false;
 }
 
+// RingRTC change to get audio levels
+void PeerConnectionInterface::GetAudioLevels(
+      cricket::AudioLevel* captured_out,
+      cricket::ReceivedAudioLevel* received_out,
+      size_t received_out_size,
+      size_t* received_size_out) {
+  RTC_LOG(LS_ERROR) << "No GetAudioLevels in dummy implementation";
+  *received_size_out = 0;
+  *captured_out = 0;
+}
+
 PeerConnectionDependencies::PeerConnectionDependencies(
     PeerConnectionObserver* observer_in)
     : observer(observer_in) {}

@@ -250,6 +250,12 @@ class PeerConnection : public PeerConnectionInternal,
 
   void ConfigureAudioEncoders(const webrtc::AudioEncoder::Config& config) override;
 
+  void GetAudioLevels(
+      cricket::AudioLevel* captured_out,
+      cricket::ReceivedAudioLevel* received_out,
+      size_t received_out_size,
+      size_t* received_size_out) override;
+
   RTCError SetBitrate(const BitrateSettings& bitrate) override;
 
   void SetAudioPlayout(bool playout) override;
