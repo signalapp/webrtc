@@ -46,9 +46,11 @@ constexpr double kDefaultMaxRoundupRate = 0.1;
 
 // TODO(webrtc:12415): Flip this to a kill switch when this feature launches.
 bool EnableLowresBitrateInterpolation(
-    const webrtc::WebRtcKeyValueConfig& trials) {
-  return absl::StartsWith(
-      trials.Lookup("WebRTC-LowresSimulcastBitrateInterpolation"), "Enabled");
+    const webrtc::WebRtcKeyValueConfig& _trials) {
+  // RingRTC change to allow for 3 spatial layers when the highest layer is 640x480
+  return true;
+  // return absl::StartsWith(
+  //     trials.Lookup("WebRTC-LowresSimulcastBitrateInterpolation"), "Enabled");
 }
 
 // Limits for legacy conference screensharing mode. Currently used for the
@@ -97,7 +99,8 @@ constexpr const SimulcastFormat kSimulcastFormats[] = {
     {960, 540, 3, webrtc::DataRate::KilobitsPerSec(1200),
      webrtc::DataRate::KilobitsPerSec(1200),
      webrtc::DataRate::KilobitsPerSec(350)},
-    {640, 360, 2, webrtc::DataRate::KilobitsPerSec(700),
+    // RingRTC change to allow for 3 spatial layers when the highest layer is 640x480
+    {640, 360, 3, webrtc::DataRate::KilobitsPerSec(700),
      webrtc::DataRate::KilobitsPerSec(500),
      webrtc::DataRate::KilobitsPerSec(150)},
     {480, 270, 2, webrtc::DataRate::KilobitsPerSec(450),
