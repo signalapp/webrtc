@@ -371,6 +371,7 @@ public class JavaAudioDeviceModule implements AudioDeviceModule {
   private final int outputSampleRate;
   private final boolean useStereoInput;
   private final boolean useStereoOutput;
+  private final boolean useAecm;
 
   private final Object nativeLock = new Object();
   private long nativeAudioDeviceModule;
