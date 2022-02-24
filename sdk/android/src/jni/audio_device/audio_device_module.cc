@@ -59,7 +59,9 @@ class AndroidAudioDeviceModule : public AudioDeviceModule {
                            bool is_stereo_record_supported,
                            uint16_t playout_delay_ms,
                            std::unique_ptr<AudioInput> audio_input,
-                           std::unique_ptr<AudioOutput> audio_output)
+                           std::unique_ptr<AudioOutput> audio_output,
+                           // RingRTC change to allow control of AEC3 vs AEC3
+                           bool use_aecm)
       : audio_layer_(audio_layer),
         is_stereo_playout_supported_(is_stereo_playout_supported),
         is_stereo_record_supported_(is_stereo_record_supported),
@@ -67,6 +69,7 @@ class AndroidAudioDeviceModule : public AudioDeviceModule {
         task_queue_factory_(CreateDefaultTaskQueueFactory()),
         input_(std::move(audio_input)),
         output_(std::move(audio_output)),
+        use_aecm_(use_aecm),
         initialized_(false) {
     RTC_CHECK(input_);
     RTC_CHECK(output_);
@@ -542,6 +545,13 @@ class AndroidAudioDeviceModule : public AudioDeviceModule {
     return isAvailable;
   }
 
+  // RingRTC change to allow control of AEC3 vs AECM
+  bool UseAecm() const override {
+    RTC_DLOG(INFO) << __FUNCTION__;
+    RTC_DLOG(INFO) << "output: " << use_aecm_;
+    return use_aecm_;
+  }
+
   // TODO(henrika): add implementation for OpenSL ES based audio as well.
   int32_t EnableBuiltInAEC(bool enable) override {
     RTC_DLOG(INFO) << __FUNCTION__ << "(" << enable << ")";
@@ -593,6 +603,7 @@ class AndroidAudioDeviceModule : public AudioDeviceModule {
   const std::unique_ptr<AudioInput> input_;
   const std::unique_ptr<AudioOutput> output_;
   std::unique_ptr<AudioDeviceBuffer> audio_device_buffer_;
+  const bool use_aecm_ = false;
 
   bool initialized_;
 };
@@ -639,11 +650,13 @@ rtc::scoped_refptr<AudioDeviceModule> CreateAudioDeviceModuleFromInputAndOutput(
     bool is_stereo_record_supported,
     uint16_t playout_delay_ms,
     std::unique_ptr<AudioInput> audio_input,
-    std::unique_ptr<AudioOutput> audio_output) {
+    std::unique_ptr<AudioOutput> audio_output,
+    // RingRTC change to allow control of AEC3 vs AECM
+    bool use_aecm) {
   RTC_DLOG(INFO) << __FUNCTION__;
   return rtc::make_ref_counted<AndroidAudioDeviceModule>(
       audio_layer, is_stereo_playout_supported, is_stereo_record_supported,
-      playout_delay_ms, std::move(audio_input), std::move(audio_output));
+      playout_delay_ms, std::move(audio_input), std::move(audio_output), use_aecm);
 }
 
 }  // namespace jni

@@ -140,6 +140,9 @@ class AudioDeviceModule : public rtc::RefCountInterface {
   virtual bool BuiltInAECIsAvailable() const = 0;
   virtual bool BuiltInAGCIsAvailable() const = 0;
   virtual bool BuiltInNSIsAvailable() const = 0;
+  // RingRTC change to allow control of AEC3 vs AECM
+  // When using software AEC, use AECM instead of AEC3.
+  virtual bool UseAecm() const { return false; }
 
   // Enables the built-in audio effects. Only supported on Android.
   virtual int32_t EnableBuiltInAEC(bool enable) = 0;
