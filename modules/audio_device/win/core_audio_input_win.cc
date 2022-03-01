@@ -365,8 +365,8 @@ bool CoreAudioInput::OnDataCallback(uint64_t device_frequency) {
         // Copy the first two channels of sample data from each frame and
         // shift to the beginning of the audio data buffer.
         int16_t* audio_data_ptr = (int16_t*)audio_data;
-        for (UINT32 i = 0; i < num_frames_to_read; ++i) {
-          memmove(&audio_data_ptr[i * 2], &audio_data_ptr[i * nChannels], 2 * sizeof(int16_t));
+        for (UINT32 i = 1; i < num_frames_to_read; ++i) {
+          memcpy(&audio_data_ptr[i * 2], &audio_data_ptr[i * nChannels], 2 * sizeof(int16_t));
         }
 
         // Reset nChannels to stereo now that the data is shifted.
