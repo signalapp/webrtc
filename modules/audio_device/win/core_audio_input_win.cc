@@ -121,7 +121,10 @@ int CoreAudioInput::InitRecording() {
   WAVEFORMATEX* format = &format_.Format;
   RTC_DCHECK_EQ(format->wFormatTag, WAVE_FORMAT_EXTENSIBLE);
   audio_device_buffer_->SetRecordingSampleRate(format->nSamplesPerSec);
-  audio_device_buffer_->SetRecordingChannels(format->nChannels);
+
+  // RingRTC change to ensure that the audio_device_buffer is
+  // configured for a limit of either 1 or 2 channels.
+  audio_device_buffer_->SetRecordingChannels(std::min((UINT16)2, format->nChannels));
 
   // Create a modified audio buffer class which allows us to supply any number
   // of samples (and not only multiple of 10ms) to match the optimal buffer
@@ -355,11 +358,26 @@ bool CoreAudioInput::OnDataCallback(uint64_t device_frequency) {
                               format_.Format.nBlockAlign * num_frames_to_read);
       RTC_DLOG(LS_WARNING) << "Captured audio is replaced by silence";
     } else {
+      // RingRTC change to shift multiple channels to stereo channels.
+      UINT16 nChannels = format_.Format.nChannels;
+
+      if (nChannels > 2) {
+        // Copy the first two channels of sample data from each frame and
+        // shift to the beginning of the audio data buffer.
+        int16_t* audio_data_ptr = (int16_t*)audio_data;
+        for (UINT32 i = 1; i < num_frames_to_read; ++i) {
+          memcpy(&audio_data_ptr[i * 2], &audio_data_ptr[i * nChannels], 2 * sizeof(int16_t));
+        }
+
+        // Reset nChannels to stereo now that the data is shifted.
+        nChannels = 2;
+      }
+
       // Copy recorded audio in `audio_data` to the WebRTC sink using the
       // FineAudioBuffer object.
       fine_audio_buffer_->DeliverRecordedData(
           rtc::MakeArrayView(reinterpret_cast<const int16_t*>(audio_data),
-                             format_.Format.nChannels * num_frames_to_read),
+                             nChannels * num_frames_to_read),
 
           latency_ms_);
     }
