@@ -439,7 +439,7 @@ bool CoreAudioBase::Init() {
     if (!core_audio_utility::IsFormatSupported(
             audio_client.Get(), AUDCLNT_SHAREMODE_SHARED, &format_)) {
       // RingRTC change to try again to match a format for multi-channel.
-      if (params.channels() > 2) {
+      if (IsInput() && (params.channels() > 2)) {
         format->nChannels = params.channels();
         format->nBlockAlign = (format->wBitsPerSample / 8) * format->nChannels;
         format->nAvgBytesPerSec = format->nSamplesPerSec * format->nBlockAlign;
