@@ -148,7 +148,7 @@ bool RtpTransport::SendPacket(bool rtcp,
                                   options, flags);
   if (ret != static_cast<int>(packet->size())) {
     if (transport->GetError() == ENOTCONN) {
-      RTC_LOG(LS_WARNING) << "Got ENOTCONN from transport.";
+      RTC_LOG(LS_INFO) << "Got ENOTCONN from transport.";
       SetReadyToSend(rtcp, false);
     }
     return false;
@@ -192,8 +192,8 @@ void RtpTransport::DemuxPacket(rtc::CopyOnWriteBuffer packet,
   }
 
   if (!rtp_demuxer_.OnRtpPacket(parsed_packet)) {
-    RTC_LOG(LS_WARNING) << "Failed to demux RTP packet: "
-                        << RtpDemuxer::DescribePacket(parsed_packet);
+    RTC_LOG(LS_INFO) << "Failed to demux RTP packet: "
+                     << RtpDemuxer::DescribePacket(parsed_packet);
   }
 }
 
@@ -264,7 +264,7 @@ void RtpTransport::OnReadPacket(rtc::PacketTransportInternal* transport,
   // RingRTC change to avoid processing RTP packets too soon
   if (!incoming_rtp_enabled_) {
     if (packet_type == cricket::RtpPacketType::kRtcp) {
-      RTC_LOG(LS_WARNING) << "Dropping RTCP packet because incoming RTP is disabled; len: " << len;
+      RTC_LOG(LS_INFO) << "Dropping RTCP packet because incoming RTP is disabled; len: " << len;
       return;
     } else {
       RTC_LOG(LS_INFO) << "Dropping RTP packet because incoming RTP is disabled; len: " << len;

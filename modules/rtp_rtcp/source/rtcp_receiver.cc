@@ -354,10 +354,10 @@ absl::optional<TimeDelta> RTCPReceiver::OnPeriodicRttUpdate(
     // Check for expired timers and if so, log and reset.
     auto now = clock_->CurrentTime();
     if (RtcpRrTimeoutLocked(now)) {
-      RTC_LOG_F(LS_WARNING) << "Timeout: No RTCP RR received.";
+      RTC_LOG_F(LS_INFO) << "Timeout: No RTCP RR received.";
     } else if (RtcpRrSequenceNumberTimeoutLocked(now)) {
-      RTC_LOG_F(LS_WARNING) << "Timeout: No increase in RTCP RR extended "
-                               "highest sequence number.";
+      RTC_LOG_F(LS_INFO) << "Timeout: No increase in RTCP RR extended "
+                            "highest sequence number.";
     }
   } else {
     // Report rtt from receiver.

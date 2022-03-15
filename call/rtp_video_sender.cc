@@ -104,7 +104,7 @@ bool ShouldDisableRedAndUlpfec(bool flexfec_enabled,
   // Note that this is not the case with FlexFEC.
   if (nack_enabled && IsUlpfecEnabled() &&
       !PayloadTypeSupportsSkippingFecPackets(rtp_config.payload_name, trials)) {
-    RTC_LOG(LS_WARNING)
+    RTC_LOG(LS_INFO)
         << "Transmitting payload type without picture ID using "
            "NACK+ULPFEC is a waste of bandwidth since ULPFEC packets "
            "also have to be retransmitted. Disabling ULPFEC.";
@@ -113,7 +113,7 @@ bool ShouldDisableRedAndUlpfec(bool flexfec_enabled,
 
   // Verify payload types.
   if (IsUlpfecEnabled() ^ IsRedEnabled()) {
-    RTC_LOG(LS_WARNING)
+    RTC_LOG(LS_INFO)
         << "Only RED or only ULPFEC enabled, but not both. Disabling both.";
     should_disable_red_and_ulpfec = true;
   }

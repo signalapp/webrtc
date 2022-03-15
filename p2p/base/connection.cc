@@ -442,10 +442,10 @@ void Connection::OnSendStunPacket(const void* data,
   auto err =
       port_->SendTo(data, size, remote_candidate_.address(), options, false);
   if (err < 0) {
-    RTC_LOG(LS_WARNING) << ToString()
-                        << ": Failed to send STUN ping "
-                           " err="
-                        << err << " id=" << rtc::hex_encode(req->id());
+    RTC_LOG(LS_INFO) << ToString()
+                     << ": Failed to send STUN ping "
+                        " err="
+                     << err << " id=" << rtc::hex_encode(req->id());
   }
 }
 
@@ -712,10 +712,10 @@ void Connection::SendResponseMessage(const StunMessage& response) {
       rtc::PacketType::kIceConnectivityCheckResponse;
   auto err = port_->SendTo(buf.Data(), buf.Length(), addr, options, false);
   if (err < 0) {
-    RTC_LOG(LS_ERROR) << ToString() << ": Failed to send "
-                      << StunMethodToString(response.type())
-                      << ", to=" << addr.ToSensitiveString() << ", err=" << err
-                      << ", id=" << rtc::hex_encode(response.transaction_id());
+    RTC_LOG(LS_INFO) << ToString() << ": Failed to send "
+                     << StunMethodToString(response.type())
+                     << ", to=" << addr.ToSensitiveString() << ", err=" << err
+                     << ", id=" << rtc::hex_encode(response.transaction_id());
   } else {
     // Log at LS_INFO if we send a stun ping response on an unwritable
     // connection.
@@ -1253,7 +1253,7 @@ void Connection::MaybeUpdateLocalCandidate(ConnectionRequest* request,
   const StunAddressAttribute* addr =
       response->GetAddress(STUN_ATTR_XOR_MAPPED_ADDRESS);
   if (!addr) {
-    RTC_LOG(LS_WARNING)
+    RTC_LOG(LS_INFO)
         << "Connection::OnConnectionRequestResponse - "
            "No MAPPED-ADDRESS or XOR-MAPPED-ADDRESS found in the "
            "stun response message";

@@ -68,9 +68,9 @@ int32_t VideoRenderFrames::AddFrame(VideoFrame&& new_frame) {
   }
 
   if (new_frame.render_time_ms() < last_render_time_ms_) {
-    RTC_LOG(LS_WARNING) << "Frame scheduled out of order, render_time="
-                        << new_frame.render_time_ms()
-                        << ", latest=" << last_render_time_ms_;
+    RTC_LOG(LS_INFO) << "Frame scheduled out of order, render_time="
+                     << new_frame.render_time_ms()
+                     << ", latest=" << last_render_time_ms_;
     // For more details, see bug:
     // https://bugs.chromium.org/p/webrtc/issues/detail?id=7253
     ++frames_dropped_;

@@ -362,8 +362,8 @@ void RTPSender::OnReceivedNack(
     const int32_t bytes_sent = ReSendPacket(seq_no);
     if (bytes_sent < 0) {
       // Failed to send one Sequence number. Give up the rest in this nack.
-      RTC_LOG(LS_WARNING) << "Failed resending RTP packet " << seq_no
-                          << ", Discard rest of packets.";
+      RTC_LOG(LS_INFO) << "Failed resending RTP packet " << seq_no
+                       << ", Discard rest of packets.";
       break;
     }
   }

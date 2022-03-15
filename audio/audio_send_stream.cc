@@ -886,10 +886,10 @@ void AudioSendStream::RemoveBitrateObserver() {
 absl::optional<AudioSendStream::TargetAudioBitrateConstraints>
 AudioSendStream::GetMinMaxBitrateConstraints() const {
   if (config_.min_bitrate_bps < 0 || config_.max_bitrate_bps < 0) {
-    RTC_LOG(LS_WARNING) << "Config is invalid: min_bitrate_bps="
-                        << config_.min_bitrate_bps
-                        << "; max_bitrate_bps=" << config_.max_bitrate_bps
-                        << "; both expected greater or equal to 0";
+    RTC_LOG(LS_INFO) << "Config is invalid: min_bitrate_bps="
+                     << config_.min_bitrate_bps
+                     << "; max_bitrate_bps=" << config_.max_bitrate_bps
+                     << "; both expected greater or equal to 0";
     return absl::nullopt;
   }
   TargetAudioBitrateConstraints constraints{

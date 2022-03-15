@@ -280,8 +280,8 @@ bool VoiceProcessingAudioUnit::Initialize(Float64 sample_rate) {
   UInt32 agc_is_enabled = 0;
   result = GetAGCState(vpio_unit_, &agc_is_enabled);
   if (result != noErr) {
-    RTCLogError(@"Failed to get AGC state (1st attempt). "
-                 "Error=%ld.",
+    RTCLogInfo(@"Failed to get AGC state (1st attempt). "
+                "Error=%ld.",
                 (long)result);
     // Example of error code: kAudioUnitErr_NoConnection (-10876).
     // All error codes related to audio units are negative and are therefore

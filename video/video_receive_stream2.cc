@@ -918,8 +918,8 @@ void VideoReceiveStream2::HandleFrameBufferTimeout(int64_t now_ms,
   if (stream_is_active && !IsReceivingKeyFrame(now_ms) &&
       (!config_.crypto_options.sframe.require_frame_encryption ||
        rtp_video_stream_receiver_.IsDecryptable())) {
-    RTC_LOG(LS_WARNING) << "No decodable frame in " << wait_ms
-                        << " ms, requesting keyframe.";
+    RTC_LOG(LS_INFO) << "No decodable frame in " << wait_ms
+                     << " ms, requesting keyframe.";
     RequestKeyFrame(now_ms);
   }
 }

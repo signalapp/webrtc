@@ -179,7 +179,7 @@ AsyncPacketSocket* BasicPacketSocketFactory::CreateClientTcpSocket(
   }
 
   if (socket->Connect(remote_address) < 0) {
-    RTC_LOG(LS_ERROR) << "TCP connect failed with error " << socket->GetError();
+    RTC_LOG(LS_INFO) << "TCP connect failed with error " << socket->GetError();
     delete socket;
     return NULL;
   }

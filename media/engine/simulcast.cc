@@ -313,8 +313,8 @@ size_t LimitSimulcastLayerCount(int width,
                                    enable_lowres_bitrate_interpolation)
             .max_layers);
     if (layer_count > adaptive_layer_count) {
-      RTC_LOG(LS_WARNING) << "Reducing simulcast layer count from "
-                          << layer_count << " to " << adaptive_layer_count;
+      RTC_LOG(LS_INFO) << "Reducing simulcast layer count from "
+                       << layer_count << " to " << adaptive_layer_count;
       layer_count = adaptive_layer_count;
     }
   }
