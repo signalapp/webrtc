@@ -515,9 +515,9 @@ void TurnPort::OnSocketConnect(rtc::AsyncPacketSocket* socket) {
 }
 
 void TurnPort::OnSocketClose(rtc::AsyncPacketSocket* socket, int error) {
-  RTC_LOG(LS_WARNING) << ToString()
-                      << ": Connection with server failed with error: "
-                      << error;
+  RTC_LOG(LS_INFO) << ToString()
+                   << ": Connection with server failed with error: "
+                   << error;
   RTC_DCHECK(socket == socket_);
   Close();
 }
