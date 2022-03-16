@@ -995,7 +995,7 @@ void BasicPortAllocatorSession::OnCandidateReady(Port* port,
   // Discarding any candidate signal if port allocation status is
   // already done with gathering.
   if (!data->inprogress()) {
-    RTC_LOG(LS_WARNING)
+    RTC_LOG(LS_INFO)
         << "Discarding candidate because port is already done gathering.";
     return;
   }

@@ -55,7 +55,7 @@ int32_t VideoRenderFrames::AddFrame(VideoFrame&& new_frame) {
   // really slow system never renders any frames.
   if (!incoming_frames_.empty() &&
       new_frame.render_time_ms() + kOldRenderTimestampMS < time_now) {
-    RTC_LOG(LS_WARNING) << "Too old frame, timestamp=" << new_frame.timestamp();
+    RTC_LOG(LS_INFO) << "Too old frame, timestamp=" << new_frame.timestamp();
     ++frames_dropped_;
     return -1;
   }
@@ -68,9 +68,9 @@ int32_t VideoRenderFrames::AddFrame(VideoFrame&& new_frame) {
   }
 
   if (new_frame.render_time_ms() < last_render_time_ms_) {
-    RTC_LOG(LS_WARNING) << "Frame scheduled out of order, render_time="
-                        << new_frame.render_time_ms()
-                        << ", latest=" << last_render_time_ms_;
+    RTC_LOG(LS_INFO) << "Frame scheduled out of order, render_time="
+                     << new_frame.render_time_ms()
+                     << ", latest=" << last_render_time_ms_;
     // For more details, see bug:
     // https://bugs.chromium.org/p/webrtc/issues/detail?id=7253
     ++frames_dropped_;

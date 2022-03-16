@@ -600,7 +600,7 @@ void VideoRtpSender::AttachTrack() {
 }
 
 rtc::scoped_refptr<DtmfSenderInterface> VideoRtpSender::GetDtmfSender() const {
-  RTC_LOG(LS_ERROR) << "Tried to get DTMF sender from video sender.";
+  RTC_LOG(LS_INFO) << "Tried to get DTMF sender from video sender.";
   return nullptr;
 }
 

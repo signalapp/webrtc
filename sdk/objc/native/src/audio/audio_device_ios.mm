@@ -452,9 +452,9 @@ OSStatus AudioDeviceIOS::OnGetPlayoutData(AudioUnitRenderActionFlags* flags,
     const int64_t delta_time = now_time - last_playout_time_;
     const int glitch_threshold = 1.6 * playout_parameters_.GetBufferSizeInMilliseconds();
     if (delta_time > glitch_threshold) {
-      RTCLogWarning(@"Possible playout audio glitch detected.\n"
-                     "  Time since last OnGetPlayoutData was %lld ms.\n",
-                    delta_time);
+      RTCLogInfo(@"Possible playout audio glitch detected.\n"
+                  "  Time since last OnGetPlayoutData was %lld ms.\n",
+                  delta_time);
       // Exclude extreme delta values since they do most likely not correspond
       // to a real glitch. Instead, the most probable cause is that a headset
       // has been plugged in or out. There are more direct ways to detect
@@ -881,7 +881,7 @@ void AudioDeviceIOS::UnconfigureAudioSession() {
   RTC_DCHECK_RUN_ON(&thread_checker_);
   RTCLog(@"Unconfiguring audio session.");
   if (!has_configured_session_) {
-    RTCLogWarning(@"Audio session already unconfigured.");
+    RTCLogInfo(@"Audio session already unconfigured.");
     return;
   }
   RTC_OBJC_TYPE(RTCAudioSession)* session = [RTC_OBJC_TYPE(RTCAudioSession) sharedInstance];
@@ -1041,7 +1041,7 @@ int32_t AudioDeviceIOS::SpeakerMute(bool& enabled) const {
 }
 
 int32_t AudioDeviceIOS::SetPlayoutDevice(uint16_t index) {
-  RTC_LOG_F(LS_WARNING) << "Not implemented";
+  RTC_LOG_F(LS_INFO) << "Not implemented";
   return 0;
 }
 
@@ -1094,7 +1094,7 @@ int32_t AudioDeviceIOS::StereoPlayoutIsAvailable(bool& available) {
 }
 
 int32_t AudioDeviceIOS::SetStereoPlayout(bool enable) {
-  RTC_LOG_F(LS_WARNING) << "Not implemented";
+  RTC_LOG_F(LS_INFO) << "Not implemented";
   return -1;
 }
 
@@ -1143,7 +1143,7 @@ int32_t AudioDeviceIOS::RecordingDeviceName(uint16_t index,
 }
 
 int32_t AudioDeviceIOS::SetRecordingDevice(uint16_t index) {
-  RTC_LOG_F(LS_WARNING) << "Not implemented";
+  RTC_LOG_F(LS_INFO) << "Not implemented";
   return 0;
 }
 

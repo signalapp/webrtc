@@ -59,7 +59,7 @@ void Init(AudioDeviceModule* adm) {
       RTC_LOG(LS_ERROR) << "Failed to query stereo playout.";
     }
     if (adm->SetStereoPlayout(available) != 0) {
-      RTC_LOG(LS_ERROR) << "Failed to set stereo playout mode.";
+      RTC_LOG(LS_INFO) << "Failed to set stereo playout mode.";
     }
   }
 
@@ -79,7 +79,7 @@ void Init(AudioDeviceModule* adm) {
       RTC_LOG(LS_ERROR) << "Failed to query stereo recording.";
     }
     if (adm->SetStereoRecording(available) != 0) {
-      RTC_LOG(LS_ERROR) << "Failed to set stereo recording mode.";
+      RTC_LOG(LS_INFO) << "Failed to set stereo recording mode.";
     }
   }
 }

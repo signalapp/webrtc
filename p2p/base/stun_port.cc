@@ -93,9 +93,9 @@ class StunBindingRequest : public StunRequest {
     }
   }
   void OnTimeout() override {
-    RTC_LOG(LS_ERROR) << "Binding request timed out from "
-                      << port_->GetLocalAddress().ToSensitiveString() << " ("
-                      << port_->Network()->name() << ")";
+    RTC_LOG(LS_INFO) << "Binding request timed out from "
+                     << port_->GetLocalAddress().ToSensitiveString() << " ("
+                     << port_->Network()->name() << ")";
     port_->OnStunBindingOrResolveRequestFailed(
         server_addr_, SERVER_NOT_REACHABLE_ERROR,
         "STUN allocate request timed out.");
@@ -307,10 +307,10 @@ int UDPPort::SendTo(const void* data,
     // TODO(webrtc:9622): Use general rate limiting mechanism once it exists.
     if (send_error_count_ < kSendErrorLogLimit) {
       ++send_error_count_;
-      RTC_LOG(LS_ERROR) << ToString() << ": UDP send of " << size
-                        << " bytes to host " << addr.ToSensitiveString() << " ("
-                        << addr.ToResolvedSensitiveString()
-                        << ") failed with error " << error_;
+      RTC_LOG(LS_INFO) << ToString() << ": UDP send of " << size
+                       << " bytes to host " << addr.ToSensitiveString() << " ("
+                       << addr.ToResolvedSensitiveString()
+                       << ") failed with error " << error_;
     }
   } else {
     send_error_count_ = 0;
@@ -453,9 +453,9 @@ void UDPPort::OnResolveResult(const rtc::SocketAddress& input, int error) {
   rtc::SocketAddress resolved;
   if (error != 0 || !resolver_->GetResolvedAddress(
                         input, Network()->GetBestIP().family(), &resolved)) {
-    RTC_LOG(LS_WARNING) << ToString()
-                        << ": StunPort: stun host lookup received error "
-                        << error;
+    RTC_LOG(LS_INFO) << ToString()
+                     << ": StunPort: stun host lookup received error "
+                     << error;
     OnStunBindingOrResolveRequestFailed(input, SERVER_NOT_REACHABLE_ERROR,
                                         "STUN host lookup received error.");
     return;
@@ -599,7 +599,7 @@ void UDPPort::OnSendPacket(const void* data, size_t size, StunRequest* req) {
   options.info_signaled_after_sent.packet_type = rtc::PacketType::kStunMessage;
   CopyPortInformationToPacketInfo(&options.info_signaled_after_sent);
   if (socket_->SendTo(data, size, sreq->server_addr(), options) < 0) {
-    RTC_LOG_ERR_EX(LERROR, socket_->GetError())
+    RTC_LOG_ERR_EX(LS_INFO, socket_->GetError())
         << "UDP send of " << size << " bytes to host "
         << sreq->server_addr().ToSensitiveString() << " ("
         << sreq->server_addr().ToResolvedSensitiveString()

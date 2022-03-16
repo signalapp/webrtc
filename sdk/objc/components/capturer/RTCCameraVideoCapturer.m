@@ -309,7 +309,7 @@ const int64_t kNanosecondsPerSecond = 1000000000;
   // DroppedFrameReason unavailable on macOS.
   CFStringRef droppedReason = nil;
 #endif
-  RTCLogError(@"Dropped sample buffer. Reason: %@", (__bridge NSString *)droppedReason);
+  RTCLogInfo(@"Dropped sample buffer. Reason: %@", (__bridge NSString *)droppedReason);
 }
 
 #pragma mark - AVCaptureSession notifications
@@ -344,7 +344,7 @@ const int64_t kNanosecondsPerSecond = 1000000000;
 
 - (void)handleCaptureSessionRuntimeError:(NSNotification *)notification {
   NSError *error = [notification.userInfo objectForKey:AVCaptureSessionErrorKey];
-  RTCLogError(@"Capture session runtime error: %@", error);
+  RTCLogInfo(@"Capture session runtime error: %@", error);
 
   [RTC_OBJC_TYPE(RTCDispatcher) dispatchAsyncOnType:RTCDispatcherTypeCaptureSession
                                               block:^{
@@ -380,11 +380,11 @@ const int64_t kNanosecondsPerSecond = 1000000000;
       dispatchAsyncOnType:RTCDispatcherTypeCaptureSession
                     block:^{
                       if (!self.hasRetriedOnFatalError) {
-                        RTCLogWarning(@"Attempting to recover from fatal capture error.");
+                        RTCLogInfo(@"Attempting to recover from fatal capture error.");
                         [self handleNonFatalError];
                         self.hasRetriedOnFatalError = YES;
                       } else {
-                        RTCLogError(@"Previous fatal error recovery failed.");
+                        RTCLogInfo(@"Previous fatal error recovery failed.");
                       }
                     }];
 }

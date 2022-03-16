@@ -444,9 +444,9 @@ int64_t FrameBuffer::InsertFrame(std::unique_ptr<EncodedFrame> frame) {
       ClearFramesAndHistory();
       last_continuous_frame_id = -1;
     } else {
-      RTC_LOG(LS_WARNING) << "Frame " << frame->Id() << " inserted after frame "
-                          << *last_decoded_frame
-                          << " was handed off for decoding, dropping frame.";
+      RTC_LOG(LS_INFO) << "Frame " << frame->Id() << " inserted after frame "
+                       << *last_decoded_frame
+                       << " was handed off for decoding, dropping frame.";
       return last_continuous_frame_id;
     }
   }
@@ -580,7 +580,7 @@ bool FrameBuffer::UpdateFrameInfoWithIncomingFrame(const EncodedFrame& frame,
       if (!decoded_frames_history_.WasDecoded(frame.references[i])) {
         int64_t now_ms = clock_->TimeInMilliseconds();
         if (last_log_non_decoded_ms_ + kLogNonDecodedIntervalMs < now_ms) {
-          RTC_LOG(LS_WARNING)
+          RTC_LOG(LS_INFO)
               << "Frame " << frame.Id()
               << " depends on a non-decoded frame more previous than the last "
                  "decoded frame, dropping frame.";

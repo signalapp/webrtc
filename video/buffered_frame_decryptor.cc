@@ -40,7 +40,7 @@ void BufferedFrameDecryptor::ManageEncryptedFrame(
   switch (DecryptFrame(encrypted_frame.get())) {
     case FrameDecision::kStash:
       if (stashed_frames_.size() >= kMaxStashedFrames) {
-        RTC_LOG(LS_WARNING) << "Encrypted frame stash full poping oldest item.";
+        RTC_LOG(LS_INFO) << "Encrypted frame stash full poping oldest item.";
         stashed_frames_.pop_front();
       }
       stashed_frames_.push_back(std::move(encrypted_frame));

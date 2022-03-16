@@ -1186,7 +1186,7 @@ void P2PTransportChannel::OnUnknownAddress(PortInterface* port,
     // If we don't know that the remote ufrag and the session is shared between
     // different transports, then don't create a peer reflexive candidate.
     // Otherwise, each transport would end up with one.
-    RTC_LOG(LS_WARNING)
+    RTC_LOG(LS_INFO)
         << "Ignoring peer-refexive ICE candidate because the ufrag is unknown.";
     return;
   }
@@ -1397,7 +1397,7 @@ void P2PTransportChannel::AddRemoteCandidate(const Candidate& candidate) {
     } else {
       // The candidate belongs to the next generation. Its pwd will be set
       // when the new remote ICE credentials arrive.
-      RTC_LOG(LS_WARNING)
+      RTC_LOG(LS_INFO)
           << "A remote candidate arrives with an unknown ufrag: "
           << candidate.username();
     }

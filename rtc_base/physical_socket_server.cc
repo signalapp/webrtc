@@ -595,7 +595,7 @@ int PhysicalSocket::TranslateOption(Option opt, int* slevel, int* sopt) {
       }
       break;
 #else
-      RTC_LOG(LS_WARNING) << "Socket::OPT_DSCP not supported.";
+      RTC_LOG(LS_INFO) << "Socket::OPT_DSCP not supported.";
       return -1;
 #endif
     case OPT_RTP_SENDTIME_EXTN_ID:
@@ -1654,7 +1654,7 @@ bool PhysicalSocketServer::Wait(int cmsWait, bool process_io) {
               }
               if ((wsaEvents.lNetworkEvents & FD_CONNECT) &&
                   wsaEvents.iErrorCode[FD_CONNECT_BIT] != 0) {
-                RTC_LOG(WARNING)
+                RTC_LOG(LS_INFO)
                     << "PhysicalSocketServer got FD_CONNECT_BIT error "
                     << wsaEvents.iErrorCode[FD_CONNECT_BIT];
               }

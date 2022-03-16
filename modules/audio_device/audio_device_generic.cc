@@ -15,7 +15,7 @@
 namespace webrtc {
 
 bool AudioDeviceGeneric::BuiltInAECIsAvailable() const {
-  RTC_LOG_F(LS_ERROR) << "Not supported on this platform";
+  RTC_LOG_F(LS_INFO) << "Not supported on this platform";
   return false;
 }
 
@@ -25,7 +25,7 @@ int32_t AudioDeviceGeneric::EnableBuiltInAEC(bool enable) {
 }
 
 bool AudioDeviceGeneric::BuiltInAGCIsAvailable() const {
-  RTC_LOG_F(LS_ERROR) << "Not supported on this platform";
+  RTC_LOG_F(LS_INFO) << "Not supported on this platform";
   return false;
 }
 
@@ -35,7 +35,7 @@ int32_t AudioDeviceGeneric::EnableBuiltInAGC(bool enable) {
 }
 
 bool AudioDeviceGeneric::BuiltInNSIsAvailable() const {
-  RTC_LOG_F(LS_ERROR) << "Not supported on this platform";
+  RTC_LOG_F(LS_INFO) << "Not supported on this platform";
   return false;
 }
 
@@ -45,7 +45,7 @@ int32_t AudioDeviceGeneric::EnableBuiltInNS(bool enable) {
 }
 
 int32_t AudioDeviceGeneric::GetPlayoutUnderrunCount() const {
-  RTC_LOG_F(LS_ERROR) << "Not supported on this platform";
+  RTC_LOG_F(LS_INFO) << "Not supported on this platform";
   return -1;
 }
 
