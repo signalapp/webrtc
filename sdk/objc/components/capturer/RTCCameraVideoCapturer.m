@@ -309,7 +309,7 @@ const int64_t kNanosecondsPerSecond = 1000000000;
   // DroppedFrameReason unavailable on macOS.
   CFStringRef droppedReason = nil;
 #endif
-  RTCLogError(@"Dropped sample buffer. Reason: %@", (__bridge NSString *)droppedReason);
+  RTCLogInfo(@"Dropped sample buffer. Reason: %@", (__bridge NSString *)droppedReason);
 }
 
 #pragma mark - AVCaptureSession notifications

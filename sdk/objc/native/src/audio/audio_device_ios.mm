@@ -452,9 +452,9 @@ OSStatus AudioDeviceIOS::OnGetPlayoutData(AudioUnitRenderActionFlags* flags,
     const int64_t delta_time = now_time - last_playout_time_;
     const int glitch_threshold = 1.6 * playout_parameters_.GetBufferSizeInMilliseconds();
     if (delta_time > glitch_threshold) {
-      RTCLogWarning(@"Possible playout audio glitch detected.\n"
-                     "  Time since last OnGetPlayoutData was %lld ms.\n",
-                    delta_time);
+      RTCLogInfo(@"Possible playout audio glitch detected.\n"
+                  "  Time since last OnGetPlayoutData was %lld ms.\n",
+                  delta_time);
       // Exclude extreme delta values since they do most likely not correspond
       // to a real glitch. Instead, the most probable cause is that a headset
       // has been plugged in or out. There are more direct ways to detect
