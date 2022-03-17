@@ -66,5 +66,5 @@ default_args = {
 
   # RingRTC change to support SDK >= 19.
   # Differently from Chromium, WebRTC still support SDK 19.
-  default_min_sdk_version = 21
+  default_min_sdk_version = 19
 }
