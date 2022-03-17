@@ -11,6 +11,7 @@
 package org.webrtc;
 
 import android.graphics.SurfaceTexture;
+import android.os.Build;
 import android.view.Surface;
 import androidx.annotation.Nullable;
 import java.util.ArrayList;
@@ -153,8 +154,8 @@ public interface EglBase {
   public static EglBase create(@Nullable Context sharedContext, int[] configAttributes) {
     if (sharedContext == null) {
       // RingRTC change (or retention?) to keep support for SDK <= 19
-      return EglBase14Impl.isEGL14Supported() ? createEgl14(configAttributes)
-                                              : createEgl10(configAttributes);
+      return Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1 ? createEgl14(configAttributes)
+                                                                         : createEgl10(configAttributes);
     } else if (sharedContext instanceof EglBase14.Context) {
       return createEgl14((EglBase14.Context) sharedContext, configAttributes);
     } else if (sharedContext instanceof EglBase10.Context) {

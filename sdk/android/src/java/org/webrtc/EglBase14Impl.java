@@ -10,6 +10,7 @@
 
 package org.webrtc;
 
+import android.annotation.TargetApi;
 import android.graphics.SurfaceTexture;
 import android.opengl.EGL14;
 import android.opengl.EGLConfig;
@@ -48,8 +49,8 @@ class EglBase14Impl implements EglBase14 {
     @SuppressWarnings("deprecation")
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     public long getNativeEglContext() {
-      return CURRENT_SDK_VERSION >= Build.VERSION_CODES.LOLLIPOP ? egl14Context.getNativeHandle()
-                                                                 : egl14Context.getHandle();
+      return Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP ? egl14Context.getNativeHandle()
+                                                                   : egl14Context.getHandle();
     }
 
     public Context(android.opengl.EGLContext eglContext) {

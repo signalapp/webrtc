@@ -2964,8 +2964,8 @@ bool PeerConnection::UseSharedIceGatherer(
 
 bool PeerConnection::SetIncomingRtpEnabled(bool enabled) {
   return network_thread()->Invoke<bool>(RTC_FROM_HERE, [this, enabled] {
-    RTC_DCHECK_RUN_ON(network_thread());
-    return transport_controller_->SetIncomingRtpEnabled(enabled);
+    JsepTransportController* transport_controller = this->transport_controller_n();
+    return transport_controller->SetIncomingRtpEnabled(enabled);
   });
 }
 
@@ -2975,8 +2975,8 @@ bool PeerConnection::SendRtp(std::unique_ptr<RtpPacket> rtp_packet) {
   // Is there a better way to std::move the unique_ptr?
   RtpPacket* raw_rtp_packet = rtp_packet.release();
   return network_thread()->Invoke<bool>(RTC_FROM_HERE, [this, raw_rtp_packet] {
-    RTC_DCHECK_RUN_ON(network_thread());
-    RtpTransportInternal* rtp_transport = transport_controller_->GetBundledRtpTransport();
+    JsepTransportController* transport_controller = this->transport_controller_n();
+    RtpTransportInternal* rtp_transport = transport_controller->GetBundledRtpTransport();
     if (!rtp_transport) {
       return false;
     }
@@ -2997,8 +2997,8 @@ bool PeerConnection::ReceiveRtp(uint8_t pt) {
   demux_criteria.payload_types().insert(pt);
   RtpPacketSinkInterface* sink = Observer();
   return network_thread()->Invoke<bool>(RTC_FROM_HERE, [this, demux_criteria, sink] {
-    RTC_DCHECK_RUN_ON(network_thread());
-    RtpTransportInternal* rtp_transport = transport_controller_->GetBundledRtpTransport();
+    JsepTransportController* transport_controller = this->transport_controller_n();
+    RtpTransportInternal* rtp_transport = transport_controller->GetBundledRtpTransport();
     if (!rtp_transport) {
       return false;
     }
