@@ -647,7 +647,8 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
     // will also cause PeerConnection to ignore all but the first m= section of
     // the same media type (if the PeerConnection is given Unified Plan SDP to
     // process).
-    SdpSemantics sdp_semantics = SdpSemantics::kUnifiedPlan;
+    // RingRTC Change to use "Plan B"
+    SdpSemantics sdp_semantics = SdpSemantics::kPlanB_DEPRECATED;
 
     // TODO(bugs.webrtc.org/9891) - Move to crypto_options or remove.
     // Actively reset the SRTP parameters whenever the DTLS transports

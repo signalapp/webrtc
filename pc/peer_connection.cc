@@ -274,15 +274,8 @@ bool HasRtcpMuxEnabled(const cricket::ContentInfo* content) {
 bool DtlsEnabled(const PeerConnectionInterface::RTCConfiguration& configuration,
                  const PeerConnectionFactoryInterface::Options& options,
                  const PeerConnectionDependencies& dependencies) {
-  if (options.disable_encryption)
-    return false;
-
-  // Enable DTLS by default if we have an identity store or a certificate.
-  bool default_enabled =
-      (dependencies.cert_generator || !configuration.certificates.empty());
-
-  // The `configuration` can override the default value.
-  return configuration.enable_dtls_srtp.value_or(default_enabled);
+  // RingRTC change to always disable DTLS.
+  return false;
 }
 
 }  // namespace
