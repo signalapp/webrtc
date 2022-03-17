@@ -788,8 +788,8 @@ SendDataResult UsrsctpTransport::SendMessageInternal(OutgoingMessage* message) {
   if (send_res < 0) {
     if (errno == SCTP_EWOULDBLOCK) {
       ready_to_send_data_ = false;
-      RTC_LOG(LS_INFO) << debug_name_
-                       << "->SendMessageInternal(...): EWOULDBLOCK returned";
+      RTC_LOG(LS_VERBOSE) << debug_name_
+                          << "->SendMessageInternal(...): EWOULDBLOCK returned";
       return SDR_BLOCK;
     }
 
@@ -1172,8 +1172,8 @@ void UsrsctpTransport::OnPacketRead(rtc::PacketTransportInternal* transport,
   // packet will have called connect, and a connection will be established.
   if (sock_) {
     // Pass received packet to SCTP stack. Once processed by usrsctp, the data
-    // will be will be given to the global OnSctpInboundData, and then,
-    // marshalled by the AsyncInvoker.
+    // will be will be given to the global OnSctpInboundPacket callback and
+    // posted to the transport thread.
     VerboseLogPacket(data, len, SCTP_DUMP_INBOUND);
     usrsctp_conninput(reinterpret_cast<void*>(id_), data, len, 0);
   } else {

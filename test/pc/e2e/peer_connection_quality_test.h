@@ -69,8 +69,7 @@ class PeerConnectionE2EQualityTest
                                      quality_metrics_reporter) override;
 
   PeerHandle* AddPeer(
-      rtc::Thread* network_thread,
-      rtc::NetworkManager* network_manager,
+      const PeerNetworkDependencies& network_dependencies,
       rtc::FunctionView<void(PeerConfigurer*)> configurer) override;
   void Run(RunParams run_params) override;
 
@@ -95,7 +94,7 @@ class PeerConnectionE2EQualityTest
   // Have to be run on the signaling thread.
   void SetupCallOnSignalingThread(const RunParams& run_params);
   void TearDownCallOnSignalingThread();
-  void SetPeerCodecPreferences(TestPeer* peer, const RunParams& run_params);
+  void SetPeerCodecPreferences(TestPeer* peer);
   std::unique_ptr<SignalingInterceptor> CreateSignalingInterceptor(
       const RunParams& run_params);
   void WaitUntilIceCandidatesGathered(rtc::Thread* signaling_thread);

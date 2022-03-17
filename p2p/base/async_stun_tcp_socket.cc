@@ -45,12 +45,11 @@ AsyncStunTCPSocket* AsyncStunTCPSocket::Create(
     const rtc::SocketAddress& bind_address,
     const rtc::SocketAddress& remote_address) {
   return new AsyncStunTCPSocket(
-      AsyncTCPSocketBase::ConnectSocket(socket, bind_address, remote_address),
-      false);
+      AsyncTCPSocketBase::ConnectSocket(socket, bind_address, remote_address));
 }
 
-AsyncStunTCPSocket::AsyncStunTCPSocket(rtc::Socket* socket, bool listen)
-    : rtc::AsyncTCPSocketBase(socket, listen, kBufSize) {}
+AsyncStunTCPSocket::AsyncStunTCPSocket(rtc::Socket* socket)
+    : rtc::AsyncTCPSocketBase(socket, kBufSize) {}
 
 int AsyncStunTCPSocket::Send(const void* pv,
                              size_t cb,
@@ -124,10 +123,6 @@ void AsyncStunTCPSocket::ProcessInput(char* data, size_t* len) {
       memmove(data, data + actual_length, *len);
     }
   }
-}
-
-void AsyncStunTCPSocket::HandleIncomingConnection(rtc::Socket* socket) {
-  SignalNewConnection(this, new AsyncStunTCPSocket(socket, false));
 }
 
 size_t AsyncStunTCPSocket::GetExpectedLength(const void* data,

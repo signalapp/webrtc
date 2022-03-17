@@ -18,6 +18,7 @@
 
 #include "absl/types/optional.h"
 #include "api/sequence_checker.h"
+#include "api/webrtc_key_value_config.h"
 #include "call/video_receive_stream.h"
 #include "modules/include/module_common_types.h"
 #include "modules/video_coding/include/video_coding_defines.h"
@@ -42,8 +43,9 @@ class ReceiveStatisticsProxy : public VCMReceiveStatisticsCallback,
                                public RtcpPacketTypeCounterObserver,
                                public CallStatsObserver {
  public:
-  ReceiveStatisticsProxy(const VideoReceiveStream::Config* config,
-                         Clock* clock);
+  ReceiveStatisticsProxy(uint32_t remote_ssrc,
+                         Clock* clock,
+                         const WebRtcKeyValueConfig* field_trials = nullptr);
   ~ReceiveStatisticsProxy() = default;
 
   VideoReceiveStream::Stats GetStats() const;
@@ -139,14 +141,6 @@ class ReceiveStatisticsProxy : public VCMReceiveStatisticsCallback,
       int64_t now_ms) const RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   Clock* const clock_;
-  // Ownership of this object lies with the owner of the ReceiveStatisticsProxy
-  // instance.  Lifetime is guaranteed to outlive `this`.
-  // TODO(tommi): In practice the config_ reference is only used for accessing
-  // config_.rtp.ulpfec.ulpfec_payload_type.  Instead of holding a pointer back,
-  // we could just store the value of ulpfec_payload_type and change the
-  // ReceiveStatisticsProxy() ctor to accept a const& of Config (since we'll
-  // then no longer store a pointer to the object).
-  const VideoReceiveStream::Config& config_;
   const int64_t start_ms_;
   const bool enable_decode_time_histograms_;
 

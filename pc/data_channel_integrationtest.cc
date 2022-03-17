@@ -10,24 +10,36 @@
 
 #include <stdint.h>
 
-#include <algorithm>
-#include <memory>
+#include <cstdlib>
+#include <iterator>
 #include <string>
+#include <tuple>
 #include <vector>
 
+#include "absl/algorithm/container.h"
 #include "absl/types/optional.h"
 #include "api/data_channel_interface.h"
-#include "api/dtmf_sender_interface.h"
+#include "api/dtls_transport_interface.h"
 #include "api/peer_connection_interface.h"
 #include "api/scoped_refptr.h"
+#include "api/sctp_transport_interface.h"
+#include "api/stats/rtc_stats_report.h"
+#include "api/stats/rtcstats_objects.h"
 #include "api/units/time_delta.h"
+#include "p2p/base/transport_description.h"
+#include "p2p/base/transport_info.h"
+#include "pc/media_session.h"
+#include "pc/session_description.h"
 #include "pc/test/integration_test_helpers.h"
 #include "pc/test/mock_peer_connection_observers.h"
+#include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/fake_clock.h"
 #include "rtc_base/gunit.h"
-#include "rtc_base/ref_counted_object.h"
+#include "rtc_base/helpers.h"
+#include "rtc_base/logging.h"
+#include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/virtual_socket_server.h"
-#include "system_wrappers/include/field_trial.h"
+#include "test/gmock.h"
 #include "test/gtest.h"
 
 namespace webrtc {
@@ -36,6 +48,13 @@ namespace {
 
 // All tests in this file require SCTP support.
 #ifdef WEBRTC_HAVE_SCTP
+
+#if defined(WEBRTC_ANDROID)
+// Disable heavy tests running on low-end Android devices.
+#define DISABLED_ON_ANDROID(t) DISABLED_##t
+#else
+#define DISABLED_ON_ANDROID(t) t
+#endif
 
 class DataChannelIntegrationTest : public PeerConnectionIntegrationBaseTest,
                                    public ::testing::WithParamInterface<
@@ -78,6 +97,13 @@ class DataChannelIntegrationTestUnifiedPlan
   DataChannelIntegrationTestUnifiedPlan()
       : PeerConnectionIntegrationBaseTest(SdpSemantics::kUnifiedPlan) {}
 };
+
+void MakeActiveSctpOffer(cricket::SessionDescription* desc) {
+  auto& transport_infos = desc->transport_infos();
+  for (auto& transport_info : transport_infos) {
+    transport_info.description.connection_role = cricket::CONNECTIONROLE_ACTIVE;
+  }
+}
 
 // This test causes a PeerConnection to enter Disconnected state, and
 // sends data on a DataChannel while disconnected.
@@ -570,6 +596,134 @@ TEST_P(DataChannelIntegrationTest, ClosingConnectionStopsPacketFlow) {
   EXPECT_EQ(sent_packets_a, sent_packets_b);
 }
 
+TEST_P(DataChannelIntegrationTest, DtlsRoleIsSetNormally) {
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignaling();
+  caller()->CreateDataChannel();
+  ASSERT_FALSE(caller()->pc()->GetSctpTransport());
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_TRUE_WAIT(caller()->data_observer()->IsOpen(), kDefaultTimeout);
+  ASSERT_TRUE(caller()->pc()->GetSctpTransport());
+  ASSERT_TRUE(
+      caller()->pc()->GetSctpTransport()->Information().dtls_transport());
+  EXPECT_TRUE(caller()
+                  ->pc()
+                  ->GetSctpTransport()
+                  ->Information()
+                  .dtls_transport()
+                  ->Information()
+                  .role());
+  EXPECT_EQ(caller()
+                ->pc()
+                ->GetSctpTransport()
+                ->Information()
+                .dtls_transport()
+                ->Information()
+                .role(),
+            DtlsTransportTlsRole::kServer);
+  EXPECT_EQ(callee()
+                ->pc()
+                ->GetSctpTransport()
+                ->Information()
+                .dtls_transport()
+                ->Information()
+                .role(),
+            DtlsTransportTlsRole::kClient);
+  // ID should be assigned according to the odd/even rule based on role; client
+  // gets even numbers, server gets odd ones.
+  // RFC 8832 section 6.
+  // TODO(hta): Test multiple channels.
+  EXPECT_EQ(caller()->data_channel()->id(), 1);
+}
+
+TEST_P(DataChannelIntegrationTest, DtlsRoleIsSetWhenReversed) {
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignaling();
+  caller()->CreateDataChannel();
+  callee()->SetReceivedSdpMunger(MakeActiveSctpOffer);
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_TRUE_WAIT(caller()->data_observer()->IsOpen(), kDefaultTimeout);
+  EXPECT_TRUE(caller()
+                  ->pc()
+                  ->GetSctpTransport()
+                  ->Information()
+                  .dtls_transport()
+                  ->Information()
+                  .role());
+  EXPECT_EQ(caller()
+                ->pc()
+                ->GetSctpTransport()
+                ->Information()
+                .dtls_transport()
+                ->Information()
+                .role(),
+            DtlsTransportTlsRole::kClient);
+  EXPECT_EQ(callee()
+                ->pc()
+                ->GetSctpTransport()
+                ->Information()
+                .dtls_transport()
+                ->Information()
+                .role(),
+            DtlsTransportTlsRole::kServer);
+  // ID should be assigned according to the odd/even rule based on role; client
+  // gets even numbers, server gets odd ones.
+  // RFC 8832 section 6.
+  // TODO(hta): Test multiple channels.
+  EXPECT_EQ(caller()->data_channel()->id(), 0);
+}
+
+TEST_P(DataChannelIntegrationTest,
+       DtlsRoleIsSetWhenReversedWithChannelCollision) {
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignaling();
+  caller()->CreateDataChannel();
+
+  callee()->SetReceivedSdpMunger([this](cricket::SessionDescription* desc) {
+    MakeActiveSctpOffer(desc);
+    callee()->CreateDataChannel();
+  });
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_TRUE_WAIT(caller()->data_observer()->IsOpen(), kDefaultTimeout);
+  ASSERT_EQ_WAIT(callee()->data_channels().size(), 2U, kDefaultTimeout);
+  ASSERT_EQ_WAIT(caller()->data_channels().size(), 2U, kDefaultTimeout);
+  EXPECT_TRUE(caller()
+                  ->pc()
+                  ->GetSctpTransport()
+                  ->Information()
+                  .dtls_transport()
+                  ->Information()
+                  .role());
+  EXPECT_EQ(caller()
+                ->pc()
+                ->GetSctpTransport()
+                ->Information()
+                .dtls_transport()
+                ->Information()
+                .role(),
+            DtlsTransportTlsRole::kClient);
+  EXPECT_EQ(callee()
+                ->pc()
+                ->GetSctpTransport()
+                ->Information()
+                .dtls_transport()
+                ->Information()
+                .role(),
+            DtlsTransportTlsRole::kServer);
+  // ID should be assigned according to the odd/even rule based on role; client
+  // gets even numbers, server gets odd ones.
+  // RFC 8832 section 6.
+  ASSERT_EQ(caller()->data_channels().size(), 2U);
+  ASSERT_EQ(callee()->data_channels().size(), 2U);
+  EXPECT_EQ(caller()->data_channels()[0]->id(), 0);
+  EXPECT_EQ(caller()->data_channels()[1]->id(), 1);
+  EXPECT_EQ(callee()->data_channels()[0]->id(), 1);
+  EXPECT_EQ(callee()->data_channels()[1]->id(), 0);
+}
+
 // Test that transport stats are generated by the RTCStatsCollector for a
 // connection that only involves data channels. This is a regression test for
 // crbug.com/826972.
@@ -690,7 +844,7 @@ TEST_P(DataChannelIntegrationTest,
   EXPECT_GT(202u, callee()->data_observer()->received_message_count());
   EXPECT_LE(2u, callee()->data_observer()->received_message_count());
   // Then, check that observed behavior (lose some messages) has not changed
-  if (webrtc::field_trial::IsEnabled("WebRTC-DataChannel-Dcsctp")) {
+  if (!trials().IsDisabled("WebRTC-DataChannel-Dcsctp")) {
     // DcSctp loses all messages. This is correct.
     EXPECT_EQ(2u, callee()->data_observer()->received_message_count());
   } else {
@@ -704,7 +858,7 @@ TEST_P(DataChannelIntegrationTest,
 }
 
 TEST_P(DataChannelIntegrationTest,
-       SomeQueuedPacketsGetDroppedInMaxRetransmitsMode) {
+       DISABLED_ON_ANDROID(SomeQueuedPacketsGetDroppedInMaxRetransmitsMode)) {
   CreatePeerConnectionWrappers();
   ConnectFakeSignaling();
   DataChannelInit init;

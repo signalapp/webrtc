@@ -12,9 +12,7 @@
 
 #include <stddef.h>
 
-#include <algorithm>
 #include <cctype>  // For std::isdigit.
-#include <memory>
 #include <string>
 
 #include "p2p/base/port_interface.h"
@@ -211,19 +209,19 @@ static RTCErrorType ParseIceServerUrl(
   }
 
   if (hoststring.find('@') != std::string::npos) {
-    RTC_LOG(WARNING) << "Invalid url: " << uri_without_transport;
-    RTC_LOG(WARNING)
+    RTC_LOG(LS_WARNING) << "Invalid url: " << uri_without_transport;
+    RTC_LOG(LS_WARNING)
         << "Note that user-info@ in turn:-urls is long-deprecated.";
     return RTCErrorType::SYNTAX_ERROR;
   }
   std::string address;
   if (!ParseHostnameAndPortFromString(hoststring, &address, &port)) {
-    RTC_LOG(WARNING) << "Invalid hostname format: " << uri_without_transport;
+    RTC_LOG(LS_WARNING) << "Invalid hostname format: " << uri_without_transport;
     return RTCErrorType::SYNTAX_ERROR;
   }
 
   if (port <= 0 || port > 0xffff) {
-    RTC_LOG(WARNING) << "Invalid port: " << port;
+    RTC_LOG(LS_WARNING) << "Invalid port: " << port;
     return RTCErrorType::SYNTAX_ERROR;
   }
 
@@ -237,7 +235,7 @@ static RTCErrorType ParseIceServerUrl(
       if (server.username.empty() || server.password.empty()) {
         // The WebRTC spec requires throwing an InvalidAccessError when username
         // or credential are ommitted; this is the native equivalent.
-        RTC_LOG(LS_ERROR) << "TURN server with empty username or password";
+        RTC_LOG(LS_WARNING) << "TURN server with empty username or password";
         return RTCErrorType::INVALID_PARAMETER;
       }
       // If the hostname field is not empty, then the server address must be
@@ -251,7 +249,7 @@ static RTCErrorType ParseIceServerUrl(
         if (!IPFromString(address, &ip)) {
           // When hostname is set, the server address must be a
           // resolved ip address.
-          RTC_LOG(LS_ERROR)
+          RTC_LOG(LS_WARNING)
               << "IceServer has hostname field set, but URI does not "
                  "contain an IP address.";
           return RTCErrorType::INVALID_PARAMETER;
@@ -275,7 +273,7 @@ static RTCErrorType ParseIceServerUrl(
     default:
       // We shouldn't get to this point with an invalid service_type, we should
       // have returned an error already.
-      RTC_NOTREACHED() << "Unexpected service type";
+      RTC_DCHECK_NOTREACHED() << "Unexpected service type";
       return RTCErrorType::INTERNAL_ERROR;
   }
   return RTCErrorType::NONE;
@@ -289,7 +287,7 @@ RTCErrorType ParseIceServers(
     if (!server.urls.empty()) {
       for (const std::string& url : server.urls) {
         if (url.empty()) {
-          RTC_LOG(LS_ERROR) << "Empty uri.";
+          RTC_LOG(LS_WARNING) << "Empty uri.";
           return RTCErrorType::SYNTAX_ERROR;
         }
         RTCErrorType err =
@@ -306,7 +304,7 @@ RTCErrorType ParseIceServers(
         return err;
       }
     } else {
-      RTC_LOG(LS_ERROR) << "Empty uri.";
+      RTC_LOG(LS_WARNING) << "Empty uri.";
       return RTCErrorType::SYNTAX_ERROR;
     }
   }

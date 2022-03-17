@@ -21,10 +21,10 @@
 #include <vector>
 
 #include "absl/memory/memory.h"
+#include "api/async_dns_resolver.h"
 #include "p2p/base/port.h"
 #include "p2p/client/basic_port_allocator.h"
 #include "rtc_base/async_packet_socket.h"
-#include "rtc_base/async_resolver_interface.h"
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/task_utils/pending_task_safety_flag.h"
 
@@ -51,6 +51,7 @@ class TurnPort : public Port {
     STATE_DISCONNECTED,  // TCP connection died, cannot send/receive any
                          // packets.
   };
+
   // Create a TURN port using the shared UDP socket, `socket`.
   static std::unique_ptr<TurnPort> Create(
       rtc::Thread* thread,
@@ -62,7 +63,6 @@ class TurnPort : public Port {
       const ProtocolAddress& server_address,
       const RelayCredentials& credentials,
       int server_priority,
-      const std::string& origin,
       webrtc::TurnCustomizer* customizer) {
     // Do basic parameter validation.
     if (credentials.username.size() > kMaxTurnUsernameLength) {
@@ -77,10 +77,11 @@ class TurnPort : public Port {
       return nullptr;
     }
     // Using `new` to access a non-public constructor.
-    return absl::WrapUnique(new TurnPort(
-        thread, factory, network, socket, username, password, server_address,
-        credentials, server_priority, origin, customizer));
+    return absl::WrapUnique(
+        new TurnPort(thread, factory, network, socket, username, password,
+                     server_address, credentials, server_priority, customizer));
   }
+
   // TODO(steveanton): Remove once downstream clients have moved to `Create`.
   static std::unique_ptr<TurnPort> CreateUnique(
       rtc::Thread* thread,
@@ -92,11 +93,9 @@ class TurnPort : public Port {
       const ProtocolAddress& server_address,
       const RelayCredentials& credentials,
       int server_priority,
-      const std::string& origin,
       webrtc::TurnCustomizer* customizer) {
     return Create(thread, factory, network, socket, username, password,
-                  server_address, credentials, server_priority, origin,
-                  customizer);
+                  server_address, credentials, server_priority, customizer);
   }
 
   // Create a TURN port that will use a new socket, bound to `network` and
@@ -112,7 +111,6 @@ class TurnPort : public Port {
       const ProtocolAddress& server_address,
       const RelayCredentials& credentials,
       int server_priority,
-      const std::string& origin,
       const std::vector<std::string>& tls_alpn_protocols,
       const std::vector<std::string>& tls_elliptic_curves,
       webrtc::TurnCustomizer* customizer,
@@ -130,12 +128,12 @@ class TurnPort : public Port {
       return nullptr;
     }
     // Using `new` to access a non-public constructor.
-    return absl::WrapUnique(
-        new TurnPort(thread, factory, network, min_port, max_port, username,
-                     password, server_address, credentials, server_priority,
-                     origin, tls_alpn_protocols, tls_elliptic_curves,
-                     customizer, tls_cert_verifier));
+    return absl::WrapUnique(new TurnPort(
+        thread, factory, network, min_port, max_port, username, password,
+        server_address, credentials, server_priority, tls_alpn_protocols,
+        tls_elliptic_curves, customizer, tls_cert_verifier));
   }
+
   // TODO(steveanton): Remove once downstream clients have moved to `Create`.
   static std::unique_ptr<TurnPort> CreateUnique(
       rtc::Thread* thread,
@@ -148,14 +146,13 @@ class TurnPort : public Port {
       const ProtocolAddress& server_address,
       const RelayCredentials& credentials,
       int server_priority,
-      const std::string& origin,
       const std::vector<std::string>& tls_alpn_protocols,
       const std::vector<std::string>& tls_elliptic_curves,
       webrtc::TurnCustomizer* customizer,
       rtc::SSLCertificateVerifier* tls_cert_verifier = nullptr) {
     return Create(thread, factory, network, min_port, max_port, username,
                   password, server_address, credentials, server_priority,
-                  origin, tls_alpn_protocols, tls_elliptic_curves, customizer,
+                  tls_alpn_protocols, tls_elliptic_curves, customizer,
                   tls_cert_verifier);
   }
 
@@ -267,7 +264,6 @@ class TurnPort : public Port {
            const ProtocolAddress& server_address,
            const RelayCredentials& credentials,
            int server_priority,
-           const std::string& origin,
            webrtc::TurnCustomizer* customizer);
 
   TurnPort(rtc::Thread* thread,
@@ -280,13 +276,12 @@ class TurnPort : public Port {
            const ProtocolAddress& server_address,
            const RelayCredentials& credentials,
            int server_priority,
-           const std::string& origin,
            const std::vector<std::string>& tls_alpn_protocols,
            const std::vector<std::string>& tls_elliptic_curves,
            webrtc::TurnCustomizer* customizer,
            rtc::SSLCertificateVerifier* tls_cert_verifier = nullptr);
 
-  // NOTE: This method needs to be accessible for StacPort
+  // NOTE: This method needs to be accessible for StunPort
   // return true if entry was created (i.e channel_number consumed).
   bool CreateOrRefreshEntry(const rtc::SocketAddress& addr, int channel_number);
 
@@ -366,14 +361,13 @@ class TurnPort : public Port {
   // Destroys the entry only if `timestamp` matches the destruction timestamp
   // in `entry`.
   void DestroyEntryIfNotCancelled(TurnEntry* entry, int64_t timestamp);
-  void ScheduleEntryDestruction(TurnEntry* entry);
 
   // Marks the connection with remote address `address` failed and
   // pruned (a.k.a. write-timed-out). Returns true if a connection is found.
   bool FailAndPruneConnection(const rtc::SocketAddress& address);
 
   // Reconstruct the URL of the server which the candidate is gathered from.
-  std::string ReconstructedServerUrl(bool use_hostname);
+  std::string ReconstructedServerUrl();
 
   void MaybeAddTurnLoggingId(StunMessage* message);
 
@@ -392,7 +386,7 @@ class TurnPort : public Port {
 
   rtc::AsyncPacketSocket* socket_;
   SocketOptionsMap socket_options_;
-  rtc::AsyncResolverInterface* resolver_;
+  std::unique_ptr<webrtc::AsyncDnsResolverInterface> resolver_;
   int error_;
   rtc::DiffServCodePoint stun_dscp_value_;
 

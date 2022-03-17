@@ -74,8 +74,9 @@ class scoped_refptr {
   typedef T element_type;
 
   scoped_refptr() : ptr_(nullptr) {}
+  scoped_refptr(std::nullptr_t) : ptr_(nullptr) {}  // NOLINT(runtime/explicit)
 
-  scoped_refptr(T* p) : ptr_(p) {  // NOLINT(runtime/explicit)
+  explicit scoped_refptr(T* p) : ptr_(p) {
     if (ptr_)
       ptr_->AddRef();
   }

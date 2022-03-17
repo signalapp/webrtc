@@ -43,7 +43,6 @@
 #include "modules/video_coding/packet_buffer.h"
 #include "modules/video_coding/rtp_frame_reference_finder.h"
 #include "modules/video_coding/unique_timestamp_counter.h"
-#include "rtc_base/constructor_magic.h"
 #include "rtc_base/experiments/field_trial_parser.h"
 #include "rtc_base/numerics/sequence_number_util.h"
 #include "rtc_base/system/no_unique_address.h"
@@ -97,7 +96,8 @@ class RtpVideoStreamReceiver2 : public LossNotificationSender,
       KeyFrameRequestSender* keyframe_request_sender,
       OnCompleteFrameCallback* complete_frame_callback,
       rtc::scoped_refptr<FrameDecryptorInterface> frame_decryptor,
-      rtc::scoped_refptr<FrameTransformerInterface> frame_transformer);
+      rtc::scoped_refptr<FrameTransformerInterface> frame_transformer,
+      const WebRtcKeyValueConfig& field_trials);
   ~RtpVideoStreamReceiver2() override;
 
   void AddReceiveCodec(uint8_t payload_type,
@@ -287,6 +287,7 @@ class RtpVideoStreamReceiver2 : public LossNotificationSender,
                                      bool is_keyframe)
       RTC_RUN_ON(packet_sequence_checker_);
 
+  const WebRtcKeyValueConfig& field_trials_;
   Clock* const clock_;
   // Ownership of this object lies with VideoReceiveStream, which owns `this`.
   const VideoReceiveStream::Config& config_;
@@ -319,6 +320,7 @@ class RtpVideoStreamReceiver2 : public LossNotificationSender,
 
   OnCompleteFrameCallback* complete_frame_callback_;
   KeyFrameRequestSender* const keyframe_request_sender_;
+  const KeyFrameReqMethod keyframe_request_method_;
 
   RtcpFeedbackBuffer rtcp_feedback_buffer_;
   const std::unique_ptr<NackRequester> nack_module_;

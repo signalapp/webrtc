@@ -13,6 +13,7 @@
 
 #include "absl/memory/memory.h"
 #include "api/audio/echo_canceller3_factory.h"
+#include "api/audio/echo_detector_creator.h"
 #include "api/task_queue/default_task_queue_factory.h"
 #include "modules/audio_processing/aec_dump/aec_dump_factory.h"
 #include "modules/audio_processing/include/audio_processing.h"
@@ -39,21 +40,21 @@ rtc::scoped_refptr<AudioProcessing> CreateApm(test::FuzzDataHelper* fuzz_data,
                                               rtc::TaskQueue* worker_queue) {
   // Parse boolean values for optionally enabling different
   // configurable public components of APM.
-  bool exp_agc = fuzz_data->ReadOrDefaultValue(true);
-  bool exp_ns = fuzz_data->ReadOrDefaultValue(true);
+  static_cast<void>(fuzz_data->ReadOrDefaultValue(true));
+  bool use_ts = fuzz_data->ReadOrDefaultValue(true);
   static_cast<void>(fuzz_data->ReadOrDefaultValue(true));
   static_cast<void>(fuzz_data->ReadOrDefaultValue(true));
   static_cast<void>(fuzz_data->ReadOrDefaultValue(true));
-  bool red = fuzz_data->ReadOrDefaultValue(true);
-  bool hpf = fuzz_data->ReadOrDefaultValue(true);
-  bool aec3 = fuzz_data->ReadOrDefaultValue(true);
+  bool use_red = fuzz_data->ReadOrDefaultValue(true);
+  bool use_hpf = fuzz_data->ReadOrDefaultValue(true);
+  bool use_aec3 = fuzz_data->ReadOrDefaultValue(true);
 
   bool use_aec = fuzz_data->ReadOrDefaultValue(true);
   bool use_aecm = fuzz_data->ReadOrDefaultValue(true);
   bool use_agc = fuzz_data->ReadOrDefaultValue(true);
   bool use_ns = fuzz_data->ReadOrDefaultValue(true);
-  bool use_le = fuzz_data->ReadOrDefaultValue(true);
-  bool use_vad = fuzz_data->ReadOrDefaultValue(true);
+  static_cast<void>(fuzz_data->ReadOrDefaultValue(true));
+  static_cast<void>(fuzz_data->ReadOrDefaultValue(true));
   bool use_agc_limiter = fuzz_data->ReadOrDefaultValue(true);
   bool use_agc2 = fuzz_data->ReadOrDefaultValue(true);
 
@@ -76,10 +77,8 @@ rtc::scoped_refptr<AudioProcessing> CreateApm(test::FuzzDataHelper* fuzz_data,
   field_trial::InitFieldTrialsFromString(field_trial_string->c_str());
 
   bool use_agc2_adaptive_digital = fuzz_data->ReadOrDefaultValue(true);
-  bool use_agc2_adaptive_digital_rms_estimator =
-      fuzz_data->ReadOrDefaultValue(true);
-  bool use_agc2_adaptive_digital_saturation_protector =
-      fuzz_data->ReadOrDefaultValue(true);
+  static_cast<void>(fuzz_data->ReadOrDefaultValue(true));
+  static_cast<void>(fuzz_data->ReadOrDefaultValue(true));
 
   // Ignore a few bytes. Bytes from this segment will be used for
   // future config flag changes. We assume 40 bytes is enough for
@@ -90,58 +89,42 @@ rtc::scoped_refptr<AudioProcessing> CreateApm(test::FuzzDataHelper* fuzz_data,
       fuzz_data->ReadByteArray(kSizeOfConfigSegment - fuzz_data->BytesRead()));
 
   // Filter out incompatible settings that lead to CHECK failures.
-  if ((use_aecm && use_aec) ||      // These settings cause CHECK failure.
-      (use_aecm && aec3 && use_ns)  // These settings trigger webrtc:9489.
+  if ((use_aecm && use_aec) ||          // These settings cause CHECK failure.
+      (use_aecm && use_aec3 && use_ns)  // These settings trigger webrtc:9489.
   ) {
     return nullptr;
   }
 
-  // Components can be enabled through webrtc::Config and
-  // webrtc::AudioProcessingConfig.
-  Config config;
-
   std::unique_ptr<EchoControlFactory> echo_control_factory;
-  if (aec3) {
+  if (use_aec3) {
     echo_control_factory.reset(new EchoCanceller3Factory());
   }
-
-  config.Set<ExperimentalAgc>(new ExperimentalAgc(exp_agc));
-  config.Set<ExperimentalNs>(new ExperimentalNs(exp_ns));
-
-  rtc::scoped_refptr<AudioProcessing> apm =
-      AudioProcessingBuilderForTesting()
-          .SetEchoControlFactory(std::move(echo_control_factory))
-          .Create(config);
-
-#ifdef WEBRTC_LINUX
-  apm->AttachAecDump(AecDumpFactory::Create("/dev/null", -1, worker_queue));
-#endif
 
   webrtc::AudioProcessing::Config apm_config;
   apm_config.pipeline.multi_channel_render = true;
   apm_config.pipeline.multi_channel_capture = true;
   apm_config.echo_canceller.enabled = use_aec || use_aecm;
   apm_config.echo_canceller.mobile_mode = use_aecm;
-  apm_config.residual_echo_detector.enabled = red;
-  apm_config.high_pass_filter.enabled = hpf;
+  apm_config.high_pass_filter.enabled = use_hpf;
   apm_config.gain_controller1.enabled = use_agc;
   apm_config.gain_controller1.enable_limiter = use_agc_limiter;
   apm_config.gain_controller2.enabled = use_agc2;
   apm_config.gain_controller2.fixed_digital.gain_db = gain_controller2_gain_db;
   apm_config.gain_controller2.adaptive_digital.enabled =
       use_agc2_adaptive_digital;
-  apm_config.gain_controller2.adaptive_digital.level_estimator =
-      use_agc2_adaptive_digital_rms_estimator
-          ? webrtc::AudioProcessing::Config::GainController2::LevelEstimator::
-                kRms
-          : webrtc::AudioProcessing::Config::GainController2::LevelEstimator::
-                kPeak;
-  apm_config.gain_controller2.adaptive_digital.use_saturation_protector =
-      use_agc2_adaptive_digital_saturation_protector;
   apm_config.noise_suppression.enabled = use_ns;
-  apm_config.voice_detection.enabled = use_vad;
-  apm_config.level_estimation.enabled = use_le;
-  apm->ApplyConfig(apm_config);
+  apm_config.transient_suppression.enabled = use_ts;
+
+  rtc::scoped_refptr<AudioProcessing> apm =
+      AudioProcessingBuilderForTesting()
+          .SetEchoControlFactory(std::move(echo_control_factory))
+          .SetEchoDetector(use_red ? CreateEchoDetector() : nullptr)
+          .SetConfig(apm_config)
+          .Create();
+
+#ifdef WEBRTC_LINUX
+  apm->AttachAecDump(AecDumpFactory::Create("/dev/null", -1, worker_queue));
+#endif
 
   return apm;
 }

@@ -117,24 +117,16 @@ ABSL_FLAG(int,
           analog_agc,
           kParameterNotSpecifiedValue,
           "Activate (1) or deactivate (0) the analog AGC");
-ABSL_FLAG(int,
-          vad,
-          kParameterNotSpecifiedValue,
-          "Activate (1) or deactivate (0) the voice activity detector");
-ABSL_FLAG(int,
-          le,
-          kParameterNotSpecifiedValue,
-          "Activate (1) or deactivate (0) the level estimator");
 ABSL_FLAG(bool,
           all_default,
           false,
           "Activate all of the default components (will be overridden by any "
           "other settings)");
 ABSL_FLAG(int,
-          analog_agc_disable_digital_adaptive,
+          analog_agc_use_digital_adaptive_controller,
           kParameterNotSpecifiedValue,
-          "Force-deactivate (1) digital adaptation in "
-          "experimental AGC. Digital adaptation is active by default (0).");
+          "Activate (1) or deactivate (0) digital adaptation in AGC1. "
+          "Digital adaptation is active by default.");
 ABSL_FLAG(int,
           agc_mode,
           kParameterNotSpecifiedValue,
@@ -159,10 +151,6 @@ ABSL_FLAG(float,
           agc2_fixed_gain_db,
           kParameterNotSpecifiedValue,
           "AGC2 fixed gain (dB) to apply");
-ABSL_FLAG(std::string,
-          agc2_adaptive_level_estimator,
-          "RMS",
-          "AGC2 adaptive digital level estimator to use [RMS, peak]");
 ABSL_FLAG(float,
           pre_amplifier_gain_factor,
           kParameterNotSpecifiedValue,
@@ -341,10 +329,6 @@ const char kUsageDescription[] =
     "processing module, either based on wav files or "
     "protobuf debug dump recordings.\n";
 
-std::vector<std::string> GetAgc2AdaptiveLevelEstimatorNames() {
-  return {"RMS", "peak"};
-}
-
 void SetSettingIfSpecified(const std::string& value,
                            absl::optional<std::string>* parameter) {
   if (value.compare("") != 0) {
@@ -374,32 +358,9 @@ void SetSettingIfFlagSet(int32_t flag, absl::optional<bool>* parameter) {
   }
 }
 
-AudioProcessing::Config::GainController2::LevelEstimator
-MapAgc2AdaptiveLevelEstimator(absl::string_view name) {
-  if (name.compare("RMS") == 0) {
-    return AudioProcessing::Config::GainController2::LevelEstimator::kRms;
-  }
-  if (name.compare("peak") == 0) {
-    return AudioProcessing::Config::GainController2::LevelEstimator::kPeak;
-  }
-  auto concat_strings =
-      [](const std::vector<std::string>& strings) -> std::string {
-    rtc::StringBuilder ss;
-    for (const auto& s : strings) {
-      ss << " " << s;
-    }
-    return ss.Release();
-  };
-  RTC_CHECK(false)
-      << "Invalid value for agc2_adaptive_level_estimator, valid options:"
-      << concat_strings(GetAgc2AdaptiveLevelEstimatorNames()) << ".";
-}
-
 SimulationSettings CreateSettings() {
   SimulationSettings settings;
   if (absl::GetFlag(FLAGS_all_default)) {
-    settings.use_le = true;
-    settings.use_vad = true;
     settings.use_ts = true;
     settings.use_analog_agc = true;
     settings.use_ns = true;
@@ -451,10 +412,9 @@ SimulationSettings CreateSettings() {
   SetSettingIfSpecified(absl::GetFlag(FLAGS_ts), &settings.use_ts);
   SetSettingIfFlagSet(absl::GetFlag(FLAGS_analog_agc),
                       &settings.use_analog_agc);
-  SetSettingIfFlagSet(absl::GetFlag(FLAGS_vad), &settings.use_vad);
-  SetSettingIfFlagSet(absl::GetFlag(FLAGS_le), &settings.use_le);
-  SetSettingIfFlagSet(absl::GetFlag(FLAGS_analog_agc_disable_digital_adaptive),
-                      &settings.analog_agc_disable_digital_adaptive);
+  SetSettingIfFlagSet(
+      absl::GetFlag(FLAGS_analog_agc_use_digital_adaptive_controller),
+      &settings.analog_agc_use_digital_adaptive_controller);
   SetSettingIfSpecified(absl::GetFlag(FLAGS_agc_mode), &settings.agc_mode);
   SetSettingIfSpecified(absl::GetFlag(FLAGS_agc_target_level),
                         &settings.agc_target_level);
@@ -467,8 +427,6 @@ SimulationSettings CreateSettings() {
 
   SetSettingIfSpecified(absl::GetFlag(FLAGS_agc2_fixed_gain_db),
                         &settings.agc2_fixed_gain_db);
-  settings.agc2_adaptive_level_estimator = MapAgc2AdaptiveLevelEstimator(
-      absl::GetFlag(FLAGS_agc2_adaptive_level_estimator));
   SetSettingIfSpecified(absl::GetFlag(FLAGS_pre_amplifier_gain_factor),
                         &settings.pre_amplifier_gain_factor);
   SetSettingIfSpecified(absl::GetFlag(FLAGS_pre_gain_factor),

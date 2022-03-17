@@ -17,6 +17,7 @@
 #import "RTCIceServer+Private.h"
 #import "base/RTCLogging.h"
 
+#include "rtc_base/checks.h"
 #include "rtc_base/rtc_certificate_generator.h"
 #include "rtc_base/ssl_identity.h"
 
@@ -69,6 +70,7 @@
 - (instancetype)init {
   // Copy defaults.
   webrtc::PeerConnectionInterface::RTCConfiguration config;
+  config.sdp_semantics = webrtc::SdpSemantics::kUnifiedPlan;
   return [self initWithNativeConfiguration:config];
 }
 
@@ -528,7 +530,7 @@
 + (webrtc::SdpSemantics)nativeSdpSemanticsForSdpSemantics:(RTCSdpSemantics)sdpSemantics {
   switch (sdpSemantics) {
     case RTCSdpSemanticsPlanB:
-      return webrtc::SdpSemantics::kPlanB;
+      return webrtc::SdpSemantics::kPlanB_DEPRECATED;
     case RTCSdpSemanticsUnifiedPlan:
       return webrtc::SdpSemantics::kUnifiedPlan;
   }
@@ -536,7 +538,7 @@
 
 + (RTCSdpSemantics)sdpSemanticsForNativeSdpSemantics:(webrtc::SdpSemantics)sdpSemantics {
   switch (sdpSemantics) {
-    case webrtc::SdpSemantics::kPlanB:
+    case webrtc::SdpSemantics::kPlanB_DEPRECATED:
       return RTCSdpSemanticsPlanB;
     case webrtc::SdpSemantics::kUnifiedPlan:
       return RTCSdpSemanticsUnifiedPlan;

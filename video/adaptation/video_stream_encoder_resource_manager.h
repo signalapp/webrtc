@@ -32,6 +32,7 @@
 #include "api/video_codecs/video_codec.h"
 #include "api/video_codecs/video_encoder.h"
 #include "api/video_codecs/video_encoder_config.h"
+#include "api/webrtc_key_value_config.h"
 #include "call/adaptation/resource_adaptation_processor_interface.h"
 #include "call/adaptation/video_stream_adapter.h"
 #include "call/adaptation/video_stream_input_state_provider.h"
@@ -43,6 +44,7 @@
 #include "rtc_base/thread_annotations.h"
 #include "system_wrappers/include/clock.h"
 #include "video/adaptation/balanced_constraint.h"
+#include "video/adaptation/bandwidth_quality_scaler_resource.h"
 #include "video/adaptation/bitrate_constraint.h"
 #include "video/adaptation/encode_usage_resource.h"
 #include "video/adaptation/overuse_frame_detector.h"
@@ -78,7 +80,8 @@ class VideoStreamEncoderResourceManager
       Clock* clock,
       bool experiment_cpu_load_estimator,
       std::unique_ptr<OveruseFrameDetector> overuse_detector,
-      DegradationPreferenceProvider* degradation_preference_provider);
+      DegradationPreferenceProvider* degradation_preference_provider,
+      const WebRtcKeyValueConfig& field_trials);
   ~VideoStreamEncoderResourceManager() override;
 
   void Initialize(rtc::TaskQueue* encoder_queue);
@@ -109,6 +112,8 @@ class VideoStreamEncoderResourceManager
   // TODO(https://crbug.com/webrtc/11338): This can be made private if we
   // configure on SetDegredationPreference and SetEncoderSettings.
   void ConfigureQualityScaler(const VideoEncoder::EncoderInfo& encoder_info);
+  void ConfigureBandwidthQualityScaler(
+      const VideoEncoder::EncoderInfo& encoder_info);
 
   // Methods corresponding to different points in the encoding pipeline.
   void OnFrameDroppedDueToSize();
@@ -117,7 +122,8 @@ class VideoStreamEncoderResourceManager
                        int64_t time_when_first_seen_us);
   void OnEncodeCompleted(const EncodedImage& encoded_image,
                          int64_t time_sent_in_us,
-                         absl::optional<int> encode_duration_us);
+                         absl::optional<int> encode_duration_us,
+                         DataSize frame_size);
   void OnFrameDropped(EncodedImageCallback::DropReason reason);
 
   // Resources need to be mapped to an AdaptReason (kCpu or kQuality) in order
@@ -166,12 +172,18 @@ class VideoStreamEncoderResourceManager
   void UpdateQualityScalerSettings(
       absl::optional<VideoEncoder::QpThresholds> qp_thresholds);
 
+  void UpdateBandwidthQualityScalerSettings(
+      bool bandwidth_quality_scaling_allowed,
+      const std::vector<VideoEncoder::ResolutionBitrateLimits>&
+          resolution_bitrate_limits);
+
   void UpdateStatsAdaptationSettings() const;
 
   static std::string ActiveCountsToString(
       const std::map<VideoAdaptationReason, VideoAdaptationCounters>&
           active_counts);
 
+  const WebRtcKeyValueConfig& field_trials_;
   DegradationPreferenceProvider* const degradation_preference_provider_;
   std::unique_ptr<BitrateConstraint> bitrate_constraint_
       RTC_GUARDED_BY(encoder_queue_);
@@ -180,6 +192,8 @@ class VideoStreamEncoderResourceManager
   const rtc::scoped_refptr<EncodeUsageResource> encode_usage_resource_;
   const rtc::scoped_refptr<QualityScalerResource> quality_scaler_resource_;
   rtc::scoped_refptr<PixelLimitResource> pixel_limit_resource_;
+  const rtc::scoped_refptr<BandwidthQualityScalerResource>
+      bandwidth_quality_scaler_resource_;
 
   rtc::TaskQueue* encoder_queue_;
   VideoStreamInputStateProvider* const input_state_provider_
@@ -202,6 +216,8 @@ class VideoStreamEncoderResourceManager
   const std::unique_ptr<InitialFrameDropper> initial_frame_dropper_
       RTC_GUARDED_BY(encoder_queue_);
   const bool quality_scaling_experiment_enabled_ RTC_GUARDED_BY(encoder_queue_);
+  const bool pixel_limit_resource_experiment_enabled_
+      RTC_GUARDED_BY(encoder_queue_);
   absl::optional<uint32_t> encoder_target_bitrate_bps_
       RTC_GUARDED_BY(encoder_queue_);
   absl::optional<VideoEncoder::RateControlParameters> encoder_rates_

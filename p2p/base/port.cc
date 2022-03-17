@@ -34,7 +34,6 @@
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/third_party/base64/base64.h"
 #include "rtc_base/trace_event.h"
-#include "system_wrappers/include/field_trial.h"
 
 namespace {
 
@@ -194,8 +193,10 @@ Port::~Port() {
     ++iter;
   }
 
-  for (uint32_t i = 0; i < list.size(); i++)
+  for (uint32_t i = 0; i < list.size(); i++) {
+    list[i]->SignalDestroyed.disconnect(this);
     delete list[i];
+  }
 }
 
 const std::string& Port::Type() const {
@@ -274,6 +275,7 @@ void Port::AddAddress(const rtc::SocketAddress& address,
   c.set_tcptype(tcptype);
   c.set_network_name(network_->name());
   c.set_network_type(network_->type());
+  c.set_underlying_type_for_vpn(network_->underlying_type_for_vpn());
   c.set_url(url);
   c.set_related_address(related_address);
 
@@ -606,6 +608,15 @@ rtc::DiffServCodePoint Port::StunDscpValue() const {
   return rtc::DSCP_NO_CHANGE;
 }
 
+void Port::DestroyAllConnections() {
+  RTC_DCHECK_RUN_ON(thread_);
+  for (auto kv : connections_) {
+    kv.second->SignalDestroyed.disconnect(this);
+    kv.second->Destroy();
+  }
+  connections_.clear();
+}
+
 void Port::set_timeout_delay(int delay) {
   RTC_DCHECK_RUN_ON(thread_);
   // Although this method is meant to only be used by tests, some downstream
@@ -697,7 +708,7 @@ bool Port::MaybeIceRoleConflict(const rtc::SocketAddress& addr,
       }
       break;
     default:
-      RTC_NOTREACHED();
+      RTC_DCHECK_NOTREACHED();
   }
   return ret;
 }
@@ -715,7 +726,7 @@ bool Port::HandleIncomingPacket(rtc::AsyncPacketSocket* socket,
                                 size_t size,
                                 const rtc::SocketAddress& remote_addr,
                                 int64_t packet_time_us) {
-  RTC_NOTREACHED();
+  RTC_DCHECK_NOTREACHED();
   return false;
 }
 

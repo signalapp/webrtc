@@ -54,6 +54,7 @@ rtc_library("emulated_network") {
     "../../api/units:timestamp",
     "../../call:simulated_network",
     "../../p2p:p2p_server_utils",
+    "../../p2p:rtc_p2p",
     "../../rtc_base",
     "../../rtc_base:ip_address",
     "../../rtc_base:network_constants",
@@ -156,6 +157,7 @@ if (rtc_include_tests) {
     ]
     deps = [
       ":emulated_network",
+      "../../api/transport:network_control",
       "../../api/transport:test_feedback_generator_interface",
       "../../call:simulated_network",
       "../../rtc_base:checks",

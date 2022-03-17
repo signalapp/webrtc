@@ -60,8 +60,8 @@ RTPSenderAudio::RTPSenderAudio(Clock* clock, RTPSender* rtp_sender)
       rtp_sender_(rtp_sender),
       absolute_capture_time_sender_(clock),
       include_capture_clock_offset_(
-          absl::StartsWith(field_trials_.Lookup(kIncludeCaptureClockOffset),
-                           "Enabled")) {
+          !absl::StartsWith(field_trials_.Lookup(kIncludeCaptureClockOffset),
+                            "Disabled")) {
   RTC_DCHECK(clock_);
 }
 
@@ -272,7 +272,7 @@ bool RTPSenderAudio::SendAudio(AudioFrameType frame_type,
   packet->SetMarker(MarkerBit(frame_type, payload_type));
   packet->SetPayloadType(payload_type);
   packet->SetTimestamp(rtp_timestamp);
-  packet->set_capture_time_ms(clock_->TimeInMilliseconds());
+  packet->set_capture_time(clock_->CurrentTime());
   // RingRTC change to reduce unneeded information on the wire
   // Make the audio level less precise (0, 10, 20, 30, ...).
   audio_level_dbov -= (audio_level_dbov % 10);
@@ -374,7 +374,7 @@ bool RTPSenderAudio::SendTelephoneEventPacket(bool ended,
     packet->SetMarker(marker_bit);
     packet->SetSsrc(rtp_sender_->SSRC());
     packet->SetTimestamp(dtmf_timestamp);
-    packet->set_capture_time_ms(clock_->TimeInMilliseconds());
+    packet->set_capture_time(clock_->CurrentTime());
 
     // Create DTMF data.
     uint8_t* dtmfbuffer = packet->AllocatePayload(kDtmfSize);

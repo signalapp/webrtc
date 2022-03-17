@@ -10,22 +10,28 @@
 
 #include "pc/track_media_info_map.h"
 
+#include <stddef.h>
+
+#include <cstdint>
 #include <initializer_list>
-#include <memory>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
-#include "api/rtp_sender_interface.h"
+#include "api/media_types.h"
+#include "api/rtp_parameters.h"
 #include "api/test/mock_video_track.h"
-#include "api/transport/rtp/rtp_source.h"
 #include "media/base/media_channel.h"
 #include "pc/audio_track.h"
 #include "pc/test/fake_video_track_source.h"
 #include "pc/test/mock_rtp_receiver_internal.h"
 #include "pc/test/mock_rtp_sender_internal.h"
 #include "pc/video_track.h"
-#include "rtc_base/ref_count.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/ref_counted_object.h"
+#include "rtc_base/thread.h"
+#include "test/gmock.h"
 #include "test/gtest.h"
 
 namespace webrtc {
@@ -125,7 +131,7 @@ class TrackMediaInfoMapTest : public ::testing::Test {
         local_track->kind() == MediaStreamTrackInterface::kAudioKind
             ? cricket::MEDIA_TYPE_AUDIO
             : cricket::MEDIA_TYPE_VIDEO,
-        ssrcs, local_track);
+        ssrcs, rtc::scoped_refptr<MediaStreamTrackInterface>(local_track));
     rtp_senders_.push_back(rtp_sender);
 
     if (local_track->kind() == MediaStreamTrackInterface::kAudioKind) {
@@ -154,7 +160,7 @@ class TrackMediaInfoMapTest : public ::testing::Test {
         remote_track->kind() == MediaStreamTrackInterface::kAudioKind
             ? cricket::MEDIA_TYPE_AUDIO
             : cricket::MEDIA_TYPE_VIDEO,
-        ssrcs, remote_track);
+        ssrcs, rtc::scoped_refptr<MediaStreamTrackInterface>(remote_track));
     rtp_receivers_.push_back(rtp_receiver);
 
     if (remote_track->kind() == MediaStreamTrackInterface::kAudioKind) {

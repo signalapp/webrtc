@@ -15,6 +15,7 @@
 
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/rtp_parameters.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
@@ -35,7 +36,7 @@ class RtpHeaderExtensionMap {
 
   template <typename Extension>
   bool Register(int id) {
-    return Register(id, Extension::kId, Extension::kUri);
+    return Register(id, Extension::kId, Extension::Uri());
   }
   bool RegisterByType(int id, RTPExtensionType type);
   bool RegisterByUri(int id, absl::string_view uri);
@@ -52,7 +53,6 @@ class RtpHeaderExtensionMap {
     return ids_[type];
   }
 
-  int32_t Deregister(RTPExtensionType type);
   void Deregister(absl::string_view uri);
 
   // Corresponds to the SDP attribute extmap-allow-mixed, see RFC8285.
@@ -64,7 +64,7 @@ class RtpHeaderExtensionMap {
   }
 
  private:
-  bool Register(int id, RTPExtensionType type, const char* uri);
+  bool Register(int id, RTPExtensionType type, absl::string_view uri);
 
   uint8_t ids_[kRtpExtensionNumberOfExtensions];
   bool extmap_allow_mixed_;

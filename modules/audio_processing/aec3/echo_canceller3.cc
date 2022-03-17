@@ -27,8 +27,8 @@ namespace {
 enum class EchoCanceller3ApiCall { kCapture, kRender };
 
 bool DetectSaturation(rtc::ArrayView<const float> y) {
-  for (auto y_k : y) {
-    if (y_k >= 32700.0f || y_k <= -32700.0f) {
+  for (size_t k = 0; k < y.size(); ++k) {
+    if (y[k] >= 32700.0f || y[k] <= -32700.0f) {
       return true;
     }
   }
@@ -289,6 +289,11 @@ EchoCanceller3Config AdjustConfig(const EchoCanceller3Config& config) {
   if (field_trial::IsEnabled("WebRTC-Aec3ConservativeTailFreqResponse")) {
     adjusted_cfg.ep_strength.use_conservative_tail_frequency_response = true;
   }
+
+  if (field_trial::IsDisabled("WebRTC-Aec3ConservativeTailFreqResponse")) {
+    adjusted_cfg.ep_strength.use_conservative_tail_frequency_response = false;
+  }
+
 
   if (field_trial::IsEnabled("WebRTC-Aec3ShortHeadroomKillSwitch")) {
     // Two blocks headroom.
@@ -797,7 +802,7 @@ void EchoCanceller3::ProcessCapture(AudioBuffer* capture,
   if (linear_output && !linear_output_framer_) {
     RTC_LOG(LS_ERROR) << "Trying to retrieve the linear AEC output without "
                          "properly configuring AEC3.";
-    RTC_NOTREACHED();
+    RTC_DCHECK_NOTREACHED();
   }
 
   // Report capture call in the metrics and periodically update API call

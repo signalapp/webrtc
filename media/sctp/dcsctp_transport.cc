@@ -10,6 +10,7 @@
 
 #include "media/sctp/dcsctp_transport.h"
 
+#include <atomic>
 #include <cstdint>
 #include <limits>
 #include <utility>
@@ -36,6 +37,13 @@ namespace webrtc {
 
 namespace {
 using ::dcsctp::SendPacketStatus;
+
+// When there is packet loss for a long time, the SCTP retry timers will use
+// exponential backoff, which can grow to very long durations and when the
+// connection recovers, it may take a long time to reach the new backoff
+// duration. By limiting it to a reasonable limit, the time to recover reduces.
+constexpr dcsctp::DurationMs kMaxTimerBackoffDuration =
+    dcsctp::DurationMs(3000);
 
 enum class WebrtcPPID : dcsctp::PPID::UnderlyingType {
   // https://www.rfc-editor.org/rfc/rfc8832.html#section-8.1
@@ -119,7 +127,7 @@ DcSctpTransport::DcSctpTransport(rtc::Thread* network_thread,
             socket_->HandleTimeout(timeout_id);
           }) {
   RTC_DCHECK_RUN_ON(network_thread_);
-  static int instance_count = 0;
+  static std::atomic<int> instance_count = 0;
   rtc::StringBuilder sb;
   sb << debug_name_ << instance_count++;
   debug_name_ = sb.Release();
@@ -156,6 +164,10 @@ bool DcSctpTransport::Start(int local_sctp_port,
     options.local_port = local_sctp_port;
     options.remote_port = remote_sctp_port;
     options.max_message_size = max_message_size;
+    options.max_timer_backoff_duration = kMaxTimerBackoffDuration;
+    // Don't close the connection automatically on too many retransmissions.
+    options.max_retransmissions = absl::nullopt;
+    options.max_init_retransmits = absl::nullopt;
 
     std::unique_ptr<dcsctp::PacketObserver> packet_observer;
     if (RTC_LOG_CHECK_LEVEL(LS_VERBOSE)) {
@@ -348,8 +360,9 @@ SendPacketStatus DcSctpTransport::SendPacketWithStatus(
   return SendPacketStatus::kSuccess;
 }
 
-std::unique_ptr<dcsctp::Timeout> DcSctpTransport::CreateTimeout() {
-  return task_queue_timeout_factory_.CreateTimeout();
+std::unique_ptr<dcsctp::Timeout> DcSctpTransport::CreateTimeout(
+    webrtc::TaskQueueBase::DelayPrecision precision) {
+  return task_queue_timeout_factory_.CreateTimeout(precision);
 }
 
 dcsctp::TimeMs DcSctpTransport::TimeMillis() {
@@ -395,9 +408,18 @@ void DcSctpTransport::OnMessageReceived(dcsctp::DcSctpMessage message) {
 
 void DcSctpTransport::OnError(dcsctp::ErrorKind error,
                               absl::string_view message) {
-  RTC_LOG(LS_ERROR) << debug_name_
-                    << "->OnError(error=" << dcsctp::ToString(error)
-                    << ", message=" << message << ").";
+  if (error == dcsctp::ErrorKind::kResourceExhaustion) {
+    // Indicates that a message failed to be enqueued, because the send buffer
+    // is full, which is a very common (and wanted) state for high throughput
+    // sending/benchmarks.
+    RTC_LOG(LS_VERBOSE) << debug_name_
+                        << "->OnError(error=" << dcsctp::ToString(error)
+                        << ", message=" << message << ").";
+  } else {
+    RTC_LOG(LS_ERROR) << debug_name_
+                      << "->OnError(error=" << dcsctp::ToString(error)
+                      << ", message=" << message << ").";
+  }
 }
 
 void DcSctpTransport::OnAborted(dcsctp::ErrorKind error,
@@ -505,6 +527,7 @@ void DcSctpTransport::OnTransportReadPacket(
     size_t length,
     const int64_t& /* packet_time_us */,
     int flags) {
+  RTC_DCHECK_RUN_ON(network_thread_);
   if (flags) {
     // We are only interested in SCTP packets.
     return;

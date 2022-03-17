@@ -269,11 +269,10 @@ void AudioSendStream::ConfigureStream(
   }
 
   if (first_time || new_ids.abs_send_time != old_ids.abs_send_time) {
-    rtp_rtcp_module_->DeregisterSendRtpHeaderExtension(
-        kRtpExtensionAbsoluteSendTime);
+    absl::string_view uri = AbsoluteSendTime::Uri();
+    rtp_rtcp_module_->DeregisterSendRtpHeaderExtension(uri);
     if (new_ids.abs_send_time) {
-      rtp_rtcp_module_->RegisterRtpHeaderExtension(AbsoluteSendTime::kUri,
-                                                   new_ids.abs_send_time);
+      rtp_rtcp_module_->RegisterRtpHeaderExtension(uri, new_ids.abs_send_time);
     }
   }
 
@@ -290,7 +289,7 @@ void AudioSendStream::ConfigureStream(
     if (!allocate_audio_without_feedback_ &&
         new_ids.transport_sequence_number != 0) {
       rtp_rtcp_module_->RegisterRtpHeaderExtension(
-          TransportSequenceNumber::kUri, new_ids.transport_sequence_number);
+          TransportSequenceNumber::Uri(), new_ids.transport_sequence_number);
       // Probing in application limited region is only used in combination with
       // send side congestion control, wich depends on feedback packets which
       // requires transport sequence numbers to be enabled.
@@ -308,34 +307,16 @@ void AudioSendStream::ConfigureStream(
   if ((first_time || new_ids.mid != old_ids.mid ||
        new_config.rtp.mid != old_config.rtp.mid) &&
       new_ids.mid != 0 && !new_config.rtp.mid.empty()) {
-    rtp_rtcp_module_->RegisterRtpHeaderExtension(RtpMid::kUri, new_ids.mid);
+    rtp_rtcp_module_->RegisterRtpHeaderExtension(RtpMid::Uri(), new_ids.mid);
     rtp_rtcp_module_->SetMid(new_config.rtp.mid);
   }
 
-  // RID RTP header extension
-  if ((first_time || new_ids.rid != old_ids.rid ||
-       new_ids.repaired_rid != old_ids.repaired_rid ||
-       new_config.rtp.rid != old_config.rtp.rid)) {
-    if (new_ids.rid != 0 || new_ids.repaired_rid != 0) {
-      if (new_config.rtp.rid.empty()) {
-        rtp_rtcp_module_->DeregisterSendRtpHeaderExtension(RtpStreamId::kUri);
-      } else if (new_ids.repaired_rid != 0) {
-        rtp_rtcp_module_->RegisterRtpHeaderExtension(RtpStreamId::kUri,
-                                                     new_ids.repaired_rid);
-      } else {
-        rtp_rtcp_module_->RegisterRtpHeaderExtension(RtpStreamId::kUri,
-                                                     new_ids.rid);
-      }
-    }
-    rtp_rtcp_module_->SetRid(new_config.rtp.rid);
-  }
-
   if (first_time || new_ids.abs_capture_time != old_ids.abs_capture_time) {
-    rtp_rtcp_module_->DeregisterSendRtpHeaderExtension(
-        kRtpExtensionAbsoluteCaptureTime);
+    absl::string_view uri = AbsoluteCaptureTimeExtension::Uri();
+    rtp_rtcp_module_->DeregisterSendRtpHeaderExtension(uri);
     if (new_ids.abs_capture_time) {
-      rtp_rtcp_module_->RegisterRtpHeaderExtension(
-          AbsoluteCaptureTimeExtension::kUri, new_ids.abs_capture_time);
+      rtp_rtcp_module_->RegisterRtpHeaderExtension(uri,
+                                                   new_ids.abs_capture_time);
     }
   }
 
@@ -446,7 +427,7 @@ webrtc::AudioSendStream::Stats AudioSendStream::GetStats(
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);
   webrtc::AudioSendStream::Stats stats;
   stats.local_ssrc = config_.rtp.ssrc;
-  stats.target_bitrate_bps = channel_send_->GetBitrate();
+  stats.target_bitrate_bps = channel_send_->GetTargetBitrate();
 
   webrtc::CallSendStatistics call_stats = channel_send_->GetRTCPStatistics();
   stats.payload_bytes_sent = call_stats.payload_bytes_sent;

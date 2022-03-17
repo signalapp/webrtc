@@ -208,6 +208,7 @@ public class SurfaceTextureHelper {
     }, handler);
   }
 
+  // RingRTC change to keep support for SDK >= 19
   @TargetApi(21)
   private static void setOnFrameAvailableListener(SurfaceTexture surfaceTexture,
       SurfaceTexture.OnFrameAvailableListener listener, Handler handler) {

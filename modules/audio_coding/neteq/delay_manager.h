@@ -22,8 +22,6 @@
 #include "modules/audio_coding/neteq/relative_arrival_delay_tracker.h"
 #include "modules/audio_coding/neteq/reorder_optimizer.h"
 #include "modules/audio_coding/neteq/underrun_optimizer.h"
-#include "rtc_base/constructor_magic.h"
-#include "rtc_base/experiments/struct_parameters_parser.h"
 
 namespace webrtc {
 
@@ -34,10 +32,10 @@ class DelayManager {
     void Log();
 
     // Options that can be configured via field trial.
-    double quantile = 0.97;
-    double forget_factor = 0.9993;
+    double quantile = 0.95;
+    double forget_factor = 0.983;
     absl::optional<double> start_forget_weight = 2;
-    absl::optional<int> resample_interval_ms;
+    absl::optional<int> resample_interval_ms = 500;
     int max_history_ms = 2000;
 
     bool use_reorder_optimizer = true;
@@ -47,17 +45,14 @@ class DelayManager {
     // Options that are externally populated.
     int max_packets_in_buffer = 200;
     int base_minimum_delay_ms = 0;
-
-   private:
-    std::unique_ptr<StructParametersParser> Parser();
-
-    // TODO(jakobi): remove legacy field trial.
-    void MaybeUpdateFromLegacyFieldTrial();
   };
 
   DelayManager(const Config& config, const TickTimer* tick_timer);
 
   virtual ~DelayManager();
+
+  DelayManager(const DelayManager&) = delete;
+  DelayManager& operator=(const DelayManager&) = delete;
 
   // Updates the delay manager with a new incoming packet, with `timestamp` from
   // the RTP header. This updates the statistics and a new target buffer level
@@ -118,9 +113,7 @@ class DelayManager {
   int maximum_delay_ms_;            // Externally set maximum allowed delay.
 
   int packet_len_ms_ = 0;
-  int target_level_ms_;       // Currently preferred buffer level.
-
-  RTC_DISALLOW_COPY_AND_ASSIGN(DelayManager);
+  int target_level_ms_;  // Currently preferred buffer level.
 };
 
 }  // namespace webrtc

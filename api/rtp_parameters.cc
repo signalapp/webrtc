@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <string>
+#include <tuple>
 #include <utility>
 
 #include "api/array_view.h"
@@ -131,6 +132,7 @@ constexpr char RtpExtension::kMidUri[];
 constexpr char RtpExtension::kRidUri[];
 constexpr char RtpExtension::kRepairedRidUri[];
 constexpr char RtpExtension::kVideoFrameTrackingIdUri[];
+constexpr char RtpExtension::kCsrcAudioLevelsUri[];
 
 constexpr int RtpExtension::kMinId;
 constexpr int RtpExtension::kMaxId;
@@ -237,12 +239,6 @@ const RtpExtension* RtpExtension::FindHeaderExtensionByUri(
   return fallback_extension;
 }
 
-const RtpExtension* RtpExtension::FindHeaderExtensionByUri(
-    const std::vector<RtpExtension>& extensions,
-    absl::string_view uri) {
-  return FindHeaderExtensionByUri(extensions, uri, kPreferEncryptedExtension);
-}
-
 const RtpExtension* RtpExtension::FindHeaderExtensionByUriAndEncryption(
     const std::vector<RtpExtension>& extensions,
     absl::string_view uri,
@@ -284,6 +280,14 @@ const std::vector<RtpExtension> RtpExtension::DeduplicateHeaderExtensions(
       }
     }
   }
+
+  // Sort the returned vector to make comparisons of header extensions reliable.
+  // In order of priority, we sort by uri first, then encrypt and id last.
+  std::sort(filtered.begin(), filtered.end(),
+            [](const RtpExtension& a, const RtpExtension& b) {
+              return std::tie(a.uri, a.encrypt, a.id) <
+                     std::tie(b.uri, b.encrypt, b.id);
+            });
 
   return filtered;
 }

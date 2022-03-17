@@ -191,6 +191,10 @@ class VideoReceiveStream : public MediaReceiveStream {
         bool receiver_reference_time_report = false;
       } rtcp_xr;
 
+      // How to request keyframes from a remote sender. Applies only if lntf is
+      // disabled.
+      KeyFrameReqMethod keyframe_method = KeyFrameReqMethod::kPliRtcp;
+
       // See LntfConfig for description.
       LntfConfig lntf;
 
@@ -282,16 +286,6 @@ class VideoReceiveStream : public MediaReceiveStream {
 
  protected:
   virtual ~VideoReceiveStream() {}
-};
-
-class DEPRECATED_VideoReceiveStream : public VideoReceiveStream {
- public:
-  // RtpDemuxer only forwards a given RTP packet to one sink. However, some
-  // sinks, such as FlexFEC, might wish to be informed of all of the packets
-  // a given sink receives (or any set of sinks). They may do so by registering
-  // themselves as secondary sinks.
-  virtual void AddSecondarySink(RtpPacketSinkInterface* sink) = 0;
-  virtual void RemoveSecondarySink(const RtpPacketSinkInterface* sink) = 0;
 };
 
 }  // namespace webrtc

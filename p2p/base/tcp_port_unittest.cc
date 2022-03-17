@@ -44,8 +44,15 @@ static const SocketAddress kRemoteIPv6Addr("2401:fa00:4:1000:be30:5bff:fee5:c4",
 
 class ConnectionObserver : public sigslot::has_slots<> {
  public:
-  explicit ConnectionObserver(Connection* conn) {
+  explicit ConnectionObserver(Connection* conn) : conn_(conn) {
     conn->SignalDestroyed.connect(this, &ConnectionObserver::OnDestroyed);
+  }
+
+  ~ConnectionObserver() {
+    if (!connection_destroyed_) {
+      RTC_DCHECK(conn_);
+      conn_->SignalDestroyed.disconnect(this);
+    }
   }
 
   bool connection_destroyed() { return connection_destroyed_; }
@@ -53,6 +60,7 @@ class ConnectionObserver : public sigslot::has_slots<> {
  private:
   void OnDestroyed(Connection*) { connection_destroyed_ = true; }
 
+  Connection* const conn_;
   bool connection_destroyed_ = false;
 };
 
@@ -61,7 +69,7 @@ class TCPPortTest : public ::testing::Test, public sigslot::has_slots<> {
   TCPPortTest()
       : ss_(new rtc::VirtualSocketServer()),
         main_(ss_.get()),
-        socket_factory_(rtc::Thread::Current()),
+        socket_factory_(ss_.get()),
         username_(rtc::CreateRandomString(ICE_UFRAG_LENGTH)),
         password_(rtc::CreateRandomString(ICE_PWD_LENGTH)) {}
 

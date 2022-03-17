@@ -18,6 +18,7 @@
 #include "api/fec_controller.h"
 #include "api/sequence_checker.h"
 #include "api/video/video_stream_encoder_interface.h"
+#include "api/webrtc_key_value_config.h"
 #include "call/bitrate_allocator.h"
 #include "call/video_receive_stream.h"
 #include "call/video_send_stream.h"
@@ -58,6 +59,7 @@ class VideoSendStream : public webrtc::VideoSendStream {
       Clock* clock,
       int num_cpu_cores,
       TaskQueueFactory* task_queue_factory,
+      TaskQueueBase* network_queue,
       RtcpRttStats* call_stats,
       RtpTransportControllerSendInterface* transport,
       BitrateAllocatorInterface* bitrate_allocator,
@@ -67,15 +69,15 @@ class VideoSendStream : public webrtc::VideoSendStream {
       VideoEncoderConfig encoder_config,
       const std::map<uint32_t, RtpState>& suspended_ssrcs,
       const std::map<uint32_t, RtpPayloadState>& suspended_payload_states,
-      std::unique_ptr<FecController> fec_controller);
+      std::unique_ptr<FecController> fec_controller,
+      const WebRtcKeyValueConfig& field_trials);
 
   ~VideoSendStream() override;
 
   void DeliverRtcp(const uint8_t* packet, size_t length);
 
   // webrtc::VideoSendStream implementation.
-  void UpdateActiveSimulcastLayers(
-      const std::vector<bool> active_layers) override;
+  void UpdateActiveSimulcastLayers(std::vector<bool> active_layers) override;
   void Start() override;
   void Stop() override;
   bool started() override;

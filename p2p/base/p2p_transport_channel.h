@@ -56,7 +56,6 @@
 #include "p2p/base/transport_description.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/constructor_magic.h"
 #include "rtc_base/dscp.h"
 #include "rtc_base/network/sent_packet.h"
 #include "rtc_base/network_route.h"
@@ -123,6 +122,9 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal {
       webrtc::RtcEventLog* event_log = nullptr,
       IceControllerFactoryInterface* ice_controller_factory = nullptr);
   ~P2PTransportChannel() override;
+
+  P2PTransportChannel(const P2PTransportChannel&) = delete;
+  P2PTransportChannel& operator=(const P2PTransportChannel&) = delete;
 
   // From TransportChannelImpl:
   IceTransportState GetState() const override;
@@ -217,6 +219,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal {
 
   // Public for unit tests.
   rtc::ArrayView<Connection*> connections() const;
+  void RemoveConnectionForTest(Connection* connection);
 
   // Public for unit tests.
   PortAllocatorSession* allocator_session() const {
@@ -283,6 +286,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal {
   void UpdateState();
   void HandleAllTimedOut();
   void MaybeStopPortAllocatorSessions();
+  void OnSelectedConnectionDestroyed() RTC_RUN_ON(network_thread_);
 
   // ComputeIceTransportState computes the RTCIceTransportState as described in
   // https://w3c.github.io/webrtc-pc/#dom-rtcicetransportstate. ComputeState
@@ -522,6 +526,12 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal {
       Candidate candidate,
       const webrtc::AsyncDnsResolverResult& result);
 
+  // Bytes/packets sent/received on this channel.
+  uint64_t bytes_sent_ = 0;
+  uint64_t bytes_received_ = 0;
+  uint64_t packets_sent_ = 0;
+  uint64_t packets_received_ = 0;
+
   // Number of times the selected_connection_ has been modified.
   uint32_t selected_candidate_pair_changes_ = 0;
 
@@ -530,8 +540,6 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal {
   int64_t last_data_received_ms_ = 0;
 
   IceFieldTrials field_trials_;
-
-  RTC_DISALLOW_COPY_AND_ASSIGN(P2PTransportChannel);
 };
 
 }  // namespace cricket

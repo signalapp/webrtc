@@ -83,6 +83,8 @@ void BasicIceController::OnConnectionDestroyed(const Connection* connection) {
   pinged_connections_.erase(connection);
   unpinged_connections_.erase(connection);
   connections_.erase(absl::c_find(connections_, connection));
+  if (selected_connection_ == connection)
+    selected_connection_ = nullptr;
 }
 
 bool BasicIceController::HasPingableConnection() const {
@@ -846,7 +848,7 @@ bool BasicIceController::GetUseCandidateAttr(const Connection* conn,
       return selected || better_than_selected;
     }
     default:
-      RTC_NOTREACHED();
+      RTC_DCHECK_NOTREACHED();
       return false;
   }
 }

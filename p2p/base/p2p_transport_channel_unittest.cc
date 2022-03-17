@@ -266,7 +266,7 @@ class P2PTransportChannelTestBase : public ::testing::Test,
         ss_(new rtc::FirewallSocketServer(nss_.get())),
         main_(ss_.get()),
         stun_server_(TestStunServer::Create(ss_.get(), kStunAddr)),
-        turn_server_(&main_, kTurnUdpIntAddr, kTurnUdpExtAddr),
+        turn_server_(&main_, ss_.get(), kTurnUdpIntAddr, kTurnUdpExtAddr),
         socks_server1_(ss_.get(),
                        kSocksProxyAddrs[0],
                        ss_.get(),
@@ -484,6 +484,9 @@ class P2PTransportChannelTestBase : public ::testing::Test,
     ep2_.cd1_.ch_.reset();
     ep1_.cd2_.ch_.reset();
     ep2_.cd2_.ch_.reset();
+    // Process pending tasks that need to run for cleanup purposes such as
+    // pending deletion of Connection objects (see Connection::Destroy).
+    rtc::Thread::Current()->ProcessMessages(0);
   }
   P2PTransportChannel* ep1_ch1() { return ep1_.cd1_.ch_.get(); }
   P2PTransportChannel* ep1_ch2() { return ep1_.cd2_.ch_.get(); }
@@ -1179,7 +1182,7 @@ class P2PTransportChannelTest : public P2PTransportChannelTestBase {
         }
         break;
       default:
-        RTC_NOTREACHED();
+        RTC_DCHECK_NOTREACHED();
         break;
     }
   }
@@ -1339,6 +1342,13 @@ TEST_F(P2PTransportChannelTest, GetStats) {
                              kMediumTimeout, clock);
   // Sends and receives 10 packets.
   TestSendRecv(&clock);
+
+  // Try sending a packet which is discarded due to the socket being blocked.
+  virtual_socket_server()->SetSendingBlocked(true);
+  const char* data = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
+  int len = static_cast<int>(strlen(data));
+  EXPECT_EQ(-1, SendData(ep1_ch1(), data, len));
+
   IceTransportStats ice_transport_stats;
   ASSERT_TRUE(ep1_ch1()->GetStats(&ice_transport_stats));
   ASSERT_GE(ice_transport_stats.connection_infos.size(), 1u);
@@ -1356,11 +1366,89 @@ TEST_F(P2PTransportChannelTest, GetStats) {
   EXPECT_TRUE(best_conn_info->receiving);
   EXPECT_TRUE(best_conn_info->writable);
   EXPECT_FALSE(best_conn_info->timeout);
-  EXPECT_EQ(10U, best_conn_info->sent_total_packets);
-  EXPECT_EQ(0U, best_conn_info->sent_discarded_packets);
+  // Note that discarded packets are counted in sent_total_packets but not
+  // sent_total_bytes.
+  EXPECT_EQ(11U, best_conn_info->sent_total_packets);
+  EXPECT_EQ(1U, best_conn_info->sent_discarded_packets);
   EXPECT_EQ(10 * 36U, best_conn_info->sent_total_bytes);
+  EXPECT_EQ(36U, best_conn_info->sent_discarded_bytes);
   EXPECT_EQ(10 * 36U, best_conn_info->recv_total_bytes);
   EXPECT_EQ(10U, best_conn_info->packets_received);
+
+  EXPECT_EQ(10 * 36U, ice_transport_stats.bytes_sent);
+  EXPECT_EQ(10 * 36U, ice_transport_stats.bytes_received);
+
+  DestroyChannels();
+}
+
+TEST_F(P2PTransportChannelTest, GetStatsSwitchConnection) {
+  rtc::ScopedFakeClock clock;
+  IceConfig continual_gathering_config =
+      CreateIceConfig(1000, GATHER_CONTINUALLY);
+
+  ConfigureEndpoints(OPEN, OPEN, kDefaultPortAllocatorFlags,
+                     kDefaultPortAllocatorFlags);
+
+  AddAddress(0, kAlternateAddrs[1], "rmnet0", rtc::ADAPTER_TYPE_CELLULAR);
+
+  CreateChannels(continual_gathering_config, continual_gathering_config);
+  EXPECT_TRUE_SIMULATED_WAIT(ep1_ch1()->receiving() && ep1_ch1()->writable() &&
+                                 ep2_ch1()->receiving() &&
+                                 ep2_ch1()->writable(),
+                             kMediumTimeout, clock);
+  // Sends and receives 10 packets.
+  TestSendRecv(&clock);
+
+  IceTransportStats ice_transport_stats;
+  ASSERT_TRUE(ep1_ch1()->GetStats(&ice_transport_stats));
+  ASSERT_GE(ice_transport_stats.connection_infos.size(), 2u);
+  ASSERT_GE(ice_transport_stats.candidate_stats_list.size(), 2u);
+  EXPECT_EQ(ice_transport_stats.selected_candidate_pair_changes, 1u);
+
+  ConnectionInfo* best_conn_info = nullptr;
+  for (ConnectionInfo& info : ice_transport_stats.connection_infos) {
+    if (info.best_connection) {
+      best_conn_info = &info;
+      break;
+    }
+  }
+  ASSERT_TRUE(best_conn_info != nullptr);
+  EXPECT_TRUE(best_conn_info->new_connection);
+  EXPECT_TRUE(best_conn_info->receiving);
+  EXPECT_TRUE(best_conn_info->writable);
+  EXPECT_FALSE(best_conn_info->timeout);
+
+  EXPECT_EQ(10 * 36U, best_conn_info->sent_total_bytes);
+  EXPECT_EQ(10 * 36U, best_conn_info->recv_total_bytes);
+  EXPECT_EQ(10 * 36U, ice_transport_stats.bytes_sent);
+  EXPECT_EQ(10 * 36U, ice_transport_stats.bytes_received);
+
+  auto old_selected_connection = ep1_ch1()->selected_connection();
+  ep1_ch1()->RemoveConnectionForTest(
+      const_cast<Connection*>(old_selected_connection));
+
+  EXPECT_TRUE_SIMULATED_WAIT(ep1_ch1()->selected_connection() != nullptr,
+                             kMediumTimeout, clock);
+
+  // Sends and receives 10 packets.
+  TestSendRecv(&clock);
+
+  IceTransportStats ice_transport_stats2;
+  ASSERT_TRUE(ep1_ch1()->GetStats(&ice_transport_stats2));
+
+  int64_t sum_bytes_sent = 0;
+  int64_t sum_bytes_received = 0;
+  for (ConnectionInfo& info : ice_transport_stats.connection_infos) {
+    sum_bytes_sent += info.sent_total_bytes;
+    sum_bytes_received += info.recv_total_bytes;
+  }
+
+  EXPECT_EQ(10 * 36U, sum_bytes_sent);
+  EXPECT_EQ(10 * 36U, sum_bytes_received);
+
+  EXPECT_EQ(20 * 36U, ice_transport_stats2.bytes_sent);
+  EXPECT_EQ(20 * 36U, ice_transport_stats2.bytes_received);
+
   DestroyChannels();
 }
 
@@ -2455,10 +2543,12 @@ class P2PTransportChannelMultihomedTest : public P2PTransportChannelTestBase {
 
   void DestroyAllButBestConnection(P2PTransportChannel* channel) {
     const Connection* selected_connection = channel->selected_connection();
-    for (Connection* conn : channel->connections()) {
-      if (conn != selected_connection) {
-        conn->Destroy();
-      }
+    // Copy the list of connections since the original will be modified.
+    rtc::ArrayView<Connection*> view = channel->connections();
+    std::vector<Connection*> connections(view.begin(), view.end());
+    for (Connection* conn : connections) {
+      if (conn != selected_connection)
+        channel->RemoveConnectionForTest(conn);
     }
   }
 };
@@ -3489,6 +3579,8 @@ class P2PTransportChannelPingTest : public ::testing::Test,
     }
   }
 
+  rtc::SocketServer* ss() const { return vss_.get(); }
+
  private:
   std::unique_ptr<rtc::VirtualSocketServer> vss_;
   rtc::AutoSocketServerThread thread_;
@@ -3818,7 +3910,7 @@ TEST_F(P2PTransportChannelPingTest, ConnectionResurrection) {
   // Wait for conn2 to be selected.
   EXPECT_EQ_WAIT(conn2, ch.selected_connection(), kMediumTimeout);
   // Destroy the connection to test SignalUnknownAddress.
-  conn1->Destroy();
+  ch.RemoveConnectionForTest(conn1);
   EXPECT_TRUE_WAIT(GetConnectionTo(&ch, "1.1.1.1", 1) == nullptr,
                    kMediumTimeout);
 
@@ -4816,7 +4908,10 @@ class P2PTransportChannelMostLikelyToWorkFirstTest
     : public P2PTransportChannelPingTest {
  public:
   P2PTransportChannelMostLikelyToWorkFirstTest()
-      : turn_server_(rtc::Thread::Current(), kTurnUdpIntAddr, kTurnUdpExtAddr) {
+      : turn_server_(rtc::Thread::Current(),
+                     ss(),
+                     kTurnUdpIntAddr,
+                     kTurnUdpExtAddr) {
     network_manager_.AddInterface(kPublicAddrs[0]);
     allocator_.reset(
         CreateBasicPortAllocator(&network_manager_, ServerAddresses(),

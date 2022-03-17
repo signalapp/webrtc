@@ -57,6 +57,7 @@ rtc_library("rtc_media_base") {
     "../api:rtp_parameters",
     "../api:scoped_refptr",
     "../api:sequence_checker",
+    "../api:webrtc_key_value_config",
     "../api/audio:audio_frame_processor",
     "../api/audio_codecs:audio_codecs_api",
     "../api/crypto:frame_decryptor_interface",
@@ -64,7 +65,6 @@ rtc_library("rtc_media_base") {
     "../api/crypto:options",
     "../api/transport:datagram_transport_interface",
     "../api/transport:stun_types",
-    "../api/transport:webrtc_key_value_config",
     "../api/transport/rtp:rtp_source",
     "../api/units:time_delta",
     "../api/video:video_bitrate_allocation",
@@ -211,13 +211,20 @@ rtc_library("rtc_internal_video_codecs") {
     "../modules/video_coding:webrtc_vp8",
     "../modules/video_coding:webrtc_vp9",
     "../modules/video_coding/codecs/av1:libaom_av1_decoder",
-    "../modules/video_coding/codecs/av1:libaom_av1_encoder",
+    "../modules/video_coding/codecs/av1:libaom_av1_encoder_if_supported",
     "../rtc_base:checks",
     "../rtc_base:rtc_base_approved",
     "../rtc_base/system:rtc_export",
+    "../system_wrappers:field_trial",
     "../test:fake_video_codecs",
   ]
-  absl_deps = [ "//third_party/abseil-cpp/absl/strings" ]
+  if (rtc_include_dav1d_in_internal_decoder_factory) {
+    deps += [ "../modules/video_coding/codecs/av1:dav1d_decoder" ]
+  }
+  absl_deps = [
+    "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/types:optional",
+  ]
   sources = [
     "engine/fake_video_codec_factory.cc",
     "engine/fake_video_codec_factory.h",
@@ -385,6 +392,7 @@ if (rtc_build_dcsctp) {
     deps = [
       ":rtc_data_sctp_transport_internal",
       "../api:array_view",
+      "../api/task_queue:task_queue",
       "../media:rtc_media_base",
       "../net/dcsctp/public:factory",
       "../net/dcsctp/public:socket",
@@ -445,6 +453,7 @@ rtc_library("rtc_data_sctp_transport_factory") {
   ]
   deps = [
     ":rtc_data_sctp_transport_internal",
+    "../api:webrtc_key_value_config",
     "../api/transport:sctp_transport_factory_interface",
     "../rtc_base:threading",
     "../rtc_base/experiments:field_trial_parser",
@@ -516,6 +525,7 @@ if (rtc_include_tests) {
       "../rtc_base:threading",
       "../rtc_base/synchronization:mutex",
       "../rtc_base/third_party/sigslot",
+      "../test:scoped_key_value_config",
       "../test:test_support",
       "//testing/gtest",
     ]
@@ -592,6 +602,7 @@ if (rtc_include_tests) {
         "../api/test/video:function_video_factory",
         "../api/transport:field_trial_based_config",
         "../api/units:time_delta",
+        "../api/units:timestamp",
         "../api/video:builtin_video_bitrate_allocator_factory",
         "../api/video:video_bitrate_allocation",
         "../api/video:video_codec_constants",
@@ -614,6 +625,7 @@ if (rtc_include_tests) {
         "../modules/video_coding:webrtc_h264",
         "../modules/video_coding:webrtc_vp8",
         "../modules/video_coding/codecs/av1:libaom_av1_decoder",
+        "../modules/video_coding/codecs/av1:libaom_av1_encoder_if_supported",
         "../p2p:p2p_test_utils",
         "../rtc_base",
         "../rtc_base:checks",
@@ -631,9 +643,11 @@ if (rtc_include_tests) {
         "../test:fake_video_codecs",
         "../test:field_trial",
         "../test:rtp_test_utils",
+        "../test:scoped_key_value_config",
         "../test:test_main",
         "../test:test_support",
         "../test:video_test_common",
+        "../test/time_controller",
       ]
       absl_deps = [
         "//third_party/abseil-cpp/absl/algorithm:container",
@@ -653,6 +667,7 @@ if (rtc_include_tests) {
         "base/video_common_unittest.cc",
         "engine/encoder_simulcast_proxy_unittest.cc",
         "engine/internal_decoder_factory_unittest.cc",
+        "engine/internal_encoder_factory_unittest.cc",
         "engine/multiplex_codec_factory_unittest.cc",
         "engine/null_webrtc_video_engine_unittest.cc",
         "engine/payload_type_mapper_unittest.cc",

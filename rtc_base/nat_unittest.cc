@@ -56,7 +56,7 @@ TestClient* CreateTestClient(SocketFactory* factory,
 }
 
 TestClient* CreateTCPTestClient(Socket* socket) {
-  return new TestClient(std::make_unique<AsyncTCPSocket>(socket, false));
+  return new TestClient(std::make_unique<AsyncTCPSocket>(socket));
 }
 
 // Tests that when sending from internal_addr to external_addrs through the
@@ -219,7 +219,8 @@ bool TestConnectivity(const SocketAddress& src, const IPAddress& dst) {
 }
 
 void TestPhysicalInternal(const SocketAddress& int_addr) {
-  BasicNetworkManager network_manager;
+  PhysicalSocketServer socket_server;
+  BasicNetworkManager network_manager(nullptr, &socket_server);
   network_manager.StartUpdating();
   // Process pending messages so the network list is updated.
   Thread::Current()->ProcessMessages(0);

@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "api/data_channel_interface.h"
+#include "api/rtc_error.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
 #include "api/transport/data_channel_transport_interface.h"
@@ -38,12 +39,12 @@
 
 namespace webrtc {
 
-class PeerConnection;
+class PeerConnectionInternal;
 
 class DataChannelController : public SctpDataChannelProviderInterface,
                               public DataChannelSink {
  public:
-  explicit DataChannelController(PeerConnection* pc) : pc_(pc) {}
+  explicit DataChannelController(PeerConnectionInternal* pc) : pc_(pc) {}
 
   // Not copyable or movable.
   DataChannelController(DataChannelController&) = delete;
@@ -180,7 +181,7 @@ class DataChannelController : public SctpDataChannelProviderInterface,
       RTC_GUARDED_BY(signaling_thread());
 
   // Owning PeerConnection.
-  PeerConnection* const pc_;
+  PeerConnectionInternal* const pc_;
   // The weak pointers must be dereferenced and invalidated on the signalling
   // thread only.
   rtc::WeakPtrFactory<DataChannelController> weak_factory_{this};

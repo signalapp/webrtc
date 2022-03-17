@@ -23,6 +23,7 @@
 #include "api/fec_controller.h"
 #include "api/media_stream_interface.h"
 #include "api/media_types.h"
+#include "api/metronome/metronome.h"
 #include "api/neteq/neteq_factory.h"
 #include "api/network_state_predictor.h"
 #include "api/peer_connection_interface.h"
@@ -152,6 +153,7 @@ class PeerConnectionFactory : public PeerConnectionFactoryInterface {
   std::unique_ptr<NetEqFactory> neteq_factory_;
   const std::unique_ptr<RtpTransportControllerSendFactoryInterface>
       transport_controller_send_factory_;
+  std::unique_ptr<Metronome> metronome_;
 };
 
 }  // namespace webrtc

@@ -58,7 +58,7 @@ int GetProtocolPriority(cricket::ProtocolType protocol) {
     case cricket::PROTO_TLS:
       return 0;
     default:
-      RTC_NOTREACHED();
+      RTC_DCHECK_NOTREACHED();
       return 0;
   }
 }
@@ -70,7 +70,7 @@ int GetAddressFamilyPriority(int ip_family) {
     case AF_INET:
       return 1;
     default:
-      RTC_NOTREACHED();
+      RTC_DCHECK_NOTREACHED();
       return 0;
   }
 }
@@ -105,9 +105,9 @@ void FilterNetworks(NetworkList* networks, NetworkFilter filter) {
   if (start_to_remove == networks->end()) {
     return;
   }
-  RTC_LOG(INFO) << "Filtered out " << filter.description << " networks:";
+  RTC_LOG(LS_INFO) << "Filtered out " << filter.description << " networks:";
   for (auto it = start_to_remove; it != networks->end(); ++it) {
-    RTC_LOG(INFO) << (*it)->ToString();
+    RTC_LOG(LS_INFO) << (*it)->ToString();
   }
   networks->erase(start_to_remove, networks->end());
 }
@@ -181,6 +181,7 @@ BasicPortAllocator::BasicPortAllocator(rtc::NetworkManager* network_manager,
     : network_manager_(network_manager), socket_factory_(socket_factory) {
   InitRelayPortFactory(nullptr);
   RTC_DCHECK(relay_port_factory_ != nullptr);
+  RTC_DCHECK(network_manager_ != nullptr);
   SetConfiguration(stun_servers, std::vector<RelayServerConfig>(), 0,
                    webrtc::NO_PRUNE, nullptr);
 }
@@ -435,7 +436,7 @@ void BasicPortAllocatorSession::StartGettingPorts() {
   state_ = SessionState::GATHERING;
   if (!socket_factory_) {
     owned_socket_factory_.reset(
-        new rtc::BasicPacketSocketFactory(network_thread_));
+        new rtc::BasicPacketSocketFactory(network_thread_->socketserver()));
     socket_factory_ = owned_socket_factory_.get();
   }
 
@@ -1230,7 +1231,7 @@ void BasicPortAllocatorSession::OnPortDestroyed(PortInterface* port) {
       return;
     }
   }
-  RTC_NOTREACHED();
+  RTC_DCHECK_NOTREACHED();
 }
 
 BasicPortAllocatorSession::PortData* BasicPortAllocatorSession::FindPort(
@@ -1454,7 +1455,7 @@ void AllocationSequence::Process(int epoch) {
       break;
 
     default:
-      RTC_NOTREACHED();
+      RTC_DCHECK_NOTREACHED();
   }
 
   if (state() == kRunning) {
@@ -1487,14 +1488,14 @@ void AllocationSequence::CreateUDPPorts() {
     port = UDPPort::Create(
         session_->network_thread(), session_->socket_factory(), network_,
         udp_socket_.get(), session_->username(), session_->password(),
-        session_->allocator()->origin(), emit_local_candidate_for_anyaddress,
+        emit_local_candidate_for_anyaddress,
         session_->allocator()->stun_candidate_keepalive_interval());
   } else {
     port = UDPPort::Create(
         session_->network_thread(), session_->socket_factory(), network_,
         session_->allocator()->min_port(), session_->allocator()->max_port(),
         session_->username(), session_->password(),
-        session_->allocator()->origin(), emit_local_candidate_for_anyaddress,
+        emit_local_candidate_for_anyaddress,
         session_->allocator()->stun_candidate_keepalive_interval());
   }
 
@@ -1559,7 +1560,6 @@ void AllocationSequence::CreateStunPorts() {
       session_->network_thread(), session_->socket_factory(), network_,
       session_->allocator()->min_port(), session_->allocator()->max_port(),
       session_->username(), session_->password(), config_->StunServers(),
-      session_->allocator()->origin(),
       session_->allocator()->stun_candidate_keepalive_interval());
   if (port) {
     session_->AddAllocatedPort(port.release(), this);
@@ -1621,7 +1621,6 @@ void AllocationSequence::CreateTurnPort(const RelayServerConfig& config) {
     args.password = session_->password();
     args.server_address = &(*relay_port);
     args.config = &config;
-    args.origin = session_->allocator()->origin();
     args.turn_customizer = session_->allocator()->turn_customizer();
 
     std::unique_ptr<cricket::Port> port;
@@ -1711,7 +1710,7 @@ void AllocationSequence::OnPortDestroyed(PortInterface* port) {
     relay_ports_.erase(it);
   } else {
     RTC_LOG(LS_ERROR) << "Unexpected OnPortDestroyed for nonexistent port.";
-    RTC_NOTREACHED();
+    RTC_DCHECK_NOTREACHED();
   }
 }
 

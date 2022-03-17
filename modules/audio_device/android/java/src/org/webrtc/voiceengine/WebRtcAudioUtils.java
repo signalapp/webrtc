@@ -214,6 +214,7 @@ public final class WebRtcAudioUtils {
             + "BT SCO: " + audioManager.isBluetoothScoOn());
   }
 
+    // RingRTC change (or ... retention?) to keep support for SDK >= 19.
   private static boolean isVolumeFixed(AudioManager audioManager) {
     if (Build.VERSION.SDK_INT < 21) {
       return false;
@@ -233,6 +234,7 @@ public final class WebRtcAudioUtils {
     };
     Logging.d(tag, "Audio State: ");
     // Some devices may not have volume controls and might use a fixed volume.
+    // RingRTC change (or ... retention?) to keep support for SDK >= 19.
     boolean fixedVolume = isVolumeFixed(audioManager);
     Logging.d(tag, "  fixed volume=" + fixedVolume);
     if (!fixedVolume) {

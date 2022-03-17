@@ -12,7 +12,7 @@
 
 #include <stdio.h>
 
-#include <memory>
+#include <cstdint>
 
 #include "absl/algorithm/container.h"
 #include "absl/types/optional.h"
@@ -20,11 +20,16 @@
 #include "api/candidate.h"
 #include "api/data_channel_interface.h"
 #include "api/media_stream_track.h"
+#include "api/media_types.h"
+#include "api/rtp_sender_interface.h"
 #include "api/scoped_refptr.h"
 #include "call/call.h"
 #include "media/base/media_channel.h"
 #include "modules/audio_processing/include/audio_processing_statistics.h"
+#include "p2p/base/ice_transport_internal.h"
 #include "pc/media_stream.h"
+#include "pc/rtp_receiver.h"
+#include "pc/rtp_sender.h"
 #include "pc/sctp_data_channel.h"
 #include "pc/test/fake_peer_connection_for_stats.h"
 #include "pc/test/fake_video_track_source.h"
@@ -43,6 +48,7 @@
 #include "rtc_base/string_encode.h"
 #include "rtc_base/third_party/base64/base64.h"
 #include "rtc_base/thread.h"
+#include "test/gmock.h"
 #include "test/gtest.h"
 
 using cricket::ConnectionInfo;
@@ -54,6 +60,8 @@ using cricket::VideoSenderInfo;
 using cricket::VoiceMediaInfo;
 using cricket::VoiceReceiverInfo;
 using cricket::VoiceSenderInfo;
+using ::testing::_;
+using ::testing::AtMost;
 using ::testing::Return;
 using ::testing::UnorderedElementsAre;
 
@@ -612,7 +620,7 @@ class StatsCollectorTest : public ::testing::Test {
                              const VoiceMediaInfo& voice_info,
                              StatsReports* reports) {
     stats->UpdateStats(PeerConnectionInterface::kStatsOutputLevelStandard);
-    stats->ClearUpdateStatsCacheForTest();
+    stats->InvalidateCache();
     stats->GetStats(nullptr, reports);
 
     // Verify the existence of the track report.
@@ -745,6 +753,9 @@ static rtc::scoped_refptr<MockRtpSenderInternal> CreateMockSender(
           Return(track->kind() == MediaStreamTrackInterface::kAudioKind
                      ? cricket::MEDIA_TYPE_AUDIO
                      : cricket::MEDIA_TYPE_VIDEO));
+  EXPECT_CALL(*sender, SetMediaChannel(_)).Times(AtMost(2));
+  EXPECT_CALL(*sender, SetTransceiverAsStopped()).Times(AtMost(1));
+  EXPECT_CALL(*sender, Stop());
   return sender;
 }
 
@@ -759,6 +770,8 @@ static rtc::scoped_refptr<MockRtpReceiverInternal> CreateMockReceiver(
           Return(track->kind() == MediaStreamTrackInterface::kAudioKind
                      ? cricket::MEDIA_TYPE_AUDIO
                      : cricket::MEDIA_TYPE_VIDEO));
+  EXPECT_CALL(*receiver, SetMediaChannel(_)).WillRepeatedly(Return());
+  EXPECT_CALL(*receiver, Stop()).WillRepeatedly(Return());
   return receiver;
 }
 
@@ -911,8 +924,7 @@ TEST_P(StatsCollectorTrackTest, BytesCounterHandles64Bits) {
   VideoMediaInfo video_info;
   video_info.aggregated_senders.push_back(video_sender_info);
 
-  auto* video_media_channel = pc->AddVideoChannel("video", "transport");
-  video_media_channel->SetStats(video_info);
+  pc->AddVideoChannel("video", "transport", video_info);
 
   AddOutgoingVideoTrack(pc, stats.get());
 
@@ -994,8 +1006,7 @@ TEST_P(StatsCollectorTrackTest, VideoBandwidthEstimationInfoIsReported) {
   VideoMediaInfo video_info;
   video_info.aggregated_senders.push_back(video_sender_info);
 
-  auto* video_media_channel = pc->AddVideoChannel("video", "transport");
-  video_media_channel->SetStats(video_info);
+  pc->AddVideoChannel("video", "transport", video_info);
 
   AddOutgoingVideoTrack(pc, stats.get());
 
@@ -1092,8 +1103,7 @@ TEST_P(StatsCollectorTrackTest, TrackAndSsrcObjectExistAfterUpdateSsrcStats) {
   VideoMediaInfo video_info;
   video_info.aggregated_senders.push_back(video_sender_info);
 
-  auto* video_media_channel = pc->AddVideoChannel("video", "transport");
-  video_media_channel->SetStats(video_info);
+  pc->AddVideoChannel("video", "transport", video_info);
 
   AddOutgoingVideoTrack(pc, stats.get());
 
@@ -1147,8 +1157,7 @@ TEST_P(StatsCollectorTrackTest, TransportObjectLinkedFromSsrcObject) {
   VideoMediaInfo video_info;
   video_info.aggregated_senders.push_back(video_sender_info);
 
-  auto* video_media_channel = pc->AddVideoChannel("video", "transport");
-  video_media_channel->SetStats(video_info);
+  pc->AddVideoChannel("video", "transport", video_info);
 
   AddOutgoingVideoTrack(pc, stats.get());
 
@@ -1210,8 +1219,7 @@ TEST_P(StatsCollectorTrackTest, RemoteSsrcInfoIsPresent) {
   VideoMediaInfo video_info;
   video_info.aggregated_senders.push_back(video_sender_info);
 
-  auto* video_media_channel = pc->AddVideoChannel("video", "transport");
-  video_media_channel->SetStats(video_info);
+  pc->AddVideoChannel("video", "transport", video_info);
 
   AddOutgoingVideoTrack(pc, stats.get());
 
@@ -1239,8 +1247,7 @@ TEST_P(StatsCollectorTrackTest, ReportsFromRemoteTrack) {
   VideoMediaInfo video_info;
   video_info.receivers.push_back(video_receiver_info);
 
-  auto* video_media_info = pc->AddVideoChannel("video", "transport");
-  video_media_info->SetStats(video_info);
+  pc->AddVideoChannel("video", "transport", video_info);
 
   AddIncomingVideoTrack(pc, stats.get());
 
@@ -1756,7 +1763,7 @@ TEST_P(StatsCollectorTrackTest, TwoLocalTracksWithSameSsrc) {
   stream_->AddTrack(new_audio_track);
 
   stats->AddLocalAudioTrack(new_audio_track, kSsrcOfTrack);
-  stats->ClearUpdateStatsCacheForTest();
+  stats->InvalidateCache();
 
   VoiceSenderInfo new_voice_sender_info;
   InitVoiceSenderInfo(&new_voice_sender_info);
@@ -1808,7 +1815,6 @@ TEST_P(StatsCollectorTrackTest, TwoLocalSendersWithSameTrack) {
 
   StatsReports reports;
   stats->GetStats(local_track.get(), &reports);
-  RTC_LOG(LS_INFO) << reports.size();
 
   // Both SSRC reports have the same track ID.
   EXPECT_EQ(kLocalTrackId, GetValueInNthReportByType(
@@ -1850,8 +1856,7 @@ TEST_P(StatsCollectorTrackTest, VerifyVideoSendSsrcStats) {
   VideoMediaInfo video_info;
   video_info.aggregated_senders.push_back(video_sender_info);
 
-  auto* video_media_channel = pc->AddVideoChannel("video", "transport");
-  video_media_channel->SetStats(video_info);
+  pc->AddVideoChannel("video", "transport", video_info);
 
   stats->UpdateStats(PeerConnectionInterface::kStatsOutputLevelStandard);
   StatsReports reports;
@@ -1878,8 +1883,7 @@ TEST_P(StatsCollectorTrackTest, VerifyVideoReceiveSsrcStatsNew) {
   VideoMediaInfo video_info;
   video_info.receivers.push_back(video_receiver_info);
 
-  auto* video_media_channel = pc->AddVideoChannel("video", "transport");
-  video_media_channel->SetStats(video_info);
+  pc->AddVideoChannel("video", "transport", video_info);
 
   stats->UpdateStats(PeerConnectionInterface::kStatsOutputLevelStandard);
   StatsReports reports;
