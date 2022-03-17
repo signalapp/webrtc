@@ -24,7 +24,7 @@ namespace rtc {
 scoped_refptr<RTCCertificate> RTCCertificate::Create(
     std::unique_ptr<SSLIdentity> identity) {
   // RingRTC change to make it easier to deal with RTCCertificate ref counts
-  return new RefCountedObject<RTCCertificate>(identity.release());
+  return rtc::make_ref_counted<RTCCertificate>(identity.release());
 }
 
 RTCCertificate::RTCCertificate(SSLIdentity* identity) : identity_(identity) {
@@ -66,7 +66,7 @@ scoped_refptr<RTCCertificate> RTCCertificate::FromPEM(
   if (!identity)
     return nullptr;
   // RingRTC change to make it easier to deal with RTCCertificate ref counts
-  return new RefCountedObject<RTCCertificate>(identity.release());
+  return rtc::make_ref_counted<RTCCertificate>(identity.release());
 }
 
 bool RTCCertificate::operator==(const RTCCertificate& certificate) const {

@@ -123,6 +123,8 @@ class PeerConnectionSdpMethods {
   virtual void TeardownDataChannelTransport_n() = 0;
   virtual void SetSctpDataMid(const std::string& mid) = 0;
   virtual void ResetSctpDataMid() = 0;
+  // RingRTC change for ICE forking.
+  virtual rtc::scoped_refptr<IceGathererInterface> shared_ice_gatherer() = 0;
 };
 
 // Functions defined in this class are called by other objects,

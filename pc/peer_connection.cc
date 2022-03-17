@@ -2963,17 +2963,20 @@ bool PeerConnection::UseSharedIceGatherer(
 }
 
 bool PeerConnection::SetIncomingRtpEnabled(bool enabled) {
-  return transport_controller_->SetIncomingRtpEnabled(enabled);
+  return network_thread()->Invoke<bool>(RTC_FROM_HERE, [this, enabled] {
+    RTC_DCHECK_RUN_ON(network_thread());
+    return transport_controller_->SetIncomingRtpEnabled(enabled);
+  });
 }
 
 bool PeerConnection::SendRtp(std::unique_ptr<RtpPacket> rtp_packet) {
   RTC_DCHECK_RUN_ON(signaling_thread());
 
-  JsepTransportController* transport_controller = this->transport_controller();
   // Is there a better way to std::move the unique_ptr?
   RtpPacket* raw_rtp_packet = rtp_packet.release();
-  return network_thread()->Invoke<bool>(RTC_FROM_HERE, [transport_controller, raw_rtp_packet] {
-    RtpTransportInternal* rtp_transport = transport_controller->GetBundledRtpTransport();
+  return network_thread()->Invoke<bool>(RTC_FROM_HERE, [this, raw_rtp_packet] {
+    RTC_DCHECK_RUN_ON(network_thread());
+    RtpTransportInternal* rtp_transport = transport_controller_->GetBundledRtpTransport();
     if (!rtp_transport) {
       return false;
     }
@@ -2990,14 +2993,12 @@ bool PeerConnection::SendRtp(std::unique_ptr<RtpPacket> rtp_packet) {
 }
 
 bool PeerConnection::ReceiveRtp(uint8_t pt) {
-  RTC_DCHECK_RUN_ON(signaling_thread());
-
-  JsepTransportController* transport_controller = this->transport_controller();
   RtpDemuxerCriteria demux_criteria;
-  demux_criteria.payload_types.insert(pt);
+  demux_criteria.payload_types().insert(pt);
   RtpPacketSinkInterface* sink = Observer();
-  return network_thread()->Invoke<bool>(RTC_FROM_HERE, [transport_controller, demux_criteria, sink] {
-    RtpTransportInternal* rtp_transport = transport_controller->GetBundledRtpTransport();
+  return network_thread()->Invoke<bool>(RTC_FROM_HERE, [this, demux_criteria, sink] {
+    RTC_DCHECK_RUN_ON(network_thread());
+    RtpTransportInternal* rtp_transport = transport_controller_->GetBundledRtpTransport();
     if (!rtp_transport) {
       return false;
     }

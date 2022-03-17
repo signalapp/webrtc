@@ -282,7 +282,6 @@ BasicPortAllocator::CreateIceGatherer(const std::string& name) {
   new_allocator->set_step_delay(step_delay());
   new_allocator->set_allow_tcp_listen(allow_tcp_listen());
   new_allocator->set_candidate_filter(candidate_filter());
-  new_allocator->set_origin(origin());
 
   // 5. SetConfiguration
   new_allocator->SetConfiguration(stun_servers(), turn_servers(),
@@ -295,7 +294,7 @@ BasicPortAllocator::CreateIceGatherer(const std::string& name) {
   auto session =
       new_allocator->CreateSession(name, 1, parameters.ufrag, parameters.pwd);
 
-  return new rtc::RefCountedObject<cricket::BasicIceGatherer>(
+  return rtc::make_ref_counted<cricket::BasicIceGatherer>(
       rtc::Thread::Current(), std::move(new_allocator), std::move(session));
 
 }

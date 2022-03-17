@@ -292,8 +292,8 @@
 
 
 // RingRTC changes for low-level FFI
-- (RTC_OBJC_TYPE(RTCVideoTrack) *)videoTrackFromNativeTrack:(void *)nativeTrack {
-  webrtc::MediaStreamTrackInterface *track = (webrtc::MediaStreamTrackInterface *)nativeTrack;
+- (RTC_OBJC_TYPE(RTCVideoTrack) *)videoTrackFromNativeTrack:(void *)nativeTrackBorrowedRc {
+  rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> track = rtc::scoped_refptr<webrtc::MediaStreamTrackInterface>((webrtc::MediaStreamTrackInterface*)nativeTrackBorrowedRc);
 
   return [[RTC_OBJC_TYPE(RTCVideoTrack) alloc] initWithFactory:self
                                                    nativeTrack:track

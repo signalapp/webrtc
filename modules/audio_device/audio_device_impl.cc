@@ -693,11 +693,21 @@ int32_t AudioDeviceModuleImpl::PlayoutDeviceName(
   CHECKinitialized_();
   if (name == NULL) {
     return -1;
+  }
+  if (audio_device_->PlayoutDeviceName(index, name, guid) == -1) {
+    return -1;
+  }
   if (name != NULL) {
     RTC_LOG(LS_INFO) << "output: name = " << name;
   }
   if (guid != NULL) {
     RTC_LOG(LS_INFO) << "output: guid = " << guid;
+  }
+  return 0;
+}
+
+int32_t AudioDeviceModuleImpl::RecordingDeviceName(
+    uint16_t index,
     char name[kAdmMaxDeviceNameSize],
     char guid[kAdmMaxGuidSize]) {
   RTC_LOG(LS_INFO) << __FUNCTION__ << "(" << index << ", ...)";

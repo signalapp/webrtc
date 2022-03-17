@@ -441,11 +441,11 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
 }
 
 // RingRTC changes for low-level FFI
-- (RTC_OBJC_TYPE(RTCMediaStream) *)createStreamFromNative:(void *)nativeStream {
+- (RTC_OBJC_TYPE(RTCMediaStream) *)createStreamFromNative:(void *)nativeStreamBorrowedRc {
   // @note Modeled on the PeerConnectionDelegateAdapter::OnAddStream
   // function above in this file.
 
-  webrtc::MediaStreamInterface *stream = (webrtc::MediaStreamInterface *)nativeStream;
+  rtc::scoped_refptr<webrtc::MediaStreamInterface> stream = rtc::scoped_refptr<webrtc::MediaStreamInterface>((webrtc::MediaStreamInterface*)nativeStreamBorrowedRc);
 
   return [[RTC_OBJC_TYPE(RTCMediaStream) alloc] initWithFactory:_factory nativeMediaStream:stream];
 }

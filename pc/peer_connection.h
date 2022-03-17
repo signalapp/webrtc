@@ -456,7 +456,7 @@ class PeerConnection : public PeerConnectionInternal,
 
   const WebRtcKeyValueConfig& trials() override { return context_->trials(); }
 
-  rtc::scoped_refptr<IceGathererInterface> shared_ice_gatherer() {
+  rtc::scoped_refptr<IceGathererInterface> shared_ice_gatherer() override {
       return shared_ice_gatherer_;
   }
 
