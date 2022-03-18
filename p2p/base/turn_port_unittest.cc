@@ -350,7 +350,7 @@ class TurnPortTest : public ::testing::Test,
     turn_port_->SignalTurnPortClosed.connect(this,
                                              &TurnPortTest::OnTurnPortClosed);
     // RingRTC change to support ICE forking
-    turn_port_->SignalDestroyed.connect(this, &TurnPortTest::OnTurnPortClosed);
+    turn_port_->SignalDestroyed.connect(this, &TurnPortTest::OnTurnPortDestroyed);
   }
 
   void CreateUdpPort() { CreateUdpPort(kLocalAddr2); }

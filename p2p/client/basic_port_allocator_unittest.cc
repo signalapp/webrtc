@@ -2464,7 +2464,6 @@ TEST_F(BasicPortAllocatorTest, TestCreateIceGathererForForking) {
   allocator_->set_step_delay(5);
   allocator_->set_allow_tcp_listen(false);
   allocator_->set_candidate_filter(5);
-  allocator_->set_origin("test");
   allocator_->set_max_ipv6_networks(6);
   allocator_->SetNetworkIgnoreMask(7);
   AddTurnServers(kTurnUdpIntAddr, rtc::SocketAddress());
@@ -2484,7 +2483,6 @@ TEST_F(BasicPortAllocatorTest, TestCreateIceGathererForForking) {
   EXPECT_EQ(allocator_->step_delay(), forked->step_delay());
   EXPECT_EQ(allocator_->allow_tcp_listen(), forked->allow_tcp_listen());
   EXPECT_EQ(allocator_->candidate_filter(), forked->candidate_filter());
-  EXPECT_EQ(allocator_->origin(), forked->origin());
   EXPECT_EQ(allocator_->max_ipv6_networks(), forked->max_ipv6_networks());
   // EXPECT_EQ(allocator_->network_ignore_mask(), forked->network_ignore_mask());
   EXPECT_EQ(allocator_->stun_servers(), forked->stun_servers());

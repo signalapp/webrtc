@@ -245,7 +245,7 @@ class FakePortAllocator : public cricket::PortAllocator {
         cricket::IceCredentialsIterator::CreateRandomIceCredentials();
     auto session = new_allocator->CreateSession(
         content_name, 1, parameters.ufrag, parameters.pwd);
-    return new rtc::RefCountedObject<cricket::BasicIceGatherer>(
+    return rtc::make_ref_counted<cricket::BasicIceGatherer>(
         network_thread_, std::move(new_allocator), std::move(session));
   }
 

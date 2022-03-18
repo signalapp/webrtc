@@ -271,7 +271,7 @@ class TestChannel : public sigslot::has_slots<> {
     port_->SignalPortComplete.connect(this, &TestChannel::OnPortComplete);
     port_->SignalUnknownAddress.connect(this, &TestChannel::OnUnknownAddress);
     // RingRTC change to support ICE forking
-    port_->SignalDestroyed.connect(this, &TestChannel::OnPortDestroyed);
+    port_->SignalDestroyed.connect(this, &TestChannel::OnSrcPortDestroyed);
   }
 
   ~TestChannel() {

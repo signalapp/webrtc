@@ -23,6 +23,7 @@
 #include "api/rtp_parameters.h"
 #include "call/receive_stream.h"
 #include "call/rtp_config.h"
+#include "rtc_base/logging.h"
 
 namespace webrtc {
 class AudioSinkInterface;
@@ -195,7 +196,10 @@ class AudioReceiveStream : public MediaReceiveStream {
   virtual int GetBaseMinimumPlayoutDelayMs() const = 0;
 
   // RingRTC change to get recv audio levels
-  virtual uint16_t GetAudioLevel() = 0;
+  virtual uint16_t GetAudioLevel() {
+    RTC_LOG(LS_WARNING) << "Default AudioReceiveStream::GetAudioLevel() does nothing!";
+    return 0;
+  }
 
  protected:
   virtual ~AudioReceiveStream() {}
