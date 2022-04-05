@@ -16,7 +16,6 @@
 
 #include "absl/memory/memory.h"
 #include "absl/strings/match.h"
-#include "api/rtc_event_log/rtc_event_log.h"
 #include "modules/utility/include/process_thread.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/location.h"
@@ -31,20 +30,14 @@ const float PacedSender::kDefaultPaceMultiplier = 2.5f;
 
 PacedSender::PacedSender(Clock* clock,
                          PacketRouter* packet_router,
-                         RtcEventLog* event_log,
-                         const WebRtcKeyValueConfig* field_trials,
+                         const WebRtcKeyValueConfig& field_trials,
                          ProcessThread* process_thread)
     : process_mode_(
-          (field_trials != nullptr &&
-           absl::StartsWith(field_trials->Lookup("WebRTC-Pacer-DynamicProcess"),
-                            "Enabled"))
+          absl::StartsWith(field_trials.Lookup("WebRTC-Pacer-DynamicProcess"),
+                           "Enabled")
               ? PacingController::ProcessMode::kDynamic
               : PacingController::ProcessMode::kPeriodic),
-      pacing_controller_(clock,
-                         packet_router,
-                         event_log,
-                         field_trials,
-                         process_mode_),
+      pacing_controller_(clock, packet_router, field_trials, process_mode_),
       clock_(clock),
       process_thread_(process_thread) {
   if (process_thread_)
@@ -88,18 +81,10 @@ void PacedSender::Resume() {
   }
 }
 
-void PacedSender::SetCongestionWindow(DataSize congestion_window_size) {
+void PacedSender::SetCongested(bool congested) {
   {
     MutexLock lock(&mutex_);
-    pacing_controller_.SetCongestionWindow(congestion_window_size);
-  }
-  MaybeWakupProcessThread();
-}
-
-void PacedSender::UpdateOutstandingData(DataSize outstanding_data) {
-  {
-    MutexLock lock(&mutex_);
-    pacing_controller_.UpdateOutstandingData(outstanding_data);
+    pacing_controller_.SetCongested(congested);
   }
   MaybeWakupProcessThread();
 }

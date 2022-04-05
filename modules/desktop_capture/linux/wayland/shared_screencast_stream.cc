@@ -650,7 +650,7 @@ void SharedScreenCastStreamPrivate::ProcessBuffer(pw_buffer* buffer) {
     const struct spa_meta_cursor* cursor =
         static_cast<struct spa_meta_cursor*>(spa_buffer_find_meta_data(
             spa_buffer, SPA_META_Cursor, sizeof(*cursor)));
-    if (spa_meta_cursor_is_valid(cursor)) {
+    if (cursor && spa_meta_cursor_is_valid(cursor)) {
       struct spa_meta_bitmap* bitmap = nullptr;
 
       if (cursor->bitmap_offset)
@@ -819,6 +819,9 @@ void SharedScreenCastStreamPrivate::ProcessBuffer(pw_buffer* buffer) {
       tmp_src += queue_.current_frame()->stride();
     }
   }
+
+  queue_.current_frame()->mutable_updated_region()->SetRect(
+      DesktopRect::MakeSize(queue_.current_frame()->size()));
 }
 
 void SharedScreenCastStreamPrivate::ConvertRGBxToBGRx(uint8_t* frame,

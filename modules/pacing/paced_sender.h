@@ -37,7 +37,6 @@
 
 namespace webrtc {
 class Clock;
-class RtcEventLog;
 
 class PacedSender : public RtpPacketPacer, public RtpPacketSender {
  public:
@@ -57,8 +56,7 @@ class PacedSender : public RtpPacketPacer, public RtpPacketSender {
   // optional once all callers have been updated.
   PacedSender(Clock* clock,
               PacketRouter* packet_router,
-              RtcEventLog* event_log,
-              const WebRtcKeyValueConfig* field_trials = nullptr,
+              const WebRtcKeyValueConfig& field_trials,
               ProcessThread* process_thread = nullptr);
 
   ~PacedSender() override;
@@ -80,8 +78,7 @@ class PacedSender : public RtpPacketPacer, public RtpPacketSender {
   // Resume sending packets.
   void Resume() override;
 
-  void SetCongestionWindow(DataSize congestion_window_size) override;
-  void UpdateOutstandingData(DataSize outstanding_data) override;
+  void SetCongested(bool congested) override;
 
   // Sets the pacing rates. Must be called once before packets can be sent.
   void SetPacingRates(DataRate pacing_rate, DataRate padding_rate) override;

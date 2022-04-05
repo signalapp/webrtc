@@ -40,6 +40,7 @@ namespace {
 
 using ::testing::_;
 using ::testing::ElementsAre;
+using ::testing::ElementsAreArray;
 using ::testing::Ge;
 using ::testing::NiceMock;
 using ::testing::Return;
@@ -82,6 +83,10 @@ class MockRtpStreamRtcpHandler : public RtpStreamRtcpHandler {
   }
 
   MOCK_METHOD(RtpStats, SentStats, (), (override));
+  MOCK_METHOD(void,
+              OnNack,
+              (uint32_t, rtc::ArrayView<const uint16_t>),
+              (override));
 
  private:
   int num_calls_ = 0;
@@ -1044,6 +1049,30 @@ TEST(RtcpTransceiverImplTest, SendsNack) {
   EXPECT_EQ(rtcp_parser.nack()->packet_ids(), kMissingSequenceNumbers);
 }
 
+TEST(RtcpTransceiverImplTest, ReceivesNack) {
+  static constexpr uint32_t kRemoteSsrc = 4321;
+  static constexpr uint32_t kMediaSsrc1 = 1234;
+  static constexpr uint32_t kMediaSsrc2 = 1235;
+  std::vector<uint16_t> kMissingSequenceNumbers = {34, 37, 38};
+  RtcpTransceiverConfig config = DefaultTestConfig();
+  RtcpTransceiverImpl rtcp_transceiver(config);
+
+  MockRtpStreamRtcpHandler local_stream1;
+  MockRtpStreamRtcpHandler local_stream2;
+  EXPECT_CALL(local_stream1,
+              OnNack(kRemoteSsrc, ElementsAreArray(kMissingSequenceNumbers)));
+  EXPECT_CALL(local_stream2, OnNack).Times(0);
+
+  EXPECT_TRUE(rtcp_transceiver.AddMediaSender(kMediaSsrc1, &local_stream1));
+  EXPECT_TRUE(rtcp_transceiver.AddMediaSender(kMediaSsrc2, &local_stream2));
+
+  rtcp::Nack nack;
+  nack.SetSenderSsrc(kRemoteSsrc);
+  nack.SetMediaSsrc(kMediaSsrc1);
+  nack.SetPacketIds(kMissingSequenceNumbers);
+  rtcp_transceiver.ReceivePacket(nack.Build(), config.clock->CurrentTime());
+}
+
 TEST(RtcpTransceiverImplTest, RequestKeyFrameWithPictureLossIndication) {
   const uint32_t kSenderSsrc = 1234;
   const uint32_t kRemoteSsrc = 4321;
@@ -1376,7 +1405,7 @@ TEST(RtcpTransceiverImplTest, ParsesRemb) {
 }
 
 TEST(RtcpTransceiverImplTest,
-     CombinesReportBlocksFromSenderAndRecieverReports) {
+     CombinesReportBlocksFromSenderAndReceiverReports) {
   MockNetworkLinkRtcpObserver link_observer;
   RtcpTransceiverConfig config = DefaultTestConfig();
   config.network_link_observer = &link_observer;
