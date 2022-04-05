@@ -220,7 +220,7 @@ bool UDPPort::Init() {
     socket_ = socket_factory()->CreateUdpSocket(
         rtc::SocketAddress(Network()->GetBestIP(), 0), min_port(), max_port());
     if (!socket_) {
-      RTC_LOG(LS_WARNING) << ToString() << ": UDP socket creation failed";
+      RTC_LOG(LS_INFO) << ToString() << ": UDP socket creation failed";
       return false;
     }
     socket_->SignalReadPacket.connect(this, &UDPPort::OnReadPacket);
