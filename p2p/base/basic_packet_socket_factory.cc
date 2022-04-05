@@ -62,7 +62,7 @@ AsyncPacketSocket* BasicPacketSocketFactory::CreateServerTcpSocket(
     int opts) {
   // Fail if TLS is required.
   if (opts & PacketSocketFactory::OPT_TLS) {
-    RTC_LOG(LS_INFO) << "TLS support currently is not available.";
+    RTC_LOG(LS_ERROR) << "TLS support currently is not available.";
     return NULL;
   }
 
