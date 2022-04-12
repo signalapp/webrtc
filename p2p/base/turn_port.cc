@@ -1609,8 +1609,8 @@ void TurnRefreshRequest::OnErrorResponse(StunMessage* response) {
 }
 
 void TurnRefreshRequest::OnTimeout() {
-  RTC_LOG(LS_WARNING) << port_->ToString() << ": TURN refresh timeout "
-                      << rtc::hex_encode(id());
+  RTC_LOG(LS_INFO) << port_->ToString() << ": TURN refresh timeout "
+                   << rtc::hex_encode(id());
   port_->OnRefreshError();
 }
 
@@ -1664,10 +1664,10 @@ void TurnCreatePermissionRequest::OnResponse(StunMessage* response) {
 
 void TurnCreatePermissionRequest::OnErrorResponse(StunMessage* response) {
   int error_code = response->GetErrorCodeValue();
-  RTC_LOG(LS_WARNING) << port_->ToString()
-                      << ": Received TURN create permission error response, id="
-                      << rtc::hex_encode(id()) << ", code=" << error_code
-                      << ", rtt=" << Elapsed();
+  RTC_LOG(LS_INFO) << port_->ToString()
+                   << ": Received TURN create permission error response, id="
+                   << rtc::hex_encode(id()) << ", code=" << error_code
+                   << ", rtt=" << Elapsed();
   if (entry_) {
     entry_->OnCreatePermissionError(response, error_code);
   }
@@ -1854,9 +1854,9 @@ void TurnEntry::OnCreatePermissionError(StunMessage* response, int code) {
   } else {
     bool found = port_->FailAndPruneConnection(ext_addr_);
     if (found) {
-      RTC_LOG(LS_ERROR) << "Received TURN CreatePermission error response, "
-                           "code="
-                        << code << "; pruned connection.";
+      RTC_LOG(LS_INFO) << "Received TURN CreatePermission error response, "
+                          "code="
+                       << code << "; pruned connection.";
     }
     // Send signal with error code.
     port_->SignalCreatePermissionResult(port_, ext_addr_, code);

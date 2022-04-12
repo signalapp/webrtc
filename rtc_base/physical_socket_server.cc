@@ -163,8 +163,8 @@ SocketAddress PhysicalSocket::GetLocalAddress() const {
   if (result >= 0) {
     SocketAddressFromSockAddrStorage(addr_storage, &address);
   } else {
-    RTC_LOG(LS_WARNING) << "GetLocalAddress: unable to get local addr, socket="
-                        << s_;
+    RTC_LOG(LS_INFO) << "GetLocalAddress: unable to get local addr, socket="
+                     << s_;
   }
   return address;
 }
@@ -178,7 +178,7 @@ SocketAddress PhysicalSocket::GetRemoteAddress() const {
   if (result >= 0) {
     SocketAddressFromSockAddrStorage(addr_storage, &address);
   } else {
-    RTC_LOG(LS_WARNING)
+    RTC_LOG(LS_INFO)
         << "GetRemoteAddress: unable to get remote addr, socket=" << s_;
   }
   return address;
