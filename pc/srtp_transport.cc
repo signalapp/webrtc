@@ -214,11 +214,11 @@ void SrtpTransport::OnRtpPacketReceived(rtc::CopyOnWriteBuffer packet,
     // bad packets.
     const int kFailureLogThrottleCount = 100;
     if (decryption_failure_count_ % kFailureLogThrottleCount == 0) {
-      RTC_LOG(LS_ERROR) << "Failed to unprotect RTP packet: size=" << len
-                        << ", seqnum=" << ParseRtpSequenceNumber(packet)
-                        << ", SSRC=" << ParseRtpSsrc(packet)
-                        << ", previous failure count: "
-                        << decryption_failure_count_;
+      RTC_LOG(LS_INFO) << "Failed to unprotect RTP packet: size=" << len
+                       << ", seqnum=" << ParseRtpSequenceNumber(packet)
+                       << ", SSRC=" << ParseRtpSsrc(packet)
+                       << ", previous failure count: "
+                       << decryption_failure_count_;
     }
     ++decryption_failure_count_;
     return;
@@ -240,8 +240,8 @@ void SrtpTransport::OnRtcpPacketReceived(rtc::CopyOnWriteBuffer packet,
   if (!UnprotectRtcp(data, len, &len)) {
     int type = -1;
     cricket::GetRtcpType(data, len, &type);
-    RTC_LOG(LS_ERROR) << "Failed to unprotect RTCP packet: size=" << len
-                      << ", type=" << type;
+    RTC_LOG(LS_INFO) << "Failed to unprotect RTCP packet: size=" << len
+                     << ", type=" << type;
     return;
   }
   packet.SetSize(len);
