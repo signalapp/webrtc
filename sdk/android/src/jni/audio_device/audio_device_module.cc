@@ -547,8 +547,8 @@ class AndroidAudioDeviceModule : public AudioDeviceModule {
 
   // RingRTC change to allow control of AEC3 vs AECM
   bool UseAecm() const override {
-    RTC_DLOG(INFO) << __FUNCTION__;
-    RTC_DLOG(INFO) << "output: " << use_aecm_;
+    RTC_DLOG(LS_INFO) << __FUNCTION__;
+    RTC_DLOG(LS_INFO) << "output: " << use_aecm_;
     return use_aecm_;
   }
 
