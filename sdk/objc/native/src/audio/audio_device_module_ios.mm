@@ -328,7 +328,7 @@ AudioDeviceModuleIOS::AudioDeviceModuleIOS(bool bypass_voice_processing)
       return -1;
     }
     if (audio_device_->SetStereoPlayout(enable)) {
-      RTC_LOG(LS_WARNING) << "stereo playout is not supported";
+      RTC_LOG(INFO) << "stereo playout is not supported";
       return -1;
     }
     int8_t nChannels(1);

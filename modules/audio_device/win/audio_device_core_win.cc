@@ -538,8 +538,8 @@ AudioDeviceWindowsCore::~AudioDeviceWindowsCore() {
           << "AudioDeviceWindowsCore::~AudioDeviceWindowsCore()"
              " failed to free the loaded Avrt DLL module correctly";
     } else {
-      RTC_LOG(LS_WARNING) << "AudioDeviceWindowsCore::~AudioDeviceWindowsCore()"
-                             " the Avrt DLL module is now unloaded";
+      RTC_LOG(LS_INFO) << "AudioDeviceWindowsCore::~AudioDeviceWindowsCore()"
+                          " the Avrt DLL module is now unloaded";
     }
   }
 }

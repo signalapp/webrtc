@@ -162,11 +162,11 @@ RtpVp8RefFinder::FrameDecision RtpVp8RefFinder::ManageFrameInternal(
 
     if (!(AheadOf<uint16_t, kFrameIdLength>(frame->Id(),
                                             layer_info_it->second[layer]))) {
-      RTC_LOG(LS_WARNING) << "Frame with picture id " << frame->Id()
-                          << " and packet range [" << frame->first_seq_num()
-                          << ", " << frame->last_seq_num()
-                          << "] already received, "
-                             " dropping frame.";
+      RTC_LOG(LS_INFO) << "Frame with picture id " << frame->Id()
+                       << " and packet range [" << frame->first_seq_num()
+                       << ", " << frame->last_seq_num()
+                       << "] already received, "
+                          " dropping frame.";
       return kDrop;
     }
 

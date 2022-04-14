@@ -354,8 +354,8 @@ std::vector<uint16_t> NackRequester::GetNackBatch(NackFilterOptions options) {
       ++it->second.retries;
       it->second.sent_at_time = now.ms();
       if (it->second.retries >= kMaxNackRetries) {
-        RTC_LOG(LS_WARNING) << "Sequence number " << it->second.seq_num
-                            << " removed from NACK list due to max retries.";
+        RTC_LOG(LS_INFO) << "Sequence number " << it->second.seq_num
+                         << " removed from NACK list due to max retries.";
         it = nack_list_.erase(it);
       } else {
         ++it;

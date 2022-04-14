@@ -370,7 +370,7 @@ void TurnPort::PrepareAddress() {
                      << ProtoToString(server_address_.proto) << " @ "
                      << server_address_.address.ToSensitiveString();
     if (!CreateTurnClientSocket()) {
-      RTC_LOG(LS_ERROR) << "Failed to create TURN client socket";
+      RTC_LOG(LS_INFO) << "Failed to create TURN client socket";
       OnAllocateError(SERVER_NOT_REACHABLE_ERROR,
                       "Failed to create TURN client socket.");
       return;
@@ -472,13 +472,13 @@ void TurnPort::OnSocketConnect(rtc::AsyncPacketSocket* socket) {
                         return socket_address.ipaddr() == addr;
                       })) {
     if (socket->GetLocalAddress().IsLoopbackIP()) {
-      RTC_LOG(LS_WARNING) << "Socket is bound to the address:"
-                          << socket_address.ipaddr().ToSensitiveString()
-                          << ", rather than an address associated with network:"
-                          << Network()->ToString()
-                          << ". Still allowing it since it's localhost.";
+      RTC_LOG(LS_INFO) << "Socket is bound to the address:"
+                       << socket_address.ipaddr().ToSensitiveString()
+                       << ", rather than an address associated with network:"
+                       << Network()->ToString()
+                       << ". Still allowing it since it's localhost.";
     } else if (IPIsAny(Network()->GetBestIP())) {
-      RTC_LOG(LS_WARNING)
+      RTC_LOG(LS_INFO)
           << "Socket is bound to the address:"
           << socket_address.ipaddr().ToSensitiveString()
           << ", rather than an address associated with network:"
@@ -486,10 +486,10 @@ void TurnPort::OnSocketConnect(rtc::AsyncPacketSocket* socket) {
           << ". Still allowing it since it's the 'any' address"
              ", possibly caused by multiple_routes being disabled.";
     } else {
-      RTC_LOG(LS_WARNING) << "Socket is bound to the address:"
-                          << socket_address.ipaddr().ToSensitiveString()
-                          << ", rather than an address associated with network:"
-                          << Network()->ToString() << ". Discarding TURN port.";
+      RTC_LOG(LS_INFO) << "Socket is bound to the address:"
+                       << socket_address.ipaddr().ToSensitiveString()
+                       << ", rather than an address associated with network:"
+                       << Network()->ToString() << ". Discarding TURN port.";
       OnAllocateError(
           STUN_ERROR_GLOBAL_FAILURE,
           "Address not associated with the desired network interface.");
@@ -509,9 +509,9 @@ void TurnPort::OnSocketConnect(rtc::AsyncPacketSocket* socket) {
 }
 
 void TurnPort::OnSocketClose(rtc::AsyncPacketSocket* socket, int error) {
-  RTC_LOG(LS_WARNING) << ToString()
-                      << ": Connection with server failed with error: "
-                      << error;
+  RTC_LOG(LS_INFO) << ToString()
+                   << ": Connection with server failed with error: "
+                   << error;
   RTC_DCHECK(socket == socket_);
   Close();
 }
@@ -838,8 +838,8 @@ void TurnPort::OnSendStunPacket(const void* data,
   options.info_signaled_after_sent.packet_type = rtc::PacketType::kTurnMessage;
   CopyPortInformationToPacketInfo(&options.info_signaled_after_sent);
   if (Send(data, size, options) < 0) {
-    RTC_LOG(LS_ERROR) << ToString() << ": Failed to send TURN message, error: "
-                      << socket_->GetError();
+    RTC_LOG(LS_INFO) << ToString() << ": Failed to send TURN message, error: "
+                     << socket_->GetError();
   }
 }
 
@@ -1448,8 +1448,8 @@ void TurnAllocateRequest::OnErrorResponse(StunMessage* response) {
 }
 
 void TurnAllocateRequest::OnTimeout() {
-  RTC_LOG(LS_WARNING) << port_->ToString() << ": TURN allocate request "
-                      << rtc::hex_encode(id()) << " timeout";
+  RTC_LOG(LS_INFO) << port_->ToString() << ": TURN allocate request "
+                   << rtc::hex_encode(id()) << " timeout";
   port_->OnAllocateRequestTimeout();
 }
 

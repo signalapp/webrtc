@@ -207,8 +207,8 @@ int PhysicalSocket::Bind(const SocketAddress& bind_addr) {
         RTC_LOG(LS_VERBOSE) << "Binding socket to loopback address"
                             << " failed; result: " << static_cast<int>(result);
       } else {
-        RTC_LOG(LS_WARNING) << "Binding socket to network address"
-                            << " failed; result: " << static_cast<int>(result);
+        RTC_LOG(LS_INFO) << "Binding socket to network address"
+                         << " failed; result: " << static_cast<int>(result);
         // If a network binding was attempted and failed, we should stop here
         // and not try to use the socket. Otherwise, we may end up sending
         // packets with an invalid source address.
@@ -595,7 +595,7 @@ int PhysicalSocket::TranslateOption(Option opt, int* slevel, int* sopt) {
       }
       break;
 #else
-      RTC_LOG(LS_WARNING) << "Socket::OPT_DSCP not supported.";
+      RTC_LOG(LS_INFO) << "Socket::OPT_DSCP not supported.";
       return -1;
 #endif
     case OPT_RTP_SENDTIME_EXTN_ID:
@@ -1698,7 +1698,7 @@ bool PhysicalSocketServer::Wait(int cmsWait, bool process_io) {
               }
               if ((wsaEvents.lNetworkEvents & FD_CONNECT) &&
                   wsaEvents.iErrorCode[FD_CONNECT_BIT] != 0) {
-                RTC_LOG(LS_WARNING)
+                RTC_LOG(LS_INFO)
                     << "PhysicalSocketServer got FD_CONNECT_BIT error "
                     << wsaEvents.iErrorCode[FD_CONNECT_BIT];
               }
