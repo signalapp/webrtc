@@ -154,7 +154,7 @@ public interface EglBase {
   public static EglBase create(@Nullable Context sharedContext, int[] configAttributes) {
     if (sharedContext == null) {
       // RingRTC change (or retention?) to keep support for SDK <= 19
-      return Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1 ? createEgl14(configAttributes)
+      return Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2 ? createEgl14(configAttributes)
                                                                          : createEgl10(configAttributes);
     } else if (sharedContext instanceof EglBase14.Context) {
       return createEgl14((EglBase14.Context) sharedContext, configAttributes);
