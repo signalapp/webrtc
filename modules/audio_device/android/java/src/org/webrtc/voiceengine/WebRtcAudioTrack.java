@@ -157,7 +157,7 @@ public class WebRtcAudioTrack {
           byteBuffer.put(emptyBytes);
           byteBuffer.position(0);
         }
-        int bytesWritten = audioTrack.write(byteBuffer, sizeInBytes, AudioTrack.WRITE_BLOCKING);
+        int bytesWritten = writeBytes(audioTrack, byteBuffer, sizeInBytes);
         if (bytesWritten != sizeInBytes) {
           Logging.e(TAG, "AudioTrack.write played invalid number of bytes: " + bytesWritten);
           // If a write() returns a negative value, an error has occurred.
