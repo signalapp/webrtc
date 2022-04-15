@@ -124,18 +124,12 @@ class WebRtcVoiceEngine final : public VoiceEngineInterface {
   bool is_dumping_aec_ = false;
   bool initialized_ = false;
 
-  // Cache experimental_ns and apply in case they are missing in the audio
-  // options.
-  absl::optional<bool> experimental_ns_;
   // Jitter buffer settings for new streams.
   size_t audio_jitter_buffer_max_packets_ = 200;
   bool audio_jitter_buffer_fast_accelerate_ = false;
   int audio_jitter_buffer_min_delay_ms_ = 0;
   bool audio_jitter_buffer_enable_rtx_handling_ = false;
 
-  // If this field is enabled, we will negotiate and use RFC 2198
-  // redundancy for opus audio.
-  const bool audio_red_for_opus_enabled_;
   const bool minimized_remsampling_on_mobile_trial_enabled_;
 };
 
@@ -209,7 +203,7 @@ class WebRtcVoiceMediaChannel final : public VoiceMediaChannel,
   void OnPacketReceived(rtc::CopyOnWriteBuffer packet,
                         int64_t packet_time_us) override;
   void OnPacketSent(const rtc::SentPacket& sent_packet) override;
-  void OnNetworkRouteChanged(const std::string& transport_name,
+  void OnNetworkRouteChanged(absl::string_view transport_name,
                              const rtc::NetworkRoute& network_route) override;
   void OnReadyToSend(bool ready) override;
   bool GetStats(VoiceMediaInfo* info, bool get_and_clear_legacy_stats) override;
@@ -338,8 +332,6 @@ class WebRtcVoiceMediaChannel final : public VoiceMediaChannel,
   // Unsignaled streams have an option to have a frame decryptor set on them.
   rtc::scoped_refptr<webrtc::FrameDecryptorInterface>
       unsignaled_frame_decryptor_;
-
-  const bool audio_red_for_opus_enabled_;
 };
 }  // namespace cricket
 

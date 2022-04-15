@@ -343,33 +343,33 @@ bool AudioDeviceWindowsCore::CoreAudioIsSupported() {
 // ----------------------------------------------------------------------------
 
 AudioDeviceWindowsCore::AudioDeviceWindowsCore()
-    : _avrtLibrary(NULL),
+    : _avrtLibrary(nullptr),
       _winSupportAvrt(false),
       _comInit(ScopedCOMInitializer::kMTA),
-      _ptrAudioBuffer(NULL),
-      _ptrEnumerator(NULL),
-      _ptrRenderCollection(NULL),
-      _ptrCaptureCollection(NULL),
-      _ptrDeviceOut(NULL),
-      _ptrDeviceIn(NULL),
-      _ptrClientOut(NULL),
-      _ptrClientIn(NULL),
-      _ptrRenderClient(NULL),
-      _ptrCaptureClient(NULL),
-      _ptrCaptureVolume(NULL),
-      _ptrRenderSimpleVolume(NULL),
-      _dmo(NULL),
-      _mediaBuffer(NULL),
+      _ptrAudioBuffer(nullptr),
+      _ptrEnumerator(nullptr),
+      _ptrRenderCollection(nullptr),
+      _ptrCaptureCollection(nullptr),
+      _ptrDeviceOut(nullptr),
+      _ptrDeviceIn(nullptr),
+      _ptrClientOut(nullptr),
+      _ptrClientIn(nullptr),
+      _ptrRenderClient(nullptr),
+      _ptrCaptureClient(nullptr),
+      _ptrCaptureVolume(nullptr),
+      _ptrRenderSimpleVolume(nullptr),
+      _dmo(nullptr),
+      _mediaBuffer(nullptr),
       _builtInAecEnabled(false),
-      _hRenderSamplesReadyEvent(NULL),
-      _hPlayThread(NULL),
-      _hRenderStartedEvent(NULL),
-      _hShutdownRenderEvent(NULL),
-      _hCaptureSamplesReadyEvent(NULL),
-      _hRecThread(NULL),
-      _hCaptureStartedEvent(NULL),
-      _hShutdownCaptureEvent(NULL),
-      _hMmTask(NULL),
+      _hRenderSamplesReadyEvent(nullptr),
+      _hPlayThread(nullptr),
+      _hRenderStartedEvent(nullptr),
+      _hShutdownRenderEvent(nullptr),
+      _hCaptureSamplesReadyEvent(nullptr),
+      _hRecThread(nullptr),
+      _hCaptureStartedEvent(nullptr),
+      _hShutdownCaptureEvent(nullptr),
+      _hMmTask(nullptr),
       _playAudioFrameSize(0),
       _playSampleRate(0),
       _playBlockSize(0),
@@ -1887,18 +1887,18 @@ int32_t AudioDeviceWindowsCore::InitPlayout() {
         break;
       } else {
         if (pWfxClosestMatch) {
-          RTC_LOG(INFO) << "nChannels=" << Wfx.nChannels
-                        << ", nSamplesPerSec=" << Wfx.nSamplesPerSec
-                        << " is not supported. Closest match: "
-                           "nChannels="
-                        << pWfxClosestMatch->nChannels << ", nSamplesPerSec="
-                        << pWfxClosestMatch->nSamplesPerSec;
+          RTC_LOG(LS_INFO) << "nChannels=" << Wfx.nChannels
+                           << ", nSamplesPerSec=" << Wfx.nSamplesPerSec
+                           << " is not supported. Closest match: "
+                              "nChannels="
+                           << pWfxClosestMatch->nChannels << ", nSamplesPerSec="
+                           << pWfxClosestMatch->nSamplesPerSec;
           CoTaskMemFree(pWfxClosestMatch);
           pWfxClosestMatch = NULL;
         } else {
-          RTC_LOG(INFO) << "nChannels=" << Wfx.nChannels
-                        << ", nSamplesPerSec=" << Wfx.nSamplesPerSec
-                        << " is not supported. No closest match.";
+          RTC_LOG(LS_INFO) << "nChannels=" << Wfx.nChannels
+                           << ", nSamplesPerSec=" << Wfx.nSamplesPerSec
+                           << " is not supported. No closest match.";
         }
       }
     }
@@ -2208,18 +2208,18 @@ int32_t AudioDeviceWindowsCore::InitRecording() {
         break;
       } else {
         if (pWfxClosestMatch) {
-          RTC_LOG(INFO) << "nChannels=" << Wfx.Format.nChannels
-                        << ", nSamplesPerSec=" << Wfx.Format.nSamplesPerSec
-                        << " is not supported. Closest match: "
-                           "nChannels="
-                        << pWfxClosestMatch->nChannels << ", nSamplesPerSec="
-                        << pWfxClosestMatch->nSamplesPerSec;
+          RTC_LOG(LS_INFO) << "nChannels=" << Wfx.Format.nChannels
+                           << ", nSamplesPerSec=" << Wfx.Format.nSamplesPerSec
+                           << " is not supported. Closest match: "
+                              "nChannels="
+                           << pWfxClosestMatch->nChannels << ", nSamplesPerSec="
+                           << pWfxClosestMatch->nSamplesPerSec;
           CoTaskMemFree(pWfxClosestMatch);
           pWfxClosestMatch = NULL;
         } else {
-          RTC_LOG(INFO) << "nChannels=" << Wfx.Format.nChannels
-                        << ", nSamplesPerSec=" << Wfx.Format.nSamplesPerSec
-                        << " is not supported. No closest match.";
+          RTC_LOG(LS_INFO) << "nChannels=" << Wfx.Format.nChannels
+                           << ", nSamplesPerSec=" << Wfx.Format.nSamplesPerSec
+                           << " is not supported. No closest match.";
         }
       }
     }
@@ -3009,7 +3009,7 @@ DWORD AudioDeviceWindowsCore::DoCaptureThreadPollDMO() {
       if (FAILED(hr)) {
         _TraceCOMError(hr);
         keepRecording = false;
-        RTC_NOTREACHED();
+        RTC_DCHECK_NOTREACHED();
         break;
       }
 
@@ -3021,7 +3021,7 @@ DWORD AudioDeviceWindowsCore::DoCaptureThreadPollDMO() {
       if (FAILED(hr)) {
         _TraceCOMError(hr);
         keepRecording = false;
-        RTC_NOTREACHED();
+        RTC_DCHECK_NOTREACHED();
         break;
       }
 
@@ -3046,7 +3046,7 @@ DWORD AudioDeviceWindowsCore::DoCaptureThreadPollDMO() {
       if (FAILED(hr)) {
         _TraceCOMError(hr);
         keepRecording = false;
-        RTC_NOTREACHED();
+        RTC_DCHECK_NOTREACHED();
         break;
       }
 

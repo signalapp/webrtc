@@ -12,9 +12,9 @@
 
 #include <stddef.h>
 
-#include <algorithm>
 #include <functional>
 #include <memory>
+#include <string>
 #include <type_traits>
 #include <utility>
 
@@ -62,6 +62,7 @@ JsepTransportController::JsepTransportController(
   RTC_DCHECK(config_.rtcp_handler);
   RTC_DCHECK(config_.ice_transport_factory);
   RTC_DCHECK(config_.on_dtls_handshake_error_);
+  RTC_DCHECK(config_.field_trials);
 }
 
 JsepTransportController::~JsepTransportController() {
@@ -400,7 +401,7 @@ void JsepTransportController::SetActiveResetSrtpParams(
     return;
   }
   RTC_DCHECK_RUN_ON(network_thread_);
-  RTC_LOG(INFO)
+  RTC_LOG(LS_INFO)
       << "Updating the active_reset_srtp_params for JsepTransportController: "
       << active_reset_srtp_params;
   active_reset_srtp_params_ = active_reset_srtp_params;
@@ -433,6 +434,7 @@ JsepTransportController::CreateIceTransport(const std::string& transport_name,
   init.set_port_allocator(port_allocator_);
   init.set_async_dns_resolver_factory(async_dns_resolver_factory_);
   init.set_event_log(config_.event_log);
+  init.set_field_trials(config_.field_trials);
   return config_.ice_transport_factory->CreateIceTransport(
       transport_name, component, std::move(init));
 }
@@ -511,8 +513,8 @@ JsepTransportController::CreateSdesTransport(
     cricket::DtlsTransportInternal* rtp_dtls_transport,
     cricket::DtlsTransportInternal* rtcp_dtls_transport) {
   RTC_DCHECK_RUN_ON(network_thread_);
-  auto srtp_transport =
-      std::make_unique<webrtc::SrtpTransport>(rtcp_dtls_transport == nullptr);
+  auto srtp_transport = std::make_unique<webrtc::SrtpTransport>(
+      rtcp_dtls_transport == nullptr, *config_.field_trials);
   RTC_DCHECK(rtp_dtls_transport);
   srtp_transport->SetRtpPacketTransport(rtp_dtls_transport);
   if (rtcp_dtls_transport) {
@@ -531,7 +533,7 @@ JsepTransportController::CreateDtlsSrtpTransport(
     cricket::DtlsTransportInternal* rtcp_dtls_transport) {
   RTC_DCHECK_RUN_ON(network_thread_);
   auto dtls_srtp_transport = std::make_unique<webrtc::DtlsSrtpTransport>(
-      rtcp_dtls_transport == nullptr);
+      rtcp_dtls_transport == nullptr, *config_.field_trials);
   if (config_.enable_external_auth) {
     dtls_srtp_transport->EnableExternalAuth();
   }
@@ -1201,7 +1203,7 @@ void JsepTransportController::OnTransportCandidateGathered_n(
     const cricket::Candidate& candidate) {
   // We should never signal peer-reflexive candidates.
   if (candidate.type() == cricket::PRFLX_PORT_TYPE) {
-    RTC_NOTREACHED();
+    RTC_DCHECK_NOTREACHED();
     return;
   }
 
@@ -1345,7 +1347,7 @@ void JsepTransportController::UpdateAggregateStates_n() {
     // "connected", "completed" or "closed" state.
     new_ice_connection_state = PeerConnectionInterface::kIceConnectionConnected;
   } else {
-    RTC_NOTREACHED();
+    RTC_DCHECK_NOTREACHED();
   }
 
   if (standardized_ice_connection_state_ != new_ice_connection_state) {
@@ -1403,7 +1405,7 @@ void JsepTransportController::UpdateAggregateStates_n() {
     new_combined_state =
         PeerConnectionInterface::PeerConnectionState::kConnected;
   } else {
-    RTC_NOTREACHED();
+    RTC_DCHECK_NOTREACHED();
   }
 
   if (combined_connection_state_ != new_combined_state) {

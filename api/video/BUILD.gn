@@ -31,6 +31,7 @@ rtc_library("video_rtp_headers") {
     "../../rtc_base:rtc_base_approved",
     "../../rtc_base/system:rtc_export",
     "../units:data_rate",
+    "../units:time_delta",
   ]
   absl_deps = [
     "//third_party/abseil-cpp/absl/container:inlined_vector",
@@ -43,6 +44,8 @@ rtc_library("video_frame") {
   sources = [
     "i420_buffer.cc",
     "i420_buffer.h",
+    "i444_buffer.cc",
+    "i444_buffer.h",
     "nv12_buffer.cc",
     "nv12_buffer.h",
     "video_codec_type.h",
@@ -60,6 +63,7 @@ rtc_library("video_frame") {
     "..:array_view",
     "..:rtp_packet_info",
     "..:scoped_refptr",
+    "..:video_track_source_constraints",
     "../../rtc_base:checks",
     "../../rtc_base:rtc_base_approved",
     "../../rtc_base/memory:aligned_malloc",
@@ -145,7 +149,11 @@ rtc_library("encoded_frame") {
     "encoded_frame.h",
   ]
 
-  deps = [ "../../modules/video_coding:encoded_frame" ]
+  deps = [
+    "../../modules/video_coding:encoded_frame",
+    "../units:timestamp",
+  ]
+  absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
 }
 
 rtc_library("rtp_video_frame_assembler") {
@@ -159,6 +167,7 @@ rtc_library("rtp_video_frame_assembler") {
     ":encoded_frame",
     "../../modules/rtp_rtcp:rtp_rtcp",
     "../../modules/rtp_rtcp:rtp_rtcp_format",
+    "../../modules/video_coding:packet_buffer",
     "../../modules/video_coding:video_coding",
     "../../rtc_base:logging",
   ]

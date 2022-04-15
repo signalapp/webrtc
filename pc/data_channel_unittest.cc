@@ -8,17 +8,27 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#include <stdint.h>
 #include <string.h>
 
 #include <memory>
+#include <string>
 #include <vector>
 
+#include "api/data_channel_interface.h"
+#include "api/rtc_error.h"
+#include "api/scoped_refptr.h"
+#include "api/transport/data_channel_transport_interface.h"
+#include "media/base/media_channel.h"
 #include "media/sctp/sctp_transport_internal.h"
 #include "pc/sctp_data_channel.h"
 #include "pc/sctp_utils.h"
 #include "pc/test/fake_data_channel_provider.h"
+#include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/gunit.h"
-#include "rtc_base/numerics/safe_conversions.h"
+#include "rtc_base/ssl_stream_adapter.h"
+#include "rtc_base/third_party/sigslot/sigslot.h"
+#include "rtc_base/thread.h"
 #include "test/gtest.h"
 
 using webrtc::DataChannelInterface;
@@ -544,23 +554,29 @@ TEST_F(SctpDataChannelTest, OpenAckRoleInitialization) {
   EXPECT_EQ(webrtc::InternalDataChannelInit::kNone, init2.open_handshake_role);
 }
 
-// Tests that the DataChannel is closed if the sending buffer is full.
-TEST_F(SctpDataChannelTest, ClosedWhenSendBufferFull) {
+// Tests that that Send() returns false if the sending buffer is full
+// and the channel stays open.
+TEST_F(SctpDataChannelTest, OpenWhenSendBufferFull) {
   SetChannelReady();
 
-  rtc::CopyOnWriteBuffer buffer(1024);
+  const size_t packetSize = 1024;
+
+  rtc::CopyOnWriteBuffer buffer(packetSize);
   memset(buffer.MutableData(), 0, buffer.size());
 
   webrtc::DataBuffer packet(buffer, true);
   provider_->set_send_blocked(true);
 
-  for (size_t i = 0; i < 16 * 1024 + 1; ++i) {
+  for (size_t i = 0;
+       i < webrtc::DataChannelInterface::MaxSendQueueSize() / packetSize; ++i) {
     EXPECT_TRUE(webrtc_data_channel_->Send(packet));
   }
 
-  EXPECT_TRUE(
-      webrtc::DataChannelInterface::kClosed == webrtc_data_channel_->state() ||
-      webrtc::DataChannelInterface::kClosing == webrtc_data_channel_->state());
+  // The sending buffer shoul be full, send returns false.
+  EXPECT_FALSE(webrtc_data_channel_->Send(packet));
+
+  EXPECT_TRUE(webrtc::DataChannelInterface::kOpen ==
+              webrtc_data_channel_->state());
 }
 
 // Tests that the DataChannel is closed on transport errors.

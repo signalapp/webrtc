@@ -26,7 +26,6 @@ namespace field_trial {
 
 static const char* trials_init_string = NULL;
 
-#ifndef WEBRTC_EXCLUDE_FIELD_TRIAL_DEFAULT
 namespace {
 constexpr char kPersistentStringSeparator = '/';
 // Validates the given field trial string.
@@ -85,7 +84,7 @@ void InsertOrReplaceFieldTrialStringsInMap(
       (*fieldtrial_map)[tokens[idx]] = tokens[idx + 1];
     }
   } else {
-    RTC_NOTREACHED() << "Invalid field trials string:" << trials_string;
+    RTC_DCHECK_NOTREACHED() << "Invalid field trials string:" << trials_string;
   }
 }
 
@@ -102,6 +101,7 @@ std::string MergeFieldTrialsStrings(const char* first, const char* second) {
   return merged;
 }
 
+#ifndef WEBRTC_EXCLUDE_FIELD_TRIAL_DEFAULT
 std::string FindFullName(const std::string& name) {
   if (trials_init_string == NULL)
     return std::string();
@@ -138,12 +138,10 @@ std::string FindFullName(const std::string& name) {
 // Optionally initialize field trial from a string.
 void InitFieldTrialsFromString(const char* trials_string) {
   RTC_LOG(LS_INFO) << "Setting field trial string:" << trials_string;
-#ifndef WEBRTC_EXCLUDE_FIELD_TRIAL_DEFAULT
   if (trials_string) {
     RTC_DCHECK(FieldTrialsStringIsValidInternal(trials_string))
         << "Invalid field trials string:" << trials_string;
   };
-#endif  // WEBRTC_EXCLUDE_FIELD_TRIAL_DEFAULT
   trials_init_string = trials_string;
 }
 

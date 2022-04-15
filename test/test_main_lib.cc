@@ -57,7 +57,12 @@ ABSL_FLAG(
     "described by histogram.proto in "
     "https://chromium.googlesource.com/catapult/.");
 
-#else
+#endif
+
+ABSL_FLAG(std::string,
+          isolated_script_test_output,
+          "",
+          "Path to output an empty JSON file which Chromium infra requires.");
 
 ABSL_FLAG(
     std::string,
@@ -66,8 +71,6 @@ ABSL_FLAG(
     "Path where the perf results should be stored in proto format described "
     "described by histogram.proto in "
     "https://chromium.googlesource.com/catapult/.");
-
-#endif
 
 constexpr char kPlotAllMetrics[] = "all";
 ABSL_FLAG(std::vector<std::string>,
@@ -231,6 +234,14 @@ class TestMainImpl : public TestMain {
     }
     if (metrics_to_plot) {
       webrtc::test::PrintPlottableResults(*metrics_to_plot);
+    }
+
+    std::string result_filename =
+        absl::GetFlag(FLAGS_isolated_script_test_output);
+    if (!result_filename.empty()) {
+      std::ofstream result_file(result_filename);
+      result_file << "{\"version\": 3}";
+      result_file.close();
     }
 #endif
 

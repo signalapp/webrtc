@@ -377,7 +377,9 @@ rtc_library("rtcp_transceiver") {
     "../../api/units:timestamp",
     "../../api/video:video_bitrate_allocation",
     "../../rtc_base:checks",
+    "../../rtc_base:divide_round",
     "../../rtc_base:rtc_base_approved",
+    "../../rtc_base/containers:flat_map",
     "../../rtc_base/task_utils:repeating_task",
     "../../rtc_base/task_utils:to_queued_task",
     "../../system_wrappers",
@@ -397,6 +399,7 @@ rtc_library("rtp_video_header") {
     "source/rtp_video_header.h",
   ]
   deps = [
+    "../../api:rtp_headers",
     "../../api/transport/rtp:dependency_descriptor",
     "../../api/video:video_frame",
     "../../api/video:video_frame_type",
@@ -435,7 +438,6 @@ rtc_library("mock_rtp_rtcp") {
   deps = [
     ":rtp_rtcp",
     ":rtp_rtcp_format",
-    "..:module_api",
     "../../api/video:video_bitrate_allocation",
     "../../rtc_base:checks",
     "../../rtc_base:rtc_base_approved",

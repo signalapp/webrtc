@@ -104,7 +104,6 @@ std::string CodecSpecificToString(const VideoCodec& codec) {
   rtc::SimpleStringBuilder ss(buf);
   switch (codec.codecType) {
     case kVideoCodecVP8:
-      ss << "complexity: " << static_cast<int>(codec.VP8().complexity);
       ss << "\nnum_temporal_layers: "
          << static_cast<int>(codec.VP8().numberOfTemporalLayers);
       ss << "\ndenoising: " << codec.VP8().denoisingOn;
@@ -113,7 +112,6 @@ std::string CodecSpecificToString(const VideoCodec& codec) {
       ss << "\nkey_frame_interval: " << codec.VP8().keyFrameInterval;
       break;
     case kVideoCodecVP9:
-      ss << "complexity: " << static_cast<int>(codec.VP9().complexity);
       ss << "\nnum_temporal_layers: "
          << static_cast<int>(codec.VP9().numberOfTemporalLayers);
       ss << "\nnum_spatial_layers: "
@@ -148,6 +146,26 @@ std::string FilenameWithParams(
     const VideoCodecTestFixtureImpl::Config& config) {
   return config.filename + "_" + config.CodecName() + "_" +
          std::to_string(config.codec_settings.startBitrate);
+}
+
+SdpVideoFormat CreateSdpVideoFormat(
+    const VideoCodecTestFixtureImpl::Config& config) {
+  if (config.codec_settings.codecType == kVideoCodecH264) {
+    const char* packetization_mode =
+        config.h264_codec_settings.packetization_mode ==
+                H264PacketizationMode::NonInterleaved
+            ? "1"
+            : "0";
+    SdpVideoFormat::Parameters codec_params = {
+        {cricket::kH264FmtpProfileLevelId,
+         *H264ProfileLevelIdToString(H264ProfileLevelId(
+             config.h264_codec_settings.profile, H264Level::kLevel3_1))},
+        {cricket::kH264FmtpPacketizationMode, packetization_mode}};
+
+    return SdpVideoFormat(config.codec_name, codec_params);
+  }
+
+  return SdpVideoFormat(config.codec_name);
 }
 
 }  // namespace
@@ -282,6 +300,8 @@ std::string VideoCodecTestFixtureImpl::Config::ToString() const {
   ss << "\nnum_simulcast_streams: "
      << static_cast<int>(codec_settings.numberOfSimulcastStreams);
   ss << "\n\n--> codec_settings." << codec_type;
+  ss << "complexity: "
+     << static_cast<int>(codec_settings.GetVideoEncoderComplexity());
   ss << "\n" << CodecSpecificToString(codec_settings);
   if (codec_settings.numberOfSimulcastStreams > 1) {
     for (int i = 0; i < codec_settings.numberOfSimulcastStreams; ++i) {
@@ -350,7 +370,7 @@ void VideoCodecTestFixtureImpl::H264KeyframeChecker::CheckEncodedFrame(
     EXPECT_FALSE(contains_pps) << "Delta frame should not contain PPS.";
     EXPECT_FALSE(contains_idr) << "Delta frame should not contain IDR.";
   } else {
-    RTC_NOTREACHED();
+    RTC_DCHECK_NOTREACHED();
   }
 }
 
@@ -611,23 +631,21 @@ void VideoCodecTestFixtureImpl::VerifyVideoStatistic(
 }
 
 bool VideoCodecTestFixtureImpl::CreateEncoderAndDecoder() {
-  SdpVideoFormat::Parameters params;
-  if (config_.codec_settings.codecType == kVideoCodecH264) {
-    const char* packetization_mode =
-        config_.h264_codec_settings.packetization_mode ==
-                H264PacketizationMode::NonInterleaved
-            ? "1"
-            : "0";
-    params = {{cricket::kH264FmtpProfileLevelId,
-               *H264ProfileLevelIdToString(H264ProfileLevelId(
-                   config_.h264_codec_settings.profile, H264Level::kLevel3_1))},
-              {cricket::kH264FmtpPacketizationMode, packetization_mode}};
-  } else {
-    params = {};
-  }
-  SdpVideoFormat format(config_.codec_name, params);
+  SdpVideoFormat encoder_format(CreateSdpVideoFormat(config_));
+  SdpVideoFormat decoder_format = encoder_format;
 
-  encoder_ = encoder_factory_->CreateVideoEncoder(format);
+  // Override encoder and decoder formats with explicitly provided ones.
+  if (config_.encoder_format) {
+    RTC_DCHECK_EQ(config_.encoder_format->name, config_.codec_name);
+    encoder_format = *config_.encoder_format;
+  }
+
+  if (config_.decoder_format) {
+    RTC_DCHECK_EQ(config_.decoder_format->name, config_.codec_name);
+    decoder_format = *config_.decoder_format;
+  }
+
+  encoder_ = encoder_factory_->CreateVideoEncoder(encoder_format);
   EXPECT_TRUE(encoder_) << "Encoder not successfully created.";
   if (encoder_ == nullptr) {
     return false;
@@ -636,15 +654,13 @@ bool VideoCodecTestFixtureImpl::CreateEncoderAndDecoder() {
   const size_t num_simulcast_or_spatial_layers = std::max(
       config_.NumberOfSimulcastStreams(), config_.NumberOfSpatialLayers());
   for (size_t i = 0; i < num_simulcast_or_spatial_layers; ++i) {
-    decoders_.push_back(std::unique_ptr<VideoDecoder>(
-        decoder_factory_->CreateVideoDecoder(format)));
-  }
-
-  for (const auto& decoder : decoders_) {
+    std::unique_ptr<VideoDecoder> decoder =
+        decoder_factory_->CreateVideoDecoder(decoder_format);
     EXPECT_TRUE(decoder) << "Decoder not successfully created.";
     if (decoder == nullptr) {
       return false;
     }
+    decoders_.push_back(std::move(decoder));
   }
 
   return true;
@@ -697,15 +713,6 @@ bool VideoCodecTestFixtureImpl::SetUpAndInitObjects(
     return false;
   }
 
-  task_queue->SendTask(
-      [this]() {
-        processor_ = std::make_unique<VideoProcessor>(
-            encoder_.get(), &decoders_, source_frame_reader_.get(), config_,
-            &stats_, &encoded_frame_writers_,
-            decoded_frame_writers_.empty() ? nullptr : &decoded_frame_writers_);
-      },
-      RTC_FROM_HERE);
-
   if (config_.visualization_params.save_encoded_ivf ||
       config_.visualization_params.save_decoded_y4m) {
     std::string encoder_name = GetCodecName(task_queue, /*is_encoder=*/true);
@@ -748,6 +755,14 @@ bool VideoCodecTestFixtureImpl::SetUpAndInitObjects(
     }
   }
 
+  task_queue->SendTask(
+      [this]() {
+        processor_ = std::make_unique<VideoProcessor>(
+            encoder_.get(), &decoders_, source_frame_reader_.get(), config_,
+            &stats_, &encoded_frame_writers_,
+            decoded_frame_writers_.empty() ? nullptr : &decoded_frame_writers_);
+      },
+      RTC_FROM_HERE);
   return true;
 }
 

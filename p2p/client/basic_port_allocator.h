@@ -16,7 +16,7 @@
 #include <vector>
 
 #include "api/turn_customizer.h"
-#include "p2p/base/port.h"
+#include "api/webrtc_key_value_config.h"
 #include "p2p/base/port_allocator.h"
 #include "p2p/client/relay_port_factory_interface.h"
 #include "p2p/client/turn_port_factory.h"
@@ -31,8 +31,12 @@ namespace cricket {
 
 class RTC_EXPORT BasicPortAllocator : public PortAllocator {
  public:
-  // note: The (optional) relay_port_factory is owned by caller
-  // and must have a life time that exceeds that of BasicPortAllocator.
+  // The NetworkManager is a mandatory argument. The other arguments are
+  // optional. All these objects are owned by caller and must have a life time
+  // that exceeds that of BasicPortAllocator.
+  // TODO(bugs.webrtc.org/13145): The SocketFactory should be mandatory, but
+  // currenly isn't. When not specified, one is created internally, based on the
+  // socket server associated with the thread calling CreateSession.
   BasicPortAllocator(rtc::NetworkManager* network_manager,
                      rtc::PacketSocketFactory* socket_factory,
                      webrtc::TurnCustomizer* customizer = nullptr,
@@ -81,15 +85,23 @@ class RTC_EXPORT BasicPortAllocator : public PortAllocator {
 
   void SetVpnList(const std::vector<rtc::NetworkMask>& vpn_list) override;
 
+  const webrtc::WebRtcKeyValueConfig* field_trials() const {
+    return field_trials_;
+  }
+
  private:
   void OnIceRegathering(PortAllocatorSession* session,
                         IceRegatheringReason reason);
 
-  // This function makes sure that relay_port_factory_ is set properly.
-  void InitRelayPortFactory(RelayPortFactoryInterface* relay_port_factory);
+  // This function makes sure that relay_port_factory_ and field_trials_ is set
+  // properly.
+  void Init(RelayPortFactoryInterface* relay_port_factory,
+            const webrtc::WebRtcKeyValueConfig* field_trials);
 
   bool MdnsObfuscationEnabled() const override;
 
+  const webrtc::WebRtcKeyValueConfig* field_trials_;
+  std::unique_ptr<webrtc::WebRtcKeyValueConfig> owned_field_trials_;
   rtc::NetworkManager* network_manager_;
   rtc::PacketSocketFactory* socket_factory_;
   int network_ignore_mask_ = rtc::kDefaultNetworkIgnoreMask;
@@ -299,14 +311,10 @@ struct RTC_EXPORT PortConfiguration {
   typedef std::vector<RelayServerConfig> RelayList;
   RelayList relays;
 
-  // TODO(jiayl): remove this ctor when Chrome is updated.
-  PortConfiguration(const rtc::SocketAddress& stun_address,
-                    const std::string& username,
-                    const std::string& password);
-
   PortConfiguration(const ServerAddresses& stun_servers,
                     const std::string& username,
-                    const std::string& password);
+                    const std::string& password,
+                    const webrtc::WebRtcKeyValueConfig* field_trials = nullptr);
 
   // Returns addresses of both the explicitly configured STUN servers,
   // and TURN servers that should be used as STUN servers.

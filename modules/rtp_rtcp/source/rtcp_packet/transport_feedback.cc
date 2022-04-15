@@ -12,8 +12,10 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <numeric>
 #include <utility>
 
+#include "absl/algorithm/container.h"
 #include "modules/include/module_common_types_public.h"
 #include "modules/rtp_rtcp/source/byte_io.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/common_header.h"
@@ -447,19 +449,12 @@ bool TransportFeedback::Parse(const CommonHeader& packet) {
   num_seq_no_ = status_count;
 
   uint16_t seq_no = base_seq_no_;
-  size_t recv_delta_size = 0;
-  for (size_t delta_size : delta_sizes) {
-    recv_delta_size += delta_size;
-  }
+  size_t recv_delta_size = absl::c_accumulate(delta_sizes, 0);
 
   // Determine if timestamps, that is, recv_delta are included in the packet.
   if (end_index >= index + recv_delta_size) {
     for (size_t delta_size : delta_sizes) {
-      if (index + delta_size > end_index) {
-        RTC_LOG(LS_WARNING) << "Buffer overflow while parsing packet.";
-        Clear();
-        return false;
-      }
+      RTC_DCHECK_LE(index + delta_size, end_index);
       switch (delta_size) {
         case 0:
           if (include_lost_)
@@ -489,7 +484,7 @@ bool TransportFeedback::Parse(const CommonHeader& packet) {
 
           return false;
         default:
-          RTC_NOTREACHED();
+          RTC_DCHECK_NOTREACHED();
           break;
       }
       ++seq_no;
@@ -549,7 +544,7 @@ bool TransportFeedback::IsConsistent() const {
                       << num_seq_no_;
     return false;
   }
-  int64_t timestamp_us = base_time_ticks_ * kBaseScaleFactor;
+  int64_t timestamp_us = GetBaseTimeUs();
   auto packet_it = received_packets_.begin();
   uint16_t seq_no = base_seq_no_;
   for (DeltaSize delta_size : delta_sizes) {

@@ -20,6 +20,7 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/memory/memory.h"
+#include "api/transport/field_trial_based_config.h"
 #include "p2p/base/basic_packet_socket_factory.h"
 #include "p2p/base/ice_credentials_iterator.h"
 #include "p2p/base/ice_gatherer.h"
@@ -33,7 +34,6 @@
 #include "rtc_base/logging.h"
 #include "rtc_base/task_utils/to_queued_task.h"
 #include "rtc_base/trace_event.h"
-#include "system_wrappers/include/field_trial.h"
 #include "system_wrappers/include/metrics.h"
 
 using rtc::CreateRandomId;
@@ -58,7 +58,7 @@ int GetProtocolPriority(cricket::ProtocolType protocol) {
     case cricket::PROTO_TLS:
       return 0;
     default:
-      RTC_NOTREACHED();
+      RTC_DCHECK_NOTREACHED();
       return 0;
   }
 }
@@ -70,7 +70,7 @@ int GetAddressFamilyPriority(int ip_family) {
     case AF_INET:
       return 1;
     default:
-      RTC_NOTREACHED();
+      RTC_DCHECK_NOTREACHED();
       return 0;
   }
 }
@@ -105,9 +105,9 @@ void FilterNetworks(NetworkList* networks, NetworkFilter filter) {
   if (start_to_remove == networks->end()) {
     return;
   }
-  RTC_LOG(INFO) << "Filtered out " << filter.description << " networks:";
+  RTC_LOG(LS_INFO) << "Filtered out " << filter.description << " networks:";
   for (auto it = start_to_remove; it != networks->end(); ++it) {
-    RTC_LOG(INFO) << (*it)->ToString();
+    RTC_LOG(LS_INFO) << (*it)->ToString();
   }
   networks->erase(start_to_remove, networks->end());
 }
@@ -154,7 +154,7 @@ BasicPortAllocator::BasicPortAllocator(
     webrtc::TurnCustomizer* customizer,
     RelayPortFactoryInterface* relay_port_factory)
     : network_manager_(network_manager), socket_factory_(socket_factory) {
-  InitRelayPortFactory(relay_port_factory);
+  Init(relay_port_factory, nullptr);
   RTC_DCHECK(relay_port_factory_ != nullptr);
   RTC_DCHECK(network_manager_ != nullptr);
   RTC_DCHECK(socket_factory_ != nullptr);
@@ -164,7 +164,7 @@ BasicPortAllocator::BasicPortAllocator(
 
 BasicPortAllocator::BasicPortAllocator(rtc::NetworkManager* network_manager)
     : network_manager_(network_manager), socket_factory_(nullptr) {
-  InitRelayPortFactory(nullptr);
+  Init(nullptr, nullptr);
   RTC_DCHECK(relay_port_factory_ != nullptr);
   RTC_DCHECK(network_manager_ != nullptr);
 }
@@ -179,8 +179,9 @@ BasicPortAllocator::BasicPortAllocator(rtc::NetworkManager* network_manager,
                                        rtc::PacketSocketFactory* socket_factory,
                                        const ServerAddresses& stun_servers)
     : network_manager_(network_manager), socket_factory_(socket_factory) {
-  InitRelayPortFactory(nullptr);
+  Init(nullptr, nullptr);
   RTC_DCHECK(relay_port_factory_ != nullptr);
+  RTC_DCHECK(network_manager_ != nullptr);
   SetConfiguration(stun_servers, std::vector<RelayServerConfig>(), 0,
                    webrtc::NO_PRUNE, nullptr);
 }
@@ -265,7 +266,7 @@ BasicPortAllocator::CreateIceGatherer(const std::string& name) {
   // 1. Create with NetworkManager, PacketSocketFactory, and RelayPortFactory.
   auto new_allocator = std::make_unique<BasicPortAllocator>(network_manager());
   new_allocator->socket_factory_ = socket_factory_;
-  new_allocator->InitRelayPortFactory(relay_port_factory_);
+  new_allocator->Init(relay_port_factory_, nullptr);
 
   // 2. SetNetworkIgnoreMask().
   new_allocator->SetNetworkIgnoreMask(network_ignore_mask_);
@@ -281,7 +282,6 @@ BasicPortAllocator::CreateIceGatherer(const std::string& name) {
   new_allocator->set_step_delay(step_delay());
   new_allocator->set_allow_tcp_listen(allow_tcp_listen());
   new_allocator->set_candidate_filter(candidate_filter());
-  new_allocator->set_origin(origin());
 
   // 5. SetConfiguration
   new_allocator->SetConfiguration(stun_servers(), turn_servers(),
@@ -294,7 +294,7 @@ BasicPortAllocator::CreateIceGatherer(const std::string& name) {
   auto session =
       new_allocator->CreateSession(name, 1, parameters.ufrag, parameters.pwd);
 
-  return new rtc::RefCountedObject<cricket::BasicIceGatherer>(
+  return rtc::make_ref_counted<cricket::BasicIceGatherer>(
       rtc::Thread::Current(), std::move(new_allocator), std::move(session));
 
 }
@@ -307,13 +307,21 @@ void BasicPortAllocator::AddTurnServer(const RelayServerConfig& turn_server) {
                    turn_port_prune_policy(), turn_customizer());
 }
 
-void BasicPortAllocator::InitRelayPortFactory(
-    RelayPortFactoryInterface* relay_port_factory) {
+void BasicPortAllocator::Init(
+    RelayPortFactoryInterface* relay_port_factory,
+    const webrtc::WebRtcKeyValueConfig* field_trials) {
   if (relay_port_factory != nullptr) {
     relay_port_factory_ = relay_port_factory;
   } else {
     default_relay_port_factory_.reset(new TurnPortFactory());
     relay_port_factory_ = default_relay_port_factory_.get();
+  }
+
+  if (field_trials != nullptr) {
+    field_trials_ = field_trials;
+  } else {
+    owned_field_trials_ = std::make_unique<webrtc::FieldTrialBasedConfig>();
+    field_trials_ = owned_field_trials_.get();
   }
 }
 
@@ -435,7 +443,7 @@ void BasicPortAllocatorSession::StartGettingPorts() {
   state_ = SessionState::GATHERING;
   if (!socket_factory_) {
     owned_socket_factory_.reset(
-        new rtc::BasicPacketSocketFactory(network_thread_));
+        new rtc::BasicPacketSocketFactory(network_thread_->socketserver()));
     socket_factory_ = owned_socket_factory_.get();
   }
 
@@ -658,8 +666,9 @@ void BasicPortAllocatorSession::UpdateIceParametersInternal() {
 void BasicPortAllocatorSession::GetPortConfigurations() {
   RTC_DCHECK_RUN_ON(network_thread_);
 
-  auto config = std::make_unique<PortConfiguration>(allocator_->stun_servers(),
-                                                    username(), password());
+  auto config = std::make_unique<PortConfiguration>(
+      allocator_->stun_servers(), username(), password(),
+      allocator()->field_trials());
 
   for (const RelayServerConfig& turn_server : allocator_->turn_servers()) {
     config->AddRelay(turn_server);
@@ -1230,7 +1239,7 @@ void BasicPortAllocatorSession::OnPortDestroyed(PortInterface* port) {
       return;
     }
   }
-  RTC_NOTREACHED();
+  RTC_DCHECK_NOTREACHED();
 }
 
 BasicPortAllocatorSession::PortData* BasicPortAllocatorSession::FindPort(
@@ -1454,7 +1463,7 @@ void AllocationSequence::Process(int epoch) {
       break;
 
     default:
-      RTC_NOTREACHED();
+      RTC_DCHECK_NOTREACHED();
   }
 
   if (state() == kRunning) {
@@ -1487,14 +1496,14 @@ void AllocationSequence::CreateUDPPorts() {
     port = UDPPort::Create(
         session_->network_thread(), session_->socket_factory(), network_,
         udp_socket_.get(), session_->username(), session_->password(),
-        session_->allocator()->origin(), emit_local_candidate_for_anyaddress,
+        emit_local_candidate_for_anyaddress,
         session_->allocator()->stun_candidate_keepalive_interval());
   } else {
     port = UDPPort::Create(
         session_->network_thread(), session_->socket_factory(), network_,
         session_->allocator()->min_port(), session_->allocator()->max_port(),
         session_->username(), session_->password(),
-        session_->allocator()->origin(), emit_local_candidate_for_anyaddress,
+        emit_local_candidate_for_anyaddress,
         session_->allocator()->stun_candidate_keepalive_interval());
   }
 
@@ -1559,7 +1568,6 @@ void AllocationSequence::CreateStunPorts() {
       session_->network_thread(), session_->socket_factory(), network_,
       session_->allocator()->min_port(), session_->allocator()->max_port(),
       session_->username(), session_->password(), config_->StunServers(),
-      session_->allocator()->origin(),
       session_->allocator()->stun_candidate_keepalive_interval());
   if (port) {
     session_->AddAllocatedPort(port.release(), this);
@@ -1621,8 +1629,8 @@ void AllocationSequence::CreateTurnPort(const RelayServerConfig& config) {
     args.password = session_->password();
     args.server_address = &(*relay_port);
     args.config = &config;
-    args.origin = session_->allocator()->origin();
     args.turn_customizer = session_->allocator()->turn_customizer();
+    args.field_trials = session_->allocator()->field_trials();
 
     std::unique_ptr<cricket::Port> port;
     // Shared socket mode must be enabled only for UDP based ports. Hence
@@ -1711,28 +1719,23 @@ void AllocationSequence::OnPortDestroyed(PortInterface* port) {
     relay_ports_.erase(it);
   } else {
     RTC_LOG(LS_ERROR) << "Unexpected OnPortDestroyed for nonexistent port.";
-    RTC_NOTREACHED();
+    RTC_DCHECK_NOTREACHED();
   }
 }
 
-// PortConfiguration
-PortConfiguration::PortConfiguration(const rtc::SocketAddress& stun_address,
-                                     const std::string& username,
-                                     const std::string& password)
-    : stun_address(stun_address), username(username), password(password) {
-  if (!stun_address.IsNil())
-    stun_servers.insert(stun_address);
-}
-
-PortConfiguration::PortConfiguration(const ServerAddresses& stun_servers,
-                                     const std::string& username,
-                                     const std::string& password)
+PortConfiguration::PortConfiguration(
+    const ServerAddresses& stun_servers,
+    const std::string& username,
+    const std::string& password,
+    const webrtc::WebRtcKeyValueConfig* field_trials)
     : stun_servers(stun_servers), username(username), password(password) {
   if (!stun_servers.empty())
     stun_address = *(stun_servers.begin());
   // Note that this won't change once the config is initialized.
-  use_turn_server_as_stun_server_disabled =
-      webrtc::field_trial::IsDisabled("WebRTC-UseTurnServerAsStunServer");
+  if (field_trials) {
+    use_turn_server_as_stun_server_disabled =
+        field_trials->IsDisabled("WebRTC-UseTurnServerAsStunServer");
+  }
 }
 
 ServerAddresses PortConfiguration::StunServers() {

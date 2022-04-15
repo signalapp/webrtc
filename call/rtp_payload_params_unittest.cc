@@ -27,9 +27,9 @@
 #include "modules/video_coding/codecs/vp9/include/vp9_globals.h"
 #include "modules/video_coding/include/video_codec_interface.h"
 #include "test/explicit_key_value_config.h"
-#include "test/field_trial.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/scoped_key_value_config.h"
 
 using ::testing::Each;
 using ::testing::ElementsAre;
@@ -275,8 +275,7 @@ TEST(RtpPayloadParamsTest, Tl0PicIdxUpdatedForVp9) {
 }
 
 TEST(RtpPayloadParamsTest, PictureIdForOldGenericFormat) {
-  test::ScopedFieldTrials generic_picture_id(
-      "WebRTC-GenericPictureId/Enabled/");
+  test::ScopedKeyValueConfig field_trials("WebRTC-GenericPictureId/Enabled/");
   RtpPayloadState state{};
 
   EncodedImage encoded_image;
@@ -284,7 +283,7 @@ TEST(RtpPayloadParamsTest, PictureIdForOldGenericFormat) {
   codec_info.codecType = kVideoCodecGeneric;
   encoded_image._frameType = VideoFrameType::kVideoFrameKey;
 
-  RtpPayloadParams params(kSsrc1, &state, FieldTrialBasedConfig());
+  RtpPayloadParams params(kSsrc1, &state, field_trials);
   RTPVideoHeader header =
       params.GetRtpVideoHeader(encoded_image, &codec_info, 10);
 
@@ -475,17 +474,9 @@ TEST_F(RtpPayloadParamsVp8ToGenericTest, FrameIdGaps) {
   ConvertAndCheck(1, 20, VideoFrameType::kVideoFrameDelta, kNoSync, {10, 15});
 }
 
-class RtpPayloadParamsVp9ToGenericTest : public ::testing::Test {
- protected:
-  RtpPayloadParamsVp9ToGenericTest()
-      : field_trials_("WebRTC-Vp9DependencyDescriptor/Enabled/") {}
-
-  test::ExplicitKeyValueConfig field_trials_;
-  RtpPayloadState state_;
-};
-
-TEST_F(RtpPayloadParamsVp9ToGenericTest, NoScalability) {
-  RtpPayloadParams params(/*ssrc=*/123, &state_, field_trials_);
+TEST(RtpPayloadParamsVp9ToGenericTest, NoScalability) {
+  RtpPayloadState state;
+  RtpPayloadParams params(/*ssrc=*/123, &state, FieldTrialBasedConfig());
 
   EncodedImage encoded_image;
   CodecSpecificInfo codec_info;
@@ -532,12 +523,13 @@ TEST_F(RtpPayloadParamsVp9ToGenericTest, NoScalability) {
   EXPECT_THAT(header.generic->chain_diffs, ElementsAre(3 - 1));
 }
 
-TEST_F(RtpPayloadParamsVp9ToGenericTest, TemporalScalabilityWith2Layers) {
+TEST(RtpPayloadParamsVp9ToGenericTest, TemporalScalabilityWith2Layers) {
   // Test with 2 temporal layers structure that is not used by webrtc:
   //    1---3   5
   //   /   /   /   ...
   //  0---2---4---
-  RtpPayloadParams params(/*ssrc=*/123, &state_, field_trials_);
+  RtpPayloadState state;
+  RtpPayloadParams params(/*ssrc=*/123, &state, FieldTrialBasedConfig());
 
   EncodedImage image;
   CodecSpecificInfo info;
@@ -636,10 +628,11 @@ TEST_F(RtpPayloadParamsVp9ToGenericTest, TemporalScalabilityWith2Layers) {
   EXPECT_THAT(headers[5].generic->chain_diffs, ElementsAre(2));
 }
 
-TEST_F(RtpPayloadParamsVp9ToGenericTest, TemporalScalabilityWith3Layers) {
+TEST(RtpPayloadParamsVp9ToGenericTest, TemporalScalabilityWith3Layers) {
   // Test with 3 temporal layers structure that is not used by webrtc, but used
   // by chromium: https://imgur.com/pURAGvp
-  RtpPayloadParams params(/*ssrc=*/123, &state_, field_trials_);
+  RtpPayloadState state;
+  RtpPayloadParams params(/*ssrc=*/123, &state, FieldTrialBasedConfig());
 
   EncodedImage image;
   CodecSpecificInfo info;
@@ -780,11 +773,12 @@ TEST_F(RtpPayloadParamsVp9ToGenericTest, TemporalScalabilityWith3Layers) {
   EXPECT_THAT(headers[8].generic->chain_diffs, ElementsAre(8));
 }
 
-TEST_F(RtpPayloadParamsVp9ToGenericTest, SpatialScalabilityKSvc) {
+TEST(RtpPayloadParamsVp9ToGenericTest, SpatialScalabilityKSvc) {
   //  1---3--
   //  |     ...
   //  0---2--
-  RtpPayloadParams params(/*ssrc=*/123, &state_, field_trials_);
+  RtpPayloadState state;
+  RtpPayloadParams params(/*ssrc=*/123, &state, FieldTrialBasedConfig());
 
   EncodedImage image;
   CodecSpecificInfo info;

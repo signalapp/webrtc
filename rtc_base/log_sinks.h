@@ -16,7 +16,7 @@
 #include <memory>
 #include <string>
 
-#include "rtc_base/constructor_magic.h"
+#include "absl/strings/string_view.h"
 #include "rtc_base/file_rotating_stream.h"
 #include "rtc_base/logging.h"
 
@@ -34,10 +34,14 @@ class FileRotatingLogSink : public LogSink {
                       size_t num_log_files);
   ~FileRotatingLogSink() override;
 
+  FileRotatingLogSink(const FileRotatingLogSink&) = delete;
+  FileRotatingLogSink& operator=(const FileRotatingLogSink&) = delete;
+
   // Writes the message to the current file. It will spill over to the next
   // file if needed.
   void OnLogMessage(const std::string& message) override;
-  void OnLogMessage(const std::string& message,
+  void OnLogMessage(absl::string_view message) override;
+  void OnLogMessage(absl::string_view message,
                     LoggingSeverity sev,
                     const char* tag) override;
 
@@ -52,8 +56,6 @@ class FileRotatingLogSink : public LogSink {
 
  private:
   std::unique_ptr<FileRotatingStream> stream_;
-
-  RTC_DISALLOW_COPY_AND_ASSIGN(FileRotatingLogSink);
 };
 
 // Log sink that uses a CallSessionFileRotatingStream to write to disk.
@@ -64,8 +66,10 @@ class CallSessionFileRotatingLogSink : public FileRotatingLogSink {
                                  size_t max_total_log_size);
   ~CallSessionFileRotatingLogSink() override;
 
- private:
-  RTC_DISALLOW_COPY_AND_ASSIGN(CallSessionFileRotatingLogSink);
+  CallSessionFileRotatingLogSink(const CallSessionFileRotatingLogSink&) =
+      delete;
+  CallSessionFileRotatingLogSink& operator=(
+      const CallSessionFileRotatingLogSink&) = delete;
 };
 
 }  // namespace rtc

@@ -76,6 +76,7 @@
 #include <vector>
 
 #include "absl/base/attributes.h"
+#include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "api/adaptation/resource.h"
 #include "api/async_dns_resolver.h"
@@ -95,6 +96,7 @@
 #include "api/jsep.h"
 #include "api/media_stream_interface.h"
 #include "api/media_types.h"
+#include "api/metronome/metronome.h"
 #include "api/neteq/neteq_factory.h"
 #include "api/network_state_predictor.h"
 #include "api/packet_socket_factory.h"
@@ -171,7 +173,12 @@ class StatsObserver : public rtc::RefCountInterface {
   ~StatsObserver() override = default;
 };
 
-enum class SdpSemantics { kPlanB, kUnifiedPlan };
+enum class SdpSemantics {
+  // TODO(https://crbug.com/webrtc/13528): Remove support for kPlanB.
+  kPlanB_DEPRECATED,
+  kPlanB [[deprecated]] = kPlanB_DEPRECATED,
+  kUnifiedPlan,
+};
 
 class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
  public:
@@ -184,6 +191,7 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
     kHaveRemotePrAnswer,
     kClosed,
   };
+  static constexpr absl::string_view AsString(SignalingState);
 
   // See https://w3c.github.io/webrtc-pc/#dom-rtcicegatheringstate
   enum IceGatheringState {
@@ -191,6 +199,7 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
     kIceGatheringGathering,
     kIceGatheringComplete
   };
+  static constexpr absl::string_view AsString(IceGatheringState state);
 
   // See https://w3c.github.io/webrtc-pc/#dom-rtcpeerconnectionstate
   enum class PeerConnectionState {
@@ -201,6 +210,7 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
     kFailed,
     kClosed,
   };
+  static constexpr absl::string_view AsString(PeerConnectionState state);
 
   // See https://w3c.github.io/webrtc-pc/#dom-rtciceconnectionstate
   enum IceConnectionState {
@@ -213,6 +223,7 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
     kIceConnectionClosed,
     kIceConnectionMax,
   };
+  static constexpr absl::string_view AsString(IceConnectionState state);
 
   // TLS certificate policy.
   enum TlsCertPolicy {
@@ -294,6 +305,13 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
 
   enum ContinualGatheringPolicy { GATHER_ONCE, GATHER_CONTINUALLY };
 
+  struct PortAllocatorConfig {
+    // For min_port and max_port, 0 means not specified.
+    int min_port = 0;
+    int max_port = 0;
+    uint32_t flags = 0;  // Same as kDefaultPortAllocatorFlags.
+  };
+
   enum class RTCConfigurationType {
     // A configuration that is safer to use, despite not having the best
     // performance. Currently this is the default configuration.
@@ -369,6 +387,18 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
     void set_video_rtcp_report_interval_ms(int video_rtcp_report_interval_ms) {
       media_config.video.rtcp_report_interval_ms =
           video_rtcp_report_interval_ms;
+    }
+
+    // Settings for the port allcoator. Applied only if the port allocator is
+    // created by PeerConnectionFactory, not if it is injected with
+    // PeerConnectionDependencies
+    int min_port() const { return port_allocator_config.min_port; }
+    void set_min_port(int port) { port_allocator_config.min_port = port; }
+    int max_port() const { return port_allocator_config.max_port; }
+    void set_max_port(int port) { port_allocator_config.max_port = port; }
+    uint32_t port_allocator_flags() { return port_allocator_config.flags; }
+    void set_port_allocator_flags(uint32_t flags) {
+      port_allocator_config.flags = flags;
     }
 
     static const int kUndefined = -1;
@@ -598,28 +628,27 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
     // cost.
     absl::optional<rtc::AdapterType> network_preference;
 
-    // Configure the SDP semantics used by this PeerConnection. Note that the
-    // WebRTC 1.0 specification requires kUnifiedPlan semantics. The
-    // RtpTransceiver API is only available with kUnifiedPlan semantics.
+    // Configure the SDP semantics used by this PeerConnection. By default, this
+    // is Unified Plan which is compliant to the WebRTC 1.0 specification. It is
+    // possible to overrwite this to the deprecated Plan B SDP format, but note
+    // that kPlanB will be deleted at some future date, see
+    // https://crbug.com/webrtc/13528.
     //
-    // kPlanB will cause PeerConnection to create offers and answers with at
+    // kUnifiedPlan will cause the PeerConnection to create offers and answers
+    // with multiple m= sections where each m= section maps to one RtpSender and
+    // one RtpReceiver (an RtpTransceiver), either both audio or both video.
+    // This will also cause the PeerConnection to ignore all but the first
+    // a=ssrc lines that form a Plan B streams (if the PeerConnection is given
+    // Plan B SDP to process).
+    //
+    // kPlanB will cause the PeerConnection to create offers and answers with at
     // most one audio and one video m= section with multiple RtpSenders and
     // RtpReceivers specified as multiple a=ssrc lines within the section. This
     // will also cause PeerConnection to ignore all but the first m= section of
-    // the same media type.
-    //
-    // kUnifiedPlan will cause PeerConnection to create offers and answers with
-    // multiple m= sections where each m= section maps to one RtpSender and one
-    // RtpReceiver (an RtpTransceiver), either both audio or both video. This
-    // will also cause PeerConnection to ignore all but the first a=ssrc lines
-    // that form a Plan B stream.
-    //
-    // For users who wish to send multiple audio/video streams and need to stay
-    // interoperable with legacy WebRTC implementations or use legacy APIs,
-    // specify kPlanB.
-    //
-    // For all other users, specify kUnifiedPlan.
-    SdpSemantics sdp_semantics = SdpSemantics::kPlanB;
+    // the same media type (if the PeerConnection is given Unified Plan SDP to
+    // process).
+    // RingRTC Change to use "Plan B"
+    SdpSemantics sdp_semantics = SdpSemantics::kPlanB_DEPRECATED;
 
     // TODO(bugs.webrtc.org/9891) - Move to crypto_options or remove.
     // Actively reset the SRTP parameters whenever the DTLS transports
@@ -668,6 +697,8 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
     // List of address/length subnets that should be treated like
     // VPN (in case webrtc fails to auto detect them).
     std::vector<rtc::NetworkMask> vpn_list;
+
+    PortAllocatorConfig port_allocator_config;
 
     //
     // Don't forget to update operator== if adding something.
@@ -780,23 +811,25 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
       rtc::scoped_refptr<MediaStreamTrackInterface> track,
       const std::vector<std::string>& stream_ids) = 0;
 
-  // Remove an RtpSender from this PeerConnection.
-  // Returns true on success.
-  // TODO(steveanton): Replace with signature that returns RTCError.
-  virtual bool RemoveTrack(RtpSenderInterface* sender) = 0;
-
-  // Plan B semantics: Removes the RtpSender from this PeerConnection.
-  // Unified Plan semantics: Stop sending on the RtpSender and mark the
+  // Removes the connection between a MediaStreamTrack and the PeerConnection.
+  // Stops sending on the RtpSender and marks the
   // corresponding RtpTransceiver direction as no longer sending.
+  // https://w3c.github.io/webrtc-pc/#dom-rtcpeerconnection-removetrack
   //
   // Errors:
   // - INVALID_PARAMETER: `sender` is null or (Plan B only) the sender is not
   //       associated with this PeerConnection.
   // - INVALID_STATE: PeerConnection is closed.
+  //
+  // Plan B semantics: Removes the RtpSender from this PeerConnection.
+  //
   // TODO(bugs.webrtc.org/9534): Rename to RemoveTrack once the other signature
-  // is removed.
-  virtual RTCError RemoveTrackNew(
-      rtc::scoped_refptr<RtpSenderInterface> sender);
+  // is removed; remove default implementation once upstream is updated.
+  virtual RTCError RemoveTrackOrError(
+      rtc::scoped_refptr<RtpSenderInterface> sender) {
+    RTC_CHECK_NOTREACHED();
+    return RTCError();
+  }
 
   // AddTransceiver creates a new RtpTransceiver and adds it to the set of
   // transceivers. Adding a transceiver will cause future calls to CreateOffer
@@ -1313,14 +1346,6 @@ class PeerConnectionObserver : public RtpPacketSinkInterface {
 
   // Gathering of an ICE candidate failed.
   // See https://w3c.github.io/webrtc-pc/#event-icecandidateerror
-  // `host_candidate` is a stringified socket address.
-  virtual void OnIceCandidateError(const std::string& host_candidate,
-                                   const std::string& url,
-                                   int error_code,
-                                   const std::string& error_text) {}
-
-  // Gathering of an ICE candidate failed.
-  // See https://w3c.github.io/webrtc-pc/#event-icecandidateerror
   virtual void OnIceCandidateError(const std::string& address,
                                    int port,
                                    const std::string& url,
@@ -1443,6 +1468,7 @@ struct RTC_EXPORT PeerConnectionFactoryDependencies final {
   rtc::Thread* network_thread = nullptr;
   rtc::Thread* worker_thread = nullptr;
   rtc::Thread* signaling_thread = nullptr;
+  rtc::SocketFactory* socket_factory = nullptr;
   std::unique_ptr<TaskQueueFactory> task_queue_factory;
   std::unique_ptr<cricket::MediaEngineInterface> media_engine;
   std::unique_ptr<CallFactoryInterface> call_factory;
@@ -1460,6 +1486,7 @@ struct RTC_EXPORT PeerConnectionFactoryDependencies final {
   std::unique_ptr<WebRtcKeyValueConfig> trials;
   std::unique_ptr<RtpTransportControllerSendFactoryInterface>
       transport_controller_send_factory;
+  std::unique_ptr<Metronome> metronome;
 };
 
 // PeerConnectionFactoryInterface is the factory interface used for creating
@@ -1615,6 +1642,93 @@ class RTC_EXPORT PeerConnectionFactoryInterface
 RTC_EXPORT rtc::scoped_refptr<PeerConnectionFactoryInterface>
 CreateModularPeerConnectionFactory(
     PeerConnectionFactoryDependencies dependencies);
+
+// https://w3c.github.io/webrtc-pc/#dom-rtcsignalingstate
+inline constexpr absl::string_view PeerConnectionInterface::AsString(
+    SignalingState state) {
+  switch (state) {
+    case SignalingState::kStable:
+      return "stable";
+    case SignalingState::kHaveLocalOffer:
+      return "have-local-offer";
+    case SignalingState::kHaveLocalPrAnswer:
+      return "have-local-pranswer";
+    case SignalingState::kHaveRemoteOffer:
+      return "have-remote-offer";
+    case SignalingState::kHaveRemotePrAnswer:
+      return "have-remote-pranswer";
+    case SignalingState::kClosed:
+      return "closed";
+  }
+  // This cannot happen.
+  // Not using "RTC_CHECK_NOTREACHED()" because AsString() is constexpr.
+  return "";
+}
+
+// https://w3c.github.io/webrtc-pc/#dom-rtcicegatheringstate
+inline constexpr absl::string_view PeerConnectionInterface::AsString(
+    IceGatheringState state) {
+  switch (state) {
+    case IceGatheringState::kIceGatheringNew:
+      return "new";
+    case IceGatheringState::kIceGatheringGathering:
+      return "gathering";
+    case IceGatheringState::kIceGatheringComplete:
+      return "complete";
+  }
+  // This cannot happen.
+  // Not using "RTC_CHECK_NOTREACHED()" because AsString() is constexpr.
+  return "";
+}
+
+// https://w3c.github.io/webrtc-pc/#dom-rtciceconnectionstate
+inline constexpr absl::string_view PeerConnectionInterface::AsString(
+    PeerConnectionState state) {
+  switch (state) {
+    case PeerConnectionState::kNew:
+      return "new";
+    case PeerConnectionState::kConnecting:
+      return "connecting";
+    case PeerConnectionState::kConnected:
+      return "connected";
+    case PeerConnectionState::kDisconnected:
+      return "disconnected";
+    case PeerConnectionState::kFailed:
+      return "failed";
+    case PeerConnectionState::kClosed:
+      return "closed";
+  }
+  // This cannot happen.
+  // Not using "RTC_CHECK_NOTREACHED()" because AsString() is constexpr.
+  return "";
+}
+
+inline constexpr absl::string_view PeerConnectionInterface::AsString(
+    IceConnectionState state) {
+  switch (state) {
+    case kIceConnectionNew:
+      return "new";
+    case kIceConnectionChecking:
+      return "checking";
+    case kIceConnectionConnected:
+      return "connected";
+    case kIceConnectionCompleted:
+      return "completed";
+    case kIceConnectionFailed:
+      return "failed";
+    case kIceConnectionDisconnected:
+      return "disconnected";
+    case kIceConnectionClosed:
+      return "closed";
+    case kIceConnectionMax:
+      // This cannot happen.
+      // Not using "RTC_CHECK_NOTREACHED()" because AsString() is constexpr.
+      return "";
+  }
+  // This cannot happen.
+  // Not using "RTC_CHECK_NOTREACHED()" because AsString() is constexpr.
+  return "";
+}
 
 }  // namespace webrtc
 

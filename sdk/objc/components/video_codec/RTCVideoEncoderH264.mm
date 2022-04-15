@@ -240,6 +240,7 @@ CFStringRef ExtractProfile(const webrtc::H264ProfileLevelId &profile_level_id) {
 
     case webrtc::H264Profile::kProfileConstrainedHigh:
     case webrtc::H264Profile::kProfileHigh:
+    case webrtc::H264Profile::kProfilePredictiveHigh444:
       switch (profile_level_id.level) {
         case webrtc::H264Level::kLevel3:
           return kVTProfileLevel_H264_High_3_0;
@@ -606,7 +607,7 @@ NSUInteger GetMaxSampleRate(const webrtc::H264ProfileLevelId &profile_level_id) 
   // buffers retrieved from the encoder's pixel buffer pool.
   const size_t attributesSize = 3;
   CFTypeRef keys[attributesSize] = {
-#if defined(WEBRTC_IOS) && TARGET_OS_MACCATALYST
+#if defined(WEBRTC_IOS) && (TARGET_OS_MACCATALYST || TARGET_OS_SIMULATOR)
       kCVPixelBufferMetalCompatibilityKey,
 #elif defined(WEBRTC_IOS)
       kCVPixelBufferOpenGLESCompatibilityKey,

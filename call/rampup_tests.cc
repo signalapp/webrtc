@@ -26,7 +26,6 @@
 #include "rtc_base/task_queue_for_test.h"
 #include "rtc_base/time_utils.h"
 #include "test/encoder_settings.h"
-#include "test/field_trial.h"
 #include "test/gtest.h"
 #include "test/testsupport/perf_test.h"
 
@@ -182,20 +181,16 @@ void RampUpTester::ModifyVideoConfigs(
 
   send_config->rtp.extensions.clear();
 
-  bool remb;
   bool transport_cc;
   if (extension_type_ == RtpExtension::kAbsSendTimeUri) {
-    remb = true;
     transport_cc = false;
     send_config->rtp.extensions.push_back(
         RtpExtension(extension_type_.c_str(), kAbsSendTimeExtensionId));
   } else if (extension_type_ == RtpExtension::kTransportSequenceNumberUri) {
-    remb = false;
     transport_cc = true;
     send_config->rtp.extensions.push_back(RtpExtension(
         extension_type_.c_str(), kTransportSequenceNumberExtensionId));
   } else {
-    remb = true;
     transport_cc = false;
     send_config->rtp.extensions.push_back(RtpExtension(
         extension_type_.c_str(), kTransmissionTimeOffsetExtensionId));
@@ -333,9 +328,11 @@ void RampUpTester::PollStats() {
   }
 }
 
-void RampUpTester::ReportResult(const std::string& measurement,
-                                size_t value,
-                                const std::string& units) const {
+void RampUpTester::ReportResult(
+    const std::string& measurement,
+    size_t value,
+    const std::string& units,
+    test::ImproveDirection improve_direction) const {
   webrtc::test::PrintResult(
       measurement, "",
       ::testing::UnitTest::GetInstance()->current_test_info()->name(), value,
@@ -395,16 +392,21 @@ void RampUpTester::TriggerTestDone() {
   }
 
   if (report_perf_stats_) {
-    ReportResult("ramp-up-media-sent", media_sent, "bytes");
-    ReportResult("ramp-up-padding-sent", padding_sent, "bytes");
-    ReportResult("ramp-up-rtx-media-sent", rtx_media_sent, "bytes");
-    ReportResult("ramp-up-rtx-padding-sent", rtx_padding_sent, "bytes");
+    ReportResult("ramp-up-media-sent", media_sent, "bytes",
+                 test::ImproveDirection::kBiggerIsBetter);
+    ReportResult("ramp-up-padding-sent", padding_sent, "bytes",
+                 test::ImproveDirection::kSmallerIsBetter);
+    ReportResult("ramp-up-rtx-media-sent", rtx_media_sent, "bytes",
+                 test::ImproveDirection::kBiggerIsBetter);
+    ReportResult("ramp-up-rtx-padding-sent", rtx_padding_sent, "bytes",
+                 test::ImproveDirection::kSmallerIsBetter);
     if (ramp_up_finished_ms_ >= 0) {
       ReportResult("ramp-up-time", ramp_up_finished_ms_ - test_start_ms_,
-                   "milliseconds");
+                   "milliseconds", test::ImproveDirection::kSmallerIsBetter);
     }
     ReportResult("ramp-up-average-network-latency",
-                 send_transport_->GetAverageDelayMs(), "milliseconds");
+                 send_transport_->GetAverageDelayMs(), "milliseconds",
+                 test::ImproveDirection::kSmallerIsBetter);
   }
 }
 
@@ -531,7 +533,8 @@ void RampUpDownUpTester::EvolveTestState(int bitrate_bps, bool suspended) {
         if (report_perf_stats_) {
           webrtc::test::PrintResult("ramp_up_down_up", GetModifierString(),
                                     "first_rampup", now - state_start_ms_, "ms",
-                                    false);
+                                    false,
+                                    test::ImproveDirection::kSmallerIsBetter);
         }
         // Apply loss during the transition between states if FEC is enabled.
         forward_transport_config_.loss_percent = loss_rates_[test_state_];
@@ -547,7 +550,8 @@ void RampUpDownUpTester::EvolveTestState(int bitrate_bps, bool suspended) {
         if (report_perf_stats_) {
           webrtc::test::PrintResult("ramp_up_down_up", GetModifierString(),
                                     "rampdown", now - state_start_ms_, "ms",
-                                    false);
+                                    false,
+                                    test::ImproveDirection::kSmallerIsBetter);
         }
         // Apply loss during the transition between states if FEC is enabled.
         forward_transport_config_.loss_percent = loss_rates_[test_state_];
@@ -561,9 +565,11 @@ void RampUpDownUpTester::EvolveTestState(int bitrate_bps, bool suspended) {
         if (report_perf_stats_) {
           webrtc::test::PrintResult("ramp_up_down_up", GetModifierString(),
                                     "second_rampup", now - state_start_ms_,
-                                    "ms", false);
+                                    "ms", false,
+                                    test::ImproveDirection::kSmallerIsBetter);
           ReportResult("ramp-up-down-up-average-network-latency",
-                       send_transport_->GetAverageDelayMs(), "milliseconds");
+                       send_transport_->GetAverageDelayMs(), "milliseconds",
+                       test::ImproveDirection::kSmallerIsBetter);
         }
         // Apply loss during the transition between states if FEC is enabled.
         forward_transport_config_.loss_percent = loss_rates_[test_state_];

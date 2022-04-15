@@ -8,9 +8,9 @@
 import("//build/config/arm.gni")
 import("//build/config/features.gni")
 import("//build/config/mips.gni")
+import("//build/config/ozone.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build/config/sysroot.gni")
-import("//build/config/ui.gni")
 import("//build_overrides/build.gni")
 
 if (!build_with_chromium && is_component_build) {
@@ -45,6 +45,11 @@ declare_args() {
 }
 
 declare_args() {
+  # Setting this to true, will make RTC_DLOG() expand to log statements instead
+  # of being removed by the preprocessor.
+  # This is useful for example to be able to get RTC_DLOGs on a release build.
+  rtc_dlog_always_on = false
+
   # Setting this to true will make RTC_OBJC_EXPORT expand to code that will
   # manage symbols visibility. By default, Obj-C/Obj-C++ symbols are exported
   # if C++ symbols are but setting this arg to true while keeping
@@ -124,7 +129,7 @@ declare_args() {
   rtc_build_tools = true
 
   # Set this to false to skip building code that requires X11.
-  rtc_use_x11 = use_x11
+  rtc_use_x11 = ozone_platform_x11
 
   # Set this to use PipeWire on the Wayland display server.
   # By default it's only enabled on desktop Linux (excludes ChromeOS) and
@@ -133,7 +138,7 @@ declare_args() {
   # rtc_use_pipewire = is_linux && use_sysroot
   rtc_use_pipewire = false
 
-  # Set this to link PipeWire directly instead of using the dlopen.
+  # Set this to link PipeWire and required libraries directly instead of using the dlopen.
   rtc_link_pipewire = false
 
   # Enable to use the Mozilla internal settings.
@@ -219,6 +224,10 @@ declare_args() {
   # Windows.Graphics.Capture APIs will be available for use. This introduces a
   # dependency on the Win 10 SDK v10.0.17763.0.
   rtc_enable_win_wgc = is_win
+
+  # RingRTC change to disable until used
+  # Includes the dav1d decoder in the internal decoder factory when set to true.
+  rtc_include_dav1d_in_internal_decoder_factory = false
 }
 
 if (!build_with_mozilla) {
@@ -300,6 +309,9 @@ declare_args() {
 
   # Enable the usrsctp backend for DataChannels and related unittests
   rtc_build_usrsctp = !build_with_mozilla && rtc_enable_sctp
+
+  # Enable gRPC used for negotiation in multiprocess tests
+  rtc_enable_grpc = rtc_enable_protobuf && (is_linux || is_mac)
 }
 
 # Make it possible to provide custom locations for some libraries (move these
@@ -427,6 +439,9 @@ all_poison_types = [
   # Default task queue implementation.
   "default_task_queue",
 
+  # Default echo detector implementation.
+  "default_echo_detector",
+
   # JSON parsing should not be needed in the "slim and modular" WebRTC.
   "rtc_json",
 
@@ -487,10 +502,8 @@ template("rtc_test") {
       ]
     }
 
-    # When not targeting a simulator, building //base/test:google_test_runner
-    # fails, so it is added only when the test is not a real XCTest and when
-    # targeting a simulator.
-    if (is_ios && target_cpu == "x64" && rtc_include_tests) {
+    # Build //base/test:google_test_runner when the test is not a real XCTest.
+    if (is_ios && rtc_include_tests) {
       if (!defined(invoker.is_xctest) || !invoker.is_xctest) {
         xctest_module_target = "//base/test:google_test_runner"
       }
@@ -510,14 +523,14 @@ template("rtc_test") {
       }
     }
 
-    if (using_sanitizer) {
-      if (is_linux) {
-        if (!defined(invoker.data)) {
-          data = []
-        }
-        data +=
-            [ "//third_party/llvm-build/Release+Asserts/lib/libstdc++.so.6" ]
+    # TODO(crbug.com/webrtc/13556): Adding the .app folder in the runtime_deps
+    # shoulnd't be necessary. this code should be removed and the same solution
+    # as Chromium should be used.
+    if (is_ios) {
+      if (!defined(invoker.data)) {
+        data = []
       }
+      data += [ "${root_out_dir}/${target_name}.app" ]
     }
   }
 }

@@ -178,7 +178,7 @@ int FindSimulcastFormatIndex(int width,
       return i;
     }
   }
-  RTC_NOTREACHED();
+  RTC_DCHECK_NOTREACHED();
   return -1;
 }
 

@@ -584,10 +584,6 @@ void ModuleRtpRtcpImpl2::RegisterRtpHeaderExtension(absl::string_view uri,
   RTC_CHECK(registered);
 }
 
-int32_t ModuleRtpRtcpImpl2::DeregisterSendRtpHeaderExtension(
-    const RTPExtensionType type) {
-  return rtp_sender_->packet_generator.DeregisterRtpHeaderExtension(type);
-}
 void ModuleRtpRtcpImpl2::DeregisterSendRtpHeaderExtension(
     absl::string_view uri) {
   rtp_sender_->packet_generator.DeregisterRtpHeaderExtension(uri);
@@ -749,7 +745,7 @@ void ModuleRtpRtcpImpl2::set_rtt_ms(int64_t rtt_ms) {
     rtt_ms_ = rtt_ms;
   }
   if (rtp_sender_) {
-    rtp_sender_->packet_history.SetRtt(rtt_ms);
+    rtp_sender_->packet_history.SetRtt(TimeDelta::Millis(rtt_ms));
   }
 }
 

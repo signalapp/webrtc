@@ -43,9 +43,9 @@
 #include "rtc_base/thread.h"
 #include "rtc_base/virtual_socket_server.h"
 #include "system_wrappers/include/metrics.h"
-#include "test/field_trial.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/scoped_key_value_config.h"
 
 using rtc::IPAddress;
 using rtc::SocketAddress;
@@ -154,7 +154,10 @@ class BasicPortAllocatorTestBase : public ::testing::Test,
         nat_factory_(vss_.get(), kNatUdpAddr, kNatTcpAddr),
         nat_socket_factory_(new rtc::BasicPacketSocketFactory(&nat_factory_)),
         stun_server_(TestStunServer::Create(fss_.get(), kStunAddr)),
-        turn_server_(rtc::Thread::Current(), kTurnUdpIntAddr, kTurnUdpExtAddr),
+        turn_server_(rtc::Thread::Current(),
+                     fss_.get(),
+                     kTurnUdpIntAddr,
+                     kTurnUdpExtAddr),
         candidate_allocation_done_(false) {
     ServerAddresses stun_servers;
     stun_servers.insert(kStunAddr);
@@ -2442,12 +2445,12 @@ TEST_F(BasicPortAllocatorTest, TestUseTurnServerAsStunSever) {
 }
 
 TEST_F(BasicPortAllocatorTest, TestDoNotUseTurnServerAsStunSever) {
-  webrtc::test::ScopedFieldTrials field_trials(
+  webrtc::test::ScopedKeyValueConfig field_trials(
       "WebRTC-UseTurnServerAsStunServer/Disabled/");
   ServerAddresses stun_servers;
   stun_servers.insert(kStunAddr);
   PortConfiguration port_config(stun_servers, "" /* user_name */,
-                                "" /* password */);
+                                "" /* password */, &field_trials);
   RelayServerConfig turn_servers =
       CreateTurnServers(kTurnUdpIntAddr, kTurnTcpIntAddr);
   port_config.AddRelay(turn_servers);
@@ -2461,7 +2464,6 @@ TEST_F(BasicPortAllocatorTest, TestCreateIceGathererForForking) {
   allocator_->set_step_delay(5);
   allocator_->set_allow_tcp_listen(false);
   allocator_->set_candidate_filter(5);
-  allocator_->set_origin("test");
   allocator_->set_max_ipv6_networks(6);
   allocator_->SetNetworkIgnoreMask(7);
   AddTurnServers(kTurnUdpIntAddr, rtc::SocketAddress());
@@ -2481,7 +2483,6 @@ TEST_F(BasicPortAllocatorTest, TestCreateIceGathererForForking) {
   EXPECT_EQ(allocator_->step_delay(), forked->step_delay());
   EXPECT_EQ(allocator_->allow_tcp_listen(), forked->allow_tcp_listen());
   EXPECT_EQ(allocator_->candidate_filter(), forked->candidate_filter());
-  EXPECT_EQ(allocator_->origin(), forked->origin());
   EXPECT_EQ(allocator_->max_ipv6_networks(), forked->max_ipv6_networks());
   // EXPECT_EQ(allocator_->network_ignore_mask(), forked->network_ignore_mask());
   EXPECT_EQ(allocator_->stun_servers(), forked->stun_servers());

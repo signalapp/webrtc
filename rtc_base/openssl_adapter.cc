@@ -13,6 +13,8 @@
 #include <errno.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>
+
+#include "absl/strings/string_view.h"
 #ifdef OPENSSL_IS_BORINGSSL
 #include <openssl/pool.h>
 #endif
@@ -248,21 +250,6 @@ void OpenSSLAdapter::SetIdentity(std::unique_ptr<SSLIdentity> identity) {
 
 void OpenSSLAdapter::SetRole(SSLRole role) {
   role_ = role;
-}
-
-Socket* OpenSSLAdapter::Accept(SocketAddress* paddr) {
-  RTC_DCHECK(role_ == SSL_SERVER);
-  Socket* socket = SSLAdapter::Accept(paddr);
-  if (!socket) {
-    return nullptr;
-  }
-
-  SSLAdapter* adapter = SSLAdapter::Create(socket);
-  adapter->SetIdentity(identity_->Clone());
-  adapter->SetRole(rtc::SSL_SERVER);
-  adapter->SetIgnoreBadCert(ignore_bad_cert_);
-  adapter->StartSSL("");
-  return adapter;
 }
 
 int OpenSSLAdapter::StartSSL(const char* hostname) {
@@ -759,7 +746,7 @@ void OpenSSLAdapter::OnCloseEvent(Socket* socket, int err) {
   AsyncSocketAdapter::OnCloseEvent(socket, err);
 }
 
-bool OpenSSLAdapter::SSLPostConnectionCheck(SSL* ssl, const std::string& host) {
+bool OpenSSLAdapter::SSLPostConnectionCheck(SSL* ssl, absl::string_view host) {
   bool is_valid_cert_name =
       openssl::VerifyPeerCertMatchesHost(ssl, host) &&
       (SSL_get_verify_result(ssl) == X509_V_OK || custom_cert_verifier_status_);
@@ -848,27 +835,31 @@ enum ssl_verify_result_t OpenSSLAdapter::SSLVerifyInternal(SSL* ssl,
   return ssl_verify_ok;
 }
 #else  // WEBRTC_USE_CRYPTO_BUFFER_CALLBACK
-int OpenSSLAdapter::SSLVerifyCallback(int ok, X509_STORE_CTX* store) {
+int OpenSSLAdapter::SSLVerifyCallback(int status, X509_STORE_CTX* store) {
   // Get our stream pointer from the store
   SSL* ssl = reinterpret_cast<SSL*>(
       X509_STORE_CTX_get_ex_data(store, SSL_get_ex_data_X509_STORE_CTX_idx()));
 
   OpenSSLAdapter* stream =
       reinterpret_cast<OpenSSLAdapter*>(SSL_get_app_data(ssl));
-  ok = stream->SSLVerifyInternal(ok, ssl, store);
+  // Update status with the custom verifier.
+  // Status is unchanged if verification fails.
+  status = stream->SSLVerifyInternal(status, ssl, store);
 
   // Should only be used for debugging and development.
-  if (!ok && stream->ignore_bad_cert_) {
+  if (!status && stream->ignore_bad_cert_) {
     RTC_DLOG(LS_WARNING) << "Ignoring cert error while verifying cert chain";
     return 1;
   }
 
-  return ok;
+  return status;
 }
 
-int OpenSSLAdapter::SSLVerifyInternal(int ok, SSL* ssl, X509_STORE_CTX* store) {
+int OpenSSLAdapter::SSLVerifyInternal(int previous_status,
+                                      SSL* ssl,
+                                      X509_STORE_CTX* store) {
 #if !defined(NDEBUG)
-  if (!ok) {
+  if (!previous_status) {
     char data[256];
     X509* cert = X509_STORE_CTX_get_current_cert(store);
     int depth = X509_STORE_CTX_get_error_depth(store);
@@ -883,8 +874,10 @@ int OpenSSLAdapter::SSLVerifyInternal(int ok, SSL* ssl, X509_STORE_CTX* store) {
                       << X509_verify_cert_error_string(err);
   }
 #endif
-  if (ssl_cert_verifier_ == nullptr) {
-    return ok;
+  // `ssl_cert_verifier_` is used to override errors; if there is no error
+  // there is no reason to call it.
+  if (previous_status || ssl_cert_verifier_ == nullptr) {
+    return previous_status;
   }
 
   RTC_LOG(LS_INFO) << "Invoking SSL Verify Callback.";
@@ -894,14 +887,14 @@ int OpenSSLAdapter::SSLVerifyInternal(int ok, SSL* ssl, X509_STORE_CTX* store) {
   int length = i2d_X509(X509_STORE_CTX_get_current_cert(store), &data);
   if (length < 0) {
     RTC_LOG(LS_ERROR) << "Failed to encode X509.";
-    return ok;
+    return previous_status;
   }
   bssl::UniquePtr<uint8_t> owned_data(data);
   bssl::UniquePtr<CRYPTO_BUFFER> crypto_buffer(
       CRYPTO_BUFFER_new(data, length, openssl::GetBufferPool()));
   if (!crypto_buffer) {
     RTC_LOG(LS_ERROR) << "Failed to allocate CRYPTO_BUFFER.";
-    return ok;
+    return previous_status;
   }
   const BoringSSLCertificate cert(std::move(crypto_buffer));
 #else
@@ -909,7 +902,7 @@ int OpenSSLAdapter::SSLVerifyInternal(int ok, SSL* ssl, X509_STORE_CTX* store) {
 #endif
   if (!ssl_cert_verifier_->Verify(cert)) {
     RTC_LOG(LS_INFO) << "Failed to verify certificate using custom callback";
-    return ok;
+    return previous_status;
   }
 
   custom_cert_verifier_status_ = true;
@@ -1032,6 +1025,21 @@ void OpenSSLAdapterFactory::SetCertVerifier(
   ssl_cert_verifier_ = ssl_cert_verifier;
 }
 
+void OpenSSLAdapterFactory::SetIdentity(std::unique_ptr<SSLIdentity> identity) {
+  RTC_DCHECK(!ssl_session_cache_);
+  identity_ = std::move(identity);
+}
+
+void OpenSSLAdapterFactory::SetRole(SSLRole role) {
+  RTC_DCHECK(!ssl_session_cache_);
+  ssl_role_ = role;
+}
+
+void OpenSSLAdapterFactory::SetIgnoreBadCert(bool ignore) {
+  RTC_DCHECK(!ssl_session_cache_);
+  ignore_bad_cert_ = ignore;
+}
+
 OpenSSLAdapter* OpenSSLAdapterFactory::CreateAdapter(Socket* socket) {
   if (ssl_session_cache_ == nullptr) {
     SSL_CTX* ssl_ctx = OpenSSLAdapter::CreateContext(ssl_mode_, true);
@@ -1043,8 +1051,14 @@ OpenSSLAdapter* OpenSSLAdapterFactory::CreateAdapter(Socket* socket) {
         std::make_unique<OpenSSLSessionCache>(ssl_mode_, ssl_ctx);
     SSL_CTX_free(ssl_ctx);
   }
-  return new OpenSSLAdapter(socket, ssl_session_cache_.get(),
-                            ssl_cert_verifier_);
+  OpenSSLAdapter* ssl_adapter =
+      new OpenSSLAdapter(socket, ssl_session_cache_.get(), ssl_cert_verifier_);
+  ssl_adapter->SetRole(ssl_role_);
+  ssl_adapter->SetIgnoreBadCert(ignore_bad_cert_);
+  if (identity_) {
+    ssl_adapter->SetIdentity(identity_->Clone());
+  }
+  return ssl_adapter;
 }
 
 OpenSSLAdapter::EarlyExitCatcher::EarlyExitCatcher(OpenSSLAdapter& adapter_ptr)

@@ -6,18 +6,12 @@
 # in the file PATENTS.  All contributing project authors may
 # be found in the AUTHORS file in the root of the source tree.
 
-import("//build/config/crypto.gni")
-import("//build/config/ui.gni")
 import("//third_party/google_benchmark/buildconfig.gni")
 import("../webrtc.gni")
 
 if (is_android) {
   import("//build/config/android/config.gni")
   import("//build/config/android/rules.gni")
-}
-
-config("threading_chromium_config") {
-  defines = [ "NO_MAIN_THREAD_WRAPPING" ]
 }
 
 if (!rtc_build_ssl) {
@@ -102,6 +96,7 @@ rtc_library("rtc_base_approved") {
   absl_deps = [
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/numeric:bits",
+    "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/types:optional",
   ]
   public_deps = []  # no-presubmit-check TODO(webrtc:8603)
@@ -136,6 +131,7 @@ rtc_library("rtc_base_approved") {
     "rate_statistics.h",
     "rate_tracker.cc",
     "rate_tracker.h",
+    "strong_alias.h",
     "swap_queue.h",
     "timestamp_aligner.cc",
     "timestamp_aligner.h",
@@ -193,7 +189,6 @@ rtc_library("rtc_base_approved") {
 rtc_source_set("macromagic") {
   sources = [
     "arraysize.h",
-    "constructor_magic.h",
     "format_macros.h",
     "thread_annotations.h",
   ]
@@ -290,6 +285,10 @@ rtc_library("rtc_event") {
   }
 }
 
+config("chromium_logging_config") {
+  defines = [ "LOGGING_INSIDE_WEBRTC" ]
+}
+
 rtc_library("logging") {
   visibility = [ "*" ]
   libs = []
@@ -314,11 +313,14 @@ rtc_library("logging") {
       "../../webrtc_overrides/rtc_base/logging.cc",
       "../../webrtc_overrides/rtc_base/logging.h",
     ]
+
+    # This macro needs to be both present in all WebRTC targets (see its
+    # definition in //BUILD.gn but also propagated to all the targets
+    # depending on the Chromium component defined in
+    # //third_party/webrtc_overrides:webrtc_component. This public_config
+    # allows GN to propagate the macro accordingly.
+    public_configs = [ ":chromium_logging_config" ]
   } else {
-    configs += [
-      "..:no_exit_time_destructors",
-      "..:no_global_constructors",
-    ]
     sources = [
       "logging.cc",
       "logging.h",
@@ -504,6 +506,7 @@ rtc_source_set("rtc_operations_chain") {
     ":checks",
     ":macromagic",
     ":refcount",
+    "../api:refcountedbase",
     "../api:scoped_refptr",
     "../api:sequence_checker",
     "system:no_unique_address",
@@ -681,6 +684,7 @@ rtc_library("rtc_json") {
     # expected to be when building json outside of the standalone build.
     defines += [ "WEBRTC_EXTERNAL_JSON" ]
   }
+  absl_deps = [ "//third_party/abseil-cpp/absl/strings" ]
 }
 
 rtc_library("net_helpers") {
@@ -693,7 +697,10 @@ rtc_library("net_helpers") {
     deps += [ ":ifaddrs_android" ]
   }
   if (is_win) {
-    deps += [ ":win32" ]
+    deps += [
+      ":rtc_base_approved",
+      ":win32",
+    ]
   }
 }
 
@@ -725,6 +732,7 @@ rtc_library("ip_address") {
   if (is_win) {
     deps += [ ":win32" ]
   }
+  absl_deps = [ "//third_party/abseil-cpp/absl/strings" ]
 }
 
 rtc_library("socket_address") {
@@ -746,6 +754,7 @@ rtc_library("socket_address") {
   if (is_win) {
     deps += [ ":win32" ]
   }
+  absl_deps = [ "//third_party/abseil-cpp/absl/strings" ]
 }
 
 rtc_library("null_socket_server") {
@@ -770,10 +779,6 @@ rtc_source_set("socket_server") {
 rtc_library("threading") {
   visibility = [ "*" ]
 
-  if (build_with_chromium) {
-    public_configs = [ ":threading_chromium_config" ]
-  }
-
   sources = [
     "async_resolver.cc",
     "async_resolver.h",
@@ -791,7 +796,11 @@ rtc_library("threading") {
     "thread.h",
     "thread_message.h",
   ]
-  absl_deps = [ "//third_party/abseil-cpp/absl/algorithm:container" ]
+  absl_deps = [
+    "//third_party/abseil-cpp/absl/algorithm:container",
+    "//third_party/abseil-cpp/absl/base:core_headers",
+    "//third_party/abseil-cpp/absl/strings",
+  ]
   deps = [
     ":async_resolver_interface",
     ":atomicops",
@@ -884,6 +893,7 @@ if (is_android) {
       "log",
       "GLESv2",
     ]
+    absl_deps = [ "//third_party/abseil-cpp/absl/cleanup" ]
   }
 }
 
@@ -1065,12 +1075,6 @@ rtc_library("rtc_base") {
 
     if (is_win) {
       sources += [ "win32_socket_init.h" ]
-      if (current_os != "winuwp") {
-        sources += [
-          "win32_socket_server.cc",
-          "win32_socket_server.h",
-        ]
-      }
     }
   }  # !build_with_chromium
 
@@ -1234,6 +1238,7 @@ rtc_library("rtc_base_tests_utils") {
   absl_deps = [
     "//third_party/abseil-cpp/absl/algorithm:container",
     "//third_party/abseil-cpp/absl/memory",
+    "//third_party/abseil-cpp/absl/strings",
   ]
 }
 
@@ -1327,10 +1332,10 @@ if (rtc_include_tests) {
         "third_party/sigslot",
         "//testing/gtest",
       ]
-      absl_deps = [ "//third_party/abseil-cpp/absl/memory" ]
-      if (is_win) {
-        sources += [ "win32_socket_server_unittest.cc" ]
-      }
+      absl_deps = [
+        "//third_party/abseil-cpp/absl/memory",
+        "//third_party/abseil-cpp/absl/strings",
+      ]
     }
 
     rtc_library("rtc_base_approved_unittests") {
@@ -1371,6 +1376,7 @@ if (rtc_include_tests) {
         "string_utils_unittest.cc",
         "strings/string_builder_unittest.cc",
         "strings/string_format_unittest.cc",
+        "strong_alias_unittest.cc",
         "swap_queue_unittest.cc",
         "thread_annotations_unittest.cc",
         "time_utils_unittest.cc",
@@ -1413,6 +1419,7 @@ if (rtc_include_tests) {
         "../test:fileutils",
         "../test:test_main",
         "../test:test_support",
+        "containers:flat_map",
         "containers:unittests",
         "memory:unittests",
         "synchronization:mutex",
@@ -1424,6 +1431,7 @@ if (rtc_include_tests) {
         "//third_party/abseil-cpp/absl/base:core_headers",
         "//third_party/abseil-cpp/absl/memory",
         "//third_party/abseil-cpp/absl/numeric:bits",
+        "//third_party/abseil-cpp/absl/strings",
         "//third_party/abseil-cpp/absl/types:optional",
       ]
     }

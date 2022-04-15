@@ -86,7 +86,7 @@ class PacketSocketFactoryWrapper : public rtc::PacketSocketFactory {
     return turn_server_->CreatePeerSocket();
   }
 
-  rtc::AsyncPacketSocket* CreateServerTcpSocket(
+  rtc::AsyncListenSocket* CreateServerTcpSocket(
       const rtc::SocketAddress& local_address,
       uint16_t min_port,
       uint16_t max_port,
@@ -101,7 +101,8 @@ class PacketSocketFactoryWrapper : public rtc::PacketSocketFactory {
       const rtc::PacketSocketTcpOptions& tcp_options) override {
     return nullptr;
   }
-  rtc::AsyncResolverInterface* CreateAsyncResolver() override {
+  std::unique_ptr<webrtc::AsyncDnsResolverInterface> CreateAsyncDnsResolver()
+      override {
     return nullptr;
   }
 
@@ -164,7 +165,7 @@ rtc::AsyncPacketSocket* EmulatedTURNServer::Wrap(EmulatedEndpoint* endpoint) {
 
 void EmulatedTURNServer::OnPacketReceived(webrtc::EmulatedIpPacket packet) {
   // Copy from EmulatedEndpoint to rtc::AsyncPacketSocket.
-  thread_->PostTask(RTC_FROM_HERE, [this, packet(std::move(packet))]() {
+  thread_->PostTask([this, packet(std::move(packet))]() {
     RTC_DCHECK_RUN_ON(thread_.get());
     auto it = sockets_.find(packet.to);
     if (it != sockets_.end()) {

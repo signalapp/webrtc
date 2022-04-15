@@ -106,6 +106,20 @@ class RTC_EXPORT RTCCertificateStats final : public RTCStats {
   RTCStatsMember<std::string> issuer_certificate_id;
 };
 
+// Non standard extension mapping to rtc::AdapterType
+struct RTCNetworkAdapterType {
+  static constexpr char kUnknown[] = "unknown";
+  static constexpr char kEthernet[] = "ethernet";
+  static constexpr char kWifi[] = "wifi";
+  static constexpr char kCellular[] = "cellular";
+  static constexpr char kLoopback[] = "loopback";
+  static constexpr char kAny[] = "any";
+  static constexpr char kCellular2g[] = "cellular2g";
+  static constexpr char kCellular3g[] = "cellular3g";
+  static constexpr char kCellular4g[] = "cellular4g";
+  static constexpr char kCellular5g[] = "cellular5g";
+};
+
 // https://w3c.github.io/webrtc-stats/#codec-dict*
 class RTC_EXPORT RTCCodecStats final : public RTCStats {
  public:
@@ -170,6 +184,8 @@ class RTC_EXPORT RTCIceCandidatePairStats final : public RTCStats {
   RTCStatsMember<bool> writable;
   // TODO(hbos): Collect and populate this value. https://bugs.webrtc.org/7062
   RTCStatsMember<bool> readable;
+  RTCStatsMember<uint64_t> packets_sent;
+  RTCStatsMember<uint64_t> packets_received;
   RTCStatsMember<uint64_t> bytes_sent;
   RTCStatsMember<uint64_t> bytes_received;
   RTCStatsMember<double> total_round_trip_time;
@@ -194,6 +210,8 @@ class RTC_EXPORT RTCIceCandidatePairStats final : public RTCStats {
   RTCStatsMember<uint64_t> consent_responses_received;
   // TODO(hbos): Collect and populate this value. https://bugs.webrtc.org/7062
   RTCStatsMember<uint64_t> consent_responses_sent;
+  RTCStatsMember<uint64_t> packets_discarded_on_send;
+  RTCStatsMember<uint64_t> bytes_discarded_on_send;
 };
 
 // https://w3c.github.io/webrtc-stats/#icecandidate-dict*
@@ -221,8 +239,10 @@ class RTC_EXPORT RTCIceCandidateStats : public RTCStats {
   // TODO(hbos): Support enum types? "RTCStatsMember<RTCIceCandidateType>"?
   RTCStatsMember<std::string> candidate_type;
   RTCStatsMember<int32_t> priority;
-  // TODO(hbos): Not collected by `RTCStatsCollector`. crbug.com/632723
   RTCStatsMember<std::string> url;
+
+  RTCNonStandardStatsMember<bool> vpn;
+  RTCNonStandardStatsMember<std::string> network_adapter_type;
 
  protected:
   RTCIceCandidateStats(const std::string& id,
@@ -525,7 +545,7 @@ class RTC_EXPORT RTCOutboundRTPStreamStats final : public RTCRTPStreamStats {
   RTCStatsMember<uint64_t> bytes_sent;
   RTCStatsMember<uint64_t> header_bytes_sent;
   RTCStatsMember<uint64_t> retransmitted_bytes_sent;
-  // TODO(hbos): Collect and populate this value. https://bugs.webrtc.org/7066
+  // TODO(https://crbug.com/webrtc/13394): Also collect this metric for video.
   RTCStatsMember<double> target_bitrate;
   RTCStatsMember<uint32_t> frames_encoded;
   RTCStatsMember<uint32_t> key_frames_encoded;
@@ -644,7 +664,7 @@ class RTC_EXPORT RTCVideoSourceStats final : public RTCMediaSourceStats {
   RTCStatsMember<uint32_t> width;
   RTCStatsMember<uint32_t> height;
   RTCStatsMember<uint32_t> frames;
-  RTCStatsMember<uint32_t> frames_per_second;
+  RTCStatsMember<double> frames_per_second;
 };
 
 // https://w3c.github.io/webrtc-stats/#transportstats-dict*

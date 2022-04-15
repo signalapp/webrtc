@@ -159,8 +159,8 @@ SimulcastEncoderAdapter::EncoderContext::EncoderContext(
 
 void SimulcastEncoderAdapter::EncoderContext::Release() {
   if (encoder_) {
-    encoder_->RegisterEncodeCompleteCallback(nullptr);
     encoder_->Release();
+    encoder_->RegisterEncodeCompleteCallback(nullptr);
   }
 }
 
@@ -709,17 +709,40 @@ SimulcastEncoderAdapter::FetchOrCreateEncoderContext(
     encoder_context = std::move(*encoder_context_iter);
     cached_encoder_contexts_.erase(encoder_context_iter);
   } else {
-    std::unique_ptr<VideoEncoder> encoder =
+    std::unique_ptr<VideoEncoder> primary_encoder =
         primary_encoder_factory_->CreateVideoEncoder(video_format_);
-    VideoEncoder::EncoderInfo primary_info = encoder->GetEncoderInfo();
-    VideoEncoder::EncoderInfo fallback_info = primary_info;
+
+    std::unique_ptr<VideoEncoder> fallback_encoder;
     if (fallback_encoder_factory_ != nullptr) {
-      std::unique_ptr<VideoEncoder> fallback_encoder =
+      fallback_encoder =
           fallback_encoder_factory_->CreateVideoEncoder(video_format_);
+    }
+
+    std::unique_ptr<VideoEncoder> encoder;
+    VideoEncoder::EncoderInfo primary_info;
+    VideoEncoder::EncoderInfo fallback_info;
+
+    if (primary_encoder != nullptr) {
+      primary_info = primary_encoder->GetEncoderInfo();
+      fallback_info = primary_info;
+
+      if (fallback_encoder == nullptr) {
+        encoder = std::move(primary_encoder);
+      } else {
+        encoder = CreateVideoEncoderSoftwareFallbackWrapper(
+            std::move(fallback_encoder), std::move(primary_encoder),
+            prefer_temporal_support);
+      }
+    } else if (fallback_encoder != nullptr) {
+      RTC_LOG(LS_WARNING) << "Failed to create primary " << video_format_.name
+                          << " encoder. Use fallback encoder.";
       fallback_info = fallback_encoder->GetEncoderInfo();
-      encoder = CreateVideoEncoderSoftwareFallbackWrapper(
-          std::move(fallback_encoder), std::move(encoder),
-          prefer_temporal_support);
+      primary_info = fallback_info;
+      encoder = std::move(fallback_encoder);
+    } else {
+      RTC_LOG(LS_ERROR) << "Failed to create primary and fallback "
+                        << video_format_.name << " encoders.";
+      return nullptr;
     }
 
     encoder_context = std::make_unique<SimulcastEncoderAdapter::EncoderContext>(
@@ -768,8 +791,8 @@ webrtc::VideoCodec SimulcastEncoderAdapter::MakeStreamCodec(
       // kComplexityHigher, which maps to cpu_used = -4.
       int pixels_per_frame = codec_params.width * codec_params.height;
       if (pixels_per_frame < 352 * 288) {
-        codec_params.VP8()->complexity =
-            webrtc::VideoCodecComplexity::kComplexityHigher;
+        codec_params.SetVideoEncoderComplexity(
+            webrtc::VideoCodecComplexity::kComplexityHigher);
       }
       // Turn off denoising for all streams but the highest resolution.
       codec_params.VP8()->denoisingOn = false;
@@ -829,7 +852,10 @@ VideoEncoder::EncoderInfo SimulcastEncoderAdapter::GetEncoderInfo() const {
     // Create one encoder and query it.
 
     std::unique_ptr<SimulcastEncoderAdapter::EncoderContext> encoder_context =
-        FetchOrCreateEncoderContext(true);
+        FetchOrCreateEncoderContext(/*is_lowest_quality_stream=*/true);
+    if (encoder_context == nullptr) {
+      return encoder_info;
+    }
 
     const VideoEncoder::EncoderInfo& primary_info =
         encoder_context->PrimaryInfo();
@@ -870,7 +896,6 @@ VideoEncoder::EncoderInfo SimulcastEncoderAdapter::GetEncoderInfo() const {
           encoder_impl_info.has_trusted_rate_controller;
       encoder_info.is_hardware_accelerated =
           encoder_impl_info.is_hardware_accelerated;
-      encoder_info.has_internal_source = encoder_impl_info.has_internal_source;
       encoder_info.is_qp_trusted = encoder_impl_info.is_qp_trusted;
     } else {
       encoder_info.implementation_name += ", ";
@@ -891,13 +916,10 @@ VideoEncoder::EncoderInfo SimulcastEncoderAdapter::GetEncoderInfo() const {
       encoder_info.is_hardware_accelerated |=
           encoder_impl_info.is_hardware_accelerated;
 
-      // Has internal source only if all encoders have it.
-      encoder_info.has_internal_source &= encoder_impl_info.has_internal_source;
-
       // Treat QP from frame/slice/tile header as average QP only if all
       // encoders report it as average QP.
       encoder_info.is_qp_trusted =
-          encoder_info.is_qp_trusted.value_or(true) &
+          encoder_info.is_qp_trusted.value_or(true) &&
           encoder_impl_info.is_qp_trusted.value_or(true);
     }
     encoder_info.fps_allocation[i] = encoder_impl_info.fps_allocation[0];

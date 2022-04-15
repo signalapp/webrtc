@@ -20,7 +20,6 @@
 
 #include "absl/types/optional.h"
 #include "api/function_view.h"
-#include "api/rtc_event_log/rtc_event_log.h"
 #include "api/transport/field_trial_based_config.h"
 #include "api/transport/network_types.h"
 #include "api/transport/webrtc_key_value_config.h"
@@ -38,10 +37,9 @@ namespace webrtc {
 
 // This class implements a leaky-bucket packet pacing algorithm. It handles the
 // logic of determining which packets to send when, but the actual timing of
-// the processing is done externally (e.g. PacedSender). Furthermore, the
+// the processing is done externally (e.g. RtpPacketPacer). Furthermore, the
 // forwarding of packets when they are ready to be sent is also handled
-// externally, via the PacedSendingController::PacketSender interface.
-//
+// externally, via the PacingController::PacketSender interface.
 class PacingController {
  public:
   // Periodic mode uses the IntervalBudget class for tracking bitrate
@@ -82,8 +80,7 @@ class PacingController {
 
   PacingController(Clock* clock,
                    PacketSender* packet_sender,
-                   RtcEventLog* event_log,
-                   const WebRtcKeyValueConfig* field_trials,
+                   const WebRtcKeyValueConfig& field_trials,
                    ProcessMode mode);
 
   ~PacingController();
@@ -98,11 +95,11 @@ class PacingController {
   void Resume();  // Resume sending packets.
   bool IsPaused() const;
 
-  void SetCongestionWindow(DataSize congestion_window_size);
-  void UpdateOutstandingData(DataSize outstanding_data);
+  void SetCongested(bool congested);
 
   // Sets the pacing rates. Must be called once before packets can be sent.
   void SetPacingRates(DataRate pacing_rate, DataRate padding_rate);
+  DataRate pacing_rate() const { return pacing_bitrate_; }
 
   // Currently audio traffic is not accounted by pacer and passed through.
   // With the introduction of audio BWE audio traffic will be accounted for
@@ -113,8 +110,8 @@ class PacingController {
 
   void SetTransportOverhead(DataSize overhead_per_packet);
 
-  // Returns the time since the oldest queued packet was enqueued.
-  TimeDelta OldestPacketWaitTime() const;
+  // Returns the time when the oldest packet was queued.
+  Timestamp OldestPacketEnqueueTime() const;
 
   // Number of packets in the pacer queue.
   size_t QueueSizePackets() const;
@@ -124,7 +121,7 @@ class PacingController {
   // Current buffer level, i.e. max of media and padding debt.
   DataSize CurrentBufferLevel() const;
 
-  // Returns the time when the first packet was sent;
+  // Returns the time when the first packet was sent.
   absl::optional<Timestamp> FirstSentPacketTime() const;
 
   // Returns the number of milliseconds it will take to send the current
@@ -144,8 +141,6 @@ class PacingController {
   // Check queue of pending packets and send them or padding packets, if budget
   // is available.
   void ProcessPackets();
-
-  bool Congested() const;
 
   bool IsProbing() const;
 
@@ -176,8 +171,7 @@ class PacingController {
   const ProcessMode mode_;
   Clock* const clock_;
   PacketSender* const packet_sender_;
-  const std::unique_ptr<FieldTrialBasedConfig> fallback_field_trials_;
-  const WebRtcKeyValueConfig* field_trials_;
+  const WebRtcKeyValueConfig& field_trials_;
 
   const bool drain_large_queues_;
   const bool send_padding_if_silent_;
@@ -196,9 +190,10 @@ class PacingController {
   mutable Timestamp last_timestamp_;
   bool paused_;
 
-  // If `use_interval_budget_` is true, `media_budget_` and `padding_budget_`
-  // will be used to track when packets can be sent. Otherwise the media and
-  // padding debt counters will be used together with the target rates.
+  // In dynamic mode, `media_budget_` and `padding_budget_` will be used to
+  // track when packets can be sent.
+  // In periodic mode, `media_debt_` and `padding_debt_` will be used together
+  // with the target rates.
 
   // This is the media budget, keeping track of how many bits of media
   // we can pace out during the current interval.
@@ -225,8 +220,7 @@ class PacingController {
   RoundRobinPacketQueue packet_queue_;
   uint64_t packet_counter_;
 
-  DataSize congestion_window_size_;
-  DataSize outstanding_data_;
+  bool congested_;
 
   TimeDelta queue_time_limit;
   bool account_for_audio_;

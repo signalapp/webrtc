@@ -26,6 +26,7 @@ class Thread;
 
 namespace webrtc {
 class TurnCustomizer;
+class WebRtcKeyValueConfig;
 }  // namespace webrtc
 
 namespace cricket {
@@ -43,8 +44,8 @@ struct CreateRelayPortArgs {
   const RelayServerConfig* config;
   std::string username;
   std::string password;
-  std::string origin;
   webrtc::TurnCustomizer* turn_customizer;
+  const webrtc::WebRtcKeyValueConfig* field_trials = nullptr;
 };
 
 inline CreateRelayPortArgs::CreateRelayPortArgs() {}

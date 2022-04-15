@@ -32,7 +32,6 @@
 #include "modules/pacing/rtp_packet_pacer.h"
 #include "modules/pacing/task_queue_paced_sender.h"
 #include "modules/utility/include/process_thread.h"
-#include "rtc_base/constructor_magic.h"
 #include "rtc_base/network_route.h"
 #include "rtc_base/race_checker.h"
 #include "rtc_base/task_queue.h"
@@ -60,12 +59,16 @@ class RtpTransportControllerSend final
       const BitrateConstraints& bitrate_config,
       std::unique_ptr<ProcessThread> process_thread,
       TaskQueueFactory* task_queue_factory,
-      const WebRtcKeyValueConfig* trials);
+      const WebRtcKeyValueConfig& trials);
   ~RtpTransportControllerSend() override;
+
+  RtpTransportControllerSend(const RtpTransportControllerSend&) = delete;
+  RtpTransportControllerSend& operator=(const RtpTransportControllerSend&) =
+      delete;
 
   // TODO(tommi): Change to std::unique_ptr<>.
   RtpVideoSenderInterface* CreateRtpVideoSender(
-      std::map<uint32_t, RtpState> suspended_ssrcs,
+      const std::map<uint32_t, RtpState>& suspended_ssrcs,
       const std::map<uint32_t, RtpPayloadState>&
           states,  // move states into RtpTransportControllerSend
       const RtpConfig& rtp_config,
@@ -128,6 +131,16 @@ class RtpTransportControllerSend final
   void OnRemoteNetworkEstimate(NetworkStateEstimate estimate) override;
 
  private:
+  struct PacerSettings {
+    explicit PacerSettings(const WebRtcKeyValueConfig& trials);
+
+    bool use_task_queue_pacer() const { return !tq_disabled.Get(); }
+
+    FieldTrialFlag tq_disabled;  // Kill-switch not normally used.
+    FieldTrialParameter<TimeDelta> holdback_window;
+    FieldTrialParameter<int> holdback_packets;
+  };
+
   void MaybeCreateControllers() RTC_RUN_ON(task_queue_);
   void UpdateInitialConstraints(TargetRateConstraints new_contraints)
       RTC_RUN_ON(task_queue_);
@@ -145,6 +158,7 @@ class RtpTransportControllerSend final
       RTC_RUN_ON(task_queue_);
   void PostUpdates(NetworkControlUpdate update) RTC_RUN_ON(task_queue_);
   void UpdateControlState() RTC_RUN_ON(task_queue_);
+  void UpdateCongestedState() RTC_RUN_ON(task_queue_);
   RtpPacketPacer* pacer();
   const RtpPacketPacer* pacer() const;
 
@@ -158,7 +172,7 @@ class RtpTransportControllerSend final
   std::map<std::string, rtc::NetworkRoute> network_routes_;
   bool pacer_started_;
   const std::unique_ptr<ProcessThread> process_thread_;
-  const bool use_task_queue_pacer_;
+  const PacerSettings pacer_settings_;
   std::unique_ptr<PacedSender> process_thread_pacer_;
   std::unique_ptr<TaskQueuePacedSender> task_queue_pacer_;
 
@@ -198,6 +212,9 @@ class RtpTransportControllerSend final
   RepeatingTaskHandle pacer_queue_update_task_ RTC_GUARDED_BY(task_queue_);
   RepeatingTaskHandle controller_task_ RTC_GUARDED_BY(task_queue_);
 
+  DataSize congestion_window_size_ RTC_GUARDED_BY(task_queue_);
+  bool is_congested_ RTC_GUARDED_BY(task_queue_);
+
   // Protected by internal locks.
   RateLimiter retransmission_rate_limiter_;
 
@@ -205,7 +222,8 @@ class RtpTransportControllerSend final
   // `task_queue_` is defined last to ensure all pending tasks are cancelled
   // and deleted before any other members.
   rtc::TaskQueue task_queue_;
-  RTC_DISALLOW_COPY_AND_ASSIGN(RtpTransportControllerSend);
+
+  const WebRtcKeyValueConfig& field_trials_;
 };
 
 }  // namespace webrtc

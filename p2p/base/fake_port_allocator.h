@@ -39,11 +39,10 @@ class TestUDPPort : public UDPPort {
                              uint16_t max_port,
                              const std::string& username,
                              const std::string& password,
-                             const std::string& origin,
                              bool emit_localhost_for_anyaddress) {
     TestUDPPort* port =
         new TestUDPPort(thread, factory, network, min_port, max_port, username,
-                        password, origin, emit_localhost_for_anyaddress);
+                        password, emit_localhost_for_anyaddress);
     if (!port->Init()) {
       delete port;
       port = nullptr;
@@ -59,7 +58,6 @@ class TestUDPPort : public UDPPort {
               uint16_t max_port,
               const std::string& username,
               const std::string& password,
-              const std::string& origin,
               bool emit_localhost_for_anyaddress)
       : UDPPort(thread,
                 factory,
@@ -68,7 +66,6 @@ class TestUDPPort : public UDPPort {
                 max_port,
                 username,
                 password,
-                origin,
                 emit_localhost_for_anyaddress) {}
 };
 
@@ -118,8 +115,7 @@ class FakePortAllocatorSession : public PortAllocatorSession {
               ? ipv6_network_
               : ipv4_network_;
       port_.reset(TestUDPPort::Create(network_thread_, factory_, &network, 0, 0,
-                                      username(), password(), std::string(),
-                                      false));
+                                      username(), password(), false));
       RTC_DCHECK(port_);
       // RingRTC change to support ICE forking
       port_->SignalDestroyed.connect(this, &FakePortAllocatorSession::OnPortDestroyed);
@@ -211,11 +207,13 @@ class FakePortAllocatorSession : public PortAllocatorSession {
 
 class FakePortAllocator : public cricket::PortAllocator {
  public:
+  // TODO(bugs.webrtc.org/13145): Require non-null `factory`.
   FakePortAllocator(rtc::Thread* network_thread,
                     rtc::PacketSocketFactory* factory)
       : network_thread_(network_thread), factory_(factory) {
     if (factory_ == NULL) {
-      owned_factory_.reset(new rtc::BasicPacketSocketFactory(network_thread_));
+      owned_factory_.reset(new rtc::BasicPacketSocketFactory(
+          network_thread_ ? network_thread_->socketserver() : nullptr));
       factory_ = owned_factory_.get();
     }
 
@@ -247,7 +245,7 @@ class FakePortAllocator : public cricket::PortAllocator {
         cricket::IceCredentialsIterator::CreateRandomIceCredentials();
     auto session = new_allocator->CreateSession(
         content_name, 1, parameters.ufrag, parameters.pwd);
-    return new rtc::RefCountedObject<cricket::BasicIceGatherer>(
+    return rtc::make_ref_counted<cricket::BasicIceGatherer>(
         network_thread_, std::move(new_allocator), std::move(session));
   }
 

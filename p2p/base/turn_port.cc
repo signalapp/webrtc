@@ -29,7 +29,6 @@
 #include "rtc_base/socket_address.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/task_utils/to_queued_task.h"
-#include "system_wrappers/include/field_trial.h"
 
 namespace cricket {
 
@@ -223,14 +222,13 @@ TurnPort::TurnPort(rtc::Thread* thread,
                    const ProtocolAddress& server_address,
                    const RelayCredentials& credentials,
                    int server_priority,
-                   const std::string& origin,
-                   webrtc::TurnCustomizer* customizer)
+                   webrtc::TurnCustomizer* customizer,
+                   const webrtc::WebRtcKeyValueConfig* field_trials)
     : Port(thread, RELAY_PORT_TYPE, factory, network, username, password),
       server_address_(server_address),
       tls_cert_verifier_(nullptr),
       credentials_(credentials),
       socket_(socket),
-      resolver_(NULL),
       error_(0),
       stun_dscp_value_(rtc::DSCP_NO_CHANGE),
       request_manager_(thread),
@@ -238,9 +236,9 @@ TurnPort::TurnPort(rtc::Thread* thread,
       state_(STATE_CONNECTING),
       server_priority_(server_priority),
       allocate_mismatch_retries_(0),
-      turn_customizer_(customizer) {
+      turn_customizer_(customizer),
+      field_trials_(field_trials) {
   request_manager_.SignalSendPacket.connect(this, &TurnPort::OnSendStunPacket);
-  request_manager_.set_origin(origin);
 }
 
 TurnPort::TurnPort(rtc::Thread* thread,
@@ -253,11 +251,11 @@ TurnPort::TurnPort(rtc::Thread* thread,
                    const ProtocolAddress& server_address,
                    const RelayCredentials& credentials,
                    int server_priority,
-                   const std::string& origin,
                    const std::vector<std::string>& tls_alpn_protocols,
                    const std::vector<std::string>& tls_elliptic_curves,
                    webrtc::TurnCustomizer* customizer,
-                   rtc::SSLCertificateVerifier* tls_cert_verifier)
+                   rtc::SSLCertificateVerifier* tls_cert_verifier,
+                   const webrtc::WebRtcKeyValueConfig* field_trials)
     : Port(thread,
            RELAY_PORT_TYPE,
            factory,
@@ -272,7 +270,6 @@ TurnPort::TurnPort(rtc::Thread* thread,
       tls_cert_verifier_(tls_cert_verifier),
       credentials_(credentials),
       socket_(NULL),
-      resolver_(NULL),
       error_(0),
       stun_dscp_value_(rtc::DSCP_NO_CHANGE),
       request_manager_(thread),
@@ -280,9 +277,9 @@ TurnPort::TurnPort(rtc::Thread* thread,
       state_(STATE_CONNECTING),
       server_priority_(server_priority),
       allocate_mismatch_retries_(0),
-      turn_customizer_(customizer) {
+      turn_customizer_(customizer),
+      field_trials_(field_trials) {
   request_manager_.SignalSendPacket.connect(this, &TurnPort::OnSendStunPacket);
-  request_manager_.set_origin(origin);
 }
 
 TurnPort::~TurnPort() {
@@ -296,9 +293,6 @@ TurnPort::~TurnPort() {
 
   while (!entries_.empty()) {
     DestroyEntry(entries_.front());
-  }
-  if (resolver_) {
-    resolver_->Destroy(false);
   }
   if (!SharedSocket()) {
     delete socket_;
@@ -347,7 +341,7 @@ void TurnPort::PrepareAddress() {
     server_address_.address.SetPort(TURN_DEFAULT_PORT);
   }
 
-  if (!AllowedTurnPort(server_address_.address.port())) {
+  if (!AllowedTurnPort(server_address_.address.port(), field_trials_)) {
     // This can only happen after a 300 ALTERNATE SERVER, since the port can't
     // be created with a disallowed port number.
     RTC_LOG(LS_ERROR) << "Attempt to start allocation with disallowed port# "
@@ -797,44 +791,43 @@ void TurnPort::ResolveTurnAddress(const rtc::SocketAddress& address) {
 
   RTC_LOG(LS_INFO) << ToString() << ": Starting TURN host lookup for "
                    << address.ToSensitiveString();
-  resolver_ = socket_factory()->CreateAsyncResolver();
-  resolver_->SignalDone.connect(this, &TurnPort::OnResolveResult);
-  resolver_->Start(address);
-}
+  resolver_ = socket_factory()->CreateAsyncDnsResolver();
+  resolver_->Start(address, [this] {
+    // If DNS resolve is failed when trying to connect to the server using TCP,
+    // one of the reason could be due to DNS queries blocked by firewall.
+    // In such cases we will try to connect to the server with hostname,
+    // assuming socket layer will resolve the hostname through a HTTP proxy (if
+    // any).
+    auto& result = resolver_->result();
+    if (result.GetError() != 0 && (server_address_.proto == PROTO_TCP ||
+                                   server_address_.proto == PROTO_TLS)) {
+      if (!CreateTurnClientSocket()) {
+        OnAllocateError(SERVER_NOT_REACHABLE_ERROR,
+                        "TURN host lookup received error.");
+      }
+      return;
+    }
 
-void TurnPort::OnResolveResult(rtc::AsyncResolverInterface* resolver) {
-  RTC_DCHECK(resolver == resolver_);
-  // If DNS resolve is failed when trying to connect to the server using TCP,
-  // one of the reason could be due to DNS queries blocked by firewall.
-  // In such cases we will try to connect to the server with hostname, assuming
-  // socket layer will resolve the hostname through a HTTP proxy (if any).
-  if (resolver_->GetError() != 0 && (server_address_.proto == PROTO_TCP ||
-                                     server_address_.proto == PROTO_TLS)) {
-    if (!CreateTurnClientSocket()) {
+    // Copy the original server address in `resolved_address`. For TLS based
+    // sockets we need hostname along with resolved address.
+    rtc::SocketAddress resolved_address = server_address_.address;
+    if (result.GetError() != 0 ||
+        !result.GetResolvedAddress(Network()->GetBestIP().family(),
+                                   &resolved_address)) {
+      RTC_LOG(LS_WARNING) << ToString() << ": TURN host lookup received error "
+                          << result.GetError();
+      error_ = result.GetError();
       OnAllocateError(SERVER_NOT_REACHABLE_ERROR,
                       "TURN host lookup received error.");
+      return;
     }
-    return;
-  }
-
-  // Copy the original server address in `resolved_address`. For TLS based
-  // sockets we need hostname along with resolved address.
-  rtc::SocketAddress resolved_address = server_address_.address;
-  if (resolver_->GetError() != 0 ||
-      !resolver_->GetResolvedAddress(Network()->GetBestIP().family(),
-                                     &resolved_address)) {
-    RTC_LOG(LS_INFO) << ToString() << ": TURN host lookup received error "
-                     << resolver_->GetError();
-    error_ = resolver_->GetError();
-    OnAllocateError(SERVER_NOT_REACHABLE_ERROR,
-                    "TURN host lookup received error.");
-    return;
-  }
-  // Signal needs both resolved and unresolved address. After signal is sent
-  // we can copy resolved address back into `server_address_`.
-  SignalResolvedServerAddress(this, server_address_.address, resolved_address);
-  server_address_.address = resolved_address;
-  PrepareAddress();
+    // Signal needs both resolved and unresolved address. After signal is sent
+    // we can copy resolved address back into `server_address_`.
+    SignalResolvedServerAddress(this, server_address_.address,
+                                resolved_address);
+    server_address_.address = resolved_address;
+    PrepareAddress();
+  });
 }
 
 void TurnPort::OnSendStunPacket(const void* data,
@@ -872,10 +865,9 @@ void TurnPort::OnAllocateSuccess(const rtc::SocketAddress& address,
              related_address,  // Related address.
              UDP_PROTOCOL_NAME,
              ProtoToString(server_address_.proto),  // The first hop protocol.
-             "",  // TCP canddiate type, empty for turn candidates.
+             "",  // TCP candidate type, empty for turn candidates.
              RELAY_PORT_TYPE, GetRelayPreference(server_address_.proto),
-             server_priority_, ReconstructedServerUrl(false /* use_hostname */),
-             true);
+             server_priority_, ReconstructedServerUrl(), true);
 }
 
 void TurnPort::OnAllocateError(int error_code, const std::string& reason) {
@@ -891,9 +883,8 @@ void TurnPort::OnAllocateError(int error_code, const std::string& reason) {
     port = 0;
   }
   SignalCandidateError(
-      this, IceCandidateErrorEvent(
-                address, port, ReconstructedServerUrl(true /* use_hostname */),
-                error_code, reason));
+      this, IceCandidateErrorEvent(address, port, ReconstructedServerUrl(),
+                                   error_code, reason));
 }
 
 void TurnPort::OnRefreshError() {
@@ -932,9 +923,7 @@ void TurnPort::Close() {
   // Stop the port from creating new connections.
   state_ = STATE_DISCONNECTED;
   // Delete all existing connections; stop sending data.
-  for (auto kv : connections()) {
-    kv.second->Destroy();
-  }
+  DestroyAllConnections();
 
   SignalTurnPortClosed(this);
 }
@@ -944,7 +933,9 @@ rtc::DiffServCodePoint TurnPort::StunDscpValue() const {
 }
 
 // static
-bool TurnPort::AllowedTurnPort(int port) {
+bool TurnPort::AllowedTurnPort(
+    int port,
+    const webrtc::WebRtcKeyValueConfig* field_trials) {
   // Port 53, 80 and 443 are used for existing deployments.
   // Ports above 1024 are assumed to be OK to use.
   if (port == 53 || port == 80 || port == 443 || port >= 1024) {
@@ -952,7 +943,7 @@ bool TurnPort::AllowedTurnPort(int port) {
   }
   // Allow any port if relevant field trial is set. This allows disabling the
   // check.
-  if (webrtc::field_trial::IsEnabled("WebRTC-Turn-AllowSystemPorts")) {
+  if (field_trials && field_trials->IsEnabled("WebRTC-Turn-AllowSystemPorts")) {
     return true;
   }
   return false;
@@ -1242,7 +1233,8 @@ bool TurnPort::CreateOrRefreshEntry(const rtc::SocketAddress& addr,
       RTC_DCHECK(GetConnection(addr));
     }
 
-    if (webrtc::field_trial::IsEnabled("WebRTC-TurnAddMultiMapping")) {
+    if (field_trials_ &&
+        field_trials_->IsEnabled("WebRTC-TurnAddMultiMapping")) {
       if (entry->get_remote_ufrag() != remote_ufrag) {
         RTC_LOG(LS_INFO) << ToString()
                          << ": remote ufrag updated."
@@ -1282,10 +1274,6 @@ void TurnPort::HandleConnectionDestroyed(Connection* conn) {
   const rtc::SocketAddress& remote_address = conn->remote_candidate().address();
   TurnEntry* entry = FindEntry(remote_address);
   RTC_DCHECK(entry != NULL);
-  ScheduleEntryDestruction(entry);
-}
-
-void TurnPort::ScheduleEntryDestruction(TurnEntry* entry) {
   RTC_DCHECK(!entry->destruction_timestamp().has_value());
   int64_t timestamp = rtc::TimeMillis();
   entry->set_destruction_timestamp(timestamp);
@@ -1307,7 +1295,7 @@ bool TurnPort::SetEntryChannelId(const rtc::SocketAddress& address,
   return true;
 }
 
-std::string TurnPort::ReconstructedServerUrl(bool use_hostname) {
+std::string TurnPort::ReconstructedServerUrl() {
   // draft-petithuguenin-behave-turn-uris-01
   // turnURI       = scheme ":" turn-host [ ":" turn-port ]
   //                 [ "?transport=" transport ]
@@ -1330,10 +1318,8 @@ std::string TurnPort::ReconstructedServerUrl(bool use_hostname) {
       break;
   }
   rtc::StringBuilder url;
-  url << scheme << ":"
-      << (use_hostname ? server_address_.address.hostname()
-                       : server_address_.address.ipaddr().ToString())
-      << ":" << server_address_.address.port() << "?transport=" << transport;
+  url << scheme << ":" << server_address_.address.hostname() << ":"
+      << server_address_.address.port() << "?transport=" << transport;
   return url.Release();
 }
 
@@ -1647,7 +1633,8 @@ void TurnCreatePermissionRequest::Prepare(StunMessage* request) {
   request->SetType(TURN_CREATE_PERMISSION_REQUEST);
   request->AddAttribute(std::make_unique<StunXorAddressAttribute>(
       STUN_ATTR_XOR_PEER_ADDRESS, ext_addr_));
-  if (webrtc::field_trial::IsEnabled("WebRTC-TurnAddMultiMapping")) {
+  if (port_->field_trials_ &&
+      port_->field_trials_->IsEnabled("WebRTC-TurnAddMultiMapping")) {
     request->AddAttribute(std::make_unique<cricket::StunByteStringAttribute>(
         STUN_ATTR_MULTI_MAPPING, remote_ufrag_));
   }

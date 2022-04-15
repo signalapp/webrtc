@@ -34,6 +34,7 @@ import androidx.annotation.Nullable;
  *
  * @note This class is only supported on Android Lollipop and above.
  */
+// RingRTC change to keep support for SDK >= 19
 @TargetApi(21)
 public class ScreenCapturerAndroid implements VideoCapturer, VideoSink {
   private static final int DISPLAY_FLAGS =

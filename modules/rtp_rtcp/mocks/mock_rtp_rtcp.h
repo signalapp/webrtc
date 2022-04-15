@@ -19,7 +19,6 @@
 
 #include "absl/types/optional.h"
 #include "api/video/video_bitrate_allocation.h"
-#include "modules/include/module.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/rtp_rtcp/source/rtp_packet_to_send.h"
 #include "modules/rtp_rtcp/source/rtp_rtcp_interface.h"
@@ -49,10 +48,6 @@ class MockRtpRtcpInterface : public RtpRtcpInterface {
   MOCK_METHOD(void,
               RegisterRtpHeaderExtension,
               (absl::string_view uri, int id),
-              (override));
-  MOCK_METHOD(int32_t,
-              DeregisterSendRtpHeaderExtension,
-              (RTPExtensionType type),
               (override));
   MOCK_METHOD(void,
               DeregisterSendRtpHeaderExtension,

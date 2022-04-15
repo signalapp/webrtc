@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <limits>
 #include <memory>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -28,16 +29,15 @@
 #include "media/engine/fake_webrtc_call.h"
 #include "modules/pacing/packet_router.h"
 #include "modules/rtp_rtcp/source/rtp_packet_to_send.h"
-#include "modules/utility/include/process_thread.h"
 #include "modules/video_coding/encoded_frame.h"
 #include "rtc_base/event.h"
 #include "system_wrappers/include/clock.h"
 #include "test/fake_decoder.h"
-#include "test/field_trial.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/mock_transport.h"
 #include "test/run_loop.h"
+#include "test/scoped_key_value_config.h"
 #include "test/time_controller/simulated_time_controller.h"
 #include "test/video_decoder_proxy_factory.h"
 #include "video/call_stats2.h"
@@ -79,7 +79,9 @@ class VideoReceiveStream2Test : public ::testing::Test {
       : task_queue_factory_(CreateDefaultTaskQueueFactory()),
         h264_decoder_factory_(&mock_h264_video_decoder_),
         config_(&mock_transport_, &h264_decoder_factory_),
-        call_stats_(Clock::GetRealTimeClock(), loop_.task_queue()) {}
+        call_stats_(Clock::GetRealTimeClock(), loop_.task_queue()) {
+    fake_call_.SetFieldTrial("WebRTC-FrameBuffer3/arm:FrameBuffer3/");
+  }
   ~VideoReceiveStream2Test() override {
     if (video_receive_stream_)
       video_receive_stream_->UnregisterFromTransport();
@@ -105,7 +107,7 @@ class VideoReceiveStream2Test : public ::testing::Test {
         std::make_unique<webrtc::internal::VideoReceiveStream2>(
             task_queue_factory_.get(), &fake_call_, kDefaultNumCpuCores,
             &packet_router_, config_.Copy(), &call_stats_, clock_, timing_,
-            &nack_periodic_processor_);
+            &nack_periodic_processor_, nullptr);
     video_receive_stream_->RegisterWithTransport(
         &rtp_stream_receiver_controller_);
   }
@@ -161,30 +163,30 @@ TEST_F(VideoReceiveStream2Test, PlayoutDelay) {
   test_frame->SetPlayoutDelay(kPlayoutDelayMs);
 
   video_receive_stream_->OnCompleteFrame(std::move(test_frame));
-  EXPECT_EQ(kPlayoutDelayMs.min_ms, timing_->min_playout_delay());
-  EXPECT_EQ(kPlayoutDelayMs.max_ms, timing_->max_playout_delay());
+  EXPECT_EQ(kPlayoutDelayMs.min_ms, timing_->min_playout_delay().ms());
+  EXPECT_EQ(kPlayoutDelayMs.max_ms, timing_->max_playout_delay().ms());
 
   // Check that the biggest minimum delay is chosen.
   video_receive_stream_->SetMinimumPlayoutDelay(400);
-  EXPECT_EQ(400, timing_->min_playout_delay());
+  EXPECT_EQ(400, timing_->min_playout_delay().ms());
 
   // Check base minimum delay validation.
   EXPECT_FALSE(video_receive_stream_->SetBaseMinimumPlayoutDelayMs(12345));
   EXPECT_FALSE(video_receive_stream_->SetBaseMinimumPlayoutDelayMs(-1));
   EXPECT_TRUE(video_receive_stream_->SetBaseMinimumPlayoutDelayMs(500));
-  EXPECT_EQ(500, timing_->min_playout_delay());
+  EXPECT_EQ(500, timing_->min_playout_delay().ms());
 
   // Check that intermidiate values are remembered and the biggest remembered
   // is chosen.
   video_receive_stream_->SetBaseMinimumPlayoutDelayMs(0);
-  EXPECT_EQ(400, timing_->min_playout_delay());
+  EXPECT_EQ(400, timing_->min_playout_delay().ms());
 
   video_receive_stream_->SetMinimumPlayoutDelay(0);
-  EXPECT_EQ(123, timing_->min_playout_delay());
+  EXPECT_EQ(123, timing_->min_playout_delay().ms());
 }
 
 TEST_F(VideoReceiveStream2Test, PlayoutDelayPreservesDefaultMaxValue) {
-  const int default_max_playout_latency = timing_->max_playout_delay();
+  const TimeDelta default_max_playout_latency = timing_->max_playout_delay();
   const VideoPlayoutDelay kPlayoutDelayMs = {123, -1};
 
   std::unique_ptr<FrameObjectFake> test_frame(new FrameObjectFake());
@@ -194,13 +196,13 @@ TEST_F(VideoReceiveStream2Test, PlayoutDelayPreservesDefaultMaxValue) {
   video_receive_stream_->OnCompleteFrame(std::move(test_frame));
 
   // Ensure that -1 preserves default maximum value from `timing_`.
-  EXPECT_EQ(kPlayoutDelayMs.min_ms, timing_->min_playout_delay());
-  EXPECT_NE(kPlayoutDelayMs.max_ms, timing_->max_playout_delay());
+  EXPECT_EQ(kPlayoutDelayMs.min_ms, timing_->min_playout_delay().ms());
+  EXPECT_NE(kPlayoutDelayMs.max_ms, timing_->max_playout_delay().ms());
   EXPECT_EQ(default_max_playout_latency, timing_->max_playout_delay());
 }
 
 TEST_F(VideoReceiveStream2Test, PlayoutDelayPreservesDefaultMinValue) {
-  const int default_min_playout_latency = timing_->min_playout_delay();
+  const TimeDelta default_min_playout_latency = timing_->min_playout_delay();
   const VideoPlayoutDelay kPlayoutDelayMs = {-1, 321};
 
   std::unique_ptr<FrameObjectFake> test_frame(new FrameObjectFake());
@@ -210,8 +212,8 @@ TEST_F(VideoReceiveStream2Test, PlayoutDelayPreservesDefaultMinValue) {
   video_receive_stream_->OnCompleteFrame(std::move(test_frame));
 
   // Ensure that -1 preserves default minimum value from `timing_`.
-  EXPECT_NE(kPlayoutDelayMs.min_ms, timing_->min_playout_delay());
-  EXPECT_EQ(kPlayoutDelayMs.max_ms, timing_->max_playout_delay());
+  EXPECT_NE(kPlayoutDelayMs.min_ms, timing_->min_playout_delay().ms());
+  EXPECT_EQ(kPlayoutDelayMs.max_ms, timing_->max_playout_delay().ms());
   EXPECT_EQ(default_min_playout_latency, timing_->min_playout_delay());
 }
 
@@ -284,7 +286,7 @@ class VideoReceiveStream2TestWithFakeDecoder : public ::testing::Test {
     video_receive_stream_.reset(new webrtc::internal::VideoReceiveStream2(
         task_queue_factory_.get(), &fake_call_, kDefaultNumCpuCores,
         &packet_router_, config_.Copy(), &call_stats_, clock_, timing_,
-        &nack_periodic_processor_));
+        &nack_periodic_processor_, nullptr));
     video_receive_stream_->RegisterWithTransport(
         &rtp_stream_receiver_controller_);
     video_receive_stream_->SetAndGetRecordingState(std::move(state), false);
@@ -477,7 +479,7 @@ TEST_F(VideoReceiveStream2TestWithFakeDecoder,
 }
 
 class VideoReceiveStream2TestWithSimulatedClock
-    : public ::testing::TestWithParam<int> {
+    : public ::testing::TestWithParam<std::tuple<int, bool>> {
  public:
   class FakeRenderer : public rtc::VideoSinkInterface<webrtc::VideoFrame> {
    public:
@@ -525,7 +527,7 @@ class VideoReceiveStream2TestWithSimulatedClock
     VideoReceiveStream::Config config(transport, decoder_factory);
     config.rtp.remote_ssrc = 1111;
     config.rtp.local_ssrc = 2222;
-    config.rtp.nack.rtp_history_ms = GetParam();  // rtx-time.
+    config.rtp.nack.rtp_history_ms = std::get<0>(GetParam());  // rtx-time.
     config.renderer = renderer;
     VideoReceiveStream::Decoder fake_decoder;
     fake_decoder.payload_type = 99;
@@ -551,7 +553,13 @@ class VideoReceiveStream2TestWithSimulatedClock
                               &call_stats_,
                               time_controller_.GetClock(),
                               new VCMTiming(time_controller_.GetClock()),
-                              &nack_periodic_processor_) {
+                              &nack_periodic_processor_,
+                              nullptr) {
+    if (std::get<1>(GetParam())) {
+      fake_call_.SetFieldTrial("WebRTC-FrameBuffer3/arm:FrameBuffer3/");
+    } else {
+      fake_call_.SetFieldTrial("WebRTC-FrameBuffer3/arm:FrameBuffer2/");
+    }
     video_receive_stream_.RegisterWithTransport(
         &rtp_stream_receiver_controller_);
     video_receive_stream_.Start();
@@ -568,7 +576,10 @@ class VideoReceiveStream2TestWithSimulatedClock
     // This call will eventually end up in the Decoded method where the
     // event is set.
     video_receive_stream_.OnCompleteFrame(std::move(frame));
-    event_->Wait(rtc::Event::kForever);
+    // FrameBuffer3 runs on the test sequence so flush to ensure that decoding
+    // happens.
+    loop_.Flush();
+    ASSERT_TRUE(event_->Wait(1000));
   }
 
  protected:
@@ -589,28 +600,37 @@ class VideoReceiveStream2TestWithSimulatedClock
 
 TEST_P(VideoReceiveStream2TestWithSimulatedClock,
        RequestsKeyFramesUntilKeyFrameReceived) {
-  auto tick = TimeDelta::Millis(GetParam() / 2);
-  EXPECT_CALL(mock_transport_, SendRtcp).Times(1).WillOnce(Invoke([this]() {
-    loop_.Quit();
-    return 0;
-  }));
+  auto tick = TimeDelta::Millis(std::get<0>(GetParam()) / 2);
+  bool sent_rtcp = false;
+  EXPECT_CALL(mock_transport_, SendRtcp)
+      .Times(1)
+      .WillOnce(Invoke([&sent_rtcp]() {
+        sent_rtcp = true;
+        return 0;
+      }));
   video_receive_stream_.GenerateKeyFrame();
   PassEncodedFrameAndWait(MakeFrame(VideoFrameType::kVideoFrameDelta, 0));
   time_controller_.AdvanceTime(tick);
+  loop_.Flush();
   PassEncodedFrameAndWait(MakeFrame(VideoFrameType::kVideoFrameDelta, 1));
-  loop_.Run();
   testing::Mock::VerifyAndClearExpectations(&mock_transport_);
+  EXPECT_TRUE(sent_rtcp);
 
   // T+keyframetimeout: still no key frame received, expect key frame request
   // sent again.
-  EXPECT_CALL(mock_transport_, SendRtcp).Times(1).WillOnce(Invoke([this]() {
-    loop_.Quit();
-    return 0;
-  }));
+  sent_rtcp = false;
+  EXPECT_CALL(mock_transport_, SendRtcp)
+      .Times(1)
+      .WillOnce(Invoke([&sent_rtcp]() {
+        sent_rtcp = true;
+        return 0;
+      }));
   time_controller_.AdvanceTime(tick);
   PassEncodedFrameAndWait(MakeFrame(VideoFrameType::kVideoFrameDelta, 2));
+  loop_.PostTask([this]() { loop_.Quit(); });
   loop_.Run();
   testing::Mock::VerifyAndClearExpectations(&mock_transport_);
+  EXPECT_TRUE(sent_rtcp);
 
   // T+keyframetimeout: now send a key frame - we should not observe new key
   // frame requests after this.
@@ -685,8 +705,10 @@ TEST_P(VideoReceiveStream2TestWithSimulatedClock,
 INSTANTIATE_TEST_SUITE_P(
     RtxTime,
     VideoReceiveStream2TestWithSimulatedClock,
-    ::testing::Values(internal::VideoReceiveStream2::kMaxWaitForKeyFrameMs,
-                      50 /*ms*/));
+    ::testing::Combine(
+        ::testing::Values(internal::VideoReceiveStream2::kMaxWaitForKeyFrameMs,
+                          50 /*ms*/),
+        ::testing::Bool()));
 
 class VideoReceiveStream2TestWithLazyDecoderCreation : public ::testing::Test {
  public:
@@ -700,8 +722,7 @@ class VideoReceiveStream2TestWithLazyDecoderCreation : public ::testing::Test {
   }
 
   void SetUp() override {
-    webrtc::test::ScopedFieldTrials field_trials(
-        "WebRTC-PreStreamDecoders/max:0/");
+    fake_call_.SetFieldTrial("WebRTC-PreStreamDecoders/max:0/");
     constexpr int kDefaultNumCpuCores = 2;
     config_.rtp.remote_ssrc = 1111;
     config_.rtp.local_ssrc = 2222;
@@ -721,7 +742,7 @@ class VideoReceiveStream2TestWithLazyDecoderCreation : public ::testing::Test {
         std::make_unique<webrtc::internal::VideoReceiveStream2>(
             task_queue_factory_.get(), &fake_call_, kDefaultNumCpuCores,
             &packet_router_, config_.Copy(), &call_stats_, clock_, timing_,
-            &nack_periodic_processor_);
+            &nack_periodic_processor_, nullptr);
     video_receive_stream_->RegisterWithTransport(
         &rtp_stream_receiver_controller_);
   }

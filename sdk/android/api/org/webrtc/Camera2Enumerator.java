@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import org.webrtc.CameraEnumerationAndroid.CaptureFormat;
 
+// RingRTC change (or retention?) to keep support for SDK >= 19
 @TargetApi(21)
 public class Camera2Enumerator implements CameraEnumerator {
   private final static String TAG = "Camera2Enumerator";
@@ -107,6 +108,7 @@ public class Camera2Enumerator implements CameraEnumerator {
    * Checks if API is supported and all cameras have better than legacy support.
    */
   public static boolean isSupported(Context context) {
+    //  RingRTC change (or retention?) to keep support for SDK >= 19
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
       return false;
     }

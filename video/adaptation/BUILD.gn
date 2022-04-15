@@ -12,6 +12,8 @@ rtc_library("video_adaptation") {
   sources = [
     "balanced_constraint.cc",
     "balanced_constraint.h",
+    "bandwidth_quality_scaler_resource.cc",
+    "bandwidth_quality_scaler_resource.h",
     "bitrate_constraint.cc",
     "bitrate_constraint.h",
     "encode_usage_resource.cc",
@@ -34,6 +36,7 @@ rtc_library("video_adaptation") {
     "../../api:rtp_parameters",
     "../../api:scoped_refptr",
     "../../api:sequence_checker",
+    "../../api:webrtc_key_value_config",
     "../../api/adaptation:resource_adaptation_api",
     "../../api/task_queue:task_queue",
     "../../api/units:data_rate",

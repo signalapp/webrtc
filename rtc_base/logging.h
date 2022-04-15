@@ -54,7 +54,6 @@
 #include "absl/base/attributes.h"
 #include "absl/meta/type_traits.h"
 #include "absl/strings/string_view.h"
-#include "rtc_base/constructor_magic.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/system/inline.h"
 
@@ -73,9 +72,7 @@
 namespace rtc {
 
 //////////////////////////////////////////////////////////////////////
-
-// Note that the non-standard LoggingSeverity aliases exist because they are
-// still in broad use.  The meanings of the levels are:
+// The meanings of the levels are:
 //  LS_VERBOSE: This level is for data which we do not want to appear in the
 //   normal debug log, but should appear in diagnostic logs.
 //  LS_INFO: Chatty level used in debugging for all sorts of things, the default
@@ -89,9 +86,6 @@ enum LoggingSeverity {
   LS_WARNING,
   LS_ERROR,
   LS_NONE,
-  INFO = LS_INFO,
-  WARNING = LS_WARNING,
-  LERROR = LS_ERROR
 };
 
 // LogErrorContext assists in interpreting the meaning of an error value.
@@ -117,6 +111,13 @@ class LogSink {
   virtual void OnLogMessage(const std::string& message,
                             LoggingSeverity severity);
   virtual void OnLogMessage(const std::string& message) = 0;
+
+  virtual void OnLogMessage(absl::string_view msg,
+                            LoggingSeverity severity,
+                            const char* tag);
+  virtual void OnLogMessage(absl::string_view message,
+                            LoggingSeverity severity);
+  virtual void OnLogMessage(absl::string_view message);
 
  private:
   friend class ::rtc::LogMessage;
@@ -441,6 +442,9 @@ class LogMessage {
              const std::string& tag);
   ~LogMessage();
 
+  LogMessage(const LogMessage&) = delete;
+  LogMessage& operator=(const LogMessage&) = delete;
+
   void AddTag(const char* tag);
   rtc::StringBuilder& stream();
   // Returns the time at which this function was called for the first time.
@@ -600,8 +604,6 @@ class LogMessage {
 
   // The stringbuilder that buffers the formatted message before output
   rtc::StringBuilder print_stream_;
-
-  RTC_DISALLOW_COPY_AND_ASSIGN(LogMessage);
 };
 
 //////////////////////////////////////////////////////////////////////

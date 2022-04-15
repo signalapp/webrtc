@@ -28,6 +28,7 @@
 #include "api/video/video_frame.h"
 #include "api/video/video_sink_interface.h"
 #include "api/video/video_source_interface.h"
+#include "api/video_track_source_constraints.h"
 #include "modules/audio_processing/include/audio_processing_statistics.h"
 #include "rtc_base/ref_count.h"
 #include "rtc_base/system/rtc_export.h"
@@ -146,14 +147,19 @@ class VideoTrackSourceInterface : public MediaSourceInterface,
   // Add an encoded video sink to the source and additionally cause
   // a key frame to be generated from the source. The sink will be
   // invoked from a decoder queue.
-  // TODO(bugs.webrtc.org/11114): make pure virtual once downstream project
-  // adapts.
   virtual void AddEncodedSink(
       rtc::VideoSinkInterface<RecordableEncodedFrame>* sink) = 0;
 
   // Removes an encoded video sink from the source.
   virtual void RemoveEncodedSink(
       rtc::VideoSinkInterface<RecordableEncodedFrame>* sink) = 0;
+
+  // Notify about constraints set on the source. The information eventually gets
+  // routed to attached sinks via VideoSinkInterface<>::OnConstraintsChanged.
+  // The call is expected to happen on the network thread.
+  // TODO(crbug/1255737): make pure virtual once downstream project adapts.
+  virtual void ProcessConstraints(
+      const webrtc::VideoTrackSourceConstraints& constraints) {}
 
  protected:
   ~VideoTrackSourceInterface() override = default;
@@ -197,7 +203,7 @@ class AudioTrackSinkInterface {
                       int sample_rate,
                       size_t number_of_channels,
                       size_t number_of_frames) {
-    RTC_NOTREACHED() << "This method must be overridden, or not used.";
+    RTC_DCHECK_NOTREACHED() << "This method must be overridden, or not used.";
   }
 
   // In this method, `absolute_capture_timestamp_ms`, when available, is
@@ -327,6 +333,8 @@ class MediaStreamInterface : public rtc::RefCountInterface,
   virtual rtc::scoped_refptr<VideoTrackInterface> FindVideoTrack(
       const std::string& track_id) = 0;
 
+  // Takes ownership of added tracks.
+  // TODO(hta): Should take scoped_refptr rather than raw pointer.
   virtual bool AddTrack(AudioTrackInterface* track) = 0;
   virtual bool AddTrack(VideoTrackInterface* track) = 0;
   virtual bool RemoveTrack(AudioTrackInterface* track) = 0;

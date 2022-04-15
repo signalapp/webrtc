@@ -12,20 +12,52 @@
 // machine, as well as tests that check basic, media-agnostic aspects of SDP.
 
 #include <algorithm>
+#include <cstdint>
+#include <functional>
+#include <map>
 #include <memory>
+#include <set>
+#include <string>
 #include <tuple>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
+#include "absl/types/optional.h"
+#include "api/audio/audio_mixer.h"
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
 #include "api/create_peerconnection_factory.h"
-#include "api/jsep_session_description.h"
+#include "api/dtls_transport_interface.h"
+#include "api/jsep.h"
+#include "api/media_types.h"
+#include "api/peer_connection_interface.h"
+#include "api/rtc_error.h"
+#include "api/rtp_receiver_interface.h"
+#include "api/rtp_sender_interface.h"
+#include "api/rtp_transceiver_interface.h"
+#include "api/scoped_refptr.h"
+#include "api/set_local_description_observer_interface.h"
+#include "api/set_remote_description_observer_interface.h"
 #include "api/video_codecs/builtin_video_decoder_factory.h"
 #include "api/video_codecs/builtin_video_encoder_factory.h"
+#include "media/base/codec.h"
+#include "modules/audio_device/include/audio_device.h"
+#include "modules/audio_processing/include/audio_processing.h"
+#include "p2p/base/port_allocator.h"
 #include "pc/peer_connection.h"
 #include "pc/peer_connection_proxy.h"
 #include "pc/peer_connection_wrapper.h"
 #include "pc/sdp_utils.h"
-#include "pc/webrtc_sdp.h"
+#include "pc/session_description.h"
+#include "pc/test/mock_peer_connection_observers.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/ref_counted_object.h"
+#include "rtc_base/rtc_certificate.h"
+#include "rtc_base/rtc_certificate_generator.h"
+#include "rtc_base/string_encode.h"
+#include "rtc_base/thread.h"
+#include "test/gtest.h"
 #ifdef WEBRTC_ANDROID
 #include "pc/test/android_test_initializer.h"
 #endif
@@ -33,7 +65,6 @@
 #include "pc/test/fake_rtc_certificate_generator.h"
 #include "rtc_base/gunit.h"
 #include "rtc_base/virtual_socket_server.h"
-#include "test/gmock.h"
 
 namespace webrtc {
 
@@ -82,7 +113,7 @@ class ExecuteFunctionOnCreateSessionDescriptionObserver
     function_(desc);
   }
 
-  void OnFailure(RTCError error) override { RTC_NOTREACHED(); }
+  void OnFailure(RTCError error) override { RTC_DCHECK_NOTREACHED(); }
 
  private:
   bool was_called_ = false;
@@ -273,9 +304,10 @@ class PeerConnectionSignalingStateTest
         break;
       }
       case SignalingState::kClosed: {
-        RTC_NOTREACHED() << "Set the second member of the tuple to true to "
-                            "achieve a closed state from an existing, valid "
-                            "state.";
+        RTC_DCHECK_NOTREACHED()
+            << "Set the second member of the tuple to true to "
+               "achieve a closed state from an existing, valid "
+               "state.";
       }
     }
 
@@ -658,7 +690,7 @@ TEST_P(PeerConnectionSignalingTest,
   // Process all currently pending messages by waiting for a posted task to run.
   bool checkpoint_reached = false;
   rtc::Thread::Current()->PostTask(
-      RTC_FROM_HERE, [&checkpoint_reached] { checkpoint_reached = true; });
+      [&checkpoint_reached] { checkpoint_reached = true; });
   EXPECT_TRUE_WAIT(checkpoint_reached, kWaitTimeout);
   // If resolving the observer was pending, it must now have been called.
   EXPECT_TRUE(observer->called());
@@ -673,8 +705,9 @@ TEST_P(PeerConnectionSignalingTest, SetRemoteDescriptionExecutesImmediately) {
 
   // By not waiting for the observer's callback we can verify that the operation
   // executed immediately.
-  callee->pc()->SetRemoteDescription(std::move(offer),
-                                     new FakeSetRemoteDescriptionObserver());
+  callee->pc()->SetRemoteDescription(
+      std::move(offer),
+      rtc::make_ref_counted<FakeSetRemoteDescriptionObserver>());
   EXPECT_EQ(2u, callee->pc()->GetReceivers().size());
 }
 
@@ -692,8 +725,9 @@ TEST_P(PeerConnectionSignalingTest, CreateOfferBlocksSetRemoteDescription) {
   // SetRemoteDescription() operation should be chained to be executed
   // asynchronously, when CreateOffer() completes.
   callee->pc()->CreateOffer(offer_observer, RTCOfferAnswerOptions());
-  callee->pc()->SetRemoteDescription(std::move(offer),
-                                     new FakeSetRemoteDescriptionObserver());
+  callee->pc()->SetRemoteDescription(
+      std::move(offer),
+      rtc::make_ref_counted<FakeSetRemoteDescriptionObserver>());
   // CreateOffer() is asynchronous; without message processing this operation
   // should not have completed.
   EXPECT_FALSE(offer_observer->called());
@@ -1025,10 +1059,47 @@ TEST_P(PeerConnectionSignalingTest, ReceiveFlexFecReoffer) {
   ASSERT_EQ(flexfec_it->id, 35);
   auto av1_it = std::find_if(
       offer_codecs.begin(), offer_codecs.end(),
-      [](const cricket::Codec& codec) { return codec.name == "AV1X"; });
+      [](const cricket::Codec& codec) { return codec.name == "AV1"; });
   if (av1_it != offer_codecs.end()) {
     ASSERT_NE(av1_it->id, 35);
   }
+}
+
+TEST_P(PeerConnectionSignalingTest, MidAttributeMaxLength) {
+  auto caller = CreatePeerConnection();
+
+  std::string sdp =
+      "v=0\r\n"
+      "o=- 8403615332048243445 2 IN IP4 127.0.0.1\r\n"
+      "s=-\r\n"
+      "t=0 0\r\n"
+      "m=video 9 UDP/TLS/RTP/SAVPF 102\r\n"
+      "c=IN IP4 0.0.0.0\r\n"
+      "a=rtcp:9 IN IP4 0.0.0.0\r\n"
+      "a=ice-ufrag:IZeV\r\n"
+      "a=ice-pwd:uaZhQD4rYM/Tta2qWBT1Bbt4\r\n"
+      "a=ice-options:trickle\r\n"
+      "a=fingerprint:sha-256 "
+      "D8:6C:3D:FA:23:E2:2C:63:11:2D:D0:86:BE:C4:D0:65:F9:42:F7:1C:06:04:27:E6:"
+      "1C:2C:74:01:8D:50:67:23\r\n"
+      "a=setup:actpass\r\n"
+      // Too long mid attribute.
+      "a=mid:0123456789012345678901234567890123\r\n"
+      "a=sendrecv\r\n"
+      "a=msid:stream track\r\n"
+      "a=rtcp-mux\r\n"
+      "a=rtcp-rsize\r\n"
+      "a=rtpmap:102 VP8/90000\r\n"
+      "a=rtcp-fb:102 goog-remb\r\n"
+      "a=rtcp-fb:102 transport-cc\r\n"
+      "a=rtcp-fb:102 ccm fir\r\n"
+      "a=rtcp-fb:102 nack\r\n"
+      "a=rtcp-fb:102 nack pli\r\n"
+      "a=ssrc:1224551896 cname:/exJcmhSLpyu9FgV\r\n";
+  std::unique_ptr<webrtc::SessionDescriptionInterface> remote_description =
+      webrtc::CreateSessionDescription(SdpType::kOffer, sdp, nullptr);
+
+  EXPECT_FALSE(caller->SetRemoteDescription(std::move(remote_description)));
 }
 
 INSTANTIATE_TEST_SUITE_P(PeerConnectionSignalingTest,
@@ -1075,8 +1146,9 @@ TEST_F(PeerConnectionSignalingUnifiedPlanTest,
   // the new observer should also be invoked synchronously - as is ensured by
   // other tests.)
   RTC_DCHECK(!caller->pc()->GetTransceivers()[0]->mid().has_value());
-  caller->pc()->SetLocalDescription(std::move(offer),
-                                    new FakeSetLocalDescriptionObserver());
+  caller->pc()->SetLocalDescription(
+      std::move(offer),
+      rtc::make_ref_counted<FakeSetLocalDescriptionObserver>());
   EXPECT_TRUE(caller->pc()->GetTransceivers()[0]->mid().has_value());
 }
 
@@ -1094,7 +1166,7 @@ TEST_F(PeerConnectionSignalingUnifiedPlanTest,
             // operation executed immediately.
             RTC_DCHECK(!pc->GetTransceivers()[0]->mid().has_value());
             pc->SetLocalDescription(
-                new rtc::RefCountedObject<MockSetSessionDescriptionObserver>(),
+                rtc::make_ref_counted<MockSetSessionDescriptionObserver>(),
                 desc);
             EXPECT_TRUE(pc->GetTransceivers()[0]->mid().has_value());
           });
@@ -1226,6 +1298,62 @@ TEST_F(PeerConnectionSignalingUnifiedPlanTest,
   EXPECT_TRUE(callee->observer()->has_negotiation_needed_event());
   EXPECT_TRUE(callee->pc()->ShouldFireNegotiationNeededEvent(
       callee->observer()->latest_negotiation_needed_event()));
+}
+
+TEST_F(PeerConnectionSignalingUnifiedPlanTest, RtxReofferApt) {
+  auto callee = CreatePeerConnection();
+
+  std::string sdp =
+      "v=0\r\n"
+      "o=- 8403615332048243445 2 IN IP4 127.0.0.1\r\n"
+      "s=-\r\n"
+      "t=0 0\r\n"
+      "m=video 9 UDP/TLS/RTP/SAVPF 102\r\n"
+      "c=IN IP4 0.0.0.0\r\n"
+      "a=rtcp:9 IN IP4 0.0.0.0\r\n"
+      "a=ice-ufrag:IZeV\r\n"
+      "a=ice-pwd:uaZhQD4rYM/Tta2qWBT1Bbt4\r\n"
+      "a=ice-options:trickle\r\n"
+      "a=fingerprint:sha-256 "
+      "D8:6C:3D:FA:23:E2:2C:63:11:2D:D0:86:BE:C4:D0:65:F9:42:F7:1C:06:04:27:E6:"
+      "1C:2C:74:01:8D:50:67:23\r\n"
+      "a=setup:actpass\r\n"
+      "a=mid:0\r\n"
+      "a=sendrecv\r\n"
+      "a=msid:stream track\r\n"
+      "a=rtcp-mux\r\n"
+      "a=rtcp-rsize\r\n"
+      "a=rtpmap:102 VP8/90000\r\n"
+      "a=rtcp-fb:102 goog-remb\r\n"
+      "a=rtcp-fb:102 transport-cc\r\n"
+      "a=rtcp-fb:102 ccm fir\r\n"
+      "a=rtcp-fb:102 nack\r\n"
+      "a=rtcp-fb:102 nack pli\r\n"
+      "a=ssrc:1224551896 cname:/exJcmhSLpyu9FgV\r\n";
+  std::unique_ptr<webrtc::SessionDescriptionInterface> remote_description =
+      webrtc::CreateSessionDescription(SdpType::kOffer, sdp, nullptr);
+
+  EXPECT_TRUE(callee->SetRemoteDescription(std::move(remote_description)));
+
+  auto answer = callee->CreateAnswer(RTCOfferAnswerOptions());
+  EXPECT_TRUE(
+      callee->SetLocalDescription(CloneSessionDescription(answer.get())));
+
+  callee->pc()->GetTransceivers()[0]->Stop();
+  auto reoffer = callee->CreateOffer(RTCOfferAnswerOptions());
+  auto codecs = reoffer->description()
+                    ->contents()[0]
+                    .media_description()
+                    ->as_video()
+                    ->codecs();
+  ASSERT_GT(codecs.size(), 2u);
+  EXPECT_EQ(codecs[0].name, "VP8");
+  EXPECT_EQ(codecs[1].name, "rtx");
+  auto apt_it = codecs[1].params.find("apt");
+  ASSERT_NE(apt_it, codecs[1].params.end());
+  // The apt should match the id from the remote offer.
+  EXPECT_EQ(apt_it->second, rtc::ToString(codecs[0].id));
+  EXPECT_EQ(apt_it->second, "102");
 }
 
 }  // namespace webrtc

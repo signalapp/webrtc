@@ -13,22 +13,25 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <memory>
+#include <algorithm>
+#include <cmath>
+#include <list>
 #include <set>
 #include <utility>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "api/audio_codecs/audio_encoder.h"
 #include "api/candidate.h"
 #include "api/data_channel_interface.h"
 #include "api/media_types.h"
-#include "api/rtp_receiver_interface.h"
 #include "api/rtp_sender_interface.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
 #include "api/video/video_content_type.h"
 #include "api/video/video_timing.h"
+#include "api/webrtc_key_value_config.h"
 #include "call/call.h"
 #include "media/base/media_channel.h"
 #include "modules/audio_processing/include/audio_processing_statistics.h"
@@ -38,6 +41,8 @@
 #include "pc/channel_interface.h"
 #include "pc/data_channel_utils.h"
 #include "pc/rtp_receiver.h"
+#include "pc/rtp_receiver_proxy.h"
+#include "pc/rtp_sender_proxy.h"
 #include "pc/rtp_transceiver.h"
 #include "pc/transport_stats.h"
 #include "rtc_base/checks.h"
@@ -51,7 +56,6 @@
 #include "rtc_base/thread.h"
 #include "rtc_base/time_utils.h"
 #include "rtc_base/trace_event.h"
-#include "system_wrappers/include/field_trial.h"
 
 namespace webrtc {
 namespace {
@@ -385,7 +389,7 @@ void ExtractStats(const cricket::VideoSenderInfo& info,
        info.encode_usage_percent},
       {StatsReport::kStatsValueNameFirsReceived, info.firs_rcvd},
       {StatsReport::kStatsValueNameFrameHeightSent, info.send_frame_height},
-      {StatsReport::kStatsValueNameFrameRateInput, info.framerate_input},
+      {StatsReport::kStatsValueNameFrameRateInput, round(info.framerate_input)},
       {StatsReport::kStatsValueNameFrameRateSent, info.framerate_sent},
       {StatsReport::kStatsValueNameFrameWidthSent, info.send_frame_width},
       {StatsReport::kStatsValueNameNacksReceived, info.nacks_rcvd},
@@ -505,7 +509,7 @@ const char* IceCandidateTypeToStatsType(const std::string& candidate_type) {
   if (candidate_type == cricket::RELAY_PORT_TYPE) {
     return STATSREPORT_RELAY_PORT_TYPE;
   }
-  RTC_NOTREACHED();
+  RTC_DCHECK_NOTREACHED();
   return "unknown";
 }
 
@@ -530,7 +534,7 @@ const char* AdapterTypeToStatsType(rtc::AdapterType type) {
     case rtc::ADAPTER_TYPE_ANY:
       return STATSREPORT_ADAPTER_TYPE_WILDCARD;
     default:
-      RTC_NOTREACHED();
+      RTC_DCHECK_NOTREACHED();
       return "";
   }
 }
@@ -539,7 +543,7 @@ StatsCollector::StatsCollector(PeerConnectionInternal* pc)
     : pc_(pc),
       stats_gathering_started_(0),
       use_standard_bytes_stats_(
-          webrtc::field_trial::IsEnabled(kUseStandardBytesStats)) {
+          pc->trials().IsEnabled(kUseStandardBytesStats)) {
   RTC_DCHECK(pc_);
 }
 
@@ -572,7 +576,7 @@ void StatsCollector::AddTrack(MediaStreamTrackInterface* track) {
     CreateTrackReport(static_cast<VideoTrackInterface*>(track), &reports_,
                       &track_ids_);
   } else {
-    RTC_NOTREACHED() << "Illegal track kind";
+    RTC_DCHECK_NOTREACHED() << "Illegal track kind";
   }
 }
 
@@ -807,6 +811,8 @@ StatsReport* StatsCollector::AddConnectionInfoReport(
                     info.remote_candidate.type());
   report->AddString(StatsReport::kStatsValueNameTransportType,
                     info.local_candidate.protocol());
+  report->AddString(StatsReport::kStatsValueNameLocalCandidateRelayProtocol,
+                    info.local_candidate.relay_protocol());
 
   return report;
 }
@@ -883,8 +889,8 @@ StatsCollector::SessionStats StatsCollector::ExtractSessionInfo_n(
   for (auto& transceiver : transceivers) {
     cricket::ChannelInterface* channel = transceiver->internal()->channel();
     if (channel) {
-      stats.transport_names_by_mid[channel->content_name()] =
-          channel->transport_name();
+      stats.transport_names_by_mid[channel->mid()] =
+          std::string(channel->transport_name());
     }
   }
 
@@ -962,9 +968,9 @@ void StatsCollector::ExtractSessionInfo_s(SessionStats& session_stats) {
     }
 
     for (const auto& channel_iter : transport.stats.channel_stats) {
-      StatsReport::Id id(
+      StatsReport::Id channel_stats_id(
           StatsReport::NewComponentId(transport.name, channel_iter.component));
-      StatsReport* channel_report = reports_.ReplaceOrAddNew(id);
+      StatsReport* channel_report = reports_.ReplaceOrAddNew(channel_stats_id);
       channel_report->set_timestamp(stats_gathering_started_);
       channel_report->AddInt(StatsReport::kStatsValueNameComponent,
                              channel_iter.component);
@@ -1179,7 +1185,7 @@ void StatsCollector::ExtractMediaInfo(
       }
       std::unique_ptr<MediaChannelStatsGatherer> gatherer =
           CreateMediaChannelStatsGatherer(channel->media_channel());
-      gatherer->mid = channel->content_name();
+      gatherer->mid = channel->mid();
       gatherer->transport_name = transport_names_by_mid.at(gatherer->mid);
 
       for (const auto& sender : transceiver->internal()->senders()) {
@@ -1206,7 +1212,7 @@ void StatsCollector::ExtractMediaInfo(
       if (!channel)
         continue;
       MediaChannelStatsGatherer* gatherer = gatherers[i++].get();
-      RTC_DCHECK_EQ(gatherer->mid, channel->content_name());
+      RTC_DCHECK_EQ(gatherer->mid, channel->mid());
 
       for (const auto& receiver : transceiver->internal()->receivers()) {
         gatherer->receiver_track_id_by_ssrc.insert(std::make_pair(
@@ -1364,7 +1370,8 @@ void StatsCollector::UpdateTrackReports() {
   }
 }
 
-void StatsCollector::ClearUpdateStatsCacheForTest() {
+void StatsCollector::InvalidateCache() {
+  RTC_DCHECK_RUN_ON(pc_->signaling_thread());
   cache_timestamp_ms_ = 0;
 }
 

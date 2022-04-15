@@ -17,6 +17,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/string_to_number.h"
@@ -27,7 +28,7 @@ namespace rtc {
 // String Encoding Utilities
 //////////////////////////////////////////////////////////////////////
 
-std::string hex_encode(const std::string& str);
+std::string hex_encode(absl::string_view str);
 std::string hex_encode(const char* source, size_t srclen);
 std::string hex_encode_with_delimiter(const char* source,
                                       size_t srclen,
@@ -50,10 +51,10 @@ size_t hex_decode_with_delimiter(char* buffer,
                                  char delimiter);
 
 // Helper functions for hex_decode.
-size_t hex_decode(char* buffer, size_t buflen, const std::string& source);
+size_t hex_decode(char* buffer, size_t buflen, absl::string_view source);
 size_t hex_decode_with_delimiter(char* buffer,
                                  size_t buflen,
-                                 const std::string& source,
+                                 absl::string_view source,
                                  char delimiter);
 
 // Joins the source vector of strings into a single string, with each
@@ -61,22 +62,25 @@ size_t hex_decode_with_delimiter(char* buffer,
 std::string join(const std::vector<std::string>& source, char delimiter);
 
 // Splits the source string into multiple fields separated by delimiter,
-// with duplicates of delimiter creating empty fields.
-size_t split(const std::string& source,
+// with duplicates of delimiter creating empty fields. Empty input produces a
+// single, empty, field.
+std::vector<absl::string_view> split(absl::string_view source, char delimiter);
+
+size_t split(absl::string_view source,
              char delimiter,
              std::vector<std::string>* fields);
 
 // Splits the source string into multiple fields separated by delimiter,
 // with duplicates of delimiter ignored.  Trailing delimiter ignored.
-size_t tokenize(const std::string& source,
+size_t tokenize(absl::string_view source,
                 char delimiter,
                 std::vector<std::string>* fields);
 
 // Extract the first token from source as separated by delimiter, with
 // duplicates of delimiter ignored. Return false if the delimiter could not be
 // found, otherwise return true.
-bool tokenize_first(const std::string& source,
-                    const char delimiter,
+bool tokenize_first(absl::string_view source,
+                    char delimiter,
                     std::string* token,
                     std::string* rest);
 
@@ -85,7 +89,7 @@ bool tokenize_first(const std::string& source,
 std::string ToString(bool b);
 
 std::string ToString(const char* s);
-std::string ToString(std::string t);
+std::string ToString(absl::string_view s);
 
 std::string ToString(short s);
 std::string ToString(unsigned short s);

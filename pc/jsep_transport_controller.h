@@ -17,6 +17,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -58,7 +59,6 @@
 #include "pc/transport_stats.h"
 #include "rtc_base/callback_list.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/constructor_magic.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/helpers.h"
 #include "rtc_base/ref_counted_object.h"
@@ -136,7 +136,10 @@ class JsepTransportController : public sigslot::has_slots<> {
 
     // Factory for SCTP transports.
     SctpTransportFactoryInterface* sctp_factory = nullptr;
-    std::function<void(const rtc::SSLHandshakeError)> on_dtls_handshake_error_;
+    std::function<void(rtc::SSLHandshakeError)> on_dtls_handshake_error_;
+
+    // Field trials.
+    const webrtc::WebRtcKeyValueConfig* field_trials;
   };
 
   // The ICE related events are fired on the `network_thread`.
@@ -149,6 +152,9 @@ class JsepTransportController : public sigslot::has_slots<> {
       AsyncDnsResolverFactoryInterface* async_dns_resolver_factory,
       Config config);
   virtual ~JsepTransportController();
+
+  JsepTransportController(const JsepTransportController&) = delete;
+  JsepTransportController& operator=(const JsepTransportController&) = delete;
 
   // The main method to be called; applies a description at the transport
   // level, creating/destroying transport objects as needed and updating their
@@ -498,8 +504,6 @@ class JsepTransportController : public sigslot::has_slots<> {
   rtc::scoped_refptr<rtc::RTCCertificate> certificate_;
 
   BundleManager bundles_;
-
-  RTC_DISALLOW_COPY_AND_ASSIGN(JsepTransportController);
 };
 
 }  // namespace webrtc

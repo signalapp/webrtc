@@ -49,6 +49,7 @@ class WebRtcAudioTrack {
   // corresponding to voice communications, such as telephony or VoIP.
   private static final int DEFAULT_USAGE = getDefaultUsageAttribute();
 
+  // RingRTC change to keep support for SDK >= 19
   private static int getDefaultUsageAttribute() {
     if (Build.VERSION.SDK_INT >= 21) {
       return AudioAttributes.USAGE_VOICE_COMMUNICATION;
@@ -128,7 +129,7 @@ class WebRtcAudioTrack {
           byteBuffer.put(emptyBytes);
           byteBuffer.position(0);
         }
-        int bytesWritten = writeBytes(audioTrack, byteBuffer, sizeInBytes);
+        int bytesWritten = audioTrack.write(byteBuffer, sizeInBytes, AudioTrack.WRITE_BLOCKING);
         if (bytesWritten != sizeInBytes) {
           Logging.e(TAG, "AudioTrack.write played invalid number of bytes: " + bytesWritten);
           // If a write() returns a negative value, an error has occurred.
@@ -153,6 +154,7 @@ class WebRtcAudioTrack {
     }
 
     private int writeBytes(AudioTrack audioTrack, ByteBuffer byteBuffer, int sizeInBytes) {
+      // RingRTC change to keep support for SDK >= 19
       if (Build.VERSION.SDK_INT >= 21) {
         return audioTrack.write(byteBuffer, sizeInBytes, AudioTrack.WRITE_BLOCKING);
       } else {
@@ -248,6 +250,7 @@ class WebRtcAudioTrack {
         audioTrack = createAudioTrackOnOreoOrHigher(
             sampleRate, channelConfig, minBufferSizeInBytes, audioAttributes);
       } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+        // RingRTC change to keep support for SDK >= 19
         // If we are on API level 21 or higher, it is possible to use a special AudioTrack
         // constructor that uses AudioAttributes and AudioFormat as input. It allows us to
         // supersede the notion of stream types for defining the behavior of audio playback,
@@ -257,6 +260,7 @@ class WebRtcAudioTrack {
             sampleRate, channelConfig, minBufferSizeInBytes, audioAttributes);
       } else {
         // Use default constructor for API levels below 21.
+        // RingRTC change to keep support for SDK >= 19
         audioTrack =
             createAudioTrackOnLowerThanLollipop(sampleRate, channelConfig, minBufferSizeInBytes);
       }
@@ -368,6 +372,7 @@ class WebRtcAudioTrack {
     return true;
   }
 
+  // RingRTC change to keep support for SDK >= 19
   private boolean isVolumeFixed() {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP)
       return false;
@@ -438,6 +443,7 @@ class WebRtcAudioTrack {
     return attributesBuilder.build();
   }
 
+  // RingRTC change to keep support for SDK >= 19
   // Creates and AudioTrack instance using AudioAttributes and AudioFormat as input.
   // It allows certain platforms or routing policies to use this information for more
   // refined volume or routing decisions.
@@ -489,6 +495,7 @@ class WebRtcAudioTrack {
     return builder.setAllowedCapturePolicy(overrideAttributes.getAllowedCapturePolicy());
   }
 
+  // RingRTC change to keep support for SDK >= 19
   @SuppressWarnings("deprecation") // Deprecated in API level 25.
   private static AudioTrack createAudioTrackOnLowerThanLollipop(
       int sampleRateInHz, int channelConfig, int bufferSizeInBytes) {

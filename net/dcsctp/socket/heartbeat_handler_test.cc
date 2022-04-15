@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "api/task_queue/task_queue_base.h"
 #include "net/dcsctp/packet/chunk/heartbeat_ack_chunk.h"
 #include "net/dcsctp/packet/chunk/heartbeat_request_chunk.h"
 #include "net/dcsctp/packet/parameter/heartbeat_info_parameter.h"
@@ -44,7 +45,9 @@ class HeartbeatHandlerTestBase : public testing::Test {
   explicit HeartbeatHandlerTestBase(DurationMs heartbeat_interval)
       : options_(MakeOptions(heartbeat_interval)),
         context_(&callbacks_),
-        timer_manager_([this]() { return callbacks_.CreateTimeout(); }),
+        timer_manager_([this](webrtc::TaskQueueBase::DelayPrecision precision) {
+          return callbacks_.CreateTimeout(precision);
+        }),
         handler_("log: ", options_, &context_, &timer_manager_) {}
 
   void AdvanceTime(DurationMs duration) {
@@ -132,6 +135,29 @@ TEST_F(HeartbeatHandlerTest, SendsHeartbeatRequestsOnIdleChannel) {
   EXPECT_CALL(context_, ObserveRTT(rtt)).Times(1);
 
   callbacks_.AdvanceTime(rtt);
+  handler_.HandleHeartbeatAck(std::move(ack));
+}
+
+TEST_F(HeartbeatHandlerTest, DoesntObserveInvalidHeartbeats) {
+  AdvanceTime(options_.heartbeat_interval);
+
+  // Grab the request, and make a response.
+  std::vector<uint8_t> payload = callbacks_.ConsumeSentPacket();
+  ASSERT_HAS_VALUE_AND_ASSIGN(SctpPacket packet, SctpPacket::Parse(payload));
+  ASSERT_THAT(packet.descriptors(), SizeIs(1));
+
+  ASSERT_HAS_VALUE_AND_ASSIGN(
+      HeartbeatRequestChunk req,
+      HeartbeatRequestChunk::Parse(packet.descriptors()[0].data));
+
+  HeartbeatAckChunk ack(std::move(req).extract_parameters());
+
+  EXPECT_CALL(context_, ObserveRTT).Times(0);
+
+  // Go backwards in time - which make the HEARTBEAT-ACK have an invalid
+  // timestamp in it, as it will be in the future.
+  callbacks_.AdvanceTime(DurationMs(-100));
+
   handler_.HandleHeartbeatAck(std::move(ack));
 }
 

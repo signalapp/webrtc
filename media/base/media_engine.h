@@ -19,11 +19,12 @@
 #include "api/audio_codecs/audio_encoder_factory.h"
 #include "api/crypto/crypto_options.h"
 #include "api/rtp_parameters.h"
-#include "api/transport/webrtc_key_value_config.h"
 #include "api/video/video_bitrate_allocator_factory.h"
+#include "api/webrtc_key_value_config.h"
 #include "call/audio_state.h"
 #include "media/base/codec.h"
 #include "media/base/media_channel.h"
+#include "media/base/media_config.h"
 #include "media/base/video_common.h"
 #include "rtc_base/system/file_wrapper.h"
 
@@ -63,7 +64,9 @@ class VoiceEngineInterface : public RtpHeaderExtensionQueryInterface {
  public:
   VoiceEngineInterface() = default;
   virtual ~VoiceEngineInterface() = default;
-  RTC_DISALLOW_COPY_AND_ASSIGN(VoiceEngineInterface);
+
+  VoiceEngineInterface(const VoiceEngineInterface&) = delete;
+  VoiceEngineInterface& operator=(const VoiceEngineInterface&) = delete;
 
   // Initialization
   // Starts the engine.
@@ -97,7 +100,9 @@ class VideoEngineInterface : public RtpHeaderExtensionQueryInterface {
  public:
   VideoEngineInterface() = default;
   virtual ~VideoEngineInterface() = default;
-  RTC_DISALLOW_COPY_AND_ASSIGN(VideoEngineInterface);
+
+  VideoEngineInterface(const VideoEngineInterface&) = delete;
+  VideoEngineInterface& operator=(const VideoEngineInterface&) = delete;
 
   // Creates a video media channel, paired with the specified voice channel.
   // Returns NULL on failure.

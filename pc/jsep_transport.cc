@@ -15,6 +15,7 @@
 
 #include <functional>
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "api/array_view.h"
@@ -207,17 +208,15 @@ webrtc::RTCError JsepTransport::SetLocalJsepTransportDescription(
       return error;
     }
   }
-    RTC_DCHECK(rtp_dtls_transport_->internal());
-    rtp_dtls_transport_->internal()->ice_transport()->SetIceParameters(
-        ice_parameters);
+  RTC_DCHECK(rtp_dtls_transport_->internal());
+  rtp_dtls_transport_->internal()->ice_transport()->SetIceParameters(
+      ice_parameters);
 
-    {
-      if (rtcp_dtls_transport_) {
-        RTC_DCHECK(rtcp_dtls_transport_->internal());
-        rtcp_dtls_transport_->internal()->ice_transport()->SetIceParameters(
-            ice_parameters);
-      }
-    }
+  if (rtcp_dtls_transport_) {
+    RTC_DCHECK(rtcp_dtls_transport_->internal());
+    rtcp_dtls_transport_->internal()->ice_transport()->SetIceParameters(
+        ice_parameters);
+  }
   // If PRANSWER/ANSWER is set, we should decide transport protocol type.
   if (type == SdpType::kPrAnswer || type == SdpType::kAnswer) {
     error = NegotiateAndSetDtlsParameters(type);
@@ -399,7 +398,7 @@ webrtc::RTCError JsepTransport::VerifyCertificateFingerprint(
 void JsepTransport::SetActiveResetSrtpParams(bool active_reset_srtp_params) {
   RTC_DCHECK_RUN_ON(network_thread_);
   if (dtls_srtp_transport_) {
-    RTC_LOG(INFO)
+    RTC_LOG(LS_INFO)
         << "Setting active_reset_srtp_params of DtlsSrtpTransport to: "
         << active_reset_srtp_params;
     dtls_srtp_transport_->SetActiveResetSrtpParams(active_reset_srtp_params);
@@ -460,7 +459,7 @@ bool JsepTransport::SetRtcpMux(bool enable,
       }
       break;
     default:
-      RTC_NOTREACHED();
+      RTC_DCHECK_NOTREACHED();
   }
 
   if (!ret) {
@@ -670,7 +669,7 @@ webrtc::RTCError JsepTransport::NegotiateDtlsRole(
             }
             break;
           default:
-            RTC_NOTREACHED();
+            RTC_DCHECK_NOTREACHED();
             break;
         }
       } else {

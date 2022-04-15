@@ -130,7 +130,7 @@ class LambdaCreateSessionDescriptionObserver
     on_success_(absl::WrapUnique(desc));
   }
   void OnFailure(RTCError error) override {
-    RTC_NOTREACHED() << error.message();
+    RTC_DCHECK_NOTREACHED() << error.message();
   }
 
  private:
@@ -172,13 +172,9 @@ class FakeVideoEncoderFactory : public VideoEncoderFactory {
   std::vector<SdpVideoFormat> GetSupportedFormats() const override {
     return {SdpVideoFormat("VP8")};
   }
-  CodecInfo QueryVideoEncoder(const SdpVideoFormat& format) const override {
-    RTC_CHECK_EQ(format.name, "VP8");
-    CodecInfo info;
-    return info;
-  }
   std::unique_ptr<VideoEncoder> CreateVideoEncoder(
       const SdpVideoFormat& format) override {
+    RTC_CHECK_EQ(format.name, "VP8");
     return std::make_unique<FakeVp8Encoder>(clock_);
   }
 
@@ -325,9 +321,8 @@ PeerScenarioClient::VideoSendTrack PeerScenarioClient::CreateVideo(
                                                  config.generator);
   res.capturer = capturer.get();
   capturer->Init();
-  res.source =
-      new rtc::RefCountedObject<FrameGeneratorCapturerVideoTrackSource>(
-          std::move(capturer), config.screencast);
+  res.source = rtc::make_ref_counted<FrameGeneratorCapturerVideoTrackSource>(
+      std::move(capturer), config.screencast);
   auto track = pc_factory_->CreateVideoTrack(track_id, res.source);
   res.track = track;
   res.sender = peer_connection_->AddTrack(track, {kCommonStreamId}).MoveValue();
@@ -368,9 +363,8 @@ void PeerScenarioClient::SetSdpOfferAndGetAnswer(
     std::string remote_offer,
     std::function<void(std::string)> answer_handler) {
   if (!signaling_thread_->IsCurrent()) {
-    signaling_thread_->PostTask(RTC_FROM_HERE, [=] {
-      SetSdpOfferAndGetAnswer(remote_offer, answer_handler);
-    });
+    signaling_thread_->PostTask(
+        [=] { SetSdpOfferAndGetAnswer(remote_offer, answer_handler); });
     return;
   }
   RTC_DCHECK_RUN_ON(signaling_thread_);
@@ -401,7 +395,7 @@ void PeerScenarioClient::SetSdpAnswer(
     std::function<void(const SessionDescriptionInterface&)> done_handler) {
   if (!signaling_thread_->IsCurrent()) {
     signaling_thread_->PostTask(
-        RTC_FROM_HERE, [=] { SetSdpAnswer(remote_answer, done_handler); });
+        [=] { SetSdpAnswer(remote_answer, done_handler); });
     return;
   }
   RTC_DCHECK_RUN_ON(signaling_thread_);

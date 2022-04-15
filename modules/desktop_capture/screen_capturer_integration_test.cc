@@ -25,7 +25,6 @@
 #include "modules/desktop_capture/rgba_color.h"
 #include "modules/desktop_capture/screen_drawer.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/constructor_magic.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/third_party/base64/base64.h"
 #include "test/gmock.h"
@@ -33,7 +32,7 @@
 
 #if defined(WEBRTC_WIN)
 #include "modules/desktop_capture/win/screen_capturer_win_directx.h"
-#include "rtc_base/win32.h"
+#include "rtc_base/win/windows_version.h"
 #endif  // defined(WEBRTC_WIN)
 
 using ::testing::_;
@@ -338,7 +337,7 @@ TEST_F(ScreenCapturerIntegrationTest,
   // Bug https://bugs.chromium.org/p/webrtc/issues/detail?id=6844
   // TODO(zijiehe): Find the root cause of the border and failure, which cannot
   // reproduce on my dev machine.
-  if (rtc::IsWindows8OrLater()) {
+  if (rtc::rtc_win::GetVersion() >= rtc::rtc_win::Version::VERSION_WIN8) {
     return;
   }
   CreateMagnifierCapturer();
@@ -351,7 +350,7 @@ TEST_F(ScreenCapturerIntegrationTest, DISABLED_TwoMagnifierCapturers) {
   // Bug https://bugs.chromium.org/p/webrtc/issues/detail?id=6844
   // TODO(zijiehe): Find the root cause of the border and failure, which cannot
   // reproduce on my dev machine.
-  if (rtc::IsWindows8OrLater()) {
+  if (rtc::rtc_win::GetVersion() >= rtc::rtc_win::Version::VERSION_WIN8) {
     return;
   }
   CreateMagnifierCapturer();
@@ -362,7 +361,7 @@ TEST_F(ScreenCapturerIntegrationTest, DISABLED_TwoMagnifierCapturers) {
 
 TEST_F(ScreenCapturerIntegrationTest,
        DISABLED_MaybeCaptureUpdatedRegionWithDirectxCapturer) {
-  if (!rtc::IsWindows8OrLater()) {
+  if (rtc::rtc_win::GetVersion() < rtc::rtc_win::Version::VERSION_WIN8) {
     // ScreenCapturerWinGdi randomly returns blank screen, the root cause is
     // still unknown. Bug,
     // https://bugs.chromium.org/p/webrtc/issues/detail?id=6843.

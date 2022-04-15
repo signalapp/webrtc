@@ -77,9 +77,6 @@ if (rtc_include_tests) {
         "window_finder_unittest.cc",
       ]
       public_configs = [ ":x11_config" ]
-      if (is_win) {
-        deps += [ "../../rtc_base:win32" ]
-      }
     }
   }
 
@@ -225,6 +222,23 @@ if (is_linux || is_chromeos) {
       }
     }
 
+    pkg_config("gbm") {
+      packages = [ "gbm" ]
+    }
+    pkg_config("egl") {
+      packages = [ "egl" ]
+    }
+    pkg_config("epoxy") {
+      packages = [ "epoxy" ]
+      ignore_libs = true
+    }
+    pkg_config("libdrm") {
+      packages = [ "libdrm" ]
+      if (!rtc_link_pipewire) {
+        ignore_libs = true
+      }
+    }
+
     if (!rtc_link_pipewire) {
       # When libpipewire is not directly linked, use stubs to allow for dlopening of
       # the binary.
@@ -232,14 +246,18 @@ if (is_linux || is_chromeos) {
         configs = [
           "../../:common_config",
           ":pipewire",
+          ":libdrm",
         ]
         deps = [ "../../rtc_base" ]
-        extra_header = "linux/pipewire_stub_header.fragment"
+        extra_header = "linux/wayland/pipewire_stub_header.fragment"
         logging_function = "RTC_LOG(LS_VERBOSE)"
         logging_include = "rtc_base/logging.h"
-        output_name = "linux/pipewire_stubs"
-        path_from_source = "modules/desktop_capture/linux"
-        sigs = [ "linux/pipewire03.sigs" ]
+        output_name = "linux/wayland/pipewire_stubs"
+        path_from_source = "modules/desktop_capture/linux/wayland"
+        sigs = [
+          "linux/wayland/pipewire.sigs",
+          "linux/wayland/drm.sigs",
+        ]
       }
     }
 
@@ -388,37 +406,37 @@ rtc_library("desktop_capture_generic") {
     if (build_with_mozilla && (is_linux || is_chromeos)) {
       sources += [
         "app_capturer_linux.cc",
-        "linux/app_capturer_x11.cc",
-        "linux/desktop_device_info_linux.cc",
-        "linux/desktop_device_info_linux.h",
-        "linux/shared_x_util.cc",
-        "linux/shared_x_util.h",
+        "linux/x11/app_capturer_x11.cc",
+        "linux/x11/desktop_device_info_linux.cc",
+        "linux/x11/desktop_device_info_linux.h",
+        "linux/x11/shared_x_util.cc",
+        "linux/x11/shared_x_util.h",
       ]
     }
   }
 
   if (rtc_use_x11_extensions) {
     sources += [
-      "linux/mouse_cursor_monitor_x11.cc",
-      "linux/mouse_cursor_monitor_x11.h",
-      "linux/screen_capturer_x11.cc",
-      "linux/screen_capturer_x11.h",
-      "linux/shared_x_display.cc",
-      "linux/shared_x_display.h",
-      "linux/window_capturer_x11.cc",
-      "linux/window_capturer_x11.h",
-      "linux/window_finder_x11.cc",
-      "linux/window_finder_x11.h",
-      "linux/window_list_utils.cc",
-      "linux/window_list_utils.h",
-      "linux/x_atom_cache.cc",
-      "linux/x_atom_cache.h",
-      "linux/x_error_trap.cc",
-      "linux/x_error_trap.h",
-      "linux/x_server_pixel_buffer.cc",
-      "linux/x_server_pixel_buffer.h",
-      "linux/x_window_property.cc",
-      "linux/x_window_property.h",
+      "linux/x11/mouse_cursor_monitor_x11.cc",
+      "linux/x11/mouse_cursor_monitor_x11.h",
+      "linux/x11/screen_capturer_x11.cc",
+      "linux/x11/screen_capturer_x11.h",
+      "linux/x11/shared_x_display.cc",
+      "linux/x11/shared_x_display.h",
+      "linux/x11/window_capturer_x11.cc",
+      "linux/x11/window_capturer_x11.h",
+      "linux/x11/window_finder_x11.cc",
+      "linux/x11/window_finder_x11.h",
+      "linux/x11/window_list_utils.cc",
+      "linux/x11/window_list_utils.h",
+      "linux/x11/x_atom_cache.cc",
+      "linux/x11/x_atom_cache.h",
+      "linux/x11/x_error_trap.cc",
+      "linux/x11/x_error_trap.h",
+      "linux/x11/x_server_pixel_buffer.cc",
+      "linux/x11/x_server_pixel_buffer.h",
+      "linux/x11/x_window_property.cc",
+      "linux/x11/x_window_property.h",
     ]
     libs = [
       "X11",
@@ -450,6 +468,7 @@ rtc_library("desktop_capture_generic") {
     "../../rtc_base:checks",
     "../../rtc_base/synchronization:mutex",
     "../../rtc_base/system:arch",
+    "../../rtc_base/system:no_unique_address",
     "../../rtc_base/system:rtc_export",
     "../../system_wrappers",
     "../../system_wrappers:metrics",
@@ -515,7 +534,10 @@ rtc_library("desktop_capture_generic") {
       "d3d11.lib",
       "dxgi.lib",
     ]
-    deps += [ "../../rtc_base:win32" ]
+    deps += [
+      "../../rtc_base:rtc_base_approved",
+      "../../rtc_base:win32",
+    ]
   }
 
   absl_deps = [
@@ -540,19 +562,38 @@ rtc_library("desktop_capture_generic") {
 
   if (rtc_use_pipewire) {
     sources += [
-      "linux/base_capturer_pipewire.cc",
-      "linux/base_capturer_pipewire.h",
+      "linux/wayland/base_capturer_pipewire.cc",
+      "linux/wayland/base_capturer_pipewire.h",
+      "linux/wayland/egl_dmabuf.cc",
+      "linux/wayland/egl_dmabuf.h",
+      "linux/wayland/mouse_cursor_monitor_pipewire.cc",
+      "linux/wayland/mouse_cursor_monitor_pipewire.h",
+      "linux/wayland/scoped_glib.cc",
+      "linux/wayland/scoped_glib.h",
+      "linux/wayland/screencast_portal.cc",
+      "linux/wayland/screencast_portal.h",
+      "linux/wayland/shared_screencast_stream.cc",
+      "linux/wayland/shared_screencast_stream.h",
+      "linux/wayland/xdg_desktop_portal_utils.cc",
+      "linux/wayland/xdg_desktop_portal_utils.h",
     ]
 
     configs += [
-      ":pipewire_config",
       ":gio",
       ":pipewire",
+      ":gbm",
+      ":egl",
+      ":epoxy",
+      ":libdrm",
     ]
 
     if (!rtc_link_pipewire) {
       deps += [ ":pipewire_stubs" ]
     }
+
+    public_configs += [ ":pipewire_config" ]
+
+    deps += [ "../../rtc_base:sanitizer" ]
   }
 
   if (rtc_enable_win_wgc) {

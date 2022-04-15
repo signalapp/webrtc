@@ -11,7 +11,6 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <algorithm>
 #include <memory>
 #include <set>
 #include <string>
@@ -19,8 +18,6 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/strings/match.h"
-#include "api/audio_codecs/audio_decoder_factory.h"
-#include "api/audio_codecs/audio_encoder_factory.h"
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
 #include "api/audio_options.h"
@@ -123,6 +120,7 @@ class RTCStatsIntegrationTest : public ::testing::Test {
   void StartCall() {
     // Create PeerConnections and "connect" sigslots
     PeerConnectionInterface::RTCConfiguration config;
+    config.sdp_semantics = SdpSemantics::kUnifiedPlan;
     PeerConnectionInterface::IceServer ice_server;
     ice_server.uri = "stun:1.1.1.1:3478";
     config.servers.push_back(ice_server);
@@ -489,7 +487,13 @@ class RTCStatsReportVerifier {
     verifier.TestMemberIsDefined(candidate_pair.nominated);
     verifier.TestMemberIsDefined(candidate_pair.writable);
     verifier.TestMemberIsUndefined(candidate_pair.readable);
+    verifier.TestMemberIsNonNegative<uint64_t>(candidate_pair.packets_sent);
+    verifier.TestMemberIsNonNegative<uint64_t>(
+        candidate_pair.packets_discarded_on_send);
+    verifier.TestMemberIsNonNegative<uint64_t>(candidate_pair.packets_received);
     verifier.TestMemberIsNonNegative<uint64_t>(candidate_pair.bytes_sent);
+    verifier.TestMemberIsNonNegative<uint64_t>(
+        candidate_pair.bytes_discarded_on_send);
     verifier.TestMemberIsNonNegative<uint64_t>(candidate_pair.bytes_received);
     verifier.TestMemberIsNonNegative<double>(
         candidate_pair.total_round_trip_time);
@@ -517,6 +521,7 @@ class RTCStatsReportVerifier {
         candidate_pair.consent_requests_sent);
     verifier.TestMemberIsUndefined(candidate_pair.consent_responses_received);
     verifier.TestMemberIsUndefined(candidate_pair.consent_responses_sent);
+
     return verifier.ExpectAllMembersSuccessfullyTested();
   }
 
@@ -527,8 +532,12 @@ class RTCStatsReportVerifier {
     verifier.TestMemberIsDefined(candidate.is_remote);
     if (*candidate.is_remote) {
       verifier.TestMemberIsUndefined(candidate.network_type);
+      verifier.TestMemberIsUndefined(candidate.network_adapter_type);
+      verifier.TestMemberIsUndefined(candidate.vpn);
     } else {
       verifier.TestMemberIsDefined(candidate.network_type);
+      verifier.TestMemberIsDefined(candidate.network_adapter_type);
+      verifier.TestMemberIsDefined(candidate.vpn);
     }
     verifier.TestMemberIsDefined(candidate.ip);
     verifier.TestMemberIsDefined(candidate.address);
@@ -958,7 +967,6 @@ class RTCStatsReportVerifier {
         outbound_stream.header_bytes_sent);
     verifier.TestMemberIsNonNegative<uint64_t>(
         outbound_stream.retransmitted_bytes_sent);
-    verifier.TestMemberIsUndefined(outbound_stream.target_bitrate);
     if (outbound_stream.media_type.is_defined() &&
         *outbound_stream.media_type == "video") {
       verifier.TestMemberIsDefined(outbound_stream.frames_encoded);
@@ -994,6 +1002,7 @@ class RTCStatsReportVerifier {
       verifier.TestMemberIsNonNegative<uint32_t>(outbound_stream.frames_sent);
       verifier.TestMemberIsNonNegative<uint32_t>(
           outbound_stream.huge_frames_sent);
+      verifier.TestMemberIsUndefined(outbound_stream.target_bitrate);
       verifier.MarkMemberTested(outbound_stream.rid, true);
     } else {
       verifier.TestMemberIsUndefined(outbound_stream.frames_encoded);
@@ -1017,6 +1026,7 @@ class RTCStatsReportVerifier {
       verifier.TestMemberIsUndefined(outbound_stream.frame_width);
       verifier.TestMemberIsUndefined(outbound_stream.frames_sent);
       verifier.TestMemberIsUndefined(outbound_stream.huge_frames_sent);
+      verifier.TestMemberIsNonNegative<double>(outbound_stream.target_bitrate);
     }
     return verifier.ExpectAllMembersSuccessfullyTested();
   }
@@ -1105,7 +1115,7 @@ class RTCStatsReportVerifier {
     verifier.TestMemberIsUndefined(video_source.width);
     verifier.TestMemberIsUndefined(video_source.height);
     verifier.TestMemberIsNonNegative<uint32_t>(video_source.frames);
-    verifier.TestMemberIsNonNegative<uint32_t>(video_source.frames_per_second);
+    verifier.TestMemberIsNonNegative<double>(video_source.frames_per_second);
     return verifier.ExpectAllMembersSuccessfullyTested();
   }
 

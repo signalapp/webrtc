@@ -201,6 +201,7 @@ final class WebRtcAudioUtils {
             + "BT SCO: " + audioManager.isBluetoothScoOn());
   }
 
+  // RingRTC change to keep support for SDK >= 19
   private static boolean isVolumeFixed(AudioManager audioManager) {
     if (Build.VERSION.SDK_INT < 21) {
       return false;

@@ -69,6 +69,8 @@ class RTC_EXPORT VideoFrameBuffer : public rtc::RefCountInterface {
   // in another format, a conversion will take place. All implementations must
   // provide a fallback to I420 for compatibility with e.g. the internal WebRTC
   // software encoders.
+  // Conversion may fail, for example if reading the pixel data from a texture
+  // fails. If the conversion fails, nullptr is returned.
   virtual rtc::scoped_refptr<I420BufferInterface> ToI420() = 0;
 
   // GetI420() methods should return I420 buffer if conversion is trivial, i.e
@@ -181,6 +183,13 @@ class I444BufferInterface : public PlanarYuv8Buffer {
 
   int ChromaWidth() const final;
   int ChromaHeight() const final;
+
+  rtc::scoped_refptr<VideoFrameBuffer> CropAndScale(int offset_x,
+                                                    int offset_y,
+                                                    int crop_width,
+                                                    int crop_height,
+                                                    int scaled_width,
+                                                    int scaled_height) override;
 
  protected:
   ~I444BufferInterface() override {}

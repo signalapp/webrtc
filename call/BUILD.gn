@@ -55,6 +55,7 @@ rtc_library("call_interfaces") {
     "../api/audio_codecs:audio_codecs_api",
     "../api/crypto:frame_encryptor_interface",
     "../api/crypto:options",
+    "../api/metronome",
     "../api/neteq:neteq_api",
     "../api/task_queue",
     "../api/transport:bitrate_settings",
@@ -150,7 +151,10 @@ rtc_library("rtp_receiver") {
     "../rtc_base/containers:flat_map",
     "../rtc_base/containers:flat_set",
   ]
-  absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
+  absl_deps = [
+    "//third_party/abseil-cpp/absl/strings:strings",
+    "//third_party/abseil-cpp/absl/types:optional",
+  ]
 }
 
 rtc_library("rtp_sender") {
@@ -174,11 +178,11 @@ rtc_library("rtp_sender") {
     "../api:rtp_parameters",
     "../api:sequence_checker",
     "../api:transport_api",
+    "../api:webrtc_key_value_config",
     "../api/rtc_event_log",
     "../api/transport:field_trial_based_config",
     "../api/transport:goog_cc",
     "../api/transport:network_control",
-    "../api/transport:webrtc_key_value_config",
     "../api/units:data_rate",
     "../api/units:time_delta",
     "../api/units:timestamp",
@@ -287,6 +291,7 @@ rtc_library("call") {
     "../api:sequence_checker",
     "../api:simulated_network_api",
     "../api:transport_api",
+    "../api:webrtc_key_value_config",
     "../api/rtc_event_log",
     "../api/transport:network_control",
     "../api/units:time_delta",
@@ -315,6 +320,7 @@ rtc_library("call") {
     "../system_wrappers:field_trial",
     "../system_wrappers:metrics",
     "../video",
+    "../video:decode_synchronizer",
     "adaptation:resource_adaptation",
   ]
   absl_deps = [
@@ -362,6 +368,7 @@ rtc_library("video_stream_api") {
     "../modules/rtp_rtcp:rtp_rtcp_format",
     "../rtc_base:checks",
     "../rtc_base:rtc_base_approved",
+    "../rtc_base:stringutils",
   ]
   absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
 }
@@ -485,6 +492,7 @@ if (rtc_include_tests) {
         "../test:field_trial",
         "../test:mock_frame_transformer",
         "../test:mock_transport",
+        "../test:scoped_key_value_config",
         "../test:test_common",
         "../test:test_support",
         "../test:video_test_common",
@@ -498,6 +506,7 @@ if (rtc_include_tests) {
       absl_deps = [
         "//third_party/abseil-cpp/absl/container:inlined_vector",
         "//third_party/abseil-cpp/absl/memory",
+        "//third_party/abseil-cpp/absl/strings",
         "//third_party/abseil-cpp/absl/types:optional",
         "//third_party/abseil-cpp/absl/types:variant",
       ]

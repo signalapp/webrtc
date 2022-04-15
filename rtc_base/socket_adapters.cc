@@ -12,15 +12,17 @@
 #pragma warning(disable : 4786)
 #endif
 
+#include "rtc_base/socket_adapters.h"
+
 #include <algorithm>
 
 #include "absl/strings/match.h"
+#include "absl/strings/string_view.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/byte_buffer.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/http_common.h"
 #include "rtc_base/logging.h"
-#include "rtc_base/socket_adapters.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/zero_memory.h"
 
@@ -97,7 +99,7 @@ void BufferedReadAdapter::OnReadEvent(Socket* socket) {
 
   if (data_len_ >= buffer_size_) {
     RTC_LOG(LS_ERROR) << "Input buffer overflow";
-    RTC_NOTREACHED();
+    RTC_DCHECK_NOTREACHED();
     data_len_ = 0;
   }
 
@@ -105,7 +107,7 @@ void BufferedReadAdapter::OnReadEvent(Socket* socket) {
                                      buffer_size_ - data_len_, nullptr);
   if (len < 0) {
     // TODO: Do something better like forwarding the error to the user.
-    RTC_LOG_ERR(INFO) << "Recv";
+    RTC_LOG_ERR(LS_INFO) << "Recv";
     return;
   }
 
@@ -217,9 +219,9 @@ void AsyncSSLSocket::ProcessInput(char* data, size_t* len) {
 ///////////////////////////////////////////////////////////////////////////////
 
 AsyncHttpsProxySocket::AsyncHttpsProxySocket(Socket* socket,
-                                             const std::string& user_agent,
+                                             absl::string_view user_agent,
                                              const SocketAddress& proxy,
-                                             const std::string& username,
+                                             absl::string_view username,
                                              const CryptString& password)
     : BufferedReadAdapter(socket, 1024),
       proxy_(proxy),
@@ -308,12 +310,12 @@ void AsyncHttpsProxySocket::ProcessInput(char* data, size_t* len) {
     if (data[pos++] != '\n')
       continue;
 
-    size_t len = pos - start - 1;
-    if ((len > 0) && (data[start + len - 1] == '\r'))
-      --len;
+    size_t length = pos - start - 1;
+    if ((length > 0) && (data[start + length - 1] == '\r'))
+      --length;
 
-    data[start + len] = 0;
-    ProcessLine(data + start, len);
+    data[start + length] = 0;
+    ProcessLine(data + start, length);
     start = pos;
   }
 
@@ -470,7 +472,7 @@ void AsyncHttpsProxySocket::Error(int error) {
 
 AsyncSocksProxySocket::AsyncSocksProxySocket(Socket* socket,
                                              const SocketAddress& proxy,
-                                             const std::string& username,
+                                             absl::string_view username,
                                              const CryptString& password)
     : BufferedReadAdapter(socket, 1024),
       state_(SS_ERROR),
@@ -566,9 +568,9 @@ void AsyncSocksProxySocket::ProcessInput(char* data, size_t* len) {
         return;
       RTC_LOG(LS_VERBOSE) << "Bound on " << addr << ":" << port;
     } else if (atyp == 3) {
-      uint8_t len;
+      uint8_t length;
       std::string addr;
-      if (!response.ReadUInt8(&len) || !response.ReadString(&addr, len) ||
+      if (!response.ReadUInt8(&length) || !response.ReadString(&addr, length) ||
           !response.ReadUInt16(&port))
         return;
       RTC_LOG(LS_VERBOSE) << "Bound on " << addr << ":" << port;

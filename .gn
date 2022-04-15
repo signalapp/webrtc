@@ -63,4 +63,8 @@ default_args = {
   enable_libaom = false
 
   gtest_enable_absl_printers = true
+
+  # RingRTC change to support SDK >= 19.
+  # Differently from Chromium, WebRTC still support SDK 19.
+  default_min_sdk_version = 19
 }

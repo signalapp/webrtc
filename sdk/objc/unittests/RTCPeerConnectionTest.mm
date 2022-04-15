@@ -42,6 +42,7 @@
       [[RTC_OBJC_TYPE(RTCIceServer) alloc] initWithURLStrings:urlStrings];
 
   RTC_OBJC_TYPE(RTCConfiguration) *config = [[RTC_OBJC_TYPE(RTCConfiguration) alloc] init];
+  config.sdpSemantics = RTCSdpSemanticsUnifiedPlan;
   config.iceServers = @[ server ];
   config.iceTransportPolicy = RTCIceTransportPolicyRelay;
   config.bundlePolicy = RTCBundlePolicyMaxBundle;
@@ -121,6 +122,7 @@
       [[RTC_OBJC_TYPE(RTCIceServer) alloc] initWithURLStrings:urlStrings];
 
   RTC_OBJC_TYPE(RTCConfiguration) *config = [[RTC_OBJC_TYPE(RTCConfiguration) alloc] init];
+  config.sdpSemantics = RTCSdpSemanticsUnifiedPlan;
   config.iceServers = @[ server ];
   RTC_OBJC_TYPE(RTCMediaConstraints) *contraints =
       [[RTC_OBJC_TYPE(RTCMediaConstraints) alloc] initWithMandatoryConstraints:@{}
@@ -128,7 +130,6 @@
   RTC_OBJC_TYPE(RTCPeerConnectionFactory) *factory =
       [[RTC_OBJC_TYPE(RTCPeerConnectionFactory) alloc] init];
 
-  RTC_OBJC_TYPE(RTCConfiguration) * newConfig;
   std::unique_ptr<webrtc::PeerConnectionDependencies> pc_dependencies =
       std::make_unique<webrtc::PeerConnectionDependencies>(nullptr);
   @autoreleasepool {
@@ -137,7 +138,7 @@
                                     constraints:contraints
                                    dependencies:std::move(pc_dependencies)
                                        delegate:nil];
-    newConfig = peerConnection.configuration;
+    ASSERT_NE(peerConnection, nil);
   }
 }
 
@@ -146,6 +147,7 @@
       [[RTC_OBJC_TYPE(RTCPeerConnectionFactory) alloc] init];
 
   RTC_OBJC_TYPE(RTCConfiguration) *config = [[RTC_OBJC_TYPE(RTCConfiguration) alloc] init];
+  config.sdpSemantics = RTCSdpSemanticsUnifiedPlan;
   RTC_OBJC_TYPE(RTCMediaConstraints) *contraints =
       [[RTC_OBJC_TYPE(RTCMediaConstraints) alloc] initWithMandatoryConstraints:@{}
                                                            optionalConstraints:nil];
@@ -176,6 +178,7 @@
       [[RTC_OBJC_TYPE(RTCPeerConnectionFactory) alloc] init];
 
   RTC_OBJC_TYPE(RTCConfiguration) *config = [[RTC_OBJC_TYPE(RTCConfiguration) alloc] init];
+  config.sdpSemantics = RTCSdpSemanticsUnifiedPlan;
   RTC_OBJC_TYPE(RTCMediaConstraints) *contraints =
       [[RTC_OBJC_TYPE(RTCMediaConstraints) alloc] initWithMandatoryConstraints:@{}
                                                            optionalConstraints:nil];

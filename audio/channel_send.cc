@@ -31,7 +31,6 @@
 #include "modules/audio_processing/rms_level.h"
 #include "modules/pacing/packet_router.h"
 #include "modules/rtp_rtcp/source/rtp_rtcp_impl2.h"
-#include "modules/utility/include/process_thread.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/event.h"
 #include "rtc_base/format_macros.h"
@@ -44,7 +43,6 @@
 #include "rtc_base/task_queue.h"
 #include "rtc_base/time_utils.h"
 #include "system_wrappers/include/clock.h"
-#include "system_wrappers/include/field_trial.h"
 #include "system_wrappers/include/metrics.h"
 
 namespace webrtc {
@@ -79,7 +77,8 @@ class ChannelSend : public ChannelSendInterface,
               int rtcp_report_interval_ms,
               uint32_t ssrc,
               rtc::scoped_refptr<FrameTransformerInterface> frame_transformer,
-              TransportFeedbackObserver* feedback_observer);
+              TransportFeedbackObserver* feedback_observer,
+              const WebRtcKeyValueConfig& field_trials);
 
   ~ChannelSend() override;
 
@@ -96,7 +95,7 @@ class ChannelSend : public ChannelSendInterface,
 
   // Codecs
   void OnBitrateAllocation(BitrateAllocationUpdate update) override;
-  int GetBitrate() const override;
+  int GetTargetBitrate() const override;
 
   // Network
   void ReceivedRTCPPacket(const uint8_t* data, size_t length) override;
@@ -237,9 +236,6 @@ class ChannelSend : public ChannelSendInterface,
   // ChannelSend::SendRtpAudio to send the transformed audio.
   rtc::scoped_refptr<ChannelSendFrameTransformerDelegate>
       frame_transformer_delegate_ RTC_GUARDED_BY(encoder_queue_);
-
-  mutable Mutex bitrate_mutex_;
-  int configured_bitrate_bps_ RTC_GUARDED_BY(bitrate_mutex_) = 0;
 
   // Defined last to ensure that there are no running tasks when the other
   // members are destroyed.
@@ -462,7 +458,8 @@ ChannelSend::ChannelSend(
     int rtcp_report_interval_ms,
     uint32_t ssrc,
     rtc::scoped_refptr<FrameTransformerInterface> frame_transformer,
-    TransportFeedbackObserver* feedback_observer)
+    TransportFeedbackObserver* feedback_observer,
+    const WebRtcKeyValueConfig& field_trials)
     : ssrc_(ssrc),
       event_log_(rtc_event_log),
       _timeStamp(0),  // This is just an offset, RTP module will add it's own
@@ -481,7 +478,7 @@ ChannelSend::ChannelSend(
           "AudioEncoder",
           TaskQueueFactory::Priority::NORMAL)),
       fixing_timestamp_stall_(
-          !field_trial::IsDisabled("WebRTC-Audio-FixTimestampStall")) {
+          field_trials.IsDisabled("WebRTC-Audio-FixTimestampStall")) {
   audio_coding_.reset(AudioCodingModule::Create(AudioCodingModule::Config()));
 
   RtpRtcpInterface::Configuration configuration;
@@ -616,18 +613,14 @@ void ChannelSend::OnBitrateAllocation(BitrateAllocationUpdate update) {
   // rules.
   // RTC_DCHECK(worker_thread_checker_.IsCurrent() ||
   //            module_process_thread_checker_.IsCurrent());
-  MutexLock lock(&bitrate_mutex_);
-
   CallEncoder([&](AudioEncoder* encoder) {
     encoder->OnReceivedUplinkAllocation(update);
   });
   retransmission_rate_limiter_->SetMaxRate(update.target_bitrate.bps());
-  configured_bitrate_bps_ = update.target_bitrate.bps();
 }
 
-int ChannelSend::GetBitrate() const {
-  MutexLock lock(&bitrate_mutex_);
-  return configured_bitrate_bps_;
+int ChannelSend::GetTargetBitrate() const {
+  return audio_coding_->GetTargetBitrate();
 }
 
 void ChannelSend::OnUplinkPacketLossRate(float packet_loss_rate) {
@@ -708,9 +701,9 @@ void ChannelSend::SetSendAudioLevelIndicationStatus(bool enable, int id) {
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);
   _includeAudioLevelIndication = enable;
   if (enable) {
-    rtp_rtcp_->RegisterRtpHeaderExtension(AudioLevel::kUri, id);
+    rtp_rtcp_->RegisterRtpHeaderExtension(AudioLevel::Uri(), id);
   } else {
-    rtp_rtcp_->DeregisterSendRtpHeaderExtension(AudioLevel::kUri);
+    rtp_rtcp_->DeregisterSendRtpHeaderExtension(AudioLevel::Uri());
   }
 }
 
@@ -956,12 +949,13 @@ std::unique_ptr<ChannelSendInterface> CreateChannelSend(
     int rtcp_report_interval_ms,
     uint32_t ssrc,
     rtc::scoped_refptr<FrameTransformerInterface> frame_transformer,
-    TransportFeedbackObserver* feedback_observer) {
+    TransportFeedbackObserver* feedback_observer,
+    const WebRtcKeyValueConfig& field_trials) {
   return std::make_unique<ChannelSend>(
       clock, task_queue_factory, rtp_transport, rtcp_rtt_stats, rtc_event_log,
       frame_encryptor, crypto_options, extmap_allow_mixed,
       rtcp_report_interval_ms, ssrc, std::move(frame_transformer),
-      feedback_observer);
+      feedback_observer, field_trials);
 }
 
 }  // namespace voe

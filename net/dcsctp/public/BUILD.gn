@@ -8,14 +8,10 @@
 
 import("../../../webrtc.gni")
 
-rtc_source_set("strong_alias") {
-  sources = [ "strong_alias.h" ]
-}
-
 rtc_source_set("types") {
   deps = [
-    ":strong_alias",
     "../../../api:array_view",
+    "../../../rtc_base:rtc_base_approved",
   ]
   sources = [
     "dcsctp_message.h",
@@ -29,11 +25,14 @@ rtc_source_set("socket") {
   deps = [
     ":types",
     "../../../api:array_view",
+    "../../../api/task_queue:task_queue",
     "../../../rtc_base",
     "../../../rtc_base:checks",
     "../../../rtc_base:rtc_base_approved",
   ]
   sources = [
+    "dcsctp_handover_state.cc",
+    "dcsctp_handover_state.h",
     "dcsctp_socket.h",
     "packet_observer.h",
     "timeout.h",
@@ -88,17 +87,14 @@ if (rtc_include_tests) {
 
     deps = [
       ":mocks",
-      ":strong_alias",
       ":types",
       "../../../rtc_base:checks",
       "../../../rtc_base:gunit_helpers",
       "../../../rtc_base:rtc_base_approved",
-      "../../../rtc_base/containers:flat_map",
       "../../../test:test_support",
     ]
     sources = [
       "mock_dcsctp_socket_test.cc",
-      "strong_alias_test.cc",
       "types_test.cc",
     ]
   }

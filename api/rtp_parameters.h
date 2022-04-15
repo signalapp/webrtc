@@ -277,11 +277,6 @@ struct RTC_EXPORT RtpExtension {
       const std::vector<RtpExtension>& extensions,
       absl::string_view uri,
       Filter filter);
-  ABSL_DEPRECATED(
-      "Use RtpExtension::FindHeaderExtensionByUri with filter argument")
-  static const RtpExtension* FindHeaderExtensionByUri(
-      const std::vector<RtpExtension>& extensions,
-      absl::string_view uri);
 
   // Returns the header extension with the given URI and encrypt parameter,
   // if found, otherwise nullptr.
@@ -291,6 +286,9 @@ struct RTC_EXPORT RtpExtension {
       bool encrypt);
 
   // Returns a list of extensions where any extension URI is unique.
+  // The returned list will be sorted by uri first, then encrypt and id last.
+  // Having the list sorted allows the caller fo compare filtered lists for
+  // equality to detect when changes have been made.
   static const std::vector<RtpExtension> DeduplicateHeaderExtensions(
       const std::vector<RtpExtension>& extensions,
       Filter filter);

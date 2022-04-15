@@ -12,6 +12,7 @@
 
 #include <cstdio>
 
+#include "absl/strings/string_view.h"
 #include "rtc_base/arraysize.h"
 #include "rtc_base/checks.h"
 
@@ -77,8 +78,8 @@ void hex_encode_with_delimiter(char* buffer,
 
 }  // namespace
 
-std::string hex_encode(const std::string& str) {
-  return hex_encode(str.c_str(), str.size());
+std::string hex_encode(absl::string_view str) {
+  return hex_encode(str.data(), str.size());
 }
 
 std::string hex_encode(const char* source, size_t srclen) {
@@ -141,18 +142,18 @@ size_t hex_decode_with_delimiter(char* cbuffer,
   return bufpos;
 }
 
-size_t hex_decode(char* buffer, size_t buflen, const std::string& source) {
+size_t hex_decode(char* buffer, size_t buflen, absl::string_view source) {
   return hex_decode_with_delimiter(buffer, buflen, source, 0);
 }
 size_t hex_decode_with_delimiter(char* buffer,
                                  size_t buflen,
-                                 const std::string& source,
+                                 absl::string_view source,
                                  char delimiter) {
-  return hex_decode_with_delimiter(buffer, buflen, source.c_str(),
+  return hex_decode_with_delimiter(buffer, buflen, source.data(),
                                    source.length(), delimiter);
 }
 
-size_t tokenize(const std::string& source,
+size_t tokenize(absl::string_view source,
                 char delimiter,
                 std::vector<std::string>* fields) {
   fields->clear();
@@ -160,35 +161,35 @@ size_t tokenize(const std::string& source,
   for (size_t i = 0; i < source.length(); ++i) {
     if (source[i] == delimiter) {
       if (i != last) {
-        fields->push_back(source.substr(last, i - last));
+        fields->emplace_back(source.substr(last, i - last));
       }
       last = i + 1;
     }
   }
   if (last != source.length()) {
-    fields->push_back(source.substr(last, source.length() - last));
+    fields->emplace_back(source.substr(last, source.length() - last));
   }
   return fields->size();
 }
 
-bool tokenize_first(const std::string& source,
+bool tokenize_first(absl::string_view source,
                     const char delimiter,
                     std::string* token,
                     std::string* rest) {
   // Find the first delimiter
   size_t left_pos = source.find(delimiter);
-  if (left_pos == std::string::npos) {
+  if (left_pos == absl::string_view::npos) {
     return false;
   }
 
   // Look for additional occurrances of delimiter.
   size_t right_pos = left_pos + 1;
-  while (source[right_pos] == delimiter) {
+  while (right_pos < source.size() && source[right_pos] == delimiter) {
     right_pos++;
   }
 
-  *token = source.substr(0, left_pos);
-  *rest = source.substr(right_pos);
+  *token = std::string(source.substr(0, left_pos));
+  *rest = std::string(source.substr(right_pos));
   return true;
 }
 
@@ -214,19 +215,27 @@ std::string join(const std::vector<std::string>& source, char delimiter) {
   return joined_string;
 }
 
-size_t split(const std::string& source,
+std::vector<absl::string_view> split(absl::string_view source, char delimiter) {
+  std::vector<absl::string_view> fields;
+  size_t last = 0;
+  for (size_t i = 0; i < source.length(); ++i) {
+    if (source[i] == delimiter) {
+      fields.push_back(source.substr(last, i - last));
+      last = i + 1;
+    }
+  }
+  fields.push_back(source.substr(last));
+  return fields;
+}
+
+size_t split(absl::string_view source,
              char delimiter,
              std::vector<std::string>* fields) {
   RTC_DCHECK(fields);
   fields->clear();
-  size_t last = 0;
-  for (size_t i = 0; i < source.length(); ++i) {
-    if (source[i] == delimiter) {
-      fields->push_back(source.substr(last, i - last));
-      last = i + 1;
-    }
+  for (const absl::string_view field_view : split(source, delimiter)) {
+    fields->emplace_back(field_view);
   }
-  fields->push_back(source.substr(last, source.length() - last));
   return fields->size();
 }
 
@@ -237,8 +246,9 @@ std::string ToString(const bool b) {
 std::string ToString(const char* const s) {
   return std::string(s);
 }
-std::string ToString(const std::string s) {
-  return s;
+
+std::string ToString(absl::string_view s) {
+  return std::string(s);
 }
 
 std::string ToString(const short s) {

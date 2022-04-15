@@ -10,14 +10,11 @@
 
 #include "pc/data_channel_controller.h"
 
-#include <algorithm>
 #include <utility>
 
-#include "absl/algorithm/container.h"
-#include "absl/types/optional.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
-#include "pc/peer_connection.h"
+#include "pc/peer_connection_internal.h"
 #include "pc/sctp_utils.h"
 #include "rtc_base/location.h"
 #include "rtc_base/logging.h"
@@ -298,7 +295,8 @@ DataChannelController::InternalCreateSctpDataChannel(
     return nullptr;
   }
   sctp_data_channels_.push_back(channel);
-  channel->SignalClosed.connect(pc_, &PeerConnection::OnSctpDataChannelClosed);
+  channel->SignalClosed.connect(
+      pc_, &PeerConnectionInternal::OnSctpDataChannelClosed);
   SignalSctpDataChannelCreated_(channel.get());
   return channel;
 }

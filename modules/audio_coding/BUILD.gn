@@ -118,12 +118,12 @@ rtc_library("red") {
 
   deps = [
     "../../api:array_view",
+    "../../api:webrtc_key_value_config",
     "../../api/audio_codecs:audio_codecs_api",
     "../../api/units:time_delta",
     "../../common_audio",
     "../../rtc_base:checks",
     "../../rtc_base:rtc_base_approved",
-    "../../system_wrappers:field_trial",
   ]
   absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
 }
@@ -993,7 +993,6 @@ rtc_library("neteq") {
   deps = [
     ":audio_coding_module_typedefs",
     ":webrtc_cng",
-    "..:module_api",
     "..:module_api_public",
     "../../api:array_view",
     "../../api:rtp_headers",
@@ -1319,7 +1318,6 @@ if (rtc_include_tests) {
         ":g722_test",
         ":ilbc_test",
         ":isac_api_test",
-        ":isac_fix_test",
         ":isac_switch_samprate_test",
         ":isac_test",
         ":neteq_ilbc_quality_test",
@@ -1398,6 +1396,7 @@ if (rtc_include_tests) {
       "../../rtc_base:rtc_base_approved",
       "../../rtc_base/synchronization:mutex",
       "../../test:fileutils",
+      "../../test:scoped_key_value_config",
       "../../test:test_support",
     ]
     absl_deps = [
@@ -1439,7 +1438,6 @@ if (rtc_include_tests) {
 
     deps = audio_coding_deps + [
              "../../api:scoped_refptr",
-             "..:module_api",
              ":audio_coding",
              "../../api/audio_codecs:audio_codecs_api",
              "../../api/audio_codecs:builtin_audio_decoder_factory",
@@ -1838,20 +1836,6 @@ if (rtc_include_tests) {
         "//third_party/abseil-cpp/absl/flags:flag",
       ]
     }
-
-    rtc_test("isac_fix_test") {
-      testonly = true
-
-      sources = [ "codecs/isac/fix/test/kenny.cc" ]
-
-      deps = [
-        ":isac_fix",
-        "../../test:perf_test",
-        "../../test:test_support",
-      ]
-
-      data = [ "../../resources/speech_and_misc_wb.pcm" ]
-    }
   }
 
   rtc_library("isac_test_util") {
@@ -2095,6 +2079,7 @@ if (rtc_include_tests) {
         "../../test:fileutils",
         "../../test:rtc_expect_death",
         "../../test:rtp_test_utils",
+        "../../test:scoped_key_value_config",
         "../../test:test_common",
         "../../test:test_support",
         "codecs/opus/test",

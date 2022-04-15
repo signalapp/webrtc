@@ -13,9 +13,15 @@
 #include <utility>
 #include <vector>
 
-#include "absl/memory/memory.h"
+#include "absl/types/optional.h"
+#include "api/rtc_error.h"
 #include "p2p/base/fake_dtls_transport.h"
+#include "p2p/base/p2p_constants.h"
+#include "rtc_base/fake_ssl_identity.h"
 #include "rtc_base/gunit.h"
+#include "rtc_base/ref_counted_object.h"
+#include "rtc_base/rtc_certificate.h"
+#include "rtc_base/ssl_identity.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -118,6 +124,19 @@ TEST_F(DtlsTransportTest, CloseWhenClearing) {
   transport()->Clear();
   ASSERT_TRUE_WAIT(observer_.state() == DtlsTransportState::kClosed,
                    kDefaultTimeout);
+}
+
+TEST_F(DtlsTransportTest, RoleAppearsOnConnect) {
+  rtc::FakeSSLCertificate fake_certificate("fake data");
+  CreateTransport(&fake_certificate);
+  transport()->RegisterObserver(observer());
+  EXPECT_FALSE(transport()->Information().role());
+  CompleteDtlsHandshake();
+  ASSERT_TRUE_WAIT(observer_.state() == DtlsTransportState::kConnected,
+                   kDefaultTimeout);
+  EXPECT_TRUE(observer_.info_.role());
+  EXPECT_TRUE(transport()->Information().role());
+  EXPECT_EQ(transport()->Information().role(), DtlsTransportTlsRole::kClient);
 }
 
 TEST_F(DtlsTransportTest, CertificateAppearsOnConnect) {

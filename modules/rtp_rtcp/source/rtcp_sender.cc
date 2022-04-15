@@ -484,7 +484,9 @@ void RTCPSender::BuildRR(const RtcpContext& ctx, PacketSender& sender) {
   rtcp::ReceiverReport report;
   report.SetSenderSsrc(ssrc_);
   report.SetReportBlocks(CreateReportBlocks(ctx.feedback_state_));
-  sender.AppendPacket(report);
+  if (method_ == RtcpMode::kCompound || !report.report_blocks().empty()) {
+    sender.AppendPacket(report);
+  }
 }
 
 void RTCPSender::BuildPLI(const RtcpContext& ctx, PacketSender& sender) {
@@ -742,8 +744,8 @@ absl::optional<int32_t> RTCPSender::ComputeCompoundRTCPPacket(
     }
     auto builder_it = builders_.find(rtcp_packet_type);
     if (builder_it == builders_.end()) {
-      RTC_NOTREACHED() << "Could not find builder for packet type "
-                       << rtcp_packet_type;
+      RTC_DCHECK_NOTREACHED()
+          << "Could not find builder for packet type " << rtcp_packet_type;
     } else {
       BuilderFunc func = builder_it->second;
       (this->*func)(context, sender);

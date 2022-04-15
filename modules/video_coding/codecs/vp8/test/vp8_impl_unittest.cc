@@ -76,10 +76,8 @@ class TestVp8Impl : public VideoCodecUnitTest {
     webrtc::test::CodecSettings(kVideoCodecVP8, codec_settings);
     codec_settings->width = kWidth;
     codec_settings->height = kHeight;
-    codec_settings->VP8()->denoisingOn = true;
-    codec_settings->VP8()->frameDroppingOn = false;
-    codec_settings->VP8()->automaticResizeOn = false;
-    codec_settings->VP8()->complexity = VideoCodecComplexity::kComplexityNormal;
+    codec_settings->SetVideoEncoderComplexity(
+        VideoCodecComplexity::kComplexityNormal);
   }
 
   void EncodeAndWaitForFrame(const VideoFrame& input_frame,
@@ -408,7 +406,6 @@ TEST_F(TestVp8Impl, EncoderWith2TemporalLayers) {
 }
 
 TEST_F(TestVp8Impl, ScalingDisabledIfAutomaticResizeOff) {
-  codec_settings_.VP8()->frameDroppingOn = true;
   codec_settings_.VP8()->automaticResizeOn = false;
   EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK,
             encoder_->InitEncode(&codec_settings_, kSettings));
@@ -419,7 +416,6 @@ TEST_F(TestVp8Impl, ScalingDisabledIfAutomaticResizeOff) {
 }
 
 TEST_F(TestVp8Impl, ScalingEnabledIfAutomaticResizeOn) {
-  codec_settings_.VP8()->frameDroppingOn = true;
   codec_settings_.VP8()->automaticResizeOn = true;
   EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK,
             encoder_->InitEncode(&codec_settings_, kSettings));
@@ -520,7 +516,6 @@ TEST(LibvpxVp8EncoderTest, GetEncoderInfoReturnsStaticInformation) {
 
   EXPECT_FALSE(info.supports_native_handle);
   EXPECT_FALSE(info.is_hardware_accelerated);
-  EXPECT_FALSE(info.has_internal_source);
   EXPECT_TRUE(info.supports_simulcast);
   EXPECT_EQ(info.implementation_name, "libvpx");
   EXPECT_EQ(info.requested_resolution_alignment, 1);

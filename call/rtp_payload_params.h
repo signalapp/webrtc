@@ -15,8 +15,8 @@
 #include <vector>
 
 #include "absl/types/optional.h"
-#include "api/transport/webrtc_key_value_config.h"
 #include "api/video_codecs/video_encoder.h"
+#include "api/webrtc_key_value_config.h"
 #include "call/rtp_config.h"
 #include "modules/rtp_rtcp/source/rtp_generic_frame_descriptor.h"
 #include "modules/rtp_rtcp/source/rtp_video_header.h"
@@ -32,7 +32,7 @@ class RtpRtcp;
 // TODO(nisse): Make these properties not codec specific.
 class RtpPayloadParams final {
  public:
-  RtpPayloadParams(const uint32_t ssrc,
+  RtpPayloadParams(uint32_t ssrc,
                    const RtpPayloadState* state,
                    const WebRtcKeyValueConfig& trials);
   RtpPayloadParams(const RtpPayloadParams& other);
@@ -137,7 +137,6 @@ class RtpPayloadParams final {
   RtpPayloadState state_;
 
   const bool generic_picture_id_experiment_;
-  const bool simulate_generic_vp9_;
 };
 }  // namespace webrtc
 #endif  // CALL_RTP_PAYLOAD_PARAMS_H_
