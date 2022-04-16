@@ -199,6 +199,15 @@ public class WebRtcAudioTrack {
     }
   }
 
+  private int writeBytes(AudioTrack audioTrack, ByteBuffer byteBuffer, int sizeInBytes) {
+    // RingRTC change to keep support for SDK >= 19
+    if (Build.VERSION.SDK_INT >= 21) {
+      return audioTrack.write(byteBuffer, sizeInBytes, AudioTrack.WRITE_BLOCKING);
+    } else {
+      return audioTrack.write(byteBuffer.array(), byteBuffer.arrayOffset(), sizeInBytes);
+    }
+  }
+
   WebRtcAudioTrack(long nativeAudioTrack) {
     threadChecker.checkIsOnValidThread();
     Logging.d(TAG, "ctor" + WebRtcAudioUtils.getThreadInfo());
