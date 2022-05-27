@@ -381,9 +381,6 @@ void BitrateAllocator::OnNetworkEstimateChanged(TargetTransferRate msg) {
   last_target_bps_ = msg.target_rate.bps();
   last_stable_target_bps_ = msg.stable_target_rate.bps();
 
-  // Adjust the estimated target bitrate as configured.
-  last_target_bps_ = last_target_bps_ * BitrateConstraints::kBitrateAllocationMultiplier;
-
   last_non_zero_bitrate_bps_ =
       last_target_bps_ > 0 ? last_target_bps_ : last_non_zero_bitrate_bps_;
 
