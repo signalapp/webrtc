@@ -309,7 +309,11 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
     // For min_port and max_port, 0 means not specified.
     int min_port = 0;
     int max_port = 0;
-    uint32_t flags = 0;  // Same as kDefaultPortAllocatorFlags.
+    // RingRTC change to default flags
+    uint32_t flags = cricket::PORTALLOCATOR_ENABLE_SHARED_SOCKET
+      | cricket::PORTALLOCATOR_ENABLE_IPV6
+      | cricket::PORTALLOCATOR_ENABLE_IPV6_ON_WIFI
+      | cricket::PORTALLOCATOR_ENABLE_ANY_ADDRESS_PORTS;
   };
 
   enum class RTCConfigurationType {

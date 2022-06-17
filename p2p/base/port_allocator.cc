@@ -14,6 +14,7 @@
 #include <set>
 #include <utility>
 
+#include "api/peer_connection_interface.h"
 #include "p2p/base/ice_credentials_iterator.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
@@ -92,7 +93,7 @@ void PortAllocatorSession::set_generation(uint32_t generation) {
 }
 
 PortAllocator::PortAllocator()
-    : flags_(kDefaultPortAllocatorFlags),
+    : flags_(webrtc::PeerConnectionInterface::PortAllocatorConfig().flags),
       min_port_(0),
       max_port_(0),
       max_ipv6_networks_(kDefaultMaxIPv6Networks),
