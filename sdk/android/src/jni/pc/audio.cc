@@ -10,13 +10,15 @@
 
 #include "sdk/android/src/jni/pc/audio.h"
 
+#include "api/audio/echo_detector_creator.h"
 #include "modules/audio_processing/include/audio_processing.h"
 
 namespace webrtc {
 namespace jni {
 
 rtc::scoped_refptr<AudioProcessing> CreateAudioProcessing() {
-  return AudioProcessingBuilder().Create();
+  // RingRTC change to enable echo detection
+  return AudioProcessingBuilder().SetEchoDetector(CreateEchoDetector()).Create();
 }
 
 }  // namespace jni
