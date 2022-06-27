@@ -337,6 +337,7 @@ class RTC_EXPORT RTCMediaStreamTrackStats final : public RTCStats {
   RTCStatsMember<double> total_audio_energy;  // Receive-only
   RTCStatsMember<double> echo_return_loss;
   RTCStatsMember<double> echo_return_loss_enhancement;
+  RTCStatsMember<double> echo_likelihood; // RingRTC change to enable echo detection
   RTCStatsMember<uint64_t> total_samples_received;
   RTCStatsMember<double> total_samples_duration;  // Receive-only
   RTCStatsMember<uint64_t> concealed_samples;
@@ -649,6 +650,7 @@ class RTC_EXPORT RTCAudioSourceStats final : public RTCMediaSourceStats {
   RTCStatsMember<double> total_samples_duration;
   RTCStatsMember<double> echo_return_loss;
   RTCStatsMember<double> echo_return_loss_enhancement;
+  RTCStatsMember<double> echo_likelihood; // RingRTC change to enable echo detection
 };
 
 // https://w3c.github.io/webrtc-stats/#dom-rtcvideosourcestats

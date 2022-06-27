@@ -822,6 +822,10 @@ void SetAudioProcessingStats(StatsType* stats,
     stats->echo_return_loss_enhancement =
         *apm_stats.echo_return_loss_enhancement;
   }
+  // RingRTC change to enable echo detection
+  if (apm_stats.residual_echo_likelihood_recent_max) {
+    stats->echo_likelihood = *apm_stats.residual_echo_likelihood_recent_max;
+  }
 }
 
 std::unique_ptr<RTCMediaStreamTrackStats>

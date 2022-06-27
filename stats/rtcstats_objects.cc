@@ -406,6 +406,7 @@ WEBRTC_RTCSTATS_IMPL(RTCMediaStreamTrackStats, RTCStats, "track",
                      &total_audio_energy,
                      &echo_return_loss,
                      &echo_return_loss_enhancement,
+                     &echo_likelihood, // RingRTC change to enable echo detection
                      &total_samples_received,
                      &total_samples_duration,
                      &concealed_samples,
@@ -459,6 +460,7 @@ RTCMediaStreamTrackStats::RTCMediaStreamTrackStats(std::string&& id,
       total_audio_energy("totalAudioEnergy"),
       echo_return_loss("echoReturnLoss"),
       echo_return_loss_enhancement("echoReturnLossEnhancement"),
+      echo_likelihood("echoLikelihood"), // RingRTC change to enable echo detection
       total_samples_received("totalSamplesReceived"),
       total_samples_duration("totalSamplesDuration"),
       concealed_samples("concealedSamples"),
@@ -515,6 +517,7 @@ RTCMediaStreamTrackStats::RTCMediaStreamTrackStats(
       total_audio_energy(other.total_audio_energy),
       echo_return_loss(other.echo_return_loss),
       echo_return_loss_enhancement(other.echo_return_loss_enhancement),
+      echo_likelihood(other.echo_likelihood), // RingRTC change to enable echo detection
       total_samples_received(other.total_samples_received),
       total_samples_duration(other.total_samples_duration),
       concealed_samples(other.concealed_samples),
@@ -1016,7 +1019,8 @@ WEBRTC_RTCSTATS_IMPL(RTCAudioSourceStats, RTCMediaSourceStats, "media-source",
     &total_audio_energy,
     &total_samples_duration,
     &echo_return_loss,
-    &echo_return_loss_enhancement)
+    &echo_return_loss_enhancement,
+    &echo_likelihood) // RingRTC change to enable echo detection
 // clang-format on
 
 RTCAudioSourceStats::RTCAudioSourceStats(const std::string& id,
@@ -1029,7 +1033,8 @@ RTCAudioSourceStats::RTCAudioSourceStats(std::string&& id, int64_t timestamp_us)
       total_audio_energy("totalAudioEnergy"),
       total_samples_duration("totalSamplesDuration"),
       echo_return_loss("echoReturnLoss"),
-      echo_return_loss_enhancement("echoReturnLossEnhancement") {}
+      echo_return_loss_enhancement("echoReturnLossEnhancement"),
+      echo_likelihood("echoLikelihood") {} // RingRTC change to enable echo detection
 
 RTCAudioSourceStats::RTCAudioSourceStats(const RTCAudioSourceStats& other)
     : RTCMediaSourceStats(other),
@@ -1037,7 +1042,8 @@ RTCAudioSourceStats::RTCAudioSourceStats(const RTCAudioSourceStats& other)
       total_audio_energy(other.total_audio_energy),
       total_samples_duration(other.total_samples_duration),
       echo_return_loss(other.echo_return_loss),
-      echo_return_loss_enhancement(other.echo_return_loss_enhancement) {}
+      echo_return_loss_enhancement(other.echo_return_loss_enhancement),
+      echo_likelihood(other.echo_likelihood) {} // RingRTC change to enable echo detection
 
 RTCAudioSourceStats::~RTCAudioSourceStats() {}
 
