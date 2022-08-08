@@ -448,13 +448,17 @@ HRESULT GetSharedModeEnginePeriod(IAudioClient3* client3,
 // shared-mode streams. The acquired values should only be utilized for shared
 // mode streamed since there are no preferred settings for an exclusive mode
 // stream.
+// RingRTC change to pass the mix_format for multi-channel.
 HRESULT GetPreferredAudioParameters(IAudioClient* client,
-                                    webrtc::AudioParameters* params);
+                                    webrtc::AudioParameters* params,
+                                    const WAVEFORMATPCMEX* mix_format);
 // As above but override the preferred sample rate and use `sample_rate`
 // instead. Intended mainly for testing purposes and in combination with rate
 // conversion.
+// RingRTC change to pass the mix_format for multi-channel.
 HRESULT GetPreferredAudioParameters(IAudioClient* client,
                                     webrtc::AudioParameters* params,
+                                    const WAVEFORMATPCMEX* mix_format,
                                     uint32_t sample_rate);
 
 // After activating an IAudioClient interface on an audio endpoint device,

@@ -495,7 +495,7 @@ bool GetDeviceNamesInternal(EDataFlow data_flow,
   }
 
   if (number_of_active_devices == 0) {
-    RTC_DLOG(LS_WARNING) << "Found no active devices";
+    RTC_LOG(LS_WARNING) << "Found no active devices";
     return false;
   }
 
@@ -596,21 +596,19 @@ bool GetDeviceNamesInternal(EDataFlow data_flow,
   return true;
 }
 
+// RingRTC change to pass the mix_format for multi-channel.
 HRESULT GetPreferredAudioParametersInternal(IAudioClient* client,
                                             AudioParameters* params,
+                                            const WAVEFORMATPCMEX* mix_format,
                                             int fixed_sample_rate) {
-  WAVEFORMATPCMEX mix_format;
-  HRESULT hr = core_audio_utility::GetSharedModeMixFormat(client, &mix_format);
-  if (FAILED(hr))
-    return hr;
-
   REFERENCE_TIME default_period = 0;
-  hr = core_audio_utility::GetDevicePeriod(client, AUDCLNT_SHAREMODE_SHARED,
-                                           &default_period);
+  HRESULT hr = core_audio_utility::GetDevicePeriod(client,
+                                                   AUDCLNT_SHAREMODE_SHARED,
+                                                   &default_period);
   if (FAILED(hr))
     return hr;
 
-  int sample_rate = mix_format.Format.nSamplesPerSec;
+  int sample_rate = mix_format->Format.nSamplesPerSec;
   // Override default sample rate if `fixed_sample_rate` is set and different
   // from the default rate.
   if (fixed_sample_rate > 0 && fixed_sample_rate != sample_rate) {
@@ -618,10 +616,10 @@ HRESULT GetPreferredAudioParametersInternal(IAudioClient* client,
                       << sample_rate << " is replaced by " << fixed_sample_rate;
     sample_rate = fixed_sample_rate;
   }
-  // TODO(henrika): utilize full mix_format.Format.wBitsPerSample.
+  // TODO(henrika): utilize full mix_format->Format.wBitsPerSample.
   // const size_t bits_per_sample = AudioParameters::kBitsPerSample;
   // TODO(henrika): improve channel layout support.
-  const size_t channels = mix_format.Format.nChannels;
+  const size_t channels = mix_format->Format.nChannels;
 
   // Use the native device period to derive the smallest possible buffer size
   // in shared mode.
@@ -1012,7 +1010,7 @@ HRESULT GetSharedModeMixFormat(IAudioClient* client,
   // Verify that the reported format can be mixed by the audio engine in
   // shared mode.
   if (!wrapped_format.IsPcm() && !wrapped_format.IsFloat()) {
-    RTC_DLOG(LS_ERROR)
+    RTC_LOG(LS_ERROR)
         << "Only pure PCM or float audio streams can be mixed in shared mode";
     return AUDCLNT_E_UNSUPPORTED_FORMAT;
   }
@@ -1020,7 +1018,7 @@ HRESULT GetSharedModeMixFormat(IAudioClient* client,
   // Log a warning for the rare case where `mix_format` only contains a
   // stand-alone WAVEFORMATEX structure but don't return.
   if (!wrapped_format.IsExtensible()) {
-    RTC_DLOG(LS_WARNING)
+    RTC_LOG(LS_WARNING)
         << "The returned format contains no extended information. "
            "The size is "
         << wrapped_format.size() << " bytes.";
@@ -1057,9 +1055,8 @@ bool IsFormatSupported(IAudioClient* client,
   } else if ((error.Error() == S_FALSE) && (closest_match != nullptr)) {
     // Call succeeded with a closest match to the specified format. This log can
     // only be triggered for shared mode.
-    RTC_LOG(LS_WARNING)
-        << "Exact format is not supported, but a closest match exists";
-    RTC_LOG(LS_INFO) << WaveFormatToString(closest_match.Get());
+    RTC_LOG(LS_WARNING) << "No exact match, closest: "
+                        << WaveFormatToString(closest_match.Get());
   } else if ((error.Error() == AUDCLNT_E_UNSUPPORTED_FORMAT) &&
              (closest_match == nullptr)) {
     // The audio engine does not support the caller-specified format or any
@@ -1143,19 +1140,23 @@ HRESULT GetSharedModeEnginePeriod(IAudioClient3* client3,
   return error.Error();
 }
 
+// RingRTC change to pass the mix_format for multi-channel.
 HRESULT GetPreferredAudioParameters(IAudioClient* client,
-                                    AudioParameters* params) {
+                                    AudioParameters* params,
+                                    const WAVEFORMATPCMEX* mix_format) {
   RTC_DLOG(LS_INFO) << "GetPreferredAudioParameters";
   RTC_DCHECK(client);
-  return GetPreferredAudioParametersInternal(client, params, -1);
+  return GetPreferredAudioParametersInternal(client, params, mix_format, -1);
 }
 
+// RingRTC change to pass the mix_format for multi-channel.
 HRESULT GetPreferredAudioParameters(IAudioClient* client,
                                     webrtc::AudioParameters* params,
+                                    const WAVEFORMATPCMEX* mix_format,
                                     uint32_t sample_rate) {
   RTC_DLOG(LS_INFO) << "GetPreferredAudioParameters: " << sample_rate;
   RTC_DCHECK(client);
-  return GetPreferredAudioParametersInternal(client, params, sample_rate);
+  return GetPreferredAudioParametersInternal(client, params, mix_format, sample_rate);
 }
 
 HRESULT SharedModeInitialize(IAudioClient* client,

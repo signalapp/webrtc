@@ -118,7 +118,11 @@ int CoreAudioOutput::InitPlayout() {
   WAVEFORMATEX* format = &format_.Format;
   RTC_DCHECK_EQ(format->wFormatTag, WAVE_FORMAT_EXTENSIBLE);
   audio_device_buffer_->SetPlayoutSampleRate(format->nSamplesPerSec);
-  audio_device_buffer_->SetPlayoutChannels(format->nChannels);
+
+  // RingRTC change to ensure that the audio_device_buffer is configured
+  // for a limit of either 1 or 2 channels.
+  audio_device_buffer_->SetPlayoutChannels(
+      std::min((UINT16)2, format->nChannels));
 
   // Create a modified audio buffer class which allows us to ask for any number
   // of samples (and not only multiple of 10ms) to match the optimal
@@ -155,7 +159,7 @@ int CoreAudioOutput::StartPlayout() {
   RTC_DCHECK(fine_audio_buffer_);
   RTC_DCHECK(audio_device_buffer_);
   if (!initialized_) {
-    RTC_DLOG(LS_WARNING)
+    RTC_LOG(LS_WARNING)
         << "Playout can not start since InitPlayout must succeed first";
   }
 
@@ -188,7 +192,7 @@ int CoreAudioOutput::StopPlayout() {
   // Release resources allocated in InitPlayout() and then return if this
   // method is called without any active output audio.
   if (!Playing()) {
-    RTC_DLOG(LS_WARNING) << "No output stream is active";
+    RTC_LOG(LS_WARNING) << "No output stream is active";
     ReleaseCOMObjects();
     initialized_ = false;
     return 0;
@@ -337,8 +341,28 @@ bool CoreAudioOutput::OnDataCallback(uint64_t device_frequency) {
   // `audio_data`. The playout latency is not updated for each callback.
   fine_audio_buffer_->GetPlayoutData(
       rtc::MakeArrayView(reinterpret_cast<int16_t*>(audio_data),
-                         num_requested_frames * format_.Format.nChannels),
+                         num_requested_frames *
+                             // RingRTC change to ensure that only 1 or 2
+                             // channels are read from the buffer.
+                         std::min((UINT16)2, format_.Format.nChannels)),
       latency_ms_);
+
+  // RingRTC change to expand 2 channels to multiple channels.
+  if (format_.Format.nChannels > 2) {
+    UINT32 bytes_per_frame = format_.Format.nChannels * sizeof(int16_t);
+    UINT32 bytes_per_stereo_frame = 2 * sizeof(int16_t);
+
+    // Shift each stereo frame to start on the render frame's stride and
+    // set the remaining channels to zero (silence).
+    int16_t* audio_data_ptr = (int16_t*)audio_data;
+    for (UINT32 i = num_requested_frames - 1; i > 0; --i) {
+      memmove(&audio_data_ptr[i * format_.Format.nChannels],
+              &audio_data_ptr[i * 2], bytes_per_stereo_frame);
+      memset(&audio_data_ptr[i * format_.Format.nChannels + 2],
+             0, bytes_per_frame - bytes_per_stereo_frame);
+    }
+    memset(&audio_data_ptr[2], 0, bytes_per_frame - bytes_per_stereo_frame);
+  }
 
   // Release the buffer space acquired in IAudioRenderClient::GetBuffer.
   error = audio_render_client_->ReleaseBuffer(num_requested_frames, 0);
