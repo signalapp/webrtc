@@ -356,8 +356,8 @@ bool CoreAudioOutput::OnDataCallback(uint64_t device_frequency) {
     // set the remaining channels to zero (silence).
     int16_t* audio_data_ptr = (int16_t*)audio_data;
     for (UINT32 i = num_requested_frames - 1; i > 0; --i) {
-      memcpy(&audio_data_ptr[i * format_.Format.nChannels],
-             &audio_data_ptr[i * 2], bytes_per_stereo_frame);
+      memmove(&audio_data_ptr[i * format_.Format.nChannels],
+              &audio_data_ptr[i * 2], bytes_per_stereo_frame);
       memset(&audio_data_ptr[i * format_.Format.nChannels + 2],
              0, bytes_per_frame - bytes_per_stereo_frame);
     }
