@@ -64,8 +64,6 @@
 @synthesize iceUnwritableTimeout = _iceUnwritableTimeout;
 @synthesize iceUnwritableMinChecks = _iceUnwritableMinChecks;
 @synthesize iceInactiveTimeout = _iceInactiveTimeout;
-// RingRTC change to allow control of RTP data and DTLS
-@synthesize enableDtlsSrtp = _enableDtlsSrtp;
 
 - (instancetype)init {
   // Copy defaults.
@@ -164,8 +162,6 @@
     _iceInactiveTimeout = config.ice_inactive_timeout.has_value() ?
         [NSNumber numberWithInt:*config.ice_inactive_timeout] :
         nil;
-    // RingRTC change to allow control of RTP data and DTLS
-    _enableDtlsSrtp = config.enable_dtls_srtp.value_or(true);
   }
   return self;
 }
@@ -173,7 +169,7 @@
 - (NSString *)description {
   static NSString *formatString = @"RTC_OBJC_TYPE(RTCConfiguration): "
                                   @"{\n%@\n%@\n%@\n%@\n%@\n%@\n%@\n%@\n%d\n%d\n%d\n%d\n%d\n%d\n"
-                                  @"%d\n%@\n%d\n%d\n%d\n%d\n%d\n%@\n%d\n%d\n}\n";
+                                  @"%d\n%@\n%d\n%d\n%d\n%d\n%d\n%@\n%d\n}\n";
 
   return [NSString
       stringWithFormat:formatString,
@@ -200,9 +196,7 @@
                        _maxIPv6Networks,
                        _activeResetSrtpParams,
                        _enableDscp,
-                       _enableImplicitRollback,
-                       // RingRTC change to allow control of RTP data and DTLS
-                       _enableDtlsSrtp];
+                       _enableImplicitRollback];
 }
 
 #pragma mark - Private
@@ -318,8 +312,6 @@
   if (_iceInactiveTimeout != nil) {
     nativeConfig->ice_inactive_timeout = absl::optional<int>(_iceInactiveTimeout.intValue);
   }
-  // RingRTC change to allow control of RTP data and DTLS
-  nativeConfig->enable_dtls_srtp = _enableDtlsSrtp;
   return nativeConfig.release();
 }
 
