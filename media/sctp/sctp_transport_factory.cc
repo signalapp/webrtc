@@ -10,7 +10,6 @@
 
 #include "media/sctp/sctp_transport_factory.h"
 
-#include "api/webrtc_key_value_config.h"
 #include "rtc_base/system/unused.h"
 
 #ifdef WEBRTC_HAVE_DCSCTP

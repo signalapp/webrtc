@@ -98,40 +98,6 @@ rtc_library("nack_requester") {
     "../../system_wrappers",
     "../utility",
   ]
-  deps = [
-    ":rtt_filter",
-<<<<<<< HEAD
-=======
-    "../../api:field_trials_view",
->>>>>>> latest-m102-in-main
-    "../../api/units:data_size",
-    "../../api/units:frequency",
-    "../../api/units:time_delta",
-    "../../api/units:timestamp",
-    "../../rtc_base",
-    "../../rtc_base:safe_conversions",
-    "../../rtc_base/experiments:jitter_upper_bound_experiment",
-    "../../system_wrappers",
-<<<<<<< HEAD
-    "../../system_wrappers:field_trial",
-=======
->>>>>>> latest-m102-in-main
-  ]
-  absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
-}
-
-rtc_library("inter_frame_delay") {
-  sources = [
-    "inter_frame_delay.cc",
-    "inter_frame_delay.h",
-  ]
-  deps = [
-    "..:module_api_public",
-    "../../api/units:frequency",
-    "../../api/units:time_delta",
-    "../../api/units:timestamp",
-  ]
-  absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
 }
 
 rtc_library("packet_buffer") {

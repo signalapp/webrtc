@@ -101,15 +101,6 @@ deps = {
     ],
     'dep_type': 'cipd',
   },
-  'src/tools/resultdb': {
-    'packages': [
-      {
-        'package': 'infra/tools/result_adapter/${{platform}}',
-        'version': Var('resultdb_version'),
-      },
-    ],
-    'dep_type': 'cipd',
-  },
 
   'src/third_party/android_build_tools/aapt2': {
       'packages': [
