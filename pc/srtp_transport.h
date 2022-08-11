@@ -20,6 +20,7 @@
 
 #include "absl/types/optional.h"
 #include "api/crypto_params.h"
+#include "api/field_trials_view.h"
 #include "api/rtc_error.h"
 #include "api/webrtc_key_value_config.h"
 #include "p2p/base/packet_transport_internal.h"
@@ -37,8 +38,7 @@ namespace webrtc {
 // parameters for the SrtpSession underneath.
 class SrtpTransport : public RtpTransport {
  public:
-  SrtpTransport(bool rtcp_mux_enabled,
-                const WebRtcKeyValueConfig& field_trials);
+  SrtpTransport(bool rtcp_mux_enabled, const FieldTrialsView& field_trials);
 
   virtual ~SrtpTransport() = default;
 
@@ -170,7 +170,7 @@ class SrtpTransport : public RtpTransport {
 
   int decryption_failure_count_ = 0;
 
-  const WebRtcKeyValueConfig& field_trials_;
+  const FieldTrialsView& field_trials_;
 };
 
 }  // namespace webrtc

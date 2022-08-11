@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "absl/types/optional.h"
+#include "api/field_trials_view.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/units/timestamp.h"
@@ -52,7 +53,7 @@ class ReceiveStatisticsProxy : public VCMReceiveStatisticsCallback,
   ReceiveStatisticsProxy(uint32_t remote_ssrc,
                          Clock* clock,
                          TaskQueueBase* worker_thread,
-                         const WebRtcKeyValueConfig& field_trials);
+                         const FieldTrialsView& field_trials);
   ~ReceiveStatisticsProxy() override;
 
   VideoReceiveStream::Stats GetStats() const;

@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include "api/field_trials_view.h"
 #include "api/video/video_codec_constants.h"
 #include "api/video/video_stream_encoder_observer.h"
 #include "api/video_codecs/video_encoder_config.h"
@@ -53,7 +54,7 @@ class SendStatisticsProxy : public VideoStreamEncoderObserver,
   SendStatisticsProxy(Clock* clock,
                       const VideoSendStream::Config& config,
                       VideoEncoderConfig::ContentType content_type,
-                      const WebRtcKeyValueConfig& field_trials);
+                      const FieldTrialsView& field_trials);
   ~SendStatisticsProxy() override;
 
   virtual VideoSendStream::Stats GetStats();

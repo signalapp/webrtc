@@ -27,6 +27,10 @@
 #include "test/pc/e2e/stats_based_network_quality_metrics_reporter.h"
 #include "test/testsupport/file_utils.h"
 
+#if defined(WEBRTC_MAC) || defined(WEBRTC_IOS)
+#include "modules/video_coding/codecs/test/objc_codec_factory_helper.h"  // nogncheck
+#endif
+
 namespace webrtc {
 namespace webrtc_pc_e2e {
 namespace {
@@ -172,6 +176,24 @@ TEST_F(PeerConnectionE2EQualityTestSmokeTest, MAYBE_Smoke) {
     charlie->SetUseUlpFEC(true);
     charlie->SetVideoEncoderBitrateMultiplier(1.1);
   });
+  AddPeer(network_links.second, [](PeerConfigurer* charlie) {
+    charlie->SetName("charlie");
+    VideoConfig video(160, 120, 15);
+    video.stream_label = "charlie-video";
+    video.temporal_layers_count = 2;
+    charlie->AddVideoConfig(std::move(video));
+
+    AudioConfig audio;
+    audio.stream_label = "charlie-audio";
+    audio.mode = AudioConfig::Mode::kFile;
+    audio.input_file_name =
+        test::ResourcePath("pc_quality_smoke_test_bob_source", "wav");
+    charlie->SetAudioConfig(std::move(audio));
+    charlie->SetVideoCodecs({VideoCodecConfig(cricket::kH264CodecName)});
+    charlie->SetVideoEncoderFactory(webrtc::test::CreateObjCEncoderFactory());
+    charlie->SetVideoDecoderFactory(webrtc::test::CreateObjCDecoderFactory());
+  });
+
   fixture()->AddQualityMetricsReporter(
       std::make_unique<StatsBasedNetworkQualityMetricsReporter>(
           std::map<std::string, std::vector<EmulatedEndpoint*>>(
@@ -182,6 +204,7 @@ TEST_F(PeerConnectionE2EQualityTestSmokeTest, MAYBE_Smoke) {
   run_params.enable_flex_fec_support = true;
   RunAndCheckEachVideoStreamReceivedFrames(run_params);
 }
+#endif
 
 // IOS debug builds can be quite slow, disabling to avoid issues with timeouts.
 #if defined(WEBRTC_IOS) && defined(WEBRTC_ARCH_ARM64) && !defined(NDEBUG)

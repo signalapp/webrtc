@@ -18,6 +18,7 @@
 #include "api/audio/audio_frame.h"
 #include "api/audio_codecs/audio_encoder.h"
 #include "api/crypto/crypto_options.h"
+#include "api/field_trials_view.h"
 #include "api/frame_transformer_interface.h"
 #include "api/function_view.h"
 #include "api/task_queue/task_queue_factory.h"
@@ -137,7 +138,7 @@ std::unique_ptr<ChannelSendInterface> CreateChannelSend(
     uint32_t ssrc,
     rtc::scoped_refptr<FrameTransformerInterface> frame_transformer,
     TransportFeedbackObserver* feedback_observer,
-    const WebRtcKeyValueConfig& field_trials);
+    const FieldTrialsView& field_trials);
 
 }  // namespace voe
 }  // namespace webrtc

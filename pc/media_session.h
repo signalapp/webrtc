@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "api/crypto/crypto_options.h"
+#include "api/field_trials_view.h"
 #include "api/media_types.h"
 #include "api/rtp_parameters.h"
 #include "api/rtp_transceiver_direction.h"

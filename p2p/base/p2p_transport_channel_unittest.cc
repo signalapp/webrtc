@@ -4930,7 +4930,7 @@ class P2PTransportChannelMostLikelyToWorkFirstTest
   P2PTransportChannel& StartTransportChannel(
       bool prioritize_most_likely_to_work,
       int stable_writable_connection_ping_interval,
-      const webrtc::WebRtcKeyValueConfig* field_trials = nullptr) {
+      const webrtc::FieldTrialsView* field_trials = nullptr) {
     channel_.reset(
         new P2PTransportChannel("checks", 1, allocator(), field_trials));
     IceConfig config = channel_->config();
@@ -6387,11 +6387,11 @@ TEST_P(GatherAfterConnectedTest, GatherAfterConnected) {
   clock.AdvanceTime(webrtc::TimeDelta::Millis(10 * delay));
 
   if (stop_gather_on_strongly_connected) {
-    // The relay candiates gathered has not been propagated to channel.
+    // The relay candidates gathered has not been propagated to channel.
     EXPECT_EQ(ep1->saved_candidates_.size(), 0u);
     EXPECT_EQ(ep2->saved_candidates_.size(), 0u);
   } else {
-    // The relay candiates gathered has been propagated to channel.
+    // The relay candidates gathered has been propagated to channel.
     EXPECT_EQ(ep1->saved_candidates_.size(), 1u);
     EXPECT_EQ(ep2->saved_candidates_.size(), 1u);
   }
@@ -6449,11 +6449,11 @@ TEST_P(GatherAfterConnectedTest, GatherAfterConnectedMultiHomed) {
   clock.AdvanceTime(webrtc::TimeDelta::Millis(10 * delay));
 
   if (stop_gather_on_strongly_connected) {
-    // The relay candiates gathered has not been propagated to channel.
+    // The relay candidates gathered has not been propagated to channel.
     EXPECT_EQ(ep1->saved_candidates_.size(), 0u);
     EXPECT_EQ(ep2->saved_candidates_.size(), 0u);
   } else {
-    // The relay candiates gathered has been propagated.
+    // The relay candidates gathered has been propagated.
     EXPECT_EQ(ep1->saved_candidates_.size(), 2u);
     EXPECT_EQ(ep2->saved_candidates_.size(), 1u);
   }

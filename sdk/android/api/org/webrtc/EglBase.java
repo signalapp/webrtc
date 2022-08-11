@@ -148,8 +148,7 @@ public interface EglBase {
 
   /**
    * Create a new context with the specified config attributes, sharing data with `sharedContext`.
-   * If `sharedContext` is null, a root context is created. This function will try to create an EGL
-   * 1.4 context if possible, and an EGL 1.0 context otherwise.
+   * If `sharedContext` is null, a root EGL 1.4 context is created.
    */
   public static EglBase create(@Nullable Context sharedContext, int[] configAttributes) {
     if (sharedContext == null) {

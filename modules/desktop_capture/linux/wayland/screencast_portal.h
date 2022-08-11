@@ -15,12 +15,27 @@
 
 #include <string>
 
+#include "modules/desktop_capture/linux/wayland/screen_capture_portal_interface.h"
 #include "modules/desktop_capture/linux/wayland/xdg_desktop_portal_utils.h"
+#include "modules/desktop_capture/linux/wayland/xdg_session_details.h"
 
 namespace webrtc {
 
-class ScreenCastPortal {
+class ScreenCastPortal : public xdg_portal::ScreenCapturePortalInterface {
  public:
+  using ProxyRequestResponseHandler = void (*)(GObject* object,
+                                               GAsyncResult* result,
+                                               gpointer user_data);
+
+  using SourcesRequestResponseSignalHandler =
+      void (*)(GDBusConnection* connection,
+               const char* sender_name,
+               const char* object_path,
+               const char* interface_name,
+               const char* signal_name,
+               GVariant* parameters,
+               gpointer user_data);
+
   // Values are set based on source type property in
   // xdg-desktop-portal/screencast
   // https://github.com/flatpak/xdg-desktop-portal/blob/master/data/org.freedesktop.portal.ScreenCast.xml
@@ -57,6 +72,13 @@ class ScreenCastPortal {
 
   explicit ScreenCastPortal(ScreenCastPortal::CaptureSourceType source_type,
                             PortalNotifier* notifier);
+  explicit ScreenCastPortal(
+      CaptureSourceType source_type,
+      PortalNotifier* notifier,
+      ProxyRequestResponseHandler proxy_request_response_handler,
+      SourcesRequestResponseSignalHandler
+          sources_request_response_signal_handler,
+      gpointer user_data);
   ~ScreenCastPortal();
 
   // Initialize ScreenCastPortal with series of DBus calls where we try to
@@ -66,15 +88,23 @@ class ScreenCastPortal {
   // The observer will return whether the communication with xdg-desktop-portal
   // was successful and only then you will be able to get all the required
   // information in order to continue working with PipeWire.
-  void Start();
+  void Start() override;
+  xdg_portal::SessionDetails GetSessionDetails() override;
 
   // Method to notify the reason for failure of a portal request.
-  void PortalFailed(xdg_portal::RequestResponse result);
+  void OnPortalDone(xdg_portal::RequestResponse result);
 
   // Sends a create session request to the portal.
   void SessionRequest(GDBusProxy* proxy);
 
   void UnsubscribeSignalHandlers();
+
+  // Set of methods leveraged by remote desktop portal to setup a common session
+  // with screen cast portal.
+  void SetSessionDetails(const xdg_portal::SessionDetails& session_details);
+  uint32_t pipewire_stream_node_id();
+  void SourcesRequest();
+  void OpenPipeWireRemote();
 
  private:
   PortalNotifier* notifier_;
@@ -88,6 +118,10 @@ class ScreenCastPortal {
       ScreenCastPortal::CaptureSourceType::kScreen;
 
   CursorMode cursor_mode_ = ScreenCastPortal::CursorMode::kMetadata;
+
+  ProxyRequestResponseHandler proxy_request_response_handler_;
+  SourcesRequestResponseSignalHandler sources_request_response_signal_handler_;
+  gpointer user_data_;
 
   GDBusConnection* connection_ = nullptr;
   GDBusProxy* proxy_ = nullptr;
@@ -121,7 +155,6 @@ class ScreenCastPortal {
                                     const char* signal_name,
                                     GVariant* parameters,
                                     gpointer user_data);
-  void SourcesRequest();
   static void OnSourcesRequested(GDBusProxy* proxy,
                                  GAsyncResult* result,
                                  gpointer user_data);
@@ -145,7 +178,6 @@ class ScreenCastPortal {
                                            GVariant* parameters,
                                            gpointer user_data);
 
-  void OpenPipeWireRemote();
   static void OnOpenPipeWireRemoteRequested(GDBusProxy* proxy,
                                             GAsyncResult* result,
                                             gpointer user_data);
