@@ -814,8 +814,8 @@ void TurnPort::ResolveTurnAddress(const rtc::SocketAddress& address) {
     if (result.GetError() != 0 ||
         !result.GetResolvedAddress(Network()->GetBestIP().family(),
                                    &resolved_address)) {
-      RTC_LOG(LS_WARNING) << ToString() << ": TURN host lookup received error "
-                          << result.GetError();
+      RTC_LOG(LS_INFO) << ToString() << ": TURN host lookup received error "
+                       << result.GetError();
       error_ = result.GetError();
       OnAllocateError(SERVER_NOT_REACHABLE_ERROR,
                       "TURN host lookup received error.");
