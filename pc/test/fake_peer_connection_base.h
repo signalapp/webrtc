@@ -19,7 +19,6 @@
 
 #include "api/field_trials_view.h"
 #include "api/sctp_transport_interface.h"
-#include "api/webrtc_key_value_config.h"
 #include "pc/peer_connection_internal.h"
 #include "test/scoped_key_value_config.h"
 

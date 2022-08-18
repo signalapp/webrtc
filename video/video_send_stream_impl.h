@@ -26,7 +26,6 @@
 #include "api/video/video_stream_encoder_interface.h"
 #include "api/video_codecs/video_encoder.h"
 #include "api/video_codecs/video_encoder_config.h"
-#include "api/webrtc_key_value_config.h"
 #include "call/bitrate_allocator.h"
 #include "call/rtp_config.h"
 #include "call/rtp_transport_controller_send_interface.h"

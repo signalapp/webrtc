@@ -22,7 +22,6 @@
 #include "api/rtp_parameters.h"
 #include "api/video/video_adaptation_counters.h"
 #include "api/video/video_stream_encoder_observer.h"
-#include "api/webrtc_key_value_config.h"
 #include "call/adaptation/adaptation_constraint.h"
 #include "call/adaptation/degradation_preference_provider.h"
 #include "call/adaptation/video_source_restrictions.h"

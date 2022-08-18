@@ -32,7 +32,6 @@
 #include "api/sequence_checker.h"
 #include "api/video/video_content_type.h"
 #include "api/video/video_timing.h"
-#include "api/webrtc_key_value_config.h"
 #include "call/call.h"
 #include "media/base/media_channel.h"
 #include "modules/audio_processing/include/audio_processing_statistics.h"

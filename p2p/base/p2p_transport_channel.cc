@@ -26,7 +26,6 @@
 #include "api/candidate.h"
 #include "api/field_trials_view.h"
 #include "api/task_queue/queued_task.h"
-#include "api/webrtc_key_value_config.h"
 #include "logging/rtc_event_log/ice_logger.h"
 #include "p2p/base/basic_async_resolver_factory.h"
 #include "p2p/base/basic_ice_controller.h"

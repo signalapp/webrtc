@@ -58,7 +58,6 @@ rtc_library("rtc_media_base") {
     "../api:rtp_parameters",
     "../api:scoped_refptr",
     "../api:sequence_checker",
-    "../api:webrtc_key_value_config",
     "../api/audio:audio_frame_processor",
     "../api/audio_codecs:audio_codecs_api",
     "../api/crypto:frame_decryptor_interface",
@@ -438,7 +437,6 @@ rtc_library("rtc_data_sctp_transport_factory") {
   ]
   deps = [
     ":rtc_data_sctp_transport_internal",
-    "../api:webrtc_key_value_config",
     "../api/transport:sctp_transport_factory_interface",
     "../rtc_base:threading",
     "../rtc_base/system:unused",

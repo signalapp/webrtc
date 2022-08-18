@@ -19,7 +19,6 @@
 #include "api/field_trials_view.h"
 #include "api/sequence_checker.h"
 #include "api/video/video_stream_encoder_interface.h"
-#include "api/webrtc_key_value_config.h"
 #include "call/bitrate_allocator.h"
 #include "call/video_receive_stream.h"
 #include "call/video_send_stream.h"

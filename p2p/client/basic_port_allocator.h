@@ -17,7 +17,6 @@
 
 #include "api/field_trials_view.h"
 #include "api/turn_customizer.h"
-#include "api/webrtc_key_value_config.h"
 #include "p2p/base/port_allocator.h"
 #include "p2p/client/relay_port_factory_interface.h"
 #include "p2p/client/turn_port_factory.h"

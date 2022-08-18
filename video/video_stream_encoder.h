@@ -29,7 +29,6 @@
 #include "api/video/video_stream_encoder_settings.h"
 #include "api/video_codecs/video_codec.h"
 #include "api/video_codecs/video_encoder.h"
-#include "api/webrtc_key_value_config.h"
 #include "call/adaptation/adaptation_constraint.h"
 #include "call/adaptation/resource_adaptation_processor.h"
 #include "call/adaptation/resource_adaptation_processor_interface.h"

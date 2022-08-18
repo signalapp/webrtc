@@ -50,7 +50,6 @@ rtc_library("audio") {
     "../api:scoped_refptr",
     "../api:sequence_checker",
     "../api:transport_api",
-    "../api:webrtc_key_value_config",
     "../api/audio:aec3_factory",
     "../api/audio:audio_frame_api",
     "../api/audio:audio_frame_processor",

@@ -23,7 +23,6 @@
 #include "api/audio_codecs/audio_encoder.h"
 #include "api/field_trials_view.h"
 #include "api/units/time_delta.h"
-#include "api/webrtc_key_value_config.h"
 #include "rtc_base/buffer.h"
 
 namespace webrtc {

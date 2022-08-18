@@ -17,7 +17,6 @@
 
 #include "api/field_trials_view.h"
 #include "api/sequence_checker.h"
-#include "api/webrtc_key_value_config.h"
 #include "audio/audio_level.h"
 #include "audio/channel_send.h"
 #include "call/audio_send_stream.h"

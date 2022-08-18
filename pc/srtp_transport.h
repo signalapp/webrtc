@@ -22,7 +22,6 @@
 #include "api/crypto_params.h"
 #include "api/field_trials_view.h"
 #include "api/rtc_error.h"
-#include "api/webrtc_key_value_config.h"
 #include "p2p/base/packet_transport_internal.h"
 #include "pc/rtp_transport.h"
 #include "pc/srtp_session.h"

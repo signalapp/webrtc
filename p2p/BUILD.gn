@@ -252,7 +252,6 @@ if (rtc_include_tests) {
       "../api:mock_async_dns_resolver",
       "../api:packet_socket_factory",
       "../api:scoped_refptr",
-      "../api:webrtc_key_value_config",
       "../api/transport:stun_types",
       "../api/units:time_delta",
       "../rtc_base",

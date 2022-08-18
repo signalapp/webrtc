@@ -22,7 +22,6 @@
 #include "api/frame_transformer_interface.h"
 #include "api/function_view.h"
 #include "api/task_queue/task_queue_factory.h"
-#include "api/webrtc_key_value_config.h"
 #include "modules/rtp_rtcp/include/report_block_data.h"
 #include "modules/rtp_rtcp/source/rtp_rtcp_interface.h"
 #include "modules/rtp_rtcp/source/rtp_sender_audio.h"

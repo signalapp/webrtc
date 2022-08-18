@@ -21,7 +21,6 @@
 #include "api/video/video_codec_constants.h"
 #include "api/video/video_stream_encoder_observer.h"
 #include "api/video_codecs/video_encoder_config.h"
-#include "api/webrtc_key_value_config.h"
 #include "call/video_send_stream.h"
 #include "modules/include/module_common_types_public.h"
 #include "modules/rtp_rtcp/include/report_block_data.h"

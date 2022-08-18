@@ -21,7 +21,6 @@
 #include "api/field_trials_view.h"
 #include "api/rtp_parameters.h"
 #include "api/video/video_bitrate_allocator_factory.h"
-#include "api/webrtc_key_value_config.h"
 #include "call/audio_state.h"
 #include "media/base/codec.h"
 #include "media/base/media_channel.h"
