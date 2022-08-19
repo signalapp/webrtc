@@ -143,8 +143,8 @@
 #include "rtc_base/system/rtc_export.h"
 #include "rtc_base/thread.h"
 
-    namespace rtc {
-  class Thread;
+namespace rtc {
+class Thread;
 }  // namespace rtc
 
 namespace webrtc {
