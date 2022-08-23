@@ -92,6 +92,7 @@
 #include "api/dtls_transport_interface.h"
 #include "api/fec_controller.h"
 #include "api/field_trials_view.h"
+#include "api/ice_gatherer_interface.h"
 #include "api/ice_transport_interface.h"
 #include "api/jsep.h"
 #include "api/media_stream_interface.h"
