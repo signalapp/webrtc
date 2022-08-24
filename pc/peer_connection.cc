@@ -297,7 +297,9 @@ bool PeerConnectionInterface::RTCConfiguration::operator==(
     bool disable_link_local_networks;
     absl::optional<int> screencast_min_bitrate;
     absl::optional<bool> combined_audio_video_bwe;
+#if defined(WEBRTC_FUCHSIA)
     absl::optional<bool> enable_dtls_srtp;
+#endif
     TcpCandidatePolicy tcp_candidate_policy;
     CandidateNetworkPolicy candidate_network_policy;
     int audio_jitter_buffer_max_packets;
@@ -366,7 +368,9 @@ bool PeerConnectionInterface::RTCConfiguration::operator==(
          disable_link_local_networks == o.disable_link_local_networks &&
          screencast_min_bitrate == o.screencast_min_bitrate &&
          combined_audio_video_bwe == o.combined_audio_video_bwe &&
+#if defined(WEBRTC_FUCHSIA)
          enable_dtls_srtp == o.enable_dtls_srtp &&
+#endif
          ice_candidate_pool_size == o.ice_candidate_pool_size &&
          prune_turn_ports == o.prune_turn_ports &&
          turn_port_prune_policy == o.turn_port_prune_policy &&

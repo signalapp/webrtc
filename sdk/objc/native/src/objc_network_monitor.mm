@@ -20,7 +20,8 @@
 
 namespace webrtc {
 
-rtc::NetworkMonitorInterface* ObjCNetworkMonitorFactory::CreateNetworkMonitor() {
+rtc::NetworkMonitorInterface* ObjCNetworkMonitorFactory::CreateNetworkMonitor(
+    const FieldTrialsView& field_trials) {
   return new ObjCNetworkMonitor();
 }
 

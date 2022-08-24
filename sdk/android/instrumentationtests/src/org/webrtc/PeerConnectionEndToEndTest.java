@@ -36,17 +36,14 @@ import java.util.Queue;
 import java.util.TreeSet;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import org.chromium.base.test.BaseJUnit4ClassRunner;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.webrtc.PeerConnection.IceConnectionState;
 import org.webrtc.PeerConnection.IceGatheringState;
 import org.webrtc.PeerConnection.PeerConnectionState;
 import org.webrtc.PeerConnection.SignalingState;
 
 /** End-to-end tests for {@link PeerConnection}. */
-@RunWith(BaseJUnit4ClassRunner.class)
 public class PeerConnectionEndToEndTest {
   private static final String TAG = "PeerConnectionEndToEndTest";
   private static final int DEFAULT_TIMEOUT_SECONDS = 20;
@@ -926,7 +923,6 @@ public class PeerConnectionEndToEndTest {
     answeringExpectations.expectStateChange(DataChannel.State.CLOSING);
     offeringExpectations.expectStateChange(DataChannel.State.CLOSED);
     answeringExpectations.expectStateChange(DataChannel.State.CLOSED);
-    answeringExpectations.dataChannel.close();
     offeringExpectations.dataChannel.close();
     assertTrue(offeringExpectations.waitForAllExpectationsToBeSatisfied(DEFAULT_TIMEOUT_SECONDS));
     assertTrue(answeringExpectations.waitForAllExpectationsToBeSatisfied(DEFAULT_TIMEOUT_SECONDS));
@@ -1097,7 +1093,6 @@ public class PeerConnectionEndToEndTest {
     answeringExpectations.expectStateChange(DataChannel.State.CLOSING);
     offeringExpectations.expectStateChange(DataChannel.State.CLOSED);
     answeringExpectations.expectStateChange(DataChannel.State.CLOSED);
-    answeringExpectations.dataChannel.close();
     offeringExpectations.dataChannel.close();
     assertTrue(offeringExpectations.waitForAllExpectationsToBeSatisfied(DEFAULT_TIMEOUT_SECONDS));
     assertTrue(answeringExpectations.waitForAllExpectationsToBeSatisfied(DEFAULT_TIMEOUT_SECONDS));

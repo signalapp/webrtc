@@ -181,6 +181,13 @@ def BuildWebRTC(output_dir, target_environment, target_arch, flavor,
                  ('true' if libvpx_build_vp9 else 'false'))
 
   gn_args.append('enable_ios_bitcode=' + ('true' if use_bitcode else 'false'))
+
+  # RingRTC change to use the system linker for Catalyst instead of lld.
+  # This is due to an incompatibility between WebRTC's vendored lld and the Xcode 13/14 SDKs,
+  # which only shows up when compiling for catalyst:arm64.
+  # When updating to a new WebRTC, it's worth checking if this is still necessary.
+  gn_args.append('use_lld=' + ('false' if use_bitcode or target_environment == 'catalyst' else 'true'))
+
   gn_args.append('use_goma=' + ('true' if use_goma else 'false'))
   gn_args.append('rtc_enable_objc_symbol_export=true')
 

@@ -26,7 +26,6 @@ CPPLINT_EXCEPTIONS = [
     'examples/objc',
     'media/base/stream_params.h',
     'media/base/video_common.h',
-    'media/sctp/usrsctp_transport.cc',
     'modules/audio_coding',
     'modules/audio_device',
     'modules/audio_processing',
@@ -937,8 +936,6 @@ def CommonChecks(input_api, output_api):
               r'^testing[\\\/].*\.py$',
               r'^third_party[\\\/].*\.py$',
               r'^tools[\\\/].*\.py$',
-              # TODO(bugs.webrtc.org/13605): should arguably be checked.
-              r'^tools_webrtc[\\\/]mb[\\\/].*\.py$',
               r'^xcodebuild.*[\\\/].*\.py$',
           ),
           pylintrc='pylintrc',

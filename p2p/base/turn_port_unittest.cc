@@ -277,7 +277,7 @@ class TurnPortTest : public ::testing::Test,
                                        password, server_address);
   }
 
-  bool CreateTurnPortWithNetwork(rtc::Network* network,
+  bool CreateTurnPortWithNetwork(const rtc::Network* network,
                                  const std::string& username,
                                  const std::string& password,
                                  const ProtocolAddress& server_address) {
@@ -288,15 +288,24 @@ class TurnPortTest : public ::testing::Test,
   // Version of CreateTurnPort that takes all possible parameters; all other
   // helper methods call this, such that "SetIceRole" and "ConnectSignals" (and
   // possibly other things in the future) only happen in one place.
-  bool CreateTurnPortWithAllParams(rtc::Network* network,
+  bool CreateTurnPortWithAllParams(const rtc::Network* network,
                                    const std::string& username,
                                    const std::string& password,
                                    const ProtocolAddress& server_address) {
-    RelayCredentials credentials(username, password);
-    turn_port_ =
-        TurnPort::Create(&main_, &socket_factory_, network, 0, 0, kIceUfrag1,
-                         kIcePwd1, server_address, credentials, 0, {}, {},
-                         turn_customizer_.get(), nullptr, &field_trials_);
+    RelayServerConfig config;
+    config.credentials = RelayCredentials(username, password);
+    CreateRelayPortArgs args;
+    args.network_thread = &main_;
+    args.socket_factory = &socket_factory_;
+    args.network = network;
+    args.username = kIceUfrag1;
+    args.password = kIcePwd1;
+    args.server_address = &server_address;
+    args.config = &config;
+    args.turn_customizer = turn_customizer_.get();
+    args.field_trials = &field_trials_;
+
+    turn_port_ = TurnPort::Create(args, 0, 0);
     if (!turn_port_) {
       return false;
     }
@@ -327,11 +336,19 @@ class TurnPortTest : public ::testing::Test,
                                         &TurnPortTest::OnSocketReadPacket);
     }
 
-    RelayCredentials credentials(username, password);
-    turn_port_ =
-        TurnPort::Create(&main_, &socket_factory_, MakeNetwork(kLocalAddr1),
-                         socket_.get(), kIceUfrag1, kIcePwd1, server_address,
-                         credentials, 0, nullptr, &field_trials_);
+    RelayServerConfig config;
+    config.credentials = RelayCredentials(username, password);
+    CreateRelayPortArgs args;
+    args.network_thread = &main_;
+    args.socket_factory = &socket_factory_;
+    args.network = MakeNetwork(kLocalAddr1);
+    args.username = kIceUfrag1;
+    args.password = kIcePwd1;
+    args.server_address = &server_address;
+    args.config = &config;
+    args.turn_customizer = turn_customizer_.get();
+    args.field_trials = &field_trials_;
+    turn_port_ = TurnPort::Create(args, socket_.get());
     // This TURN port will be the controlling.
     turn_port_->SetIceRole(ICEROLE_CONTROLLING);
     ConnectSignals();
@@ -358,9 +375,9 @@ class TurnPortTest : public ::testing::Test,
   void CreateUdpPort() { CreateUdpPort(kLocalAddr2); }
 
   void CreateUdpPort(const SocketAddress& address) {
-    udp_port_ =
-        UDPPort::Create(&main_, &socket_factory_, MakeNetwork(address), 0, 0,
-                        kIceUfrag2, kIcePwd2, false, absl::nullopt);
+    udp_port_ = UDPPort::Create(&main_, &socket_factory_, MakeNetwork(address),
+                                0, 0, kIceUfrag2, kIcePwd2, false,
+                                absl::nullopt, &field_trials_);
     // UDP port will be controlled.
     udp_port_->SetIceRole(ICEROLE_CONTROLLED);
     udp_port_->SignalPortComplete.connect(this,
@@ -1224,10 +1241,10 @@ TEST_F(TurnPortTest, TestRefreshRequestGetsErrorResponse) {
   // This sends out the first RefreshRequest with correct credentials.
   // When this succeeds, it will schedule a new RefreshRequest with the bad
   // credential.
-  turn_port_->FlushRequests(TURN_REFRESH_REQUEST);
+  turn_port_->FlushRequestsForTest(TURN_REFRESH_REQUEST);
   EXPECT_TRUE_SIMULATED_WAIT(turn_refresh_success_, kSimulatedRtt, fake_clock_);
   // Flush it again, it will receive a bad response.
-  turn_port_->FlushRequests(TURN_REFRESH_REQUEST);
+  turn_port_->FlushRequestsForTest(TURN_REFRESH_REQUEST);
   EXPECT_TRUE_SIMULATED_WAIT(!turn_refresh_success_, kSimulatedRtt,
                              fake_clock_);
   EXPECT_FALSE(turn_port_->connected());
@@ -1288,7 +1305,7 @@ TEST_F(TurnPortTest, TestSocketCloseWillDestroyConnection) {
                                                   Port::ORIGIN_MESSAGE);
   EXPECT_NE(nullptr, conn);
   EXPECT_TRUE(!turn_port_->connections().empty());
-  turn_port_->socket()->SignalClose(turn_port_->socket(), 1);
+  turn_port_->socket()->NotifyClosedForTest(1);
   EXPECT_TRUE_SIMULATED_WAIT(turn_port_->connections().empty(),
                              kConnectionDestructionDelay, fake_clock_);
 }
@@ -1441,11 +1458,11 @@ TEST_F(TurnPortTest, TestRefreshCreatePermissionRequest) {
   // another request with bad_ufrag and bad_pwd.
   RelayCredentials bad_credentials("bad_user", "bad_pwd");
   turn_port_->set_credentials(bad_credentials);
-  turn_port_->FlushRequests(kAllRequests);
+  turn_port_->FlushRequestsForTest(kAllRequests);
   EXPECT_TRUE_SIMULATED_WAIT(turn_create_permission_success_, kSimulatedRtt,
                              fake_clock_);
   // Flush the requests again; the create-permission-request will fail.
-  turn_port_->FlushRequests(kAllRequests);
+  turn_port_->FlushRequestsForTest(kAllRequests);
   EXPECT_TRUE_SIMULATED_WAIT(!turn_create_permission_success_, kSimulatedRtt,
                              fake_clock_);
   EXPECT_TRUE(CheckConnectionFailedAndPruned(conn));

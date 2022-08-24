@@ -1166,6 +1166,44 @@ TEST_F(RtpSenderReceiverTest,
   DestroyVideoRtpSender();
 }
 
+#if GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
+using RtpSenderReceiverDeathTest = RtpSenderReceiverTest;
+
+TEST_F(RtpSenderReceiverDeathTest,
+       VideoSenderManualRemoveSimulcastFailsDeathTest) {
+  AddVideoTrack(false);
+
+  std::unique_ptr<MockSetStreamsObserver> set_streams_observer =
+      std::make_unique<MockSetStreamsObserver>();
+  video_rtp_sender_ = VideoRtpSender::Create(worker_thread_, video_track_->id(),
+                                             set_streams_observer.get());
+  ASSERT_TRUE(video_rtp_sender_->SetTrack(video_track_.get()));
+  EXPECT_CALL(*set_streams_observer, OnSetStreams());
+  video_rtp_sender_->SetStreams({local_stream_->id()});
+
+  std::vector<RtpEncodingParameters> init_encodings(2);
+  init_encodings[0].max_bitrate_bps = 60000;
+  init_encodings[1].max_bitrate_bps = 120000;
+  video_rtp_sender_->set_init_send_encodings(init_encodings);
+
+  RtpParameters params = video_rtp_sender_->GetParameters();
+  ASSERT_EQ(2u, params.encodings.size());
+  EXPECT_EQ(params.encodings[0].max_bitrate_bps, 60000);
+
+  // Simulate the setLocalDescription call as if the user used SDP munging
+  // to disable simulcast.
+  std::vector<uint32_t> ssrcs;
+  ssrcs.reserve(2);
+  for (int i = 0; i < 2; ++i)
+    ssrcs.push_back(kVideoSsrcSimulcast + i);
+  cricket::StreamParams stream_params =
+      cricket::StreamParams::CreateLegacy(kVideoSsrc);
+  video_media_channel()->AddSendStream(stream_params);
+  video_rtp_sender_->SetMediaChannel(video_media_channel());
+  EXPECT_DEATH(video_rtp_sender_->SetSsrc(kVideoSsrcSimulcast), "");
+}
+#endif
+
 TEST_F(RtpSenderReceiverTest,
        VideoSenderMustCallGetParametersBeforeSetParametersBeforeNegotiation) {
   video_rtp_sender_ =
@@ -1635,7 +1673,7 @@ TEST_F(RtpSenderReceiverTest, AudioSenderCannotSetFrameEncryptorAfterStop) {
 TEST_F(RtpSenderReceiverTest, AudioReceiverCanSetFrameDecryptor) {
   CreateAudioRtpReceiver();
   rtc::scoped_refptr<FrameDecryptorInterface> fake_frame_decryptor(
-      new FakeFrameDecryptor());
+      rtc::make_ref_counted<FakeFrameDecryptor>());
   EXPECT_EQ(nullptr, audio_rtp_receiver_->GetFrameDecryptor());
   audio_rtp_receiver_->SetFrameDecryptor(fake_frame_decryptor);
   EXPECT_EQ(fake_frame_decryptor.get(),
@@ -1647,7 +1685,7 @@ TEST_F(RtpSenderReceiverTest, AudioReceiverCanSetFrameDecryptor) {
 TEST_F(RtpSenderReceiverTest, AudioReceiverCannotSetFrameDecryptorAfterStop) {
   CreateAudioRtpReceiver();
   rtc::scoped_refptr<FrameDecryptorInterface> fake_frame_decryptor(
-      new FakeFrameDecryptor());
+      rtc::make_ref_counted<FakeFrameDecryptor>());
   EXPECT_EQ(nullptr, audio_rtp_receiver_->GetFrameDecryptor());
   audio_rtp_receiver_->SetMediaChannel(nullptr);
   audio_rtp_receiver_->SetFrameDecryptor(fake_frame_decryptor);
@@ -1682,7 +1720,7 @@ TEST_F(RtpSenderReceiverTest, VideoSenderCannotSetFrameEncryptorAfterStop) {
 TEST_F(RtpSenderReceiverTest, VideoReceiverCanSetFrameDecryptor) {
   CreateVideoRtpReceiver();
   rtc::scoped_refptr<FrameDecryptorInterface> fake_frame_decryptor(
-      new FakeFrameDecryptor());
+      rtc::make_ref_counted<FakeFrameDecryptor>());
   EXPECT_EQ(nullptr, video_rtp_receiver_->GetFrameDecryptor());
   video_rtp_receiver_->SetFrameDecryptor(fake_frame_decryptor);
   EXPECT_EQ(fake_frame_decryptor.get(),
@@ -1694,7 +1732,7 @@ TEST_F(RtpSenderReceiverTest, VideoReceiverCanSetFrameDecryptor) {
 TEST_F(RtpSenderReceiverTest, VideoReceiverCannotSetFrameDecryptorAfterStop) {
   CreateVideoRtpReceiver();
   rtc::scoped_refptr<FrameDecryptorInterface> fake_frame_decryptor(
-      new FakeFrameDecryptor());
+      rtc::make_ref_counted<FakeFrameDecryptor>());
   EXPECT_EQ(nullptr, video_rtp_receiver_->GetFrameDecryptor());
   video_rtp_receiver_->SetMediaChannel(nullptr);
   video_rtp_receiver_->SetFrameDecryptor(fake_frame_decryptor);

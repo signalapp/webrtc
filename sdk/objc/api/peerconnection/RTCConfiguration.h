@@ -266,11 +266,6 @@ RTC_OBJC_EXPORT
  */
 @property(nonatomic, copy, nullable) NSNumber *iceInactiveTimeout;
 
-/**
- * Enable DTLS-SRTP key negotiation.
- */
-@property(nonatomic, assign) BOOL enableDtlsSrtp;
-
 - (instancetype)init;
 
 @end

@@ -41,10 +41,18 @@ RRSendQueue::RRSendQueue(absl::string_view log_prefix,
 }
 
 bool RRSendQueue::OutgoingStream::HasDataToSend(TimeMs now) {
+  if (pause_state_ == PauseState::kPaused ||
+      pause_state_ == PauseState::kResetting) {
+    // The stream has paused (and there is no partially sent message).
+    return false;
+  }
+
   while (!items_.empty()) {
     RRSendQueue::OutgoingStream::Item& item = items_.front();
     if (item.message_id.has_value()) {
-      // Already partially sent messages can always continue to be sent.
+      // Already partially sent messages can always continue to be sent. This
+      // ensures e.g. that paused streams with partially sent messages get to
+      // send the partial message in full before resetting.
       return true;
     }
 
@@ -57,10 +65,6 @@ bool RRSendQueue::OutgoingStream::HasDataToSend(TimeMs now) {
       continue;
     }
 
-    if (is_paused_) {
-      // The stream has paused (and there is no partially sent message).
-      return false;
-    }
     return true;
   }
   return false;
@@ -134,18 +138,14 @@ void RRSendQueue::OutgoingStream::Add(DcSctpMessage message,
   RTC_DCHECK(IsConsistent());
 }
 
-absl::optional<SendQueue::DataToSend> RRSendQueue::OutgoingStream::Produce(
-    TimeMs now,
-    size_t max_size) {
+SendQueue::DataToSend RRSendQueue::OutgoingStream::Produce(TimeMs now,
+                                                           size_t max_size) {
   RTC_DCHECK(!items_.empty());
+  RTC_DCHECK(pause_state_ != PauseState::kPaused &&
+             pause_state_ != PauseState::kResetting);
 
   Item* item = &items_.front();
   DcSctpMessage& message = item->message;
-
-  if (item->remaining_size > max_size && max_size < kMinimumFragmentedPayload) {
-    RTC_DCHECK(IsConsistent());
-    return absl::nullopt;
-  }
 
   // Allocate Message ID and SSN when the first fragment is sent.
   if (!item->message_id.has_value()) {
@@ -200,6 +200,12 @@ absl::optional<SendQueue::DataToSend> RRSendQueue::OutgoingStream::Produce(
     // The entire message has been sent, and its last data copied to `chunk`, so
     // it can safely be discarded.
     items_.pop_front();
+
+    if (pause_state_ == PauseState::kPending) {
+      RTC_DLOG(LS_VERBOSE) << "Pause state on " << *stream_id
+                           << " is moving from pending to paused";
+      pause_state_ = PauseState::kPaused;
+    }
   } else {
     item->remaining_offset += chunk_payload.size();
     item->remaining_size -= chunk_payload.size();
@@ -221,6 +227,11 @@ bool RRSendQueue::OutgoingStream::Discard(IsUnordered unordered,
       buffered_amount_.Decrease(item.remaining_size);
       total_buffered_amount_.Decrease(item.remaining_size);
       items_.pop_front();
+
+      if (pause_state_ == PauseState::kPending) {
+        pause_state_ = PauseState::kPaused;
+      }
+
       // As the item still existed, it had unsent data.
       result = true;
     }
@@ -230,14 +241,26 @@ bool RRSendQueue::OutgoingStream::Discard(IsUnordered unordered,
 }
 
 void RRSendQueue::OutgoingStream::Pause() {
-  is_paused_ = true;
+  if (pause_state_ != PauseState::kNotPaused) {
+    // Already in progress.
+    return;
+  }
+
+  bool had_pending_items = !items_.empty();
+
+  // https://datatracker.ietf.org/doc/html/rfc8831#section-6.7
+  // "Closing of a data channel MUST be signaled by resetting the corresponding
+  // outgoing streams [RFC6525].  This means that if one side decides to close
+  // the data channel, it resets the corresponding outgoing stream."
+  // ... "[RFC6525] also guarantees that all the messages are delivered (or
+  // abandoned) before the stream is reset."
 
   // A stream is paused when it's about to be reset. In this implementation,
-  // it will throw away all non-partially send messages. This is subject to
-  // change. It will however not discard any partially sent messages - only
-  // whole messages. Partially delivered messages (at the time of receiving a
-  // Stream Reset command) will always deliver all the fragments before
-  // actually resetting the stream.
+  // it will throw away all non-partially send messages - they will be abandoned
+  // as noted above. This is subject to change. It will however not discard any
+  // partially sent messages - only whole messages. Partially delivered messages
+  // (at the time of receiving a Stream Reset command) will always deliver all
+  // the fragments before actually resetting the stream.
   for (auto it = items_.begin(); it != items_.end();) {
     if (it->remaining_offset == 0) {
       buffered_amount_.Decrease(it->remaining_size);
@@ -247,10 +270,33 @@ void RRSendQueue::OutgoingStream::Pause() {
       ++it;
     }
   }
+
+  pause_state_ = (items_.empty() || items_.front().remaining_offset == 0)
+                     ? PauseState::kPaused
+                     : PauseState::kPending;
+
+  if (had_pending_items && pause_state_ == PauseState::kPaused) {
+    RTC_DLOG(LS_VERBOSE) << "Stream " << *stream_id()
+                         << " was previously active, but is now paused.";
+  }
+
+  RTC_DCHECK(IsConsistent());
+}
+
+void RRSendQueue::OutgoingStream::Resume() {
+  RTC_DCHECK(pause_state_ == PauseState::kResetting);
+  if (!items_.empty()) {
+    RTC_DLOG(LS_VERBOSE) << "Stream " << *stream_id()
+                         << " was previously paused, but is now active.";
+  }
+  pause_state_ = PauseState::kNotPaused;
   RTC_DCHECK(IsConsistent());
 }
 
 void RRSendQueue::OutgoingStream::Reset() {
+  // This can be called both when an outgoing stream reset has been responded
+  // to, or when the entire SendQueue is reset due to detecting the peer having
+  // restarted. The stream may be in any state at this time.
   if (!items_.empty()) {
     // If this message has been partially sent, reset it so that it will be
     // re-sent.
@@ -265,7 +311,7 @@ void RRSendQueue::OutgoingStream::Reset() {
     item.ssn = absl::nullopt;
     item.current_fsn = FSN(0);
   }
-  is_paused_ = false;
+  pause_state_ = PauseState::kNotPaused;
   next_ordered_mid_ = MID(0);
   next_unordered_mid_ = MID(0);
   next_ssn_ = SSN(0);
@@ -345,22 +391,20 @@ absl::optional<SendQueue::DataToSend> RRSendQueue::Produce(TimeMs now,
     RTC_DCHECK(stream_it != streams_.end());
   }
 
-  absl::optional<DataToSend> data = stream_it->second.Produce(now, max_size);
-  if (data.has_value()) {
-    RTC_DLOG(LS_VERBOSE) << log_prefix_ << "Producing DATA, type="
-                         << (data->data.is_unordered ? "unordered" : "ordered")
-                         << "::"
-                         << (*data->data.is_beginning && *data->data.is_end
-                                 ? "complete"
-                                 : *data->data.is_beginning
-                                       ? "first"
-                                       : *data->data.is_end ? "last" : "middle")
-                         << ", stream_id=" << *stream_it->first
-                         << ", ppid=" << *data->data.ppid
-                         << ", length=" << data->data.payload.size();
+  DataToSend data = stream_it->second.Produce(now, max_size);
+  RTC_DLOG(LS_VERBOSE) << log_prefix_ << "Producing DATA, type="
+                       << (data.data.is_unordered ? "unordered" : "ordered")
+                       << "::"
+                       << (*data.data.is_beginning && *data.data.is_end
+                               ? "complete"
+                               : *data.data.is_beginning
+                                     ? "first"
+                                     : *data.data.is_end ? "last" : "middle")
+                       << ", stream_id=" << *stream_it->first
+                       << ", ppid=" << *data.data.ppid
+                       << ", length=" << data.data.payload.size();
 
-    previous_message_has_ended_ = *data->data.is_end;
-  }
+  previous_message_has_ended_ = *data.data.is_end;
 
   RTC_DCHECK(IsConsistent());
   return data;
@@ -380,27 +424,39 @@ bool RRSendQueue::Discard(IsUnordered unordered,
   return has_discarded;
 }
 
-void RRSendQueue::PrepareResetStreams(rtc::ArrayView<const StreamID> streams) {
-  for (StreamID stream_id : streams) {
-    GetOrCreateStreamInfo(stream_id).Pause();
-  }
+void RRSendQueue::PrepareResetStream(StreamID stream_id) {
+  GetOrCreateStreamInfo(stream_id).Pause();
   RTC_DCHECK(IsConsistent());
 }
 
-bool RRSendQueue::CanResetStreams() const {
-  // Streams can be reset if those streams that are paused don't have any
-  // messages that are partially sent.
+bool RRSendQueue::HasStreamsReadyToBeReset() const {
   for (auto& [unused, stream] : streams_) {
-    if (stream.is_paused() && stream.has_partially_sent_message()) {
-      return false;
+    if (stream.IsReadyToBeReset()) {
+      return true;
     }
   }
-  return true;
+  return false;
+}
+std::vector<StreamID> RRSendQueue::GetStreamsReadyToBeReset() {
+  RTC_DCHECK(absl::c_count_if(streams_, [](const auto& p) {
+               return p.second.IsResetting();
+             }) == 0);
+  std::vector<StreamID> ready;
+  for (auto& [stream_id, stream] : streams_) {
+    if (stream.IsReadyToBeReset()) {
+      stream.SetAsResetting();
+      ready.push_back(stream_id);
+    }
+  }
+  return ready;
 }
 
 void RRSendQueue::CommitResetStreams() {
+  RTC_DCHECK(absl::c_count_if(streams_, [](const auto& p) {
+               return p.second.IsResetting();
+             }) > 0);
   for (auto& [unused, stream] : streams_) {
-    if (stream.is_paused()) {
+    if (stream.IsResetting()) {
       stream.Reset();
     }
   }
@@ -408,8 +464,13 @@ void RRSendQueue::CommitResetStreams() {
 }
 
 void RRSendQueue::RollbackResetStreams() {
+  RTC_DCHECK(absl::c_count_if(streams_, [](const auto& p) {
+               return p.second.IsResetting();
+             }) > 0);
   for (auto& [unused, stream] : streams_) {
-    stream.Resume();
+    if (stream.IsResetting()) {
+      stream.Resume();
+    }
   }
   RTC_DCHECK(IsConsistent());
 }
@@ -454,6 +515,7 @@ RRSendQueue::OutgoingStream& RRSendQueue::GetOrCreateStreamInfo(
   return streams_
       .emplace(stream_id,
                OutgoingStream(
+                   stream_id,
                    [this, stream_id]() { on_buffered_amount_low_(stream_id); },
                    total_buffered_amount_))
       .first->second;
@@ -481,6 +543,7 @@ void RRSendQueue::RestoreFromState(const DcSctpSocketHandoverState& state) {
        state.tx.streams) {
     StreamID stream_id(state_stream.id);
     streams_.emplace(stream_id, OutgoingStream(
+                                    stream_id,
                                     [this, stream_id]() {
                                       on_buffered_amount_low_(stream_id);
                                     },

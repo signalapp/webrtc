@@ -21,9 +21,9 @@
 #include "absl/algorithm/container.h"
 #include "absl/types/optional.h"
 #include "api/array_view.h"
+#include "api/field_trials_view.h"
 #include "api/network_state_predictor.h"
 #include "api/transport/network_types.h"
-#include "api/transport/webrtc_key_value_config.h"
 #include "api/units/data_rate.h"
 #include "api/units/data_size.h"
 #include "api/units/time_delta.h"
@@ -101,7 +101,7 @@ double GetLossProbability(double inherent_loss,
 
 }  // namespace
 
-LossBasedBweV2::LossBasedBweV2(const WebRtcKeyValueConfig* key_value_config)
+LossBasedBweV2::LossBasedBweV2(const FieldTrialsView* key_value_config)
     : config_(CreateConfig(key_value_config)) {
   if (!config_.has_value()) {
     RTC_LOG(LS_VERBOSE) << "The configuration does not specify that the "
@@ -225,7 +225,7 @@ void LossBasedBweV2::UpdateBandwidthEstimate(
 // Returns a `LossBasedBweV2::Config` iff the `key_value_config` specifies a
 // configuration for the `LossBasedBweV2` which is explicitly enabled.
 absl::optional<LossBasedBweV2::Config> LossBasedBweV2::CreateConfig(
-    const WebRtcKeyValueConfig* key_value_config) {
+    const FieldTrialsView* key_value_config) {
   FieldTrialParameter<bool> enabled("Enabled", false);
   FieldTrialParameter<double> bandwidth_rampup_upper_bound_factor(
       "BwRampupUpperBoundFactor", 1.1);
@@ -578,7 +578,8 @@ std::vector<LossBasedBweV2::ChannelParameters> LossBasedBweV2::GetCandidates(
   }
 
   if (acknowledged_bitrate_.has_value() &&
-      config_->append_acknowledged_rate_candidate && can_decrease_bitrate) {
+      config_->append_acknowledged_rate_candidate &&
+      TrendlineEsimateAllowEmergencyBackoff()) {
     bandwidths.push_back(*acknowledged_bitrate_ *
                          config_->bandwidth_backoff_lower_bound_factor);
   }
@@ -791,6 +792,20 @@ bool LossBasedBweV2::TrendlineEsimateAllowBitrateIncrease() const {
   return true;
 }
 
+bool LossBasedBweV2::TrendlineEsimateAllowEmergencyBackoff() const {
+  if (!config_->trendline_integration_enabled) {
+    return true;
+  }
+
+  for (const auto& detector_state : delay_detector_states_) {
+    if (detector_state == BandwidthUsage::kBwOverusing) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 bool LossBasedBweV2::PushBackObservation(
     rtc::ArrayView<const PacketResult> packet_results,
     BandwidthUsage delay_detector_state) {
@@ -823,9 +838,10 @@ bool LossBasedBweV2::PushBackObservation(
       last_send_time - last_send_time_most_recent_observation_;
 
   // Too small to be meaningful.
-  if (observation_duration < config_->observation_duration_lower_bound &&
-      (delay_detector_state == BandwidthUsage::kBwNormal ||
-       !config_->trendline_integration_enabled)) {
+  if (observation_duration <= TimeDelta::Zero() ||
+      (observation_duration < config_->observation_duration_lower_bound &&
+       (delay_detector_state == BandwidthUsage::kBwNormal ||
+        !config_->trendline_integration_enabled))) {
     return false;
   }
 

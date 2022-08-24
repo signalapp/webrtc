@@ -256,7 +256,7 @@ class WebRtcAudioTrack {
         // supersede the notion of stream types for defining the behavior of audio playback,
         // and to allow certain platforms or routing policies to use this information for more
         // refined volume or routing decisions.
-        audioTrack = createAudioTrackOnLollipopOrHigher(
+        audioTrack = createAudioTrackBeforeOreo(
             sampleRate, channelConfig, minBufferSizeInBytes, audioAttributes);
       } else {
         // Use default constructor for API levels below 21.
@@ -364,7 +364,7 @@ class WebRtcAudioTrack {
   private boolean setStreamVolume(int volume) {
     threadChecker.checkIsOnValidThread();
     Logging.d(TAG, "setStreamVolume(" + volume + ")");
-    if (isVolumeFixed()) {
+    if (audioManager.isVolumeFixed()) {
       Logging.e(TAG, "The device implements a fixed volume policy.");
       return false;
     }
@@ -447,10 +447,9 @@ class WebRtcAudioTrack {
   // Creates and AudioTrack instance using AudioAttributes and AudioFormat as input.
   // It allows certain platforms or routing policies to use this information for more
   // refined volume or routing decisions.
-  @TargetApi(Build.VERSION_CODES.LOLLIPOP)
-  private static AudioTrack createAudioTrackOnLollipopOrHigher(int sampleRateInHz,
-      int channelConfig, int bufferSizeInBytes, @Nullable AudioAttributes overrideAttributes) {
-    Logging.d(TAG, "createAudioTrackOnLollipopOrHigher");
+  private static AudioTrack createAudioTrackBeforeOreo(int sampleRateInHz, int channelConfig,
+      int bufferSizeInBytes, @Nullable AudioAttributes overrideAttributes) {
+    Logging.d(TAG, "createAudioTrackBeforeOreo");
     logNativeOutputSampleRate(sampleRateInHz);
 
     // Create an audio track where the audio usage is for VoIP and the content type is speech.

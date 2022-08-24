@@ -167,11 +167,6 @@ void AudioRtpReceiver::Stop() {
   track_->internal()->set_ended();
 }
 
-void AudioRtpReceiver::SetSourceEnded() {
-  RTC_DCHECK_RUN_ON(&signaling_thread_checker_);
-  source_->SetState(MediaSourceInterface::kEnded);
-}
-
 // RTC_RUN_ON(&signaling_thread_checker_)
 void AudioRtpReceiver::RestartMediaChannel(absl::optional<uint32_t> ssrc) {
   bool enabled = track_->internal()->enabled();
@@ -190,6 +185,11 @@ void AudioRtpReceiver::RestartMediaChannel_w(
     MediaSourceInterface::SourceState state) {
   if (!media_channel_)
     return;  // Can't restart.
+
+  // Make sure the safety flag is marked as `alive` for cases where the media
+  // channel was provided via the ctor and not an explicit call to
+  // SetMediaChannel.
+  worker_thread_safety_->SetAlive();
 
   if (state != MediaSourceInterface::kInitializing) {
     if (ssrc_ == ssrc)
