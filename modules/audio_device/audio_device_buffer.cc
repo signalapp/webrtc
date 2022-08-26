@@ -268,6 +268,10 @@ int32_t AudioDeviceBuffer::SetRecordedBuffer(const void* audio_buffer,
     // of a non-zero audio packet is found. It can only be restored to true
     // again by restarting the call.
     if (max_abs > 0) {
+      // RingRTC change to log when audio samples start to be received.
+      if (only_silence_recorded_) {
+         RTC_LOG(LS_WARNING) << "Initial non-silent audio samples received";
+      }
       only_silence_recorded_ = false;
     }
   }
@@ -498,6 +502,10 @@ void AudioDeviceBuffer::ResetPlayStats() {
 void AudioDeviceBuffer::UpdateRecStats(int16_t max_abs,
                                        size_t samples_per_channel) {
   MutexLock lock(&lock_);
+  // RingRTC change to log when audio samples start to be received.
+  if (stats_.rec_callbacks == 0) {
+    RTC_LOG(LS_WARNING) << "Initial audio samples received";
+  }
   ++stats_.rec_callbacks;
   stats_.rec_samples += samples_per_channel;
   if (max_abs > stats_.max_rec_level) {
