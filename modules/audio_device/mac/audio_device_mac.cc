@@ -1034,7 +1034,8 @@ int32_t AudioDeviceMac::InitPlayout() {
 }
 
 int32_t AudioDeviceMac::InitRecording() {
-  RTC_LOG(LS_INFO) << "InitRecording";
+  // RingRTC change to log more information around audio capture
+  RTC_LOG(LS_WARNING) << "InitRecording";
   MutexLock lock(&mutex_);
 
   if (_recording) {
@@ -1265,6 +1266,8 @@ int32_t AudioDeviceMac::StartRecording() {
   }
 
   _recording = true;
+  // RingRTC change to log more information around audio capture
+  RTC_LOG(LS_WARNING) << "Started recording";
 
   return 0;
 }
@@ -1283,6 +1286,8 @@ int32_t AudioDeviceMac::StopRecording() {
     // Recording side uses its own dedicated device and IOProc.
     if (_recording) {
       _recording = false;
+      // RingRTC change to log more information around audio capture
+      RTC_LOG(LS_WARNING) << "Stopped recording";
       _doStopRec = true;  // Signal to io proc to stop audio device
       mutex_.Unlock();    // Cannot be under lock, risk of deadlock
       if (!_stopEventRec.Wait(2000)) {
@@ -1311,6 +1316,8 @@ int32_t AudioDeviceMac::StopRecording() {
     // rendering has ended before stopping itself.
     if (_recording && captureDeviceIsAlive == 1) {
       _recording = false;
+      // RingRTC change to log more information around audio capture
+      RTC_LOG(LS_WARNING) << "Stopped recording";
       _doStop = true;     // Signal to io proc to stop audio device
       mutex_.Unlock();    // Cannot be under lock, risk of deadlock
       if (!_stopEvent.Wait(2000)) {
@@ -1356,6 +1363,8 @@ int32_t AudioDeviceMac::StopRecording() {
 
   _recIsInitialized = false;
   _recording = false;
+  // RingRTC change to log more information around audio capture
+  RTC_LOG(LS_WARNING) << "Stopped recording";
 
   return 0;
 }
@@ -2380,6 +2389,9 @@ bool AudioDeviceMac::CaptureWorkerThread() {
     // deliver recorded samples at specified sample rate, mic level etc.
     // to the observer using callback
     _ptrAudioBuffer->DeliverRecordedData();
+  } else {
+    // RingRTC change to log more information around audio capture
+    RTC_LOG(LS_ERROR) << "Ignoring captured audio samples for invalid size of " << size;
   }
 
   return true;
