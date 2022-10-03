@@ -401,9 +401,9 @@ rtc::NetworkBindingResult AndroidNetworkMonitor::BindSocketToNetwork(
     return rtc::NetworkBindingResult::SUCCESS;
   }
 
-  RTC_LOG(LS_INFO) << "BindSocketToNetwork got error: " << rv
-                   << " addr: " << address.ToSensitiveString()
-                   << " ifname: " << if_name;
+  RTC_LOG(LS_WARNING) << "BindSocketToNetwork got error: " << rv
+                      << " addr: " << address.ToSensitiveString()
+                      << " ifname: " << if_name;
   if (rv == ENONET) {
     return rtc::NetworkBindingResult::NETWORK_CHANGED;
   }
@@ -543,7 +543,7 @@ rtc::AdapterType AndroidNetworkMonitor::GetAdapterType(
   }
 
   if (type == rtc::ADAPTER_TYPE_UNKNOWN) {
-    RTC_LOG(LS_INFO) << "Get an unknown type for the interface " << if_name;
+    RTC_LOG(LS_WARNING) << "Get an unknown type for the interface " << if_name;
   }
   return type;
 }
