@@ -320,6 +320,8 @@ class RTC_EXPORT BasicNetworkManager : public NetworkManagerBase,
                       IfAddrsConverter* converter,
                       bool include_ignored,
                       NetworkList* networks) const RTC_RUN_ON(thread_);
+  NetworkMonitorInterface::InterfaceInfo GetInterfaceInfo(
+      struct ifaddrs* cursor) const RTC_RUN_ON(thread_);
 #endif  // defined(WEBRTC_POSIX)
 
   // Creates a network object for each network available on the machine.
