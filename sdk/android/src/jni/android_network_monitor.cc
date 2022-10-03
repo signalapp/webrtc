@@ -403,9 +403,9 @@ rtc::NetworkBindingResult AndroidNetworkMonitor::BindSocketToNetwork(
     return rtc::NetworkBindingResult::SUCCESS;
   }
 
-  RTC_LOG(LS_WARNING) << "BindSocketToNetwork got error: " << rv
-                      << " addr: " << address.ToSensitiveString()
-                      << " ifname: " << if_name;
+  RTC_LOG(LS_INFO) << "BindSocketToNetwork got error: " << rv
+                   << " addr: " << address.ToSensitiveString()
+                   << " ifname: " << if_name;
   if (rv == ENONET) {
     return rtc::NetworkBindingResult::NETWORK_CHANGED;
   }
