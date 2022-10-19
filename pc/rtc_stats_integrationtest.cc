@@ -945,6 +945,7 @@ class RTCStatsReportVerifier {
           inbound_stream.total_interruption_duration);
       verifier.TestMemberIsNonNegative<double>(
           inbound_stream.min_playout_delay);
+      verifier.TestMemberIsDefined(inbound_stream.goog_timing_frame_info);
     } else {
       verifier.TestMemberIsUndefined(inbound_stream.frames_decoded);
       verifier.TestMemberIsUndefined(inbound_stream.key_frames_decoded);
@@ -973,6 +974,7 @@ class RTCStatsReportVerifier {
       verifier.TestMemberIsNonNegative<double>(
           inbound_stream.total_interruption_duration);
       verifier.TestMemberIsUndefined(inbound_stream.min_playout_delay);
+      verifier.TestMemberIsUndefined(inbound_stream.goog_timing_frame_info);
     }
     return verifier.ExpectAllMembersSuccessfullyTested();
   }
