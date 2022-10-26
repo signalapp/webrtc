@@ -5634,7 +5634,7 @@ TEST_F(WebRtcVideoChannelTest, GetAggregatedStatsReportWithoutSubStreams) {
   EXPECT_EQ(sender.total_encoded_bytes_target,
             stats.total_encoded_bytes_target);
   // Comes from substream only.
-  EXPECT_EQ(sender.total_packet_send_delay_ms, 0u);
+  EXPECT_EQ(sender.total_packet_send_delay, webrtc::TimeDelta::Zero());
   EXPECT_EQ(sender.qp_sum, absl::nullopt);
 
   EXPECT_EQ(sender.has_entered_low_resolution,
@@ -5661,7 +5661,8 @@ TEST_F(WebRtcVideoChannelTest, GetAggregatedStatsReportForSubStreams) {
   substream.retransmit_bitrate_bps = 6;
   substream.avg_delay_ms = 7;
   substream.max_delay_ms = 8;
-  substream.total_packet_send_delay_ms = 9;
+  substream.rtp_stats.transmitted.total_packet_delay =
+      webrtc::TimeDelta::Millis(9);
   substream.rtp_stats.transmitted.header_bytes = 10;
   substream.rtp_stats.transmitted.padding_bytes = 11;
   substream.rtp_stats.retransmitted.payload_bytes = 12;
@@ -5707,6 +5708,8 @@ TEST_F(WebRtcVideoChannelTest, GetAggregatedStatsReportForSubStreams) {
             static_cast<int>(2 * substream.rtp_stats.transmitted.packets));
   EXPECT_EQ(sender.retransmitted_packets_sent,
             2u * substream.rtp_stats.retransmitted.packets);
+  EXPECT_EQ(sender.total_packet_send_delay,
+            2 * substream.rtp_stats.transmitted.total_packet_delay);
   EXPECT_EQ(sender.packets_lost,
             2 * substream.report_block_data->report_block().packets_lost);
   EXPECT_EQ(sender.fraction_lost,
@@ -5756,8 +5759,6 @@ TEST_F(WebRtcVideoChannelTest, GetAggregatedStatsReportForSubStreams) {
   EXPECT_EQ(sender.total_encode_time_ms, 2u * substream.total_encode_time_ms);
   EXPECT_EQ(sender.total_encoded_bytes_target,
             2u * substream.total_encoded_bytes_target);
-  EXPECT_EQ(sender.total_packet_send_delay_ms,
-            2u * substream.total_packet_send_delay_ms);
   EXPECT_EQ(sender.has_entered_low_resolution,
             stats.has_entered_low_resolution);
   EXPECT_EQ(sender.qp_sum, 2u * *substream.qp_sum);
@@ -5783,7 +5784,8 @@ TEST_F(WebRtcVideoChannelTest, GetPerLayerStatsReportForSubStreams) {
   substream.retransmit_bitrate_bps = 6;
   substream.avg_delay_ms = 7;
   substream.max_delay_ms = 8;
-  substream.total_packet_send_delay_ms = 9;
+  substream.rtp_stats.transmitted.total_packet_delay =
+      webrtc::TimeDelta::Millis(9);
   substream.rtp_stats.transmitted.header_bytes = 10;
   substream.rtp_stats.transmitted.padding_bytes = 11;
   substream.rtp_stats.retransmitted.payload_bytes = 12;
@@ -5827,6 +5829,8 @@ TEST_F(WebRtcVideoChannelTest, GetPerLayerStatsReportForSubStreams) {
             substream.rtp_stats.retransmitted.payload_bytes);
   EXPECT_EQ(sender.packets_sent,
             static_cast<int>(substream.rtp_stats.transmitted.packets));
+  EXPECT_EQ(sender.total_packet_send_delay,
+            substream.rtp_stats.transmitted.total_packet_delay);
   EXPECT_EQ(sender.retransmitted_packets_sent,
             substream.rtp_stats.retransmitted.packets);
   EXPECT_EQ(sender.packets_lost,
@@ -5877,8 +5881,6 @@ TEST_F(WebRtcVideoChannelTest, GetPerLayerStatsReportForSubStreams) {
   EXPECT_EQ(sender.total_encode_time_ms, substream.total_encode_time_ms);
   EXPECT_EQ(sender.total_encoded_bytes_target,
             substream.total_encoded_bytes_target);
-  EXPECT_EQ(sender.total_packet_send_delay_ms,
-            substream.total_packet_send_delay_ms);
   EXPECT_EQ(sender.has_entered_low_resolution,
             stats.has_entered_low_resolution);
   EXPECT_EQ(sender.qp_sum, *substream.qp_sum);
