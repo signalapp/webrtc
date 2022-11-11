@@ -383,16 +383,18 @@ void WebRtcVoiceEngine::Init() {
 
   // Set default engine options.
   {
+    auto config = apm_->GetConfig();
+
     AudioOptions options;
-    options.echo_cancellation = true;
-    options.auto_gain_control = true;
+    options.echo_cancellation = config.echo_canceller.enabled;
+    options.auto_gain_control = config.gain_controller1.enabled;
 #if defined(WEBRTC_IOS)
     // On iOS, VPIO provides built-in NS.
     options.noise_suppression = false;
 #else
-    options.noise_suppression = true;
+    options.noise_suppression = config.noise_suppression.enabled;
 #endif
-    options.highpass_filter = true;
+    options.highpass_filter = config.high_pass_filter.enabled;
     options.stereo_swapping = false;
     options.audio_jitter_buffer_max_packets = 200;
     options.audio_jitter_buffer_fast_accelerate = false;
