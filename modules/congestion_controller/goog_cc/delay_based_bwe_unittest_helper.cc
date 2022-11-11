@@ -146,11 +146,7 @@ int64_t StreamGenerator::GenerateFrame(std::vector<PacketResult>* packets,
 
 DelayBasedBweTest::DelayBasedBweTest() : DelayBasedBweTest("") {}
 
-<<<<<<< HEAD
-DelayBasedBweTest::DelayBasedBweTest(const std::string& field_trial_string)
-=======
 DelayBasedBweTest::DelayBasedBweTest(absl::string_view field_trial_string)
->>>>>>> m108
     : field_trial(
           std::make_unique<test::ScopedFieldTrials>(field_trial_string)),
       clock_(100000000),

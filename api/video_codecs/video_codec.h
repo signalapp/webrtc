@@ -192,18 +192,11 @@ class RTC_EXPORT VideoCodec {
   // TODO(hta): Consider replacing the union with a pointer type.
   // This will allow removing the VideoCodec* types from this file.
   VideoCodecUnion codec_specific_;
-<<<<<<< HEAD
-  std::string scalability_mode_;
-  // 'complexity_' indicates the CPU capability of the client. It's used to
-  // determine encoder CPU complexity (e.g., cpu_used for VP8, VP9. and AV1).
-  absl::optional<VideoCodecComplexity> complexity_;
-=======
   absl::optional<ScalabilityMode> scalability_mode_;
   // 'complexity_' indicates the CPU capability of the client. It's used to
   // determine encoder CPU complexity (e.g., cpu_used for VP8, VP9. and AV1).
   VideoCodecComplexity complexity_;
   bool frame_drop_enabled_ = false;
->>>>>>> m108
 };
 
 }  // namespace webrtc

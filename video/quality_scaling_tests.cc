@@ -332,18 +332,11 @@ TEST_F(QualityScalingTest, AdaptsDownForHighQp_HighestStreamActive_Vp8) {
   test::ScopedKeyValueConfig field_trials(field_trials_,
                                           kPrefix + "1,1,0,0,0,0" + kEnd);
 
-<<<<<<< HEAD
-  DownscalingObserver test("VP8", /*streams_active=*/{false, false, true},
-                           kHighStartBps,
-                           /*automatic_resize=*/true,
-                           /*expect_downscale=*/true);
-=======
   DownscalingObserver test(
       "VP8", {{.active = false}, {.active = false}, {.active = true}},
       kHighStartBps,
       /*automatic_resize=*/true,
       /*expect_downscale=*/true);
->>>>>>> m108
   RunBaseTest(&test);
 }
 
@@ -353,18 +346,11 @@ TEST_F(QualityScalingTest,
   test::ScopedKeyValueConfig field_trials(field_trials_,
                                           kPrefix + "1,127,0,0,0,0" + kEnd);
 
-<<<<<<< HEAD
-  DownscalingObserver test("VP8", /*streams_active=*/{false, false, true},
-                           kSinglecastLimits720pVp8->min_start_bitrate_bps - 1,
-                           /*automatic_resize=*/true,
-                           /*expect_downscale=*/true);
-=======
   DownscalingObserver test(
       "VP8", {{.active = false}, {.active = false}, {.active = true}},
       kSinglecastLimits720pVp8->min_start_bitrate_bps - 1,
       /*automatic_resize=*/true,
       /*expect_downscale=*/true);
->>>>>>> m108
   RunBaseTest(&test);
 }
 
@@ -384,18 +370,11 @@ TEST_F(QualityScalingTest, NoAdaptDownForLowStartBitrateIfBitrateEnough_Vp8) {
   test::ScopedKeyValueConfig field_trials(field_trials_,
                                           kPrefix + "1,127,0,0,0,0" + kEnd);
 
-<<<<<<< HEAD
-  DownscalingObserver test("VP8", /*streams_active=*/{false, false, true},
-                           kSinglecastLimits720pVp8->min_start_bitrate_bps,
-                           /*automatic_resize=*/true,
-                           /*expect_downscale=*/false);
-=======
   DownscalingObserver test(
       "VP8", {{.active = false}, {.active = false}, {.active = true}},
       kSinglecastLimits720pVp8->min_start_bitrate_bps,
       /*automatic_resize=*/true,
       /*expect_downscale=*/false);
->>>>>>> m108
   RunBaseTest(&test);
 }
 
@@ -406,18 +385,11 @@ TEST_F(QualityScalingTest,
       field_trials_, kPrefix + "1,127,0,0,0,0" + kEnd +
                          "WebRTC-DefaultBitrateLimitsKillSwitch/Enabled/");
 
-<<<<<<< HEAD
-  DownscalingObserver test("VP8", /*streams_active=*/{false, false, true},
-                           kSinglecastLimits720pVp8->min_start_bitrate_bps - 1,
-                           /*automatic_resize=*/true,
-                           /*expect_downscale=*/false);
-=======
   DownscalingObserver test(
       "VP8", {{.active = false}, {.active = false}, {.active = true}},
       kSinglecastLimits720pVp8->min_start_bitrate_bps - 1,
       /*automatic_resize=*/true,
       /*expect_downscale=*/false);
->>>>>>> m108
   RunBaseTest(&test);
 }
 
@@ -439,18 +411,11 @@ TEST_F(QualityScalingTest, NoAdaptDownForHighQp_LowestStreamActive_Vp8) {
   test::ScopedKeyValueConfig field_trials(field_trials_,
                                           kPrefix + "1,1,0,0,0,0" + kEnd);
 
-<<<<<<< HEAD
-  DownscalingObserver test("VP8", /*streams_active=*/{true, false, false},
-                           kHighStartBps,
-                           /*automatic_resize=*/true,
-                           /*expect_downscale=*/false);
-=======
   DownscalingObserver test(
       "VP8", {{.active = true}, {.active = false}, {.active = false}},
       kHighStartBps,
       /*automatic_resize=*/true,
       /*expect_downscale=*/false);
->>>>>>> m108
   RunBaseTest(&test);
 }
 
@@ -460,18 +425,11 @@ TEST_F(QualityScalingTest,
   test::ScopedKeyValueConfig field_trials(field_trials_,
                                           kPrefix + "1,127,0,0,0,0" + kEnd);
 
-<<<<<<< HEAD
-  DownscalingObserver test("VP8", /*streams_active=*/{true, false, false},
-                           kLowStartBps,
-                           /*automatic_resize=*/true,
-                           /*expect_downscale=*/false);
-=======
   DownscalingObserver test(
       "VP8", {{.active = true}, {.active = false}, {.active = false}},
       kLowStartBps,
       /*automatic_resize=*/true,
       /*expect_downscale=*/false);
->>>>>>> m108
   RunBaseTest(&test);
 }
 
@@ -488,14 +446,8 @@ TEST_F(QualityScalingTest, NoAdaptDownForLowStartBitrateIfScalingOff_Vp8) {
 
 TEST_F(QualityScalingTest, AdaptsDownForHighQp_Vp9) {
   // qp_low:1, qp_high:1 -> kHighQp
-<<<<<<< HEAD
-  test::ScopedKeyValueConfig field_trials(
-      field_trials_,
-      kPrefix + "0,0,1,1,0,0" + kEnd + "WebRTC-VP9QualityScaler/Enabled/");
-=======
   test::ScopedKeyValueConfig field_trials(field_trials_,
                                           kPrefix + "0,0,1,1,0,0" + kEnd);
->>>>>>> m108
 
   DownscalingObserver test("VP9", {{.active = true}}, kHighStartBps,
                            /*automatic_resize=*/true,
@@ -517,14 +469,8 @@ TEST_F(QualityScalingTest, NoAdaptDownForHighQpIfScalingOff_Vp9) {
 
 TEST_F(QualityScalingTest, AdaptsDownForLowStartBitrate_Vp9) {
   // qp_low:1, qp_high:255 -> kNormalQp
-<<<<<<< HEAD
-  test::ScopedKeyValueConfig field_trials(
-      field_trials_,
-      kPrefix + "0,0,1,255,0,0" + kEnd + "WebRTC-VP9QualityScaler/Enabled/");
-=======
   test::ScopedKeyValueConfig field_trials(field_trials_,
                                           kPrefix + "0,0,1,255,0,0" + kEnd);
->>>>>>> m108
 
   DownscalingObserver test("VP9", {{.active = true}}, kLowStartBps,
                            /*automatic_resize=*/true,
@@ -543,16 +489,6 @@ TEST_F(QualityScalingTest, NoAdaptDownForHighStartBitrate_Vp9) {
 
 TEST_F(QualityScalingTest, NoAdaptDownForHighQp_LowestStreamActive_Vp9) {
   // qp_low:1, qp_high:1 -> kHighQp
-<<<<<<< HEAD
-  test::ScopedKeyValueConfig field_trials(
-      field_trials_,
-      kPrefix + "0,0,1,1,0,0" + kEnd + "WebRTC-VP9QualityScaler/Enabled/");
-
-  DownscalingObserver test("VP9", /*streams_active=*/{true, false, false},
-                           kHighStartBps,
-                           /*automatic_resize=*/true,
-                           /*expect_downscale=*/false);
-=======
   test::ScopedKeyValueConfig field_trials(field_trials_,
                                           kPrefix + "0,0,1,1,0,0" + kEnd);
 
@@ -561,23 +497,12 @@ TEST_F(QualityScalingTest, NoAdaptDownForHighQp_LowestStreamActive_Vp9) {
       kHighStartBps,
       /*automatic_resize=*/true,
       /*expect_downscale=*/false);
->>>>>>> m108
   RunBaseTest(&test);
 }
 
 TEST_F(QualityScalingTest,
        NoAdaptDownForLowStartBitrate_LowestStreamActive_Vp9) {
   // qp_low:1, qp_high:255 -> kNormalQp
-<<<<<<< HEAD
-  test::ScopedKeyValueConfig field_trials(
-      field_trials_,
-      kPrefix + "0,0,1,255,0,0" + kEnd + "WebRTC-VP9QualityScaler/Enabled/");
-
-  DownscalingObserver test("VP9", /*streams_active=*/{true, false, false},
-                           kLowStartBps,
-                           /*automatic_resize=*/true,
-                           /*expect_downscale=*/false);
-=======
   test::ScopedKeyValueConfig field_trials(field_trials_,
                                           kPrefix + "0,0,1,255,0,0" + kEnd);
 
@@ -586,22 +511,11 @@ TEST_F(QualityScalingTest,
       kLowStartBps,
       /*automatic_resize=*/true,
       /*expect_downscale=*/false);
->>>>>>> m108
   RunBaseTest(&test);
 }
 
 TEST_F(QualityScalingTest, AdaptsDownForHighQp_MiddleStreamActive_Vp9) {
   // qp_low:1, qp_high:1 -> kHighQp
-<<<<<<< HEAD
-  test::ScopedKeyValueConfig field_trials(
-      field_trials_,
-      kPrefix + "0,0,1,1,0,0" + kEnd + "WebRTC-VP9QualityScaler/Enabled/");
-
-  DownscalingObserver test("VP9", /*streams_active=*/{false, true, false},
-                           kHighStartBps,
-                           /*automatic_resize=*/true,
-                           /*expect_downscale=*/true);
-=======
   test::ScopedKeyValueConfig field_trials(field_trials_,
                                           kPrefix + "0,0,1,1,0,0" + kEnd);
 
@@ -610,23 +524,12 @@ TEST_F(QualityScalingTest, AdaptsDownForHighQp_MiddleStreamActive_Vp9) {
       kHighStartBps,
       /*automatic_resize=*/true,
       /*expect_downscale=*/true);
->>>>>>> m108
   RunBaseTest(&test);
 }
 
 TEST_F(QualityScalingTest,
        AdaptsDownForLowStartBitrate_MiddleStreamActive_Vp9) {
   // qp_low:1, qp_high:255 -> kNormalQp
-<<<<<<< HEAD
-  test::ScopedKeyValueConfig field_trials(
-      field_trials_,
-      kPrefix + "0,0,1,255,0,0" + kEnd + "WebRTC-VP9QualityScaler/Enabled/");
-
-  DownscalingObserver test("VP9", /*streams_active=*/{false, true, false},
-                           kSinglecastLimits360pVp9->min_start_bitrate_bps - 1,
-                           /*automatic_resize=*/true,
-                           /*expect_downscale=*/true);
-=======
   test::ScopedKeyValueConfig field_trials(field_trials_,
                                           kPrefix + "0,0,1,255,0,0" + kEnd);
 
@@ -635,17 +538,11 @@ TEST_F(QualityScalingTest,
       kSinglecastLimits360pVp9->min_start_bitrate_bps - 1,
       /*automatic_resize=*/true,
       /*expect_downscale=*/true);
->>>>>>> m108
   RunBaseTest(&test);
 }
 
 TEST_F(QualityScalingTest, NoAdaptDownForLowStartBitrateIfBitrateEnough_Vp9) {
   // qp_low:1, qp_high:255 -> kNormalQp
-<<<<<<< HEAD
-  test::ScopedKeyValueConfig field_trials(
-      field_trials_,
-      kPrefix + "0,0,1,255,0,0" + kEnd + "WebRTC-VP9QualityScaler/Enabled/");
-=======
   test::ScopedKeyValueConfig field_trials(field_trials_,
                                           kPrefix + "0,0,1,255,0,0" + kEnd);
 
@@ -656,7 +553,6 @@ TEST_F(QualityScalingTest, NoAdaptDownForLowStartBitrateIfBitrateEnough_Vp9) {
       /*expect_downscale=*/false);
   RunBaseTest(&test);
 }
->>>>>>> m108
 
 TEST_F(QualityScalingTest,
        AdaptsDownButNotUpWithMinStartBitrateLimitWithScalabilityMode_VP9) {

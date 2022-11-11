@@ -11,12 +11,9 @@
 #ifndef MODULES_VIDEO_CODING_VIDEO_RECEIVER2_H_
 #define MODULES_VIDEO_CODING_VIDEO_RECEIVER2_H_
 
-<<<<<<< HEAD
-=======
 #include <memory>
 #include <vector>
 
->>>>>>> m108
 #include "api/field_trials_view.h"
 #include "api/sequence_checker.h"
 #include "api/video_codecs/video_decoder.h"

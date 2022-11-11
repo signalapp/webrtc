@@ -12,11 +12,7 @@
 
 #include <stddef.h>
 
-<<<<<<< HEAD
-#include <list>
-=======
 #include <queue>
->>>>>>> m108
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -109,14 +105,6 @@ WebRtcSessionDescriptionFactory::WebRtcSessionDescriptionFactory(
     const std::string& session_id,
     bool dtls_enabled,
     std::unique_ptr<rtc::RTCCertificateGeneratorInterface> cert_generator,
-<<<<<<< HEAD
-    const rtc::scoped_refptr<rtc::RTCCertificate>& certificate,
-    std::function<void(const rtc::scoped_refptr<rtc::RTCCertificate>&)>
-        on_certificate_ready)
-    : signaling_thread_(context->signaling_thread()),
-      transport_desc_factory_(context->trials()),
-      session_desc_factory_(context->channel_manager(),
-=======
     rtc::scoped_refptr<rtc::RTCCertificate> certificate,
     std::function<void(const rtc::scoped_refptr<rtc::RTCCertificate>&)>
         on_certificate_ready,
@@ -126,7 +114,6 @@ WebRtcSessionDescriptionFactory::WebRtcSessionDescriptionFactory(
       session_desc_factory_(context->media_engine(),
                             context->use_rtx(),
                             context->ssrc_generator(),
->>>>>>> m108
                             &transport_desc_factory_),
       // RFC 4566 suggested a Network Time Protocol (NTP) format timestamp
       // as the session id and session version. To simplify, it should be fine
@@ -280,40 +267,6 @@ cricket::SecurePolicy WebRtcSessionDescriptionFactory::SdesPolicy() const {
   return session_desc_factory_.secure();
 }
 
-<<<<<<< HEAD
-void WebRtcSessionDescriptionFactory::OnMessage(rtc::Message* msg) {
-  switch (msg->message_id) {
-    case MSG_CREATE_SESSIONDESCRIPTION_SUCCESS: {
-      CreateSessionDescriptionMsg* param =
-          static_cast<CreateSessionDescriptionMsg*>(msg->pdata);
-      param->observer->OnSuccess(param->description.release());
-      delete param;
-      break;
-    }
-    case MSG_CREATE_SESSIONDESCRIPTION_FAILED: {
-      CreateSessionDescriptionMsg* param =
-          static_cast<CreateSessionDescriptionMsg*>(msg->pdata);
-      param->observer->OnFailure(std::move(param->error));
-      delete param;
-      break;
-    }
-    case MSG_USE_CONSTRUCTOR_CERTIFICATE: {
-      rtc::ScopedRefMessageData<rtc::RTCCertificate>* param =
-          static_cast<rtc::ScopedRefMessageData<rtc::RTCCertificate>*>(
-              msg->pdata);
-      RTC_LOG(LS_INFO) << "Using certificate supplied to the constructor.";
-      SetCertificate(param->data());
-      delete param;
-      break;
-    }
-    default:
-      RTC_DCHECK_NOTREACHED();
-      break;
-  }
-}
-
-=======
->>>>>>> m108
 void WebRtcSessionDescriptionFactory::InternalCreateOffer(
     CreateSessionDescriptionRequest request) {
   if (sdp_info_->local_description()) {

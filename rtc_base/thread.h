@@ -29,10 +29,7 @@
 #include <pthread.h>
 #endif
 #include "absl/base/attributes.h"
-<<<<<<< HEAD
-=======
 #include "absl/functional/any_invocable.h"
->>>>>>> m108
 #include "api/function_view.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/units/time_delta.h"
@@ -42,7 +39,6 @@
 #include "rtc_base/socket_server.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/system/rtc_export.h"
-#include "rtc_base/task_utils/to_queued_task.h"
 #include "rtc_base/thread_annotations.h"
 
 #if defined(WEBRTC_WIN)
@@ -82,35 +78,6 @@ namespace rtc {
 
 class Thread;
 
-<<<<<<< HEAD
-namespace rtc_thread_internal {
-
-class MessageLikeTask : public MessageData {
- public:
-  virtual void Run() = 0;
-};
-
-template <class FunctorT>
-class MessageWithFunctor final : public MessageLikeTask {
- public:
-  explicit MessageWithFunctor(FunctorT&& functor)
-      : functor_(std::forward<FunctorT>(functor)) {}
-
-  MessageWithFunctor(const MessageWithFunctor&) = delete;
-  MessageWithFunctor& operator=(const MessageWithFunctor&) = delete;
-
-  void Run() override { functor_(); }
-
- private:
-  ~MessageWithFunctor() override {}
-
-  typename std::remove_reference<FunctorT>::type functor_;
-};
-
-}  // namespace rtc_thread_internal
-
-=======
->>>>>>> m108
 class RTC_EXPORT ThreadManager {
  public:
   static const int kForever = -1;
@@ -372,45 +339,12 @@ class RTC_LOCKABLE RTC_EXPORT Thread : public webrtc::TaskQueueBase {
   bool IsInvokeToThreadAllowed(rtc::Thread* target);
 
   // From TaskQueueBase
-<<<<<<< HEAD
-  void PostTask(std::unique_ptr<webrtc::QueuedTask> task) override;
-  void PostDelayedTask(std::unique_ptr<webrtc::QueuedTask> task,
-                       uint32_t milliseconds) override;
-  void PostDelayedHighPrecisionTask(std::unique_ptr<webrtc::QueuedTask> task,
-                                    uint32_t milliseconds) override;
-=======
->>>>>>> m108
   void Delete() override;
   void PostTask(absl::AnyInvocable<void() &&> task) override;
   void PostDelayedTask(absl::AnyInvocable<void() &&> task,
                        webrtc::TimeDelta delay) override;
   void PostDelayedHighPrecisionTask(absl::AnyInvocable<void() &&> task,
                                     webrtc::TimeDelta delay) override;
-
-  // Helper methods to avoid having to do ToQueuedTask() at the calling places.
-  template <class Closure,
-            typename std::enable_if<!std::is_convertible<
-                Closure,
-                std::unique_ptr<webrtc::QueuedTask>>::value>::type* = nullptr>
-  void PostTask(Closure&& closure) {
-    PostTask(webrtc::ToQueuedTask(std::forward<Closure>(closure)));
-  }
-  template <class Closure,
-            typename std::enable_if<!std::is_convertible<
-                Closure,
-                std::unique_ptr<webrtc::QueuedTask>>::value>::type* = nullptr>
-  void PostDelayedTask(Closure&& closure, uint32_t milliseconds) {
-    PostDelayedTask(webrtc::ToQueuedTask(std::forward<Closure>(closure)),
-                    milliseconds);
-  }
-  template <class Closure,
-            typename std::enable_if<!std::is_convertible<
-                Closure,
-                std::unique_ptr<webrtc::QueuedTask>>::value>::type* = nullptr>
-  void PostDelayedHighPrecisionTask(Closure&& closure, uint32_t milliseconds) {
-    PostDelayedHighPrecisionTask(
-        webrtc::ToQueuedTask(std::forward<Closure>(closure)), milliseconds);
-  }
 
   // ProcessMessages will process I/O and dispatch messages until:
   //  1) cms milliseconds have elapsed (returns true)

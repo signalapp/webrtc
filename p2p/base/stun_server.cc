@@ -87,13 +87,8 @@ void StunServer::SendResponse(const StunMessage& msg,
 void StunServer::GetStunBindResponse(StunMessage* message,
                                      const rtc::SocketAddress& remote_addr,
                                      StunMessage* response) const {
-<<<<<<< HEAD
-  response->SetType(STUN_BINDING_RESPONSE);
-  response->SetTransactionID(message->transaction_id());
-=======
   RTC_DCHECK_EQ(response->type(), STUN_BINDING_RESPONSE);
   RTC_DCHECK_EQ(response->transaction_id(), message->transaction_id());
->>>>>>> m108
 
   // Tell the user the address that we received their message from.
   std::unique_ptr<StunAddressAttribute> mapped_addr;

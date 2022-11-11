@@ -105,22 +105,6 @@ class NackRequester final : public NackRequesterBase {
     int retries;
   };
 
-<<<<<<< HEAD
-  struct BackoffSettings {
-    BackoffSettings(TimeDelta min_retry, TimeDelta max_rtt, double base);
-    static absl::optional<BackoffSettings> ParseFromFieldTrials(
-        const FieldTrialsView& field_trials);
-
-    // Min time between nacks.
-    const TimeDelta min_retry_interval;
-    // Upper bound on link-delay considered for exponential backoff.
-    const TimeDelta max_rtt;
-    // Base for the exponential backoff.
-    const double base;
-  };
-
-=======
->>>>>>> m108
   void AddPacketsToNack(uint16_t seq_num_start, uint16_t seq_num_end)
       RTC_EXCLUSIVE_LOCKS_REQUIRED(worker_thread_);
 

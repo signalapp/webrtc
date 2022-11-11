@@ -46,17 +46,10 @@
 #include "pc/sdp_utils.h"
 #include "pc/session_description.h"
 #include "rtc_base/checks.h"
-<<<<<<< HEAD
-#include "rtc_base/ip_address.h"
-#include "rtc_base/logging.h"
-#include "rtc_base/net_helper.h"
-#include "rtc_base/ref_counted_object.h"
-=======
 #include "rtc_base/internal/default_socket_server.h"
 #include "rtc_base/ip_address.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/net_helper.h"
->>>>>>> m108
 #include "rtc_base/rtc_certificate_generator.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/thread.h"
@@ -183,11 +176,7 @@ class PeerConnectionIceBaseTest : public ::testing::Test {
       return nullptr;
     }
 
-<<<<<<< HEAD
-    observer->SetPeerConnectionInterface(result.value());
-=======
     observer->SetPeerConnectionInterface(result.value().get());
->>>>>>> m108
     auto wrapper = std::make_unique<PeerConnectionWrapperForIceTest>(
         pc_factory_, result.MoveValue(), std::move(observer));
     wrapper->set_network(fake_network);

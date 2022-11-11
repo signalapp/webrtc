@@ -1777,8 +1777,6 @@ TEST_F(TestSimulcastEncoderAdapterFake,
             adapter_->InitEncode(&codec_, kSettings));
 }
 
-<<<<<<< HEAD
-=======
 TEST_F(TestSimulcastEncoderAdapterFake, PopulatesScalabilityModeOfSubcodecs) {
   SimulcastTestFixtureImpl::DefaultSettings(
       &codec_, static_cast<const int*>(kTestTemporalLayerProfile),
@@ -1798,6 +1796,5 @@ TEST_F(TestSimulcastEncoderAdapterFake, PopulatesScalabilityModeOfSubcodecs) {
             ScalabilityMode::kL1T3);
 }
 
->>>>>>> m108
 }  // namespace test
 }  // namespace webrtc

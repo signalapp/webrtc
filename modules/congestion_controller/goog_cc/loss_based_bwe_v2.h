@@ -57,11 +57,7 @@ class LossBasedBweV2 {
   bool IsReady() const;
 
   // Returns `DataRate::PlusInfinity` if no BWE can be calculated.
-<<<<<<< HEAD
-  DataRate GetBandwidthEstimate(DataRate delay_based_limit) const;
-=======
   Result GetLossBasedResult(DataRate delay_based_limit) const;
->>>>>>> m108
 
   void SetAcknowledgedBitrate(DataRate acknowledged_bitrate);
   void SetBandwidthEstimate(DataRate bandwidth_estimate);
@@ -69,12 +65,8 @@ class LossBasedBweV2 {
   void UpdateBandwidthEstimate(
       rtc::ArrayView<const PacketResult> packet_results,
       DataRate delay_based_estimate,
-<<<<<<< HEAD
-      BandwidthUsage delay_detector_state);
-=======
       BandwidthUsage delay_detector_state,
       absl::optional<DataRate> probe_bitrate);
->>>>>>> m108
 
  private:
   struct ChannelParameters {
@@ -109,11 +101,6 @@ class LossBasedBweV2 {
     double temporal_weight_factor = 0.0;
     double bandwidth_backoff_lower_bound_factor = 0.0;
     bool trendline_integration_enabled = false;
-<<<<<<< HEAD
-    double delay_based_limit_factor = 1.0;
-    int trendline_window_size = 0;
-    bool backoff_when_overusing = false;
-=======
     int trendline_observations_window_size = 0;
     double max_increase_factor = 0.0;
     TimeDelta delayed_increase_window = TimeDelta::Zero();
@@ -123,7 +110,6 @@ class LossBasedBweV2 {
     DataRate bandwidth_cap_at_high_loss_rate = DataRate::MinusInfinity();
     double slope_of_bwe_high_loss_func = 1000.0;
     bool probe_integration_enabled = false;
->>>>>>> m108
   };
 
   struct Derivatives {
@@ -155,11 +141,7 @@ class LossBasedBweV2 {
   double GetAverageReportedLossRatio() const;
   std::vector<ChannelParameters> GetCandidates(
       DataRate delay_based_estimate) const;
-<<<<<<< HEAD
-  DataRate GetCandidateBandwidthUpperBound() const;
-=======
   DataRate GetCandidateBandwidthUpperBound(DataRate delay_based_estimate) const;
->>>>>>> m108
   Derivatives GetDerivatives(const ChannelParameters& channel_parameters) const;
   double GetFeasibleInherentLoss(
       const ChannelParameters& channel_parameters) const;
@@ -173,16 +155,6 @@ class LossBasedBweV2 {
 
   void CalculateTemporalWeights();
   void NewtonsMethodUpdate(ChannelParameters& channel_parameters) const;
-  // Returns true if either
-  // 1. At least one of states in the window is kBwOverusing, or
-  // 2. There are no kBwUnderusing states in the window.
-  bool TrendlineEsimateAllowBitrateDecrease() const;
-
-  // Returns false if there exists an overusing state in the window.
-  bool TrendlineEsimateAllowBitrateIncrease() const;
-
-  // Returns true if there exists an overusing state in the window.
-  bool TrendlineEsimateAllowEmergencyBackoff() const;
 
   // Returns false if there exists a kBwOverusing or kBwUnderusing in the
   // window.
@@ -198,13 +170,10 @@ class LossBasedBweV2 {
       const std::vector<PacketResult>& packet_feedbacks,
       Timestamp at_time);
   void UpdateDelayDetector(BandwidthUsage delay_detector_state);
-<<<<<<< HEAD
-=======
   bool IsEstimateIncreasingWhenLossLimited(
       const ChannelParameters& best_candidate);
   bool IsBandwidthLimitedDueToLoss() const;
   void SetProbeBitrate(absl::optional<DataRate> probe_bitrate);
->>>>>>> m108
 
   absl::optional<DataRate> acknowledged_bitrate_;
   absl::optional<Config> config_;
@@ -218,14 +187,11 @@ class LossBasedBweV2 {
   std::vector<double> instant_upper_bound_temporal_weights_;
   std::vector<double> temporal_weights_;
   std::deque<BandwidthUsage> delay_detector_states_;
-<<<<<<< HEAD
-=======
   Timestamp recovering_after_loss_timestamp_ = Timestamp::MinusInfinity();
   DataRate bandwidth_limit_in_current_window_ = DataRate::PlusInfinity();
   DataRate min_bitrate_ = DataRate::KilobitsPerSec(1);
   LossBasedState current_state_ = LossBasedState::kDelayBasedEstimate;
   DataRate probe_bitrate_ = DataRate::PlusInfinity();
->>>>>>> m108
 };
 
 }  // namespace webrtc

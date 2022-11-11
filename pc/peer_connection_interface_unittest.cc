@@ -1396,11 +1396,7 @@ TEST_P(PeerConnectionInterfaceTest,
   auto result = pc_factory_->CreatePeerConnectionOrError(
       config, std::move(pc_dependencies));
   EXPECT_TRUE(result.ok());
-<<<<<<< HEAD
-  observer_.SetPeerConnectionInterface(result.value());
-=======
   observer_.SetPeerConnectionInterface(result.value().get());
->>>>>>> m108
 
   // Now validate that the config fields set above were applied to the
   // PortAllocator, as flags or otherwise.
@@ -3695,11 +3691,7 @@ class PeerConnectionMediaConfigTest : public ::testing::Test {
     auto result =
         pcf_->CreatePeerConnectionOrError(config, std::move(pc_dependencies));
     EXPECT_TRUE(result.ok());
-<<<<<<< HEAD
-    observer_.SetPeerConnectionInterface(result.value());
-=======
     observer_.SetPeerConnectionInterface(result.value().get());
->>>>>>> m108
     return result.value()->GetConfiguration().media_config;
   }
 
@@ -3715,11 +3707,7 @@ TEST_F(PeerConnectionMediaConfigTest, TestCreateAndClose) {
   auto result =
       pcf_->CreatePeerConnectionOrError(config, std::move(pc_dependencies));
   EXPECT_TRUE(result.ok());
-<<<<<<< HEAD
-  observer_.SetPeerConnectionInterface(result.value());
-=======
   observer_.SetPeerConnectionInterface(result.value().get());
->>>>>>> m108
   result.value()->Close();  // No abort -> ok.
   SUCCEED();
 }

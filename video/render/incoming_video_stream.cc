@@ -58,13 +58,8 @@ void IncomingVideoStream::Dequeue() {
 
   if (render_buffers_.HasPendingFrames()) {
     uint32_t wait_time = render_buffers_.TimeToNextFrameRelease();
-<<<<<<< HEAD:common_video/incoming_video_stream.cc
-    incoming_render_queue_.PostDelayedHighPrecisionTask([this]() { Dequeue(); },
-                                                        wait_time);
-=======
     incoming_render_queue_.PostDelayedHighPrecisionTask(
         [this]() { Dequeue(); }, TimeDelta::Millis(wait_time));
->>>>>>> m108:video/render/incoming_video_stream.cc
   }
 }
 

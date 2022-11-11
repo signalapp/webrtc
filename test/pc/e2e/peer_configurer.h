@@ -51,12 +51,8 @@ class PeerConfigurerImpl final
             std::make_unique<InjectableComponents>(network_thread,
                                                    network_manager,
                                                    packet_socket_factory)),
-<<<<<<< HEAD
-        params_(std::make_unique<Params>()) {}
-=======
         params_(std::make_unique<Params>()),
         configurable_params_(std::make_unique<ConfigurableParams>()) {}
->>>>>>> m108
 
   PeerConfigurer* SetName(absl::string_view name) override {
     params_->name = std::string(name);
@@ -188,15 +184,12 @@ class PeerConfigurerImpl final
     components_->pcf_dependencies->audio_mixer = audio_mixer;
     return this;
   }
-<<<<<<< HEAD
-=======
 
   virtual PeerConfigurer* SetUseNetworkThreadAsWorkerThread() override {
     components_->worker_thread = components_->network_thread;
     return this;
   }
 
->>>>>>> m108
   PeerConfigurer* SetRtcEventLogPath(std::string path) override {
     params_->rtc_event_log_path = std::move(path);
     return this;
@@ -241,9 +234,6 @@ class PeerConfigurerImpl final
 
   InjectableComponents* components() { return components_.get(); }
   Params* params() { return params_.get(); }
-<<<<<<< HEAD
-  const Params& params() const { return *params_; }
-=======
   ConfigurableParams* configurable_params() {
     return configurable_params_.get();
   }
@@ -251,7 +241,6 @@ class PeerConfigurerImpl final
   const ConfigurableParams& configurable_params() const {
     return *configurable_params_;
   }
->>>>>>> m108
   std::vector<VideoSource>* video_sources() { return &video_sources_; }
 
   // Returns InjectableComponents and transfer ownership to the caller.
@@ -334,16 +323,6 @@ class PeerParamsPreprocessor {
   void ValidateParams(const PeerConfigurerImpl& peer);
 
  private:
-<<<<<<< HEAD
-  DefaultNamesProvider peer_names_provider;
-
-  std::set<std::string> peer_names;
-  std::set<std::string> video_labels;
-  std::set<std::string> audio_labels;
-  std::set<std::string> video_sync_groups;
-  std::set<std::string> audio_sync_groups;
-  int media_streams_count = 0;
-=======
   DefaultNamesProvider peer_names_provider_;
 
   std::set<std::string> peer_names_;
@@ -351,7 +330,6 @@ class PeerParamsPreprocessor {
   std::set<std::string> audio_labels_;
   std::set<std::string> video_sync_groups_;
   std::set<std::string> audio_sync_groups_;
->>>>>>> m108
 };
 
 }  // namespace webrtc_pc_e2e

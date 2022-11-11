@@ -16,10 +16,7 @@
 #include <memory>
 #include <vector>
 
-<<<<<<< HEAD
-=======
 #include "api/task_queue/task_queue_base.h"
->>>>>>> m108
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "modules/video_coding/frame_object.h"
@@ -140,10 +137,6 @@ class TestFrameBuffer2 : public ::testing::Test {
         timing_(time_controller_.GetClock(), field_trials_),
         buffer_(new FrameBuffer(time_controller_.GetClock(),
                                 &timing_,
-<<<<<<< HEAD
-                                &stats_callback_,
-=======
->>>>>>> m108
                                 field_trials_)),
         rand_(0x34678213) {}
 
@@ -192,14 +185,9 @@ class TestFrameBuffer2 : public ::testing::Test {
   }
 
   void ExtractFrame(int64_t max_wait_time = 0, bool keyframe_required = false) {
-<<<<<<< HEAD
-    time_task_queue_.PostTask([this, max_wait_time, keyframe_required]() {
-      buffer_->NextFrame(max_wait_time, keyframe_required, &time_task_queue_,
-=======
     time_task_queue_->PostTask([this, max_wait_time, keyframe_required]() {
       buffer_->NextFrame(max_wait_time, keyframe_required,
                          time_task_queue_.get(),
->>>>>>> m108
                          [this](std::unique_ptr<EncodedFrame> frame) {
                            frames_.emplace_back(std::move(frame));
                          });
@@ -294,13 +282,8 @@ TEST_F(TestFrameBuffer2, OneSuperFrame) {
 TEST_F(TestFrameBuffer2, ZeroPlayoutDelay) {
   test::ScopedKeyValueConfig field_trials;
   VCMTiming timing(time_controller_.GetClock(), field_trials);
-<<<<<<< HEAD
-  buffer_.reset(new FrameBuffer(time_controller_.GetClock(), &timing,
-                                &stats_callback_, field_trials));
-=======
   buffer_ = std::make_unique<FrameBuffer>(time_controller_.GetClock(), &timing,
                                           field_trials);
->>>>>>> m108
   const VideoPlayoutDelay kPlayoutDelayMs = {0, 0};
   std::unique_ptr<FrameObjectFake> test_frame(new FrameObjectFake());
   test_frame->SetId(0);
@@ -531,34 +514,6 @@ TEST_F(TestFrameBuffer2, PictureIdJumpBack) {
   CheckNoFrame(2);
 }
 
-<<<<<<< HEAD
-TEST_F(TestFrameBuffer2, StatsCallback) {
-  uint16_t pid = Rand();
-  uint32_t ts = Rand();
-  const int kFrameSize = 5000;
-
-  EXPECT_CALL(stats_callback_,
-              OnCompleteFrame(true, kFrameSize, VideoContentType::UNSPECIFIED));
-  EXPECT_CALL(stats_callback_, OnFrameBufferTimingsUpdated(_, _, _, _, _, _));
-  // Stats callback requires a previously decoded frame.
-  timing_.StopDecodeTimer(TimeDelta::Millis(1), Timestamp::Zero());
-
-  {
-    std::unique_ptr<FrameObjectFake> frame(new FrameObjectFake());
-    frame->SetEncodedData(EncodedImageBuffer::Create(kFrameSize));
-    frame->SetId(pid);
-    frame->SetTimestamp(ts);
-    frame->num_references = 0;
-
-    EXPECT_EQ(buffer_->InsertFrame(std::move(frame)), pid);
-  }
-
-  ExtractFrame();
-  CheckFrame(0, pid, 0);
-}
-
-=======
->>>>>>> m108
 TEST_F(TestFrameBuffer2, ForwardJumps) {
   EXPECT_EQ(5453, InsertFrame(5453, 0, 1, true, kFrameSize));
   ExtractFrame();

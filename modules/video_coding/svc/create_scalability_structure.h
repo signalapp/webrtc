@@ -13,13 +13,8 @@
 #include <memory>
 #include <vector>
 
-<<<<<<< HEAD
-#include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
-=======
 #include "absl/types/optional.h"
 #include "api/video_codecs/scalability_mode.h"
->>>>>>> m108
 #include "modules/video_coding/svc/scalable_video_controller.h"
 
 namespace webrtc {

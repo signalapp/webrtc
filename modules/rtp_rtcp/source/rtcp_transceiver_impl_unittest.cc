@@ -118,25 +118,8 @@ class MockNetworkLinkRtcpObserver : public NetworkLinkRtcpObserver {
               (override));
 };
 
-<<<<<<< HEAD
-// Since some tests will need to wait for this period, make it small to avoid
-// slowing tests too much. As long as there are test bots with high scheduler
-// granularity, small period should be ok.
-constexpr TimeDelta kReportPeriod = TimeDelta::Millis(10);
-// On some systems task queue might be slow, instead of guessing right
-// grace period, use very large timeout, 100x larger expected wait time.
-// Use finite timeout to fail tests rather than hang them.
-constexpr int kAlmostForeverMs = 1000;
-=======
 constexpr TimeDelta kReportPeriod = TimeDelta::Seconds(1);
 constexpr TimeDelta kAlmostForever = TimeDelta::Seconds(2);
-constexpr TimeDelta kTimePrecision = TimeDelta::Millis(1);
-
-MATCHER_P(Near, value, "") {
-  return arg > value - kTimePrecision && arg < value + kTimePrecision;
-}
->>>>>>> m108
-
 constexpr TimeDelta kTimePrecision = TimeDelta::Millis(1);
 
 MATCHER_P(Near, value, "") {
@@ -192,22 +175,6 @@ class RtcpParserTransport : public webrtc::Transport {
   int num_packets_ = 0;
 };
 
-<<<<<<< HEAD
-RtcpTransceiverConfig DefaultTestConfig() {
-  // RtcpTransceiverConfig default constructor sets default values for prod.
-  // Test doesn't need to support all key features: Default test config returns
-  // valid config with all features turned off.
-  static MockTransport null_transport;
-  static SimulatedClock null_clock(0);
-  RtcpTransceiverConfig config;
-  config.clock = &null_clock;
-  config.outgoing_transport = &null_transport;
-  config.schedule_periodic_compound_packets = false;
-  config.initial_report_delay = TimeDelta::Millis(10);
-  config.report_period = kReportPeriod;
-  return config;
-}
-=======
 class RtcpTransceiverImplTest : public ::testing::Test {
  public:
   RtcpTransceiverConfig DefaultTestConfig() {
@@ -235,7 +202,6 @@ class RtcpTransceiverImplTest : public ::testing::Test {
   MockTransport null_transport_;
   std::unique_ptr<TimeController> time_ = CreateSimulatedTimeController();
 };
->>>>>>> m108
 
 TEST_F(RtcpTransceiverImplTest, NeedToStopPeriodicTaskToDestroyOnTaskQueue) {
   FakeRtcpTransport transport(time_controller());
@@ -297,22 +263,14 @@ TEST_F(RtcpTransceiverImplTest, DelaysSendingFirstCompondPacket) {
   config.schedule_periodic_compound_packets = true;
   config.outgoing_transport = &transport;
   config.initial_report_delay = TimeDelta::Millis(10);
-<<<<<<< HEAD
-  config.task_queue = queue.Get();
-=======
   config.task_queue = queue.get();
->>>>>>> m108
   absl::optional<RtcpTransceiverImpl> rtcp_transceiver;
 
   Timestamp started = CurrentTime();
   queue->PostTask([&] { rtcp_transceiver.emplace(config); });
   EXPECT_TRUE(transport.WaitPacket());
 
-<<<<<<< HEAD
-  EXPECT_GE(rtc::TimeMillis() - started_ms, config.initial_report_delay.ms());
-=======
   EXPECT_GE(CurrentTime() - started, config.initial_report_delay);
->>>>>>> m108
 
   // Cleanup.
   bool done = false;
@@ -332,11 +290,7 @@ TEST_F(RtcpTransceiverImplTest, PeriodicallySendsPackets) {
   config.outgoing_transport = &transport;
   config.initial_report_delay = TimeDelta::Zero();
   config.report_period = kReportPeriod;
-<<<<<<< HEAD
-  config.task_queue = queue.Get();
-=======
   config.task_queue = queue.get();
->>>>>>> m108
   absl::optional<RtcpTransceiverImpl> rtcp_transceiver;
   Timestamp time_just_before_1st_packet = Timestamp::MinusInfinity();
   queue->PostTask([&] {
@@ -350,13 +304,8 @@ TEST_F(RtcpTransceiverImplTest, PeriodicallySendsPackets) {
   EXPECT_TRUE(transport.WaitPacket());
   Timestamp time_just_after_2nd_packet = CurrentTime();
 
-<<<<<<< HEAD
-  EXPECT_GE(time_just_after_2nd_packet_ms - time_just_before_1st_packet_ms,
-            config.report_period.ms() - 1);
-=======
   EXPECT_GE(time_just_after_2nd_packet - time_just_before_1st_packet,
             config.report_period);
->>>>>>> m108
 
   // Cleanup.
   bool done = false;
@@ -376,11 +325,7 @@ TEST_F(RtcpTransceiverImplTest, SendCompoundPacketDelaysPeriodicSendPackets) {
   config.outgoing_transport = &transport;
   config.initial_report_delay = TimeDelta::Zero();
   config.report_period = kReportPeriod;
-<<<<<<< HEAD
-  config.task_queue = queue.Get();
-=======
   config.task_queue = queue.get();
->>>>>>> m108
   absl::optional<RtcpTransceiverImpl> rtcp_transceiver;
   queue->PostTask([&] { rtcp_transceiver.emplace(config); });
 
@@ -395,11 +340,7 @@ TEST_F(RtcpTransceiverImplTest, SendCompoundPacketDelaysPeriodicSendPackets) {
         rtcp_transceiver->SendCompoundPacket();
         non_periodic = true;
       },
-<<<<<<< HEAD
-      (config.report_period / 2).ms());
-=======
       config.report_period / 2);
->>>>>>> m108
   // Though non-periodic packet is scheduled just in between periodic, due to
   // small period and task queue flakiness it migth end-up 1ms after next
   // periodic packet. To be sure duration after non-periodic packet is tested
@@ -409,16 +350,9 @@ TEST_F(RtcpTransceiverImplTest, SendCompoundPacketDelaysPeriodicSendPackets) {
   EXPECT_TRUE(transport.WaitPacket());
   // Wait for next periodic packet.
   EXPECT_TRUE(transport.WaitPacket());
-<<<<<<< HEAD
-  int64_t time_of_last_periodic_packet_ms = rtc::TimeMillis();
-
-  EXPECT_GE(time_of_last_periodic_packet_ms - time_of_non_periodic_packet_ms,
-            config.report_period.ms() - 1);
-=======
   Timestamp time_of_last_periodic_packet = CurrentTime();
   EXPECT_GE(time_of_last_periodic_packet - time_of_non_periodic_packet,
             config.report_period);
->>>>>>> m108
 
   // Cleanup.
   bool done = false;
@@ -997,23 +931,13 @@ TEST_F(RtcpTransceiverImplTest,
               Near(TimeDelta::Millis(100)));
 }
 
-<<<<<<< HEAD
-TEST(RtcpTransceiverImplTest, MaySendMultipleReceiverReportInSinglePacket) {
-=======
 TEST_F(RtcpTransceiverImplTest, MaySendMultipleReceiverReportInSinglePacket) {
->>>>>>> m108
   std::vector<ReportBlock> statistics_report_blocks(40);
   MockReceiveStatisticsProvider receive_statistics;
   EXPECT_CALL(receive_statistics, RtcpReportBlocks(/*max_blocks=*/Ge(40u)))
       .WillOnce(Return(statistics_report_blocks));
 
-<<<<<<< HEAD
-  SimulatedClock clock(0);
   RtcpTransceiverConfig config = DefaultTestConfig();
-  config.clock = &clock;
-=======
-  RtcpTransceiverConfig config = DefaultTestConfig();
->>>>>>> m108
   RtcpPacketParser rtcp_parser;
   RtcpParserTransport transport(&rtcp_parser);
   config.outgoing_transport = &transport;
@@ -1033,23 +957,13 @@ TEST_F(RtcpTransceiverImplTest, MaySendMultipleReceiverReportInSinglePacket) {
   EXPECT_THAT(rtcp_parser.receiver_report()->report_blocks(), SizeIs(9));
 }
 
-<<<<<<< HEAD
-TEST(RtcpTransceiverImplTest, AttachMaxNumberOfReportBlocksToCompoundPacket) {
-=======
 TEST_F(RtcpTransceiverImplTest, AttachMaxNumberOfReportBlocksToCompoundPacket) {
->>>>>>> m108
   MockReceiveStatisticsProvider receive_statistics;
   EXPECT_CALL(receive_statistics, RtcpReportBlocks)
       .WillOnce([](size_t max_blocks) {
         return std::vector<ReportBlock>(max_blocks);
       });
-<<<<<<< HEAD
-  SimulatedClock clock(0);
   RtcpTransceiverConfig config = DefaultTestConfig();
-  config.clock = &clock;
-=======
-  RtcpTransceiverConfig config = DefaultTestConfig();
->>>>>>> m108
   config.rtcp_mode = RtcpMode::kCompound;
   RtcpPacketParser rtcp_parser;
   RtcpParserTransport transport(&rtcp_parser);
@@ -1088,11 +1002,7 @@ TEST_F(RtcpTransceiverImplTest, SendsNack) {
   EXPECT_EQ(rtcp_parser.nack()->packet_ids(), kMissingSequenceNumbers);
 }
 
-<<<<<<< HEAD
-TEST(RtcpTransceiverImplTest, ReceivesNack) {
-=======
 TEST_F(RtcpTransceiverImplTest, ReceivesNack) {
->>>>>>> m108
   static constexpr uint32_t kRemoteSsrc = 4321;
   static constexpr uint32_t kMediaSsrc1 = 1234;
   static constexpr uint32_t kMediaSsrc2 = 1235;
@@ -1116,11 +1026,7 @@ TEST_F(RtcpTransceiverImplTest, ReceivesNack) {
   rtcp_transceiver.ReceivePacket(nack.Build(), config.clock->CurrentTime());
 }
 
-<<<<<<< HEAD
-TEST(RtcpTransceiverImplTest, RequestKeyFrameWithPictureLossIndication) {
-=======
 TEST_F(RtcpTransceiverImplTest, RequestKeyFrameWithPictureLossIndication) {
->>>>>>> m108
   const uint32_t kSenderSsrc = 1234;
   const uint32_t kRemoteSsrc = 4321;
   RtcpTransceiverConfig config = DefaultTestConfig();
@@ -1139,11 +1045,7 @@ TEST_F(RtcpTransceiverImplTest, RequestKeyFrameWithPictureLossIndication) {
   EXPECT_EQ(rtcp_parser.pli()->media_ssrc(), kRemoteSsrc);
 }
 
-<<<<<<< HEAD
-TEST(RtcpTransceiverImplTest, ReceivesPictureLossIndication) {
-=======
 TEST_F(RtcpTransceiverImplTest, ReceivesPictureLossIndication) {
->>>>>>> m108
   static constexpr uint32_t kRemoteSsrc = 4321;
   static constexpr uint32_t kMediaSsrc1 = 1234;
   static constexpr uint32_t kMediaSsrc2 = 1235;
@@ -1164,11 +1066,7 @@ TEST_F(RtcpTransceiverImplTest, ReceivesPictureLossIndication) {
   rtcp_transceiver.ReceivePacket(pli.Build(), config.clock->CurrentTime());
 }
 
-<<<<<<< HEAD
-TEST(RtcpTransceiverImplTest, RequestKeyFrameWithFullIntraRequest) {
-=======
 TEST_F(RtcpTransceiverImplTest, RequestKeyFrameWithFullIntraRequest) {
->>>>>>> m108
   const uint32_t kSenderSsrc = 1234;
   const uint32_t kRemoteSsrcs[] = {4321, 5321};
   RtcpTransceiverConfig config = DefaultTestConfig();
@@ -1242,11 +1140,7 @@ TEST_F(RtcpTransceiverImplTest, SendFirDoesNotIncreaseSeqNoIfOldRequest) {
   EXPECT_EQ(rtcp_parser.fir()->requests()[1].seq_nr, fir_sequence_number1);
 }
 
-<<<<<<< HEAD
-TEST(RtcpTransceiverImplTest, ReceivesFir) {
-=======
 TEST_F(RtcpTransceiverImplTest, ReceivesFir) {
->>>>>>> m108
   static constexpr uint32_t kRemoteSsrc = 4321;
   static constexpr uint32_t kMediaSsrc1 = 1234;
   static constexpr uint32_t kMediaSsrc2 = 1235;
@@ -1268,11 +1162,7 @@ TEST_F(RtcpTransceiverImplTest, ReceivesFir) {
   rtcp_transceiver.ReceivePacket(fir.Build(), config.clock->CurrentTime());
 }
 
-<<<<<<< HEAD
-TEST(RtcpTransceiverImplTest, IgnoresReceivedFirWithRepeatedSequenceNumber) {
-=======
 TEST_F(RtcpTransceiverImplTest, IgnoresReceivedFirWithRepeatedSequenceNumber) {
->>>>>>> m108
   static constexpr uint32_t kRemoteSsrc = 4321;
   static constexpr uint32_t kMediaSsrc1 = 1234;
   static constexpr uint32_t kMediaSsrc2 = 1235;
@@ -1302,11 +1192,7 @@ TEST_F(RtcpTransceiverImplTest, IgnoresReceivedFirWithRepeatedSequenceNumber) {
   rtcp_transceiver.ReceivePacket(fir2.Build(), config.clock->CurrentTime());
 }
 
-<<<<<<< HEAD
-TEST(RtcpTransceiverImplTest, ReceivedFirTracksSequenceNumberPerRemoteSsrc) {
-=======
 TEST_F(RtcpTransceiverImplTest, ReceivedFirTracksSequenceNumberPerRemoteSsrc) {
->>>>>>> m108
   static constexpr uint32_t kRemoteSsrc1 = 4321;
   static constexpr uint32_t kRemoteSsrc2 = 4323;
   static constexpr uint32_t kMediaSsrc = 1234;
@@ -1331,11 +1217,7 @@ TEST_F(RtcpTransceiverImplTest, ReceivedFirTracksSequenceNumberPerRemoteSsrc) {
   rtcp_transceiver.ReceivePacket(fir2.Build(), config.clock->CurrentTime());
 }
 
-<<<<<<< HEAD
-TEST(RtcpTransceiverImplTest, KeyFrameRequestCreatesCompoundPacket) {
-=======
 TEST_F(RtcpTransceiverImplTest, KeyFrameRequestCreatesCompoundPacket) {
->>>>>>> m108
   const uint32_t kRemoteSsrcs[] = {4321};
   RtcpTransceiverConfig config = DefaultTestConfig();
   // Turn periodic off to ensure sent rtcp packet is explicitly requested.
@@ -1393,17 +1275,9 @@ TEST_F(RtcpTransceiverImplTest, SendsXrRrtrWhenEnabled) {
   EXPECT_EQ(rtcp_parser.xr()->rrtr()->ntp(), ntp_time_now);
 }
 
-<<<<<<< HEAD
-TEST(RtcpTransceiverImplTest, RepliesToRrtrWhenEnabled) {
-  static constexpr uint32_t kSenderSsrc[] = {4321, 9876};
-  SimulatedClock clock(0);
-  RtcpTransceiverConfig config = DefaultTestConfig();
-  config.clock = &clock;
-=======
 TEST_F(RtcpTransceiverImplTest, RepliesToRrtrWhenEnabled) {
   static constexpr uint32_t kSenderSsrc[] = {4321, 9876};
   RtcpTransceiverConfig config = DefaultTestConfig();
->>>>>>> m108
   config.reply_to_non_sender_rtt_measurement = true;
   RtcpPacketParser rtcp_parser;
   RtcpParserTransport transport(&rtcp_parser);
@@ -1415,24 +1289,14 @@ TEST_F(RtcpTransceiverImplTest, RepliesToRrtrWhenEnabled) {
   rrtr.SetNtp(NtpTime(uint64_t{0x1111'2222'3333'4444}));
   xr.SetRrtr(rrtr);
   xr.SetSenderSsrc(kSenderSsrc[0]);
-<<<<<<< HEAD
-  rtcp_transceiver.ReceivePacket(xr.Build(), clock.CurrentTime());
-  clock.AdvanceTime(TimeDelta::Millis(1'500));
-=======
   rtcp_transceiver.ReceivePacket(xr.Build(), CurrentTime());
   AdvanceTime(TimeDelta::Millis(1'500));
->>>>>>> m108
 
   rrtr.SetNtp(NtpTime(uint64_t{0x4444'5555'6666'7777}));
   xr.SetRrtr(rrtr);
   xr.SetSenderSsrc(kSenderSsrc[1]);
-<<<<<<< HEAD
-  rtcp_transceiver.ReceivePacket(xr.Build(), clock.CurrentTime());
-  clock.AdvanceTime(TimeDelta::Millis(500));
-=======
   rtcp_transceiver.ReceivePacket(xr.Build(), CurrentTime());
   AdvanceTime(TimeDelta::Millis(500));
->>>>>>> m108
 
   rtcp_transceiver.SendCompoundPacket();
 
@@ -1446,19 +1310,10 @@ TEST_F(RtcpTransceiverImplTest, RepliesToRrtrWhenEnabled) {
                                         /*delay=*/kComactNtpOneSecond / 2)));
 }
 
-<<<<<<< HEAD
-TEST(RtcpTransceiverImplTest, CanReplyToRrtrOnceForAllLocalSsrcs) {
-  static constexpr uint32_t kRemoteSsrc = 4321;
-  static constexpr uint32_t kLocalSsrcs[] = {1234, 5678};
-  SimulatedClock clock(0);
-  RtcpTransceiverConfig config = DefaultTestConfig();
-  config.clock = &clock;
-=======
 TEST_F(RtcpTransceiverImplTest, CanReplyToRrtrOnceForAllLocalSsrcs) {
   static constexpr uint32_t kRemoteSsrc = 4321;
   static constexpr uint32_t kLocalSsrcs[] = {1234, 5678};
   RtcpTransceiverConfig config = DefaultTestConfig();
->>>>>>> m108
   config.reply_to_non_sender_rtt_measurement = true;
   config.reply_to_non_sender_rtt_mesaurments_on_all_ssrcs = false;
   RtcpPacketParser rtcp_parser;
@@ -1476,32 +1331,18 @@ TEST_F(RtcpTransceiverImplTest, CanReplyToRrtrOnceForAllLocalSsrcs) {
   rrtr.SetNtp(NtpTime(uint64_t{0x1111'2222'3333'4444}));
   xr.SetRrtr(rrtr);
   xr.SetSenderSsrc(kRemoteSsrc);
-<<<<<<< HEAD
-  rtcp_transceiver.ReceivePacket(xr.Build(), clock.CurrentTime());
-  clock.AdvanceTime(TimeDelta::Millis(1'500));
-=======
   rtcp_transceiver.ReceivePacket(xr.Build(), CurrentTime());
   AdvanceTime(TimeDelta::Millis(1'500));
->>>>>>> m108
 
   rtcp_transceiver.SendCompoundPacket();
 
   EXPECT_EQ(rtcp_parser.xr()->num_packets(), 1);
 }
 
-<<<<<<< HEAD
-TEST(RtcpTransceiverImplTest, CanReplyToRrtrForEachLocalSsrc) {
-  static constexpr uint32_t kRemoteSsrc = 4321;
-  static constexpr uint32_t kLocalSsrc[] = {1234, 5678};
-  SimulatedClock clock(0);
-  RtcpTransceiverConfig config = DefaultTestConfig();
-  config.clock = &clock;
-=======
 TEST_F(RtcpTransceiverImplTest, CanReplyToRrtrForEachLocalSsrc) {
   static constexpr uint32_t kRemoteSsrc = 4321;
   static constexpr uint32_t kLocalSsrc[] = {1234, 5678};
   RtcpTransceiverConfig config = DefaultTestConfig();
->>>>>>> m108
   config.reply_to_non_sender_rtt_measurement = true;
   config.reply_to_non_sender_rtt_mesaurments_on_all_ssrcs = true;
   RtcpPacketParser rtcp_parser;
@@ -1519,28 +1360,16 @@ TEST_F(RtcpTransceiverImplTest, CanReplyToRrtrForEachLocalSsrc) {
   rrtr.SetNtp(NtpTime(uint64_t{0x1111'2222'3333'4444}));
   xr.SetRrtr(rrtr);
   xr.SetSenderSsrc(kRemoteSsrc);
-<<<<<<< HEAD
-  rtcp_transceiver.ReceivePacket(xr.Build(), clock.CurrentTime());
-  clock.AdvanceTime(TimeDelta::Millis(1'500));
-=======
   rtcp_transceiver.ReceivePacket(xr.Build(), CurrentTime());
   AdvanceTime(TimeDelta::Millis(1'500));
->>>>>>> m108
 
   rtcp_transceiver.SendCompoundPacket();
 
   EXPECT_EQ(rtcp_parser.xr()->num_packets(), 2);
 }
 
-<<<<<<< HEAD
-TEST(RtcpTransceiverImplTest, SendsNoXrRrtrWhenDisabled) {
-  SimulatedClock clock(0);
-  RtcpTransceiverConfig config;
-  config.clock = &clock;
-=======
 TEST_F(RtcpTransceiverImplTest, SendsNoXrRrtrWhenDisabled) {
   RtcpTransceiverConfig config = DefaultTestConfig();
->>>>>>> m108
   config.schedule_periodic_compound_packets = false;
   RtcpPacketParser rtcp_parser;
   RtcpParserTransport transport(&rtcp_parser);
@@ -1607,10 +1436,6 @@ TEST_F(RtcpTransceiverImplTest, CalculatesRoundTripTimeFromReportBlocks) {
 TEST_F(RtcpTransceiverImplTest, IgnoresUnknownSsrcInDlrr) {
   const uint32_t kSenderSsrc = 4321;
   const uint32_t kUnknownSsrc = 4322;
-<<<<<<< HEAD
-  SimulatedClock clock(0);
-=======
->>>>>>> m108
   MockNetworkLinkRtcpObserver link_observer;
   MockTransport null_transport;
   RtcpTransceiverConfig config = DefaultTestConfig();
@@ -1669,13 +1494,8 @@ TEST_F(RtcpTransceiverImplTest, ParsesRemb) {
   rtcp_transceiver.ReceivePacket(remb.Build(), receive_time);
 }
 
-<<<<<<< HEAD
-TEST(RtcpTransceiverImplTest,
-     CombinesReportBlocksFromSenderAndReceiverReports) {
-=======
 TEST_F(RtcpTransceiverImplTest,
        CombinesReportBlocksFromSenderAndRecieverReports) {
->>>>>>> m108
   MockNetworkLinkRtcpObserver link_observer;
   RtcpTransceiverConfig config = DefaultTestConfig();
   config.network_link_observer = &link_observer;
@@ -1700,13 +1520,8 @@ TEST_F(RtcpTransceiverImplTest,
   rtcp_transceiver.ReceivePacket(packet.Build(), receive_time);
 }
 
-<<<<<<< HEAD
-TEST(RtcpTransceiverImplTest,
-     CallbackOnReportBlocksFromSenderAndReceiverReports) {
-=======
 TEST_F(RtcpTransceiverImplTest,
        CallbackOnReportBlocksFromSenderAndReceiverReports) {
->>>>>>> m108
   static constexpr uint32_t kRemoteSsrc = 5678;
   // Has registered sender, report block attached to sender report.
   static constexpr uint32_t kMediaSsrc1 = 1234;
@@ -1753,11 +1568,7 @@ TEST_F(RtcpTransceiverImplTest,
   rtcp_transceiver.ReceivePacket(packet.Build(), receive_time);
 }
 
-<<<<<<< HEAD
-TEST(RtcpTransceiverImplTest, FailsToRegisterTwoSendersWithTheSameSsrc) {
-=======
 TEST_F(RtcpTransceiverImplTest, FailsToRegisterTwoSendersWithTheSameSsrc) {
->>>>>>> m108
   RtcpTransceiverImpl rtcp_transceiver(DefaultTestConfig());
   MockRtpStreamRtcpHandler sender1;
   MockRtpStreamRtcpHandler sender2;
@@ -1770,19 +1581,10 @@ TEST_F(RtcpTransceiverImplTest, FailsToRegisterTwoSendersWithTheSameSsrc) {
   EXPECT_FALSE(rtcp_transceiver.RemoveMediaSender(/*local_ssrc=*/10001));
 }
 
-<<<<<<< HEAD
-TEST(RtcpTransceiverImplTest, SendsSenderReport) {
-  static constexpr uint32_t kFeedbackSsrc = 123;
-  static constexpr uint32_t kSenderSsrc = 12345;
-  SimulatedClock clock(100'000'000);
-  RtcpTransceiverConfig config;
-  config.clock = &clock;
-=======
 TEST_F(RtcpTransceiverImplTest, SendsSenderReport) {
   static constexpr uint32_t kFeedbackSsrc = 123;
   static constexpr uint32_t kSenderSsrc = 12345;
   RtcpTransceiverConfig config = DefaultTestConfig();
->>>>>>> m108
   config.feedback_ssrc = kFeedbackSsrc;
   RtcpPacketParser rtcp_parser;
   RtcpParserTransport transport(&rtcp_parser);
@@ -1794,12 +1596,7 @@ TEST_F(RtcpTransceiverImplTest, SendsSenderReport) {
   sender_stats.set_num_sent_packets(10);
   sender_stats.set_num_sent_bytes(1000);
   sender_stats.set_last_rtp_timestamp(0x3333);
-<<<<<<< HEAD
-  sender_stats.set_last_capture_time(clock.CurrentTime() -
-                                     TimeDelta::Seconds(2));
-=======
   sender_stats.set_last_capture_time(CurrentTime() - TimeDelta::Seconds(2));
->>>>>>> m108
   sender_stats.set_last_clock_rate(0x1000);
   MockRtpStreamRtcpHandler sender;
   ON_CALL(sender, SentStats).WillByDefault(Return(sender_stats));
@@ -1809,24 +1606,15 @@ TEST_F(RtcpTransceiverImplTest, SendsSenderReport) {
 
   ASSERT_GT(rtcp_parser.sender_report()->num_packets(), 0);
   EXPECT_EQ(rtcp_parser.sender_report()->sender_ssrc(), kSenderSsrc);
-<<<<<<< HEAD
-  EXPECT_EQ(rtcp_parser.sender_report()->ntp(), clock.CurrentNtpTime());
-=======
   EXPECT_EQ(rtcp_parser.sender_report()->ntp(),
             time_controller().GetClock()->CurrentNtpTime());
->>>>>>> m108
   EXPECT_EQ(rtcp_parser.sender_report()->rtp_timestamp(), 0x3333u + 0x2000u);
   EXPECT_EQ(rtcp_parser.sender_report()->sender_packet_count(), 10u);
   EXPECT_EQ(rtcp_parser.sender_report()->sender_octet_count(), 1000u);
 }
 
-<<<<<<< HEAD
-TEST(RtcpTransceiverImplTest,
-     MaySendBothSenderReportAndReceiverReportInTheSamePacket) {
-=======
 TEST_F(RtcpTransceiverImplTest,
        MaySendBothSenderReportAndReceiverReportInTheSamePacket) {
->>>>>>> m108
   RtcpPacketParser rtcp_parser;
   RtcpParserTransport transport(&rtcp_parser);
   std::vector<ReportBlock> statistics_report_blocks(40);
@@ -1853,28 +1641,16 @@ TEST_F(RtcpTransceiverImplTest,
   EXPECT_THAT(rtcp_parser.receiver_report()->report_blocks(), SizeIs(9));
 }
 
-<<<<<<< HEAD
-TEST(RtcpTransceiverImplTest, RotatesSendersWhenAllSenderReportDoNotFit) {
-=======
 TEST_F(RtcpTransceiverImplTest, RotatesSendersWhenAllSenderReportDoNotFit) {
->>>>>>> m108
   // Send 6 compound packet, each should contain 5 sender reports,
   // each of 6 senders should be mentioned 5 times.
   static constexpr int kNumSenders = 6;
   static constexpr uint32_t kSenderSsrc[kNumSenders] = {10, 20, 30, 40, 50, 60};
   static constexpr int kSendersPerPacket = 5;
-<<<<<<< HEAD
-  SimulatedClock clock(100'000'000);
-=======
->>>>>>> m108
   // RtcpPacketParser remembers only latest block for each type, but this test
   // is about sending multiple sender reports in the same packet, thus need
   // a more advance parser: RtcpTranceiver
   RtcpTransceiverConfig receiver_config = DefaultTestConfig();
-<<<<<<< HEAD
-  receiver_config.clock = &clock;
-=======
->>>>>>> m108
   RtcpTransceiverImpl rtcp_receiver(receiver_config);
   // Main expectatation: all senders are spread equally across multiple packets.
   NiceMock<MockMediaReceiverRtcpObserver> receiver[kNumSenders];
@@ -1890,18 +1666,10 @@ TEST_F(RtcpTransceiverImplTest, RotatesSendersWhenAllSenderReportDoNotFit) {
       .Times(kNumSenders)
       .WillRepeatedly([&](const uint8_t* data, size_t size) {
         rtcp_receiver.ReceivePacket(rtc::MakeArrayView(data, size),
-<<<<<<< HEAD
-                                    clock.CurrentTime());
-        return true;
-      });
-  RtcpTransceiverConfig config = DefaultTestConfig();
-  config.clock = &clock;
-=======
                                     CurrentTime());
         return true;
       });
   RtcpTransceiverConfig config = DefaultTestConfig();
->>>>>>> m108
   config.outgoing_transport = &transport;
   // Limit packet to have space just for kSendersPerPacket sender reports.
   // Sender report without report blocks require 28 bytes.
@@ -1918,11 +1686,7 @@ TEST_F(RtcpTransceiverImplTest, RotatesSendersWhenAllSenderReportDoNotFit) {
   }
 }
 
-<<<<<<< HEAD
-TEST(RtcpTransceiverImplTest, SkipsSenderReportForInactiveSender) {
-=======
 TEST_F(RtcpTransceiverImplTest, SkipsSenderReportForInactiveSender) {
->>>>>>> m108
   static constexpr uint32_t kSenderSsrc[] = {12345, 23456};
   RtcpTransceiverConfig config = DefaultTestConfig();
   RtcpPacketParser rtcp_parser;

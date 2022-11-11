@@ -306,14 +306,11 @@ inline constexpr Unit_T operator*(int32_t scalar, RelativeUnit<Unit_T> other) {
   return other * scalar;
 }
 template <class Unit_T>
-<<<<<<< HEAD
-=======
 inline constexpr Unit_T operator*(size_t scalar, RelativeUnit<Unit_T> other) {
   return other * scalar;
 }
 
 template <class Unit_T>
->>>>>>> m108
 inline constexpr Unit_T operator-(RelativeUnit<Unit_T> other) {
   if (other.IsPlusInfinity())
     return UnitBase<Unit_T>::MinusInfinity();

@@ -81,8 +81,6 @@ class AsyncDnsResolverFactoryInterface {
   // Creates an AsyncDnsResolver and starts resolving the name. The callback
   // will be called when resolution is finished.
   // The callback will be called on the sequence that the caller runs on.
-<<<<<<< HEAD
-=======
   virtual std::unique_ptr<webrtc::AsyncDnsResolverInterface> CreateAndResolve(
       const rtc::SocketAddress& addr,
       std::function<void()> callback) = 0;
@@ -90,7 +88,6 @@ class AsyncDnsResolverFactoryInterface {
   // matching the specified family. The callback will be called when resolution
   // is finished. The callback will be called on the sequence that the caller
   // runs on.
->>>>>>> m108
   virtual std::unique_ptr<webrtc::AsyncDnsResolverInterface> CreateAndResolve(
       const rtc::SocketAddress& addr,
       int family,

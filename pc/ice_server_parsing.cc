@@ -226,23 +226,6 @@ RTCError ParseIceServerUrl(
     turn_transport_type = cricket::PROTO_TLS;
   }
 
-<<<<<<< HEAD
-  if (hoststring.find('@') != std::string::npos) {
-    RTC_LOG(LS_WARNING) << "Invalid url: " << uri_without_transport;
-    RTC_LOG(LS_WARNING)
-        << "Note that user-info@ in turn:-urls is long-deprecated.";
-    return RTCErrorType::SYNTAX_ERROR;
-  }
-  std::string address;
-  if (!ParseHostnameAndPortFromString(hoststring, &address, &port)) {
-    RTC_LOG(LS_WARNING) << "Invalid hostname format: " << uri_without_transport;
-    return RTCErrorType::SYNTAX_ERROR;
-  }
-
-  if (port <= 0 || port > 0xffff) {
-    RTC_LOG(LS_WARNING) << "Invalid port: " << port;
-    return RTCErrorType::SYNTAX_ERROR;
-=======
   if (hoststring.find('@') != absl::string_view::npos) {
     RTC_LOG(LS_ERROR) << "Invalid url with long deprecated user@host syntax: "
                       << uri_without_transport;
@@ -263,7 +246,6 @@ RTCError ParseIceServerUrl(
     RTC_LOG(LS_ERROR) << "Invalid port: " << port;
     LOG_AND_RETURN_ERROR(RTCErrorType::SYNTAX_ERROR,
                          "ICE server parsing failed: Invalid port");
->>>>>>> m108
   }
 
   switch (service_type) {
@@ -276,15 +258,10 @@ RTCError ParseIceServerUrl(
       if (server.username.empty() || server.password.empty()) {
         // The WebRTC spec requires throwing an InvalidAccessError when username
         // or credential are ommitted; this is the native equivalent.
-<<<<<<< HEAD
-        RTC_LOG(LS_WARNING) << "TURN server with empty username or password";
-        return RTCErrorType::INVALID_PARAMETER;
-=======
         LOG_AND_RETURN_ERROR(
             RTCErrorType::INVALID_PARAMETER,
             "ICE server parsing failed: TURN server with empty "
             "username or password");
->>>>>>> m108
       }
       // If the hostname field is not empty, then the server address must be
       // the resolved IP for that host, the hostname is needed later for TLS
@@ -297,18 +274,11 @@ RTCError ParseIceServerUrl(
         if (!IPFromString(address, &ip)) {
           // When hostname is set, the server address must be a
           // resolved ip address.
-<<<<<<< HEAD
-          RTC_LOG(LS_WARNING)
-              << "IceServer has hostname field set, but URI does not "
-                 "contain an IP address.";
-          return RTCErrorType::INVALID_PARAMETER;
-=======
           LOG_AND_RETURN_ERROR(
               RTCErrorType::INVALID_PARAMETER,
               "ICE server parsing failed: "
               "IceServer has hostname field set, but URI does not "
               "contain an IP address.");
->>>>>>> m108
         }
         socket_address.SetResolvedIP(ip);
       }
@@ -329,14 +299,9 @@ RTCError ParseIceServerUrl(
     default:
       // We shouldn't get to this point with an invalid service_type, we should
       // have returned an error already.
-<<<<<<< HEAD
-      RTC_DCHECK_NOTREACHED() << "Unexpected service type";
-      return RTCErrorType::INTERNAL_ERROR;
-=======
       LOG_AND_RETURN_ERROR(
           RTCErrorType::INTERNAL_ERROR,
           "ICE server parsing failed: Unexpected service type");
->>>>>>> m108
   }
   return RTCError::OK();
 }
@@ -351,13 +316,8 @@ RTCError ParseIceServersOrError(
     if (!server.urls.empty()) {
       for (const std::string& url : server.urls) {
         if (url.empty()) {
-<<<<<<< HEAD
-          RTC_LOG(LS_WARNING) << "Empty uri.";
-          return RTCErrorType::SYNTAX_ERROR;
-=======
           LOG_AND_RETURN_ERROR(RTCErrorType::SYNTAX_ERROR,
                                "ICE server parsing failed: Empty uri.");
->>>>>>> m108
         }
         RTCError err =
             ParseIceServerUrl(server, url, stun_servers, turn_servers);
@@ -374,13 +334,8 @@ RTCError ParseIceServersOrError(
         return err;
       }
     } else {
-<<<<<<< HEAD
-      RTC_LOG(LS_WARNING) << "Empty uri.";
-      return RTCErrorType::SYNTAX_ERROR;
-=======
       LOG_AND_RETURN_ERROR(RTCErrorType::SYNTAX_ERROR,
                            "ICE server parsing failed: Empty uri.");
->>>>>>> m108
     }
   }
   // Candidates must have unique priorities, so that connectivity checks

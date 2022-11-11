@@ -17,10 +17,7 @@
 
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
-<<<<<<< HEAD
-=======
 #include "api/task_queue/pending_task_safety_flag.h"
->>>>>>> m108
 #include "rtc_base/buffer_queue.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/gunit.h"

@@ -27,7 +27,6 @@
 #include "rtc_base/event.h"
 #include "rtc_base/task_utils/repeating_task.h"
 #include "test/call_test.h"
-#include "test/testsupport/perf_test.h"
 
 namespace webrtc {
 
@@ -69,13 +68,8 @@ class RampUpTester : public test::EndToEndTest {
 
   void ReportResult(absl::string_view measurement,
                     size_t value,
-<<<<<<< HEAD
-                    const std::string& units,
-                    test::ImproveDirection improve_direction) const;
-=======
                     test::Unit unit,
                     test::ImprovementDirection improvement_direction) const;
->>>>>>> m108
   void TriggerTestDone();
 
   Clock* const clock_;

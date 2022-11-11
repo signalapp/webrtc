@@ -102,14 +102,6 @@ void VideoEncoderConfig::EncoderSpecificSettings::FillEncoderSpecificSettings(
   }
 }
 
-<<<<<<< HEAD:api/video_codecs/video_encoder_config.cc
-void VideoEncoderConfig::EncoderSpecificSettings::FillVideoCodecH264(
-    VideoCodecH264* h264_settings) const {
-  RTC_DCHECK_NOTREACHED();
-}
-
-=======
->>>>>>> m108:video/config/video_encoder_config.cc
 void VideoEncoderConfig::EncoderSpecificSettings::FillVideoCodecVp8(
     VideoCodecVP8* vp8_settings) const {
   RTC_DCHECK_NOTREACHED();
@@ -118,18 +110,6 @@ void VideoEncoderConfig::EncoderSpecificSettings::FillVideoCodecVp8(
 void VideoEncoderConfig::EncoderSpecificSettings::FillVideoCodecVp9(
     VideoCodecVP9* vp9_settings) const {
   RTC_DCHECK_NOTREACHED();
-<<<<<<< HEAD:api/video_codecs/video_encoder_config.cc
-}
-
-VideoEncoderConfig::H264EncoderSpecificSettings::H264EncoderSpecificSettings(
-    const VideoCodecH264& specifics)
-    : specifics_(specifics) {}
-
-void VideoEncoderConfig::H264EncoderSpecificSettings::FillVideoCodecH264(
-    VideoCodecH264* h264_settings) const {
-  *h264_settings = specifics_;
-=======
->>>>>>> m108:video/config/video_encoder_config.cc
 }
 
 VideoEncoderConfig::Vp8EncoderSpecificSettings::Vp8EncoderSpecificSettings(

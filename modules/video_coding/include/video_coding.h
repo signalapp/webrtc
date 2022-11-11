@@ -31,11 +31,8 @@ class VideoCodingModule {
   static VideoCodingModule* Create(
       Clock* clock,
       const FieldTrialsView* field_trials = nullptr);
-<<<<<<< HEAD
-=======
 
   virtual ~VideoCodingModule() = default;
->>>>>>> m108
 
   /*
    *   Receiver

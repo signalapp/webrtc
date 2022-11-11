@@ -39,10 +39,7 @@ rtc_library("common_video") {
 
   deps = [
     "../api:array_view",
-<<<<<<< HEAD
-=======
     "../api:make_ref_counted",
->>>>>>> m108
     "../api:scoped_refptr",
     "../api:sequence_checker",
     "../api/task_queue",
@@ -57,12 +54,6 @@ rtc_library("common_video") {
     "../api/video_codecs:bitstream_parser_api",
     "../api/video_codecs:video_codecs_api",
     "../rtc_base",
-<<<<<<< HEAD
-    "../rtc_base:bitstream_reader",
-    "../rtc_base:checks",
-    "../rtc_base:logging",
-    "../rtc_base:macromagic",
-=======
     "../rtc_base:bit_buffer",
     "../rtc_base:bitstream_reader",
     "../rtc_base:buffer",
@@ -72,7 +63,6 @@ rtc_library("common_video") {
     "../rtc_base:macromagic",
     "../rtc_base:race_checker",
     "../rtc_base:rate_statistics",
->>>>>>> m108
     "../rtc_base:refcount",
     "../rtc_base:rtc_task_queue",
     "../rtc_base:safe_minmax",
@@ -135,10 +125,6 @@ if (rtc_include_tests && !build_with_chromium) {
       "../rtc_base:checks",
       "../rtc_base:logging",
       "../rtc_base:macromagic",
-<<<<<<< HEAD
-      "../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
       "../rtc_base:rtc_base_tests_utils",
       "../rtc_base:timeutils",
       "../system_wrappers:system_wrappers",

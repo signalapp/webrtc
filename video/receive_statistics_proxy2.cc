@@ -103,11 +103,6 @@ ReceiveStatisticsProxy::ReceiveStatisticsProxy(
     const FieldTrialsView& field_trials)
     : clock_(clock),
       start_ms_(clock->TimeInMilliseconds()),
-<<<<<<< HEAD
-      enable_decode_time_histograms_(
-          !field_trials.IsEnabled("WebRTC-DecodeTimeHistogramsKillSwitch")),
-=======
->>>>>>> m108
       last_sample_time_(clock->TimeInMilliseconds()),
       fps_threshold_(kLowFpsThreshold,
                      kHighFpsThreshold,
@@ -671,23 +666,6 @@ void ReceiveStatisticsProxy::OnFrameBufferTimingsUpdated(
     int jitter_buffer_ms,
     int min_playout_delay_ms,
     int render_delay_ms) {
-<<<<<<< HEAD
-  // Only called on main_thread_ with FrameBuffer3
-  if (!worker_thread_->IsCurrent()) {
-    RTC_DCHECK_RUN_ON(&decode_queue_);
-    worker_thread_->PostTask(ToQueuedTask(
-        task_safety_,
-        [max_decode_ms, current_delay_ms, target_delay_ms, jitter_buffer_ms,
-         min_playout_delay_ms, render_delay_ms, this]() {
-          OnFrameBufferTimingsUpdated(max_decode_ms, current_delay_ms,
-                                      target_delay_ms, jitter_buffer_ms,
-                                      min_playout_delay_ms, render_delay_ms);
-        }));
-    return;
-  }
-
-=======
->>>>>>> m108
   RTC_DCHECK_RUN_ON(&main_thread_);
   stats_.max_decode_ms = max_decode_ms;
   stats_.current_delay_ms = current_delay_ms;
@@ -710,16 +688,6 @@ void ReceiveStatisticsProxy::OnUniqueFramesCounted(int num_unique_frames) {
 
 void ReceiveStatisticsProxy::OnTimingFrameInfoUpdated(
     const TimingFrameInfo& info) {
-<<<<<<< HEAD
-  // Only called on main_thread_ with FrameBuffer3
-  if (!worker_thread_->IsCurrent()) {
-    RTC_DCHECK_RUN_ON(&decode_queue_);
-    worker_thread_->PostTask(ToQueuedTask(
-        task_safety_, [info, this]() { OnTimingFrameInfoUpdated(info); }));
-    return;
-  }
-=======
->>>>>>> m108
   RTC_DCHECK_RUN_ON(&main_thread_);
   if (info.flags != VideoSendTiming::kInvalid) {
     int64_t now_ms = clock_->TimeInMilliseconds();

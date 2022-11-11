@@ -34,33 +34,11 @@ const char kCongestionWindowDefaultFieldTrialString[] =
 const char kUseBaseHeavyVp8Tl3RateAllocationFieldTrialName[] =
     "WebRTC-UseBaseHeavyVP8TL3RateAllocation";
 
-<<<<<<< HEAD
-const char* kVideoHysteresisFieldTrialname =
-    "WebRTC-SimulcastUpswitchHysteresisPercent";
-const char* kScreenshareHysteresisFieldTrialname =
-    "WebRTC-SimulcastScreenshareUpswitchHysteresisPercent";
-
-=======
->>>>>>> m108
 bool IsEnabled(const FieldTrialsView* const key_value_config,
                absl::string_view key) {
   return absl::StartsWith(key_value_config->Lookup(key), "Enabled");
 }
 
-<<<<<<< HEAD
-void ParseHysteresisFactor(const FieldTrialsView* const key_value_config,
-                           absl::string_view key,
-                           double* output_value) {
-  std::string group_name = key_value_config->Lookup(key);
-  int percent = 0;
-  if (!group_name.empty() && sscanf(group_name.c_str(), "%d", &percent) == 1 &&
-      percent >= 0) {
-    *output_value = 1.0 + (percent / 100.0);
-  }
-}
-
-=======
->>>>>>> m108
 }  // namespace
 
 constexpr char CongestionWindowConfig::kKey[];

@@ -57,17 +57,10 @@ TEST_F(NetEqDecodingTest, MAYBE_TestBitExactness) {
       webrtc::test::ResourcePath("audio_coding/neteq_universal_new", "rtp");
 
   const std::string output_checksum =
-<<<<<<< HEAD
-      "5e56fabfacd6fa202f3a00bcb4e034d6d817e6b3";
-
-  const std::string network_stats_checksum =
-      "dfbf60f913a25a1f2f1066f85b4b08c24eed0ef2";
-=======
       "dee7a10ab92526876a70a85bc48a4906901af3df";
 
   const std::string network_stats_checksum =
       "911dbf5fd97f48d25b8f0967286eb73c9d6f6158";
->>>>>>> m108
 
   DecodeAndCompare(input_rtp_file, output_checksum, network_stats_checksum,
                    absl::GetFlag(FLAGS_gen_ref));
@@ -83,16 +76,6 @@ TEST_F(NetEqDecodingTest, MAYBE_TestOpusBitExactness) {
   const std::string input_rtp_file =
       webrtc::test::ResourcePath("audio_coding/neteq_opus", "rtp");
 
-<<<<<<< HEAD
-  // The checksum depends on SSE being enabled, the second part is the non-SSE
-  // checksum.
-  const std::string output_checksum =
-      "919e5eb3ba901192878f2354b981a15508c8373c|"
-      "c5eb0a8fcf7e8255a40f821cb815e1096619efeb";
-
-  const std::string network_stats_checksum =
-      "3d043e47e5f4bb81d37e7bce8c44bf802965c853";
-=======
   const std::string output_checksum =
       "fec6827bb9ee0b21770bbbb4a3a6f8823bf537dc|"
       "3610cc7be4b3407b9c273b1299ab7f8f47cca96b";
@@ -100,7 +83,6 @@ TEST_F(NetEqDecodingTest, MAYBE_TestOpusBitExactness) {
   const std::string network_stats_checksum =
       "3d043e47e5f4bb81d37e7bce8c44bf802965c853|"
       "076662525572dba753b11578330bd491923f7f5e";
->>>>>>> m108
 
   DecodeAndCompare(input_rtp_file, output_checksum, network_stats_checksum,
                    absl::GetFlag(FLAGS_gen_ref));
@@ -116,17 +98,9 @@ TEST_F(NetEqDecodingTest, MAYBE_TestOpusDtxBitExactness) {
   const std::string input_rtp_file =
       webrtc::test::ResourcePath("audio_coding/neteq_opus_dtx", "rtp");
 
-<<<<<<< HEAD
-  // The checksum depends on SSE being enabled, the second part is the non-SSE
-  // checksum.
-  const std::string output_checksum =
-      "5cea4a8e750842ac67b79e8e2ce6a0a1c01f8130|"
-      "e97e32a77355e7ce46a2dc2f43bf1c2805530fcb";
-=======
   const std::string output_checksum =
       "b3c4899eab5378ef5e54f2302948872149f6ad5e|"
       "589e975ec31ea13f302457fea1425be9380ffb96";
->>>>>>> m108
 
   const std::string network_stats_checksum =
       "dc8447b9fee1a21fd5d1f4045d62b982a3fb0215";

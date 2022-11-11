@@ -46,10 +46,7 @@ class VCMTiming {
   void SetJitterDelay(TimeDelta required_delay);
 
   // Set/get the minimum playout delay from capture to render.
-<<<<<<< HEAD:modules/video_coding/timing.h
-=======
   TimeDelta min_playout_delay() const;
->>>>>>> m108:modules/video_coding/timing/timing.h
   void set_min_playout_delay(TimeDelta min_playout_delay);
 
   // Set/get the maximum playout delay from capture to render in ms.
@@ -72,12 +69,8 @@ class VCMTiming {
 
   // Used to report that a frame is passed to decoding. Updates the timestamp
   // filter which is used to map between timestamps and receiver system time.
-<<<<<<< HEAD:modules/video_coding/timing.h
-  void IncomingTimestamp(uint32_t rtp_timestamp, Timestamp last_packet_time);
-=======
   virtual void IncomingTimestamp(uint32_t rtp_timestamp,
                                  Timestamp last_packet_time);
->>>>>>> m108:modules/video_coding/timing/timing.h
 
   // Returns the receiver system time when the frame with timestamp
   // `frame_timestamp` should be rendered, assuming that the system time
@@ -119,11 +112,8 @@ class VCMTiming {
   void SetMaxCompositionDelayInFrames(
       absl::optional<int> max_composition_delay_in_frames);
 
-<<<<<<< HEAD:modules/video_coding/timing.h
-=======
   VideoFrame::RenderParameters RenderParameters() const;
 
->>>>>>> m108:modules/video_coding/timing/timing.h
   // Updates the last time a frame was scheduled for decoding.
   void SetLastDecodeScheduledTimestamp(Timestamp last_decode_scheduled);
 
@@ -132,10 +122,7 @@ class VCMTiming {
   Timestamp RenderTimeInternal(uint32_t frame_timestamp, Timestamp now) const
       RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
   TimeDelta TargetDelayInternal() const RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
-<<<<<<< HEAD:modules/video_coding/timing.h
-=======
   bool UseLowLatencyRendering() const RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
->>>>>>> m108:modules/video_coding/timing/timing.h
 
  private:
   mutable Mutex mutex_;

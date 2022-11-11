@@ -24,10 +24,7 @@ namespace cricket {
 class IceTransportInternal;
 class PortAllocator;
 class IceControllerFactoryInterface;
-<<<<<<< HEAD
-=======
 class ActiveIceControllerFactoryInterface;
->>>>>>> m108
 }  // namespace cricket
 
 namespace webrtc {
@@ -88,8 +85,6 @@ struct IceTransportInit final {
     return ice_controller_factory_;
   }
 
-<<<<<<< HEAD
-=======
   // An active ICE controller actively manages the connection used by an ICE
   // transport, in contrast with a legacy ICE controller that only picks the
   // best connection to use or ping, and lets the transport decide when and
@@ -118,7 +113,6 @@ struct IceTransportInit final {
     return active_ice_controller_factory_;
   }
 
->>>>>>> m108
   const FieldTrialsView* field_trials() { return field_trials_; }
   void set_field_trials(const FieldTrialsView* field_trials) {
     field_trials_ = field_trials;
@@ -131,11 +125,8 @@ struct IceTransportInit final {
   AsyncResolverFactory* async_resolver_factory_ = nullptr;
   RtcEventLog* event_log_ = nullptr;
   cricket::IceControllerFactoryInterface* ice_controller_factory_ = nullptr;
-<<<<<<< HEAD
-=======
   cricket::ActiveIceControllerFactoryInterface* active_ice_controller_factory_ =
       nullptr;
->>>>>>> m108
   const FieldTrialsView* field_trials_ = nullptr;
   // TODO(https://crbug.com/webrtc/12657): Redesign to have const members.
 };

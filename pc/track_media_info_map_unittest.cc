@@ -29,10 +29,6 @@
 #include "pc/test/mock_rtp_sender_internal.h"
 #include "pc/video_track.h"
 #include "rtc_base/checks.h"
-<<<<<<< HEAD
-#include "rtc_base/ref_counted_object.h"
-=======
->>>>>>> m108
 #include "rtc_base/thread.h"
 #include "test/gmock.h"
 #include "test/gtest.h"

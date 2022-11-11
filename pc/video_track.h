@@ -38,11 +38,7 @@ class VideoTrack : public MediaStreamTrack<VideoTrackInterface>,
                    public ObserverInterface {
  public:
   static rtc::scoped_refptr<VideoTrack> Create(
-<<<<<<< HEAD
-      const std::string& label,
-=======
       absl::string_view label,
->>>>>>> m108
       rtc::scoped_refptr<VideoTrackSourceInterface> source,
       rtc::Thread* worker_thread);
 
@@ -64,11 +60,7 @@ class VideoTrack : public MediaStreamTrack<VideoTrackInterface>,
 
  protected:
   VideoTrack(
-<<<<<<< HEAD
-      const std::string& id,
-=======
       absl::string_view id,
->>>>>>> m108
       rtc::scoped_refptr<
           VideoTrackSourceProxyWithInternal<VideoTrackSourceInterface>> source,
       rtc::Thread* worker_thread);

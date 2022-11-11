@@ -36,10 +36,7 @@
 #include "test/mock_audio_encoder.h"
 #include "test/mock_audio_encoder_factory.h"
 #include "test/scoped_key_value_config.h"
-<<<<<<< HEAD
-=======
 #include "test/time_controller/real_time_controller.h"
->>>>>>> m108
 
 namespace webrtc {
 namespace test {
@@ -195,15 +192,9 @@ struct ConfigHelper {
         .WillRepeatedly(Return(&worker_queue_));
     return std::unique_ptr<internal::AudioSendStream>(
         new internal::AudioSendStream(
-<<<<<<< HEAD
-            Clock::GetRealTimeClock(), stream_config_, audio_state_,
-            task_queue_factory_.get(), &rtp_transport_, &bitrate_allocator_,
-            &event_log_, absl::nullopt,
-=======
             time_controller_.GetClock(), stream_config_, audio_state_,
             time_controller_.GetTaskQueueFactory(), &rtp_transport_,
             &bitrate_allocator_, &event_log_, absl::nullopt,
->>>>>>> m108
             std::unique_ptr<voe::ChannelSendInterface>(channel_send_),
             field_trials));
   }
@@ -329,8 +320,6 @@ struct ConfigHelper {
   }
 
   MaybeWorkerThread* worker() { return &worker_queue_; }
-
-  test::ScopedKeyValueConfig field_trials;
 
   test::ScopedKeyValueConfig field_trials;
 

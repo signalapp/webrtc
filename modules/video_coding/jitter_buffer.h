@@ -25,12 +25,8 @@
 #include "modules/video_coding/include/video_coding.h"
 #include "modules/video_coding/include/video_coding_defines.h"
 #include "modules/video_coding/jitter_buffer_common.h"
-<<<<<<< HEAD
-#include "modules/video_coding/jitter_estimator.h"
-=======
 #include "modules/video_coding/timing/inter_frame_delay.h"
 #include "modules/video_coding/timing/jitter_estimator.h"
->>>>>>> m108
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread_annotations.h"
 

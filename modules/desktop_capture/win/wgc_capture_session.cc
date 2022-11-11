@@ -229,12 +229,9 @@ HRESULT WgcCaptureSession::GetFrame(
     return hr;
   }
 
-<<<<<<< HEAD
-=======
   first_frame_ = false;
   --frames_in_pool_;
 
->>>>>>> m108
   // We need to get `capture_frame` as an `ID3D11Texture2D` so that we can get
   // the raw image data in the format required by the `DesktopFrame` interface.
   ComPtr<ABI::Windows::Graphics::DirectX::Direct3D11::IDirect3DSurface>
@@ -284,12 +281,7 @@ HRESULT WgcCaptureSession::GetFrame(
   // If the size changed, we must resize `mapped_texture_` and `frame_pool_` to
   // fit the new size. This must be done before `CopySubresourceRegion` so that
   // the textures are the same size.
-<<<<<<< HEAD
-  if (previous_size_.Height != new_size.Height ||
-      previous_size_.Width != new_size.Width) {
-=======
   if (size_.Height != new_size.Height || size_.Width != new_size.Width) {
->>>>>>> m108
     hr = CreateMappedTexture(texture_2D, new_size.Width, new_size.Height);
     if (FAILED(hr)) {
       RecordGetFrameResult(GetFrameResult::kResizeMappedTextureFailed);
@@ -307,13 +299,8 @@ HRESULT WgcCaptureSession::GetFrame(
   // If the size has changed since the last capture, we must be sure to use
   // the smaller dimensions. Otherwise we might overrun our buffer, or
   // read stale data from the last frame.
-<<<<<<< HEAD
-  int image_height = std::min(previous_size_.Height, new_size.Height);
-  int image_width = std::min(previous_size_.Width, new_size.Width);
-=======
   int image_height = std::min(size_.Height, new_size.Height);
   int image_width = std::min(size_.Width, new_size.Width);
->>>>>>> m108
 
   D3D11_BOX copy_region;
   copy_region.left = 0;
@@ -358,11 +345,7 @@ HRESULT WgcCaptureSession::GetFrame(
   *output_frame = std::make_unique<WgcDesktopFrame>(size, row_data_length,
                                                     std::move(image_data));
 
-<<<<<<< HEAD
-  previous_size_ = new_size;
-=======
   size_ = new_size;
->>>>>>> m108
   RecordGetFrameResult(GetFrameResult::kSuccess);
   return hr;
 }

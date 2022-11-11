@@ -1074,11 +1074,7 @@ TEST_F(StunTest, ReadMessageWithAnUnknownAttribute) {
   const StunByteStringAttribute* username =
       msg.GetByteString(STUN_ATTR_USERNAME);
   ASSERT_TRUE(username != NULL);
-<<<<<<< HEAD
-  EXPECT_EQ(kTestUserName2, username->GetString());
-=======
   EXPECT_EQ(kTestUserName2, username->string_view());
->>>>>>> m108
 }
 
 TEST_F(StunTest, WriteMessageWithAnErrorCodeAttribute) {

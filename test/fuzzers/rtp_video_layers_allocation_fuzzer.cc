@@ -10,10 +10,7 @@
 
 #include <cstddef>
 #include <cstdint>
-<<<<<<< HEAD
-=======
 #include <limits>
->>>>>>> m108
 
 #include "api/array_view.h"
 #include "api/video/video_layers_allocation.h"
@@ -23,8 +20,6 @@
 namespace webrtc {
 
 void FuzzOneInput(const uint8_t* data, size_t size) {
-<<<<<<< HEAD
-=======
   // Video layers allocation is an rtp header extension.
   // Per https://datatracker.ietf.org/doc/html/rfc8285#section-4.3
   // rtp header extension uses up to one byte to store the size, i.e.
@@ -33,7 +28,6 @@ void FuzzOneInput(const uint8_t* data, size_t size) {
   if (size > kMaxSize) {
     return;
   }
->>>>>>> m108
   auto raw = rtc::MakeArrayView(data, size);
 
   VideoLayersAllocation allocation1;
@@ -47,15 +41,8 @@ void FuzzOneInput(const uint8_t* data, size_t size) {
   // Check `writer` use minimal number of bytes to pack the extension by
   // checking it doesn't use more than reader consumed.
   RTC_CHECK_LE(value_size, raw.size());
-<<<<<<< HEAD
-  uint8_t some_memory[256];
-  // An extension may not be larger than 255 bytes since the extension lenght
-  // field is only one byte.
-  RTC_CHECK_LT(value_size, 256);
-=======
   uint8_t some_memory[kMaxSize];
   RTC_CHECK_LE(value_size, kMaxSize);
->>>>>>> m108
   rtc::ArrayView<uint8_t> write_buffer(some_memory, value_size);
   RTC_CHECK(
       RtpVideoLayersAllocationExtension::Write(write_buffer, allocation1));

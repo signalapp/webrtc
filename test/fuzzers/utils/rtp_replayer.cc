@@ -83,15 +83,9 @@ void RtpReplayer::Replay(
   }
 }
 
-<<<<<<< HEAD
-std::vector<VideoReceiveStream::Config> RtpReplayer::ReadConfigFromFile(
-    const std::string& replay_config,
-    Transport* transport) {
-=======
 std::vector<VideoReceiveStreamInterface::Config>
 RtpReplayer::ReadConfigFromFile(const std::string& replay_config,
                                 Transport* transport) {
->>>>>>> m108
   Json::CharReaderBuilder factory;
   std::unique_ptr<Json::CharReader> json_reader =
       absl::WrapUnique(factory.newCharReader());

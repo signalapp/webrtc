@@ -58,12 +58,6 @@ namespace {
 
 class DataChannelIntegrationTest
     : public PeerConnectionIntegrationBaseTest,
-<<<<<<< HEAD
-      public ::testing::WithParamInterface<SdpSemantics> {
- protected:
-  DataChannelIntegrationTest()
-      : PeerConnectionIntegrationBaseTest(GetParam()) {}
-=======
       public ::testing::WithParamInterface<std::tuple<SdpSemantics, bool>> {
  protected:
   DataChannelIntegrationTest()
@@ -82,7 +76,6 @@ class DataChannelIntegrationTest
  private:
   // True if media is allowed to be added
   const bool allow_media_;
->>>>>>> m108
 };
 
 // Fake clock must be set before threads are started to prevent race on
@@ -818,14 +811,8 @@ TEST_P(DataChannelIntegrationTest, DtlsRoleIsSetNormally) {
                 ->Information()
                 .role(),
             DtlsTransportTlsRole::kClient);
-<<<<<<< HEAD
-  // ID should be assigned according to the odd/even rule based on role; client
-  // gets even numbers, server gets odd ones.
-  // RFC 8832 section 6.
-=======
   // ID should be assigned according to the odd/even rule based on role;
   // client gets even numbers, server gets odd ones. RFC 8832 section 6.
->>>>>>> m108
   // TODO(hta): Test multiple channels.
   EXPECT_EQ(caller()->data_channel()->id(), 1);
 }
@@ -861,14 +848,8 @@ TEST_P(DataChannelIntegrationTest, DtlsRoleIsSetWhenReversed) {
                 ->Information()
                 .role(),
             DtlsTransportTlsRole::kServer);
-<<<<<<< HEAD
-  // ID should be assigned according to the odd/even rule based on role; client
-  // gets even numbers, server gets odd ones.
-  // RFC 8832 section 6.
-=======
   // ID should be assigned according to the odd/even rule based on role;
   // client gets even numbers, server gets odd ones. RFC 8832 section 6.
->>>>>>> m108
   // TODO(hta): Test multiple channels.
   EXPECT_EQ(caller()->data_channel()->id(), 0);
 }
@@ -911,14 +892,8 @@ TEST_P(DataChannelIntegrationTest,
                 ->Information()
                 .role(),
             DtlsTransportTlsRole::kServer);
-<<<<<<< HEAD
-  // ID should be assigned according to the odd/even rule based on role; client
-  // gets even numbers, server gets odd ones.
-  // RFC 8832 section 6.
-=======
   // ID should be assigned according to the odd/even rule based on role;
   // client gets even numbers, server gets odd ones. RFC 8832 section 6.
->>>>>>> m108
   ASSERT_EQ(caller()->data_channels().size(), 2U);
   ASSERT_EQ(callee()->data_channels().size(), 2U);
   EXPECT_EQ(caller()->data_channels()[0]->id(), 0);
@@ -1114,14 +1089,9 @@ TEST_P(DataChannelIntegrationTest,
 
 INSTANTIATE_TEST_SUITE_P(DataChannelIntegrationTest,
                          DataChannelIntegrationTest,
-<<<<<<< HEAD
-                         Values(SdpSemantics::kPlanB_DEPRECATED,
-                                SdpSemantics::kUnifiedPlan));
-=======
                          Combine(Values(SdpSemantics::kPlanB_DEPRECATED,
                                         SdpSemantics::kUnifiedPlan),
                                  testing::Bool()));
->>>>>>> m108
 
 TEST_F(DataChannelIntegrationTestUnifiedPlan,
        EndToEndCallWithBundledSctpDataChannel) {

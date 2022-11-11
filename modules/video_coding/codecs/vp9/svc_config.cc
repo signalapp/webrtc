@@ -87,22 +87,8 @@ std::vector<SpatialLayer> ConfigureSvcNormalVideo(
   RTC_DCHECK_LT(first_active_layer, num_spatial_layers);
 
   // Limit number of layers for given resolution.
-<<<<<<< HEAD
-  const bool is_landscape = input_width >= input_height;
-  const size_t min_width = is_landscape ? kMinVp9SpatialLayerLongSideLength
-                                        : kMinVp9SpatialLayerShortSideLength;
-  const size_t min_height = is_landscape ? kMinVp9SpatialLayerShortSideLength
-                                         : kMinVp9SpatialLayerLongSideLength;
-  const size_t num_layers_fit_horz = static_cast<size_t>(std::floor(
-      1 + std::max(0.0f, std::log2(1.0f * input_width / min_width))));
-  const size_t num_layers_fit_vert = static_cast<size_t>(std::floor(
-      1 + std::max(0.0f, std::log2(1.0f * input_height / min_height))));
-  const size_t limited_num_spatial_layers =
-      std::min(num_layers_fit_horz, num_layers_fit_vert);
-=======
   size_t limited_num_spatial_layers =
       GetLimitedNumSpatialLayers(input_width, input_height);
->>>>>>> m108
   if (limited_num_spatial_layers < num_spatial_layers) {
     RTC_LOG(LS_WARNING) << "Reducing number of spatial layers from "
                         << num_spatial_layers << " to "

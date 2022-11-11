@@ -466,11 +466,7 @@ void LibvpxVp9Encoder::EnableSpatialLayer(int sid) {
   }
   for (int tid = 0; tid < num_temporal_layers_; ++tid) {
     config_->layer_target_bitrate[sid * num_temporal_layers_ + tid] =
-<<<<<<< HEAD
-        current_bitrate_allocation_.GetBitrate(sid, tid) / 1000;
-=======
         current_bitrate_allocation_.GetTemporalLayerSum(sid, tid) / 1000;
->>>>>>> m108
   }
   config_->ss_target_bitrate[sid] =
       current_bitrate_allocation_.GetSpatialLayerSum(sid) / 1000;
@@ -574,16 +570,6 @@ int LibvpxVp9Encoder::InitEncode(const VideoCodec* inst,
   force_key_frame_ = true;
   pics_since_key_ = 0;
 
-<<<<<<< HEAD
-  num_spatial_layers_ = inst->VP9().numberOfSpatialLayers;
-  RTC_DCHECK_GT(num_spatial_layers_, 0);
-  num_temporal_layers_ = inst->VP9().numberOfTemporalLayers;
-  if (num_temporal_layers_ == 0) {
-    num_temporal_layers_ = 1;
-  }
-
-  svc_controller_ = CreateVp9ScalabilityStructure(*inst);
-=======
   absl::optional<ScalabilityMode> scalability_mode = inst->GetScalabilityMode();
   if (scalability_mode.has_value()) {
     // Use settings from `ScalabilityMode` identifier.
@@ -610,7 +596,6 @@ int LibvpxVp9Encoder::InitEncode(const VideoCodec* inst,
     svc_controller_ = CreateVp9ScalabilityStructure(*inst);
   }
 
->>>>>>> m108
   framerate_controller_ = std::vector<FramerateControllerDeprecated>(
       num_spatial_layers_, FramerateControllerDeprecated(codec_.maxFramerate));
 
@@ -1286,10 +1271,7 @@ int LibvpxVp9Encoder::Encode(const VideoFrame& input_image,
 
 bool LibvpxVp9Encoder::PopulateCodecSpecific(CodecSpecificInfo* codec_specific,
                                              absl::optional<int>* spatial_idx,
-<<<<<<< HEAD
-=======
                                              absl::optional<int>* temporal_idx,
->>>>>>> m108
                                              const vpx_codec_cx_pkt& pkt) {
   RTC_CHECK(codec_specific != nullptr);
   codec_specific->codecType = kVideoCodecVP9;
@@ -1728,22 +1710,15 @@ void LibvpxVp9Encoder::GetEncodedLayerFrame(const vpx_codec_cx_pkt* pkt) {
 
   codec_specific_ = {};
   absl::optional<int> spatial_index;
-<<<<<<< HEAD
-  if (!PopulateCodecSpecific(&codec_specific_, &spatial_index, *pkt)) {
-=======
   absl::optional<int> temporal_index;
   if (!PopulateCodecSpecific(&codec_specific_, &spatial_index, &temporal_index,
                              *pkt)) {
->>>>>>> m108
     // Drop the frame.
     encoded_image_.set_size(0);
     return;
   }
   encoded_image_.SetSpatialIndex(spatial_index);
-<<<<<<< HEAD
-=======
   encoded_image_.SetTemporalIndex(temporal_index);
->>>>>>> m108
 
   const bool is_key_frame =
       ((pkt->data.frame.flags & VPX_FRAME_IS_KEY) ? true : false) &&

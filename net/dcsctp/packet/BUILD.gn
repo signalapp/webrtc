@@ -29,10 +29,6 @@ rtc_library("tlv_trait") {
     "../../../api:array_view",
     "../../../rtc_base:checks",
     "../../../rtc_base:logging",
-<<<<<<< HEAD
-    "../../../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
   ]
   absl_deps = [
     "//third_party/abseil-cpp/absl/strings:strings",
@@ -73,10 +69,6 @@ rtc_library("parameter") {
     "../../../api:array_view",
     "../../../rtc_base:checks",
     "../../../rtc_base:logging",
-<<<<<<< HEAD
-    "../../../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
     "../../../rtc_base:stringutils",
     "../common:internal_types",
     "../common:math",
@@ -123,10 +115,6 @@ rtc_library("error_cause") {
     "../../../api:array_view",
     "../../../rtc_base:checks",
     "../../../rtc_base:logging",
-<<<<<<< HEAD
-    "../../../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
     "../../../rtc_base:stringutils",
     "../common:internal_types",
     "../common:math",
@@ -180,10 +168,6 @@ rtc_library("chunk") {
     "../../../api:array_view",
     "../../../rtc_base:checks",
     "../../../rtc_base:logging",
-<<<<<<< HEAD
-    "../../../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
     "../../../rtc_base:stringutils",
     "../common:math",
     "../common:str_join",
@@ -241,10 +225,6 @@ rtc_library("chunk_validators") {
     ":chunk",
     "../../../rtc_base:checks",
     "../../../rtc_base:logging",
-<<<<<<< HEAD
-    "../../../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
   ]
   sources = [
     "chunk_validators.cc",
@@ -260,10 +240,6 @@ rtc_library("sctp_packet") {
     "../../../api:array_view",
     "../../../rtc_base:checks",
     "../../../rtc_base:logging",
-<<<<<<< HEAD
-    "../../../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
     "../../../rtc_base:stringutils",
     "../common:internal_types",
     "../common:math",

@@ -4657,8 +4657,6 @@ TEST_F(WebRtcSdpTest, MaxChannels) {
 
   ExpectParseFailure(sdp, "a=rtpmap:108 ISAC/16000/512");
 }
-<<<<<<< HEAD
-=======
 
 TEST_F(WebRtcSdpTest, DuplicateAudioRtpmapWithConflict) {
   std::string sdp =
@@ -4724,4 +4722,3 @@ TEST_F(WebRtcSdpTest, ParseIgnoreUnknownSsrcSpecificAttribute) {
   SdpParseError error;
   ASSERT_TRUE(webrtc::SdpDeserialize(sdp, &output, &error));
 }
->>>>>>> m108

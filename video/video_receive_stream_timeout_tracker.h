@@ -15,10 +15,7 @@
 
 #include "api/task_queue/task_queue_base.h"
 #include "api/units/time_delta.h"
-<<<<<<< HEAD
-=======
 #include "api/units/timestamp.h"
->>>>>>> m108
 #include "rtc_base/task_utils/repeating_task.h"
 #include "system_wrappers/include/clock.h"
 
@@ -31,11 +28,7 @@ class VideoReceiveStreamTimeoutTracker {
     TimeDelta max_wait_for_frame;
   };
 
-<<<<<<< HEAD
-  using TimeoutCallback = std::function<void()>;
-=======
   using TimeoutCallback = std::function<void(TimeDelta wait)>;
->>>>>>> m108
   VideoReceiveStreamTimeoutTracker(Clock* clock,
                                    TaskQueueBase* const bookkeeping_queue,
                                    const Timeouts& timeouts,
@@ -51,18 +44,12 @@ class VideoReceiveStreamTimeoutTracker {
   void Stop();
   void SetWaitingForKeyframe();
   void OnEncodedFrameReleased();
-<<<<<<< HEAD
-
- private:
-  TimeDelta TimeoutForNextFrame() const {
-=======
   TimeDelta TimeUntilTimeout() const;
 
   void SetTimeouts(Timeouts timeouts);
 
  private:
   TimeDelta TimeoutForNextFrame() const RTC_RUN_ON(bookkeeping_queue_) {
->>>>>>> m108
     return waiting_for_keyframe_ ? timeouts_.max_wait_for_keyframe
                                  : timeouts_.max_wait_for_frame;
   }
@@ -70,18 +57,11 @@ class VideoReceiveStreamTimeoutTracker {
 
   Clock* const clock_;
   TaskQueueBase* const bookkeeping_queue_;
-<<<<<<< HEAD
-  const Timeouts timeouts_;
-  const TimeoutCallback callback_;
-  RepeatingTaskHandle timeout_task_;
-
-=======
   Timeouts timeouts_ RTC_GUARDED_BY(bookkeeping_queue_);
   const TimeoutCallback timeout_cb_;
   RepeatingTaskHandle timeout_task_;
 
   Timestamp last_frame_ = Timestamp::MinusInfinity();
->>>>>>> m108
   Timestamp timeout_ = Timestamp::MinusInfinity();
   bool waiting_for_keyframe_;
 };

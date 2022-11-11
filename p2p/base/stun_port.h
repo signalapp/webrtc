@@ -22,7 +22,6 @@
 #include "p2p/base/port.h"
 #include "p2p/base/stun_request.h"
 #include "rtc_base/async_packet_socket.h"
-#include "rtc_base/task_utils/pending_task_safety_flag.h"
 
 namespace cricket {
 
@@ -39,13 +38,8 @@ class UDPPort : public Port {
       rtc::PacketSocketFactory* factory,
       const rtc::Network* network,
       rtc::AsyncPacketSocket* socket,
-<<<<<<< HEAD
-      const std::string& username,
-      const std::string& password,
-=======
       absl::string_view username,
       absl::string_view password,
->>>>>>> m108
       bool emit_local_for_anyaddress,
       absl::optional<int> stun_keepalive_interval,
       const webrtc::FieldTrialsView* field_trials = nullptr) {
@@ -66,13 +60,8 @@ class UDPPort : public Port {
       const rtc::Network* network,
       uint16_t min_port,
       uint16_t max_port,
-<<<<<<< HEAD
-      const std::string& username,
-      const std::string& password,
-=======
       absl::string_view username,
       absl::string_view password,
->>>>>>> m108
       bool emit_local_for_anyaddress,
       absl::optional<int> stun_keepalive_interval,
       const webrtc::FieldTrialsView* field_trials = nullptr) {
@@ -125,15 +114,6 @@ class UDPPort : public Port {
   void set_stun_keepalive_lifetime(int lifetime) {
     stun_keepalive_lifetime_ = lifetime;
   }
-<<<<<<< HEAD
-  // Returns true if there is a pending request with type `msg_type`.
-  bool HasPendingRequestForTest(int msg_type) {
-    return request_manager_.HasRequestForTest(msg_type);
-  }
-=======
-
-  StunRequestManager& request_manager() { return request_manager_; }
->>>>>>> m108
 
   StunRequestManager& request_manager() { return request_manager_; }
 
@@ -143,13 +123,8 @@ class UDPPort : public Port {
           const rtc::Network* network,
           uint16_t min_port,
           uint16_t max_port,
-<<<<<<< HEAD
-          const std::string& username,
-          const std::string& password,
-=======
           absl::string_view username,
           absl::string_view password,
->>>>>>> m108
           bool emit_local_for_anyaddress,
           const webrtc::FieldTrialsView* field_trials);
 
@@ -157,13 +132,8 @@ class UDPPort : public Port {
           rtc::PacketSocketFactory* factory,
           const rtc::Network* network,
           rtc::AsyncPacketSocket* socket,
-<<<<<<< HEAD
-          const std::string& username,
-          const std::string& password,
-=======
           absl::string_view username,
           absl::string_view password,
->>>>>>> m108
           bool emit_local_for_anyaddress,
           const webrtc::FieldTrialsView* field_trials);
 

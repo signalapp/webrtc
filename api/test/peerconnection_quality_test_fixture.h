@@ -556,13 +556,10 @@ class PeerConnectionE2EQualityTestFixture {
         rtc::scoped_refptr<webrtc::AudioProcessing> audio_processing) = 0;
     virtual PeerConfigurer* SetAudioMixer(
         rtc::scoped_refptr<webrtc::AudioMixer> audio_mixer) = 0;
-<<<<<<< HEAD
-=======
 
     // Forces the Peerconnection to use the network thread as the worker thread.
     // Ie, worker thread and the network thread is the same thread.
     virtual PeerConfigurer* SetUseNetworkThreadAsWorkerThread() = 0;
->>>>>>> m108
 
     // The parameters of the following 4 methods will be passed to the
     // PeerConnectionInterface implementation that will be created for this

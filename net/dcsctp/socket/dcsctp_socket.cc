@@ -311,8 +311,6 @@ void DcSctpSocket::Connect() {
   RTC_DCHECK(IsConsistent());
 }
 
-<<<<<<< HEAD
-=======
 void DcSctpSocket::CreateTransmissionControlBlock(
     const Capabilities& capabilities,
     VerificationTag my_verification_tag,
@@ -334,7 +332,6 @@ void DcSctpSocket::CreateTransmissionControlBlock(
   RTC_DLOG(LS_VERBOSE) << log_prefix() << "Created TCB: " << tcb_->ToString();
 }
 
->>>>>>> m108
 void DcSctpSocket::RestoreFromState(const DcSctpSocketHandoverState& state) {
   RTC_DCHECK_RUN_ON(&thread_checker_);
   CallbackDeferrer::ScopedDeferrer deferrer(callbacks_);
@@ -354,20 +351,6 @@ void DcSctpSocket::RestoreFromState(const DcSctpSocketHandoverState& state) {
       capabilities.message_interleaving =
           state.capabilities.message_interleaving;
       capabilities.reconfig = state.capabilities.reconfig;
-<<<<<<< HEAD
-
-      send_queue_.RestoreFromState(state);
-
-      tcb_ = std::make_unique<TransmissionControlBlock>(
-          timer_manager_, log_prefix_, options_, capabilities, callbacks_,
-          send_queue_, my_verification_tag, TSN(state.my_initial_tsn),
-          VerificationTag(state.peer_verification_tag),
-          TSN(state.peer_initial_tsn), static_cast<size_t>(0),
-          TieTag(state.tie_tag), packet_sender_,
-          [this]() { return state_ == State::kEstablished; }, &state);
-      RTC_DLOG(LS_VERBOSE) << log_prefix() << "Created peer TCB from state: "
-                           << tcb_->ToString();
-=======
       capabilities.negotiated_maximum_incoming_streams =
           state.capabilities.negotiated_maximum_incoming_streams;
       capabilities.negotiated_maximum_outgoing_streams =
@@ -382,7 +365,6 @@ void DcSctpSocket::RestoreFromState(const DcSctpSocketHandoverState& state) {
           TieTag(state.tie_tag));
 
       tcb_->RestoreFromState(state);
->>>>>>> m108
 
       SetState(State::kEstablished, "restored from handover state");
       callbacks_.OnConnected();
@@ -482,10 +464,7 @@ SendStatus DcSctpSocket::Send(DcSctpMessage message,
                               const SendOptions& send_options) {
   RTC_DCHECK_RUN_ON(&thread_checker_);
   CallbackDeferrer::ScopedDeferrer deferrer(callbacks_);
-<<<<<<< HEAD
-=======
   LifecycleId lifecycle_id = send_options.lifecycle_id;
->>>>>>> m108
 
   if (message.payload().empty()) {
     if (lifecycle_id.IsSet()) {
@@ -598,14 +577,8 @@ void DcSctpSocket::SetBufferedAmountLowThreshold(StreamID stream_id,
   send_queue_.SetBufferedAmountLowThreshold(stream_id, bytes);
 }
 
-<<<<<<< HEAD
-Metrics DcSctpSocket::GetMetrics() const {
-  RTC_DCHECK_RUN_ON(&thread_checker_);
-  Metrics metrics = metrics_;
-=======
 absl::optional<Metrics> DcSctpSocket::GetMetrics() const {
   RTC_DCHECK_RUN_ON(&thread_checker_);
->>>>>>> m108
 
   if (tcb_ == nullptr) {
     return absl::nullopt;
@@ -1113,15 +1086,9 @@ void DcSctpSocket::HandleDataCommon(AnyDataChunk& chunk) {
   }
 
   if (tcb_->data_tracker().Observe(tsn, immediate_ack)) {
-<<<<<<< HEAD
-    tcb_->reassembly_queue().MaybeResetStreamsDeferred(
-        tcb_->data_tracker().last_cumulative_acked_tsn());
-    tcb_->reassembly_queue().Add(tsn, std::move(data));
-=======
     tcb_->reassembly_queue().Add(tsn, std::move(data));
     tcb_->reassembly_queue().MaybeResetStreamsDeferred(
         tcb_->data_tracker().last_cumulative_acked_tsn());
->>>>>>> m108
     DeliverReassembledMessages();
   }
 }
@@ -1281,18 +1248,6 @@ void DcSctpSocket::HandleInitAck(
                           chunk->nbr_inbound_streams(), chunk->parameters());
   t1_init_->Stop();
 
-<<<<<<< HEAD
-  peer_implementation_ = DeterminePeerImplementation(cookie->data());
-
-  tcb_ = std::make_unique<TransmissionControlBlock>(
-      timer_manager_, log_prefix_, options_, capabilities, callbacks_,
-      send_queue_, connect_params_.verification_tag,
-      connect_params_.initial_tsn, chunk->initiate_tag(), chunk->initial_tsn(),
-      chunk->a_rwnd(), MakeTieTag(callbacks_), packet_sender_,
-      [this]() { return state_ == State::kEstablished; });
-  RTC_DLOG(LS_VERBOSE) << log_prefix()
-                       << "Created peer TCB: " << tcb_->ToString();
-=======
   metrics_.peer_implementation = DeterminePeerImplementation(cookie->data());
 
   // If the connection is re-established (peer restarted, but re-used old
@@ -1307,7 +1262,6 @@ void DcSctpSocket::HandleInitAck(
                                  connect_params_.initial_tsn,
                                  chunk->initiate_tag(), chunk->initial_tsn(),
                                  chunk->a_rwnd(), MakeTieTag(callbacks_));
->>>>>>> m108
 
   SetState(State::kCookieEchoed, "INIT_ACK received");
 
@@ -1595,13 +1549,10 @@ void DcSctpSocket::HandleReconfig(
     // (either successfully or with failure). If there still are pending streams
     // that were waiting for this request to finish, continue resetting them.
     MaybeSendResetStreamsRequest();
-<<<<<<< HEAD
-=======
 
     // If a response was processed, pending to-be-reset streams may now have
     // become unpaused. Try to send more DATA chunks.
     tcb_->SendBufferedPackets(now);
->>>>>>> m108
   }
 }
 

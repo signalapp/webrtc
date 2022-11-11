@@ -101,19 +101,11 @@ class DcSctpSocket : public DcSctpSocketInterface {
   size_t buffered_amount(StreamID stream_id) const override;
   size_t buffered_amount_low_threshold(StreamID stream_id) const override;
   void SetBufferedAmountLowThreshold(StreamID stream_id, size_t bytes) override;
-<<<<<<< HEAD
-  Metrics GetMetrics() const override;
-  HandoverReadinessStatus GetHandoverReadiness() const override;
-  absl::optional<DcSctpSocketHandoverState> GetHandoverStateAndClose() override;
-  SctpImplementation peer_implementation() const override {
-    return peer_implementation_;
-=======
   absl::optional<Metrics> GetMetrics() const override;
   HandoverReadinessStatus GetHandoverReadiness() const override;
   absl::optional<DcSctpSocketHandoverState> GetHandoverStateAndClose() override;
   SctpImplementation peer_implementation() const override {
     return metrics_.peer_implementation;
->>>>>>> m108
   }
   // Returns this socket's verification tag, or zero if not yet connected.
   VerificationTag verification_tag() const {

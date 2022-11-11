@@ -399,48 +399,6 @@ int VirtualSocket::SetOption(Option opt, int value) {
   return 0;  // 0 is success to emulate setsockopt()
 }
 
-<<<<<<< HEAD
-void VirtualSocket::OnMessage(Message* pmsg) {
-  bool signal_read_event = false;
-  bool signal_close_event = false;
-  bool signal_connect_event = false;
-  int error_to_signal = 0;
-  {
-    webrtc::MutexLock lock(&mutex_);
-    if (pmsg->message_id == MSG_ID_PACKET) {
-      RTC_DCHECK(nullptr != pmsg->pdata);
-      Packet* packet = static_cast<Packet*>(pmsg->pdata);
-
-      recv_buffer_.push_back(packet);
-      signal_read_event = true;
-    } else if (pmsg->message_id == MSG_ID_CONNECT) {
-      RTC_DCHECK(nullptr != pmsg->pdata);
-      MessageAddress* data = static_cast<MessageAddress*>(pmsg->pdata);
-      if (listen_queue_ != nullptr) {
-        listen_queue_->push_back(data->addr);
-        signal_read_event = true;
-      } else if ((SOCK_STREAM == type_) && (CS_CONNECTING == state_)) {
-        CompleteConnect(data->addr);
-        signal_connect_event = true;
-      } else {
-        RTC_LOG(LS_VERBOSE)
-            << "Socket at " << local_addr_.ToString() << " is not listening";
-        server_->Disconnect(data->addr);
-      }
-      delete data;
-    } else if (pmsg->message_id == MSG_ID_DISCONNECT) {
-      RTC_DCHECK(SOCK_STREAM == type_);
-      if (CS_CLOSED != state_) {
-        error_to_signal = (CS_CONNECTING == state_) ? ECONNREFUSED : 0;
-        state_ = CS_CLOSED;
-        remote_addr_.Clear();
-        signal_close_event = true;
-      }
-    } else if (pmsg->message_id == MSG_ID_SIGNALREADEVENT) {
-      signal_read_event = !recv_buffer_.empty();
-    } else {
-      RTC_DCHECK_NOTREACHED();
-=======
 void VirtualSocket::PostPacket(TimeDelta delay,
                                std::unique_ptr<Packet> packet) {
   rtc::scoped_refptr<SafetyBlock> safety = safety_;
@@ -491,7 +449,6 @@ void VirtualSocket::SafetyBlock::PostConnect(TimeDelta delay,
       case Signal::kConnectEvent:
         safety->socket_.SignalConnectEvent(&safety->socket_);
         break;
->>>>>>> m108
     }
   };
   socket_.server_->msg_queue_->PostDelayedTask(std::move(task), delay);
@@ -767,12 +724,8 @@ void VirtualSocketServer::SetMessageQueue(Thread* msg_queue) {
   msg_queue_ = msg_queue;
 }
 
-<<<<<<< HEAD
-bool VirtualSocketServer::Wait(int cmsWait, bool process_io) {
-=======
 bool VirtualSocketServer::Wait(webrtc::TimeDelta max_wait_duration,
                                bool process_io) {
->>>>>>> m108
   RTC_DCHECK_RUN_ON(msg_queue_);
   if (stop_on_idle_ && Thread::Current()->empty()) {
     return false;
@@ -945,11 +898,7 @@ int VirtualSocketServer::Connect(VirtualSocket* socket,
                                  bool use_delay) {
   RTC_DCHECK(msg_queue_);
 
-<<<<<<< HEAD
-  uint32_t delay = use_delay ? GetTransitDelay(socket) : 0;
-=======
   TimeDelta delay = TimeDelta::Millis(use_delay ? GetTransitDelay(socket) : 0);
->>>>>>> m108
   VirtualSocket* remote = LookupBinding(remote_addr);
   if (!CanInteractWith(socket, remote)) {
     RTC_LOG(LS_INFO) << "Address family mismatch between "
@@ -972,13 +921,7 @@ bool VirtualSocketServer::Disconnect(VirtualSocket* socket) {
 
   // If we simulate packets being delayed, we should simulate the
   // equivalent of a FIN being delayed as well.
-<<<<<<< HEAD
-  uint32_t delay = GetTransitDelay(socket);
-  // Remove the mapping.
-  msg_queue_->PostDelayed(RTC_FROM_HERE, delay, socket, MSG_ID_DISCONNECT);
-=======
   socket->PostDisconnect(TimeDelta::Millis(GetTransitDelay(socket)));
->>>>>>> m108
   return true;
 }
 
@@ -1005,49 +948,6 @@ bool VirtualSocketServer::Disconnect(const SocketAddress& local_addr,
   return socket != nullptr;
 }
 
-<<<<<<< HEAD
-void VirtualSocketServer::CancelConnects(VirtualSocket* socket) {
-  MessageList msgs;
-  if (msg_queue_) {
-    msg_queue_->Clear(socket, MSG_ID_CONNECT, &msgs);
-  }
-  for (MessageList::iterator it = msgs.begin(); it != msgs.end(); ++it) {
-    RTC_DCHECK(nullptr != it->pdata);
-    MessageAddress* data = static_cast<MessageAddress*>(it->pdata);
-    SocketAddress local_addr = socket->GetLocalAddress();
-    // Lookup remote side.
-    VirtualSocket* lookup_socket = LookupConnection(local_addr, data->addr);
-    if (lookup_socket) {
-      // Server socket, remote side is a socket retreived by
-      // accept. Accepted sockets are not bound so we will not
-      // find it by looking in the bindings table.
-      Disconnect(lookup_socket);
-      RemoveConnection(local_addr, data->addr);
-    } else {
-      Disconnect(data->addr);
-    }
-    delete data;
-  }
-}
-
-void VirtualSocketServer::Clear(VirtualSocket* socket) {
-  // Clear incoming packets and disconnect messages
-  if (msg_queue_) {
-    msg_queue_->Clear(socket);
-  }
-}
-
-void VirtualSocketServer::PostSignalReadEvent(VirtualSocket* socket) {
-  if (!msg_queue_)
-    return;
-
-  // Clear the message so it doesn't end up posted multiple times.
-  msg_queue_->Clear(socket, MSG_ID_SIGNALREADEVENT);
-  msg_queue_->Post(RTC_FROM_HERE, socket, MSG_ID_SIGNALREADEVENT);
-}
-
-=======
->>>>>>> m108
 int VirtualSocketServer::SendUdp(VirtualSocket* socket,
                                  const char* data,
                                  size_t data_size,

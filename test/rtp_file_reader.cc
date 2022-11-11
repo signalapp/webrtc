@@ -19,10 +19,6 @@
 #include "absl/strings/string_view.h"
 #include "modules/rtp_rtcp/source/rtp_util.h"
 #include "rtc_base/checks.h"
-<<<<<<< HEAD
-#include "rtc_base/format_macros.h"
-=======
->>>>>>> m108
 #include "rtc_base/logging.h"
 #include "rtc_base/system/arch.h"
 

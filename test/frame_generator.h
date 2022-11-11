@@ -77,12 +77,7 @@ class YuvFileGenerator : public FrameGeneratorInterface {
 
   VideoFrameData NextFrame() override;
   void ChangeResolution(size_t width, size_t height) override {
-<<<<<<< HEAD
-    RTC_LOG(LS_WARNING)
-        << "ScrollingImageFrameGenerator::ChangeResolution not implemented";
-=======
     RTC_LOG(LS_WARNING) << "YuvFileGenerator::ChangeResolution not implemented";
->>>>>>> m108
   }
 
  private:

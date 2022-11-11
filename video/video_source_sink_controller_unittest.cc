@@ -165,8 +165,6 @@ TEST(VideoSourceSinkControllerTest,
   VideoSourceSinkController controller(&sink, nullptr);
   controller.RequestRefreshFrame();
 }
-<<<<<<< HEAD
-=======
 
 TEST(VideoSourceSinkControllerTest, RequestedResolutionPropagatesToWants) {
   MockVideoSinkWithVideoFrame sink;
@@ -198,5 +196,4 @@ TEST(VideoSourceSinkControllerTest, ActivePropagatesToWants) {
   controller.PushSourceSinkSettings();
 }
 
->>>>>>> m108
 }  // namespace webrtc

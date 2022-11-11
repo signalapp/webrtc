@@ -21,20 +21,12 @@ namespace webrtc {
 
 DegradedCall::FakeNetworkPipeOnTaskQueue::FakeNetworkPipeOnTaskQueue(
     TaskQueueBase* task_queue,
-<<<<<<< HEAD
-    const ScopedTaskSafety& task_safety,
-=======
     rtc::scoped_refptr<PendingTaskSafetyFlag> call_alive,
->>>>>>> m108
     Clock* clock,
     std::unique_ptr<NetworkBehaviorInterface> network_behavior)
     : clock_(clock),
       task_queue_(task_queue),
-<<<<<<< HEAD
-      task_safety_(task_safety),
-=======
       call_alive_(std::move(call_alive)),
->>>>>>> m108
       pipe_(clock, std::move(network_behavior)) {}
 
 void DegradedCall::FakeNetworkPipeOnTaskQueue::SendRtp(
@@ -71,26 +63,12 @@ bool DegradedCall::FakeNetworkPipeOnTaskQueue::Process() {
     return false;
   }
 
-<<<<<<< HEAD
-  task_queue_->PostTask(ToQueuedTask(task_safety_, [this, time_to_next] {
-=======
   task_queue_->PostTask(SafeTask(call_alive_, [this, time_to_next] {
->>>>>>> m108
     RTC_DCHECK_RUN_ON(task_queue_);
     int64_t next_process_time = *time_to_next + clock_->TimeInMilliseconds();
     if (!next_process_ms_ || next_process_time < *next_process_ms_) {
       next_process_ms_ = next_process_time;
       task_queue_->PostDelayedHighPrecisionTask(
-<<<<<<< HEAD
-          ToQueuedTask(task_safety_,
-                       [this] {
-                         RTC_DCHECK_RUN_ON(task_queue_);
-                         if (!Process()) {
-                           next_process_ms_.reset();
-                         }
-                       }),
-          *time_to_next);
-=======
           SafeTask(call_alive_,
                    [this] {
                      RTC_DCHECK_RUN_ON(task_queue_);
@@ -99,7 +77,6 @@ bool DegradedCall::FakeNetworkPipeOnTaskQueue::Process() {
                      }
                    }),
           TimeDelta::Millis(*time_to_next));
->>>>>>> m108
     }
   }));
 
@@ -205,10 +182,7 @@ DegradedCall::DegradedCall(
     const std::vector<TimeScopedNetworkConfig>& receive_configs)
     : clock_(Clock::GetRealTimeClock()),
       call_(std::move(call)),
-<<<<<<< HEAD
-=======
       call_alive_(PendingTaskSafetyFlag::CreateDetached()),
->>>>>>> m108
       send_config_index_(0),
       send_configs_(send_configs),
       send_simulated_network_(nullptr),
@@ -219,13 +193,6 @@ DegradedCall::DegradedCall(
     receive_simulated_network_ = network.get();
     receive_pipe_ =
         std::make_unique<webrtc::FakeNetworkPipe>(clock_, std::move(network));
-<<<<<<< HEAD
-    receive_pipe_->SetReceiver(call_->Receiver());
-    if (receive_configs_.size() > 1) {
-      call_->network_thread()->PostDelayedTask(
-          ToQueuedTask(task_safety_, [this] { UpdateReceiveNetworkConfig(); }),
-          receive_configs_[0].duration.ms());
-=======
     packet_receiver_ = std::make_unique<ThreadedPacketReceiver>(
         call_->worker_thread(), call_->network_thread(), call_alive_,
         call_->Receiver());
@@ -234,26 +201,17 @@ DegradedCall::DegradedCall(
       call_->network_thread()->PostDelayedTask(
           SafeTask(call_alive_, [this] { UpdateReceiveNetworkConfig(); }),
           receive_configs_[0].duration);
->>>>>>> m108
     }
   }
   if (!send_configs_.empty()) {
     auto network = std::make_unique<SimulatedNetwork>(send_configs_[0]);
     send_simulated_network_ = network.get();
     send_pipe_ = std::make_unique<FakeNetworkPipeOnTaskQueue>(
-<<<<<<< HEAD
-        call_->network_thread(), task_safety_, clock_, std::move(network));
-    if (send_configs_.size() > 1) {
-      call_->network_thread()->PostDelayedTask(
-          ToQueuedTask(task_safety_, [this] { UpdateSendNetworkConfig(); }),
-          send_configs_[0].duration.ms());
-=======
         call_->network_thread(), call_alive_, clock_, std::move(network));
     if (send_configs_.size() > 1) {
       call_->network_thread()->PostDelayedTask(
           SafeTask(call_alive_, [this] { UpdateSendNetworkConfig(); }),
           send_configs_[0].duration);
->>>>>>> m108
     }
   }
 }
@@ -460,13 +418,8 @@ void DegradedCall::UpdateSendNetworkConfig() {
   send_config_index_ = (send_config_index_ + 1) % send_configs_.size();
   send_simulated_network_->SetConfig(send_configs_[send_config_index_]);
   call_->network_thread()->PostDelayedTask(
-<<<<<<< HEAD
-      ToQueuedTask(task_safety_, [this] { UpdateSendNetworkConfig(); }),
-      send_configs_[send_config_index_].duration.ms());
-=======
       SafeTask(call_alive_, [this] { UpdateSendNetworkConfig(); }),
       send_configs_[send_config_index_].duration);
->>>>>>> m108
 }
 
 void DegradedCall::UpdateReceiveNetworkConfig() {
@@ -474,12 +427,7 @@ void DegradedCall::UpdateReceiveNetworkConfig() {
   receive_simulated_network_->SetConfig(
       receive_configs_[receive_config_index_]);
   call_->network_thread()->PostDelayedTask(
-<<<<<<< HEAD
-      ToQueuedTask(task_safety_, [this] { UpdateReceiveNetworkConfig(); }),
-      receive_configs_[receive_config_index_].duration.ms());
-=======
       SafeTask(call_alive_, [this] { UpdateReceiveNetworkConfig(); }),
       receive_configs_[receive_config_index_].duration);
->>>>>>> m108
 }
 }  // namespace webrtc

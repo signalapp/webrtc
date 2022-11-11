@@ -52,10 +52,6 @@
 #include "pc/session_description.h"
 #include "pc/test/mock_peer_connection_observers.h"
 #include "rtc_base/checks.h"
-<<<<<<< HEAD
-#include "rtc_base/ref_counted_object.h"
-=======
->>>>>>> m108
 #include "rtc_base/rtc_certificate.h"
 #include "rtc_base/rtc_certificate_generator.h"
 #include "rtc_base/string_encode.h"
@@ -156,11 +152,7 @@ class PeerConnectionSignalingBaseTest : public ::testing::Test {
       return nullptr;
     }
 
-<<<<<<< HEAD
-    observer->SetPeerConnectionInterface(result.value());
-=======
     observer->SetPeerConnectionInterface(result.value().get());
->>>>>>> m108
     return std::make_unique<PeerConnectionWrapperForSignalingTest>(
         pc_factory_, result.MoveValue(), std::move(observer));
   }
@@ -727,11 +719,7 @@ TEST_P(PeerConnectionSignalingTest, CreateOfferBlocksSetRemoteDescription) {
   // Synchronously invoke CreateOffer() and SetRemoteDescription(). The
   // SetRemoteDescription() operation should be chained to be executed
   // asynchronously, when CreateOffer() completes.
-<<<<<<< HEAD
-  callee->pc()->CreateOffer(offer_observer, RTCOfferAnswerOptions());
-=======
   callee->pc()->CreateOffer(offer_observer.get(), RTCOfferAnswerOptions());
->>>>>>> m108
   callee->pc()->SetRemoteDescription(
       std::move(offer),
       rtc::make_ref_counted<FakeSetRemoteDescriptionObserver>());
@@ -1173,12 +1161,8 @@ TEST_F(PeerConnectionSignalingUnifiedPlanTest,
             // operation executed immediately.
             RTC_DCHECK(!pc->GetTransceivers()[0]->mid().has_value());
             pc->SetLocalDescription(
-<<<<<<< HEAD
-                rtc::make_ref_counted<MockSetSessionDescriptionObserver>(),
-=======
                 rtc::make_ref_counted<MockSetSessionDescriptionObserver>()
                     .get(),
->>>>>>> m108
                 desc);
             EXPECT_TRUE(pc->GetTransceivers()[0]->mid().has_value());
           });

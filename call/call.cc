@@ -52,10 +52,6 @@
 #include "modules/rtp_rtcp/source/rtp_util.h"
 #include "modules/video_coding/fec_controller_default.h"
 #include "rtc_base/checks.h"
-<<<<<<< HEAD
-#include "rtc_base/location.h"
-=======
->>>>>>> m108
 #include "rtc_base/logging.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/system/no_unique_address.h"
@@ -352,15 +348,9 @@ class Call final : public webrtc::Call,
                             rtc::CopyOnWriteBuffer packet,
                             int64_t packet_time_us) RTC_RUN_ON(worker_thread_);
 
-<<<<<<< HEAD
-  AudioReceiveStream* FindAudioStreamForSyncGroup(const std::string& sync_group)
-      RTC_RUN_ON(worker_thread_);
-  void ConfigureSync(const std::string& sync_group) RTC_RUN_ON(worker_thread_);
-=======
   AudioReceiveStreamImpl* FindAudioStreamForSyncGroup(
       absl::string_view sync_group) RTC_RUN_ON(worker_thread_);
   void ConfigureSync(absl::string_view sync_group) RTC_RUN_ON(worker_thread_);
->>>>>>> m108
 
   void NotifyBweOfReceivedPacket(const RtpPacketReceived& packet,
                                  MediaType media_type,
@@ -369,11 +359,7 @@ class Call final : public webrtc::Call,
 
   bool IdentifyReceivedPacket(RtpPacketReceived& packet,
                               bool* use_send_side_bwe = nullptr);
-<<<<<<< HEAD
-  bool RegisterReceiveStream(uint32_t ssrc, ReceiveStream* stream);
-=======
   bool RegisterReceiveStream(uint32_t ssrc, ReceiveStreamInterface* stream);
->>>>>>> m108
   bool UnregisterReceiveStream(uint32_t ssrc);
 
   void UpdateAggregateNetworkState();
@@ -409,21 +395,12 @@ class Call final : public webrtc::Call,
   // creates them.
   // TODO(bugs.webrtc.org/11993): Move audio_receive_streams_,
   // video_receive_streams_ over to the network thread.
-<<<<<<< HEAD
-  std::set<AudioReceiveStream*> audio_receive_streams_
-      RTC_GUARDED_BY(worker_thread_);
-  std::set<VideoReceiveStream2*> video_receive_streams_
-      RTC_GUARDED_BY(worker_thread_);
-  // TODO(nisse): Should eventually be injected at creation,
-  // with a single object in the bundled case.
-=======
   std::set<AudioReceiveStreamImpl*> audio_receive_streams_
       RTC_GUARDED_BY(worker_thread_);
   std::set<VideoReceiveStream2*> video_receive_streams_
       RTC_GUARDED_BY(worker_thread_);
   // TODO(bugs.webrtc.org/7135, bugs.webrtc.org/9719): Should eventually be
   // injected at creation, with a single object in the bundled case.
->>>>>>> m108
   RtpStreamReceiverController audio_receiver_controller_
       RTC_GUARDED_BY(worker_thread_);
   RtpStreamReceiverController video_receiver_controller_
@@ -436,11 +413,7 @@ class Call final : public webrtc::Call,
 
   // TODO(bugs.webrtc.org/11993): Move receive_rtp_config_ over to the
   // network thread.
-<<<<<<< HEAD
-  std::map<uint32_t, ReceiveStream*> receive_rtp_config_
-=======
   std::map<uint32_t, ReceiveStreamInterface*> receive_rtp_config_
->>>>>>> m108
       RTC_GUARDED_BY(&receive_11993_checker_);
 
   // Audio and Video send streams are owned by the client that creates them.
@@ -541,104 +514,7 @@ Call* Call::Create(const Call::Config& config,
                        transportControllerSend) {
   RTC_DCHECK(config.task_queue_factory);
   return new internal::Call(clock, config, std::move(transportControllerSend),
-<<<<<<< HEAD
-                            std::move(call_thread), config.task_queue_factory);
-}
-
-class SharedModuleThread::Impl {
- public:
-  Impl(std::unique_ptr<ProcessThread> process_thread,
-       std::function<void()> on_one_ref_remaining)
-      : module_thread_(std::move(process_thread)),
-        on_one_ref_remaining_(std::move(on_one_ref_remaining)) {}
-
-  void EnsureStarted() {
-    RTC_DCHECK_RUN_ON(&sequence_checker_);
-    if (started_)
-      return;
-    started_ = true;
-    module_thread_->Start();
-  }
-
-  ProcessThread* process_thread() {
-    RTC_DCHECK_RUN_ON(&sequence_checker_);
-    return module_thread_.get();
-  }
-
-  void AddRef() const {
-    RTC_DCHECK_RUN_ON(&sequence_checker_);
-    ++ref_count_;
-  }
-
-  rtc::RefCountReleaseStatus Release() const {
-    RTC_DCHECK_RUN_ON(&sequence_checker_);
-    --ref_count_;
-
-    if (ref_count_ == 0) {
-      module_thread_->Stop();
-      return rtc::RefCountReleaseStatus::kDroppedLastRef;
-    }
-
-    if (ref_count_ == 1 && on_one_ref_remaining_) {
-      auto moved_fn = std::move(on_one_ref_remaining_);
-      // NOTE: after this function returns, chances are that `this` has been
-      // deleted - do not touch any member variables.
-      // If the owner of the last reference implements a lambda that releases
-      // that last reference inside of the callback (which is legal according
-      // to this implementation), we will recursively enter Release() above,
-      // call Stop() and release the last reference.
-      moved_fn();
-    }
-
-    return rtc::RefCountReleaseStatus::kOtherRefsRemained;
-  }
-
- private:
-  RTC_NO_UNIQUE_ADDRESS SequenceChecker sequence_checker_;
-  mutable int ref_count_ RTC_GUARDED_BY(sequence_checker_) = 0;
-  std::unique_ptr<ProcessThread> const module_thread_;
-  std::function<void()> const on_one_ref_remaining_;
-  bool started_ = false;
-};
-
-SharedModuleThread::SharedModuleThread(
-    std::unique_ptr<ProcessThread> process_thread,
-    std::function<void()> on_one_ref_remaining)
-    : impl_(std::make_unique<Impl>(std::move(process_thread),
-                                   std::move(on_one_ref_remaining))) {}
-
-SharedModuleThread::~SharedModuleThread() = default;
-
-// static
-
-rtc::scoped_refptr<SharedModuleThread> SharedModuleThread::Create(
-    std::unique_ptr<ProcessThread> process_thread,
-    std::function<void()> on_one_ref_remaining) {
-  // Using `new` to access a non-public constructor.
-  return rtc::scoped_refptr<SharedModuleThread>(new SharedModuleThread(
-      std::move(process_thread), std::move(on_one_ref_remaining)));
-}
-
-void SharedModuleThread::EnsureStarted() {
-  impl_->EnsureStarted();
-}
-
-ProcessThread* SharedModuleThread::process_thread() {
-  return impl_->process_thread();
-}
-
-void SharedModuleThread::AddRef() const {
-  impl_->AddRef();
-}
-
-rtc::RefCountReleaseStatus SharedModuleThread::Release() const {
-  auto ret = impl_->Release();
-  if (ret == rtc::RefCountReleaseStatus::kDroppedLastRef)
-    delete this;
-  return ret;
-=======
                             config.task_queue_factory);
->>>>>>> m108
 }
 
 // This method here to avoid subclasses has to implement this method.
@@ -1028,11 +904,7 @@ void Call::DestroyAudioReceiveStream(
   // After calling erase(), call ConfigureSync. This will clear associated
   // video streams or associate them with a different audio stream if one exists
   // for this sync_group.
-<<<<<<< HEAD
-  ConfigureSync(audio_receive_stream->config().sync_group);
-=======
   ConfigureSync(audio_receive_stream->sync_group());
->>>>>>> m108
 
   UnregisterReceiveStream(ssrc);
 
@@ -1169,11 +1041,7 @@ webrtc::VideoReceiveStreamInterface* Call::CreateVideoReceiveStream(
       task_queue_factory_, this, num_cpu_cores_,
       transport_send_->packet_router(), std::move(configuration),
       call_stats_.get(), clock_, std::make_unique<VCMTiming>(clock_, trials()),
-<<<<<<< HEAD
-      &nack_periodic_processor_, decode_sync_.get());
-=======
       &nack_periodic_processor_, decode_sync_.get(), event_log_);
->>>>>>> m108
   // TODO(bugs.webrtc.org/11993): Set this up asynchronously on the network
   // thread.
   receive_stream->RegisterWithTransport(&video_receiver_controller_);
@@ -1183,15 +1051,9 @@ webrtc::VideoReceiveStreamInterface* Call::CreateVideoReceiveStream(
     // stream. Since the transport_send_cc negotiation is per payload
     // type, we may get an incorrect value for the rtx stream, but
     // that is unlikely to matter in practice.
-<<<<<<< HEAD
-    RegisterReceiveStream(rtp.rtx_ssrc, receive_stream);
-  }
-  RegisterReceiveStream(rtp.remote_ssrc, receive_stream);
-=======
     RegisterReceiveStream(receive_stream->rtx_ssrc(), receive_stream);
   }
   RegisterReceiveStream(receive_stream->remote_ssrc(), receive_stream);
->>>>>>> m108
   video_receive_streams_.insert(receive_stream);
 
   ConfigureSync(receive_stream->sync_group());
@@ -1213,16 +1075,10 @@ void Call::DestroyVideoReceiveStream(
 
   // Remove all ssrcs pointing to a receive stream. As RTX retransmits on a
   // separate SSRC there can be either one or two.
-<<<<<<< HEAD
-  UnregisterReceiveStream(rtp.remote_ssrc);
-  if (rtp.rtx_ssrc) {
-    UnregisterReceiveStream(rtp.rtx_ssrc);
-=======
   UnregisterReceiveStream(receive_stream_impl->remote_ssrc());
 
   if (receive_stream_impl->rtx_ssrc()) {
     UnregisterReceiveStream(receive_stream_impl->rtx_ssrc());
->>>>>>> m108
   }
   video_receive_streams_.erase(receive_stream_impl);
   ConfigureSync(receive_stream_impl->sync_group());
@@ -1250,11 +1106,7 @@ FlexfecReceiveStream* Call::CreateFlexfecReceiveStream(
   // TODO(bugs.webrtc.org/11993): Set this up asynchronously on the network
   // thread.
   receive_stream->RegisterWithTransport(&video_receiver_controller_);
-<<<<<<< HEAD
-  RegisterReceiveStream(config.rtp.remote_ssrc, receive_stream);
-=======
   RegisterReceiveStream(receive_stream->remote_ssrc(), receive_stream);
->>>>>>> m108
 
   // TODO(brandtr): Store config in RtcEventLog here.
 
@@ -1270,14 +1122,8 @@ void Call::DestroyFlexfecReceiveStream(FlexfecReceiveStream* receive_stream) {
   // TODO(bugs.webrtc.org/11993): Unregister on the network thread.
   receive_stream_impl->UnregisterFromTransport();
 
-<<<<<<< HEAD
-  RTC_DCHECK(receive_stream != nullptr);
-  const FlexfecReceiveStream::RtpConfig& rtp = receive_stream->rtp_config();
-  UnregisterReceiveStream(rtp.remote_ssrc);
-=======
   auto ssrc = receive_stream_impl->remote_ssrc();
   UnregisterReceiveStream(ssrc);
->>>>>>> m108
 
   // Remove all SSRCs pointing to the FlexfecReceiveStreamImpl to be
   // destroyed.
@@ -1503,15 +1349,6 @@ void Call::OnAllocationLimitsChanged(BitrateAllocationLimits limits) {
                                             std::memory_order_relaxed);
 }
 
-<<<<<<< HEAD
-// RTC_RUN_ON(worker_thread_)
-AudioReceiveStream* Call::FindAudioStreamForSyncGroup(
-    const std::string& sync_group) {
-  RTC_DCHECK_RUN_ON(&receive_11993_checker_);
-  if (!sync_group.empty()) {
-    for (AudioReceiveStream* stream : audio_receive_streams_) {
-      if (stream->config().sync_group == sync_group)
-=======
 AudioReceiveStreamImpl* Call::FindAudioStreamForSyncGroup(
     absl::string_view sync_group) {
   RTC_DCHECK_RUN_ON(worker_thread_);
@@ -1519,7 +1356,6 @@ AudioReceiveStreamImpl* Call::FindAudioStreamForSyncGroup(
   if (!sync_group.empty()) {
     for (AudioReceiveStreamImpl* stream : audio_receive_streams_) {
       if (stream->sync_group() == sync_group)
->>>>>>> m108
         return stream;
     }
   }
@@ -1527,20 +1363,12 @@ AudioReceiveStreamImpl* Call::FindAudioStreamForSyncGroup(
   return nullptr;
 }
 
-<<<<<<< HEAD
-// TODO(bugs.webrtc.org/11993): Expect to be called on the network thread.
-// RTC_RUN_ON(worker_thread_)
-void Call::ConfigureSync(const std::string& sync_group) {
-  // `audio_stream` may be nullptr when clearing the audio stream for a group.
-  AudioReceiveStream* audio_stream = FindAudioStreamForSyncGroup(sync_group);
-=======
 void Call::ConfigureSync(absl::string_view sync_group) {
   // TODO(bugs.webrtc.org/11993): Expect to be called on the network thread.
   RTC_DCHECK_RUN_ON(worker_thread_);
   // `audio_stream` may be nullptr when clearing the audio stream for a group.
   AudioReceiveStreamImpl* audio_stream =
       FindAudioStreamForSyncGroup(sync_group);
->>>>>>> m108
 
   size_t num_synced_streams = 0;
   for (VideoReceiveStream2* video_stream : video_receive_streams_) {
@@ -1707,10 +1535,7 @@ void Call::OnRecoveredPacket(const uint8_t* packet, size_t length) {
 void Call::NotifyBweOfReceivedPacket(const RtpPacketReceived& packet,
                                      MediaType media_type,
                                      bool use_send_side_bwe) {
-<<<<<<< HEAD
-=======
   RTC_DCHECK_RUN_ON(worker_thread_);
->>>>>>> m108
   RTPHeader header;
   packet.GetHeader(&header);
 
@@ -1745,29 +1570,17 @@ bool Call::IdentifyReceivedPacket(RtpPacketReceived& packet,
     return false;
   }
 
-<<<<<<< HEAD
-  packet.IdentifyExtensions(
-      RtpHeaderExtensionMap(it->second->rtp_config().extensions));
-
-  if (use_send_side_bwe) {
-    *use_send_side_bwe = UseSendSideBwe(it->second->rtp_config());
-=======
   packet.IdentifyExtensions(it->second->GetRtpExtensionMap());
 
   if (use_send_side_bwe) {
     *use_send_side_bwe = UseSendSideBwe(it->second);
->>>>>>> m108
   }
 
   return true;
 }
 
-<<<<<<< HEAD
-bool Call::RegisterReceiveStream(uint32_t ssrc, ReceiveStream* stream) {
-=======
 bool Call::RegisterReceiveStream(uint32_t ssrc,
                                  ReceiveStreamInterface* stream) {
->>>>>>> m108
   RTC_DCHECK_RUN_ON(&receive_11993_checker_);
   RTC_DCHECK(stream);
   auto inserted = receive_rtp_config_.emplace(ssrc, stream);

@@ -44,10 +44,6 @@ class DelayManagerTest : public ::testing::Test {
 
   TickTimer tick_timer_;
   DelayManager dm_;
-<<<<<<< HEAD
-  uint32_t ts_;
-=======
->>>>>>> m108
 };
 
 DelayManagerTest::DelayManagerTest()
@@ -74,39 +70,23 @@ TEST_F(DelayManagerTest, CreateAndDestroy) {
 
 TEST_F(DelayManagerTest, UpdateNormal) {
   for (int i = 0; i < 50; ++i) {
-<<<<<<< HEAD
-    InsertNextPacket();
-=======
     Update(0);
->>>>>>> m108
     IncreaseTime(kFrameSizeMs);
   }
   EXPECT_EQ(20, dm_.TargetDelayMs());
 }
 
 TEST_F(DelayManagerTest, MaxDelay) {
-<<<<<<< HEAD
-  InsertNextPacket();
-  const int kMaxDelayMs = 60;
-  EXPECT_GT(dm_.TargetDelayMs(), kMaxDelayMs);
-  EXPECT_TRUE(dm_.SetMaximumDelay(kMaxDelayMs));
-  InsertNextPacket();
-=======
   Update(0);
   const int kMaxDelayMs = 60;
   EXPECT_GT(dm_.TargetDelayMs(), kMaxDelayMs);
   EXPECT_TRUE(dm_.SetMaximumDelay(kMaxDelayMs));
   Update(0);
->>>>>>> m108
   EXPECT_EQ(kMaxDelayMs, dm_.TargetDelayMs());
 }
 
 TEST_F(DelayManagerTest, MinDelay) {
-<<<<<<< HEAD
-  InsertNextPacket();
-=======
   Update(0);
->>>>>>> m108
   int kMinDelayMs = 7 * kFrameSizeMs;
   EXPECT_LT(dm_.TargetDelayMs(), kMinDelayMs);
   dm_.SetMinimumDelay(kMinDelayMs);
@@ -235,11 +215,7 @@ TEST_F(DelayManagerTest, MinimumDelayMemorization) {
 
 TEST_F(DelayManagerTest, BaseMinimumDelay) {
   // First packet arrival.
-<<<<<<< HEAD
-  InsertNextPacket();
-=======
   Update(0);
->>>>>>> m108
 
   constexpr int kBaseMinimumDelayMs = 7 * kFrameSizeMs;
   EXPECT_LT(dm_.TargetDelayMs(), kBaseMinimumDelayMs);
@@ -247,11 +223,7 @@ TEST_F(DelayManagerTest, BaseMinimumDelay) {
   EXPECT_EQ(dm_.GetBaseMinimumDelay(), kBaseMinimumDelayMs);
 
   IncreaseTime(kFrameSizeMs);
-<<<<<<< HEAD
-  InsertNextPacket();
-=======
   Update(0);
->>>>>>> m108
   EXPECT_EQ(dm_.GetBaseMinimumDelay(), kBaseMinimumDelayMs);
   EXPECT_EQ(kBaseMinimumDelayMs, dm_.TargetDelayMs());
 }

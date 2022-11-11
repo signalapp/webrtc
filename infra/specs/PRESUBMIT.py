@@ -1,8 +1,5 @@
-<<<<<<< HEAD
-=======
 #!/usr/bin/env vpython3
 
->>>>>>> m108
 # Copyright (c) 2022 The WebRTC project authors. All Rights Reserved.
 #
 # Use of this source code is governed by a BSD-style license
@@ -13,12 +10,9 @@
 
 import os
 
-<<<<<<< HEAD
-=======
 # Runs PRESUBMIT.py in py3 mode by git cl presubmit.
 USE_PYTHON3 = True
 
->>>>>>> m108
 
 def _HasLocalChanges(input_api):
   ret = input_api.subprocess.call(['git', 'diff', '--quiet'])
@@ -46,23 +40,14 @@ def CheckPatchFormatted(input_api, output_api):
 
 def CheckSourceSideSpecs(input_api, output_api):
   d = os.path.dirname
-<<<<<<< HEAD
-  angle_root = d(d(input_api.PresubmitLocalPath()))
-  gen_script = os.path.join(angle_root, 'testing', 'buildbot',
-=======
   webrtc_root = d(d(input_api.PresubmitLocalPath()))
   gen_script = os.path.join(webrtc_root, 'testing', 'buildbot',
->>>>>>> m108
                             'generate_buildbot_json.py')
 
   commands = [
       input_api.Command(name='generate_buildbot_json',
                         cmd=[
-<<<<<<< HEAD
-                            input_api.python_executable, gen_script, '--check',
-=======
                             input_api.python3_executable, gen_script, '--check',
->>>>>>> m108
                             '--verbose', '--pyl-files-dir',
                             input_api.PresubmitLocalPath()
                         ],

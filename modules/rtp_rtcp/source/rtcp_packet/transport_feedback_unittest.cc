@@ -267,17 +267,10 @@ TEST(RtcpPacketTest, TransportFeedbackTwoBitVectorFull) {
 
 TEST(RtcpPacketTest, TransportFeedbackWithLargeBaseTimeIsConsistent) {
   TransportFeedback tb;
-<<<<<<< HEAD
-  constexpr int64_t kTimestampUs =
-      int64_t{0x7fff'ffff} * TransportFeedback::kDeltaScaleFactor;
-  tb.SetBase(/*base_sequence=*/0, /*ref_timestamp_us=*/kTimestampUs);
-  tb.AddReceivedPacket(/*base_sequence=*/0, /*ref_timestamp_us=*/kTimestampUs);
-=======
   constexpr Timestamp kTimestamp =
       Timestamp::Zero() + int64_t{0x7fff'ffff} * TransportFeedback::kDeltaTick;
   tb.SetBase(/*base_sequence=*/0, /*ref_timestamp=*/kTimestamp);
   tb.AddReceivedPacket(/*base_sequence=*/0, /*ref_timestamp=*/kTimestamp);
->>>>>>> m108
   EXPECT_TRUE(tb.IsConsistent());
 }
 

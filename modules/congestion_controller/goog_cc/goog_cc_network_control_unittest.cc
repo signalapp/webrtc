@@ -139,11 +139,7 @@ absl::optional<DataRate> PacketTransmissionAndFeedbackBlock(
 
 // Scenarios:
 
-<<<<<<< HEAD
-void UpdatesTargetRateBasedOnLinkCapacity(std::string test_name = "") {
-=======
 void UpdatesTargetRateBasedOnLinkCapacity(absl::string_view test_name = "") {
->>>>>>> m108
   ScopedFieldTrials trial("WebRTC-SendSideBwe-WithOverhead/Enabled/");
   auto factory = CreateFeedbackOnlyFactory();
   Scenario s("googcc_unit/target_capacity" + std::string(test_name), false);
@@ -241,11 +237,7 @@ class NetworkControllerTestFixture {
       int min_data_rate_kbps = 0,
       int max_data_rate_kbps = 5 * kInitialBitrateKbps) {
     NetworkControllerConfig config;
-<<<<<<< HEAD
-    config.constraints.at_time = Timestamp::Millis(0);
-=======
     config.constraints.at_time = Timestamp::Zero();
->>>>>>> m108
     config.constraints.min_data_rate =
         DataRate::KilobitsPerSec(min_data_rate_kbps);
     config.constraints.max_data_rate =

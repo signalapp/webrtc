@@ -79,15 +79,7 @@ DelayBasedBwe::DelayBasedBwe(const FieldTrialsView* key_value_config,
       uma_recorded_(false),
       rate_control_(key_value_config, /*send_side=*/true),
       prev_bitrate_(DataRate::Zero()),
-<<<<<<< HEAD
-      has_once_detected_overuse_(false),
-      prev_state_(BandwidthUsage::kBwNormal),
-      alr_limited_backoff_enabled_(absl::StartsWith(
-          key_value_config->Lookup("WebRTC-Bwe-AlrLimitedBackoff"),
-          "Enabled")) {
-=======
       prev_state_(BandwidthUsage::kBwNormal) {
->>>>>>> m108
   RTC_LOG(LS_INFO)
       << "Initialized DelayBasedBwe with separate audio overuse detection"
       << separate_audio_.Parser()->Encode();
@@ -189,23 +181,14 @@ void DelayBasedBwe::IncomingPacketFeedback(const PacketResult& packet_feedback,
 
   InterArrivalDelta* inter_arrival_for_packet =
       (separate_audio_.enabled && packet_feedback.sent_packet.audio)
-<<<<<<< HEAD
-          ? video_inter_arrival_delta_.get()
-          : audio_inter_arrival_delta_.get();
-=======
           ? audio_inter_arrival_delta_.get()
           : video_inter_arrival_delta_.get();
->>>>>>> m108
   bool calculated_deltas = inter_arrival_for_packet->ComputeDeltas(
       packet_feedback.sent_packet.send_time, packet_feedback.receive_time,
       at_time, packet_size.bytes(), &send_delta, &recv_delta, &size_delta);
 
-<<<<<<< HEAD
-  delay_detector_for_packet->Update(recv_delta.ms(), send_delta.ms(),
-=======
   delay_detector_for_packet->Update(recv_delta.ms<double>(),
                                     send_delta.ms<double>(),
->>>>>>> m108
                                     packet_feedback.sent_packet.send_time.ms(),
                                     packet_feedback.receive_time.ms(),
                                     packet_size.bytes(), calculated_deltas);

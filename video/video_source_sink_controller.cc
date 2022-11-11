@@ -63,11 +63,6 @@ void VideoSourceSinkController::PushSourceSinkSettings() {
   if (!source_)
     return;
   rtc::VideoSinkWants wants = CurrentSettingsToSinkWants();
-<<<<<<< HEAD
-  RTC_LOG(LS_INFO) << "Pushing SourceSink restrictions: "
-                   << WantsToString(wants);
-=======
->>>>>>> m108
   source_->AddOrUpdateSink(sink_, wants);
 }
 

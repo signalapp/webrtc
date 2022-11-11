@@ -14,19 +14,12 @@
 
 #include "absl/types/optional.h"
 #include "api/units/time_delta.h"
-<<<<<<< HEAD
-#include "modules/video_coding/timing.h"
-=======
 #include "modules/video_coding/timing/timing.h"
->>>>>>> m108
 #include "rtc_base/containers/flat_map.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/scoped_key_value_config.h"
-<<<<<<< HEAD
-=======
 #include "video/video_receive_stream2.h"
->>>>>>> m108
 
 namespace webrtc {
 
@@ -88,15 +81,6 @@ TEST_F(FrameDecodeTimingTest, ReturnsWaitTimesWhenValid) {
   const Timestamp render_time = clock_.CurrentTime() + TimeDelta::Millis(60);
   timing_.SetTimes(90000, render_time, decode_delay);
 
-<<<<<<< HEAD
-  EXPECT_THAT(
-      frame_decode_scheduler_.OnFrameBufferUpdated(90000, 180000, false),
-      Optional(
-          AllOf(Field(&FrameDecodeTiming::FrameSchedule::latest_decode_time,
-                      Eq(clock_.CurrentTime() + decode_delay)),
-                Field(&FrameDecodeTiming::FrameSchedule::render_time,
-                      Eq(render_time)))));
-=======
   EXPECT_THAT(frame_decode_scheduler_.OnFrameBufferUpdated(
                   90000, 180000, kMaxWaitForFrame, false),
               Optional(AllOf(
@@ -104,7 +88,6 @@ TEST_F(FrameDecodeTimingTest, ReturnsWaitTimesWhenValid) {
                         Eq(clock_.CurrentTime() + decode_delay)),
                   Field(&FrameDecodeTiming::FrameSchedule::render_time,
                         Eq(render_time)))));
->>>>>>> m108
 }
 
 TEST_F(FrameDecodeTimingTest, FastForwardsFrameTooFarInThePast) {
@@ -113,15 +96,9 @@ TEST_F(FrameDecodeTimingTest, FastForwardsFrameTooFarInThePast) {
   const Timestamp render_time = clock_.CurrentTime();
   timing_.SetTimes(90000, render_time, decode_delay);
 
-<<<<<<< HEAD
-  EXPECT_THAT(
-      frame_decode_scheduler_.OnFrameBufferUpdated(90000, 180000, false),
-      Eq(absl::nullopt));
-=======
   EXPECT_THAT(frame_decode_scheduler_.OnFrameBufferUpdated(
                   90000, 180000, kMaxWaitForFrame, false),
               Eq(absl::nullopt));
->>>>>>> m108
 }
 
 TEST_F(FrameDecodeTimingTest, NoFastForwardIfOnlyFrameToDecode) {
@@ -131,12 +108,8 @@ TEST_F(FrameDecodeTimingTest, NoFastForwardIfOnlyFrameToDecode) {
   timing_.SetTimes(90000, render_time, decode_delay);
 
   // Negative `decode_delay` means that `latest_decode_time` is now.
-<<<<<<< HEAD
-  EXPECT_THAT(frame_decode_scheduler_.OnFrameBufferUpdated(90000, 90000, false),
-=======
   EXPECT_THAT(frame_decode_scheduler_.OnFrameBufferUpdated(
                   90000, 90000, kMaxWaitForFrame, false),
->>>>>>> m108
               Optional(AllOf(
                   Field(&FrameDecodeTiming::FrameSchedule::latest_decode_time,
                         Eq(clock_.CurrentTime())),
@@ -144,8 +117,6 @@ TEST_F(FrameDecodeTimingTest, NoFastForwardIfOnlyFrameToDecode) {
                         Eq(render_time)))));
 }
 
-<<<<<<< HEAD
-=======
 TEST_F(FrameDecodeTimingTest, MaxWaitCapped) {
   TimeDelta frame_delay = TimeDelta::Millis(30);
   const TimeDelta decode_delay = TimeDelta::Seconds(3);
@@ -173,5 +144,4 @@ TEST_F(FrameDecodeTimingTest, MaxWaitCapped) {
                         Eq(render_time + frame_delay)))));
 }
 
->>>>>>> m108
 }  // namespace webrtc

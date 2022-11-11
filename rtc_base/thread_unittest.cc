@@ -143,80 +143,6 @@ class SignalWhenDestroyedThread : public Thread {
   Event* event_;
 };
 
-<<<<<<< HEAD
-// A bool wrapped in a mutex, to avoid data races. Using a volatile
-// bool should be sufficient for correct code ("eventual consistency"
-// between caches is sufficient), but we can't tell the compiler about
-// that, and then tsan complains about a data race.
-
-// See also discussion at
-// http://stackoverflow.com/questions/7223164/is-mutex-needed-to-synchronize-a-simple-flag-between-pthreads
-
-// Using std::atomic<bool> or std::atomic_flag in C++11 is probably
-// the right thing to do, but those features are not yet allowed. Or
-// rtc::AtomicInt, if/when that is added. Since the use isn't
-// performance critical, use a plain critical section for the time
-// being.
-
-class AtomicBool {
- public:
-  explicit AtomicBool(bool value = false) : flag_(value) {}
-  AtomicBool& operator=(bool value) {
-    webrtc::MutexLock scoped_lock(&mutex_);
-    flag_ = value;
-    return *this;
-  }
-  bool get() const {
-    webrtc::MutexLock scoped_lock(&mutex_);
-    return flag_;
-  }
-
- private:
-  mutable webrtc::Mutex mutex_;
-  bool flag_;
-};
-
-// Function objects to test Thread::Invoke.
-struct FunctorA {
-  int operator()() { return 42; }
-};
-class FunctorB {
- public:
-  explicit FunctorB(AtomicBool* flag) : flag_(flag) {}
-  void operator()() {
-    if (flag_)
-      *flag_ = true;
-  }
-
- private:
-  AtomicBool* flag_;
-};
-struct FunctorC {
-  int operator()() {
-    Thread::Current()->ProcessMessages(50);
-    return 24;
-  }
-};
-struct FunctorD {
- public:
-  explicit FunctorD(AtomicBool* flag) : flag_(flag) {}
-  FunctorD(FunctorD&&) = default;
-
-  FunctorD(const FunctorD&) = delete;
-  FunctorD& operator=(const FunctorD&) = delete;
-
-  FunctorD& operator=(FunctorD&&) = default;
-  void operator()() {
-    if (flag_)
-      *flag_ = true;
-  }
-
- private:
-  AtomicBool* flag_;
-};
-
-=======
->>>>>>> m108
 // See: https://code.google.com/p/webrtc/issues/detail?id=2409
 TEST(ThreadTest, DISABLED_Main) {
   rtc::AutoThread main_thread;
@@ -627,171 +553,6 @@ TEST(ThreadManager, ProcessAllMessageQueuesWithQuittingThread) {
   ThreadManager::ProcessAllMessageQueuesForTesting();
 }
 
-<<<<<<< HEAD
-// Test that ProcessAllMessageQueues doesn't hang if a queue clears its
-// messages.
-TEST(ThreadManager, ProcessAllMessageQueuesWithClearedQueue) {
-  Event entered_process_all_message_queues(true, false);
-  auto t = Thread::CreateWithSocketServer();
-  t->Start();
-
-  auto clearer = [&entered_process_all_message_queues] {
-    // Wait for event as a means to ensure Clear doesn't occur outside of
-    // ProcessAllMessageQueues. The event is set by a message posted to the
-    // main thread, which is guaranteed to be handled inside
-    // ProcessAllMessageQueues.
-    entered_process_all_message_queues.Wait(Event::kForever);
-    rtc::Thread::Current()->Clear(nullptr);
-  };
-  auto event_signaler = [&entered_process_all_message_queues] {
-    entered_process_all_message_queues.Set();
-  };
-
-  // Post messages (both delayed and non delayed) to both threads.
-  t->PostTask(clearer);
-  rtc::Thread::Current()->PostTask(event_signaler);
-  ThreadManager::ProcessAllMessageQueuesForTesting();
-}
-
-class RefCountedHandler : public MessageHandlerAutoCleanup,
-                          public rtc::RefCountInterface {
- public:
-  void OnMessage(Message* msg) override {}
-};
-
-class EmptyHandler : public MessageHandlerAutoCleanup {
- public:
-  void OnMessage(Message* msg) override {}
-};
-
-TEST(ThreadManager, ClearReentrant) {
-  std::unique_ptr<Thread> t(Thread::Create());
-  EmptyHandler handler;
-  RefCountedHandler* inner_handler(
-      new rtc::RefCountedObject<RefCountedHandler>());
-  // When the empty handler is destroyed, it will clear messages queued for
-  // itself. The message to be cleared itself wraps a MessageHandler object
-  // (RefCountedHandler) so this will cause the message queue to be cleared
-  // again in a re-entrant fashion, which previously triggered a DCHECK.
-  // The inner handler will be removed in a re-entrant fashion from the
-  // message queue of the thread while the outer handler is removed, verifying
-  // that the iterator is not invalidated in "MessageQueue::Clear".
-  t->Post(RTC_FROM_HERE, inner_handler, 0);
-  t->Post(RTC_FROM_HERE, &handler, 0,
-          new ScopedRefMessageData<RefCountedHandler>(inner_handler));
-}
-
-class DEPRECATED_AsyncInvokeTest : public ::testing::Test {
- public:
-  void IntCallback(int value) {
-    EXPECT_EQ(expected_thread_, Thread::Current());
-    int_value_ = value;
-  }
-  void SetExpectedThreadForIntCallback(Thread* thread) {
-    expected_thread_ = thread;
-  }
-
- protected:
-  enum { kWaitTimeout = 1000 };
-  DEPRECATED_AsyncInvokeTest() : int_value_(0), expected_thread_(nullptr) {}
-
-  int int_value_;
-  Thread* expected_thread_;
-};
-
-TEST_F(DEPRECATED_AsyncInvokeTest, FireAndForget) {
-  DEPRECATED_AsyncInvoker invoker;
-  // Create and start the thread.
-  auto thread = Thread::CreateWithSocketServer();
-  thread->Start();
-  // Try calling functor.
-  AtomicBool called;
-  invoker.AsyncInvoke<void>(RTC_FROM_HERE, thread.get(), FunctorB(&called));
-  EXPECT_TRUE_WAIT(called.get(), kWaitTimeout);
-  thread->Stop();
-}
-
-TEST_F(DEPRECATED_AsyncInvokeTest, NonCopyableFunctor) {
-  DEPRECATED_AsyncInvoker invoker;
-  // Create and start the thread.
-  auto thread = Thread::CreateWithSocketServer();
-  thread->Start();
-  // Try calling functor.
-  AtomicBool called;
-  invoker.AsyncInvoke<void>(RTC_FROM_HERE, thread.get(), FunctorD(&called));
-  EXPECT_TRUE_WAIT(called.get(), kWaitTimeout);
-  thread->Stop();
-}
-
-TEST_F(DEPRECATED_AsyncInvokeTest, KillInvokerDuringExecute) {
-  // Use these events to get in a state where the functor is in the middle of
-  // executing, and then to wait for it to finish, ensuring the "EXPECT_FALSE"
-  // is run.
-  Event functor_started;
-  Event functor_continue;
-  Event functor_finished;
-
-  auto thread = Thread::CreateWithSocketServer();
-  thread->Start();
-  volatile bool invoker_destroyed = false;
-  {
-    auto functor = [&functor_started, &functor_continue, &functor_finished,
-                    &invoker_destroyed] {
-      functor_started.Set();
-      functor_continue.Wait(Event::kForever);
-      rtc::Thread::Current()->SleepMs(kWaitTimeout);
-      EXPECT_FALSE(invoker_destroyed);
-      functor_finished.Set();
-    };
-    DEPRECATED_AsyncInvoker invoker;
-    invoker.AsyncInvoke<void>(RTC_FROM_HERE, thread.get(), functor);
-    functor_started.Wait(Event::kForever);
-
-    // Destroy the invoker while the functor is still executing (doing
-    // SleepMs).
-    functor_continue.Set();
-  }
-
-  // If the destructor DIDN'T wait for the functor to finish executing, it will
-  // hit the EXPECT_FALSE(invoker_destroyed) after it finishes sleeping for a
-  // second.
-  invoker_destroyed = true;
-  functor_finished.Wait(Event::kForever);
-}
-
-// Variant of the above test where the async-invoked task calls AsyncInvoke
-// *again*, for the thread on which the invoker is currently being destroyed.
-// This shouldn't deadlock or crash. The second invocation should be ignored.
-TEST_F(DEPRECATED_AsyncInvokeTest,
-       KillInvokerDuringExecuteWithReentrantInvoke) {
-  Event functor_started;
-  // Flag used to verify that the recursively invoked task never actually runs.
-  bool reentrant_functor_run = false;
-
-  Thread* main = Thread::Current();
-  Thread thread(std::make_unique<NullSocketServer>());
-  thread.Start();
-  {
-    DEPRECATED_AsyncInvoker invoker;
-    auto reentrant_functor = [&reentrant_functor_run] {
-      reentrant_functor_run = true;
-    };
-    auto functor = [&functor_started, &invoker, main, reentrant_functor] {
-      functor_started.Set();
-      Thread::Current()->SleepMs(kWaitTimeout);
-      invoker.AsyncInvoke<void>(RTC_FROM_HERE, main, reentrant_functor);
-    };
-    // This queues a task on `thread` to sleep for `kWaitTimeout` then queue a
-    // task on `main`. But this second queued task should never run, since the
-    // destructor will be entered before it's even invoked.
-    invoker.AsyncInvoke<void>(RTC_FROM_HERE, &thread, functor);
-    functor_started.Wait(Event::kForever);
-  }
-  EXPECT_FALSE(reentrant_functor_run);
-}
-
-=======
->>>>>>> m108
 void WaitAndSetEvent(Event* wait_event, Event* set_event) {
   wait_event->Wait(Event::kForever);
   set_event->Set();
@@ -1038,15 +799,6 @@ TEST(ThreadPostDelayedTaskTest, InvokesInDelayOrder) {
 
   background_thread->PostDelayedTask(
       [&third, &fourth] { WaitAndSetEvent(&third, &fourth); },
-<<<<<<< HEAD
-      /*milliseconds=*/11);
-  background_thread->PostDelayedTask(
-      [&first, &second] { WaitAndSetEvent(&first, &second); },
-      /*milliseconds=*/9);
-  background_thread->PostDelayedTask(
-      [&second, &third] { WaitAndSetEvent(&second, &third); },
-      /*milliseconds=*/10);
-=======
       TimeDelta::Millis(11));
   background_thread->PostDelayedTask(
       [&first, &second] { WaitAndSetEvent(&first, &second); },
@@ -1054,7 +806,6 @@ TEST(ThreadPostDelayedTaskTest, InvokesInDelayOrder) {
   background_thread->PostDelayedTask(
       [&second, &third] { WaitAndSetEvent(&second, &third); },
       TimeDelta::Millis(10));
->>>>>>> m108
 
   // All tasks have been posted before the first one is unblocked.
   first.Set();

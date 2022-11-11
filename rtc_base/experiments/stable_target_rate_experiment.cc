@@ -43,19 +43,9 @@ StableTargetRateExperiment StableTargetRateExperiment::ParseFromFieldTrials() {
 
 StableTargetRateExperiment StableTargetRateExperiment::ParseFromKeyValueConfig(
     const FieldTrialsView* const key_value_config) {
-<<<<<<< HEAD
-  RateControlSettings rate_control =
-      RateControlSettings::ParseFromKeyValueConfig(key_value_config);
-  return StableTargetRateExperiment(
-      key_value_config,
-      rate_control.GetSimulcastHysteresisFactor(VideoCodecMode::kRealtimeVideo),
-      rate_control.GetSimulcastHysteresisFactor(
-          VideoCodecMode::kScreensharing));
-=======
   return StableTargetRateExperiment(key_value_config,
                                     /*default_video_hysteresis=*/1.2,
                                     /*default_screenshare_hysteresis=*/1.35);
->>>>>>> m108
 }
 
 bool StableTargetRateExperiment::IsEnabled() const {

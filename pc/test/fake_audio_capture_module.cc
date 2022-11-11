@@ -383,24 +383,6 @@ int32_t FakeAudioCaptureModule::PlayoutDelay(uint16_t* delay_ms) const {
   return 0;
 }
 
-<<<<<<< HEAD
-void FakeAudioCaptureModule::OnMessage(rtc::Message* msg) {
-  switch (msg->message_id) {
-    case MSG_START_PROCESS:
-      StartProcessP();
-      break;
-    case MSG_RUN_PROCESS:
-      ProcessFrameP();
-      break;
-    default:
-      // All existing messages should be caught. Getting here should never
-      // happen.
-      RTC_DCHECK_NOTREACHED();
-  }
-}
-
-=======
->>>>>>> m108
 bool FakeAudioCaptureModule::Initialize() {
   // Set the send buffer samples high enough that it would not occur on the
   // remote side unless a packet containing a sample of that magnitude has been

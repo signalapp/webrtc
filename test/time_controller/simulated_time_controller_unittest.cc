@@ -132,11 +132,7 @@ TEST(SimulatedTimeControllerTest, ThreadYeildsOnSynchronousCall) {
   // Posting a task to the main thread, this should not run until AdvanceTime is
   // called.
   main_thread->PostTask([&] { task_has_run = true; });
-<<<<<<< HEAD
-  t2->Invoke<void>(RTC_FROM_HERE, [] {
-=======
   SendTask(t2.get(), [] {
->>>>>>> m108
     rtc::Event yield_event;
     // Wait() triggers YieldExecution() which will runs message processing on
     // all threads that are not in the yielded set.

@@ -16,10 +16,7 @@
 #include <utility>
 
 #include "absl/memory/memory.h"
-<<<<<<< HEAD
-=======
 #include "absl/strings/string_view.h"
->>>>>>> m108
 #include "logging/rtc_event_log/encoder/bit_writer.h"
 #include "logging/rtc_event_log/encoder/var_int.h"
 #include "rtc_base/bit_buffer.h"

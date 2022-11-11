@@ -103,12 +103,8 @@ class VideoReceiveStream2
                       Clock* clock,
                       std::unique_ptr<VCMTiming> timing,
                       NackPeriodicProcessor* nack_periodic_processor,
-<<<<<<< HEAD
-                      DecodeSynchronizer* decode_sync);
-=======
                       DecodeSynchronizer* decode_sync,
                       RtcEventLog* event_log);
->>>>>>> m108
   // Destruction happens on the worker thread. Prior to destruction the caller
   // must ensure that a registration with the transport has been cleared. See
   // `RegisterWithTransport` for details.
@@ -201,16 +197,6 @@ class VideoReceiveStream2
   void GenerateKeyFrame() override;
 
  private:
-<<<<<<< HEAD
-  void OnEncodedFrame(std::unique_ptr<EncodedFrame> frame) override;
-  void OnDecodableFrameTimeout(TimeDelta wait_time) override;
-  void CreateAndRegisterExternalDecoder(const Decoder& decoder);
-  int64_t GetMaxWaitMs() const RTC_RUN_ON(decode_queue_);
-  void HandleEncodedFrame(std::unique_ptr<EncodedFrame> frame)
-      RTC_RUN_ON(decode_queue_);
-  void HandleFrameBufferTimeout(int64_t now_ms, int64_t wait_ms)
-      RTC_RUN_ON(packet_sequence_checker_);
-=======
   // FrameSchedulingReceiver implementation.
   // Called on packet sequence.
   void OnEncodedFrame(std::unique_ptr<EncodedFrame> frame) override;
@@ -240,7 +226,6 @@ class VideoReceiveStream2
       std::unique_ptr<EncodedFrame> frame,
       bool keyframe_request_is_due,
       bool keyframe_required) RTC_RUN_ON(decode_queue_);
->>>>>>> m108
   void UpdatePlayoutDelays() const
       RTC_EXCLUSIVE_LOCKS_REQUIRED(worker_sequence_checker_);
   void RequestKeyFrame(Timestamp now) RTC_RUN_ON(packet_sequence_checker_);
@@ -292,15 +277,7 @@ class VideoReceiveStream2
   std::unique_ptr<VideoStreamDecoder> video_stream_decoder_;
   RtpStreamsSynchronizer rtp_stream_sync_;
 
-<<<<<<< HEAD
-  // TODO(nisse, philipel): Creation and ownership of video encoders should be
-  // moved to the new VideoStreamDecoder.
-  std::vector<std::unique_ptr<VideoDecoder>> video_decoders_;
-
-  std::unique_ptr<FrameBufferProxy> frame_buffer_;
-=======
   std::unique_ptr<VideoStreamBufferController> buffer_;
->>>>>>> m108
 
   std::unique_ptr<RtpStreamReceiverInterface> media_receiver_
       RTC_GUARDED_BY(packet_sequence_checker_);

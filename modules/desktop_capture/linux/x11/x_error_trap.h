@@ -13,11 +13,8 @@
 
 #include <X11/Xlib.h>
 
-<<<<<<< HEAD:modules/desktop_capture/linux/x11/x_error_trap.h
-=======
 #include "rtc_base/synchronization/mutex.h"
 
->>>>>>> m108:modules/desktop_capture/linux/x_error_trap.h
 namespace webrtc {
 
 // Helper class that registers an X Window error handler. Caller can use
@@ -31,17 +28,6 @@ class XErrorTrap {
 
   ~XErrorTrap();
 
-<<<<<<< HEAD:modules/desktop_capture/linux/x11/x_error_trap.h
-  XErrorTrap(const XErrorTrap&) = delete;
-  XErrorTrap& operator=(const XErrorTrap&) = delete;
-
-  // Returns last error and removes unregisters the error handler.
-  int GetLastErrorAndDisable();
-
- private:
-  XErrorHandler original_error_handler_;
-  bool enabled_;
-=======
   // Returns the last error if one was caught, otherwise 0. Also unregisters the
   // error handler and replaces it with `original_error_handler_`.
   int GetLastErrorAndDisable();
@@ -49,7 +35,6 @@ class XErrorTrap {
  private:
   MutexLock mutex_lock_;
   XErrorHandler original_error_handler_ = nullptr;
->>>>>>> m108:modules/desktop_capture/linux/x_error_trap.h
 };
 
 }  // namespace webrtc

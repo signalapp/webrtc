@@ -84,28 +84,16 @@ rtc_library("audio") {
     "../modules/pacing",
     "../modules/rtp_rtcp",
     "../modules/rtp_rtcp:rtp_rtcp_format",
-<<<<<<< HEAD
-    "../rtc_base",
-=======
     "../modules/utility:utility",
->>>>>>> m108
     "../rtc_base:audio_format_to_string",
     "../rtc_base:buffer",
     "../rtc_base:checks",
-<<<<<<< HEAD
-    "../rtc_base:logging",
-    "../rtc_base:macromagic",
-    "../rtc_base:rate_limiter",
-    "../rtc_base:refcount",
-    "../rtc_base:rtc_base_approved",
-=======
     "../rtc_base:event_tracer",
     "../rtc_base:logging",
     "../rtc_base:macromagic",
     "../rtc_base:race_checker",
     "../rtc_base:rate_limiter",
     "../rtc_base:refcount",
->>>>>>> m108
     "../rtc_base:rtc_event",
     "../rtc_base:rtc_task_queue",
     "../rtc_base:safe_conversions",
@@ -203,10 +191,6 @@ if (rtc_include_tests) {
       "../rtc_base:checks",
       "../rtc_base:macromagic",
       "../rtc_base:refcount",
-<<<<<<< HEAD
-      "../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
       "../rtc_base:rtc_base_tests_utils",
       "../rtc_base:safe_compare",
       "../rtc_base:task_queue_for_test",

@@ -334,13 +334,6 @@ class MediaStreamInterface : public rtc::RefCountInterface,
       const std::string& track_id) = 0;
 
   // Takes ownership of added tracks.
-<<<<<<< HEAD
-  // TODO(hta): Should take scoped_refptr rather than raw pointer.
-  virtual bool AddTrack(AudioTrackInterface* track) = 0;
-  virtual bool AddTrack(VideoTrackInterface* track) = 0;
-  virtual bool RemoveTrack(AudioTrackInterface* track) = 0;
-  virtual bool RemoveTrack(VideoTrackInterface* track) = 0;
-=======
   // Note: Default implementations are for avoiding link time errors in
   // implementations that mock this API.
   // TODO(bugs.webrtc.org/13980): Remove default implementations.
@@ -373,7 +366,6 @@ class MediaStreamInterface : public rtc::RefCountInterface,
       VideoTrackInterface* track) {
     return RemoveTrack(rtc::scoped_refptr<VideoTrackInterface>(track));
   }
->>>>>>> m108
 
  protected:
   ~MediaStreamInterface() override = default;

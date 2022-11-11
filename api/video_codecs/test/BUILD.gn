@@ -20,10 +20,7 @@ if (rtc_include_tests) {
     ]
 
     deps = [
-<<<<<<< HEAD
-=======
       ":video_decoder_factory_template_tests",
->>>>>>> m108
       ":video_encoder_factory_template_tests",
       "..:builtin_video_encoder_factory",
       "..:rtc_software_fallback_wrappers",
@@ -64,8 +61,6 @@ if (rtc_include_tests) {
       "//testing/gtest",
     ]
   }
-<<<<<<< HEAD
-=======
 
   rtc_library("video_decoder_factory_template_tests") {
     testonly = true
@@ -82,5 +77,4 @@ if (rtc_include_tests) {
       "//testing/gtest",
     ]
   }
->>>>>>> m108
 }

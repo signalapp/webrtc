@@ -47,16 +47,12 @@
 #include "rtc_base/logging.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/system/no_unique_address.h"
-#include "rtc_base/task_utils/to_queued_task.h"
 #include "rtc_base/thread_annotations.h"
 #include "rtc_base/trace_event.h"
 #include "system_wrappers/include/metrics.h"
 #include "video/adaptation/video_stream_encoder_resource_manager.h"
 #include "video/alignment_adjuster.h"
-<<<<<<< HEAD
-=======
 #include "video/config/encoder_stream_factory.h"
->>>>>>> m108
 #include "video/frame_cadence_adapter.h"
 
 namespace webrtc {
@@ -513,11 +509,7 @@ void ApplyEncoderBitrateLimitsIfSingleActiveStream(
 }
 
 absl::optional<int> ParseVp9LowTierCoreCountThreshold(
-<<<<<<< HEAD
-    const webrtc::FieldTrialsView& trials) {
-=======
     const FieldTrialsView& trials) {
->>>>>>> m108
   FieldTrialFlag disable_low_tier("Disabled");
   FieldTrialParameter<int> max_core_count("max_core_count", 2);
   ParseFieldTrial({&disable_low_tier, &max_core_count},
@@ -528,8 +520,6 @@ absl::optional<int> ParseVp9LowTierCoreCountThreshold(
   return max_core_count.Get();
 }
 
-<<<<<<< HEAD
-=======
 absl::optional<VideoSourceRestrictions> MergeRestrictions(
     const std::vector<absl::optional<VideoSourceRestrictions>>& list) {
   absl::optional<VideoSourceRestrictions> return_value;
@@ -546,7 +536,6 @@ absl::optional<VideoSourceRestrictions> MergeRestrictions(
   return return_value;
 }
 
->>>>>>> m108
 }  //  namespace
 
 VideoStreamEncoder::EncoderRateSettings::EncoderRateSettings()
@@ -643,12 +632,8 @@ VideoStreamEncoder::VideoStreamEncoder(
     std::unique_ptr<webrtc::TaskQueueBase, webrtc::TaskQueueDeleter>
         encoder_queue,
     BitrateAllocationCallbackType allocation_cb_type,
-<<<<<<< HEAD
-    const FieldTrialsView& field_trials)
-=======
     const FieldTrialsView& field_trials,
     webrtc::VideoEncoderFactory::EncoderSelectorInterface* encoder_selector)
->>>>>>> m108
     : field_trials_(field_trials),
       worker_queue_(TaskQueueBase::Current()),
       number_of_cores_(number_of_cores),
@@ -734,11 +719,7 @@ VideoStreamEncoder::VideoStreamEncoder(
   RTC_DCHECK_GE(number_of_cores, 1);
 
   frame_cadence_adapter_->Initialize(&cadence_callback_);
-<<<<<<< HEAD
-  stream_resource_manager_.Initialize(&encoder_queue_);
-=======
   stream_resource_manager_.Initialize(encoder_queue_.Get());
->>>>>>> m108
 
   encoder_queue_.PostTask([this] {
     RTC_DCHECK_RUN_ON(&encoder_queue_);
@@ -774,34 +755,6 @@ void VideoStreamEncoder::Stop() {
   video_source_sink_controller_.SetSource(nullptr);
 
   rtc::Event shutdown_event;
-<<<<<<< HEAD
-
-  encoder_queue_.PostTask([this, &shutdown_event] {
-    RTC_DCHECK_RUN_ON(&encoder_queue_);
-    if (resource_adaptation_processor_) {
-      stream_resource_manager_.StopManagedResources();
-      for (auto* constraint : adaptation_constraints_) {
-        video_stream_adapter_->RemoveAdaptationConstraint(constraint);
-      }
-      for (auto& resource : additional_resources_) {
-        stream_resource_manager_.RemoveResource(resource);
-      }
-      additional_resources_.clear();
-      video_stream_adapter_->RemoveRestrictionsListener(this);
-      video_stream_adapter_->RemoveRestrictionsListener(
-          &stream_resource_manager_);
-      resource_adaptation_processor_->RemoveResourceLimitationsListener(
-          &stream_resource_manager_);
-      stream_resource_manager_.SetAdaptationProcessor(nullptr, nullptr);
-      resource_adaptation_processor_.reset();
-    }
-    rate_allocator_ = nullptr;
-    ReleaseEncoder();
-    encoder_ = nullptr;
-    frame_cadence_adapter_ = nullptr;
-    shutdown_event.Set();
-  });
-=======
   absl::Cleanup shutdown = [&shutdown_event] { shutdown_event.Set(); };
   encoder_queue_.PostTask(
       [this, shutdown = std::move(shutdown)] {
@@ -828,7 +781,6 @@ void VideoStreamEncoder::Stop() {
         encoder_ = nullptr;
         frame_cadence_adapter_ = nullptr;
       });
->>>>>>> m108
   shutdown_event.Wait(rtc::Event::kForever);
 }
 
@@ -1249,18 +1201,12 @@ void VideoStreamEncoder::ReconfigureEncoder() {
     encoder_resolutions.emplace_back(simulcastStream.width,
                                      simulcastStream.height);
   }
-<<<<<<< HEAD
-  worker_queue_->PostTask(ToQueuedTask(
-      task_safety_, [this, max_framerate, alignment,
-                     encoder_resolutions = std::move(encoder_resolutions)]() {
-=======
 
   worker_queue_->PostTask(SafeTask(
       task_safety_.flag(),
       [this, max_framerate, alignment,
        encoder_resolutions = std::move(encoder_resolutions),
        requested_resolution = std::move(requested_resolution), active]() {
->>>>>>> m108
         RTC_DCHECK_RUN_ON(worker_queue_);
         if (max_framerate !=
                 video_source_sink_controller_.frame_rate_upper_limit() ||
@@ -2014,21 +1960,9 @@ void VideoStreamEncoder::EncodeVideoFrame(const VideoFrame& video_frame,
   was_encode_called_since_last_initialization_ = true;
 
   if (encode_status < 0) {
-<<<<<<< HEAD
-    if (encode_status == WEBRTC_VIDEO_CODEC_ENCODER_FAILURE) {
-      RTC_LOG(LS_ERROR) << "Encoder failed, failing encoder format: "
-                        << encoder_config_.video_format.ToString();
-      RequestEncoderSwitch();
-    } else {
-      RTC_LOG(LS_ERROR) << "Failed to encode frame. Error code: "
-                        << encode_status;
-    }
-
-=======
     RTC_LOG(LS_ERROR) << "Encoder failed, failing encoder format: "
                       << encoder_config_.video_format.ToString();
     RequestEncoderSwitch();
->>>>>>> m108
     return;
   }
 
@@ -2038,11 +1972,7 @@ void VideoStreamEncoder::EncodeVideoFrame(const VideoFrame& video_frame,
 }
 
 void VideoStreamEncoder::RequestRefreshFrame() {
-<<<<<<< HEAD
-  worker_queue_->PostTask(ToQueuedTask(task_safety_, [this] {
-=======
   worker_queue_->PostTask(SafeTask(task_safety_.flag(), [this] {
->>>>>>> m108
     RTC_DCHECK_RUN_ON(worker_queue_);
     video_source_sink_controller_.RequestRefreshFrame();
   }));
@@ -2123,8 +2053,6 @@ EncodedImage VideoStreamEncoder::AugmentEncodedImage(
   RTC_CHECK(videocontenttypehelpers::SetSimulcastId(
       &image_copy.content_type_, static_cast<uint8_t>(spatial_idx + 1)));
 
-<<<<<<< HEAD
-=======
   return image_copy;
 }
 
@@ -2143,7 +2071,6 @@ EncodedImageCallback::Result VideoStreamEncoder::OnEncodedImage(
   EncodedImage image_copy =
       AugmentEncodedImage(encoded_image, codec_specific_info);
 
->>>>>>> m108
   // Post a task because `send_codec_` requires `encoder_queue_` lock and we
   // need to update on quality convergence.
   unsigned int image_width = image_copy._encodedWidth;
@@ -2405,10 +2332,6 @@ void VideoStreamEncoder::OnVideoSourceRestrictionsUpdated(
   RTC_LOG(LS_INFO) << "Updating sink restrictions from "
                    << (reason ? reason->Name() : std::string("<null>"))
                    << " to " << restrictions.ToString();
-<<<<<<< HEAD
-  worker_queue_->PostTask(ToQueuedTask(
-      task_safety_, [this, restrictions = std::move(restrictions)]() {
-=======
 
   // TODO(webrtc:14451) Split video_source_sink_controller_
   // so that ownership on restrictions/wants is kept on &encoder_queue_
@@ -2416,7 +2339,6 @@ void VideoStreamEncoder::OnVideoSourceRestrictionsUpdated(
 
   worker_queue_->PostTask(SafeTask(
       task_safety_.flag(), [this, restrictions = std::move(restrictions)]() {
->>>>>>> m108
         RTC_DCHECK_RUN_ON(worker_queue_);
         video_source_sink_controller_.SetRestrictions(std::move(restrictions));
         video_source_sink_controller_.PushSourceSinkSettings();
@@ -2556,10 +2478,6 @@ void VideoStreamEncoder::CheckForAnimatedContent(
       RTC_LOG(LS_INFO) << "Removing resolution cap due to no consistent "
                           "animation detection.";
     }
-<<<<<<< HEAD
-    worker_queue_->PostTask(
-        ToQueuedTask(task_safety_, [this, should_cap_resolution]() {
-=======
     // TODO(webrtc:14451) Split video_source_sink_controller_
     // so that ownership on restrictions/wants is kept on &encoder_queue_
     if (should_cap_resolution) {
@@ -2573,7 +2491,6 @@ void VideoStreamEncoder::CheckForAnimatedContent(
 
     worker_queue_->PostTask(
         SafeTask(task_safety_.flag(), [this, should_cap_resolution]() {
->>>>>>> m108
           RTC_DCHECK_RUN_ON(worker_queue_);
           video_source_sink_controller_.SetPixelsPerFrameUpperLimit(
               should_cap_resolution

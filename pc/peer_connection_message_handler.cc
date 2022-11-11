@@ -10,7 +10,6 @@
 
 #include "pc/peer_connection_message_handler.h"
 
-#include <list>
 #include <utility>
 
 #include "api/jsep.h"
@@ -31,54 +30,7 @@ rtc::scoped_refptr<T> WrapScoped(T* ptr) {
   return rtc::scoped_refptr<T>(ptr);
 }
 
-<<<<<<< HEAD
-void PeerConnectionMessageHandler::OnMessage(rtc::Message* msg) {
-  RTC_DCHECK_RUN_ON(signaling_thread());
-  switch (msg->message_id) {
-    case MSG_SET_SESSIONDESCRIPTION_SUCCESS: {
-      SetSessionDescriptionMsg* param =
-          static_cast<SetSessionDescriptionMsg*>(msg->pdata);
-      param->observer->OnSuccess();
-      delete param;
-      break;
-    }
-    case MSG_SET_SESSIONDESCRIPTION_FAILED: {
-      SetSessionDescriptionMsg* param =
-          static_cast<SetSessionDescriptionMsg*>(msg->pdata);
-      param->observer->OnFailure(std::move(param->error));
-      delete param;
-      break;
-    }
-    case MSG_CREATE_SESSIONDESCRIPTION_FAILED: {
-      CreateSessionDescriptionMsg* param =
-          static_cast<CreateSessionDescriptionMsg*>(msg->pdata);
-      param->observer->OnFailure(std::move(param->error));
-      delete param;
-      break;
-    }
-    case MSG_GETSTATS: {
-      GetStatsMsg* param = static_cast<GetStatsMsg*>(msg->pdata);
-      StatsReports reports;
-      param->stats->GetStats(param->track, &reports);
-      param->observer->OnComplete(reports);
-      delete param;
-      break;
-    }
-    case MSG_REPORT_USAGE_PATTERN: {
-      RequestUsagePatternMsg* param =
-          static_cast<RequestUsagePatternMsg*>(msg->pdata);
-      param->function();
-      delete param;
-      break;
-    }
-    default:
-      RTC_DCHECK_NOTREACHED() << "Not implemented";
-      break;
-  }
-}
-=======
 }  // namespace
->>>>>>> m108
 
 void PeerConnectionMessageHandler::PostSetSessionDescriptionSuccess(
     SetSessionDescriptionObserver* observer) {

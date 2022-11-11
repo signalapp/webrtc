@@ -15,10 +15,7 @@
 #include "api/scoped_refptr.h"
 #include "api/video/i420_buffer.h"
 #include "rtc_base/logging.h"
-<<<<<<< HEAD
-=======
 #include "rtc_base/strings/string_builder.h"
->>>>>>> m108
 #include "test/testsupport/file_utils.h"
 #include "test/testsupport/frame_reader.h"
 
@@ -61,34 +58,11 @@ bool Y4mFrameReaderImpl::Init() {
   }
   input_file_ = fopen(input_filename_.c_str(), "rb");
   if (input_file_ == nullptr) {
-<<<<<<< HEAD
-    RTC_LOG(LS_ERROR) << "Couldn't open input file: "
-                      << input_filename_.c_str();
-=======
     RTC_LOG(LS_ERROR) << "Couldn't open input file: " << input_filename_;
->>>>>>> m108
     return false;
   }
   size_t source_file_size = GetFileSize(input_filename_);
   if (source_file_size <= 0u) {
-<<<<<<< HEAD
-    RTC_LOG(LS_ERROR) << "Input file " << input_filename_.c_str()
-                      << " is empty.";
-    return false;
-  }
-  if (fread(buffer_, 1, kFileHeaderSize, input_file_) < kFileHeaderSize) {
-    RTC_LOG(LS_ERROR) << "Couldn't read Y4M header from input file: "
-                      << input_filename_.c_str();
-    return false;
-  }
-
-  number_of_frames_ = static_cast<int>((source_file_size - kFileHeaderSize) /
-                                       frame_length_in_bytes_);
-
-  if (number_of_frames_ == 0) {
-    RTC_LOG(LS_ERROR) << "Input file " << input_filename_.c_str()
-                      << " is too small.";
-=======
     RTC_LOG(LS_ERROR) << "Input file " << input_filename_ << " is empty.";
     return false;
   }
@@ -113,7 +87,6 @@ bool Y4mFrameReaderImpl::Init() {
 
   if (number_of_frames_ == 0) {
     RTC_LOG(LS_ERROR) << "Input file " << input_filename_ << " is too small.";
->>>>>>> m108
   }
   return true;
 }
@@ -126,11 +99,7 @@ rtc::scoped_refptr<I420Buffer> Y4mFrameReaderImpl::ReadFrame() {
   if (fread(buffer_, 1, kFrameHeaderSize, input_file_) < kFrameHeaderSize &&
       ferror(input_file_)) {
     RTC_LOG(LS_ERROR) << "Couldn't read frame header from input file: "
-<<<<<<< HEAD
-                      << input_filename_.c_str();
-=======
                       << input_filename_;
->>>>>>> m108
     return nullptr;
   }
   return YuvFrameReaderImpl::ReadFrame();

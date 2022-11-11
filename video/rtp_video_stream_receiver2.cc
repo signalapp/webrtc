@@ -55,11 +55,8 @@ namespace {
 constexpr int kPacketBufferStartSize = 512;
 constexpr int kPacketBufferMaxSize = 2048;
 
-<<<<<<< HEAD
-=======
 constexpr int kMaxPacketAgeToNack = 450;
 
->>>>>>> m108
 int PacketBufferMaxSize(const FieldTrialsView& field_trials) {
   // The group here must be a positive power of 2, in which case that is used as
   // size. All other values shall result in the default value being used.
@@ -116,19 +113,13 @@ std::unique_ptr<NackRequester> MaybeConstructNackModule(
     NackSender* nack_sender,
     KeyFrameRequestSender* keyframe_request_sender,
     const FieldTrialsView& field_trials) {
-<<<<<<< HEAD
-  if (config.rtp.nack.rtp_history_ms == 0)
-=======
   if (nack.rtp_history_ms == 0)
->>>>>>> m108
     return nullptr;
 
   // TODO(bugs.webrtc.org/12420): pass rtp_history_ms to the nack module.
   return std::make_unique<NackRequester>(current_queue, nack_periodic_processor,
                                          clock, nack_sender,
                                          keyframe_request_sender, field_trials);
-<<<<<<< HEAD
-=======
 }
 
 std::unique_ptr<UlpfecReceiver> MaybeConstructUlpfecReceiver(
@@ -151,7 +142,6 @@ std::unique_ptr<UlpfecReceiver> MaybeConstructUlpfecReceiver(
 
   return std::make_unique<UlpfecReceiver>(remote_ssrc, ulpfec_payload_type,
                                           callback, extensions, clock);
->>>>>>> m108
 }
 
 static const int kPacketLogIntervalMs = 10000;
@@ -256,15 +246,10 @@ RtpVideoStreamReceiver2::RtpVideoStreamReceiver2(
     OnCompleteFrameCallback* complete_frame_callback,
     rtc::scoped_refptr<FrameDecryptorInterface> frame_decryptor,
     rtc::scoped_refptr<FrameTransformerInterface> frame_transformer,
-<<<<<<< HEAD
-    const FieldTrialsView& field_trials)
-    : field_trials_(field_trials),
-=======
     const FieldTrialsView& field_trials,
     RtcEventLog* event_log)
     : field_trials_(field_trials),
       worker_queue_(current_queue),
->>>>>>> m108
       clock_(clock),
       config_(*config),
       packet_router_(packet_router),
@@ -296,10 +281,6 @@ RtpVideoStreamReceiver2::RtpVideoStreamReceiver2(
           event_log)),
       nack_periodic_processor_(nack_periodic_processor),
       complete_frame_callback_(complete_frame_callback),
-<<<<<<< HEAD
-      keyframe_request_sender_(keyframe_request_sender),
-=======
->>>>>>> m108
       keyframe_request_method_(config_.rtp.keyframe_method),
       // TODO(bugs.webrtc.org/10336): Let `rtcp_feedback_buffer_` communicate
       // directly with `rtp_rtcp_`.
@@ -378,11 +359,7 @@ void RtpVideoStreamReceiver2::AddReceiveCodec(
     const std::map<std::string, std::string>& codec_params,
     bool raw_payload) {
   RTC_DCHECK_RUN_ON(&packet_sequence_checker_);
-<<<<<<< HEAD
-  if (codec_params.count(cricket::kH264FmtpSpsPpsIdrInKeyframe) ||
-=======
   if (codec_params.count(cricket::kH264FmtpSpsPpsIdrInKeyframe) > 0 ||
->>>>>>> m108
       field_trials_.IsEnabled("WebRTC-SpsPpsIdrIsH264Keyframe")) {
     packet_buffer_.ForceSpsPpsIdrIsH264Keyframe();
   }
@@ -767,13 +744,7 @@ void RtpVideoStreamReceiver2::RequestKeyFrame() {
   // TODO(bugs.webrtc.org/10336): Allow the sender to ignore key frame requests
   // issued by anything other than the LossNotificationController if it (the
   // sender) is relying on LNTF alone.
-<<<<<<< HEAD
-  if (keyframe_request_sender_) {
-    keyframe_request_sender_->RequestKeyFrame();
-  } else if (keyframe_request_method_ == KeyFrameReqMethod::kPliRtcp) {
-=======
   if (keyframe_request_method_ == KeyFrameReqMethod::kPliRtcp) {
->>>>>>> m108
     rtp_rtcp_->SendPictureLossIndication();
   } else if (keyframe_request_method_ == KeyFrameReqMethod::kFirRtcp) {
     rtp_rtcp_->SendFullIntraRequest();
@@ -1205,18 +1176,11 @@ bool RtpVideoStreamReceiver2::DeliverRtcp(const uint8_t* rtcp_packet,
       clock_->CurrentNtpInMilliseconds() - received_ntp.ToMs();
   // Don't use old SRs to estimate time.
   if (time_since_received <= 1) {
-<<<<<<< HEAD
-    ntp_estimator_.UpdateRtcpTimestamp(rtt, ntp_secs, ntp_frac, rtp_timestamp);
-    absl::optional<int64_t> remote_to_local_clock_offset_ms =
-        ntp_estimator_.EstimateRemoteToLocalClockOffsetMs();
-    if (remote_to_local_clock_offset_ms.has_value()) {
-=======
     ntp_estimator_.UpdateRtcpTimestamp(
         TimeDelta::Millis(rtt), NtpTime(ntp_secs, ntp_frac), rtp_timestamp);
     absl::optional<int64_t> remote_to_local_clock_offset =
         ntp_estimator_.EstimateRemoteToLocalClockOffset();
     if (remote_to_local_clock_offset.has_value()) {
->>>>>>> m108
       capture_clock_offset_updater_.SetRemoteToLocalClockOffset(
           *remote_to_local_clock_offset);
     }

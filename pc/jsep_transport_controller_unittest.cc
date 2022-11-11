@@ -24,22 +24,12 @@
 #include "p2p/base/transport_info.h"
 #include "rtc_base/fake_ssl_identity.h"
 #include "rtc_base/gunit.h"
-<<<<<<< HEAD
-#include "rtc_base/location.h"
-#include "rtc_base/logging.h"
-#include "rtc_base/net_helper.h"
-#include "rtc_base/ref_counted_object.h"
-#include "rtc_base/socket_address.h"
-#include "rtc_base/ssl_fingerprint.h"
-#include "rtc_base/ssl_identity.h"
-=======
 #include "rtc_base/logging.h"
 #include "rtc_base/net_helper.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/ssl_fingerprint.h"
 #include "rtc_base/ssl_identity.h"
 #include "rtc_base/task_queue_for_test.h"
->>>>>>> m108
 #include "rtc_base/thread.h"
 #include "test/gtest.h"
 #include "test/scoped_key_value_config.h"

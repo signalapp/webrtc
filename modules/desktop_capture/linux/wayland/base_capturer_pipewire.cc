@@ -12,17 +12,11 @@
 
 #include "modules/desktop_capture/desktop_capture_options.h"
 #include "modules/desktop_capture/desktop_capturer.h"
-<<<<<<< HEAD
-#include "modules/desktop_capture/linux/wayland/xdg_desktop_portal_utils.h"
-#include "rtc_base/checks.h"
-#include "rtc_base/logging.h"
-=======
 #include "modules/desktop_capture/linux/wayland/restore_token_manager.h"
 #include "modules/desktop_capture/linux/wayland/xdg_desktop_portal_utils.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "screencast_portal.h"
->>>>>>> m108
 
 namespace webrtc {
 
@@ -34,30 +28,16 @@ using xdg_portal::SessionDetails;
 
 }  // namespace
 
-<<<<<<< HEAD
-BaseCapturerPipeWire::BaseCapturerPipeWire(const DesktopCaptureOptions& options)
-    : BaseCapturerPipeWire(
-          options,
-          std::make_unique<ScreenCastPortal>(
-              ScreenCastPortal::CaptureSourceType::kAnyScreenContent,
-              this)) {}
-=======
 BaseCapturerPipeWire::BaseCapturerPipeWire(const DesktopCaptureOptions& options,
                                            CaptureType type)
     : BaseCapturerPipeWire(options,
                            std::make_unique<ScreenCastPortal>(type, this)) {
   is_screencast_portal_ = true;
 }
->>>>>>> m108
 
 BaseCapturerPipeWire::BaseCapturerPipeWire(
     const DesktopCaptureOptions& options,
     std::unique_ptr<ScreenCapturePortalInterface> portal)
-<<<<<<< HEAD
-    : options_(options), portal_(std::move(portal)) {}
-
-BaseCapturerPipeWire::~BaseCapturerPipeWire() {}
-=======
     : options_(options),
       is_screencast_portal_(false),
       portal_(std::move(portal)) {
@@ -67,19 +47,10 @@ BaseCapturerPipeWire::~BaseCapturerPipeWire() {}
 BaseCapturerPipeWire::~BaseCapturerPipeWire() {
   options_.screencast_stream()->StopScreenCastStream();
 }
->>>>>>> m108
 
 void BaseCapturerPipeWire::OnScreenCastRequestResult(RequestResponse result,
                                                      uint32_t stream_node_id,
                                                      int fd) {
-<<<<<<< HEAD
-  if (result != RequestResponse::kSuccess ||
-      !options_.screencast_stream()->StartScreenCastStream(stream_node_id,
-                                                           fd)) {
-    capturer_failed_ = true;
-    RTC_LOG(LS_ERROR) << "ScreenCastPortal failed: "
-                      << static_cast<uint>(result);
-=======
   is_portal_open_ = false;
 
   // Reset the value of capturer_failed_ in case we succeed below. If we fail,
@@ -114,7 +85,6 @@ void BaseCapturerPipeWire::OnScreenCastRequestResult(RequestResponse result,
     case RequestResponse::kError:
       delegated_source_list_observer_->OnError();
       break;
->>>>>>> m108
   }
 }
 
@@ -124,8 +94,6 @@ void BaseCapturerPipeWire::OnScreenCastSessionClosed() {
   }
 }
 
-<<<<<<< HEAD
-=======
 void BaseCapturerPipeWire::UpdateResolution(uint32_t width, uint32_t height) {
   if (!capturer_failed_) {
     options_.screencast_stream()->UpdateScreenCastStreamResolution(width,
@@ -133,15 +101,12 @@ void BaseCapturerPipeWire::UpdateResolution(uint32_t width, uint32_t height) {
   }
 }
 
->>>>>>> m108
 void BaseCapturerPipeWire::Start(Callback* callback) {
   RTC_DCHECK(!callback_);
   RTC_DCHECK(callback);
 
   callback_ = callback;
 
-<<<<<<< HEAD
-=======
   if (ScreenCastPortal* screencast_portal = GetScreenCastPortal()) {
     screencast_portal->SetPersistMode(
         ScreenCastPortal::PersistMode::kTransient);
@@ -152,18 +117,14 @@ void BaseCapturerPipeWire::Start(Callback* callback) {
   }
 
   is_portal_open_ = true;
->>>>>>> m108
   portal_->Start();
 }
 
 void BaseCapturerPipeWire::CaptureFrame() {
   if (capturer_failed_) {
-<<<<<<< HEAD
-=======
     // This could be recoverable if the source list is re-summoned; but for our
     // purposes this is fine, since it requires intervention to resolve and
     // essentially starts a new capture.
->>>>>>> m108
     callback_->OnCaptureResult(Result::ERROR_PERMANENT, nullptr);
     return;
   }
@@ -179,10 +140,7 @@ void BaseCapturerPipeWire::CaptureFrame() {
   // TODO(julien.isorce): http://crbug.com/945468. Set the icc profile on
   // the frame, see ScreenCapturerX11::CaptureFrame.
 
-<<<<<<< HEAD
-=======
   frame->set_capturer_id(DesktopCapturerId::kWaylandCapturerLinux);
->>>>>>> m108
   callback_->OnCaptureResult(Result::SUCCESS, std::move(frame));
 }
 
@@ -195,21 +153,12 @@ bool BaseCapturerPipeWire::GetSourceList(SourceList* sources) {
   // is often treated as a null/placeholder id, so we shouldn't use that.
   // TODO(https://crbug.com/1297671): Reconsider type of ID when plumbing
   // token that will enable stream re-use.
-<<<<<<< HEAD
-  sources->push_back({1});
-=======
   sources->push_back({source_id_});
->>>>>>> m108
   return true;
 }
 
 bool BaseCapturerPipeWire::SelectSource(SourceId id) {
   // Screen selection is handled by the xdg-desktop-portal.
-<<<<<<< HEAD
-  return true;
-}
-
-=======
   selected_source_id_ = id;
   return true;
 }
@@ -248,17 +197,13 @@ void BaseCapturerPipeWire::EnsureHidden() {
   portal_->Stop();
 }
 
->>>>>>> m108
 SessionDetails BaseCapturerPipeWire::GetSessionDetails() {
   return portal_->GetSessionDetails();
 }
 
-<<<<<<< HEAD
-=======
 ScreenCastPortal* BaseCapturerPipeWire::GetScreenCastPortal() {
   return is_screencast_portal_ ? static_cast<ScreenCastPortal*>(portal_.get())
                                : nullptr;
 }
 
->>>>>>> m108
 }  // namespace webrtc

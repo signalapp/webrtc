@@ -18,13 +18,6 @@
 
 namespace webrtc {
 // TODO(bugs.webrtc.org/13573): When OpenH264 is no longer a conditional build
-<<<<<<< HEAD
-//                              target remove this #ifdef.
-#if defined(WEBRTC_USE_H264)
-struct OpenH264EncoderTemplateAdapter {
-  static std::vector<SdpVideoFormat> SupportedFormats() {
-    return SupportedH264Codecs();
-=======
 //                              target remove #ifdefs.
 struct OpenH264EncoderTemplateAdapter {
   static std::vector<SdpVideoFormat> SupportedFormats() {
@@ -33,22 +26,10 @@ struct OpenH264EncoderTemplateAdapter {
 #else
     return {};
 #endif
->>>>>>> m108
   }
 
   static std::unique_ptr<VideoEncoder> CreateEncoder(
       const SdpVideoFormat& format) {
-<<<<<<< HEAD
-    return H264Encoder::Create(cricket::VideoCodec(format));
-  }
-
-  static bool IsScalabilityModeSupported(
-      const absl::string_view scalability_mode) {
-    return H264Encoder::SupportsScalabilityMode(scalability_mode);
-  }
-};
-#endif  // defined(WEBRTC_USE_H264)
-=======
 #if defined(WEBRTC_USE_H264)
     return H264Encoder::Create(cricket::VideoCodec(format));
 #else
@@ -64,7 +45,6 @@ struct OpenH264EncoderTemplateAdapter {
 #endif
   }
 };
->>>>>>> m108
 }  // namespace webrtc
 
 #endif  // API_VIDEO_CODECS_VIDEO_ENCODER_FACTORY_TEMPLATE_OPEN_H264_ADAPTER_H_

@@ -63,15 +63,9 @@ namespace webrtc {
 namespace test {
 
 #if defined(WEBRTC_WIN)
-<<<<<<< HEAD
-const absl::string_view kPathDelimiter = "\\";
-#else
-const absl::string_view kPathDelimiter = "/";
-=======
 ABSL_CONST_INIT const absl::string_view kPathDelimiter = "\\";
 #else
 ABSL_CONST_INIT const absl::string_view kPathDelimiter = "/";
->>>>>>> m108
 #endif
 
 std::string DirName(absl::string_view path) {
@@ -142,11 +136,7 @@ absl::optional<std::vector<std::string>> ReadDirectory(absl::string_view path) {
   if (path.length() == 0)
     return absl::optional<std::vector<std::string>>();
 
-<<<<<<< HEAD
-  std::string path_str = std::string(path);
-=======
   std::string path_str(path);
->>>>>>> m108
 
 #if defined(WEBRTC_WIN)
   // Append separator character if needed.
@@ -196,11 +186,7 @@ absl::optional<std::vector<std::string>> ReadDirectory(absl::string_view path) {
 }
 
 bool CreateDir(absl::string_view directory_name) {
-<<<<<<< HEAD
-  std::string directory_name_str = std::string(directory_name);
-=======
   std::string directory_name_str(directory_name);
->>>>>>> m108
   struct stat path_info = {0};
   // Check if the path exists already:
   if (stat(directory_name_str.c_str(), &path_info) == 0) {

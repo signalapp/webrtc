@@ -188,15 +188,12 @@ class RTC_EXPORT DesktopCaptureOptions {
       rtc::scoped_refptr<SharedScreenCastStream> stream) {
     screencast_stream_ = stream;
   }
-<<<<<<< HEAD
-=======
 
   void set_width(uint32_t width) { width_ = width; }
   uint32_t get_width() const { return width_; }
 
   void set_height(uint32_t height) { height_ = height; }
   uint32_t get_height() const { return height_; }
->>>>>>> m108
 #endif
 
  private:

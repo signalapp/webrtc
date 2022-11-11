@@ -33,10 +33,7 @@ namespace dcsctp {
 namespace {
 using ::testing::ElementsAre;
 using ::testing::SizeIs;
-<<<<<<< HEAD
-=======
 using ::testing::UnorderedElementsAre;
->>>>>>> m108
 
 // The default maximum size of the Reassembly Queue.
 static constexpr size_t kBufferSize = 10000;
@@ -378,13 +375,9 @@ TEST_F(ReassemblyQueueTest, HandoverInInitialState) {
   DcSctpSocketHandoverState state;
   reasm1.AddHandoverState(state);
   g_handover_state_transformer_for_test(&state);
-<<<<<<< HEAD
-  ReassemblyQueue reasm2("log: ", TSN(100), kBufferSize, &state);
-=======
   ReassemblyQueue reasm2("log: ", TSN(100), kBufferSize,
                          /*use_message_interleaving=*/false);
   reasm2.RestoreFromState(state);
->>>>>>> m108
 
   reasm2.Add(TSN(10), gen_.Ordered({1, 2, 3, 4}, "BE"));
   EXPECT_THAT(reasm2.FlushMessages(), SizeIs(1));
@@ -399,13 +392,9 @@ TEST_F(ReassemblyQueueTest, HandoverAfterHavingAssembedOneMessage) {
   DcSctpSocketHandoverState state;
   reasm1.AddHandoverState(state);
   g_handover_state_transformer_for_test(&state);
-<<<<<<< HEAD
-  ReassemblyQueue reasm2("log: ", TSN(100), kBufferSize, &state);
-=======
   ReassemblyQueue reasm2("log: ", TSN(100), kBufferSize,
                          /*use_message_interleaving=*/false);
   reasm2.RestoreFromState(state);
->>>>>>> m108
 
   reasm2.Add(TSN(11), gen_.Ordered({1, 2, 3, 4}, "BE"));
   EXPECT_THAT(reasm2.FlushMessages(), SizeIs(1));
@@ -426,8 +415,6 @@ TEST_F(ReassemblyQueueTest, HandleInconsistentForwardTSN) {
   // Don't assemble SSN=7, as that TSN is skipped.
   EXPECT_FALSE(reasm.HasMessages());
 }
-<<<<<<< HEAD
-=======
 
 TEST_F(ReassemblyQueueTest, SingleUnorderedChunkMessageInRfc8260) {
   ReassemblyQueue reasm("log: ", TSN(10), kBufferSize,
@@ -518,6 +505,5 @@ TEST_F(ReassemblyQueueTest, IForwardTSNRemoveALotOrdered) {
               ElementsAre(SctpMessageIs(kStreamID, kPPID, kMessage2Payload)));
 }
 
->>>>>>> m108
 }  // namespace
 }  // namespace dcsctp

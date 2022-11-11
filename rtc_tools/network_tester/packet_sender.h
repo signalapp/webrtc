@@ -62,13 +62,8 @@ class PacketSender {
   bool sending_ RTC_GUARDED_BY(worker_queue_checker_);
   const std::string config_file_path_;
   TestController* const test_controller_;
-<<<<<<< HEAD
-  std::unique_ptr<TaskQueueFactory> task_queue_factory_;
-  rtc::TaskQueue worker_queue_;
-=======
   webrtc::TaskQueueBase* worker_queue_;
   rtc::scoped_refptr<webrtc::PendingTaskSafetyFlag> task_safety_flag_;
->>>>>>> m108
 };
 
 }  // namespace webrtc

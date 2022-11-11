@@ -37,12 +37,9 @@ class TransformableIncomingAudioFrame
   uint32_t GetSsrc() const override { return ssrc_; }
   uint32_t GetTimestamp() const override { return header_.timestamp; }
   const RTPHeader& GetHeader() const override { return header_; }
-<<<<<<< HEAD
-=======
   rtc::ArrayView<const uint32_t> GetContributingSources() const override {
     return rtc::ArrayView<const uint32_t>(header_.arrOfCSRCs, header_.numCSRCs);
   }
->>>>>>> m108
   Direction GetDirection() const override { return Direction::kReceiver; }
 
  private:
@@ -85,11 +82,7 @@ void ChannelReceiveFrameTransformerDelegate::Transform(
 void ChannelReceiveFrameTransformerDelegate::OnTransformedFrame(
     std::unique_ptr<TransformableFrameInterface> frame) {
   rtc::scoped_refptr<ChannelReceiveFrameTransformerDelegate> delegate(this);
-<<<<<<< HEAD
-  channel_receive_thread_->PostTask(ToQueuedTask(
-=======
   channel_receive_thread_->PostTask(
->>>>>>> m108
       [delegate = std::move(delegate), frame = std::move(frame)]() mutable {
         delegate->ReceiveFrame(std::move(frame));
       });

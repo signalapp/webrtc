@@ -208,21 +208,9 @@ void MatchedFilterCore_AVX2(size_t x_start_index,
     // Sum components together.
     x2_sum_256 = _mm256_add_ps(x2_sum_256, x2_sum_256_8);
     s_256 = _mm256_add_ps(s_256, s_256_8);
-<<<<<<< HEAD
-    __m128 x2_sum_128 = _mm_add_ps(_mm256_extractf128_ps(x2_sum_256, 0),
-                                   _mm256_extractf128_ps(x2_sum_256, 1));
-    __m128 s_128 = _mm_add_ps(_mm256_extractf128_ps(s_256, 0),
-                              _mm256_extractf128_ps(s_256, 1));
-    // Combine the accumulated vector and scalar values.
-    float* v = reinterpret_cast<float*>(&x2_sum_128);
-    x2_sum += v[0] + v[1] + v[2] + v[3];
-    v = reinterpret_cast<float*>(&s_128);
-    s += v[0] + v[1] + v[2] + v[3];
-=======
     __m128 sum = hsum_ab(x2_sum_256, s_256);
     x2_sum += sum[0];
     s += sum[1];
->>>>>>> m108
 
     // Compute the matched filter error.
     float e = y[i] - s;

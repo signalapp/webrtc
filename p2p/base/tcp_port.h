@@ -22,10 +22,6 @@
 #include "p2p/base/port.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/containers/flat_map.h"
-<<<<<<< HEAD
-#include "rtc_base/task_utils/pending_task_safety_flag.h"
-=======
->>>>>>> m108
 
 namespace cricket {
 
@@ -45,13 +41,8 @@ class TCPPort : public Port {
       const rtc::Network* network,
       uint16_t min_port,
       uint16_t max_port,
-<<<<<<< HEAD
-      const std::string& username,
-      const std::string& password,
-=======
       absl::string_view username,
       absl::string_view password,
->>>>>>> m108
       bool allow_listen,
       const webrtc::FieldTrialsView* field_trials = nullptr) {
     // Using `new` to access a non-public constructor.
@@ -81,13 +72,8 @@ class TCPPort : public Port {
           const rtc::Network* network,
           uint16_t min_port,
           uint16_t max_port,
-<<<<<<< HEAD
-          const std::string& username,
-          const std::string& password,
-=======
           absl::string_view username,
           absl::string_view password,
->>>>>>> m108
           bool allow_listen,
           const webrtc::FieldTrialsView* field_trials);
 

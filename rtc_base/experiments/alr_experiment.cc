@@ -48,11 +48,7 @@ AlrExperimentSettings::CreateFromFieldTrial(absl::string_view experiment_name) {
 absl::optional<AlrExperimentSettings>
 AlrExperimentSettings::CreateFromFieldTrial(
     const FieldTrialsView& key_value_config,
-<<<<<<< HEAD
-    const char* experiment_name) {
-=======
     absl::string_view experiment_name) {
->>>>>>> m108
   absl::optional<AlrExperimentSettings> ret;
   std::string group_name = key_value_config.Lookup(experiment_name);
 

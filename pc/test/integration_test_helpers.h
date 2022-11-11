@@ -113,14 +113,8 @@
 #include "rtc_base/rtc_certificate_generator.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/ssl_stream_adapter.h"
-<<<<<<< HEAD
-#include "rtc_base/task_utils/pending_task_safety_flag.h"
-#include "rtc_base/task_utils/repeating_task.h"
-#include "rtc_base/task_utils/to_queued_task.h"
-=======
 #include "rtc_base/task_queue_for_test.h"
 #include "rtc_base/task_utils/repeating_task.h"
->>>>>>> m108
 #include "rtc_base/test_certificate_verifier.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
@@ -437,11 +431,7 @@ class PeerConnectionIntegrationWrapper : public webrtc::PeerConnectionObserver,
     data_channels_.push_back(data_channel_or_error.MoveValue());
     ASSERT_TRUE(data_channels_.back().get() != nullptr);
     data_observers_.push_back(
-<<<<<<< HEAD
-        std::make_unique<MockDataChannelObserver>(data_channels_.back()));
-=======
         std::make_unique<MockDataChannelObserver>(data_channels_.back().get()));
->>>>>>> m108
   }
 
   // Return the last observed data channel.
@@ -449,17 +439,10 @@ class PeerConnectionIntegrationWrapper : public webrtc::PeerConnectionObserver,
     if (data_channels_.size() == 0) {
       return nullptr;
     }
-<<<<<<< HEAD
-    return data_channels_.back();
-  }
-  // Return all data channels.
-  const std::vector<rtc::scoped_refptr<DataChannelInterface>>& data_channels() {
-=======
     return data_channels_.back().get();
   }
   // Return all data channels.
   std::vector<rtc::scoped_refptr<DataChannelInterface>>& data_channels() {
->>>>>>> m108
     return data_channels_;
   }
 
@@ -468,13 +451,10 @@ class PeerConnectionIntegrationWrapper : public webrtc::PeerConnectionObserver,
       return nullptr;
     }
     return data_observers_.back().get();
-<<<<<<< HEAD
-=======
   }
 
   std::vector<std::unique_ptr<MockDataChannelObserver>>& data_observers() {
     return data_observers_;
->>>>>>> m108
   }
 
   int audio_frames_received() const {
@@ -1182,11 +1162,7 @@ class PeerConnectionIntegrationWrapper : public webrtc::PeerConnectionObserver,
     RTC_LOG(LS_INFO) << debug_name_ << ": OnDataChannel";
     data_channels_.push_back(data_channel);
     data_observers_.push_back(
-<<<<<<< HEAD
-        std::make_unique<MockDataChannelObserver>(data_channel));
-=======
         std::make_unique<MockDataChannelObserver>(data_channel.get()));
->>>>>>> m108
   }
 
   std::string debug_name_;
@@ -1658,24 +1634,12 @@ class PeerConnectionIntegrationBaseTest : public ::testing::Test {
       const std::string& common_name = "test turn server") {
     rtc::Thread* thread = network_thread();
     rtc::SocketFactory* socket_factory = fss_.get();
-<<<<<<< HEAD
-    std::unique_ptr<cricket::TestTurnServer> turn_server =
-        network_thread()->Invoke<std::unique_ptr<cricket::TestTurnServer>>(
-            RTC_FROM_HERE, [thread, socket_factory, internal_address,
-                            external_address, type, common_name] {
-              return std::make_unique<cricket::TestTurnServer>(
-                  thread, socket_factory, internal_address, external_address,
-                  type,
-                  /*ignore_bad_certs=*/true, common_name);
-            });
-=======
     std::unique_ptr<cricket::TestTurnServer> turn_server;
     SendTask(network_thread(), [&] {
       turn_server = std::make_unique<cricket::TestTurnServer>(
           thread, socket_factory, internal_address, external_address, type,
           /*ignore_bad_certs=*/true, common_name);
     });
->>>>>>> m108
     turn_servers_.push_back(std::move(turn_server));
     // Interactions with the turn server should be done on the network thread.
     return turn_servers_.back().get();

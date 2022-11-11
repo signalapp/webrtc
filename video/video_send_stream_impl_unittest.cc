@@ -23,27 +23,17 @@
 #include "call/test/mock_bitrate_allocator.h"
 #include "call/test/mock_rtp_transport_controller_send.h"
 #include "modules/rtp_rtcp/source/rtp_sequence_number_map.h"
-<<<<<<< HEAD
-=======
 #include "modules/utility/maybe_worker_thread.h"
->>>>>>> m108
 #include "modules/video_coding/fec_controller_default.h"
 #include "rtc_base/event.h"
 #include "rtc_base/experiments/alr_experiment.h"
 #include "rtc_base/fake_clock.h"
-<<<<<<< HEAD
-#include "rtc_base/task_queue_for_test.h"
-=======
 #include "rtc_base/logging.h"
->>>>>>> m108
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/mock_transport.h"
 #include "test/scoped_key_value_config.h"
-<<<<<<< HEAD
-=======
 #include "test/time_controller/simulated_time_controller.h"
->>>>>>> m108
 #include "video/test/mock_video_stream_encoder.h"
 #include "video/video_send_stream.h"
 
@@ -131,11 +121,6 @@ class VideoSendStreamImplTest : public ::testing::Test {
   VideoSendStreamImplTest()
       : time_controller_(Timestamp::Seconds(1000)),
         config_(&transport_),
-<<<<<<< HEAD
-        send_delay_stats_(&clock_),
-        test_queue_("test_queue"),
-        stats_proxy_(&clock_,
-=======
         send_delay_stats_(time_controller_.GetClock()),
         worker_queue_(field_trials_,
                       "worker_queue",
@@ -144,7 +129,6 @@ class VideoSendStreamImplTest : public ::testing::Test {
             "encoder_queue",
             TaskQueueFactory::Priority::NORMAL)),
         stats_proxy_(time_controller_.GetClock(),
->>>>>>> m108
                      config_,
                      VideoEncoderConfig::ContentType::kRealtimeVideo,
                      field_trials_) {
@@ -192,10 +176,7 @@ class VideoSendStreamImplTest : public ::testing::Test {
   }
 
  protected:
-<<<<<<< HEAD
-=======
   GlobalSimulatedTimeController time_controller_;
->>>>>>> m108
   webrtc::test::ScopedKeyValueConfig field_trials_;
   NiceMock<MockTransport> transport_;
   NiceMock<MockRtpTransportControllerSend> transport_controller_;
@@ -207,12 +188,8 @@ class VideoSendStreamImplTest : public ::testing::Test {
   RtcEventLogNull event_log_;
   VideoSendStream::Config config_;
   SendDelayStats send_delay_stats_;
-<<<<<<< HEAD
-  TaskQueueForTest test_queue_;
-=======
   MaybeWorkerThread worker_queue_;
   std::unique_ptr<TaskQueueBase, TaskQueueDeleter> encoder_queue_;
->>>>>>> m108
   SendStatisticsProxy stats_proxy_;
   PacketRouter packet_router_;
 };

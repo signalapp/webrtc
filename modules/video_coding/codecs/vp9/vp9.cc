@@ -109,18 +109,8 @@ std::unique_ptr<VP9Encoder> VP9Encoder::Create(
 #endif
 }
 
-<<<<<<< HEAD
-bool VP9Encoder::SupportsScalabilityMode(absl::string_view scalability_mode) {
-  for (const auto& entry : kSupportedScalabilityModes) {
-    if (entry == scalability_mode) {
-      return true;
-    }
-  }
-  return false;
-=======
 bool VP9Encoder::SupportsScalabilityMode(ScalabilityMode scalability_mode) {
   return ScalabilityStructureConfig(scalability_mode).has_value();
->>>>>>> m108
 }
 
 std::unique_ptr<VP9Decoder> VP9Decoder::Create() {

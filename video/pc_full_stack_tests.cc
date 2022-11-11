@@ -757,15 +757,11 @@ TEST_P(ParameterizedPCFullStackTest, Pc_Foreman_Cif_500kbps_32pkts_Queue) {
           alice->SetUseNetworkThreadAsWorkerThread();
         }
       },
-<<<<<<< HEAD
-      [](PeerConfigurer* bob) {});
-=======
       [](PeerConfigurer* bob) {
         if (GetParam().use_network_thread_as_worker_thread) {
           bob->SetUseNetworkThreadAsWorkerThread();
         }
       });
->>>>>>> m108
   fixture->Run(RunParams(TimeDelta::Seconds(kTestDurationSec)));
 }
 
@@ -1567,15 +1563,11 @@ TEST_P(ParameterizedPCFullStackTest, Pc_Simulcast_Vp8_3sl_High) {
           alice->SetUseNetworkThreadAsWorkerThread();
         }
       },
-<<<<<<< HEAD
-      [](PeerConfigurer* bob) {});
-=======
       [](PeerConfigurer* bob) {
         if (GetParam().use_network_thread_as_worker_thread) {
           bob->SetUseNetworkThreadAsWorkerThread();
         }
       });
->>>>>>> m108
   fixture->Run(RunParams(TimeDelta::Seconds(kTestDurationSec)));
 }
 

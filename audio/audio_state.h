@@ -52,13 +52,8 @@ class AudioState : public webrtc::AudioState {
     return config_.audio_device_module.get();
   }
 
-<<<<<<< HEAD
-  void AddReceivingStream(webrtc::AudioReceiveStream* stream);
-  void RemoveReceivingStream(webrtc::AudioReceiveStream* stream);
-=======
   void AddReceivingStream(webrtc::AudioReceiveStreamInterface* stream);
   void RemoveReceivingStream(webrtc::AudioReceiveStreamInterface* stream);
->>>>>>> m108
 
   void AddSendingStream(webrtc::AudioSendStream* stream,
                         int sample_rate_hz,

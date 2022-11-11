@@ -104,30 +104,6 @@ class MockRtpPacketPacer : public RtpPacketSender {
               (override));
 };
 
-<<<<<<< HEAD
-class FieldTrialConfig : public FieldTrialsView {
- public:
-  FieldTrialConfig() : max_padding_factor_(1200) {}
-  ~FieldTrialConfig() override {}
-
-  void SetMaxPaddingFactor(double factor) { max_padding_factor_ = factor; }
-
-  std::string Lookup(absl::string_view key) const override {
-    if (key == "WebRTC-LimitPaddingSize") {
-      char string_buf[32];
-      rtc::SimpleStringBuilder ssb(string_buf);
-      ssb << "factor:" << max_padding_factor_;
-      return ssb.str();
-    }
-    return "";
-  }
-
- private:
-  double max_padding_factor_;
-};
-
-=======
->>>>>>> m108
 }  // namespace
 
 class RtpSenderTest : public ::testing::Test {
@@ -274,22 +250,14 @@ class RtpSenderTest : public ::testing::Test {
 
   // Enable sending of the MID header extension for both the primary SSRC and
   // the RTX SSRC.
-<<<<<<< HEAD
-  void EnableMidSending(const std::string& mid) {
-=======
   void EnableMidSending(absl::string_view mid) {
->>>>>>> m108
     rtp_sender_->RegisterRtpHeaderExtension(RtpMid::Uri(), kMidExtensionId);
     rtp_sender_->SetMid(mid);
   }
 
   // Enable sending of the RSID header extension for the primary SSRC and the
   // RRSID header extension for the RTX SSRC.
-<<<<<<< HEAD
-  void EnableRidSending(const std::string& rid) {
-=======
   void EnableRidSending() {
->>>>>>> m108
     rtp_sender_->RegisterRtpHeaderExtension(RtpStreamId::Uri(),
                                             kRidExtensionId);
     rtp_sender_->RegisterRtpHeaderExtension(RepairedRtpStreamId::Uri(),
@@ -939,10 +907,6 @@ TEST_F(RtpSenderTest, CountMidOnlyUntilAcked) {
   EXPECT_EQ(rtp_sender_->ExpectedPerPacketOverhead(), 12u);
 
   rtp_sender_->RegisterRtpHeaderExtension(RtpMid::Uri(), kMidExtensionId);
-<<<<<<< HEAD
-  rtp_sender_->RegisterRtpHeaderExtension(RtpStreamId::Uri(), kRidExtensionId);
-=======
->>>>>>> m108
 
   // Counted only if set.
   EXPECT_EQ(rtp_sender_->ExpectedPerPacketOverhead(), 12u);

@@ -16,8 +16,6 @@ rtc_source_set("metronome") {
     "../task_queue",
     "../units:time_delta",
   ]
-<<<<<<< HEAD
-=======
   deps = [
     "../../api/units:timestamp",
     "../../modules:module_api_public",
@@ -39,5 +37,4 @@ if (rtc_include_tests) {
     ]
     absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
   }
->>>>>>> m108
 }

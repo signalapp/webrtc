@@ -12,11 +12,7 @@
 
 #include "api/task_queue/task_queue_base.h"
 #include "modules/video_coding/frame_buffer2.h"
-<<<<<<< HEAD
-#include "modules/video_coding/timing.h"
-=======
 #include "modules/video_coding/timing/timing.h"
->>>>>>> m108
 #include "test/scoped_key_value_config.h"
 #include "test/time_controller/simulated_time_controller.h"
 
@@ -75,19 +71,11 @@ void FuzzOneInput(const uint8_t* data, size_t size) {
   GlobalSimulatedTimeController time_controller(Timestamp::Seconds(0));
   std::unique_ptr<TaskQueueBase, TaskQueueDeleter> task_queue =
       time_controller.GetTaskQueueFactory()->CreateTaskQueue(
-<<<<<<< HEAD
-          "time_tq", TaskQueueFactory::Priority::NORMAL));
-  test::ScopedKeyValueConfig field_trials;
-  VCMTiming timing(time_controller.GetClock(), field_trials);
-  video_coding::FrameBuffer frame_buffer(time_controller.GetClock(), &timing,
-                                         nullptr, field_trials);
-=======
           "time_tq", TaskQueueFactory::Priority::NORMAL);
   test::ScopedKeyValueConfig field_trials;
   VCMTiming timing(time_controller.GetClock(), field_trials);
   video_coding::FrameBuffer frame_buffer(time_controller.GetClock(), &timing,
                                          field_trials);
->>>>>>> m108
 
   bool next_frame_task_running = false;
 
@@ -113,11 +101,7 @@ void FuzzOneInput(const uint8_t* data, size_t size) {
                               &next_frame_task_running, keyframe_required,
                               max_wait_time_ms] {
           frame_buffer.NextFrame(
-<<<<<<< HEAD
-              max_wait_time_ms, keyframe_required, &task_queue,
-=======
               max_wait_time_ms, keyframe_required, task_queue.get(),
->>>>>>> m108
               [&next_frame_task_running](std::unique_ptr<EncodedFrame> frame) {
                 next_frame_task_running = false;
               });

@@ -42,22 +42,6 @@ class MockSink : public rtc::VideoSinkInterface<webrtc::VideoFrame> {
               (override));
 };
 
-using ::testing::AllOf;
-using ::testing::Eq;
-using ::testing::Field;
-using ::testing::Mock;
-using ::testing::Optional;
-
-class MockSink : public rtc::VideoSinkInterface<webrtc::VideoFrame> {
- public:
-  void OnFrame(const webrtc::VideoFrame&) override {}
-
-  MOCK_METHOD(void,
-              OnConstraintsChanged,
-              (const webrtc::VideoTrackSourceConstraints& constraints),
-              (override));
-};
-
 TEST(VideoBroadcasterTest, frame_wanted) {
   VideoBroadcaster broadcaster;
   EXPECT_FALSE(broadcaster.frame_wanted());
@@ -347,8 +331,6 @@ TEST(VideoBroadcasterTest, ForwardsConstraintsToSink) {
           Field(&webrtc::VideoTrackSourceConstraints::max_fps, Optional(3)))));
   broadcaster.ProcessConstraints(webrtc::VideoTrackSourceConstraints{2, 3});
 }
-<<<<<<< HEAD
-=======
 
 TEST(VideoBroadcasterTest, AppliesMaxOfSinkWantsRequestedResolution) {
   VideoBroadcaster broadcaster;
@@ -452,4 +434,3 @@ TEST(VideoBroadcasterTest, IgnoreInactiveSinkIfNewApiUsed) {
   broadcaster.RemoveSink(&sink2);
   EXPECT_EQ(broadcaster.wants().resolution_alignment, 1);
 }
->>>>>>> m108

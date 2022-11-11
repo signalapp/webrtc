@@ -29,13 +29,7 @@ constexpr TimeDelta kProbeClusterTimeout = TimeDelta::Seconds(5);
 
 BitrateProberConfig::BitrateProberConfig(
     const FieldTrialsView* key_value_config)
-<<<<<<< HEAD
-    : min_probe_packets_sent("min_probe_packets_sent", 5),
-      min_probe_delta("min_probe_delta", TimeDelta::Millis(1)),
-      min_probe_duration("min_probe_duration", TimeDelta::Millis(15)),
-=======
     : min_probe_delta("min_probe_delta", TimeDelta::Millis(2)),
->>>>>>> m108
       max_probe_delay("max_probe_delay", TimeDelta::Millis(10)),
       min_packet_size("min_packet_size", DataSize::Bytes(200)) {
   ParseFieldTrial({&min_probe_delta, &max_probe_delay, &min_packet_size},

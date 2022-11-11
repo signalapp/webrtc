@@ -21,13 +21,9 @@
 #include "api/field_trials_view.h"
 #include "api/rtc_event_log/rtc_event_log.h"
 #include "api/transport/network_control.h"
-<<<<<<< HEAD
-#include "api/units/data_rate.h"
-=======
 #include "api/transport/network_types.h"
 #include "api/units/data_rate.h"
 #include "api/units/timestamp.h"
->>>>>>> m108
 #include "rtc_base/experiments/field_trial_parser.h"
 
 namespace webrtc {

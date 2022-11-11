@@ -23,11 +23,7 @@
 #include "media/sctp/sctp_transport_internal.h"
 #include "pc/sctp_data_channel.h"
 #include "pc/sctp_utils.h"
-<<<<<<< HEAD
-#include "pc/test/fake_data_channel_provider.h"
-=======
 #include "pc/test/fake_data_channel_controller.h"
->>>>>>> m108
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/gunit.h"
 #include "rtc_base/ssl_stream_adapter.h"

@@ -90,23 +90,6 @@ int32_t QualityAnalyzingVideoEncoder::InitEncode(
         *codec_settings->GetScalabilityMode());
   } else if (codec_settings->codecType == kVideoCodecVP9) {
     if (codec_settings->VP9().numberOfSpatialLayers > 1) {
-<<<<<<< HEAD
-      switch (codec_settings->VP9().interLayerPred) {
-        case InterLayerPredMode::kOn:
-          mode_ = SimulcastMode::kSVC;
-          break;
-        case InterLayerPredMode::kOnKeyPic:
-          mode_ = SimulcastMode::kKSVC;
-          break;
-        case InterLayerPredMode::kOff:
-          mode_ = SimulcastMode::kSimulcast;
-          break;
-        default:
-          RTC_DCHECK_NOTREACHED()
-              << "Unknown codec_settings->VP9().interLayerPred";
-          break;
-      }
-=======
       inter_layer_pred_mode = codec_settings->VP9().interLayerPred;
     }
   }
@@ -125,7 +108,6 @@ int32_t QualityAnalyzingVideoEncoder::InitEncode(
         RTC_DCHECK_NOTREACHED()
             << "Unknown InterLayerPredMode value " << *inter_layer_pred_mode;
         break;
->>>>>>> m108
     }
   }
   if (codec_settings->numberOfSimulcastStreams > 1) {
@@ -337,43 +319,6 @@ bool QualityAnalyzingVideoEncoder::ShouldDiscard(
     uint16_t frame_id,
     const EncodedImage& encoded_image) {
   std::string stream_label = analyzer_->GetStreamLabel(frame_id);
-<<<<<<< HEAD
-  absl::optional<int> required_spatial_index =
-      stream_required_spatial_index_[stream_label];
-  if (required_spatial_index) {
-    if (*required_spatial_index == kAnalyzeAnySpatialStream) {
-      return false;
-    }
-    absl::optional<int> cur_spatial_index = encoded_image.SpatialIndex();
-    if (!cur_spatial_index) {
-      cur_spatial_index = 0;
-    }
-    RTC_CHECK(mode_ != SimulcastMode::kNormal)
-        << "Analyzing encoder is in kNormal "
-           "mode, but spatial layer/simulcast "
-           "stream met.";
-    if (mode_ == SimulcastMode::kSimulcast) {
-      // In simulcast mode only encoded images with required spatial index are
-      // interested, so all others have to be discarded.
-      return *cur_spatial_index != *required_spatial_index;
-    } else if (mode_ == SimulcastMode::kSVC) {
-      // In SVC mode encoded images with spatial indexes that are equal or
-      // less than required one are interesting, so all above have to be
-      // discarded.
-      return *cur_spatial_index > *required_spatial_index;
-    } else if (mode_ == SimulcastMode::kKSVC) {
-      // In KSVC mode for key frame encoded images with spatial indexes that
-      // are equal or less than required one are interesting, so all above
-      // have to be discarded. For other frames only required spatial index
-      // is interesting, so all others have to be discarded.
-      if (encoded_image._frameType == VideoFrameType::kVideoFrameKey) {
-        return *cur_spatial_index > *required_spatial_index;
-      } else {
-        return *cur_spatial_index != *required_spatial_index;
-      }
-    } else {
-      RTC_DCHECK_NOTREACHED() << "Unsupported encoder mode";
-=======
   EmulatedSFUConfigMap::mapped_type emulated_sfu_config =
       stream_to_sfu_config_[stream_label];
 
@@ -412,7 +357,6 @@ bool QualityAnalyzingVideoEncoder::ShouldDiscard(
       case SimulcastMode::kNormal:
         RTC_DCHECK_NOTREACHED() << "Analyzing encoder is in kNormal mode, but "
                                    "target_layer_index is set";
->>>>>>> m108
     }
   }
   return false;

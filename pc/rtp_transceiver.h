@@ -20,10 +20,7 @@
 
 #include "absl/types/optional.h"
 #include "api/array_view.h"
-<<<<<<< HEAD
-=======
 #include "api/audio_options.h"
->>>>>>> m108
 #include "api/jsep.h"
 #include "api/media_types.h"
 #include "api/rtc_error.h"
@@ -46,10 +43,6 @@
 #include "pc/rtp_sender_proxy.h"
 #include "pc/rtp_transport_internal.h"
 #include "pc/session_description.h"
-<<<<<<< HEAD
-#include "rtc_base/task_utils/pending_task_safety_flag.h"
-=======
->>>>>>> m108
 #include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread_annotations.h"
 
@@ -139,20 +132,6 @@ class RtpTransceiver : public RtpTransceiverInterface,
   // furthermore be made on the signaling thread.
   //
   // `channel`: The channel instance to be associated with the transceiver.
-<<<<<<< HEAD
-  //     When a valid pointer is passed for `channel`, the state of the object
-  //     is expected to be newly constructed and not initalized for network
-  //     activity (see next parameter for more).
-  //
-  //     NOTE: For all practical purposes, the ownership of the channel
-  //     object should be considered to lie with the transceiver until
-  //     `SetChannel()` is called again with nullptr set as the new channel.
-  //     Moving forward, this parameter will change to either be a
-  //     std::unique_ptr<> or the full construction of the channel object will
-  //     be moved to happen within the context of the transceiver class.
-  //
-  // `transport_lookup`: When `channel` points to a valid channel object, this
-=======
   //     This must be a valid pointer.
   //     The state of the object
   //     is expected to be newly constructed and not initalized for network
@@ -161,7 +140,6 @@ class RtpTransceiver : public RtpTransceiverInterface,
   //     The transceiver takes ownership of `channel`.
   //
   // `transport_lookup`: This
->>>>>>> m108
   //     callback function will be used to look up the `RtpTransport` object
   //     to associate with the channel via `BaseChannel::SetRtpTransport`.
   //     The lookup function will be called on the network thread, synchronously
@@ -173,11 +151,6 @@ class RtpTransceiver : public RtpTransceiverInterface,
   //     synchronously to the network thread from the signaling thread.
   //     The callback allows us to combine the transport lookup with network
   //     state initialization of the channel object.
-<<<<<<< HEAD
-  void SetChannel(cricket::ChannelInterface* channel,
-                  std::function<RtpTransportInternal*(const std::string&)>
-                      transport_lookup);
-=======
   // ClearChannel() must be used before calling SetChannel() again.
   void SetChannel(std::unique_ptr<cricket::ChannelInterface> channel,
                   std::function<RtpTransportInternal*(const std::string&)>
@@ -185,7 +158,6 @@ class RtpTransceiver : public RtpTransceiverInterface,
 
   // Clear the association between the transceiver and the channel.
   void ClearChannel();
->>>>>>> m108
 
   // Adds an RtpSender of the appropriate type to be owned by this transceiver.
   // Must not be null.

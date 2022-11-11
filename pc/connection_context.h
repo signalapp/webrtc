@@ -80,15 +80,11 @@ class ConnectionContext final
   rtc::Thread* network_thread() { return network_thread_; }
   const rtc::Thread* network_thread() const { return network_thread_; }
 
-<<<<<<< HEAD
-  const FieldTrialsView& trials() const { return *trials_.get(); }
-=======
   // Field trials associated with the PeerConnectionFactory.
   // Note: that there can be different field trials for different
   // PeerConnections (but they are not supposed change after creating the
   // PeerConnection).
   const FieldTrialsView& field_trials() const { return *trials_.get(); }
->>>>>>> m108
 
   // Accessors only used from the PeerConnectionFactory class
   rtc::NetworkManager* default_network_manager() {
@@ -120,12 +116,6 @@ class ConnectionContext final
   // The following three variables are used to communicate between the
   // constructor and the destructor, and are never exposed externally.
   bool wraps_current_thread_;
-<<<<<<< HEAD
-  // Note: Since owned_network_thread_ and owned_worker_thread_ are used
-  // in the initialization of network_thread_ and worker_thread_, they
-  // must be declared before them, so that they are initialized first.
-=======
->>>>>>> m108
   std::unique_ptr<rtc::SocketFactory> owned_socket_factory_;
   std::unique_ptr<rtc::Thread> owned_network_thread_
       RTC_GUARDED_BY(signaling_thread_);
@@ -136,10 +126,6 @@ class ConnectionContext final
   // Accessed both on signaling thread and worker thread.
   std::unique_ptr<FieldTrialsView> const trials_;
 
-<<<<<<< HEAD
-  // channel_manager is accessed both on signaling thread and worker thread.
-  std::unique_ptr<cricket::ChannelManager> channel_manager_;
-=======
   const std::unique_ptr<cricket::MediaEngineInterface> media_engine_;
 
   // This object should be used to generate any SSRC that is not explicitly
@@ -147,7 +133,6 @@ class ConnectionContext final
   // TODO(bugs.webrtc.org/12666): This variable is used from both the signaling
   // and worker threads. See if we can't restrict usage to a single thread.
   rtc::UniqueRandomIdGenerator ssrc_generator_;
->>>>>>> m108
   std::unique_ptr<rtc::NetworkMonitorFactory> const network_monitor_factory_
       RTC_GUARDED_BY(signaling_thread_);
   std::unique_ptr<rtc::NetworkManager> default_network_manager_

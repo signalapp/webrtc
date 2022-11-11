@@ -142,14 +142,9 @@ if (rtc_include_tests) {
     deps = [
       ":stun_types",
       "../../rtc_base",
-<<<<<<< HEAD
-      "../../rtc_base:macromagic",
-      "../../rtc_base:rtc_base_approved",
-=======
       "../../rtc_base:byte_buffer",
       "../../rtc_base:byte_order",
       "../../rtc_base:macromagic",
->>>>>>> m108
       "../../rtc_base:socket_address",
       "../../system_wrappers:metrics",
       "../../test:test_support",

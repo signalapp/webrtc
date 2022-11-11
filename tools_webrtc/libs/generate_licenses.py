@@ -100,19 +100,7 @@ LIB_REGEX_TO_LICENSES_DICT = {
 }
 
 
-<<<<<<< HEAD
-def FindSrcDirPath():
-  """Returns the abs path to the src/ dir of the project."""
-  src_dir = os.path.dirname(os.path.abspath(__file__))
-  while os.path.basename(src_dir) != 'src':
-    src_dir = os.path.normpath(os.path.join(src_dir, os.pardir))
-  return src_dir
-
-
-SCRIPT_DIR = os.path.dirname(os.path.realpath(sys.argv[0]))
-=======
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
->>>>>>> m108
 WEBRTC_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, os.pardir, os.pardir))
 SRC_DIR = os.path.dirname(os.path.dirname(SCRIPT_DIR))
 

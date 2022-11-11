@@ -487,10 +487,6 @@ class RTCStatsReportVerifier {
     verifier.TestMemberIsNonNegative<uint64_t>(candidate_pair.priority);
     verifier.TestMemberIsDefined(candidate_pair.nominated);
     verifier.TestMemberIsDefined(candidate_pair.writable);
-<<<<<<< HEAD
-    verifier.TestMemberIsUndefined(candidate_pair.readable);
-=======
->>>>>>> m108
     verifier.TestMemberIsNonNegative<uint64_t>(candidate_pair.packets_sent);
     verifier.TestMemberIsNonNegative<uint64_t>(
         candidate_pair.packets_discarded_on_send);
@@ -520,11 +516,6 @@ class RTCStatsReportVerifier {
     verifier.TestMemberIsNonNegative<uint64_t>(candidate_pair.responses_sent);
     verifier.TestMemberIsNonNegative<uint64_t>(
         candidate_pair.consent_requests_sent);
-<<<<<<< HEAD
-    verifier.TestMemberIsUndefined(candidate_pair.consent_responses_received);
-    verifier.TestMemberIsUndefined(candidate_pair.consent_responses_sent);
-=======
->>>>>>> m108
 
     return verifier.ExpectAllMembersSuccessfullyTested();
   }
@@ -945,7 +936,6 @@ class RTCStatsReportVerifier {
           inbound_stream.total_interruption_duration);
       verifier.TestMemberIsNonNegative<double>(
           inbound_stream.min_playout_delay);
-      verifier.TestMemberIsDefined(inbound_stream.goog_timing_frame_info);
     } else {
       verifier.TestMemberIsUndefined(inbound_stream.frames_decoded);
       verifier.TestMemberIsUndefined(inbound_stream.key_frames_decoded);
@@ -974,7 +964,6 @@ class RTCStatsReportVerifier {
       verifier.TestMemberIsNonNegative<double>(
           inbound_stream.total_interruption_duration);
       verifier.TestMemberIsUndefined(inbound_stream.min_playout_delay);
-      verifier.TestMemberIsUndefined(inbound_stream.goog_timing_frame_info);
     }
     return verifier.ExpectAllMembersSuccessfullyTested();
   }
@@ -1013,13 +1002,8 @@ class RTCStatsReportVerifier {
         outbound_stream.header_bytes_sent);
     verifier.TestMemberIsNonNegative<uint64_t>(
         outbound_stream.retransmitted_bytes_sent);
-<<<<<<< HEAD
-    if (outbound_stream.media_type.is_defined() &&
-        *outbound_stream.media_type == "video") {
-=======
     verifier.TestMemberIsNonNegative<double>(outbound_stream.target_bitrate);
     if (outbound_stream.kind.is_defined() && *outbound_stream.kind == "video") {
->>>>>>> m108
       verifier.TestMemberIsDefined(outbound_stream.frames_encoded);
       verifier.TestMemberIsDefined(outbound_stream.key_frames_encoded);
       verifier.TestMemberIsNonNegative<double>(
@@ -1053,7 +1037,6 @@ class RTCStatsReportVerifier {
       verifier.TestMemberIsNonNegative<uint32_t>(outbound_stream.frames_sent);
       verifier.TestMemberIsNonNegative<uint32_t>(
           outbound_stream.huge_frames_sent);
-      verifier.TestMemberIsUndefined(outbound_stream.target_bitrate);
       verifier.MarkMemberTested(outbound_stream.rid, true);
     } else {
       verifier.TestMemberIsUndefined(outbound_stream.frames_encoded);
@@ -1077,7 +1060,6 @@ class RTCStatsReportVerifier {
       verifier.TestMemberIsUndefined(outbound_stream.frame_width);
       verifier.TestMemberIsUndefined(outbound_stream.frames_sent);
       verifier.TestMemberIsUndefined(outbound_stream.huge_frames_sent);
-      verifier.TestMemberIsNonNegative<double>(outbound_stream.target_bitrate);
     }
     return verifier.ExpectAllMembersSuccessfullyTested();
   }

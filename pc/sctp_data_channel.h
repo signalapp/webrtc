@@ -269,11 +269,7 @@ class SctpDataChannel : public DataChannelInterface,
   uint64_t bytes_sent_ RTC_GUARDED_BY(signaling_thread_) = 0;
   uint32_t messages_received_ RTC_GUARDED_BY(signaling_thread_) = 0;
   uint64_t bytes_received_ RTC_GUARDED_BY(signaling_thread_) = 0;
-<<<<<<< HEAD
-  SctpDataChannelProviderInterface* const provider_
-=======
   SctpDataChannelControllerInterface* const controller_
->>>>>>> m108
       RTC_GUARDED_BY(signaling_thread_);
   bool controller_detached_ RTC_GUARDED_BY(signaling_thread_) = false;
   HandshakeState handshake_state_ RTC_GUARDED_BY(signaling_thread_) =

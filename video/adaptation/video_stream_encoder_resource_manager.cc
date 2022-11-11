@@ -312,16 +312,9 @@ void VideoStreamEncoderResourceManager::Initialize(
   RTC_DCHECK(!encoder_queue_);
   RTC_DCHECK(encoder_queue);
   encoder_queue_ = encoder_queue;
-<<<<<<< HEAD
-  encode_usage_resource_->RegisterEncoderTaskQueue(encoder_queue_->Get());
-  quality_scaler_resource_->RegisterEncoderTaskQueue(encoder_queue_->Get());
-  bandwidth_quality_scaler_resource_->RegisterEncoderTaskQueue(
-      encoder_queue_->Get());
-=======
   encode_usage_resource_->RegisterEncoderTaskQueue(encoder_queue_);
   quality_scaler_resource_->RegisterEncoderTaskQueue(encoder_queue_);
   bandwidth_quality_scaler_resource_->RegisterEncoderTaskQueue(encoder_queue_);
->>>>>>> m108
 }
 
 void VideoStreamEncoderResourceManager::SetAdaptationProcessor(

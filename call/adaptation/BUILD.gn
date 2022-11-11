@@ -33,10 +33,7 @@ rtc_library("resource_adaptation") {
   ]
   deps = [
     "../../api:field_trials_view",
-<<<<<<< HEAD
-=======
     "../../api:make_ref_counted",
->>>>>>> m108
     "../../api:rtp_parameters",
     "../../api:scoped_refptr",
     "../../api:sequence_checker",
@@ -51,10 +48,6 @@ rtc_library("resource_adaptation") {
     "../../rtc_base:logging",
     "../../rtc_base:macromagic",
     "../../rtc_base:refcount",
-<<<<<<< HEAD
-    "../../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
     "../../rtc_base:rtc_task_queue",
     "../../rtc_base:safe_conversions",
     "../../rtc_base:stringutils",
@@ -95,10 +88,6 @@ if (rtc_include_tests) {
       "../../api/video_codecs:video_codecs_api",
       "../../rtc_base:checks",
       "../../rtc_base:gunit_helpers",
-<<<<<<< HEAD
-      "../../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
       "../../rtc_base:rtc_event",
       "../../rtc_base:rtc_task_queue",
       "../../rtc_base:stringutils",
@@ -135,12 +124,6 @@ if (rtc_include_tests) {
       "../../api/adaptation:resource_adaptation_api",
       "../../api/task_queue:task_queue",
       "../../api/video:video_stream_encoder",
-<<<<<<< HEAD
-      "../../rtc_base:refcount",
-      "../../rtc_base:rtc_base_approved",
-      "../../rtc_base/task_utils:to_queued_task",
-=======
->>>>>>> m108
       "../../test:test_support",
       "../../video:video_stream_encoder_interface",
       "../../video/config:encoder_config",

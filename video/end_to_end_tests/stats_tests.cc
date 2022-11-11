@@ -51,11 +51,7 @@ TEST_F(StatsEndToEndTest, GetStats) {
   class StatsObserver : public test::EndToEndTest {
    public:
     StatsObserver()
-<<<<<<< HEAD
-        : EndToEndTest(kLongTimeoutMs), encoder_factory_([]() {
-=======
         : EndToEndTest(kLongTimeout), encoder_factory_([]() {
->>>>>>> m108
             return std::make_unique<test::DelayedEncoder>(
                 Clock::GetRealTimeClock(), 10);
           }) {}
@@ -404,11 +400,7 @@ TEST_F(StatsEndToEndTest, TestReceivedRtpPacketStats) {
   class ReceivedRtpStatsObserver : public test::EndToEndTest {
    public:
     explicit ReceivedRtpStatsObserver(TaskQueueBase* task_queue)
-<<<<<<< HEAD
-        : EndToEndTest(kDefaultTimeoutMs), task_queue_(task_queue) {}
-=======
         : EndToEndTest(kDefaultTimeout), task_queue_(task_queue) {}
->>>>>>> m108
 
    private:
     void OnVideoStreamsCreated(VideoSendStream* send_stream,
@@ -422,14 +414,9 @@ TEST_F(StatsEndToEndTest, TestReceivedRtpPacketStats) {
     Action OnSendRtp(const uint8_t* packet, size_t length) override {
       if (sent_rtp_ >= kNumRtpPacketsToSend) {
         // Need to check the stats on the correct thread.
-<<<<<<< HEAD
-        task_queue_->PostTask(ToQueuedTask(task_safety_flag_, [this]() {
-          VideoReceiveStream::Stats stats = receive_stream_->GetStats();
-=======
         task_queue_->PostTask(SafeTask(task_safety_flag_, [this]() {
           VideoReceiveStreamInterface::Stats stats =
               receive_stream_->GetStats();
->>>>>>> m108
           if (kNumRtpPacketsToSend == stats.rtp_stats.packet_counter.packets) {
             observation_complete_.Set();
           }
@@ -445,11 +432,7 @@ TEST_F(StatsEndToEndTest, TestReceivedRtpPacketStats) {
           << "Timed out while verifying number of received RTP packets.";
     }
 
-<<<<<<< HEAD
-    VideoReceiveStream* receive_stream_ = nullptr;
-=======
     VideoReceiveStreamInterface* receive_stream_ = nullptr;
->>>>>>> m108
     uint32_t sent_rtp_ = 0;
     TaskQueueBase* const task_queue_;
     rtc::scoped_refptr<PendingTaskSafetyFlag> task_safety_flag_ =
@@ -600,11 +583,7 @@ TEST_F(StatsEndToEndTest, VerifyNackStats) {
   class NackObserver : public test::EndToEndTest {
    public:
     explicit NackObserver(TaskQueueBase* task_queue)
-<<<<<<< HEAD
-        : EndToEndTest(kLongTimeoutMs), task_queue_(task_queue) {}
-=======
         : EndToEndTest(kLongTimeout), task_queue_(task_queue) {}
->>>>>>> m108
 
    private:
     Action OnSendRtp(const uint8_t* packet, size_t length) override {
@@ -618,11 +597,7 @@ TEST_F(StatsEndToEndTest, VerifyNackStats) {
         }
       }
       task_queue_->PostTask(
-<<<<<<< HEAD
-          ToQueuedTask(task_safety_flag_, [this]() { VerifyStats(); }));
-=======
           SafeTask(task_safety_flag_, [this]() { VerifyStats(); }));
->>>>>>> m108
       return SEND_PACKET;
     }
 
@@ -695,11 +670,7 @@ TEST_F(StatsEndToEndTest, VerifyNackStats) {
     uint64_t sent_rtp_packets_ RTC_GUARDED_BY(&mutex_) = 0;
     uint16_t dropped_rtp_packet_ RTC_GUARDED_BY(&mutex_) = 0;
     bool dropped_rtp_packet_requested_ RTC_GUARDED_BY(&mutex_) = false;
-<<<<<<< HEAD
-    std::vector<VideoReceiveStream*> receive_streams_;
-=======
     std::vector<VideoReceiveStreamInterface*> receive_streams_;
->>>>>>> m108
     VideoSendStream* send_stream_ = nullptr;
     absl::optional<int64_t> start_runtime_ms_;
     TaskQueueBase* const task_queue_;

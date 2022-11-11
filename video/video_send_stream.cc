@@ -114,30 +114,19 @@ std::unique_ptr<VideoStreamEncoder> CreateVideoStreamEncoder(
     const VideoStreamEncoderSettings& encoder_settings,
     VideoStreamEncoder::BitrateAllocationCallbackType
         bitrate_allocation_callback_type,
-<<<<<<< HEAD
-    const FieldTrialsView& field_trials) {
-=======
     const FieldTrialsView& field_trials,
     webrtc::VideoEncoderFactory::EncoderSelectorInterface* encoder_selector) {
->>>>>>> m108
   std::unique_ptr<TaskQueueBase, TaskQueueDeleter> encoder_queue =
       task_queue_factory->CreateTaskQueue("EncoderQueue",
                                           TaskQueueFactory::Priority::NORMAL);
   TaskQueueBase* encoder_queue_ptr = encoder_queue.get();
   return std::make_unique<VideoStreamEncoder>(
       clock, num_cpu_cores, stats_proxy, encoder_settings,
-<<<<<<< HEAD
-      std::make_unique<OveruseFrameDetector>(stats_proxy),
-      FrameCadenceAdapterInterface::Create(clock, encoder_queue_ptr,
-                                           field_trials),
-      std::move(encoder_queue), bitrate_allocation_callback_type, field_trials);
-=======
       std::make_unique<OveruseFrameDetector>(stats_proxy, field_trials),
       FrameCadenceAdapterInterface::Create(clock, encoder_queue_ptr,
                                            field_trials),
       std::move(encoder_queue), bitrate_allocation_callback_type, field_trials,
       encoder_selector);
->>>>>>> m108
 }
 
 }  // namespace
@@ -172,12 +161,8 @@ VideoSendStream::VideoSendStream(
           &stats_proxy_,
           config_.encoder_settings,
           GetBitrateAllocationCallbackType(config_, field_trials),
-<<<<<<< HEAD
-          field_trials)),
-=======
           field_trials,
           config_.encoder_selector)),
->>>>>>> m108
       encoder_feedback_(
           clock,
           config_.rtp.ssrcs,

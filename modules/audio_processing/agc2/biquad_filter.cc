@@ -31,18 +31,6 @@ void BiQuadFilter::Reset() {
 void BiQuadFilter::Process(rtc::ArrayView<const float> x,
                            rtc::ArrayView<float> y) {
   RTC_DCHECK_EQ(x.size(), y.size());
-<<<<<<< HEAD
-  for (size_t k = 0; k < x.size(); ++k) {
-    // Use a temporary variable for `x[k]` to allow in-place processing.
-    const float tmp = x[k];
-    y[k] = config_.b[0] * tmp + config_.b[1] * state_.b[0] +
-           config_.b[2] * state_.b[1] - config_.a[0] * state_.a[0] -
-           config_.a[1] * state_.a[1];
-    state_.b[1] = state_.b[0];
-    state_.b[0] = tmp;
-    state_.a[1] = state_.a[0];
-    state_.a[0] = y[k];
-=======
   const float config_a0 = config_.a[0];
   const float config_a1 = config_.a[1];
   const float config_b0 = config_.b[0];
@@ -62,7 +50,6 @@ void BiQuadFilter::Process(rtc::ArrayView<const float> x,
     state_a1 = state_a0;
     state_a0 = y_k;
     y[k] = y_k;
->>>>>>> m108
   }
   state_.a[0] = state_a0;
   state_.a[1] = state_a1;

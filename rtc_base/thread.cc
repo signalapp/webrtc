@@ -11,11 +11,8 @@
 #include "rtc_base/thread.h"
 
 #include "absl/strings/string_view.h"
-<<<<<<< HEAD
-=======
 #include "api/units/time_delta.h"
 #include "rtc_base/socket_server.h"
->>>>>>> m108
 
 #if defined(WEBRTC_WIN)
 #include <comdef.h>
@@ -78,26 +75,8 @@ class ScopedAutoReleasePool {
 namespace rtc {
 namespace {
 
-<<<<<<< HEAD
-class MessageHandlerWithTask final : public MessageHandler {
- public:
-  MessageHandlerWithTask() {}
-
-  MessageHandlerWithTask(const MessageHandlerWithTask&) = delete;
-  MessageHandlerWithTask& operator=(const MessageHandlerWithTask&) = delete;
-
-  void OnMessage(Message* msg) override {
-    static_cast<rtc_thread_internal::MessageLikeTask*>(msg->pdata)->Run();
-    delete msg->pdata;
-  }
-
- private:
-  ~MessageHandlerWithTask() override {}
-};
-=======
 using ::webrtc::MutexLock;
 using ::webrtc::TimeDelta;
->>>>>>> m108
 
 class RTC_SCOPED_LOCKABLE MarkProcessingCritScope {
  public:
@@ -914,31 +893,6 @@ bool Thread::IsInvokeToThreadAllowed(rtc::Thread* target) {
 #endif
 }
 
-<<<<<<< HEAD
-void Thread::PostTask(std::unique_ptr<webrtc::QueuedTask> task) {
-  // Though Post takes MessageData by raw pointer (last parameter), it still
-  // takes it with ownership.
-  Post(RTC_FROM_HERE, &queued_task_handler_,
-       /*id=*/0, new ScopedMessageData<webrtc::QueuedTask>(std::move(task)));
-}
-
-void Thread::PostDelayedTask(std::unique_ptr<webrtc::QueuedTask> task,
-                             uint32_t milliseconds) {
-  // This implementation does not support low precision yet.
-  PostDelayedHighPrecisionTask(std::move(task), milliseconds);
-}
-
-void Thread::PostDelayedHighPrecisionTask(
-    std::unique_ptr<webrtc::QueuedTask> task,
-    uint32_t milliseconds) {
-  // Though PostDelayed takes MessageData by raw pointer (last parameter),
-  // it still takes it with ownership.
-  PostDelayed(RTC_FROM_HERE, milliseconds, &queued_task_handler_, /*id=*/0,
-              new ScopedMessageData<webrtc::QueuedTask>(std::move(task)));
-}
-
-=======
->>>>>>> m108
 void Thread::Delete() {
   Stop();
   delete this;

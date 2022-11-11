@@ -20,11 +20,6 @@
 #if defined(WEBRTC_USE_PIPEWIRE)
 #include "modules/desktop_capture/linux/wayland/shared_screencast_stream.h"
 #endif
-<<<<<<< HEAD
-
-#include "rtc_base/ref_counted_object.h"
-=======
->>>>>>> m108
 
 namespace webrtc {
 

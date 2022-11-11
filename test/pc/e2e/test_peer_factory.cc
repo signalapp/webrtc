@@ -330,12 +330,8 @@ std::unique_ptr<TestPeer> TestPeerFactory::CreateTestPeer(
           components->pcf_dependencies->task_queue_factory.get());
   WrapVideoEncoderFactory(
       params->name.value(), params->video_encoder_bitrate_multiplier,
-<<<<<<< HEAD
-      CalculateRequiredSpatialIndexPerStream(params->video_configs),
-=======
       CalculateRequiredSpatialIndexPerStream(
           configurable_params->video_configs),
->>>>>>> m108
       components->pcf_dependencies.get(), video_analyzer_helper_);
   WrapVideoDecoderFactory(params->name.value(),
                           components->pcf_dependencies.get(),
@@ -343,11 +339,6 @@ std::unique_ptr<TestPeer> TestPeerFactory::CreateTestPeer(
   std::unique_ptr<cricket::MediaEngineInterface> media_engine =
       CreateMediaEngine(components->pcf_dependencies.get(),
                         audio_device_module);
-<<<<<<< HEAD
-
-  std::unique_ptr<rtc::Thread> worker_thread =
-      time_controller_.CreateThread("worker_thread");
-=======
 
   std::unique_ptr<rtc::Thread> owned_worker_thread =
       components->worker_thread != nullptr
@@ -357,7 +348,6 @@ std::unique_ptr<TestPeer> TestPeerFactory::CreateTestPeer(
     components->worker_thread = owned_worker_thread.get();
   }
 
->>>>>>> m108
   // Store `webrtc::AudioProcessing` into local variable before move of
   // `components->pcf_dependencies`
   rtc::scoped_refptr<webrtc::AudioProcessing> audio_processing =

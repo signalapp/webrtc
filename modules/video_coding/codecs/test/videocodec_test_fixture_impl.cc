@@ -168,18 +168,12 @@ SdpVideoFormat CreateSdpVideoFormat(
         {cricket::kH264FmtpProfileLevelId,
          *H264ProfileLevelIdToString(H264ProfileLevelId(
              config.h264_codec_settings.profile, H264Level::kLevel3_1))},
-<<<<<<< HEAD
-        {cricket::kH264FmtpPacketizationMode, packetization_mode}};
-
-    return SdpVideoFormat(config.codec_name, codec_params);
-=======
         {cricket::kH264FmtpPacketizationMode, packetization_mode},
         {cricket::kH264FmtpLevelAsymmetryAllowed, "1"}};
 
     return SdpVideoFormat(config.codec_name, codec_params);
   } else if (config.codec_settings.codecType == kVideoCodecVP9) {
     return SdpVideoFormat(config.codec_name, {{"profile-id", "0"}});
->>>>>>> m108
   }
 
   return SdpVideoFormat(config.codec_name);
@@ -317,10 +311,7 @@ std::string VideoCodecTestFixtureImpl::Config::ToString() const {
   ss << "\n\n--> codec_settings." << codec_type;
   ss << "complexity: "
      << static_cast<int>(codec_settings.GetVideoEncoderComplexity());
-<<<<<<< HEAD
-=======
   ss << "\nframe_dropping: " << codec_settings.GetFrameDropEnabled();
->>>>>>> m108
   ss << "\n" << CodecSpecificToString(codec_settings);
   if (codec_settings.numberOfSimulcastStreams > 1) {
     for (int i = 0; i < codec_settings.numberOfSimulcastStreams; ++i) {
@@ -696,7 +687,6 @@ bool VideoCodecTestFixtureImpl::CreateEncoderAndDecoder() {
   if (config_.encoder_format) {
     RTC_DCHECK_EQ(config_.encoder_format->name, config_.codec_name);
     encoder_format = *config_.encoder_format;
-<<<<<<< HEAD
   }
 
   if (config_.decoder_format) {
@@ -704,15 +694,6 @@ bool VideoCodecTestFixtureImpl::CreateEncoderAndDecoder() {
     decoder_format = *config_.decoder_format;
   }
 
-=======
-  }
-
-  if (config_.decoder_format) {
-    RTC_DCHECK_EQ(config_.decoder_format->name, config_.codec_name);
-    decoder_format = *config_.decoder_format;
-  }
-
->>>>>>> m108
   encoder_ = encoder_factory_->CreateVideoEncoder(encoder_format);
   EXPECT_TRUE(encoder_) << "Encoder not successfully created.";
   if (encoder_ == nullptr) {
@@ -827,12 +808,7 @@ bool VideoCodecTestFixtureImpl::SetUpAndInitObjects(
             encoder_.get(), &decoders_, source_frame_reader_.get(), config_,
             &stats_, &encoded_frame_writers_,
             decoded_frame_writers_.empty() ? nullptr : &decoded_frame_writers_);
-<<<<<<< HEAD
-      },
-      RTC_FROM_HERE);
-=======
       });
->>>>>>> m108
   return true;
 }
 

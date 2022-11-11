@@ -66,9 +66,6 @@ rtc_library("biquad_filter") {
   deps = [
     "../../../api:array_view",
     "../../../rtc_base:macromagic",
-<<<<<<< HEAD
-    "../../../rtc_base:rtc_base_approved",
-=======
   ]
 }
 
@@ -93,7 +90,6 @@ rtc_library("clipping_predictor") {
     "../../../rtc_base:checks",
     "../../../rtc_base:logging",
     "../../../rtc_base:safe_minmax",
->>>>>>> m108
   ]
 
   absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
@@ -129,10 +125,6 @@ rtc_library("fixed_digital") {
     "../../../common_audio",
     "../../../rtc_base:checks",
     "../../../rtc_base:gtest_prod",
-<<<<<<< HEAD
-    "../../../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
     "../../../rtc_base:safe_conversions",
     "../../../rtc_base:safe_minmax",
     "../../../rtc_base:stringutils",

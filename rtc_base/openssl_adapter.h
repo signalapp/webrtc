@@ -20,10 +20,7 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
-<<<<<<< HEAD
-=======
 #include "api/task_queue/pending_task_safety_flag.h"
->>>>>>> m108
 #include "rtc_base/buffer.h"
 #ifdef OPENSSL_IS_BORINGSSL
 #include "rtc_base/boringssl_identity.h"
@@ -71,11 +68,7 @@ class OpenSSLAdapter final : public SSLAdapter {
   void SetCertVerifier(SSLCertificateVerifier* ssl_cert_verifier) override;
   void SetIdentity(std::unique_ptr<SSLIdentity> identity) override;
   void SetRole(SSLRole role) override;
-<<<<<<< HEAD
-  int StartSSL(const char* hostname) override;
-=======
   int StartSSL(absl::string_view hostname) override;
->>>>>>> m108
   int Send(const void* pv, size_t cb) override;
   int SendTo(const void* pv, size_t cb, const SocketAddress& addr) override;
   int Recv(void* pv, size_t cb, int64_t* timestamp) override;
@@ -129,10 +122,6 @@ class OpenSSLAdapter final : public SSLAdapter {
   // Return value and arguments have the same meanings as for Send; `error` is
   // an output parameter filled with the result of SSL_get_error.
   int DoSslWrite(const void* pv, size_t cb, int* error);
-<<<<<<< HEAD
-  void OnMessage(Message* msg) override;
-=======
->>>>>>> m108
   bool SSLPostConnectionCheck(SSL* ssl, absl::string_view host);
 
 #if !defined(NDEBUG)

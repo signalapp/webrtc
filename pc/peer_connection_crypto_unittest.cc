@@ -43,10 +43,6 @@
 #include "pc/session_description.h"
 #include "pc/test/mock_peer_connection_observers.h"
 #include "rtc_base/checks.h"
-<<<<<<< HEAD
-#include "rtc_base/ref_counted_object.h"
-=======
->>>>>>> m108
 #include "rtc_base/rtc_certificate.h"
 #include "rtc_base/rtc_certificate_generator.h"
 #include "rtc_base/ssl_fingerprint.h"
@@ -114,11 +110,7 @@ class PeerConnectionCryptoBaseTest : public ::testing::Test {
       return nullptr;
     }
 
-<<<<<<< HEAD
-    observer->SetPeerConnectionInterface(result.value());
-=======
     observer->SetPeerConnectionInterface(result.value().get());
->>>>>>> m108
     return std::make_unique<PeerConnectionWrapper>(
         pc_factory_, result.MoveValue(), std::move(observer));
   }

@@ -29,10 +29,6 @@ rtc_library("video_rtp_headers") {
   deps = [
     "..:array_view",
     "../../rtc_base:logging",
-<<<<<<< HEAD
-    "../../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
     "../../rtc_base:safe_conversions",
     "../../rtc_base:stringutils",
     "../../rtc_base/system:rtc_export",
@@ -75,10 +71,6 @@ rtc_library("video_frame") {
     "..:video_track_source_constraints",
     "../../rtc_base:checks",
     "../../rtc_base:refcount",
-<<<<<<< HEAD
-    "../../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
     "../../rtc_base:timeutils",
     "../../rtc_base/memory:aligned_malloc",
     "../../rtc_base/system:rtc_export",
@@ -160,10 +152,6 @@ rtc_library("encoded_image") {
     "..:scoped_refptr",
     "../../rtc_base:checks",
     "../../rtc_base:refcount",
-<<<<<<< HEAD
-    "../../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
     "../../rtc_base/system:rtc_export",
   ]
   absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
@@ -294,10 +282,6 @@ rtc_library("video_stream_decoder_create") {
   deps = [
     ":video_stream_decoder",
     "../../api:field_trials_view",
-<<<<<<< HEAD
-    "../../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
     "../../video:video_stream_decoder_impl",
     "../task_queue",
     "../video_codecs:video_codecs_api",

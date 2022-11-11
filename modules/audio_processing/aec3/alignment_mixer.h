@@ -49,14 +49,8 @@ class AlignmentMixer {
   int selected_channel_ = 0;
   size_t block_counter_ = 0;
 
-<<<<<<< HEAD
-  void Downmix(rtc::ArrayView<const std::vector<float>> x,
-               rtc::ArrayView<float, kBlockSize> y) const;
-  int SelectChannel(rtc::ArrayView<const std::vector<float>> x);
-=======
   void Downmix(const Block& x, rtc::ArrayView<float, kBlockSize> y) const;
   int SelectChannel(const Block& x);
->>>>>>> m108
 };
 }  // namespace webrtc
 

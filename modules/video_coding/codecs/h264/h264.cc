@@ -45,12 +45,8 @@ bool IsH264CodecSupported() {
 #endif
 }
 
-<<<<<<< HEAD
-constexpr absl::string_view kSupportedScalabilityModes[] = {"L1T2", "L1T3"};
-=======
 constexpr ScalabilityMode kSupportedScalabilityModes[] = {
     ScalabilityMode::kL1T1, ScalabilityMode::kL1T2, ScalabilityMode::kL1T3};
->>>>>>> m108
 
 }  // namespace
 
@@ -94,19 +90,6 @@ std::vector<SdpVideoFormat> SupportedH264Codecs(bool add_scalability_modes) {
   //
   // We support both packetization modes 0 (mandatory) and 1 (optional,
   // preferred).
-<<<<<<< HEAD
-  return {
-      CreateH264Format(H264Profile::kProfileBaseline, H264Level::kLevel3_1,
-                       "1"),
-      CreateH264Format(H264Profile::kProfileBaseline, H264Level::kLevel3_1,
-                       "0"),
-      CreateH264Format(H264Profile::kProfileConstrainedBaseline,
-                       H264Level::kLevel3_1, "1"),
-      CreateH264Format(H264Profile::kProfileConstrainedBaseline,
-                       H264Level::kLevel3_1, "0"),
-      CreateH264Format(H264Profile::kProfileMain, H264Level::kLevel3_1, "1"),
-      CreateH264Format(H264Profile::kProfileMain, H264Level::kLevel3_1, "0")};
-=======
   return {CreateH264Format(H264Profile::kProfileBaseline, H264Level::kLevel3_1,
                            "1", add_scalability_modes),
           CreateH264Format(H264Profile::kProfileBaseline, H264Level::kLevel3_1,
@@ -119,7 +102,6 @@ std::vector<SdpVideoFormat> SupportedH264Codecs(bool add_scalability_modes) {
                            add_scalability_modes),
           CreateH264Format(H264Profile::kProfileMain, H264Level::kLevel3_1, "0",
                            add_scalability_modes)};
->>>>>>> m108
 }
 
 std::vector<SdpVideoFormat> SupportedH264DecoderCodecs() {
@@ -156,11 +138,7 @@ bool H264Encoder::IsSupported() {
   return IsH264CodecSupported();
 }
 
-<<<<<<< HEAD
-bool H264Encoder::SupportsScalabilityMode(absl::string_view scalability_mode) {
-=======
 bool H264Encoder::SupportsScalabilityMode(ScalabilityMode scalability_mode) {
->>>>>>> m108
   for (const auto& entry : kSupportedScalabilityModes) {
     if (entry == scalability_mode) {
       return true;

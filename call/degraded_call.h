@@ -40,7 +40,6 @@
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/network/sent_packet.h"
 #include "rtc_base/task_queue.h"
-#include "rtc_base/task_utils/pending_task_safety_flag.h"
 #include "system_wrappers/include/clock.h"
 #include "video/config/video_encoder_config.h"
 
@@ -123,11 +122,7 @@ class DegradedCall : public Call, private PacketReceiver {
    public:
     FakeNetworkPipeOnTaskQueue(
         TaskQueueBase* task_queue,
-<<<<<<< HEAD
-        const ScopedTaskSafety& task_safety,
-=======
         rtc::scoped_refptr<PendingTaskSafetyFlag> call_alive,
->>>>>>> m108
         Clock* clock,
         std::unique_ptr<NetworkBehaviorInterface> network_behavior);
 
@@ -147,11 +142,7 @@ class DegradedCall : public Call, private PacketReceiver {
 
     Clock* const clock_;
     TaskQueueBase* const task_queue_;
-<<<<<<< HEAD
-    const ScopedTaskSafety& task_safety_;
-=======
     rtc::scoped_refptr<PendingTaskSafetyFlag> call_alive_;
->>>>>>> m108
     FakeNetworkPipe pipe_;
     absl::optional<int64_t> next_process_ms_ RTC_GUARDED_BY(&task_queue_);
   };
@@ -206,12 +197,8 @@ class DegradedCall : public Call, private PacketReceiver {
 
   Clock* const clock_;
   const std::unique_ptr<Call> call_;
-<<<<<<< HEAD
-  ScopedTaskSafety task_safety_;
-=======
   // For cancelling tasks on the network thread when DegradedCall is destroyed
   rtc::scoped_refptr<PendingTaskSafetyFlag> call_alive_;
->>>>>>> m108
   size_t send_config_index_;
   const std::vector<TimeScopedNetworkConfig> send_configs_;
   SimulatedNetwork* send_simulated_network_;

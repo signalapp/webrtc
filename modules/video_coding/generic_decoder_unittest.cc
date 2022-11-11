@@ -25,10 +25,7 @@
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/scoped_key_value_config.h"
-<<<<<<< HEAD
-=======
 #include "test/time_controller/simulated_time_controller.h"
->>>>>>> m108
 
 namespace webrtc {
 namespace video_coding {
@@ -67,19 +64,11 @@ class ReceiveCallback : public VCMReceiveCallback {
 class GenericDecoderTest : public ::testing::Test {
  protected:
   GenericDecoderTest()
-<<<<<<< HEAD
-      : clock_(0),
-        timing_(&clock_, field_trials_),
-        task_queue_factory_(CreateDefaultTaskQueueFactory()),
-        decoder_(task_queue_factory_.get()),
-        vcm_callback_(&timing_, &clock_, field_trials_),
-=======
       : time_controller_(Timestamp::Zero()),
         clock_(time_controller_.GetClock()),
         timing_(time_controller_.GetClock(), field_trials_),
         decoder_(time_controller_.GetTaskQueueFactory()),
         vcm_callback_(&timing_, time_controller_.GetClock(), field_trials_),
->>>>>>> m108
         generic_decoder_(&decoder_) {}
 
   void SetUp() override {
@@ -92,14 +81,9 @@ class GenericDecoderTest : public ::testing::Test {
     generic_decoder_.Configure(settings);
   }
 
-<<<<<<< HEAD
-  test::ScopedKeyValueConfig field_trials_;
-  SimulatedClock clock_;
-=======
   GlobalSimulatedTimeController time_controller_;
   Clock* const clock_;
   test::ScopedKeyValueConfig field_trials_;
->>>>>>> m108
   VCMTiming timing_;
   webrtc::test::FakeDecoder decoder_;
   VCMDecodedFrameCallback vcm_callback_;

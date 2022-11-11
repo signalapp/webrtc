@@ -29,13 +29,6 @@ class AlwaysValidPointer {
     RTC_DCHECK(pointer_);
   }
 
-<<<<<<< HEAD
-  template <typename... Args>
-  AlwaysValidPointer(Interface* pointer, Args... args)
-      : owned_instance_(
-            pointer ? nullptr : std::make_unique<Default>(std::move(args...))),
-        pointer_(pointer ? pointer : owned_instance_.get()) {
-=======
   template <typename Arg,
             typename std::enable_if<!(std::is_invocable<Arg>::value),
                                     bool>::type = true>
@@ -96,7 +89,6 @@ class AlwaysValidPointer {
                             ? std::make_unique<Default>(std::move(args...))
                             : nullptr)),
         pointer_(owned_instance_ ? owned_instance_.get() : pointer) {
->>>>>>> m108
     RTC_DCHECK(pointer_);
   }
 
@@ -113,8 +105,6 @@ class AlwaysValidPointer {
   Interface* const pointer_;
 };
 
-<<<<<<< HEAD
-=======
 // This class is similar to AlwaysValidPointer, but it does not create
 // a default object and crashes if none of the input pointers are non-null.
 template <typename Interface>
@@ -253,7 +243,6 @@ bool operator!=(const T* a, const AlwaysValidPointerNoDefault<U>& b) {
   return !(a == b);
 }
 
->>>>>>> m108
 }  // namespace webrtc
 
 #endif  // RTC_BASE_MEMORY_ALWAYS_VALID_POINTER_H_

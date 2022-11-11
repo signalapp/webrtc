@@ -158,11 +158,7 @@ void RTPSenderVideoFrameTransformerDelegate::OnTransformedFrame(
   if (!sender_ || !encoder_queue_)
     return;
   rtc::scoped_refptr<RTPSenderVideoFrameTransformerDelegate> delegate(this);
-<<<<<<< HEAD
-  encoder_queue_->PostTask(ToQueuedTask(
-=======
   encoder_queue_->PostTask(
->>>>>>> m108
       [delegate = std::move(delegate), frame = std::move(frame)]() mutable {
         RTC_DCHECK_RUN_ON(delegate->encoder_queue_);
         delegate->SendVideo(std::move(frame));
@@ -171,11 +167,7 @@ void RTPSenderVideoFrameTransformerDelegate::OnTransformedFrame(
 
 void RTPSenderVideoFrameTransformerDelegate::SendVideo(
     std::unique_ptr<TransformableFrameInterface> transformed_frame) const {
-<<<<<<< HEAD
-  RTC_CHECK(encoder_queue_->IsCurrent());
-=======
   RTC_DCHECK_RUN_ON(encoder_queue_);
->>>>>>> m108
   RTC_CHECK_EQ(transformed_frame->GetDirection(),
                TransformableFrameInterface::Direction::kSender);
   MutexLock lock(&sender_lock_);

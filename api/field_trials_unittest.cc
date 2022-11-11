@@ -10,16 +10,11 @@
 
 #include "api/field_trials.h"
 
-<<<<<<< HEAD
-#include "api/transport/field_trial_based_config.h"
-#include "system_wrappers/include/field_trial.h"
-=======
 #include <memory>
 
 #include "api/transport/field_trial_based_config.h"
 #include "system_wrappers/include/field_trial.h"
 #include "test/gmock.h"
->>>>>>> m108
 #include "test/gtest.h"
 
 #if GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
@@ -27,10 +22,6 @@
 #endif  // GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
 
 namespace webrtc {
-<<<<<<< HEAD
-
-TEST(FieldTrials, EmptyString) {
-=======
 namespace {
 
 using ::testing::NotNull;
@@ -45,29 +36,11 @@ class FieldTrialsTest : public testing::Test {
 };
 
 TEST_F(FieldTrialsTest, EmptyStringHasNoEffect) {
->>>>>>> m108
   FieldTrials f("");
   EXPECT_FALSE(f.IsEnabled("MyCoolTrial"));
   EXPECT_FALSE(f.IsDisabled("MyCoolTrial"));
 }
 
-<<<<<<< HEAD
-TEST(FieldTrials, EnableDisable) {
-  FieldTrials f("MyCoolTrial/Enabled/MyUncoolTrial/Disabled/");
-  EXPECT_TRUE(f.IsEnabled("MyCoolTrial"));
-  EXPECT_TRUE(f.IsDisabled("MyUncoolTrial"));
-}
-
-TEST(FieldTrials, SetGlobalStringAndReadFromFieldTrial) {
-  const char* s = "MyCoolTrial/Enabled/MyUncoolTrial/Disabled/";
-  webrtc::field_trial::InitFieldTrialsFromString(s);
-  FieldTrialBasedConfig f;
-  EXPECT_TRUE(f.IsEnabled("MyCoolTrial"));
-  EXPECT_TRUE(f.IsDisabled("MyUncoolTrial"));
-}
-
-TEST(FieldTrials, SetFieldTrialAndReadFromGlobalString) {
-=======
 TEST_F(FieldTrialsTest, EnabledDisabledMustBeFirstInValue) {
   FieldTrials f(
       "MyCoolTrial/EnabledFoo/"
@@ -87,27 +60,11 @@ TEST_F(FieldTrialsTest, FieldTrialsDoesNotReadGlobalString) {
 }
 
 TEST_F(FieldTrialsTest, FieldTrialsWritesGlobalString) {
->>>>>>> m108
   FieldTrials f("MyCoolTrial/Enabled/MyUncoolTrial/Disabled/");
   EXPECT_TRUE(webrtc::field_trial::IsEnabled("MyCoolTrial"));
   EXPECT_TRUE(webrtc::field_trial::IsDisabled("MyUncoolTrial"));
 }
 
-<<<<<<< HEAD
-TEST(FieldTrials, RestoresGlobalString) {
-  const char* s = "SomeString/Enabled/";
-  webrtc::field_trial::InitFieldTrialsFromString(s);
-  {
-    FieldTrials f("SomeOtherString/Enabled/");
-    EXPECT_EQ(std::string("SomeOtherString/Enabled/"),
-              webrtc::field_trial::GetFieldTrialString());
-  }
-  EXPECT_EQ(s, webrtc::field_trial::GetFieldTrialString());
-}
-
-#if GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
-TEST(FieldTrials, OnlyOneInstance) {
-=======
 TEST_F(FieldTrialsTest, FieldTrialsRestoresGlobalStringAfterDestruction) {
   static constexpr char s[] = "SomeString/Enabled/";
   InitFieldTrialsFromString(s);
@@ -121,24 +78,17 @@ TEST_F(FieldTrialsTest, FieldTrialsRestoresGlobalStringAfterDestruction) {
 
 #if GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
 TEST_F(FieldTrialsTest, FieldTrialsDoesNotSupportSimultaneousInstances) {
->>>>>>> m108
   FieldTrials f("SomeString/Enabled/");
   RTC_EXPECT_DEATH(FieldTrials("SomeOtherString/Enabled/").Lookup("Whatever"),
                    "Only one instance");
 }
 #endif  // GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
 
-<<<<<<< HEAD
-TEST(FieldTrials, SequentialInstances) {
-=======
 TEST_F(FieldTrialsTest, FieldTrialsSupportsSeparateInstances) {
->>>>>>> m108
   { FieldTrials f("SomeString/Enabled/"); }
   { FieldTrials f("SomeOtherString/Enabled/"); }
 }
 
-<<<<<<< HEAD
-=======
 TEST_F(FieldTrialsTest, NonGlobalFieldTrialsInstanceDoesNotModifyGlobalString) {
   std::unique_ptr<FieldTrials> f =
       FieldTrials::CreateNoGlobal("SomeString/Enabled/");
@@ -184,5 +134,4 @@ TEST_F(FieldTrialsTest, FieldTrialBasedConfigReadsGlobalString) {
 }
 
 }  // namespace
->>>>>>> m108
 }  // namespace webrtc

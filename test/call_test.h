@@ -21,10 +21,7 @@
 #include "api/task_queue/task_queue_factory.h"
 #include "api/test/video/function_video_decoder_factory.h"
 #include "api/test/video/function_video_encoder_factory.h"
-<<<<<<< HEAD
-=======
 #include "api/units/time_delta.h"
->>>>>>> m108
 #include "api/video/video_bitrate_allocator_factory.h"
 #include "call/call.h"
 #include "modules/audio_device/include/test_audio_device.h"

@@ -16,10 +16,6 @@
 #include "pc/test/fake_video_track_renderer.h"
 #include "pc/test/fake_video_track_source.h"
 #include "pc/video_track_source.h"
-<<<<<<< HEAD
-#include "rtc_base/ref_counted_object.h"
-=======
->>>>>>> m108
 #include "rtc_base/time_utils.h"
 #include "test/gtest.h"
 

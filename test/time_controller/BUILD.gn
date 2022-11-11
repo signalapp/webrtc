@@ -61,10 +61,6 @@ if (rtc_include_tests) {
       "../../api/units:time_delta",
       "../../rtc_base",
       "../../rtc_base:macromagic",
-<<<<<<< HEAD
-      "../../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
       "../../rtc_base:rtc_event",
       "../../rtc_base:rtc_task_queue",
       "../../rtc_base:task_queue_for_test",

@@ -69,11 +69,7 @@ rtc_library("frame_generator_impl") {
     "../rtc_base:checks",
     "../rtc_base:criticalsection",
     "../rtc_base:logging",
-<<<<<<< HEAD
-    "../rtc_base:rtc_base_approved",
-=======
     "../rtc_base:random",
->>>>>>> m108
     "../rtc_base:rtc_event",
     "../rtc_base/synchronization:mutex",
     "../rtc_base/system:file_wrapper",
@@ -238,10 +234,7 @@ rtc_library("rtp_test_utils") {
 }
 
 rtc_library("field_trial") {
-<<<<<<< HEAD
-=======
   testonly = true
->>>>>>> m108
   visibility = [ "*" ]
   sources = [
     "field_trial.cc",
@@ -262,10 +255,6 @@ rtc_library("explicit_key_value_config") {
   ]
 
   deps = [
-<<<<<<< HEAD
-    ":field_trial",
-=======
->>>>>>> m108
     "../api:field_trials_view",
     "../rtc_base:checks",
   ]
@@ -273,10 +262,7 @@ rtc_library("explicit_key_value_config") {
 }
 
 rtc_library("scoped_key_value_config") {
-<<<<<<< HEAD
-=======
   testonly = true
->>>>>>> m108
   visibility = [ "*" ]
   sources = [
     "scoped_key_value_config.cc",
@@ -631,13 +617,8 @@ if (rtc_include_tests && !build_with_chromium) {
       ":perf_test",
       ":rtc_expect_death",
       ":rtp_test_utils",
-<<<<<<< HEAD
-      ":scoped_key_value_config",
-      ":test_common",
-=======
       ":run_loop",
       ":scoped_key_value_config",
->>>>>>> m108
       ":test_main",
       ":test_support",
       ":test_support_test_artifacts",
@@ -770,10 +751,7 @@ rtc_library("fileutils") {
     "../rtc_base:stringutils",
   ]
   absl_deps = [
-<<<<<<< HEAD
-=======
     "//third_party/abseil-cpp/absl/base:core_headers",
->>>>>>> m108
     "//third_party/abseil-cpp/absl/strings:strings",
     "//third_party/abseil-cpp/absl/types:optional",
   ]
@@ -988,14 +966,6 @@ rtc_library("test_common") {
     "layer_filtering_transport.cc",
     "layer_filtering_transport.h",
     "rtp_rtcp_observer.h",
-<<<<<<< HEAD
-    "run_loop.cc",
-    "run_loop.h",
-    "video_decoder_proxy_factory.h",
-    "video_encoder_nullable_proxy_factory.h",
-    "video_encoder_proxy_factory.h",
-=======
->>>>>>> m108
   ]
 
   deps = [
@@ -1004,10 +974,7 @@ rtc_library("test_common") {
     ":fake_video_codecs",
     ":fileutils",
     ":mock_transport",
-<<<<<<< HEAD
-=======
     ":run_loop",
->>>>>>> m108
     ":scoped_key_value_config",
     ":test_support",
     ":video_test_common",
@@ -1049,10 +1016,6 @@ rtc_library("test_common") {
     "../rtc_base:task_queue_for_test",
     "../rtc_base:threading",
     "../rtc_base:timeutils",
-<<<<<<< HEAD
-    "../rtc_base/task_utils:to_queued_task",
-=======
->>>>>>> m108
     "../system_wrappers",
     "../system_wrappers:field_trial",
     "../video/config:encoder_config",

@@ -16,10 +16,7 @@
 
 #include "api/audio_codecs/audio_encoder_factory.h"
 #include "api/field_trials_view.h"
-<<<<<<< HEAD
-=======
 #include "api/make_ref_counted.h"
->>>>>>> m108
 #include "api/scoped_refptr.h"
 
 namespace webrtc {

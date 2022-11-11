@@ -55,10 +55,6 @@ class DelayBasedBwe {
     bool probe;
     DataRate target_bitrate = DataRate::Zero();
     bool recovered_from_overuse;
-<<<<<<< HEAD
-    bool backoff_in_alr;
-=======
->>>>>>> m108
     BandwidthUsage delay_detector_state;
   };
 
@@ -129,10 +125,6 @@ class DelayBasedBwe {
   AimdRateControl rate_control_;
   DataRate prev_bitrate_;
   BandwidthUsage prev_state_;
-<<<<<<< HEAD
-  bool alr_limited_backoff_enabled_;
-=======
->>>>>>> m108
 };
 
 }  // namespace webrtc

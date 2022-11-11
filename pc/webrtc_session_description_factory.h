@@ -27,10 +27,6 @@
 #include "p2p/base/transport_description_factory.h"
 #include "pc/media_session.h"
 #include "pc/sdp_state_provider.h"
-<<<<<<< HEAD
-#include "rtc_base/message_handler.h"
-=======
->>>>>>> m108
 #include "rtc_base/rtc_certificate.h"
 #include "rtc_base/rtc_certificate_generator.h"
 #include "rtc_base/unique_id_generator.h"
@@ -54,20 +50,11 @@ class WebRtcSessionDescriptionFactory {
       const std::string& session_id,
       bool dtls_enabled,
       std::unique_ptr<rtc::RTCCertificateGeneratorInterface> cert_generator,
-<<<<<<< HEAD
-      const rtc::scoped_refptr<rtc::RTCCertificate>& certificate,
-=======
       rtc::scoped_refptr<rtc::RTCCertificate> certificate,
->>>>>>> m108
       std::function<void(const rtc::scoped_refptr<rtc::RTCCertificate>&)>
           on_certificate_ready,
       const FieldTrialsView& field_trials);
   ~WebRtcSessionDescriptionFactory();
-
-  WebRtcSessionDescriptionFactory(const WebRtcSessionDescriptionFactory&) =
-      delete;
-  WebRtcSessionDescriptionFactory& operator=(
-      const WebRtcSessionDescriptionFactory&) = delete;
 
   WebRtcSessionDescriptionFactory(const WebRtcSessionDescriptionFactory&) =
       delete;
@@ -157,10 +144,7 @@ class WebRtcSessionDescriptionFactory {
 
   std::function<void(const rtc::scoped_refptr<rtc::RTCCertificate>&)>
       on_certificate_ready_;
-<<<<<<< HEAD
-=======
   rtc::WeakPtrFactory<WebRtcSessionDescriptionFactory> weak_factory_{this};
->>>>>>> m108
 };
 }  // namespace webrtc
 

@@ -336,11 +336,7 @@ class TurnServer : public sigslot::has_slots<> {
   };
   typedef std::map<rtc::Socket*, ServerSocketInfo> ServerSocketMap;
 
-<<<<<<< HEAD
-  rtc::Thread* const thread_;
-=======
   webrtc::TaskQueueBase* const thread_;
->>>>>>> m108
   const std::string nonce_key_;
   std::string realm_ RTC_GUARDED_BY(thread_);
   std::string software_ RTC_GUARDED_BY(thread_);

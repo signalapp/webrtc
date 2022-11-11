@@ -14,19 +14,12 @@
 #include <vector>
 
 #include "absl/types/optional.h"
-<<<<<<< HEAD
-=======
 #include "api/make_ref_counted.h"
->>>>>>> m108
 #include "api/rtc_error.h"
 #include "p2p/base/fake_dtls_transport.h"
 #include "p2p/base/p2p_constants.h"
 #include "rtc_base/fake_ssl_identity.h"
 #include "rtc_base/gunit.h"
-<<<<<<< HEAD
-#include "rtc_base/ref_counted_object.h"
-=======
->>>>>>> m108
 #include "rtc_base/rtc_certificate.h"
 #include "rtc_base/ssl_identity.h"
 #include "test/gmock.h"

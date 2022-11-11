@@ -880,12 +880,7 @@ void VCMJitterBuffer::UpdateJitterEstimate(int64_t latest_packet_time_ms,
   // Filter out frames which have been reordered in time by the network
   if (not_reordered) {
     // Update the jitter estimate with the new samples
-<<<<<<< HEAD
-    jitter_estimate_.UpdateEstimate(*frame_delay, DataSize::Bytes(frame_size),
-                                    incomplete_frame);
-=======
     jitter_estimate_.UpdateEstimate(*frame_delay, DataSize::Bytes(frame_size));
->>>>>>> m108
   }
 }
 

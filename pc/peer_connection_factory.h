@@ -116,15 +116,11 @@ class PeerConnectionFactory : public PeerConnectionFactoryInterface {
     return options_;
   }
 
-<<<<<<< HEAD
-  const FieldTrialsView& trials() const { return context_->trials(); }
-=======
   const FieldTrialsView& field_trials() const {
     return context_->field_trials();
   }
 
   cricket::MediaEngineInterface* media_engine() const;
->>>>>>> m108
 
  protected:
   // Constructor used by the static Create() method. Modifies the dependencies.

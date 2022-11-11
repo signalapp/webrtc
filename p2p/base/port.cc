@@ -101,10 +101,8 @@ std::string Port::ComputeFoundation(absl::string_view type,
                                     absl::string_view protocol,
                                     absl::string_view relay_protocol,
                                     const rtc::SocketAddress& base_address) {
-  // TODO(bugs.webrtc.org/14605): ensure IceTiebreaker() is set.
   rtc::StringBuilder sb;
-  sb << type << base_address.ipaddr().ToString() << protocol << relay_protocol
-     << rtc::ToString(IceTiebreaker());
+  sb << type << base_address.ipaddr().ToString() << protocol << relay_protocol;
   return rtc::ToString(rtc::ComputeCrc32(sb.Release()));
 }
 
@@ -189,10 +187,6 @@ Port::~Port() {
   RTC_DCHECK_RUN_ON(thread_);
   CancelPendingTasks();
   DestroyAllConnections();
-}
-=======
-  DestroyAllConnections();
->>>>>>> m108
 }
 
 const std::string& Port::Type() const {
@@ -374,9 +368,9 @@ void Port::OnReadPacket(const char* data,
   std::unique_ptr<IceMessage> msg;
   std::string remote_username;
   if (!GetStunMessage(data, size, addr, &msg, &remote_username)) {
-    RTC_LOG(LS_INFO) << ToString()
-                     << ": Received non-STUN packet from unknown address: "
-                     << addr.ToSensitiveString();
+    RTC_LOG(LS_ERROR) << ToString()
+                      << ": Received non-STUN packet from unknown address: "
+                      << addr.ToSensitiveString();
   } else if (!msg) {
     // STUN message handled already
   } else if (msg->type() == STUN_BINDING_REQUEST) {
@@ -864,6 +858,14 @@ void Port::DestroyIfDead() {
   }
 }
 
+void Port::SubscribePortDestroyed(
+    std::function<void(PortInterface*)> callback) {
+  port_destroyed_callback_list_.AddReceiver(callback);
+}
+
+void Port::SendPortDestroyed(Port* port) {
+  port_destroyed_callback_list_.Send(port);
+}
 void Port::OnNetworkTypeChanged(const rtc::Network* network) {
   RTC_DCHECK(network == network_);
 
@@ -948,8 +950,7 @@ void Port::DestroyConnectionInternal(Connection* conn, bool async) {
 void Port::Destroy() {
   RTC_DCHECK(connections_.empty());
   RTC_LOG(LS_INFO) << ToString() << ": Port deleted";
-  // RingRTC change to support ICE forking
-  SignalDestroyed(this);
+  SendPortDestroyed(this);
   delete this;
 }
 

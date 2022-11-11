@@ -98,11 +98,7 @@ std::string GetPeerConnectionString() {
 class DummySetSessionDescriptionObserver
     : public webrtc::SetSessionDescriptionObserver {
  public:
-<<<<<<< HEAD
-  static DummySetSessionDescriptionObserver* Create() {
-=======
   static rtc::scoped_refptr<DummySetSessionDescriptionObserver> Create() {
->>>>>>> m108
     return rtc::make_ref_counted<DummySetSessionDescriptionObserver>();
   }
   virtual void OnSuccess() { RTC_LOG(LS_INFO) << __FUNCTION__; }

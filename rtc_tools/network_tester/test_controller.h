@@ -54,11 +54,6 @@ class TestController : public sigslot::has_slots<> {
 
   TestController(const TestController&) = delete;
   TestController& operator=(const TestController&) = delete;
-<<<<<<< HEAD
-
-  void Run();
-=======
->>>>>>> m108
 
   void SendConnectTo(const std::string& hostname, int port);
 
@@ -90,13 +85,9 @@ class TestController : public sigslot::has_slots<> {
   std::unique_ptr<rtc::AsyncPacketSocket> udp_socket_
       RTC_GUARDED_BY(packet_sender_thread_);
   rtc::SocketAddress remote_address_;
-<<<<<<< HEAD
-  std::unique_ptr<PacketSender> packet_sender_;
-=======
   std::unique_ptr<PacketSender> packet_sender_
       RTC_GUARDED_BY(packet_sender_thread_);
   rtc::scoped_refptr<webrtc::PendingTaskSafetyFlag> task_safety_flag_;
->>>>>>> m108
 };
 
 }  // namespace webrtc

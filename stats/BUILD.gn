@@ -25,10 +25,6 @@ rtc_library("rtc_stats") {
     "../api:rtc_stats_api",
     "../rtc_base:checks",
     "../rtc_base:macromagic",
-<<<<<<< HEAD
-    "../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
     "../rtc_base:stringutils",
   ]
 }

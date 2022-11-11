@@ -30,24 +30,6 @@ namespace webrtc {
 static const AudioProcessing::Error kNoErr = AudioProcessing::kNoError;
 #define EXPECT_NOERR(expr) EXPECT_EQ(kNoErr, (expr))
 
-<<<<<<< HEAD
-class RawFile final {
- public:
-  explicit RawFile(const std::string& filename);
-  ~RawFile();
-
-  RawFile(const RawFile&) = delete;
-  RawFile& operator=(const RawFile&) = delete;
-
-  void WriteSamples(const int16_t* samples, size_t num_samples);
-  void WriteSamples(const float* samples, size_t num_samples);
-
- private:
-  FILE* file_handle_;
-};
-
-=======
->>>>>>> m108
 // Encapsulates samples and metadata for an integer frame.
 struct Int16FrameData {
   // Max data size that matches the data size of the AudioFrame class, providing

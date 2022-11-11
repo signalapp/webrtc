@@ -105,11 +105,7 @@ rtc_library("metrics") {
     "../rtc_base:atomicops",
     "../rtc_base:checks",
     "../rtc_base:macromagic",
-<<<<<<< HEAD
-    "../rtc_base:rtc_base_approved",
-=======
     "../rtc_base:stringutils",
->>>>>>> m108
     "../rtc_base/synchronization:mutex",
   ]
   absl_deps = [ "//third_party/abseil-cpp/absl/strings" ]

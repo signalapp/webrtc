@@ -13,10 +13,7 @@
 #include <memory>
 #include <string>
 
-<<<<<<< HEAD
-=======
 #include "api/units/time_delta.h"
->>>>>>> m108
 #include "rtc_base/checks.h"
 #include "rtc_base/event.h"
 #include "rtc_base/experiments/encoder_info_settings.h"
@@ -29,13 +26,8 @@ namespace webrtc {
 
 namespace {
 constexpr int kFramerateFps = 30;
-<<<<<<< HEAD
-constexpr int kDefaultBitrateStateUpdateIntervalSeconds = 5;
-constexpr int kDefaultEncodeDeltaTimeMs = 33;  // 1/30(s) => 33(ms)
-=======
 constexpr TimeDelta kDefaultBitrateStateUpdateInterval = TimeDelta::Seconds(5);
 constexpr TimeDelta kDefaultEncodeTime = TimeDelta::Seconds(1) / kFramerateFps;
->>>>>>> m108
 
 }  // namespace
 
@@ -115,21 +107,11 @@ class BandwidthQualityScalerTest
                   GetDefaultSinglecastBitrateLimitsWhenQpIsUntrusted());
           // Only for testing. Set first_timestamp_ in RateStatistics to 0.
           bandwidth_quality_scaler_->ReportEncodeInfo(0, 0, 0, 0);
-<<<<<<< HEAD
-        },
-        RTC_FROM_HERE);
-  }
-
-  ~BandwidthQualityScalerTest() {
-    task_queue_.SendTask([this] { bandwidth_quality_scaler_ = nullptr; },
-                         RTC_FROM_HERE);
-=======
         });
   }
 
   ~BandwidthQualityScalerTest() {
     task_queue_.SendTask([this] { bandwidth_quality_scaler_ = nullptr; });
->>>>>>> m108
   }
 
   int GetFrameSizeBytes(
@@ -177,14 +159,9 @@ class BandwidthQualityScalerTest
             total_frame_nums += frame_config.frame_num;
           }
 
-<<<<<<< HEAD
-          EXPECT_EQ(kFramerateFps * kDefaultBitrateStateUpdateIntervalSeconds,
-                    total_frame_nums);
-=======
           EXPECT_EQ(
               kFramerateFps * kDefaultBitrateStateUpdateInterval.seconds(),
               total_frame_nums);
->>>>>>> m108
 
           uint32_t time_send_to_scaler_ms_ = rtc::TimeMillis();
           for (size_t i = 0; i < frame_configs.size(); ++i) {
@@ -194,11 +171,7 @@ class BandwidthQualityScalerTest
                     config.actual_width * config.actual_height);
             EXPECT_TRUE(suitable_bitrate);
             for (int j = 0; j <= config.frame_num; ++j) {
-<<<<<<< HEAD
-              time_send_to_scaler_ms_ += kDefaultEncodeDeltaTimeMs;
-=======
               time_send_to_scaler_ms_ += kDefaultEncodeTime.ms();
->>>>>>> m108
               int frame_size_bytes =
                   GetFrameSizeBytes(config, suitable_bitrate.value());
               RTC_CHECK(frame_size_bytes > 0);
@@ -207,12 +180,7 @@ class BandwidthQualityScalerTest
                   config.actual_width, config.actual_height);
             }
           }
-<<<<<<< HEAD
-        },
-        RTC_FROM_HERE);
-=======
         });
->>>>>>> m108
   }
 
   test::ScopedFieldTrials scoped_field_trial_;
@@ -237,13 +205,8 @@ TEST_P(BandwidthQualityScalerTest, AllNormalFrame_640x360) {
   // When resolution is 640*360, experimental working bitrate range is
   // [500000,800000] bps. Encoded bitrate is 654253, so it falls in the range
   // without any operation(up/down).
-<<<<<<< HEAD
-  EXPECT_FALSE(handler_->event_.Wait(
-      bandwidth_quality_scaler_->GetBitrateStateUpdateIntervalMs()));
-=======
   EXPECT_FALSE(handler_->event_.Wait(TimeDelta::Millis(
       bandwidth_quality_scaler_->GetBitrateStateUpdateIntervalMs())));
->>>>>>> m108
   EXPECT_EQ(0, handler_->adapt_down_event_count_);
   EXPECT_EQ(0, handler_->adapt_up_event_count_);
 }
@@ -256,13 +219,8 @@ TEST_P(BandwidthQualityScalerTest, AllNoramlFrame_AboveMaxBandwidth_640x360) {
   // When resolution is 640*360, experimental working bitrate range is
   // [500000,800000] bps. Encoded bitrate is 1208000 > 800000 * 0.95, so it
   // triggers adapt_up_event_count_.
-<<<<<<< HEAD
-  EXPECT_TRUE(handler_->event_.Wait(
-      bandwidth_quality_scaler_->GetBitrateStateUpdateIntervalMs()));
-=======
   EXPECT_TRUE(handler_->event_.Wait(TimeDelta::Millis(
       bandwidth_quality_scaler_->GetBitrateStateUpdateIntervalMs())));
->>>>>>> m108
   EXPECT_EQ(0, handler_->adapt_down_event_count_);
   EXPECT_EQ(1, handler_->adapt_up_event_count_);
 }
@@ -275,13 +233,8 @@ TEST_P(BandwidthQualityScalerTest, AllNormalFrame_Underuse_640x360) {
   // When resolution is 640*360, experimental working bitrate range is
   // [500000,800000] bps. Encoded bitrate is 377379 < 500000 * 0.8, so it
   // triggers adapt_down_event_count_.
-<<<<<<< HEAD
-  EXPECT_TRUE(handler_->event_.Wait(
-      bandwidth_quality_scaler_->GetBitrateStateUpdateIntervalMs()));
-=======
   EXPECT_TRUE(handler_->event_.Wait(TimeDelta::Millis(
       bandwidth_quality_scaler_->GetBitrateStateUpdateIntervalMs())));
->>>>>>> m108
   EXPECT_EQ(1, handler_->adapt_down_event_count_);
   EXPECT_EQ(0, handler_->adapt_up_event_count_);
 }
@@ -298,13 +251,8 @@ TEST_P(BandwidthQualityScalerTest, FixedFrameTypeTest1_640x360) {
   // When resolution is 640*360, experimental working bitrate range is
   // [500000,800000] bps. Encoded bitrate is 1059462 > 800000 * 0.95, so it
   // triggers adapt_up_event_count_.
-<<<<<<< HEAD
-  EXPECT_TRUE(handler_->event_.Wait(
-      bandwidth_quality_scaler_->GetBitrateStateUpdateIntervalMs()));
-=======
   EXPECT_TRUE(handler_->event_.Wait(TimeDelta::Millis(
       bandwidth_quality_scaler_->GetBitrateStateUpdateIntervalMs())));
->>>>>>> m108
   EXPECT_EQ(0, handler_->adapt_down_event_count_);
   EXPECT_EQ(1, handler_->adapt_up_event_count_);
 }
@@ -321,13 +269,8 @@ TEST_P(BandwidthQualityScalerTest, FixedFrameTypeTest2_640x360) {
   // When resolution is 640*360, experimental working bitrate range is
   // [500000,800000] bps. Encoded bitrate is 1059462 > 800000 * 0.95, so it
   // triggers adapt_up_event_count_.
-<<<<<<< HEAD
-  EXPECT_TRUE(handler_->event_.Wait(
-      bandwidth_quality_scaler_->GetBitrateStateUpdateIntervalMs()));
-=======
   EXPECT_TRUE(handler_->event_.Wait(TimeDelta::Millis(
       bandwidth_quality_scaler_->GetBitrateStateUpdateIntervalMs())));
->>>>>>> m108
   EXPECT_EQ(0, handler_->adapt_down_event_count_);
   EXPECT_EQ(1, handler_->adapt_up_event_count_);
 }

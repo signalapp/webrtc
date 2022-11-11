@@ -86,12 +86,9 @@ class LibaomAv1Encoder final : public VideoEncoder {
   EncoderInfo GetEncoderInfo() const override;
 
  private:
-<<<<<<< HEAD
-=======
   template <typename P>
   bool SetEncoderControlParameters(int param_id, P param_value);
 
->>>>>>> m108
   // Get value to be used for encoder cpu_speed setting
   int GetCpuSpeed(int width, int height);
 
@@ -151,10 +148,7 @@ LibaomAv1Encoder::LibaomAv1Encoder(
     const absl::optional<LibaomAv1EncoderAuxConfig>& aux_config)
     : inited_(false),
       rates_configured_(false),
-<<<<<<< HEAD
-=======
       aux_config_(aux_config),
->>>>>>> m108
       frame_for_encode_(nullptr),
       encoded_image_callback_(nullptr) {}
 
@@ -189,18 +183,11 @@ int LibaomAv1Encoder::InitEncode(const VideoCodec* codec_settings,
     RTC_LOG(LS_WARNING) << "Simulcast is not implemented by LibaomAv1Encoder.";
     return result;
   }
-<<<<<<< HEAD
-  absl::string_view scalability_mode = encoder_settings_.ScalabilityMode();
-  if (scalability_mode.empty()) {
-    RTC_LOG(LS_WARNING) << "Scalability mode is not set, using 'L1T1'.";
-    scalability_mode = "L1T1";
-=======
   absl::optional<ScalabilityMode> scalability_mode =
       encoder_settings_.GetScalabilityMode();
   if (!scalability_mode.has_value()) {
     RTC_LOG(LS_WARNING) << "Scalability mode is not set, using 'L1T1'.";
     scalability_mode = ScalabilityMode::kL1T1;
->>>>>>> m108
   }
   svc_controller_ = CreateScalabilityStructure(*scalability_mode);
   if (svc_controller_ == nullptr) {
@@ -264,68 +251,6 @@ int LibaomAv1Encoder::InitEncode(const VideoCodec* codec_settings,
   inited_ = true;
 
   // Set control parameters
-<<<<<<< HEAD
-  ret = aom_codec_control(&ctx_, AOME_SET_CPUUSED,
-                          GetCpuSpeed(cfg_.g_w, cfg_.g_h));
-  if (ret != AOM_CODEC_OK) {
-    RTC_LOG(LS_WARNING) << "LibaomAv1Encoder::EncodeInit returned " << ret
-                        << " on control AV1E_SET_CPUUSED.";
-    return WEBRTC_VIDEO_CODEC_ERROR;
-  }
-  ret = aom_codec_control(&ctx_, AV1E_SET_ENABLE_CDEF, 1);
-  if (ret != AOM_CODEC_OK) {
-    RTC_LOG(LS_WARNING) << "LibaomAv1Encoder::EncodeInit returned " << ret
-                        << " on control AV1E_SET_ENABLE_CDEF.";
-    return WEBRTC_VIDEO_CODEC_ERROR;
-  }
-  ret = aom_codec_control(&ctx_, AV1E_SET_ENABLE_TPL_MODEL, 0);
-  if (ret != AOM_CODEC_OK) {
-    RTC_LOG(LS_WARNING) << "LibaomAv1Encoder::EncodeInit returned " << ret
-                        << " on control AV1E_SET_ENABLE_TPL_MODEL.";
-    return WEBRTC_VIDEO_CODEC_ERROR;
-  }
-  ret = aom_codec_control(&ctx_, AV1E_SET_DELTAQ_MODE, 0);
-  if (ret != AOM_CODEC_OK) {
-    RTC_LOG(LS_WARNING) << "LibaomAv1Encoder::EncodeInit returned " << ret
-                        << " on control AV1E_SET_DELTAQ_MODE.";
-    return WEBRTC_VIDEO_CODEC_ERROR;
-  }
-  ret = aom_codec_control(&ctx_, AV1E_SET_ENABLE_ORDER_HINT, 0);
-  if (ret != AOM_CODEC_OK) {
-    RTC_LOG(LS_WARNING) << "LibaomAv1Encoder::EncodeInit returned " << ret
-                        << " on control AV1E_SET_ENABLE_ORDER_HINT.";
-    return WEBRTC_VIDEO_CODEC_ERROR;
-  }
-  ret = aom_codec_control(&ctx_, AV1E_SET_AQ_MODE, 3);
-  if (ret != AOM_CODEC_OK) {
-    RTC_LOG(LS_WARNING) << "LibaomAv1Encoder::EncodeInit returned " << ret
-                        << " on control AV1E_SET_AQ_MODE.";
-    return WEBRTC_VIDEO_CODEC_ERROR;
-  }
-  ret = aom_codec_control(&ctx_, AOME_SET_MAX_INTRA_BITRATE_PCT, 300);
-  if (ret != AOM_CODEC_OK) {
-    RTC_LOG(LS_WARNING) << "LibaomAv1Encoder::EncodeInit returned " << ret
-                        << " on control AV1E_SET_MAX_INTRA_BITRATE_PCT.";
-    return WEBRTC_VIDEO_CODEC_ERROR;
-  }
-  ret = aom_codec_control(&ctx_, AV1E_SET_COEFF_COST_UPD_FREQ, 3);
-  if (ret != AOM_CODEC_OK) {
-    RTC_LOG(LS_WARNING) << "LibaomAv1Encoder::EncodeInit returned " << ret
-                        << " on control AV1E_SET_COEFF_COST_UPD_FREQ.";
-    return WEBRTC_VIDEO_CODEC_ERROR;
-  }
-  ret = aom_codec_control(&ctx_, AV1E_SET_MODE_COST_UPD_FREQ, 3);
-  if (ret != AOM_CODEC_OK) {
-    RTC_LOG(LS_WARNING) << "LibaomAv1Encoder::EncodeInit returned " << ret
-                        << " on control AV1E_SET_MODE_COST_UPD_FREQ.";
-    return WEBRTC_VIDEO_CODEC_ERROR;
-  }
-  ret = aom_codec_control(&ctx_, AV1E_SET_MV_COST_UPD_FREQ, 3);
-  if (ret != AOM_CODEC_OK) {
-    RTC_LOG(LS_WARNING) << "LibaomAv1Encoder::EncodeInit returned " << ret
-                        << " on control AV1E_SET_MV_COST_UPD_FREQ.";
-    return WEBRTC_VIDEO_CODEC_ERROR;
-=======
   SET_ENCODER_PARAM_OR_RETURN_ERROR(AOME_SET_CPUUSED,
                                     GetCpuSpeed(cfg_.g_w, cfg_.g_h));
   SET_ENCODER_PARAM_OR_RETURN_ERROR(AV1E_SET_ENABLE_CDEF, 1);
@@ -344,28 +269,6 @@ int LibaomAv1Encoder::InitEncode(const VideoCodec* codec_settings,
     SET_ENCODER_PARAM_OR_RETURN_ERROR(AV1E_SET_ENABLE_PALETTE, 1);
   } else {
     SET_ENCODER_PARAM_OR_RETURN_ERROR(AV1E_SET_ENABLE_PALETTE, 0);
->>>>>>> m108
-  }
-
-  if (codec_settings->mode == VideoCodecMode::kScreensharing) {
-    ret = aom_codec_control(&ctx_, AV1E_SET_TUNE_CONTENT, AOM_CONTENT_SCREEN);
-    if (ret != AOM_CODEC_OK) {
-      RTC_LOG(LS_WARNING) << "LibaomAv1Encoder::EncodeInit returned " << ret
-                          << " on control AV1E_SET_TUNE_CONTENT.";
-      return WEBRTC_VIDEO_CODEC_ERROR;
-    }
-    ret = aom_codec_control(&ctx_, AV1E_SET_ENABLE_PALETTE, 1);
-    if (ret != AOM_CODEC_OK) {
-      RTC_LOG(LS_WARNING) << "LibaomAv1Encoder::EncodeInit returned " << ret
-                          << " on control AV1E_SET_ENABLE_PALETTE.";
-      return WEBRTC_VIDEO_CODEC_ERROR;
-    }
-    ret = aom_codec_control(&ctx_, AV1E_SET_ENABLE_INTRABC, 0);
-    if (ret != AOM_CODEC_OK) {
-      RTC_LOG(LS_WARNING) << "LibaomAv1Encoder::EncodeInit returned " << ret
-                          << " on control AV1E_SET_ENABLE_INTRABC.";
-      return WEBRTC_VIDEO_CODEC_ERROR;
-    }
   }
 
   if (cfg_.g_threads == 4 && cfg_.g_w == 640 &&
@@ -466,42 +369,6 @@ int LibaomAv1Encoder::GetCpuSpeed(int width, int height) {
       default:
         return 10;
     }
-  }
-}
-
-// Only positive speeds, range for real-time coding currently is: 6 - 8.
-// Lower means slower/better quality, higher means fastest/lower quality.
-int LibaomAv1Encoder::GetCpuSpeed(int width, int height) {
-  // For smaller resolutions, use lower speed setting (get some coding gain at
-  // the cost of increased encoding complexity).
-  switch (encoder_settings_.GetVideoEncoderComplexity()) {
-    case VideoCodecComplexity::kComplexityHigh:
-      if (width * height <= 320 * 180)
-        return 8;
-      else if (width * height <= 640 * 360)
-        return 9;
-      else
-        return 10;
-    case VideoCodecComplexity::kComplexityHigher:
-      if (width * height <= 320 * 180)
-        return 7;
-      else if (width * height <= 640 * 360)
-        return 8;
-      else if (width * height <= 1280 * 720)
-        return 9;
-      else
-        return 10;
-    case VideoCodecComplexity::kComplexityMax:
-      if (width * height <= 320 * 180)
-        return 6;
-      else if (width * height <= 640 * 360)
-        return 7;
-      else if (width * height <= 1280 * 720)
-        return 8;
-      else
-        return 9;
-    default:
-      return 10;
   }
 }
 
@@ -765,19 +632,8 @@ int32_t LibaomAv1Encoder::Encode(
       SetSvcLayerId(*layer_frame);
       SetSvcRefFrameConfig(*layer_frame);
 
-<<<<<<< HEAD
-      aom_codec_err_t ret =
-          aom_codec_control(&ctx_, AV1E_SET_ERROR_RESILIENT_MODE,
-                            layer_frame->TemporalId() > 0 ? 1 : 0);
-      if (ret != AOM_CODEC_OK) {
-        RTC_LOG(LS_WARNING) << "LibaomAv1Encoder::Encode returned " << ret
-                            << " on control AV1E_SET_ERROR_RESILIENT_MODE.";
-        return WEBRTC_VIDEO_CODEC_ERROR;
-      }
-=======
       SET_ENCODER_PARAM_OR_RETURN_ERROR(AV1E_SET_ERROR_RESILIENT_MODE,
                                         layer_frame->TemporalId() > 0 ? 1 : 0);
->>>>>>> m108
     }
 
     // Encode a frame.
@@ -828,10 +684,7 @@ int32_t LibaomAv1Encoder::Encode(
           encoded_image._encodedWidth = cfg_.g_w * n / d;
           encoded_image._encodedHeight = cfg_.g_h * n / d;
           encoded_image.SetSpatialIndex(layer_frame->SpatialId());
-<<<<<<< HEAD
-=======
           encoded_image.SetTemporalIndex(layer_frame->TemporalId());
->>>>>>> m108
         } else {
           encoded_image._encodedWidth = cfg_.g_w;
           encoded_image._encodedHeight = cfg_.g_h;

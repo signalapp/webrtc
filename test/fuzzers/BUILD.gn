@@ -14,10 +14,6 @@ rtc_library("webrtc_fuzzer_main") {
   sources = [ "webrtc_fuzzer_main.cc" ]
   deps = [
     "../../rtc_base:logging",
-<<<<<<< HEAD
-    "../../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
     "//testing/libfuzzer:libfuzzer_main",
   ]
 
@@ -402,11 +398,7 @@ webrtc_fuzzer_test("neteq_signal_fuzzer") {
     "../../modules/audio_coding:neteq_test_tools",
     "../../modules/audio_coding:neteq_tools_minimal",
     "../../modules/audio_coding:pcm16b",
-<<<<<<< HEAD
-    "../../rtc_base:rtc_base_approved",
-=======
     "../../rtc_base:random",
->>>>>>> m108
     "../../rtc_base:safe_conversions",
   ]
 }
@@ -417,10 +409,6 @@ webrtc_fuzzer_test("residual_echo_detector_fuzzer") {
     "../../api/audio:echo_detector_creator",
     "../../rtc_base:checks",
     "../../rtc_base:refcount",
-<<<<<<< HEAD
-    "../../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
   ]
 }
 
@@ -513,10 +501,6 @@ webrtc_fuzzer_test("audio_processing_fuzzer") {
     "../../modules/audio_processing/aec_dump",
     "../../modules/audio_processing/aec_dump:aec_dump_impl",
     "../../rtc_base:macromagic",
-<<<<<<< HEAD
-    "../../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
     "../../rtc_base:rtc_task_queue",
     "../../rtc_base:safe_minmax",
     "../../system_wrappers:field_trial",
@@ -548,10 +532,6 @@ webrtc_fuzzer_test("agc_fuzzer") {
     "../../modules/audio_processing:api",
     "../../modules/audio_processing:audio_buffer",
     "../../rtc_base:macromagic",
-<<<<<<< HEAD
-    "../../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
     "../../rtc_base:safe_minmax",
   ]
 
@@ -625,13 +605,10 @@ webrtc_fuzzer_test("rtp_video_layers_allocation_fuzzer") {
     "../../modules/rtp_rtcp:rtp_rtcp_format",
     "../../rtc_base:checks",
   ]
-<<<<<<< HEAD
-=======
 
   # video_layers_allocation is an rtp header extension and thus can't be longer
   # than 255 bytes on the wire.
   libfuzzer_options = [ "max_len=255" ]
->>>>>>> m108
 }
 
 webrtc_fuzzer_test("rtp_frame_reference_finder_fuzzer") {
@@ -647,35 +624,21 @@ webrtc_fuzzer_test("rtp_frame_reference_finder_fuzzer") {
 webrtc_fuzzer_test("frame_buffer2_fuzzer") {
   sources = [ "frame_buffer2_fuzzer.cc" ]
   deps = [
-<<<<<<< HEAD
-    "../../modules/video_coding:timing",
-    "../../modules/video_coding/",
-=======
     "../../api/task_queue",
     "../../modules/video_coding:frame_buffer2",
     "../../modules/video_coding/timing:timing_module",
->>>>>>> m108
     "../../test:scoped_key_value_config",
     "../time_controller:time_controller",
   ]
 }
 
-<<<<<<< HEAD
-webrtc_fuzzer_test("frame_buffer3_fuzzer") {
-  sources = [ "frame_buffer3_fuzzer.cc" ]
-=======
 webrtc_fuzzer_test("frame_buffer_fuzzer") {
   sources = [ "frame_buffer_fuzzer.cc" ]
->>>>>>> m108
   deps = [
     ":fuzz_data_helper",
     "../../api:array_view",
     "../../api/video:encoded_frame",
-<<<<<<< HEAD
-    "../../modules/video_coding:frame_buffer",
-=======
     "../../api/video:frame_buffer",
->>>>>>> m108
     "../../rtc_base:rtc_numerics",
     "../../test:scoped_key_value_config",
   ]
@@ -689,14 +652,7 @@ webrtc_fuzzer_test("field_trial_fuzzer") {
 
 webrtc_fuzzer_test("string_to_number_fuzzer") {
   sources = [ "string_to_number_fuzzer.cc" ]
-<<<<<<< HEAD
-  deps = [
-    "../../rtc_base:rtc_base_approved",
-    "../../rtc_base:stringutils",
-  ]
-=======
   deps = [ "../../rtc_base:stringutils" ]
->>>>>>> m108
   seed_corpus = "corpora/string_to_number-corpus"
 }
 
@@ -706,11 +662,7 @@ webrtc_fuzzer_test("sctp_utils_fuzzer") {
     "../../api:libjingle_peerconnection_api",
     "../../pc:libjingle_peerconnection",
     "../../pc:sctp_utils",
-<<<<<<< HEAD
-    "../../rtc_base:rtc_base_approved",
-=======
     "../../rtc_base:copy_on_write_buffer",
->>>>>>> m108
   ]
 }
 
@@ -722,10 +674,6 @@ webrtc_fuzzer_test("dcsctp_socket_fuzzer") {
     "../../net/dcsctp/public:types",
     "../../net/dcsctp/socket:dcsctp_socket",
     "../../rtc_base:logging",
-<<<<<<< HEAD
-    "../../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
   ]
 }
 

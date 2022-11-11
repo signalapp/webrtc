@@ -181,10 +181,6 @@ void ISACTest::EncodeDecode(int testNr,
                   wbISACConfig),
       kISAC16kPayloadType));
 
-<<<<<<< HEAD
-  _myTimer.Reset();
-=======
->>>>>>> m108
   _channel_A2B->ResetStats();
   _channel_B2A->ResetStats();
 

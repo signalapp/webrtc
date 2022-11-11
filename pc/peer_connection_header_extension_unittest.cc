@@ -36,10 +36,7 @@
 #include "pc/peer_connection_wrapper.h"
 #include "pc/session_description.h"
 #include "pc/test/mock_peer_connection_observers.h"
-<<<<<<< HEAD
-=======
 #include "rtc_base/internal/default_socket_server.h"
->>>>>>> m108
 #include "rtc_base/rtc_certificate_generator.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/thread.h"
@@ -113,11 +110,7 @@ class PeerConnectionHeaderExtensionTest
     auto result = pc_factory->CreatePeerConnectionOrError(
         config, std::move(pc_dependencies));
     EXPECT_TRUE(result.ok());
-<<<<<<< HEAD
-    observer->SetPeerConnectionInterface(result.value());
-=======
     observer->SetPeerConnectionInterface(result.value().get());
->>>>>>> m108
     return std::make_unique<PeerConnectionWrapper>(
         pc_factory, result.MoveValue(), std::move(observer));
   }

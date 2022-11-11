@@ -53,15 +53,8 @@ rtc_library("video_adaptation") {
     "../../rtc_base:logging",
     "../../rtc_base:macromagic",
     "../../rtc_base:refcount",
-<<<<<<< HEAD
-    "../../rtc_base:rtc_base_approved",
     "../../rtc_base:rtc_event",
     "../../rtc_base:rtc_numerics",
-    "../../rtc_base:rtc_task_queue",
-=======
-    "../../rtc_base:rtc_event",
-    "../../rtc_base:rtc_numerics",
->>>>>>> m108
     "../../rtc_base:safe_conversions",
     "../../rtc_base:stringutils",
     "../../rtc_base:timeutils",

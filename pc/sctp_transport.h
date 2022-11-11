@@ -17,18 +17,11 @@
 #include "api/scoped_refptr.h"
 #include "api/sctp_transport_interface.h"
 #include "api/sequence_checker.h"
-<<<<<<< HEAD
-=======
 #include "api/transport/data_channel_transport_interface.h"
->>>>>>> m108
 #include "media/sctp/sctp_transport_internal.h"
 #include "p2p/base/dtls_transport_internal.h"
 #include "pc/dtls_transport.h"
 #include "rtc_base/checks.h"
-<<<<<<< HEAD
-#include "rtc_base/third_party/sigslot/sigslot.h"
-=======
->>>>>>> m108
 #include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
 

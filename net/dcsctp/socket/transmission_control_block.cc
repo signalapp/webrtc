@@ -294,13 +294,10 @@ void TransmissionControlBlock::AddHandoverState(
   state.capabilities.partial_reliability = capabilities_.partial_reliability;
   state.capabilities.message_interleaving = capabilities_.message_interleaving;
   state.capabilities.reconfig = capabilities_.reconfig;
-<<<<<<< HEAD
-=======
   state.capabilities.negotiated_maximum_incoming_streams =
       capabilities_.negotiated_maximum_incoming_streams;
   state.capabilities.negotiated_maximum_outgoing_streams =
       capabilities_.negotiated_maximum_outgoing_streams;
->>>>>>> m108
 
   state.my_verification_tag = my_verification_tag().value();
   state.peer_verification_tag = peer_verification_tag().value();
@@ -313,8 +310,6 @@ void TransmissionControlBlock::AddHandoverState(
   reassembly_queue_.AddHandoverState(state);
   retransmission_queue_.AddHandoverState(state);
 }
-<<<<<<< HEAD
-=======
 
 void TransmissionControlBlock::RestoreFromState(
     const DcSctpSocketHandoverState& state) {
@@ -322,5 +317,4 @@ void TransmissionControlBlock::RestoreFromState(
   retransmission_queue_.RestoreFromState(state);
   reassembly_queue_.RestoreFromState(state);
 }
->>>>>>> m108
 }  // namespace dcsctp

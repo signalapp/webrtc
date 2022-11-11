@@ -566,24 +566,15 @@ void RtcpTransceiverImpl::ReschedulePeriodicCompoundPackets() {
 }
 
 void RtcpTransceiverImpl::SchedulePeriodicCompoundPackets(TimeDelta delay) {
-<<<<<<< HEAD
-  periodic_task_handle_ =
-      RepeatingTaskHandle::DelayedStart(config_.task_queue, delay, [this] {
-=======
   periodic_task_handle_ = RepeatingTaskHandle::DelayedStart(
       config_.task_queue, delay,
       [this] {
->>>>>>> m108
         RTC_DCHECK(config_.schedule_periodic_compound_packets);
         RTC_DCHECK(ready_to_send_);
         SendPeriodicCompoundPacket();
         return config_.report_period;
-<<<<<<< HEAD
-      });
-=======
       },
       TaskQueueBase::DelayPrecision::kLow, config_.clock);
->>>>>>> m108
 }
 
 std::vector<uint32_t> RtcpTransceiverImpl::FillReports(

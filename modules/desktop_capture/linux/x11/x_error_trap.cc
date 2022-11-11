@@ -9,11 +9,8 @@
  */
 
 #include "modules/desktop_capture/linux/x11/x_error_trap.h"
-<<<<<<< HEAD:modules/desktop_capture/linux/x11/x_error_trap.cc
-=======
 
 #include <atomic>
->>>>>>> m108:modules/desktop_capture/linux/x_error_trap.cc
 
 #include <stddef.h>
 

@@ -28,12 +28,8 @@ rtc_library("rr_send_queue") {
     "../../../api:array_view",
     "../../../rtc_base:checks",
     "../../../rtc_base:logging",
-<<<<<<< HEAD
-    "../../../rtc_base:rtc_base_approved",
-=======
     "../../../rtc_base/containers:flat_map",
     "../common:str_join",
->>>>>>> m108
     "../packet:data",
     "../public:socket",
     "../public:types",
@@ -81,10 +77,6 @@ rtc_library("retransmission_error_counter") {
   deps = [
     "../../../rtc_base:checks",
     "../../../rtc_base:logging",
-<<<<<<< HEAD
-    "../../../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
     "../public:types",
   ]
   sources = [
@@ -112,10 +104,6 @@ rtc_library("outstanding_data") {
     "../../../api:array_view",
     "../../../rtc_base:checks",
     "../../../rtc_base:logging",
-<<<<<<< HEAD
-    "../../../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
     "../common:math",
     "../common:sequence_numbers",
     "../common:str_join",
@@ -144,10 +132,6 @@ rtc_library("retransmission_queue") {
     "../../../api:array_view",
     "../../../rtc_base:checks",
     "../../../rtc_base:logging",
-<<<<<<< HEAD
-    "../../../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
     "../../../rtc_base:stringutils",
     "../common:math",
     "../common:sequence_numbers",

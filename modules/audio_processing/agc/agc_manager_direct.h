@@ -43,19 +43,8 @@ class AgcManagerDirect final {
   // `analog_config.startup_min_level` in the [12, 255] range.
   AgcManagerDirect(
       int num_capture_channels,
-<<<<<<< HEAD
-      int startup_min_level,
-      int clipped_level_min,
-      bool disable_digital_adaptive,
-      int clipped_level_step,
-      float clipped_ratio_threshold,
-      int clipped_wait_frames,
-      const AudioProcessing::Config::GainController1::AnalogGainController::
-          ClippingPredictor& clipping_config);
-=======
       const AudioProcessing::Config::GainController1::AnalogGainController&
           analog_config);
->>>>>>> m108
 
   ~AgcManagerDirect();
   AgcManagerDirect(const AgcManagerDirect&) = delete;
@@ -153,25 +142,6 @@ class AgcManagerDirect final {
   // Ctor that creates a single channel AGC and by injecting `agc`.
   // `agc` will be owned by this class; hence, do not delete it.
   AgcManagerDirect(
-<<<<<<< HEAD
-      Agc* agc,
-      int startup_min_level,
-      int clipped_level_min,
-      int clipped_level_step,
-      float clipped_ratio_threshold,
-      int clipped_wait_frames,
-      const AudioProcessing::Config::GainController1::AnalogGainController::
-          ClippingPredictor& clipping_config);
-
-  void AnalyzePreProcess(const float* const* audio, size_t samples_per_channel);
-
-  void AggregateChannelLevels();
-
-  const absl::optional<int> min_mic_level_override_;
-  std::unique_ptr<ApmDataDumper> data_dumper_;
-  static int instance_counter_;
-  const bool use_min_channel_level_;
-=======
       const AudioProcessing::Config::GainController1::AnalogGainController&
           analog_config,
       Agc* agc);
@@ -183,7 +153,6 @@ class AgcManagerDirect final {
   const absl::optional<int> min_mic_level_override_;
   std::unique_ptr<ApmDataDumper> data_dumper_;
   static std::atomic<int> instance_counter_;
->>>>>>> m108
   const int num_capture_channels_;
   const bool disable_digital_adaptive_;
 
@@ -239,9 +208,6 @@ class MonoAgc {
   // `set_stream_analog_level()`.
   void HandleClipping(int clipped_level_step);
 
-<<<<<<< HEAD
-  void Process(rtc::ArrayView<const int16_t> audio);
-=======
   // Analyzes `audio`, requests the RMS error from AGC, updates the recommended
   // input volume based on the estimated speech level and, if enabled, updates
   // the (digital) compression gain to be applied by `agc_`. Must be called
@@ -252,7 +218,6 @@ class MonoAgc {
 
   // Returns the recommended input volume. Must be called after `Process()`.
   int recommended_analog_level() const { return recommended_input_volume_; }
->>>>>>> m108
 
   float voice_probability() const { return agc_->voice_probability(); }
   void ActivateLogging() { log_to_histograms_ = true; }

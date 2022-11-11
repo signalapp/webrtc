@@ -36,8 +36,6 @@ bool HasOneRef(const rtc::scoped_refptr<VideoFrameBuffer>& buffer) {
       return static_cast<rtc::RefCountedObject<I422Buffer>*>(buffer.get())
           ->HasOneRef();
     }
-<<<<<<< HEAD
-=======
     case VideoFrameBuffer::Type::kI010: {
       return static_cast<rtc::RefCountedObject<I010Buffer>*>(buffer.get())
           ->HasOneRef();
@@ -46,7 +44,6 @@ bool HasOneRef(const rtc::scoped_refptr<VideoFrameBuffer>& buffer) {
       return static_cast<rtc::RefCountedObject<I210Buffer>*>(buffer.get())
           ->HasOneRef();
     }
->>>>>>> m108
     case VideoFrameBuffer::Type::kNV12: {
       return static_cast<rtc::RefCountedObject<NV12Buffer>*>(buffer.get())
           ->HasOneRef();

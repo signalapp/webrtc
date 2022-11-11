@@ -31,21 +31,15 @@ class MockRtpSender : public RtpSenderInterface {
               track,
               (),
               (const, override));
-<<<<<<< HEAD
-=======
   MOCK_METHOD(rtc::scoped_refptr<DtlsTransportInterface>,
               dtls_transport,
               (),
               (const override));
->>>>>>> m108
   MOCK_METHOD(uint32_t, ssrc, (), (const, override));
   MOCK_METHOD(cricket::MediaType, media_type, (), (const, override));
   MOCK_METHOD(std::string, id, (), (const, override));
   MOCK_METHOD(std::vector<std::string>, stream_ids, (), (const, override));
-<<<<<<< HEAD
-=======
   MOCK_METHOD(void, SetStreams, (const std::vector<std::string>&), (override));
->>>>>>> m108
   MOCK_METHOD(std::vector<RtpEncodingParameters>,
               init_send_encodings,
               (),
@@ -56,8 +50,6 @@ class MockRtpSender : public RtpSenderInterface {
               GetDtmfSender,
               (),
               (const, override));
-<<<<<<< HEAD
-=======
   MOCK_METHOD(void,
               SetFrameEncryptor,
               (rtc::scoped_refptr<FrameEncryptorInterface>),
@@ -74,7 +66,6 @@ class MockRtpSender : public RtpSenderInterface {
               SetEncoderSelector,
               (std::unique_ptr<VideoEncoderFactory::EncoderSelectorInterface>),
               (override));
->>>>>>> m108
 };
 
 static_assert(!std::is_abstract_v<rtc::RefCountedObject<MockRtpSender>>, "");

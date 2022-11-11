@@ -37,11 +37,7 @@
 #include "media/base/audio_source.h"
 #include "media/base/media_channel.h"
 #include "pc/dtmf_sender.h"
-<<<<<<< HEAD
-#include "pc/stats_collector_interface.h"
-=======
 #include "pc/legacy_stats_collector_interface.h"
->>>>>>> m108
 #include "rtc_base/checks.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread.h"
@@ -196,15 +192,12 @@ class RtpSenderBase : public RtpSenderInternal, public ObserverInterface {
   void SetEncoderToPacketizerFrameTransformer(
       rtc::scoped_refptr<FrameTransformerInterface> frame_transformer) override;
 
-<<<<<<< HEAD
-=======
   void SetEncoderSelector(
       std::unique_ptr<VideoEncoderFactory::EncoderSelectorInterface>
           encoder_selector) override;
 
   void SetEncoderSelectorOnChannel();
 
->>>>>>> m108
   void SetTransceiverAsStopped() override {
     RTC_DCHECK_RUN_ON(signaling_thread_);
     is_transceiver_stopped_ = true;

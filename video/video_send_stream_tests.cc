@@ -116,8 +116,6 @@ struct Vp9TestParams {
   uint8_t num_temporal_layers;
   InterLayerPredMode inter_layer_pred;
 };
-<<<<<<< HEAD
-=======
 
 using ParameterizationType = std::tuple<Vp9TestParams, bool>;
 
@@ -129,7 +127,6 @@ std::string ParamInfoToStr(
   return sb.str();
 }
 
->>>>>>> m108
 }  // namespace
 
 class VideoSendStreamTest : public test::CallTest {
@@ -1502,14 +1499,6 @@ TEST_F(VideoSendStreamTest, MinTransmitBitrateRespectsRemb) {
           stream_(nullptr),
           bitrate_capped_(false),
           task_safety_flag_(PendingTaskSafetyFlag::CreateDetached()) {}
-<<<<<<< HEAD
-
-    ~BitrateObserver() override {
-      // Make sure we free `rtp_rtcp_` in the same context as we constructed it.
-      SendTask(RTC_FROM_HERE, task_queue_, [this]() { rtp_rtcp_ = nullptr; });
-    }
-=======
->>>>>>> m108
 
    private:
     Action OnSendRtp(const uint8_t* packet, size_t length) override {
@@ -1521,27 +1510,17 @@ TEST_F(VideoSendStreamTest, MinTransmitBitrateRespectsRemb) {
       const uint32_t ssrc = rtp_packet.Ssrc();
       RTC_DCHECK(stream_);
 
-<<<<<<< HEAD
-      task_queue_->PostTask(ToQueuedTask(task_safety_flag_, [this, ssrc]() {
-=======
       task_queue_->PostTask(SafeTask(task_safety_flag_, [this, ssrc]() {
->>>>>>> m108
         VideoSendStream::Stats stats = stream_->GetStats();
         if (!stats.substreams.empty()) {
           EXPECT_EQ(1u, stats.substreams.size());
           int total_bitrate_bps =
               stats.substreams.begin()->second.total_bitrate_bps;
-<<<<<<< HEAD
-          test::PrintResult(
-              "bitrate_stats_", "min_transmit_bitrate_low_remb", "bitrate_bps",
-              static_cast<size_t>(total_bitrate_bps), "bps", false);
-=======
           test::GetGlobalMetricsLogger()->LogSingleValueMetric(
               "bitrate_stats_min_transmit_bitrate_low_remb", "bitrate_bps",
               static_cast<size_t>(total_bitrate_bps) / 1000.0,
               test::Unit::kKilobitsPerSecond,
               test::ImprovementDirection::kNeitherIsBetter);
->>>>>>> m108
           if (total_bitrate_bps > kHighBitrateBps) {
             rtp_rtcp_->SetRemb(kRembBitrateBps, {ssrc});
             bitrate_capped_ = true;
@@ -1578,14 +1557,10 @@ TEST_F(VideoSendStreamTest, MinTransmitBitrateRespectsRemb) {
       encoder_config->min_transmit_bitrate_bps = kMinTransmitBitrateBps;
     }
 
-<<<<<<< HEAD
-    void OnStreamsStopped() override { task_safety_flag_->SetNotAlive(); }
-=======
     void OnStreamsStopped() override {
       task_safety_flag_->SetNotAlive();
       rtp_rtcp_.reset();
     }
->>>>>>> m108
 
     void PerformTest() override {
       EXPECT_TRUE(Wait())
@@ -2438,12 +2413,7 @@ class VideoCodecConfigObserver : public test::SendTest,
   GetEncoderSpecificSettings() const;
 
   void PerformTest() override {
-<<<<<<< HEAD
-    EXPECT_TRUE(
-        init_encode_event_.Wait(VideoSendStreamTest::kDefaultTimeoutMs));
-=======
     EXPECT_TRUE(init_encode_event_.Wait(VideoSendStreamTest::kDefaultTimeout));
->>>>>>> m108
     ASSERT_EQ(1, FakeEncoder::GetNumInitializations())
         << "VideoEncoder not initialized.";
 
@@ -2453,12 +2423,7 @@ class VideoCodecConfigObserver : public test::SendTest,
     SendTask(task_queue_, [&]() {
       stream_->ReconfigureVideoEncoder(std::move(encoder_config_));
     });
-<<<<<<< HEAD
-    ASSERT_TRUE(
-        init_encode_event_.Wait(VideoSendStreamTest::kDefaultTimeoutMs));
-=======
     ASSERT_TRUE(init_encode_event_.Wait(VideoSendStreamTest::kDefaultTimeout));
->>>>>>> m108
     EXPECT_EQ(2, FakeEncoder::GetNumInitializations())
         << "ReconfigureVideoEncoder did not reinitialize the encoder with "
            "new encoder settings.";
@@ -3186,12 +3151,6 @@ class Vp9HeaderObserver : public test::SendTest {
     EXPECT_GE(vp9.temporal_idx, 0);  // 0,1,0,1,... (tid reset on I-frames).
     EXPECT_LE(vp9.temporal_idx, 1);
     EXPECT_TRUE(vp9.temporal_up_switch);
-<<<<<<< HEAD
-    if (IsNewPictureId(vp9)) {
-      uint8_t expected_tid =
-          (!vp9.inter_pic_predicted || last_vp9_.temporal_idx == 1) ? 0 : 1;
-      EXPECT_EQ(expected_tid, vp9.temporal_idx);
-=======
     // Verify temporal structure for the highest spatial layer (the structure
     // may be shifted for lower spatial layer if temporal shift is configured).
     if (IsHighestSpatialLayer(vp9) && vp9.beginning_of_frame) {
@@ -3201,7 +3160,6 @@ class Vp9HeaderObserver : public test::SendTest {
               ? 0
               : 1;
       EXPECT_EQ(vp9.temporal_idx, expected_tid);
->>>>>>> m108
     }
   }
 
@@ -3387,51 +3345,11 @@ class Vp9HeaderObserver : public test::SendTest {
 };
 
 class Vp9Test : public VideoSendStreamTest,
-<<<<<<< HEAD
-                public ::testing::WithParamInterface<
-                    ::testing::tuple<Vp9TestParams, bool>> {
-=======
                 public ::testing::WithParamInterface<ParameterizationType> {
->>>>>>> m108
  public:
   Vp9Test()
       : params_(::testing::get<0>(GetParam())),
         use_scalability_mode_identifier_(::testing::get<1>(GetParam())) {}
-<<<<<<< HEAD
-
- protected:
-  const Vp9TestParams params_;
-  const bool use_scalability_mode_identifier_;
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    ScalabilityMode,
-    Vp9Test,
-    ::testing::Combine(
-        ::testing::ValuesIn<Vp9TestParams>(
-            {{"L1T1", 1, 1, InterLayerPredMode::kOn},
-             {"L1T2", 1, 2, InterLayerPredMode::kOn},
-             {"L1T3", 1, 3, InterLayerPredMode::kOn},
-             {"L2T1", 2, 1, InterLayerPredMode::kOn},
-             {"L2T1_KEY", 2, 1, InterLayerPredMode::kOnKeyPic},
-             {"L2T2", 2, 2, InterLayerPredMode::kOn},
-             {"L2T2_KEY", 2, 2, InterLayerPredMode::kOnKeyPic},
-             {"L2T3", 2, 3, InterLayerPredMode::kOn},
-             {"L2T3_KEY", 2, 3, InterLayerPredMode::kOnKeyPic},
-             {"L3T1", 3, 1, InterLayerPredMode::kOn},
-             {"L3T3", 3, 3, InterLayerPredMode::kOn},
-             {"L3T3_KEY", 3, 3, InterLayerPredMode::kOnKeyPic},
-             {"S2T1", 2, 1, InterLayerPredMode::kOff},
-             {"S3T3", 3, 3, InterLayerPredMode::kOff}}),
-        ::testing::Values(false)),  // use_scalability_mode_identifier
-    [](const ::testing::TestParamInfo<Vp9Test::ParamType>& info) {
-      rtc::StringBuilder sb;
-      sb << std::get<0>(info.param).scalability_mode << "_"
-         << (std::get<1>(info.param) ? "WithIdentifier" : "WithoutIdentifier");
-      return sb.str();
-    });
-
-=======
 
  protected:
   const Vp9TestParams params_;
@@ -3488,7 +3406,6 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(true)),  // use_scalability_mode_identifier
     ParamInfoToStr);
 
->>>>>>> m108
 TEST_P(Vp9Test, NonFlexMode) {
   TestVp9NonFlexMode(params_, use_scalability_mode_identifier_);
 }
@@ -3508,11 +3425,7 @@ void VideoSendStreamTest::TestVp9NonFlexMode(
    public:
     NonFlexibleMode(const Vp9TestParams& params,
                     bool use_scalability_mode_identifier)
-<<<<<<< HEAD
-        : params_(params),
-=======
         : Vp9HeaderObserver(params),
->>>>>>> m108
           use_scalability_mode_identifier_(use_scalability_mode_identifier),
           l_field_(params.num_temporal_layers > 1 ||
                    params.num_spatial_layers > 1) {}
@@ -3531,12 +3444,7 @@ void VideoSendStreamTest::TestVp9NonFlexMode(
       }
       encoder_config->max_bitrate_bps = bitrate_bps * 2;
 
-<<<<<<< HEAD
-      EXPECT_EQ(1u, encoder_config->number_of_streams);
-      EXPECT_EQ(1u, encoder_config->simulcast_layers.size());
-=======
       encoder_config->frame_drop_enabled = false;
->>>>>>> m108
 
       vp9_settings_.flexibleMode = false;
       vp9_settings_.automaticResizeOn = false;
@@ -3546,11 +3454,6 @@ void VideoSendStreamTest::TestVp9NonFlexMode(
         vp9_settings_.numberOfSpatialLayers = params_.num_spatial_layers;
         vp9_settings_.interLayerPred = params_.inter_layer_pred;
       } else {
-<<<<<<< HEAD
-        encoder_config->simulcast_layers[0].scalability_mode =
-            params_.scalability_mode;
-      }
-=======
         absl::optional<ScalabilityMode> mode =
             ScalabilityModeFromString(params_.scalability_mode);
         encoder_config->simulcast_layers[0].scalability_mode = mode;
@@ -3572,7 +3475,6 @@ void VideoSendStreamTest::TestVp9NonFlexMode(
             required_divisibility, config->scaling_factor_den[sl_idx]);
       }
       return required_divisibility;
->>>>>>> m108
     }
 
     void ModifyVideoCaptureStartResolution(int* width,
@@ -3631,10 +3533,6 @@ void VideoSendStreamTest::TestVp9NonFlexMode(
       if (frames_sent_ > kNumFramesToSend)
         observation_complete_.Set();
     }
-<<<<<<< HEAD
-    const Vp9TestParams params_;
-=======
->>>>>>> m108
     const bool use_scalability_mode_identifier_;
     const bool l_field_;
 
@@ -4028,11 +3926,7 @@ class ContentSwitchTest : public test::SendTest {
   }
 
   Action OnSendRtp(const uint8_t* packet, size_t length) override {
-<<<<<<< HEAD
-    task_queue_->PostTask(ToQueuedTask([this]() {
-=======
     task_queue_->PostTask([this]() {
->>>>>>> m108
       MutexLock lock(&mutex_);
       if (done_)
         return;
@@ -4081,11 +3975,7 @@ class ContentSwitchTest : public test::SendTest {
         return;
       }
       observation_complete_.Set();
-<<<<<<< HEAD
-    }));
-=======
     });
->>>>>>> m108
 
     return SEND_PACKET;
   }

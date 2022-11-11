@@ -51,8 +51,6 @@ constexpr char kVP8IosMaxNumberOfThreadFieldTrial[] =
 constexpr char kVP8IosMaxNumberOfThreadFieldTrialParameter[] = "max_thread";
 #endif
 
-constexpr absl::string_view kSupportedScalabilityModes[] = {"L1T2", "L1T3"};
-
 constexpr char kVp8ForcePartitionResilience[] =
     "WebRTC-VP8-ForcePartitionResilience";
 
@@ -224,28 +222,6 @@ std::unique_ptr<VideoEncoder> VP8Encoder::Create(
                                             std::move(settings));
 }
 
-<<<<<<< HEAD
-std::unique_ptr<VideoEncoder> VP8Encoder::Create(
-    std::unique_ptr<Vp8FrameBufferControllerFactory>
-        frame_buffer_controller_factory) {
-  VP8Encoder::Settings settings;
-  settings.frame_buffer_controller_factory =
-      std::move(frame_buffer_controller_factory);
-  return std::make_unique<LibvpxVp8Encoder>(LibvpxInterface::Create(),
-                                            std::move(settings));
-}
-
-bool VP8Encoder::SupportsScalabilityMode(absl::string_view scalability_mode) {
-  for (const auto& entry : kSupportedScalabilityModes) {
-    if (entry == scalability_mode) {
-      return true;
-    }
-  }
-  return false;
-}
-
-=======
->>>>>>> m108
 vpx_enc_frame_flags_t LibvpxVp8Encoder::EncodeFlags(
     const Vp8FrameConfig& references) {
   RTC_DCHECK(!references.drop_frame);
@@ -868,11 +844,7 @@ uint32_t LibvpxVp8Encoder::MaxIntraTarget(uint32_t optimalBuffersize) {
 }
 
 uint32_t LibvpxVp8Encoder::FrameDropThreshold(size_t spatial_idx) const {
-<<<<<<< HEAD
-  if (!codec_.VP8().frameDroppingOn) {
-=======
   if (!codec_.GetFrameDropEnabled()) {
->>>>>>> m108
     return 0;
   }
 
@@ -1206,8 +1178,6 @@ int LibvpxVp8Encoder::GetEncodedPartitions(const VideoFrame& input_image,
         libvpx_->codec_control(&encoders_[encoder_idx], VP8E_GET_LAST_QUANTIZER,
                                &qp_128);
         encoded_images_[encoder_idx].qp_ = qp_128;
-        encoded_images_[encoder_idx].SetAtTargetQuality(
-            qp_128 <= variable_framerate_experiment_.steady_state_qp);
         encoded_complete_callback_->OnEncodedImage(encoded_images_[encoder_idx],
                                                    &codec_specific);
         const size_t steady_state_size = SteadyStateSize(

@@ -41,11 +41,7 @@ class FileRotatingLogSink : public LogSink {
   // file if needed.
   void OnLogMessage(const std::string& message) override;
   void OnLogMessage(absl::string_view message) override;
-<<<<<<< HEAD
-  void OnLogMessage(absl::string_view message,
-=======
   void OnLogMessage(const std::string& message,
->>>>>>> m108
                     LoggingSeverity sev,
                     const char* tag) override;
   void OnLogMessage(absl::string_view message,

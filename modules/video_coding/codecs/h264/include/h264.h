@@ -16,7 +16,6 @@
 #include <string>
 #include <vector>
 
-#include "absl/strings/string_view.h"
 #include "api/video_codecs/h264_profile_level_id.h"
 #include "api/video_codecs/scalability_mode.h"
 #include "media/base/codec.h"
@@ -50,21 +49,12 @@ std::vector<SdpVideoFormat> SupportedH264Codecs(
 // only connections.
 std::vector<SdpVideoFormat> SupportedH264DecoderCodecs();
 
-// Returns a vector with all supported internal H264 decode profiles that we can
-// negotiate in SDP, in order of preference. This will be available for receive
-// only connections.
-std::vector<SdpVideoFormat> SupportedH264DecoderCodecs();
-
 class RTC_EXPORT H264Encoder : public VideoEncoder {
  public:
   static std::unique_ptr<H264Encoder> Create(const cricket::VideoCodec& codec);
   // If H.264 is supported (any implementation).
   static bool IsSupported();
-<<<<<<< HEAD
-  static bool SupportsScalabilityMode(absl::string_view scalability_mode);
-=======
   static bool SupportsScalabilityMode(ScalabilityMode scalability_mode);
->>>>>>> m108
 
   ~H264Encoder() override {}
 };

@@ -43,10 +43,6 @@
 #include "rtc_base/fake_network.h"
 #include "rtc_base/gunit.h"
 #include "rtc_base/mdns_responder_interface.h"
-<<<<<<< HEAD
-#include "rtc_base/ref_counted_object.h"
-=======
->>>>>>> m108
 #include "rtc_base/socket_address.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/virtual_socket_server.h"
@@ -297,14 +293,9 @@ class PeerConnectionUsageHistogramTest : public ::testing::Test {
     fake_network->AddInterface(NextLocalAddress());
     fake_network->AddInterface(kPrivateLocalAddress);
 
-<<<<<<< HEAD
-    auto port_allocator =
-        std::make_unique<cricket::BasicPortAllocator>(fake_network);
-=======
     auto port_allocator = std::make_unique<cricket::BasicPortAllocator>(
         fake_network,
         std::make_unique<rtc::BasicPacketSocketFactory>(vss_.get()));
->>>>>>> m108
     RTCConfiguration config;
     config.sdp_semantics = SdpSemantics::kUnifiedPlan;
     return CreatePeerConnection(config,
@@ -365,11 +356,7 @@ class PeerConnectionUsageHistogramTest : public ::testing::Test {
       return nullptr;
     }
 
-<<<<<<< HEAD
-    observer->SetPeerConnectionInterface(result.value());
-=======
     observer->SetPeerConnectionInterface(result.value().get());
->>>>>>> m108
     auto wrapper = std::make_unique<PeerConnectionWrapperForUsageHistogramTest>(
         pc_factory, result.MoveValue(), std::move(observer));
     return wrapper;

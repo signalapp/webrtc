@@ -46,8 +46,6 @@ TEST(AlwaysValidPointerTest, NonDefaultValue) {
   EXPECT_EQ(*ptr, "keso");
 }
 
-<<<<<<< HEAD
-=======
 TEST(AlwaysValidPointerTest, TakeOverOwnershipOfInstance) {
   std::string str("keso");
   std::unique_ptr<std::string> str2 = std::make_unique<std::string>("kent");
@@ -128,5 +126,4 @@ TEST(AlwaysValidPointerTest, NoDefaultObjectPassNullUniquePointer) {
 
 #endif
 
->>>>>>> m108
 }  // namespace webrtc

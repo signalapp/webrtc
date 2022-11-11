@@ -61,15 +61,6 @@ class RTC_LOCKABLE RTC_EXPORT TaskQueueBase {
   // Prefer PostDelayedTask() over PostDelayedHighPrecisionTask() whenever
   // possible.
   //
-<<<<<<< HEAD
-  // Schedules a task to execute a specified number of milliseconds from when
-  // the call is made, using "low" precision. All scheduling is affected by
-  // OS-specific leeway and current workloads which means that in terms of
-  // precision there are no hard guarantees, but in addition to the OS induced
-  // leeway, "low" precision adds up to a 17 ms additional leeway. The purpose
-  // of this leeway is to achieve more efficient CPU scheduling and reduce Idle
-  // Wake Up frequency.
-=======
   // Schedules a `task` to execute a specified `delay` from when the call is
   // made, using "low" precision. All scheduling is affected by OS-specific
   // leeway and current workloads which means that in terms of precision there
@@ -77,7 +68,6 @@ class RTC_LOCKABLE RTC_EXPORT TaskQueueBase {
   // precision adds up to a 17 ms additional leeway. The purpose of this leeway
   // is to achieve more efficient CPU scheduling and reduce Idle Wake Up
   // frequency.
->>>>>>> m108
   //
   // The task may execute with [-1, 17 + OS induced leeway) ms additional delay.
   //

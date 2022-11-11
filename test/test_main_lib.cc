@@ -71,28 +71,10 @@ ABSL_FLAG(std::string,
           "",
           "Path to output an empty JSON file which Chromium infra requires.");
 
-<<<<<<< HEAD
-ABSL_FLAG(
-    std::string,
-    isolated_script_test_perf_output,
-    "",
-    "Path where the perf results should be stored in proto format described "
-    "described by histogram.proto in "
-    "https://chromium.googlesource.com/catapult/.");
-
-constexpr char kPlotAllMetrics[] = "all";
-ABSL_FLAG(std::vector<std::string>,
-          plot,
-          {},
-          "List of metrics that should be exported for plotting (if they are "
-          "available). Example: psnr,ssim,encode_time. To plot all available "
-          " metrics pass 'all' as flag value");
-=======
 ABSL_FLAG(bool,
           export_perf_results_new_api,
           false,
           "Tells to initialize new API for exporting performance metrics");
->>>>>>> m108
 
 ABSL_FLAG(bool, logs, true, "print logs to stderr");
 ABSL_FLAG(bool, verbose, false, "verbose logs to stderr");
@@ -209,14 +191,6 @@ class TestMainImpl : public TestMain {
     if (!result_filename.empty()) {
       std::ofstream result_file(result_filename);
       result_file << "{\"version\": 3}";
-    }
-
-    std::string result_filename =
-        absl::GetFlag(FLAGS_isolated_script_test_output);
-    if (!result_filename.empty()) {
-      std::ofstream result_file(result_filename);
-      result_file << "{\"version\": 3}";
-      result_file.close();
     }
 #endif
 

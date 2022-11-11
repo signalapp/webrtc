@@ -70,13 +70,8 @@ rtc_library("call_interfaces") {
     "../rtc_base",
     "../rtc_base:audio_format_to_string",
     "../rtc_base:checks",
-<<<<<<< HEAD
-    "../rtc_base:refcount",
-    "../rtc_base:rtc_base_approved",
-=======
     "../rtc_base:copy_on_write_buffer",
     "../rtc_base:refcount",
->>>>>>> m108
     "../rtc_base:stringutils",
     "../rtc_base/network:sent_packet",
   ]
@@ -155,10 +150,6 @@ rtc_library("rtp_receiver") {
     "../modules/rtp_rtcp:rtp_rtcp_format",
     "../rtc_base:checks",
     "../rtc_base:logging",
-<<<<<<< HEAD
-    "../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
     "../rtc_base:stringutils",
     "../rtc_base/containers:flat_map",
     "../rtc_base/containers:flat_set",
@@ -168,13 +159,6 @@ rtc_library("rtp_receiver") {
     "//third_party/abseil-cpp/absl/strings:strings",
     "//third_party/abseil-cpp/absl/types:optional",
   ]
-<<<<<<< HEAD
-  absl_deps = [
-    "//third_party/abseil-cpp/absl/strings:strings",
-    "//third_party/abseil-cpp/absl/types:optional",
-  ]
-=======
->>>>>>> m108
 }
 
 rtc_library("rtp_sender") {
@@ -227,16 +211,11 @@ rtc_library("rtp_sender") {
     "../modules/video_coding:video_codec_interface",
     "../rtc_base",
     "../rtc_base:checks",
-<<<<<<< HEAD
-    "../rtc_base:logging",
-    "../rtc_base:macromagic",
-=======
     "../rtc_base:event_tracer",
     "../rtc_base:logging",
     "../rtc_base:macromagic",
     "../rtc_base:race_checker",
     "../rtc_base:random",
->>>>>>> m108
     "../rtc_base:rate_limiter",
     "../rtc_base:rtc_task_queue",
     "../rtc_base:timeutils",
@@ -282,10 +261,6 @@ rtc_library("bitrate_allocator") {
     "../api/units:time_delta",
     "../rtc_base:checks",
     "../rtc_base:logging",
-<<<<<<< HEAD
-    "../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
     "../rtc_base:safe_minmax",
     "../rtc_base/system:no_unique_address",
     "../system_wrappers",
@@ -343,11 +318,8 @@ rtc_library("call") {
     "../modules/rtp_rtcp:rtp_rtcp_format",
     "../modules/video_coding",
     "../rtc_base:checks",
-<<<<<<< HEAD
-=======
     "../rtc_base:copy_on_write_buffer",
     "../rtc_base:event_tracer",
->>>>>>> m108
     "../rtc_base:logging",
     "../rtc_base:macromagic",
     "../rtc_base:rate_limiter",
@@ -365,10 +337,7 @@ rtc_library("call") {
     "../system_wrappers:metrics",
     "../video",
     "../video:decode_synchronizer",
-<<<<<<< HEAD
-=======
     "../video/config:encoder_config",
->>>>>>> m108
     "adaptation:resource_adaptation",
   ]
   absl_deps = [
@@ -418,13 +387,8 @@ rtc_library("video_stream_api") {
     "../common_video:frame_counts",
     "../modules/rtp_rtcp:rtp_rtcp_format",
     "../rtc_base:checks",
-<<<<<<< HEAD
-    "../rtc_base:rtc_base_approved",
-    "../rtc_base:stringutils",
-=======
     "../rtc_base:stringutils",
     "../video/config:encoder_config",
->>>>>>> m108
   ]
   absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
 }
@@ -443,12 +407,8 @@ rtc_library("simulated_network") {
     "../api/units:timestamp",
     "../rtc_base:checks",
     "../rtc_base:macromagic",
-<<<<<<< HEAD
-    "../rtc_base:rtc_base_approved",
-=======
     "../rtc_base:race_checker",
     "../rtc_base:random",
->>>>>>> m108
     "../rtc_base/synchronization:mutex",
   ]
   absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
@@ -478,10 +438,6 @@ rtc_library("fake_network") {
     "../rtc_base:checks",
     "../rtc_base:logging",
     "../rtc_base:macromagic",
-<<<<<<< HEAD
-    "../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
     "../rtc_base/synchronization:mutex",
     "../system_wrappers",
   ]
@@ -544,20 +500,12 @@ if (rtc_include_tests) {
         "../rtc_base:checks",
         "../rtc_base:logging",
         "../rtc_base:macromagic",
-<<<<<<< HEAD
-        "../rtc_base:rate_limiter",
-        "../rtc_base:rtc_base_approved",
-        "../rtc_base:rtc_event",
-        "../rtc_base:safe_conversions",
-        "../rtc_base:task_queue_for_test",
-=======
         "../rtc_base:random",
         "../rtc_base:rate_limiter",
         "../rtc_base:rtc_event",
         "../rtc_base:safe_conversions",
         "../rtc_base:task_queue_for_test",
         "../rtc_base:threading",
->>>>>>> m108
         "../rtc_base:timeutils",
         "../rtc_base/synchronization:mutex",
         "../system_wrappers",
@@ -569,10 +517,7 @@ if (rtc_include_tests) {
         "../test:field_trial",
         "../test:mock_frame_transformer",
         "../test:mock_transport",
-<<<<<<< HEAD
-=======
         "../test:run_loop",
->>>>>>> m108
         "../test:scoped_key_value_config",
         "../test:test_common",
         "../test:test_support",
@@ -632,11 +577,7 @@ if (rtc_include_tests) {
         "../rtc_base:checks",
         "../rtc_base:logging",
         "../rtc_base:macromagic",
-<<<<<<< HEAD
-        "../rtc_base:rtc_base_approved",
-=======
         "../rtc_base:platform_thread",
->>>>>>> m108
         "../rtc_base:rtc_event",
         "../rtc_base:stringutils",
         "../rtc_base:task_queue_for_test",

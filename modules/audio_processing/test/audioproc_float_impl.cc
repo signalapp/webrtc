@@ -334,11 +334,7 @@ const char kUsageDescription[] =
     "processing module, either based on wav files or "
     "protobuf debug dump recordings.\n";
 
-<<<<<<< HEAD
-void SetSettingIfSpecified(const std::string& value,
-=======
 void SetSettingIfSpecified(absl::string_view value,
->>>>>>> m108
                            absl::optional<std::string>* parameter) {
   if (value.compare("") != 0) {
     *parameter = std::string(value);

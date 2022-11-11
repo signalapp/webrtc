@@ -95,11 +95,6 @@ ColorSpace ExtractVP9ColorSpace(vpx_color_space_t space_t,
 }  // namespace
 
 LibvpxVp9Decoder::LibvpxVp9Decoder()
-<<<<<<< HEAD
-    : LibvpxVp9Decoder(FieldTrialBasedConfig()) {}
-LibvpxVp9Decoder::LibvpxVp9Decoder(const FieldTrialsView& trials)
-=======
->>>>>>> m108
     : decode_complete_callback_(nullptr),
       inited_(false),
       decoder_(nullptr),

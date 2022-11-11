@@ -309,24 +309,18 @@ specific_include_rules = {
     "+modules/video_coding",
   ],
 
-<<<<<<< HEAD
-=======
   "video_decoder_factory_template.*\.h": [
     "+modules/video_coding",
   ],
 
->>>>>>> m108
   "field_trials\.h": [
     "+rtc_base/containers/flat_map.h",
   ],
 
-<<<<<<< HEAD
-=======
   "video_track_source_proxy_factory.h": [
     "+rtc_base/thread.h",
   ],
 
->>>>>>> m108
   # .cc files in api/ should not be restricted in what they can #include,
   # so we re-add all the top-level directories here. (That's because .h
   # files leak their #includes to whoever's #including them, but .cc files

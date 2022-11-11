@@ -1366,21 +1366,6 @@ void EventLogAnalyzer::CreateSendSideBweSimulationGraph(Plot* plot) {
           }
         }
       }
-<<<<<<< HEAD
-
-      float x = config_.GetCallTimeSec(clock.CurrentTime());
-      float y = bitrate_bps.value_or(0) / 1000;
-      acked_time_series.points.emplace_back(x, y);
-      y = robust_throughput_estimator->bitrate()
-              .value_or(DataRate::Zero())
-              .kbps();
-      robust_time_series.points.emplace_back(x, y);
-      y = acknowledged_bitrate_estimator->bitrate()
-              .value_or(DataRate::Zero())
-              .kbps();
-      acked_estimate_time_series.points.emplace_back(x, y);
-=======
->>>>>>> m108
       ++rtcp_iterator;
     }
     if (clock.TimeInMicroseconds() >= NextProcessTime()) {

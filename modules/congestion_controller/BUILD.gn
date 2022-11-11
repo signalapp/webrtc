@@ -33,10 +33,7 @@ rtc_library("congestion_controller") {
     "../../api/units:time_delta",
     "../../api/units:timestamp",
     "../../rtc_base:logging",
-<<<<<<< HEAD
-=======
     "../../rtc_base:macromagic",
->>>>>>> m108
     "../../rtc_base/synchronization:mutex",
     "../pacing",
     "../remote_bitrate_estimator",

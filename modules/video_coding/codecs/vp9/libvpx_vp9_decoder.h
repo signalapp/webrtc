@@ -14,10 +14,6 @@
 
 #ifdef RTC_ENABLE_VP9
 
-<<<<<<< HEAD
-#include "api/field_trials_view.h"
-=======
->>>>>>> m108
 #include "api/video_codecs/video_decoder.h"
 #include "modules/video_coding/codecs/vp9/include/vp9.h"
 #include "modules/video_coding/codecs/vp9/vp9_frame_buffer_pool.h"
@@ -28,11 +24,6 @@ namespace webrtc {
 class LibvpxVp9Decoder : public VP9Decoder {
  public:
   LibvpxVp9Decoder();
-<<<<<<< HEAD
-  explicit LibvpxVp9Decoder(const FieldTrialsView& trials);
-
-=======
->>>>>>> m108
   virtual ~LibvpxVp9Decoder();
 
   bool Configure(const Settings& settings) override;

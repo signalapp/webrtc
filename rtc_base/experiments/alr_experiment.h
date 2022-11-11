@@ -36,11 +36,7 @@ struct AlrExperimentSettings {
       absl::string_view experiment_name);
   static absl::optional<AlrExperimentSettings> CreateFromFieldTrial(
       const FieldTrialsView& key_value_config,
-<<<<<<< HEAD
-      const char* experiment_name);
-=======
       absl::string_view experiment_name);
->>>>>>> m108
   static bool MaxOneFieldTrialEnabled();
   static bool MaxOneFieldTrialEnabled(const FieldTrialsView& key_value_config);
 

@@ -77,10 +77,6 @@ rtc_library("video_codecs_api") {
     "../../rtc_base:checks",
     "../../rtc_base:macromagic",
     "../../rtc_base:refcount",
-<<<<<<< HEAD
-    "../../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
     "../../rtc_base:stringutils",
     "../../rtc_base/system:rtc_export",
     "../units:data_rate",
@@ -154,16 +150,12 @@ rtc_source_set("video_encoder_factory_template") {
   allow_poison = [ "software_video_codecs" ]
   public = [ "video_encoder_factory_template.h" ]
 
-<<<<<<< HEAD
-  deps = [ ":video_codecs_api" ]
-=======
   deps = [
     ":video_codecs_api",
     "../../api:array_view",
     "../../modules/video_coding/svc:scalability_mode_util",
   ]
 
->>>>>>> m108
   absl_deps = [ "//third_party/abseil-cpp/absl/algorithm:container" ]
 }
 
@@ -172,9 +164,6 @@ rtc_source_set("video_encoder_factory_template_libvpx_vp8_adapter") {
   allow_poison = [ "software_video_codecs" ]
   public = [ "video_encoder_factory_template_libvpx_vp8_adapter.h" ]
 
-<<<<<<< HEAD
-  deps = [ "../../modules/video_coding:webrtc_vp8" ]
-=======
   deps = [
     ":video_codecs_api",
     "../../modules/video_coding:webrtc_vp8",
@@ -182,7 +171,6 @@ rtc_source_set("video_encoder_factory_template_libvpx_vp8_adapter") {
   ]
 
   absl_deps = [ "//third_party/abseil-cpp/absl/container:inlined_vector" ]
->>>>>>> m108
 }
 
 rtc_source_set("video_encoder_factory_template_libvpx_vp9_adapter") {
@@ -207,10 +195,6 @@ rtc_source_set("video_encoder_factory_template_libaom_av1_adapter") {
   public = [ "video_encoder_factory_template_libaom_av1_adapter.h" ]
 
   deps = [
-<<<<<<< HEAD
-    "../../modules/video_coding/codecs/av1:libaom_av1_encoder",
-    "../../modules/video_coding/svc:scalability_structures",
-=======
     ":scalability_mode",
     ":video_codecs_api",
     "../../modules/video_coding/codecs/av1:av1_svc_config",
@@ -268,7 +252,6 @@ rtc_source_set("video_decoder_factory_template_dav1d_adapter") {
   deps = [
     ":video_codecs_api",
     "../../modules/video_coding/codecs/av1:dav1d_decoder",
->>>>>>> m108
   ]
 }
 
@@ -307,13 +290,8 @@ rtc_library("rtc_software_fallback_wrappers") {
     "../../modules/video_coding:video_codec_interface",
     "../../modules/video_coding:video_coding_utility",
     "../../rtc_base:checks",
-<<<<<<< HEAD
-    "../../rtc_base:logging",
-    "../../rtc_base:rtc_base_approved",
-=======
     "../../rtc_base:event_tracer",
     "../../rtc_base:logging",
->>>>>>> m108
     "../../rtc_base/system:rtc_export",
     "../../system_wrappers:field_trial",
     "../../system_wrappers:metrics",

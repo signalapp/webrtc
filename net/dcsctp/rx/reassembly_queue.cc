@@ -35,25 +35,6 @@
 #include "rtc_base/logging.h"
 
 namespace dcsctp {
-<<<<<<< HEAD
-ReassemblyQueue::ReassemblyQueue(
-    absl::string_view log_prefix,
-    TSN peer_initial_tsn,
-    size_t max_size_bytes,
-    const DcSctpSocketHandoverState* handover_state)
-    : log_prefix_(std::string(log_prefix) + "reasm: "),
-      max_size_bytes_(max_size_bytes),
-      watermark_bytes_(max_size_bytes * kHighWatermarkLimit),
-      last_assembled_tsn_watermark_(tsn_unwrapper_.Unwrap(
-          handover_state ? TSN(handover_state->rx.last_assembled_tsn)
-                         : TSN(*peer_initial_tsn - 1))),
-      last_completed_reset_req_seq_nbr_(
-          handover_state
-              ? ReconfigRequestSN(
-                    handover_state->rx.last_completed_deferred_reset_req_sn)
-              : ReconfigRequestSN(0)),
-      streams_(std::make_unique<TraditionalReassemblyStreams>(
-=======
 namespace {
 std::unique_ptr<ReassemblyStreams> CreateStreams(
     absl::string_view log_prefix,
@@ -79,17 +60,12 @@ ReassemblyQueue::ReassemblyQueue(absl::string_view log_prefix,
           tsn_unwrapper_.Unwrap(TSN(*peer_initial_tsn - 1))),
       last_completed_reset_req_seq_nbr_(ReconfigRequestSN(0)),
       streams_(CreateStreams(
->>>>>>> m108
           log_prefix_,
           [this](rtc::ArrayView<const UnwrappedTSN> tsns,
                  DcSctpMessage message) {
             AddReassembledMessage(tsns, std::move(message));
           },
-<<<<<<< HEAD
-          handover_state)) {}
-=======
           use_message_interleaving)) {}
->>>>>>> m108
 
 void ReassemblyQueue::Add(TSN tsn, Data data) {
   RTC_DCHECK(IsConsistent());
@@ -323,8 +299,6 @@ void ReassemblyQueue::AddHandoverState(DcSctpSocketHandoverState& state) {
   streams_->AddHandoverState(state);
 }
 
-<<<<<<< HEAD
-=======
 void ReassemblyQueue::RestoreFromState(const DcSctpSocketHandoverState& state) {
   // Validate that the component is in pristine state.
   RTC_DCHECK(last_completed_reset_req_seq_nbr_ == ReconfigRequestSN(0));
@@ -335,5 +309,4 @@ void ReassemblyQueue::RestoreFromState(const DcSctpSocketHandoverState& state) {
       ReconfigRequestSN(state.rx.last_completed_deferred_reset_req_sn);
   streams_->RestoreFromState(state);
 }
->>>>>>> m108
 }  // namespace dcsctp

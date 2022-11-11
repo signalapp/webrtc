@@ -49,10 +49,6 @@ rtc_library("common_audio") {
     "../rtc_base:checks",
     "../rtc_base:gtest_prod",
     "../rtc_base:logging",
-<<<<<<< HEAD
-    "../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
     "../rtc_base:safe_conversions",
     "../rtc_base:sanitizer",
     "../rtc_base:timeutils",
@@ -201,10 +197,6 @@ rtc_library("common_audio_cc") {
   ]
 
   deps = [
-<<<<<<< HEAD
-    "../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
     "../rtc_base:safe_conversions",
     "../system_wrappers",
   ]
@@ -382,10 +374,6 @@ if (rtc_include_tests && !build_with_chromium) {
       ":sinc_resampler",
       "../rtc_base:checks",
       "../rtc_base:macromagic",
-<<<<<<< HEAD
-      "../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
       "../rtc_base:rtc_base_tests_utils",
       "../rtc_base:stringutils",
       "../rtc_base:timeutils",

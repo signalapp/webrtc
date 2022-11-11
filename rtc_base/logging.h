@@ -59,12 +59,9 @@
 #include "absl/base/attributes.h"
 #include "absl/meta/type_traits.h"
 #include "absl/strings/string_view.h"
-<<<<<<< HEAD
-=======
 #include "absl/types/optional.h"
 #include "api/units/timestamp.h"
 #include "rtc_base/platform_thread_types.h"
->>>>>>> m108
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/system/inline.h"
 
@@ -173,10 +170,7 @@ class LogSink {
   virtual void OnLogMessage(absl::string_view message,
                             LoggingSeverity severity);
   virtual void OnLogMessage(absl::string_view message);
-<<<<<<< HEAD
-=======
   virtual void OnLogMessage(const LogLineRef& line);
->>>>>>> m108
 
  private:
   friend class ::rtc::LogMessage;

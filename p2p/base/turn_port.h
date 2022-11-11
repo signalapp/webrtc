@@ -21,14 +21,10 @@
 #include <vector>
 
 #include "absl/memory/memory.h"
-<<<<<<< HEAD
-#include "api/async_dns_resolver.h"
-=======
 #include "absl/strings/string_view.h"
 #include "api/async_dns_resolver.h"
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/task_queue/task_queue_base.h"
->>>>>>> m108
 #include "p2p/base/port.h"
 #include "p2p/client/basic_port_allocator.h"
 #include "rtc_base/async_packet_socket.h"
@@ -179,30 +175,6 @@ class TurnPort : public Port {
   rtc::AsyncPacketSocket* socket() const { return socket_; }
   StunRequestManager& request_manager() { return request_manager_; }
 
-<<<<<<< HEAD
-  // Signal with resolved server address.
-  // Parameters are port, server address and resolved server address.
-  // This signal will be sent only if server address is resolved successfully.
-  sigslot::
-      signal3<TurnPort*, const rtc::SocketAddress&, const rtc::SocketAddress&>
-          SignalResolvedServerAddress;
-
-  // Signal when TurnPort is closed,
-  // e.g remote socket closed (TCP)
-  //  or receiveing a REFRESH response with lifetime 0.
-  sigslot::signal1<TurnPort*> SignalTurnPortClosed;
-
-  // All public methods/signals below are for testing only.
-  sigslot::signal2<TurnPort*, int> SignalTurnRefreshResult;
-  sigslot::signal3<TurnPort*, const rtc::SocketAddress&, int>
-      SignalCreatePermissionResult;
-
-  void FlushRequestsForTest(int msg_type) {
-    request_manager_.FlushForTest(msg_type);
-  }
-
-=======
->>>>>>> m108
   bool HasRequests() { return !request_manager_.empty(); }
   void set_credentials(const RelayCredentials& credentials) {
     credentials_ = credentials;
@@ -277,11 +249,7 @@ class TurnPort : public Port {
 
   static bool AllowedTurnPort(int port,
                               const webrtc::FieldTrialsView* field_trials);
-<<<<<<< HEAD
-  void OnMessage(rtc::Message* pmsg) override;
-=======
   void TryAlternateServer();
->>>>>>> m108
 
   bool CreateTurnClientSocket();
 
@@ -385,8 +353,6 @@ class TurnPort : public Port {
   // Optional TurnCustomizer that can modify outgoing messages. Once set, this
   // must outlive the TurnPort's lifetime.
   webrtc::TurnCustomizer* turn_customizer_ = nullptr;
-
-  const webrtc::FieldTrialsView* field_trials_;
 
   // Optional TurnLoggingId.
   // An identifier set by application that is added to TURN_ALLOCATE_REQUEST

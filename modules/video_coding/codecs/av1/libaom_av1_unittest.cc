@@ -56,11 +56,7 @@ constexpr int kFramerate = 30;
 
 VideoCodec DefaultCodecSettings() {
   VideoCodec codec_settings;
-<<<<<<< HEAD
-  codec_settings.SetScalabilityMode("L1T1");
-=======
   codec_settings.SetScalabilityMode(ScalabilityMode::kL1T1);
->>>>>>> m108
   codec_settings.width = kWidth;
   codec_settings.height = kHeight;
   codec_settings.maxFramerate = kFramerate;
@@ -197,11 +193,7 @@ class LibaomAv1SvcTest : public ::testing::TestWithParam<SvcTestParam> {};
 TEST_P(LibaomAv1SvcTest, EncodeAndDecodeAllDecodeTargets) {
   const SvcTestParam param = GetParam();
   std::unique_ptr<ScalableVideoController> svc_controller =
-<<<<<<< HEAD
-      CreateScalabilityStructure(param.name);
-=======
       CreateScalabilityStructure(param.GetScalabilityMode());
->>>>>>> m108
   ASSERT_TRUE(svc_controller);
   VideoBitrateAllocation allocation;
   if (param.configured_bitrates.empty()) {

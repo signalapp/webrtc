@@ -57,12 +57,6 @@ class VCMProcessTimer {
 
 class DEPRECATED_VCMDecoderDataBase {
  public:
-<<<<<<< HEAD
-  VideoReceiver(Clock* clock,
-                VCMTiming* timing,
-                const FieldTrialsView& field_trials);
-  ~VideoReceiver() override;
-=======
   DEPRECATED_VCMDecoderDataBase();
   DEPRECATED_VCMDecoderDataBase(const DEPRECATED_VCMDecoderDataBase&) = delete;
   DEPRECATED_VCMDecoderDataBase& operator=(
@@ -111,7 +105,6 @@ class VideoReceiver {
                 VCMTiming* timing,
                 const FieldTrialsView& field_trials);
   ~VideoReceiver();
->>>>>>> m108
 
   void RegisterReceiveCodec(uint8_t payload_type,
                             const VideoDecoder::Settings& settings);

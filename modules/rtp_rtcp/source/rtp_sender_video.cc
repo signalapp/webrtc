@@ -475,10 +475,6 @@ bool RTPSenderVideo::SendVideo(
     rtc::ArrayView<const uint8_t> payload,
     RTPVideoHeader video_header,
     absl::optional<int64_t> expected_retransmission_time_ms) {
-<<<<<<< HEAD
-#if RTC_TRACE_EVENTS_ENABLED
-=======
->>>>>>> m108
   TRACE_EVENT_ASYNC_STEP1("webrtc", "Video", capture_time_ms, "Send", "type",
                           FrameTypeToString(video_header.frame_type));
   RTC_CHECK_RUNS_SERIALIZED(&send_checker_);

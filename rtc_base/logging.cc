@@ -43,10 +43,7 @@ static const int kMaxLogLineSize = 1024 - 60;
 
 #include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
-<<<<<<< HEAD
-=======
 #include "api/units/timestamp.h"
->>>>>>> m108
 #include "rtc_base/checks.h"
 #include "rtc_base/platform_thread_types.h"
 #include "rtc_base/string_encode.h"

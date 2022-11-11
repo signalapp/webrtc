@@ -18,10 +18,7 @@
 #include "api/neteq/tick_timer.h"
 #include "modules/audio_coding/neteq/buffer_level_filter.h"
 #include "modules/audio_coding/neteq/delay_manager.h"
-<<<<<<< HEAD
-=======
 #include "modules/audio_coding/neteq/packet_arrival_history.h"
->>>>>>> m108
 #include "rtc_base/experiments/field_trial_parser.h"
 
 namespace webrtc {
@@ -39,13 +36,8 @@ class DecisionLogic : public NetEqController {
   DecisionLogic(const DecisionLogic&) = delete;
   DecisionLogic& operator=(const DecisionLogic&) = delete;
 
-<<<<<<< HEAD
-  // Resets object to a clean state.
-  void Reset() override;
-=======
   // Not used.
   void Reset() override {}
->>>>>>> m108
 
   // Resets parts of the state. Typically done when switching codecs.
   void SoftReset() override;
@@ -202,11 +194,7 @@ class DecisionLogic : public NetEqController {
   int num_consecutive_expands_ = 0;
   int time_stretched_cn_samples_ = 0;
   bool buffer_flush_ = false;
-<<<<<<< HEAD
-  FieldTrialConstrained<int> target_level_window_ms_;
-=======
   int last_playout_delay_ms_ = 0;
->>>>>>> m108
 };
 
 }  // namespace webrtc

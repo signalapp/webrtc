@@ -14,18 +14,11 @@
 #include <utility>
 
 #include "api/ice_transport_factory.h"
-<<<<<<< HEAD
-#include "api/scoped_refptr.h"
-#include "p2p/base/fake_ice_transport.h"
-#include "p2p/base/fake_port_allocator.h"
-#include "rtc_base/ref_counted_object.h"
-=======
 #include "api/make_ref_counted.h"
 #include "api/scoped_refptr.h"
 #include "p2p/base/fake_ice_transport.h"
 #include "p2p/base/fake_port_allocator.h"
 #include "rtc_base/internal/default_socket_server.h"
->>>>>>> m108
 #include "test/gtest.h"
 
 namespace webrtc {

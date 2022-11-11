@@ -48,10 +48,6 @@ class FrameBuffer {
  public:
   FrameBuffer(Clock* clock,
               VCMTiming* timing,
-<<<<<<< HEAD
-              VCMReceiveStatisticsCallback* stats_callback,
-=======
->>>>>>> m108
               const FieldTrialsView& field_trials);
 
   FrameBuffer() = delete;
@@ -69,11 +65,7 @@ class FrameBuffer {
   // or with nullptr if no frame is ready for decoding after `max_wait_time_ms`.
   void NextFrame(int64_t max_wait_time_ms,
                  bool keyframe_required,
-<<<<<<< HEAD
-                 rtc::TaskQueue* callback_queue,
-=======
                  TaskQueueBase* callback_queue,
->>>>>>> m108
                  NextFrameCallback handler);
 
   // Tells the FrameBuffer which protection mode that is in use. Affects

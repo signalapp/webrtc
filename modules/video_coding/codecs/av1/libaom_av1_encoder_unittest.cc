@@ -90,11 +90,7 @@ TEST(LibaomAv1EncoderTest,
      SpatialScalabilityInTemporalUnitReportedAsDeltaFrame) {
   std::unique_ptr<VideoEncoder> encoder = CreateLibaomAv1Encoder();
   VideoCodec codec_settings = DefaultCodecSettings();
-<<<<<<< HEAD
-  codec_settings.SetScalabilityMode("L2T1");
-=======
   codec_settings.SetScalabilityMode(ScalabilityMode::kL2T1);
->>>>>>> m108
   ASSERT_EQ(encoder->InitEncode(&codec_settings, DefaultEncoderSettings()),
             WEBRTC_VIDEO_CODEC_OK);
 
@@ -116,11 +112,7 @@ TEST(LibaomAv1EncoderTest,
 TEST(LibaomAv1EncoderTest, NoBitrateOnTopSpatialLayerProduceDeltaFrames) {
   std::unique_ptr<VideoEncoder> encoder = CreateLibaomAv1Encoder();
   VideoCodec codec_settings = DefaultCodecSettings();
-<<<<<<< HEAD
-  codec_settings.SetScalabilityMode("L2T1");
-=======
   codec_settings.SetScalabilityMode(ScalabilityMode::kL2T1);
->>>>>>> m108
   ASSERT_EQ(encoder->InitEncode(&codec_settings, DefaultEncoderSettings()),
             WEBRTC_VIDEO_CODEC_OK);
 
@@ -148,11 +140,7 @@ TEST(LibaomAv1EncoderTest, SetsEndOfPictureForLastFrameInTemporalUnit) {
   std::unique_ptr<VideoEncoder> encoder = CreateLibaomAv1Encoder();
   VideoCodec codec_settings = DefaultCodecSettings();
   // Configure encoder with 3 spatial layers.
-<<<<<<< HEAD
-  codec_settings.SetScalabilityMode("L3T1");
-=======
   codec_settings.SetScalabilityMode(ScalabilityMode::kL3T1);
->>>>>>> m108
   codec_settings.maxBitrate = allocation.get_sum_kbps();
   ASSERT_EQ(encoder->InitEncode(&codec_settings, DefaultEncoderSettings()),
             WEBRTC_VIDEO_CODEC_OK);

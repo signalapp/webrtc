@@ -129,17 +129,6 @@ class RtpVideoSenderTestFixture {
                                             payload_type)),
         send_delay_stats_(time_controller_.GetClock()),
         bitrate_config_(GetBitrateConfig()),
-<<<<<<< HEAD
-        transport_controller_(
-            time_controller_.GetClock(),
-            &event_log_,
-            nullptr,
-            nullptr,
-            bitrate_config_,
-            time_controller_.CreateProcessThread("PacerThread"),
-            time_controller_.GetTaskQueueFactory(),
-            field_trials ? *field_trials : field_trials_),
-=======
         transport_controller_(time_controller_.GetClock(),
                               &event_log_,
                               nullptr,
@@ -147,7 +136,6 @@ class RtpVideoSenderTestFixture {
                               bitrate_config_,
                               time_controller_.GetTaskQueueFactory(),
                               field_trials ? *field_trials : field_trials_),
->>>>>>> m108
         stats_proxy_(time_controller_.GetClock(),
                      config_,
                      VideoEncoderConfig::ContentType::kRealtimeVideo,
@@ -165,12 +153,8 @@ class RtpVideoSenderTestFixture {
         &transport_controller_, &event_log_, &retransmission_rate_limiter_,
         std::make_unique<FecControllerDefault>(time_controller_.GetClock()),
         nullptr, CryptoOptions{}, frame_transformer,
-<<<<<<< HEAD
-        field_trials ? *field_trials : field_trials_);
-=======
         field_trials ? *field_trials : field_trials_,
         time_controller_.GetTaskQueueFactory());
->>>>>>> m108
   }
 
   RtpVideoSenderTestFixture(
@@ -221,20 +205,11 @@ class RtpVideoSenderTestFixture {
   // default thread as the transport queue, explicit checks for the transport
   // queue (not just using a SequenceChecker) aren't possible unless such a
   // queue is actually active. So RunOnTransportQueue is a convenience function
-<<<<<<< HEAD
-  // that allow for running a closure on the transport queue, similar to
-  // SendTask().
-  template <typename Closure>
-  void RunOnTransportQueue(Closure&& task) {
-    transport_controller_.GetWorkerQueue()->PostTask(std::move(task));
-    AdvanceTime(TimeDelta::Millis(0));
-=======
   // that allow for running a `task` on the transport queue, similar to
   // SendTask().
   void RunOnTransportQueue(absl::AnyInvocable<void() &&> task) {
     transport_controller_.GetWorkerQueue()->RunOrPost(std::move(task));
     AdvanceTime(TimeDelta::Zero());
->>>>>>> m108
   }
 
  private:
@@ -1067,67 +1042,6 @@ TEST(RtpVideoSenderTest, SupportsStoppingUsingDependencyDescriptor) {
       sent_packets.back().HasExtension<RtpDependencyDescriptorExtension>());
 }
 
-<<<<<<< HEAD
-TEST(RtpVideoSenderTest,
-     SupportsStoppingUsingDependencyDescriptorForVp8Simulcast) {
-  RtpVideoSenderTestFixture test({kSsrc1, kSsrc2}, {}, kPayloadType, {});
-  test.SetActive(true);
-
-  RtpHeaderExtensionMap extensions;
-  extensions.Register<RtpDependencyDescriptorExtension>(
-      kDependencyDescriptorExtensionId);
-  std::vector<RtpPacket> sent_packets;
-  ON_CALL(test.transport(), SendRtp)
-      .WillByDefault([&](const uint8_t* packet, size_t length,
-                         const PacketOptions& options) {
-        sent_packets.emplace_back(&extensions);
-        EXPECT_TRUE(sent_packets.back().Parse(packet, length));
-        return true;
-      });
-
-  const uint8_t kPayload[1] = {'a'};
-  EncodedImage encoded_image;
-  encoded_image.SetTimestamp(1);
-  encoded_image.capture_time_ms_ = 2;
-  encoded_image.SetEncodedData(
-      EncodedImageBuffer::Create(kPayload, sizeof(kPayload)));
-  // VP8 simulcast uses spatial index to communicate simulcast stream.
-  encoded_image.SetSpatialIndex(1);
-
-  CodecSpecificInfo codec_specific;
-  codec_specific.codecType = VideoCodecType::kVideoCodecVP8;
-  codec_specific.template_structure.emplace();
-  codec_specific.template_structure->num_decode_targets = 1;
-  codec_specific.template_structure->templates = {
-      FrameDependencyTemplate().T(0).Dtis("S")};
-
-  // Send two tiny images, mapping to single RTP packets.
-  // Send in a key frame.
-  encoded_image._frameType = VideoFrameType::kVideoFrameKey;
-  codec_specific.generic_frame_info =
-      GenericFrameInfo::Builder().T(0).Dtis("S").Build();
-  codec_specific.generic_frame_info->encoder_buffers = {{0, false, true}};
-  EXPECT_EQ(test.router()->OnEncodedImage(encoded_image, &codec_specific).error,
-            EncodedImageCallback::Result::OK);
-  test.AdvanceTime(TimeDelta::Millis(33));
-  ASSERT_THAT(sent_packets, SizeIs(1));
-  EXPECT_TRUE(
-      sent_packets.back().HasExtension<RtpDependencyDescriptorExtension>());
-
-  // Send in a new key frame without the support for the dependency descriptor.
-  encoded_image._frameType = VideoFrameType::kVideoFrameKey;
-  codec_specific.template_structure = absl::nullopt;
-  codec_specific.generic_frame_info = absl::nullopt;
-  EXPECT_EQ(test.router()->OnEncodedImage(encoded_image, &codec_specific).error,
-            EncodedImageCallback::Result::OK);
-  test.AdvanceTime(TimeDelta::Millis(33));
-  ASSERT_THAT(sent_packets, SizeIs(2));
-  EXPECT_FALSE(
-      sent_packets.back().HasExtension<RtpDependencyDescriptorExtension>());
-}
-
-=======
->>>>>>> m108
 TEST(RtpVideoSenderTest, CanSetZeroBitrate) {
   RtpVideoSenderTestFixture test({kSsrc1}, {kRtxSsrc1}, kPayloadType, {});
   test.router()->OnBitrateUpdated(CreateBitrateAllocationUpdate(0),

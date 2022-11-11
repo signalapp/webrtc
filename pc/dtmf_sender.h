@@ -18,19 +18,10 @@
 #include "api/dtmf_sender_interface.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
-<<<<<<< HEAD
-#include "pc/proxy.h"
-#include "rtc_base/location.h"
-#include "rtc_base/ref_count.h"
-#include "rtc_base/task_utils/pending_task_safety_flag.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
-#include "rtc_base/thread.h"
-=======
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/task_queue/task_queue_base.h"
 #include "pc/proxy.h"
 #include "rtc_base/ref_count.h"
->>>>>>> m108
 #include "rtc_base/thread_annotations.h"
 
 // DtmfSender is the native implementation of the RTCDTMFSender defined by

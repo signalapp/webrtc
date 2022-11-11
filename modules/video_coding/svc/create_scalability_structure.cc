@@ -78,8 +78,6 @@ constexpr ScalableVideoController::StreamLayersConfig kConfigL2T2 = {
     {1, 1},
     {2, 1}};
 
-<<<<<<< HEAD
-=======
 constexpr ScalableVideoController::StreamLayersConfig kConfigL2T2h = {
     /*num_spatial_layers=*/2,
     /*num_temporal_layers=*/2,
@@ -87,7 +85,6 @@ constexpr ScalableVideoController::StreamLayersConfig kConfigL2T2h = {
     {2, 1},
     {3, 1}};
 
->>>>>>> m108
 constexpr ScalableVideoController::StreamLayersConfig kConfigL2T3 = {
     /*num_spatial_layers=*/2,
     /*num_temporal_layers=*/3,
@@ -95,8 +92,6 @@ constexpr ScalableVideoController::StreamLayersConfig kConfigL2T3 = {
     {1, 1},
     {2, 1}};
 
-<<<<<<< HEAD
-=======
 constexpr ScalableVideoController::StreamLayersConfig kConfigL2T3h = {
     /*num_spatial_layers=*/2,
     /*num_temporal_layers=*/3,
@@ -104,7 +99,6 @@ constexpr ScalableVideoController::StreamLayersConfig kConfigL2T3h = {
     {2, 1},
     {3, 1}};
 
->>>>>>> m108
 constexpr ScalableVideoController::StreamLayersConfig kConfigL3T1 = {
     /*num_spatial_layers=*/3,
     /*num_temporal_layers=*/1,
@@ -112,8 +106,6 @@ constexpr ScalableVideoController::StreamLayersConfig kConfigL3T1 = {
     {1, 1, 1},
     {4, 2, 1}};
 
-<<<<<<< HEAD
-=======
 constexpr ScalableVideoController::StreamLayersConfig kConfigL3T1h = {
     /*num_spatial_layers=*/3,
     /*num_temporal_layers=*/1,
@@ -135,7 +127,6 @@ constexpr ScalableVideoController::StreamLayersConfig kConfigL3T2h = {
     {4, 2, 1},
     {9, 3, 1}};
 
->>>>>>> m108
 constexpr ScalableVideoController::StreamLayersConfig kConfigL3T3 = {
     /*num_spatial_layers=*/3,
     /*num_temporal_layers=*/3,
@@ -143,8 +134,6 @@ constexpr ScalableVideoController::StreamLayersConfig kConfigL3T3 = {
     {1, 1, 1},
     {4, 2, 1}};
 
-<<<<<<< HEAD
-=======
 constexpr ScalableVideoController::StreamLayersConfig kConfigL3T3h = {
     /*num_spatial_layers=*/3,
     /*num_temporal_layers=*/3,
@@ -152,7 +141,6 @@ constexpr ScalableVideoController::StreamLayersConfig kConfigL3T3h = {
     {4, 2, 1},
     {9, 3, 1}};
 
->>>>>>> m108
 constexpr ScalableVideoController::StreamLayersConfig kConfigS2T1 = {
     /*num_spatial_layers=*/2,
     /*num_temporal_layers=*/1,
@@ -160,8 +148,6 @@ constexpr ScalableVideoController::StreamLayersConfig kConfigS2T1 = {
     {1, 1},
     {2, 1}};
 
-<<<<<<< HEAD
-=======
 constexpr ScalableVideoController::StreamLayersConfig kConfigS2T1h = {
     /*num_spatial_layers=*/2,
     /*num_temporal_layers=*/1,
@@ -225,7 +211,6 @@ constexpr ScalableVideoController::StreamLayersConfig kConfigS3T2h = {
     {4, 2, 1},
     {9, 3, 1}};
 
->>>>>>> m108
 constexpr ScalableVideoController::StreamLayersConfig kConfigS3T3 = {
     /*num_spatial_layers=*/3,
     /*num_temporal_layers=*/3,
@@ -233,24 +218,6 @@ constexpr ScalableVideoController::StreamLayersConfig kConfigS3T3 = {
     {1, 1, 1},
     {4, 2, 1}};
 
-<<<<<<< HEAD
-constexpr NamedStructureFactory kFactories[] = {
-    {"L1T1", Create<ScalableVideoControllerNoLayering>, kConfigL1T1},
-    {"L1T2", Create<ScalabilityStructureL1T2>, kConfigL1T2},
-    {"L1T3", Create<ScalabilityStructureL1T3>, kConfigL1T3},
-    {"L2T1", Create<ScalabilityStructureL2T1>, kConfigL2T1},
-    {"L2T1h", CreateH<ScalabilityStructureL2T1>, kConfigL2T1h},
-    {"L2T1_KEY", Create<ScalabilityStructureL2T1Key>, kConfigL2T1},
-    {"L2T2", Create<ScalabilityStructureL2T2>, kConfigL2T2},
-    {"L2T2_KEY", Create<ScalabilityStructureL2T2Key>, kConfigL2T2},
-    {"L2T2_KEY_SHIFT", Create<ScalabilityStructureL2T2KeyShift>, kConfigL2T2},
-    {"L2T3_KEY", Create<ScalabilityStructureL2T3Key>, kConfigL2T3},
-    {"L3T1", Create<ScalabilityStructureL3T1>, kConfigL3T1},
-    {"L3T3", Create<ScalabilityStructureL3T3>, kConfigL3T3},
-    {"L3T3_KEY", Create<ScalabilityStructureL3T3Key>, kConfigL3T3},
-    {"S2T1", Create<ScalabilityStructureS2T1>, kConfigS2T1},
-    {"S3T3", Create<ScalabilityStructureS3T3>, kConfigS3T3},
-=======
 constexpr ScalableVideoController::StreamLayersConfig kConfigS3T3h = {
     /*num_spatial_layers=*/3,
     /*num_temporal_layers=*/3,
@@ -301,7 +268,6 @@ constexpr NamedStructureFactory kFactories[] = {
     {ScalabilityMode::kS3T2h, CreateH<ScalabilityStructureS3T2>, kConfigS3T2h},
     {ScalabilityMode::kS3T3, Create<ScalabilityStructureS3T3>, kConfigS3T3},
     {ScalabilityMode::kS3T3h, CreateH<ScalabilityStructureS3T3>, kConfigS3T3h},
->>>>>>> m108
 };
 
 }  // namespace
@@ -317,12 +283,7 @@ std::unique_ptr<ScalableVideoController> CreateScalabilityStructure(
 }
 
 absl::optional<ScalableVideoController::StreamLayersConfig>
-<<<<<<< HEAD
-ScalabilityStructureConfig(absl::string_view name) {
-  RTC_DCHECK(!name.empty());
-=======
 ScalabilityStructureConfig(ScalabilityMode name) {
->>>>>>> m108
   for (const auto& entry : kFactories) {
     if (entry.name == name) {
       return entry.config;

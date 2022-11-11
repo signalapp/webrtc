@@ -94,12 +94,8 @@ bool FieldTrialsStringIsValid(absl::string_view trials_string);
 // If a key (trial) exists twice with conflicting values (groups), the value
 // in 'second' takes precedence.
 // Shall only be called with valid FieldTrial strings.
-<<<<<<< HEAD
-std::string MergeFieldTrialsStrings(const char* first, const char* second);
-=======
 std::string MergeFieldTrialsStrings(absl::string_view first,
                                     absl::string_view second);
->>>>>>> m108
 
 }  // namespace field_trial
 }  // namespace webrtc

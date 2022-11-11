@@ -64,12 +64,7 @@ TaskQueueMetronome::TaskQueueMetronome(TaskQueueFactory* factory,
   tick_task_ = RepeatingTaskHandle::Start(queue_.Get(), [this] {
     MutexLock lock(&mutex_);
     for (auto* listener : listeners_) {
-<<<<<<< HEAD
-      listener->OnTickTaskQueue()->PostTask(
-          ToQueuedTask([listener] { listener->OnTick(); }));
-=======
       listener->OnTickTaskQueue()->PostTask([listener] { listener->OnTick(); });
->>>>>>> m108
     }
     return tick_period_;
   });
@@ -82,11 +77,7 @@ TaskQueueMetronome::~TaskQueueMetronome() {
     tick_task_.Stop();
     stop_event.Set();
   });
-<<<<<<< HEAD
-  stop_event.Wait(1000);
-=======
   stop_event.Wait(TimeDelta::Seconds(1));
->>>>>>> m108
 }
 
 void TaskQueueMetronome::AddListener(TickListener* listener) {

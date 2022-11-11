@@ -14,13 +14,8 @@
 #include <utility>
 
 #include "api/sequence_checker.h"
-<<<<<<< HEAD
-#include "rtc_base/checks.h"
-#include "rtc_base/task_utils/to_queued_task.h"
-=======
 #include "api/task_queue/task_queue_base.h"
 #include "rtc_base/checks.h"
->>>>>>> m108
 
 namespace webrtc {
 
@@ -50,20 +45,6 @@ void TaskQueueFrameDecodeScheduler::ScheduleFrame(
 
   TimeDelta wait = std::max(
       TimeDelta::Zero(), schedule.latest_decode_time - clock_->CurrentTime());
-<<<<<<< HEAD
-  bookkeeping_queue_->PostDelayedTask(
-      ToQueuedTask(task_safety_.flag(),
-                   [this, rtp, schedule, cb = std::move(cb)] {
-                     RTC_DCHECK_RUN_ON(bookkeeping_queue_);
-                     // If the next frame rtp  has changed since this task was
-                     // this scheduled  release should be skipped.
-                     if (scheduled_rtp_ != rtp)
-                       return;
-                     scheduled_rtp_ = absl::nullopt;
-                     cb(rtp, schedule.render_time);
-                   }),
-      wait.ms());
-=======
   bookkeeping_queue_->PostDelayedHighPrecisionTask(
       SafeTask(task_safety_.flag(),
                [this, rtp, schedule, cb = std::move(cb)]() mutable {
@@ -76,7 +57,6 @@ void TaskQueueFrameDecodeScheduler::ScheduleFrame(
                  std::move(cb)(rtp, schedule.render_time);
                }),
       wait);
->>>>>>> m108
 }
 
 void TaskQueueFrameDecodeScheduler::CancelOutstanding() {

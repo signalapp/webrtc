@@ -21,13 +21,9 @@
 #include <string>
 
 #include "absl/flags/flag.h"
-<<<<<<< HEAD
-#include "api/audio/echo_detector_creator.h"
-=======
 #include "absl/strings/string_view.h"
 #include "api/audio/echo_detector_creator.h"
 #include "api/make_ref_counted.h"
->>>>>>> m108
 #include "common_audio/include/audio_util.h"
 #include "common_audio/resampler/include/push_resampler.h"
 #include "common_audio/resampler/push_sinc_resampler.h"

@@ -33,11 +33,7 @@
 #include "modules/pacing/packet_router.h"
 #include "modules/pacing/rtp_packet_pacer.h"
 #include "modules/pacing/task_queue_paced_sender.h"
-<<<<<<< HEAD
-#include "modules/utility/include/process_thread.h"
-=======
 #include "modules/utility/maybe_worker_thread.h"
->>>>>>> m108
 #include "rtc_base/network_route.h"
 #include "rtc_base/race_checker.h"
 #include "rtc_base/task_queue.h"
@@ -136,12 +132,6 @@ class RtpTransportControllerSend final
   struct PacerSettings {
     explicit PacerSettings(const FieldTrialsView& trials);
 
-<<<<<<< HEAD
-    bool use_task_queue_pacer() const { return !tq_disabled.Get(); }
-
-    FieldTrialFlag tq_disabled;  // Kill-switch not normally used.
-=======
->>>>>>> m108
     FieldTrialParameter<TimeDelta> holdback_window;
     FieldTrialParameter<int> holdback_packets;
   };
@@ -164,11 +154,6 @@ class RtpTransportControllerSend final
   void PostUpdates(NetworkControlUpdate update) RTC_RUN_ON(task_queue_);
   void UpdateControlState() RTC_RUN_ON(task_queue_);
   void UpdateCongestedState() RTC_RUN_ON(task_queue_);
-<<<<<<< HEAD
-  RtpPacketPacer* pacer();
-  const RtpPacketPacer* pacer() const;
-=======
->>>>>>> m108
 
   Clock* const clock_;
   RtcEventLog* const event_log_;
@@ -180,15 +165,8 @@ class RtpTransportControllerSend final
   RtpBitrateConfigurator bitrate_configurator_;
   std::map<std::string, rtc::NetworkRoute> network_routes_;
   bool pacer_started_;
-<<<<<<< HEAD
-  const std::unique_ptr<ProcessThread> process_thread_;
-  const PacerSettings pacer_settings_;
-  std::unique_ptr<PacedSender> process_thread_pacer_;
-  std::unique_ptr<TaskQueuePacedSender> task_queue_pacer_;
-=======
   const PacerSettings pacer_settings_;
   TaskQueuePacedSender pacer_;
->>>>>>> m108
 
   TargetTransferRateObserver* observer_ RTC_GUARDED_BY(task_queue_);
   TransportFeedbackDemuxer feedback_demuxer_;
@@ -232,15 +210,8 @@ class RtpTransportControllerSend final
   // Protected by internal locks.
   RateLimiter retransmission_rate_limiter_;
 
-<<<<<<< HEAD
-  // TODO(perkj): `task_queue_` is supposed to replace `process_thread_`.
-  // `task_queue_` is defined last to ensure all pending tasks are cancelled
-  // and deleted before any other members.
-  rtc::TaskQueue task_queue_;
-=======
   ScopedTaskSafety safety_;
   MaybeWorkerThread task_queue_;
->>>>>>> m108
 
   const FieldTrialsView& field_trials_;
 };

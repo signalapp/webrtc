@@ -34,13 +34,10 @@ class MockAsyncDnsResolver : public AsyncDnsResolverInterface {
               Start,
               (const rtc::SocketAddress&, std::function<void()>),
               (override));
-<<<<<<< HEAD
-=======
   MOCK_METHOD(void,
               Start,
               (const rtc::SocketAddress&, int family, std::function<void()>),
               (override));
->>>>>>> m108
   MOCK_METHOD(AsyncDnsResolverResult&, result, (), (const, override));
 };
 

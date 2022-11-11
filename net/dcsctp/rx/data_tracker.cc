@@ -373,8 +373,6 @@ void DataTracker::AddHandoverState(DcSctpSocketHandoverState& state) {
   state.rx.seen_packet = seen_packet_;
 }
 
-<<<<<<< HEAD
-=======
 void DataTracker::RestoreFromState(const DcSctpSocketHandoverState& state) {
   // Validate that the component is in pristine state.
   RTC_DCHECK(additional_tsn_blocks_.empty());
@@ -385,5 +383,4 @@ void DataTracker::RestoreFromState(const DcSctpSocketHandoverState& state) {
   last_cumulative_acked_tsn_ =
       tsn_unwrapper_.Unwrap(TSN(state.rx.last_cumulative_acked_tsn));
 }
->>>>>>> m108
 }  // namespace dcsctp

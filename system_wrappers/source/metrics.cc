@@ -11,11 +11,8 @@
 
 #include <algorithm>
 
-<<<<<<< HEAD
-=======
 #include "absl/strings/string_view.h"
 #include "rtc_base/string_utils.h"
->>>>>>> m108
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread_annotations.h"
 
@@ -116,11 +113,7 @@ class RtcHistogramMap {
   RtcHistogramMap(const RtcHistogramMap&) = delete;
   RtcHistogramMap& operator=(const RtcHistogramMap&) = delete;
 
-<<<<<<< HEAD
-  Histogram* GetCountsHistogram(const std::string& name,
-=======
   Histogram* GetCountsHistogram(absl::string_view name,
->>>>>>> m108
                                 int min,
                                 int max,
                                 int bucket_count) {
@@ -189,13 +182,8 @@ class RtcHistogramMap {
 
  private:
   mutable Mutex mutex_;
-<<<<<<< HEAD
-  std::map<std::string, std::unique_ptr<RtcHistogram>> map_
-      RTC_GUARDED_BY(mutex_);
-=======
   std::map<std::string, std::unique_ptr<RtcHistogram>, rtc::AbslStringViewCmp>
       map_ RTC_GUARDED_BY(mutex_);
->>>>>>> m108
 };
 
 // RtcHistogramMap is allocated upon call to Enable().

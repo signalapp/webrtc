@@ -37,10 +37,7 @@
 #include "test/gtest.h"
 #include "test/mock_frame_transformer.h"
 #include "test/mock_transport.h"
-<<<<<<< HEAD
-=======
 #include "test/rtcp_packet_parser.h"
->>>>>>> m108
 #include "test/scoped_key_value_config.h"
 #include "test/time_controller/simulated_task_queue.h"
 #include "test/time_controller/simulated_time_controller.h"
@@ -163,14 +160,8 @@ class RtpVideoStreamReceiver2Test : public ::testing::Test,
     rtp_video_stream_receiver_ = std::make_unique<RtpVideoStreamReceiver2>(
         TaskQueueBase::Current(), Clock::GetRealTimeClock(), &mock_transport_,
         nullptr, nullptr, &config_, rtp_receive_statistics_.get(), nullptr,
-<<<<<<< HEAD
-        nullptr, &nack_periodic_processor_, &mock_nack_sender_,
-        &mock_key_frame_request_sender_, &mock_on_complete_frame_callback_,
-        nullptr, nullptr, field_trials_);
-=======
         nullptr, &nack_periodic_processor_, &mock_on_complete_frame_callback_,
         nullptr, nullptr, field_trials_, nullptr);
->>>>>>> m108
     rtp_video_stream_receiver_->AddReceiveCodec(kPayloadType,
                                                 kVideoCodecGeneric, {},
                                                 /*raw_payload=*/false);
@@ -242,11 +233,7 @@ class RtpVideoStreamReceiver2Test : public ::testing::Test,
   TokenTaskQueue::CurrentTaskQueueSetter task_queue_setter_;
 
   webrtc::test::ScopedKeyValueConfig field_trials_;
-<<<<<<< HEAD
-  VideoReceiveStream::Config config_;
-=======
   VideoReceiveStreamInterface::Config config_;
->>>>>>> m108
   NackPeriodicProcessor nack_periodic_processor_;
   test::RtcpPacketParser rtcp_packet_parser_;
   MockTransport mock_transport_;
@@ -1155,14 +1142,8 @@ TEST_F(RtpVideoStreamReceiver2Test, TransformFrame) {
   auto receiver = std::make_unique<RtpVideoStreamReceiver2>(
       TaskQueueBase::Current(), Clock::GetRealTimeClock(), &mock_transport_,
       nullptr, nullptr, &config_, rtp_receive_statistics_.get(), nullptr,
-<<<<<<< HEAD
-      nullptr, &nack_periodic_processor_, &mock_nack_sender_, nullptr,
-      &mock_on_complete_frame_callback_, nullptr, mock_frame_transformer,
-      field_trials_);
-=======
       nullptr, &nack_periodic_processor_, &mock_on_complete_frame_callback_,
       nullptr, mock_frame_transformer, field_trials_, nullptr);
->>>>>>> m108
   receiver->AddReceiveCodec(kPayloadType, kVideoCodecGeneric, {},
                             /*raw_payload=*/false);
 

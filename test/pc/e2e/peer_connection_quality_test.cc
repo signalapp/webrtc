@@ -232,20 +232,6 @@ void PeerConnectionE2EQualityTest::Run(RunParams run_params) {
   test::ScopedFieldTrials field_trials(GetFieldTrials(run_params));
 
   // Print test summary
-<<<<<<< HEAD
-  RTC_LOG(LS_INFO) << "Media quality test: "
-                   << *alice_configurer->params()->name
-                   << " will make a call to " << *bob_configurer->params()->name
-                   << " with media video="
-                   << !alice_configurer->params()->video_configs.empty()
-                   << "; audio="
-                   << alice_configurer->params()->audio_config.has_value()
-                   << ". " << *bob_configurer->params()->name
-                   << " will respond with media video="
-                   << !bob_configurer->params()->video_configs.empty()
-                   << "; audio="
-                   << bob_configurer->params()->audio_config.has_value();
-=======
   RTC_LOG(LS_INFO)
       << "Media quality test: " << *alice_configurer->params()->name
       << " will make a call to " << *bob_configurer->params()->name
@@ -256,7 +242,6 @@ void PeerConnectionE2EQualityTest::Run(RunParams run_params) {
       << " will respond with media video="
       << !bob_configurer->configurable_params()->video_configs.empty()
       << "; audio=" << bob_configurer->params()->audio_config.has_value();
->>>>>>> m108
 
   const std::unique_ptr<rtc::Thread> signaling_thread =
       time_controller_.CreateThread(kSignalThreadName);
@@ -357,13 +342,8 @@ void PeerConnectionE2EQualityTest::Run(RunParams run_params) {
                                       return kAliveMessageLogInterval;
                                     });
 
-<<<<<<< HEAD
-  RTC_LOG(LS_INFO) << "Configuration is done. Now " << *alice_->params()->name
-                   << " is calling to " << *bob_->params()->name << "...";
-=======
   RTC_LOG(LS_INFO) << "Configuration is done. Now " << *alice_->params().name
                    << " is calling to " << *bob_->params().name << "...";
->>>>>>> m108
 
   // Setup stats poller.
   std::vector<StatsObserverInterface*> observers = {
@@ -524,13 +504,8 @@ void PeerConnectionE2EQualityTest::SetupCallOnSignalingThread(
         for (int i = 0;
              i < video_config.simulcast_config->simulcast_streams_count; ++i) {
           RtpEncodingParameters enc_params;
-<<<<<<< HEAD
-          if (!video_config.simulcast_config->encoding_params.empty()) {
-            enc_params = video_config.simulcast_config->encoding_params[i];
-=======
           if (!video_config.encoding_params.empty()) {
             enc_params = video_config.encoding_params[i];
->>>>>>> m108
           }
           // We need to be sure, that all rids will be unique with all mids.
           enc_params.rid = std::to_string(alice_transceivers_counter) + "000" +
@@ -584,25 +559,15 @@ void PeerConnectionE2EQualityTest::TearDownCallOnSignalingThread() {
 void PeerConnectionE2EQualityTest::SetPeerCodecPreferences(TestPeer* peer) {
   std::vector<RtpCodecCapability> with_rtx_video_capabilities =
       FilterVideoCodecCapabilities(
-<<<<<<< HEAD
-          peer->params()->video_codecs, true, peer->params()->use_ulp_fec,
-          peer->params()->use_flex_fec,
-=======
           peer->params().video_codecs, true, peer->params().use_ulp_fec,
           peer->params().use_flex_fec,
->>>>>>> m108
           peer->pc_factory()
               ->GetRtpSenderCapabilities(cricket::MediaType::MEDIA_TYPE_VIDEO)
               .codecs);
   std::vector<RtpCodecCapability> without_rtx_video_capabilities =
       FilterVideoCodecCapabilities(
-<<<<<<< HEAD
-          peer->params()->video_codecs, false, peer->params()->use_ulp_fec,
-          peer->params()->use_flex_fec,
-=======
           peer->params().video_codecs, false, peer->params().use_ulp_fec,
           peer->params().use_flex_fec,
->>>>>>> m108
           peer->pc_factory()
               ->GetRtpSenderCapabilities(cricket::MediaType::MEDIA_TYPE_VIDEO)
               .codecs);
@@ -724,11 +689,7 @@ void PeerConnectionE2EQualityTest::ExchangeIceCandidates(
   for (auto& candidate : alice_candidates) {
     std::string candidate_str;
     RTC_CHECK(candidate->ToString(&candidate_str));
-<<<<<<< HEAD
-    RTC_LOG(LS_INFO) << *alice_->params()->name
-=======
     RTC_LOG(LS_INFO) << *alice_->params().name
->>>>>>> m108
                      << " ICE candidate(mid= " << candidate->sdp_mid()
                      << "): " << candidate_str;
   }
@@ -739,11 +700,7 @@ void PeerConnectionE2EQualityTest::ExchangeIceCandidates(
   for (auto& candidate : bob_candidates) {
     std::string candidate_str;
     RTC_CHECK(candidate->ToString(&candidate_str));
-<<<<<<< HEAD
-    RTC_LOG(LS_INFO) << *bob_->params()->name
-=======
     RTC_LOG(LS_INFO) << *bob_->params().name
->>>>>>> m108
                      << " ICE candidate(mid= " << candidate->sdp_mid()
                      << "): " << candidate_str;
   }

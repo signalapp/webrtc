@@ -50,19 +50,6 @@ namespace rtc {
 namespace {
 
 void GlobalGcdRunTask(void* context) {
-<<<<<<< HEAD
-  std::unique_ptr<webrtc::QueuedTask> task(
-      static_cast<webrtc::QueuedTask*>(context));
-  task->Run();
-}
-
-// Post a task into the system-defined global concurrent queue.
-void PostTaskToGlobalQueue(std::unique_ptr<webrtc::QueuedTask> task) {
-  dispatch_queue_global_t global_queue =
-      dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
-  webrtc::QueuedTask* context = task.release();
-  dispatch_async_f(global_queue, context, &GlobalGcdRunTask);
-=======
   std::unique_ptr<absl::AnyInvocable<void() &&>> task(
       static_cast<absl::AnyInvocable<void() &&>*>(context));
   std::move (*task)();
@@ -74,17 +61,12 @@ void PostTaskToGlobalQueue(
   dispatch_queue_global_t global_queue =
       dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
   dispatch_async_f(global_queue, task.release(), &GlobalGcdRunTask);
->>>>>>> m108
 }
 
 }  // namespace
 #endif
 
-<<<<<<< HEAD
-int ResolveHostname(const std::string& hostname,
-=======
 int ResolveHostname(absl::string_view hostname,
->>>>>>> m108
                     int family,
                     std::vector<IPAddress>* addresses) {
 #ifdef __native_client__
@@ -171,11 +153,7 @@ void AsyncResolver::Start(const SocketAddress& addr, int family) {
   RTC_DCHECK(!destroy_called_);
   addr_ = addr;
   auto thread_function =
-<<<<<<< HEAD
-      [this, addr, caller_task_queue = webrtc::TaskQueueBase::Current(),
-=======
       [this, addr, family, caller_task_queue = webrtc::TaskQueueBase::Current(),
->>>>>>> m108
        state = state_] {
         std::vector<IPAddress> addresses;
         int error = ResolveHostname(addr.hostname(), family, &addresses);
@@ -198,12 +176,8 @@ void AsyncResolver::Start(const SocketAddress& addr, int family) {
         }
       };
 #if defined(WEBRTC_MAC) || defined(WEBRTC_IOS)
-<<<<<<< HEAD
-  PostTaskToGlobalQueue(webrtc::ToQueuedTask(std::move(thread_function)));
-=======
   PostTaskToGlobalQueue(
       std::make_unique<absl::AnyInvocable<void() &&>>(thread_function));
->>>>>>> m108
 #else
   PlatformThread::SpawnDetached(std::move(thread_function), "AsyncResolver");
 #endif

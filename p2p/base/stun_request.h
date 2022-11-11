@@ -22,12 +22,7 @@
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/transport/stun.h"
-<<<<<<< HEAD
-#include "rtc_base/message_handler.h"
-#include "rtc_base/thread.h"
-=======
 #include "api/units/time_delta.h"
->>>>>>> m108
 
 namespace cricket {
 
@@ -45,11 +40,7 @@ const int STUN_TOTAL_TIMEOUT = 39750;  // milliseconds
 class StunRequestManager {
  public:
   StunRequestManager(
-<<<<<<< HEAD
-      rtc::Thread* thread,
-=======
       webrtc::TaskQueueBase* thread,
->>>>>>> m108
       std::function<void(const void*, size_t, StunRequest*)> send_packet);
   ~StunRequestManager();
 
@@ -57,26 +48,17 @@ class StunRequestManager {
   void Send(StunRequest* request);
   void SendDelayed(StunRequest* request, int delay);
 
-<<<<<<< HEAD
-  // If `msg_type` is kAllRequests, sends all pending requests right away.
-  // Otherwise, sends those that have a matching type right away.
-  // Only for testing.
-=======
   // If `msg_type` is kAllRequestsForTest, sends all pending requests right
   // away. Otherwise, sends those that have a matching type right away. Only for
   // testing.
   // TODO(tommi): Remove this method and update tests that use it to simulate
   // production code.
->>>>>>> m108
   void FlushForTest(int msg_type);
 
   // Returns true if at least one request with `msg_type` is scheduled for
   // transmission. For testing only.
-<<<<<<< HEAD
-=======
   // TODO(tommi): Remove this method and update tests that use it to simulate
   // production code.
->>>>>>> m108
   bool HasRequestForTest(int msg_type);
 
   // Removes all stun requests that were added previously.
@@ -89,20 +71,6 @@ class StunRequestManager {
 
   // Called from a StunRequest when a timeout occurs.
   void OnRequestTimedOut(StunRequest* request);
-<<<<<<< HEAD
-
-  bool empty() const;
-
-  // TODO(tommi): Use TaskQueueBase* instead of rtc::Thread.
-  rtc::Thread* network_thread() const { return thread_; }
-
-  void SendPacket(const void* data, size_t size, StunRequest* request);
-
- private:
-  typedef std::map<std::string, std::unique_ptr<StunRequest>> RequestMap;
-
-  rtc::Thread* const thread_;
-=======
 
   bool empty() const;
 
@@ -114,7 +82,6 @@ class StunRequestManager {
   typedef std::map<std::string, std::unique_ptr<StunRequest>> RequestMap;
 
   webrtc::TaskQueueBase* const thread_;
->>>>>>> m108
   RequestMap requests_ RTC_GUARDED_BY(thread_);
   const std::function<void(const void*, size_t, StunRequest*)> send_packet_;
 };
@@ -126,14 +93,7 @@ class StunRequest {
   explicit StunRequest(StunRequestManager& manager);
   StunRequest(StunRequestManager& manager,
               std::unique_ptr<StunMessage> message);
-<<<<<<< HEAD
-  ~StunRequest() override;
-
-  // Causes our wrapped StunMessage to be Prepared
-  void Construct();
-=======
   virtual ~StunRequest();
->>>>>>> m108
 
   // The manager handling this request (if it has been scheduled for sending).
   StunRequestManager* manager() { return &manager_; }
@@ -158,11 +118,6 @@ class StunRequest {
  protected:
   friend class StunRequestManager;
 
-<<<<<<< HEAD
-  // Fills in a request object to be sent.  Note that request's transaction ID
-  // will already be set and cannot be changed.
-  virtual void Prepare(StunMessage* message) {}
-=======
   // Called by StunRequestManager.
   void Send(webrtc::TimeDelta delay);
 
@@ -171,7 +126,6 @@ class StunRequest {
   void ResetTasksForTest();
 
   StunMessage* mutable_msg() { return msg_.get(); }
->>>>>>> m108
 
   // Called when the message receives a response or times out.
   virtual void OnResponse(StunMessage* response) {}
@@ -185,15 +139,6 @@ class StunRequest {
   webrtc::TaskQueueBase* network_thread() const {
     return manager_.network_thread();
   }
-<<<<<<< HEAD
-
-  void set_timed_out();
-
- private:
-  // Handles messages for sending and timeout.
-  void OnMessage(rtc::Message* pmsg) override;
-
-=======
 
   void set_timed_out();
 
@@ -203,17 +148,13 @@ class StunRequest {
   // specified timeout.
   void SendDelayed(webrtc::TimeDelta delay);
 
->>>>>>> m108
   StunRequestManager& manager_;
   const std::unique_ptr<StunMessage> msg_;
   int64_t tstamp_ RTC_GUARDED_BY(network_thread());
   int count_ RTC_GUARDED_BY(network_thread());
   bool timeout_ RTC_GUARDED_BY(network_thread());
-<<<<<<< HEAD
-=======
   webrtc::ScopedTaskSafety task_safety_{
       webrtc::PendingTaskSafetyFlag::CreateDetachedInactive()};
->>>>>>> m108
 };
 
 }  // namespace cricket

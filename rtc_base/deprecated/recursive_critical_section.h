@@ -11,11 +11,8 @@
 #ifndef RTC_BASE_DEPRECATED_RECURSIVE_CRITICAL_SECTION_H_
 #define RTC_BASE_DEPRECATED_RECURSIVE_CRITICAL_SECTION_H_
 
-<<<<<<< HEAD
-=======
 #include <atomic>
 
->>>>>>> m108
 #include "rtc_base/platform_thread_types.h"
 #include "rtc_base/thread_annotations.h"
 

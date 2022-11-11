@@ -38,16 +38,6 @@ constexpr char kUseLegacySimulcastLayerLimitFieldTrial[] =
 
 constexpr double kDefaultMaxRoundupRate = 0.1;
 
-<<<<<<< HEAD:media/engine/simulcast.cc
-// TODO(webrtc:12415): Flip this to a kill switch when this feature launches.
-bool EnableLowresBitrateInterpolation(const webrtc::FieldTrialsView& trials) {
-  // RingRTC change to allow for 3 spatial layers when the highest layer is 640x480
-  return true;
-  // return trials.Lookup("WebRTC-LowresSimulcastBitrateInterpolation"), "Enabled");
-}
-
-=======
->>>>>>> m108:video/config/simulcast.cc
 // Limits for legacy conference screensharing mode. Currently used for the
 // lower of the two simulcast streams.
 constexpr webrtc::DataRate kScreenshareDefaultTl0Bitrate =
@@ -142,22 +132,7 @@ std::vector<SimulcastFormat> GetSimulcastFormats(
 }
 
 // Multiway: Number of temporal layers for each simulcast stream.
-<<<<<<< HEAD:media/engine/simulcast.cc
-int DefaultNumberOfTemporalLayers(int simulcast_id,
-                                  bool screenshare,
-                                  const webrtc::FieldTrialsView& trials) {
-  RTC_CHECK_GE(simulcast_id, 0);
-  RTC_CHECK_LT(simulcast_id, webrtc::kMaxSimulcastStreams);
-
-  const int kDefaultNumTemporalLayers = 3;
-  const int kDefaultNumScreenshareTemporalLayers = 2;
-  int default_num_temporal_layers = screenshare
-                                        ? kDefaultNumScreenshareTemporalLayers
-                                        : kDefaultNumTemporalLayers;
-
-=======
 int DefaultNumberOfTemporalLayers(const webrtc::FieldTrialsView& trials) {
->>>>>>> m108:video/config/simulcast.cc
   const std::string group_name =
       trials.Lookup("WebRTC-VP8ConferenceTemporalLayers");
   if (group_name.empty())
@@ -465,10 +440,6 @@ std::vector<webrtc::VideoStream> GetScreenshareLayers(
     bool temporal_layers_supported,
     bool base_heavy_tl3_rate_alloc,
     const webrtc::FieldTrialsView& trials) {
-<<<<<<< HEAD:media/engine/simulcast.cc
-  auto max_screenshare_layers = kMaxScreenshareSimulcastLayers;
-=======
->>>>>>> m108:video/config/simulcast.cc
   size_t num_simulcast_layers =
       std::min<int>(max_layers, kScreenshareMaxSimulcastLayers);
 

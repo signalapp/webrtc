@@ -73,19 +73,15 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/memory/memory.h"
-<<<<<<< HEAD
-=======
 #include "absl/strings/string_view.h"
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/units/time_delta.h"
->>>>>>> m108
 #include "p2p/base/p2p_constants.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/ip_address.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/net_helper.h"
 #include "rtc_base/rate_tracker.h"
-#include "rtc_base/task_utils/to_queued_task.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
 
 namespace cricket {
@@ -97,13 +93,8 @@ TCPPort::TCPPort(rtc::Thread* thread,
                  const rtc::Network* network,
                  uint16_t min_port,
                  uint16_t max_port,
-<<<<<<< HEAD
-                 const std::string& username,
-                 const std::string& password,
-=======
                  absl::string_view username,
                  absl::string_view password,
->>>>>>> m108
                  bool allow_listen,
                  const webrtc::FieldTrialsView* field_trials)
     : Port(thread,
@@ -290,11 +281,7 @@ ProtocolType TCPPort::GetProtocol() const {
 
 void TCPPort::OnNewConnection(rtc::AsyncListenSocket* socket,
                               rtc::AsyncPacketSocket* new_socket) {
-<<<<<<< HEAD
-  RTC_DCHECK(socket == listen_socket_.get());
-=======
   RTC_DCHECK_EQ(socket, listen_socket_.get());
->>>>>>> m108
 
   for (const auto& option : socket_options_) {
     new_socket->SetOption(option.first, option.second);
@@ -533,16 +520,6 @@ void TCPConnection::OnClose(rtc::AsyncPacketSocket* socket, int error) {
     // We don't attempt reconnect right here. This is to avoid a case where the
     // shutdown is intentional and reconnect is not necessary. We only reconnect
     // when the connection is used to Send() or Ping().
-<<<<<<< HEAD
-    port()->thread()->PostDelayedTask(
-        webrtc::ToQueuedTask(network_safety_,
-                             [this]() {
-                               if (pretending_to_be_writable_) {
-                                 Destroy();
-                               }
-                             }),
-        reconnection_timeout());
-=======
     network_thread()->PostDelayedTask(
         SafeTask(network_safety_.flag(),
                  [this]() {
@@ -551,18 +528,13 @@ void TCPConnection::OnClose(rtc::AsyncPacketSocket* socket, int error) {
                    }
                  }),
         TimeDelta::Millis(reconnection_timeout()));
->>>>>>> m108
   } else if (!pretending_to_be_writable_) {
     // OnClose could be called when the underneath socket times out during the
     // initial connect() (i.e. `pretending_to_be_writable_` is false) . We have
     // to manually destroy here as this connection, as never connected, will not
     // be scheduled for ping to trigger destroy.
     socket_->UnsubscribeClose(this);
-<<<<<<< HEAD
-    Destroy();
-=======
     port()->DestroyConnectionAsync(this);
->>>>>>> m108
   }
 }
 
@@ -627,13 +599,8 @@ void TCPConnection::CreateOutgoingTcpSocket() {
     // the StunRequests from the request_map_. And if this is in the stack
     // of Connection::Ping(), we are still using the request.
     // Unwind the stack and defer the FailAndPrune.
-<<<<<<< HEAD
-    port()->thread()->PostTask(
-        webrtc::ToQueuedTask(network_safety_, [this]() { FailAndPrune(); }));
-=======
     network_thread()->PostTask(
         SafeTask(network_safety_.flag(), [this]() { FailAndPrune(); }));
->>>>>>> m108
   }
 }
 
@@ -643,16 +610,11 @@ void TCPConnection::ConnectSocketSignals(rtc::AsyncPacketSocket* socket) {
   }
   socket->SignalReadPacket.connect(this, &TCPConnection::OnReadPacket);
   socket->SignalReadyToSend.connect(this, &TCPConnection::OnReadyToSend);
-<<<<<<< HEAD
-  socket->SubscribeClose(
-      this, [this](rtc::AsyncPacketSocket* s, int err) { OnClose(s, err); });
-=======
   socket->SubscribeClose(this, [this, safety = network_safety_.flag()](
                                    rtc::AsyncPacketSocket* s, int err) {
     if (safety->alive())
       OnClose(s, err);
   });
->>>>>>> m108
 }
 
 }  // namespace cricket

@@ -28,13 +28,9 @@ FrameDecodeTiming::FrameDecodeTiming(Clock* clock,
 absl::optional<FrameDecodeTiming::FrameSchedule>
 FrameDecodeTiming::OnFrameBufferUpdated(uint32_t next_temporal_unit_rtp,
                                         uint32_t last_temporal_unit_rtp,
-<<<<<<< HEAD
-                                        bool too_many_frames_queued) {
-=======
                                         TimeDelta max_wait_for_frame,
                                         bool too_many_frames_queued) {
   RTC_DCHECK_GE(max_wait_for_frame, TimeDelta::Zero());
->>>>>>> m108
   const Timestamp now = clock_->CurrentTime();
   Timestamp render_time = timing_->RenderTime(next_temporal_unit_rtp, now);
   TimeDelta max_wait =
@@ -46,17 +42,6 @@ FrameDecodeTiming::OnFrameBufferUpdated(uint32_t next_temporal_unit_rtp,
   if (max_wait <= -kMaxAllowedFrameDelay &&
       next_temporal_unit_rtp != last_temporal_unit_rtp) {
     RTC_DLOG(LS_VERBOSE) << "Fast-forwarded frame " << next_temporal_unit_rtp
-<<<<<<< HEAD
-                         << " render time " << render_time.ms()
-                         << " with delay " << max_wait.ms() << "ms";
-    return absl::nullopt;
-  }
-  RTC_DLOG(LS_VERBOSE) << "Selected frame with rtp " << next_temporal_unit_rtp
-                       << " render time " << render_time.ms()
-                       << " with a max wait of " << max_wait.ms() << "ms";
-
-  Timestamp latest_decode_time = now + std::max(max_wait, TimeDelta::Zero());
-=======
                          << " render time " << render_time << " with delay "
                          << max_wait;
     return absl::nullopt;
@@ -68,7 +53,6 @@ FrameDecodeTiming::OnFrameBufferUpdated(uint32_t next_temporal_unit_rtp,
                        << " with a max wait of " << max_wait_for_frame
                        << " clamped to " << max_wait;
   Timestamp latest_decode_time = now + max_wait;
->>>>>>> m108
   return FrameSchedule{.latest_decode_time = latest_decode_time,
                        .render_time = render_time};
 }

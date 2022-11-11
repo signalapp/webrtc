@@ -21,14 +21,11 @@ namespace webrtc {
 namespace webrtc_pc_e2e {
 namespace {
 
-<<<<<<< HEAD
-=======
 using VideoSubscription = ::webrtc::webrtc_pc_e2e::
     PeerConnectionE2EQualityTestFixture::VideoSubscription;
 using VideoConfig =
     ::webrtc::webrtc_pc_e2e::PeerConnectionE2EQualityTestFixture::VideoConfig;
 
->>>>>>> m108
 class SetRemoteDescriptionCallback
     : public webrtc::SetRemoteDescriptionObserverInterface {
  public:
@@ -48,8 +45,6 @@ class SetRemoteDescriptionCallback
 
 }  // namespace
 
-<<<<<<< HEAD
-=======
 ConfigurableParams TestPeer::configurable_params() const {
   MutexLock lock(&mutex_);
   return configurable_params_;
@@ -86,7 +81,6 @@ void TestPeer::GetStats(RTCStatsCollectorCallback* callback) {
                [this, callback]() { pc()->GetStats(callback); }));
 }
 
->>>>>>> m108
 bool TestPeer::SetRemoteDescription(
     std::unique_ptr<SessionDescriptionInterface> desc,
     std::string* error_out) {
@@ -98,12 +92,7 @@ bool TestPeer::SetRemoteDescription(
   pc()->SetRemoteDescription(std::move(desc), observer);
   RTC_CHECK(observer->is_called());
   if (!observer->error().ok()) {
-<<<<<<< HEAD
-    RTC_LOG(LS_ERROR) << *params_->name
-                      << ": Failed to set remote description: "
-=======
     RTC_LOG(LS_ERROR) << *params_.name << ": Failed to set remote description: "
->>>>>>> m108
                       << observer->error().message();
     if (error_out) {
       *error_out = observer->error().message();

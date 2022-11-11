@@ -715,63 +715,10 @@ void MatchedFilter::Update(const DownsampledRenderBuffer& render_buffer,
                                 instantaneous_accumulated_error_);
     }
 
-<<<<<<< HEAD
-    // Compute anchor for the matched filter error.
-    float error_sum_anchor = 0.0f;
-    for (size_t k = 0; k < y.size(); ++k) {
-      error_sum_anchor += y[k] * y[k];
-    }
-
-=======
->>>>>>> m108
     // Estimate the lag in the matched filter as the distance to the portion in
     // the filter that contributes the most to the matched filter output. This
     // is detected as the peak of the matched filter.
     const size_t lag_estimate = aec3::MaxSquarePeakIndex(filters_[n]);
-<<<<<<< HEAD
-
-    // Update the lag estimates for the matched filter.
-    lag_estimates_[n] = LagEstimate(
-        error_sum_anchor - error_sum,
-        (lag_estimate > 2 && lag_estimate < (filters_[n].size() - 10) &&
-         error_sum < matching_filter_threshold_ * error_sum_anchor),
-        lag_estimate + alignment_shift, filters_updated);
-
-    RTC_DCHECK_GE(10, filters_.size());
-    switch (n) {
-      case 0:
-        data_dumper_->DumpRaw("aec3_correlator_0_h", filters_[0]);
-        break;
-      case 1:
-        data_dumper_->DumpRaw("aec3_correlator_1_h", filters_[1]);
-        break;
-      case 2:
-        data_dumper_->DumpRaw("aec3_correlator_2_h", filters_[2]);
-        break;
-      case 3:
-        data_dumper_->DumpRaw("aec3_correlator_3_h", filters_[3]);
-        break;
-      case 4:
-        data_dumper_->DumpRaw("aec3_correlator_4_h", filters_[4]);
-        break;
-      case 5:
-        data_dumper_->DumpRaw("aec3_correlator_5_h", filters_[5]);
-        break;
-      case 6:
-        data_dumper_->DumpRaw("aec3_correlator_6_h", filters_[6]);
-        break;
-      case 7:
-        data_dumper_->DumpRaw("aec3_correlator_7_h", filters_[7]);
-        break;
-      case 8:
-        data_dumper_->DumpRaw("aec3_correlator_8_h", filters_[8]);
-        break;
-      case 9:
-        data_dumper_->DumpRaw("aec3_correlator_9_h", filters_[9]);
-        break;
-      default:
-        RTC_DCHECK_NOTREACHED();
-=======
     const bool reliable =
         lag_estimate > 2 && lag_estimate < (filters_[n].size() - 10) &&
         error_sum < matching_filter_threshold_ * error_sum_anchor;
@@ -790,7 +737,6 @@ void MatchedFilter::Update(const DownsampledRenderBuffer& render_buffer,
       } else {
         winner_lag_ = lag;
       }
->>>>>>> m108
     }
     previous_lag_estimate = lag;
     alignment_shift += filter_intra_lag_shift_;

@@ -48,11 +48,7 @@ class DebugDumpGenerator {
                      absl::string_view reverse_file_name,
                      int reverse_rate_hz,
                      int reverse_channels,
-<<<<<<< HEAD
-                     const std::string& dump_file_name,
-=======
                      absl::string_view dump_file_name,
->>>>>>> m108
                      bool enable_pre_amplifier);
 
   // Constructor that uses default input files.
@@ -126,11 +122,7 @@ DebugDumpGenerator::DebugDumpGenerator(absl::string_view input_file_name,
                                        absl::string_view reverse_file_name,
                                        int reverse_rate_hz,
                                        int reverse_channels,
-<<<<<<< HEAD
-                                       const std::string& dump_file_name,
-=======
                                        absl::string_view dump_file_name,
->>>>>>> m108
                                        bool enable_pre_amplifier)
     : input_config_(input_rate_hz, input_channels),
       reverse_config_(reverse_rate_hz, reverse_channels),

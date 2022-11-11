@@ -15,27 +15,17 @@
 #include <vector>
 
 #include "absl/memory/memory.h"
-<<<<<<< HEAD
-=======
 #include "absl/strings/string_view.h"
->>>>>>> m108
 #include "api/function_view.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
 #include "api/set_remote_description_observer_interface.h"
-<<<<<<< HEAD
-=======
 #include "api/task_queue/pending_task_safety_flag.h"
->>>>>>> m108
 #include "api/test/frame_generator_interface.h"
 #include "api/test/peerconnection_quality_test_fixture.h"
 #include "pc/peer_connection_wrapper.h"
 #include "rtc_base/logging.h"
-<<<<<<< HEAD
-#include "rtc_base/ref_counted_object.h"
-=======
 #include "rtc_base/synchronization/mutex.h"
->>>>>>> m108
 #include "test/pc/e2e/peer_configurer.h"
 #include "test/pc/e2e/peer_connection_quality_test_params.h"
 #include "test/pc/e2e/stats_provider.h"
@@ -83,19 +73,11 @@ class TestPeer final : public StatsProvider {
   void CreateOffer(
       rtc::scoped_refptr<CreateSessionDescriptionObserver> observer) {
     RTC_CHECK(wrapper_) << "TestPeer is already closed";
-<<<<<<< HEAD
-    pc()->CreateOffer(observer.release(), params_->rtc_offer_answer_options);
-  }
-  std::unique_ptr<SessionDescriptionInterface> CreateOffer() {
-    RTC_CHECK(wrapper_) << "TestPeer is already closed";
-    return wrapper_->CreateOffer(params_->rtc_offer_answer_options);
-=======
     pc()->CreateOffer(observer.get(), params_.rtc_offer_answer_options);
   }
   std::unique_ptr<SessionDescriptionInterface> CreateOffer() {
     RTC_CHECK(wrapper_) << "TestPeer is already closed";
     return wrapper_->CreateOffer(params_.rtc_offer_answer_options);
->>>>>>> m108
   }
 
   std::unique_ptr<SessionDescriptionInterface> CreateAnswer() {

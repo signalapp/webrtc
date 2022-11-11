@@ -64,12 +64,6 @@ class RTCCertificateGeneratorFixture {
 
 class RTCCertificateGeneratorTest : public ::testing::Test {
  public:
-<<<<<<< HEAD
-  RTCCertificateGeneratorTest()
-      : fixture_(make_ref_counted<RTCCertificateGeneratorFixture>()) {}
-
-=======
->>>>>>> m108
  protected:
   static constexpr int kGenerationTimeoutMs = 10000;
 

@@ -171,17 +171,10 @@ void ProcessCaptureFrameContent(
 
   capture_blocker->InsertSubFrameAndExtractBlock(*capture_sub_frame_view,
                                                  capture_block);
-<<<<<<< HEAD
-  block_processor->ProcessCapture(/*echo_path_gain_change=*/level_change ||
-                                      aec_reference_is_downmixed_stereo,
-                                  saturated_microphone_signal,
-                                  linear_output_block, capture_block);
-=======
   block_processor->ProcessCapture(
       /*echo_path_gain_change=*/level_change ||
           aec_reference_is_downmixed_stereo,
       saturated_microphone_signal, linear_output_block, capture_block);
->>>>>>> m108
   output_framer->InsertBlockAndExtractSubFrame(*capture_block,
                                                capture_sub_frame_view);
 
@@ -192,18 +185,6 @@ void ProcessCaptureFrameContent(
   }
 }
 
-<<<<<<< HEAD
-void ProcessRemainingCaptureFrameContent(
-    bool level_change,
-    bool aec_reference_is_downmixed_stereo,
-    bool saturated_microphone_signal,
-    FrameBlocker* capture_blocker,
-    BlockFramer* linear_output_framer,
-    BlockFramer* output_framer,
-    BlockProcessor* block_processor,
-    std::vector<std::vector<std::vector<float>>>* linear_output_block,
-    std::vector<std::vector<std::vector<float>>>* block) {
-=======
 void ProcessRemainingCaptureFrameContent(bool level_change,
                                          bool aec_reference_is_downmixed_stereo,
                                          bool saturated_microphone_signal,
@@ -213,7 +194,6 @@ void ProcessRemainingCaptureFrameContent(bool level_change,
                                          BlockProcessor* block_processor,
                                          Block* linear_output_block,
                                          Block* block) {
->>>>>>> m108
   if (!capture_blocker->IsBlockAvailable()) {
     return;
   }
@@ -735,11 +715,7 @@ void EchoCanceller3::RenderWriter::Insert(const AudioBuffer& input) {
   static_cast<void>(render_transfer_queue_->Insert(&render_queue_input_frame_));
 }
 
-<<<<<<< HEAD
-int EchoCanceller3::instance_count_ = 0;
-=======
 std::atomic<int> EchoCanceller3::instance_count_(0);
->>>>>>> m108
 
 EchoCanceller3::EchoCanceller3(
     const EchoCanceller3Config& config,
@@ -747,12 +723,7 @@ EchoCanceller3::EchoCanceller3(
     int sample_rate_hz,
     size_t num_render_channels,
     size_t num_capture_channels)
-<<<<<<< HEAD
-    : data_dumper_(
-          new ApmDataDumper(rtc::AtomicOps::Increment(&instance_count_))),
-=======
     : data_dumper_(new ApmDataDumper(instance_count_.fetch_add(1) + 1)),
->>>>>>> m108
       config_(AdjustConfig(config)),
       sample_rate_hz_(sample_rate_hz),
       num_bands_(NumBandsForRate(sample_rate_hz_)),
@@ -787,19 +758,8 @@ EchoCanceller3::EchoCanceller3(
           std::vector<std::vector<float>>(
               num_render_input_channels_,
               std::vector<float>(AudioBuffer::kSplitBandSize, 0.f))),
-<<<<<<< HEAD
-      render_block_(
-          num_bands_,
-          std::vector<std::vector<float>>(num_render_input_channels_,
-                                          std::vector<float>(kBlockSize, 0.f))),
-      capture_block_(
-          num_bands_,
-          std::vector<std::vector<float>>(num_capture_channels_,
-                                          std::vector<float>(kBlockSize, 0.f))),
-=======
       render_block_(num_bands_, num_render_input_channels_),
       capture_block_(num_bands_, num_capture_channels_),
->>>>>>> m108
       capture_sub_frame_view_(
           num_bands_,
           std::vector<rtc::ArrayView<float>>(num_capture_channels_)) {
@@ -819,12 +779,8 @@ EchoCanceller3::EchoCanceller3(
   RTC_DCHECK_GE(kMaxNumBands, num_bands_);
 
   if (config_selector_.active_config().filter.export_linear_aec_output) {
-<<<<<<< HEAD
-    linear_output_framer_.reset(new BlockFramer(1, num_capture_channels_));
-=======
     linear_output_framer_.reset(
         new BlockFramer(/*num_bands=*/1, num_capture_channels_));
->>>>>>> m108
     linear_output_block_ =
         std::make_unique<Block>(/*num_bands=*/1, num_capture_channels_),
     linear_output_sub_frame_view_ =
@@ -852,16 +808,7 @@ void EchoCanceller3::Initialize() {
   config_selector_.Update(
       multichannel_content_detector_.IsProperMultiChannelContentDetected());
 
-<<<<<<< HEAD
-  for (std::vector<std::vector<float>>& block_band : render_block_) {
-    block_band.resize(num_render_channels_to_aec_);
-    for (std::vector<float>& block_channel : block_band) {
-      block_channel.resize(kBlockSize, 0.0f);
-    }
-  }
-=======
   render_block_.SetNumChannels(num_render_channels_to_aec_);
->>>>>>> m108
 
   render_blocker_.reset(
       new FrameBlocker(num_bands_, num_render_channels_to_aec_));

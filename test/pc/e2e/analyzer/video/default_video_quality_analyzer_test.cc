@@ -1505,12 +1505,8 @@ TEST(DefaultVideoQualityAnalyzerTest, GetStreamFrames) {
                                        /*num_squares=*/absl::nullopt);
 
   DefaultVideoQualityAnalyzerOptions options = AnalyzerOptionsForTest();
-<<<<<<< HEAD
-  DefaultVideoQualityAnalyzer analyzer(Clock::GetRealTimeClock(), options);
-=======
   DefaultVideoQualityAnalyzer analyzer(Clock::GetRealTimeClock(),
                                        test::GetGlobalMetricsLogger(), options);
->>>>>>> m108
   analyzer.Start("test_case", std::vector<std::string>{"alice", "bob"},
                  kAnalyzerMaxThreadsCount);
 
@@ -1534,12 +1530,8 @@ TEST(DefaultVideoQualityAnalyzerTest, GetStreamFrames) {
     frames.push_back(frame);
     analyzer.OnFramePreEncode(sender, frame);
     analyzer.OnFrameEncoded(sender, frame.id(), FakeEncode(frame),
-<<<<<<< HEAD
-                            VideoQualityAnalyzerInterface::EncoderStats());
-=======
                             VideoQualityAnalyzerInterface::EncoderStats(),
                             false);
->>>>>>> m108
   }
   // We don't need to receive frames for stats to be gathered correctly.
 
@@ -1552,8 +1544,6 @@ TEST(DefaultVideoQualityAnalyzerTest, GetStreamFrames) {
   EXPECT_EQ(analyzer.GetStreamFrames(), stream_to_frame_ids);
 }
 
-<<<<<<< HEAD
-=======
 TEST(DefaultVideoQualityAnalyzerTest, ReceiverReceivedFramesWhenSenderRemoved) {
   std::unique_ptr<test::FrameGeneratorInterface> frame_generator =
       test::CreateSquareFrameGenerator(kFrameWidth, kFrameHeight,
@@ -2107,6 +2097,5 @@ INSTANTIATE_TEST_SUITE_P(WithRegisteredAndUnregisteredPeerAtTheEndOfTheCall,
                          DefaultVideoQualityAnalyzerTimeBetweenFreezesTest,
                          ValuesIn({true, false}));
 
->>>>>>> m108
 }  // namespace
 }  // namespace webrtc

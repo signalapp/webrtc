@@ -1366,11 +1366,7 @@ void LegacyStatsCollector::UpdateTrackReports() {
   }
 }
 
-<<<<<<< HEAD:pc/stats_collector.cc
-void StatsCollector::InvalidateCache() {
-=======
 void LegacyStatsCollector::InvalidateCache() {
->>>>>>> m108:pc/legacy_stats_collector.cc
   RTC_DCHECK_RUN_ON(pc_->signaling_thread());
   cache_timestamp_ms_ = 0;
 }

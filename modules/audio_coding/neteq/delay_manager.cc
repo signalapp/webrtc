@@ -51,10 +51,6 @@ DelayManager::Config::Config() {
       "forget_factor", &forget_factor,                  //
       "start_forget_weight", &start_forget_weight,      //
       "resample_interval_ms", &resample_interval_ms,    //
-<<<<<<< HEAD
-      "max_history_ms", &max_history_ms,                //
-=======
->>>>>>> m108
       "use_reorder_optimizer", &use_reorder_optimizer,  //
       "reorder_forget_factor", &reorder_forget_factor,  //
       "ms_per_loss_percent", &ms_per_loss_percent)

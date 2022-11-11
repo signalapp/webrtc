@@ -1762,11 +1762,7 @@ TEST_P(StatsCollectorTrackTest, TwoLocalTracksWithSameSsrc) {
   stream_->AddTrack(
       rtc::scoped_refptr<AudioTrackInterface>(new_audio_track.get()));
 
-<<<<<<< HEAD:pc/stats_collector_unittest.cc
-  stats->AddLocalAudioTrack(new_audio_track, kSsrcOfTrack);
-=======
   stats->AddLocalAudioTrack(new_audio_track.get(), kSsrcOfTrack);
->>>>>>> m108:pc/legacy_stats_collector_unittest.cc
   stats->InvalidateCache();
 
   VoiceSenderInfo new_voice_sender_info;

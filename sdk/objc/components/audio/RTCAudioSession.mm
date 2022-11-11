@@ -16,10 +16,6 @@
 #include <vector>
 
 #include "absl/base/attributes.h"
-<<<<<<< HEAD
-#include "rtc_base/atomic_ops.h"
-=======
->>>>>>> m108
 #include "rtc_base/checks.h"
 #include "rtc_base/synchronization/mutex.h"
 
@@ -355,11 +351,7 @@ ABSL_CONST_INIT thread_local bool mutex_locked = false;
   if (![self checkLock:outError]) {
     return NO;
   }
-<<<<<<< HEAD
-  int activationCount = _activationCount;
-=======
   int activationCount = _activationCount.load();
->>>>>>> m108
   if (!active && activationCount == 0) {
     RTCLogWarning(@"Attempting to deactivate without prior activation.");
   }

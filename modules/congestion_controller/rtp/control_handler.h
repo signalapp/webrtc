@@ -18,10 +18,6 @@
 #include "api/transport/network_types.h"
 #include "api/units/data_size.h"
 #include "api/units/time_delta.h"
-<<<<<<< HEAD
-#include "modules/pacing/paced_sender.h"
-=======
->>>>>>> m108
 #include "rtc_base/system/no_unique_address.h"
 
 namespace webrtc {

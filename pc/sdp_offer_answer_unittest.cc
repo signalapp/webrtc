@@ -85,11 +85,7 @@ class SdpOfferAnswerTest : public ::testing::Test {
     auto result = pc_factory_->CreatePeerConnectionOrError(
         config, PeerConnectionDependencies(observer.get()));
     EXPECT_TRUE(result.ok());
-<<<<<<< HEAD
-    observer->SetPeerConnectionInterface(result.value());
-=======
     observer->SetPeerConnectionInterface(result.value().get());
->>>>>>> m108
     return std::make_unique<PeerConnectionWrapper>(
         pc_factory_, result.MoveValue(), std::move(observer));
   }
@@ -99,10 +95,7 @@ class SdpOfferAnswerTest : public ::testing::Test {
   rtc::scoped_refptr<PeerConnectionFactoryInterface> pc_factory_;
 
  private:
-<<<<<<< HEAD
-=======
   rtc::AutoThread main_thread_;
->>>>>>> m108
 };
 
 TEST_F(SdpOfferAnswerTest, OnTrackReturnsProxiedObject) {

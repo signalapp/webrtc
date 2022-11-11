@@ -32,11 +32,6 @@
 #include "p2p/base/port_interface.h"
 #include "pc/test/fake_audio_capture_module.h"
 #include "pc/test/fake_video_track_source.h"
-<<<<<<< HEAD
-#include "rtc_base/rtc_certificate_generator.h"
-#include "rtc_base/socket_address.h"
-#include "rtc_base/time_utils.h"
-=======
 #include "pc/test/mock_peer_connection_observers.h"
 #include "rtc_base/gunit.h"
 #include "rtc_base/internal/default_socket_server.h"
@@ -44,7 +39,6 @@
 #include "rtc_base/socket_address.h"
 #include "rtc_base/time_utils.h"
 #include "test/gmock.h"
->>>>>>> m108
 #include "test/gtest.h"
 
 #ifdef WEBRTC_ANDROID

@@ -138,15 +138,10 @@ bool LossBasedBweV2::IsReady() const {
          num_observations_ > 0;
 }
 
-<<<<<<< HEAD
-DataRate LossBasedBweV2::GetBandwidthEstimate(
-    DataRate delay_based_limit) const {
-=======
 LossBasedBweV2::Result LossBasedBweV2::GetLossBasedResult(
     DataRate delay_based_limit) const {
   Result result;
   result.state = current_state_;
->>>>>>> m108
   if (!IsReady()) {
     if (!IsEnabled()) {
       RTC_LOG(LS_WARNING)
@@ -167,16 +162,6 @@ LossBasedBweV2::Result LossBasedBweV2::GetLossBasedResult(
     return result;
   }
 
-<<<<<<< HEAD
-  if (delay_based_limit.IsFinite()) {
-    return std::min({current_estimate_.loss_limited_bandwidth,
-                     GetInstantUpperBound(),
-                     delay_based_limit * config_->delay_based_limit_factor});
-  } else {
-    return std::min(current_estimate_.loss_limited_bandwidth,
-                    GetInstantUpperBound());
-  }
-=======
   if (IsValid(delay_based_limit)) {
     result.bandwidth_estimate =
         std::min({current_estimate_.loss_limited_bandwidth,
@@ -186,7 +171,6 @@ LossBasedBweV2::Result LossBasedBweV2::GetLossBasedResult(
         current_estimate_.loss_limited_bandwidth, GetInstantUpperBound());
   }
   return result;
->>>>>>> m108
 }
 
 void LossBasedBweV2::SetAcknowledgedBitrate(DataRate acknowledged_bitrate) {
@@ -227,12 +211,8 @@ void LossBasedBweV2::SetProbeBitrate(absl::optional<DataRate> probe_bitrate) {
 void LossBasedBweV2::UpdateBandwidthEstimate(
     rtc::ArrayView<const PacketResult> packet_results,
     DataRate delay_based_estimate,
-<<<<<<< HEAD
-    BandwidthUsage delay_detector_state) {
-=======
     BandwidthUsage delay_detector_state,
     absl::optional<DataRate> probe_bitrate) {
->>>>>>> m108
   if (!IsEnabled()) {
     RTC_LOG(LS_WARNING)
         << "The estimator must be enabled before it can be used.";
@@ -270,8 +250,6 @@ void LossBasedBweV2::UpdateBandwidthEstimate(
       current_estimate_.loss_limited_bandwidth) {
     last_time_estimate_reduced_ = last_send_time_most_recent_observation_;
   }
-<<<<<<< HEAD
-=======
 
   // Do not increase the estimate if the average loss is greater than current
   // inherent loss.
@@ -330,7 +308,6 @@ void LossBasedBweV2::UpdateBandwidthEstimate(
              best_candidate.loss_limited_bandwidth == delay_based_estimate) {
     current_state_ = LossBasedState::kDelayBasedEstimate;
   }
->>>>>>> m108
   current_estimate_ = best_candidate;
 
   if (IsBandwidthLimitedDueToLoss() &&
@@ -407,14 +384,6 @@ absl::optional<LossBasedBweV2::Config> LossBasedBweV2::CreateConfig(
       "BwBackoffLowerBoundFactor", 1.0);
   FieldTrialParameter<bool> trendline_integration_enabled(
       "TrendlineIntegrationEnabled", false);
-<<<<<<< HEAD
-  FieldTrialParameter<double> delay_based_limit_factor("DelayBasedLimitFactor",
-                                                       1.0);
-  FieldTrialParameter<int> trendline_window_size("TrendlineWindowSize", 20);
-  FieldTrialParameter<bool> backoff_when_overusing("BackoffWhenOverusing",
-                                                   false);
-
-=======
   FieldTrialParameter<int> trendline_observations_window_size(
       "TrendlineObservationsWindowSize", 20);
   FieldTrialParameter<double> max_increase_factor("MaxIncreaseFactor", 1000.0);
@@ -433,7 +402,6 @@ absl::optional<LossBasedBweV2::Config> LossBasedBweV2::CreateConfig(
       "SlopeOfBweHighLossFunc", 1000);
   FieldTrialParameter<bool> probe_integration_enabled("ProbeIntegrationEnabled",
                                                       false);
->>>>>>> m108
   if (key_value_config) {
     ParseFieldTrial({&enabled,
                      &bandwidth_rampup_upper_bound_factor,
@@ -461,11 +429,6 @@ absl::optional<LossBasedBweV2::Config> LossBasedBweV2::CreateConfig(
                      &temporal_weight_factor,
                      &bandwidth_backoff_lower_bound_factor,
                      &trendline_integration_enabled,
-<<<<<<< HEAD
-                     &delay_based_limit_factor,
-                     &trendline_window_size,
-                     &backoff_when_overusing},
-=======
                      &trendline_observations_window_size,
                      &max_increase_factor,
                      &delayed_increase_window,
@@ -475,7 +438,6 @@ absl::optional<LossBasedBweV2::Config> LossBasedBweV2::CreateConfig(
                      &high_loss_rate_threshold,
                      &bandwidth_cap_at_high_loss_rate,
                      &slope_of_bwe_high_loss_func},
->>>>>>> m108
                     key_value_config->Lookup("WebRTC-Bwe-LossBasedBweV2"));
   }
 
@@ -523,11 +485,6 @@ absl::optional<LossBasedBweV2::Config> LossBasedBweV2::CreateConfig(
   config->bandwidth_backoff_lower_bound_factor =
       bandwidth_backoff_lower_bound_factor.Get();
   config->trendline_integration_enabled = trendline_integration_enabled.Get();
-<<<<<<< HEAD
-  config->delay_based_limit_factor = delay_based_limit_factor.Get();
-  config->trendline_window_size = trendline_window_size.Get();
-  config->backoff_when_overusing = backoff_when_overusing.Get();
-=======
   config->trendline_observations_window_size =
       trendline_observations_window_size.Get();
   config->max_increase_factor = max_increase_factor.Get();
@@ -542,7 +499,6 @@ absl::optional<LossBasedBweV2::Config> LossBasedBweV2::CreateConfig(
   config->slope_of_bwe_high_loss_func = slope_of_bwe_high_loss_func.Get();
   config->probe_integration_enabled = probe_integration_enabled.Get();
 
->>>>>>> m108
   return config;
 }
 
@@ -706,17 +662,6 @@ bool LossBasedBweV2::IsConfigValid() const {
         << config_->bandwidth_backoff_lower_bound_factor;
     valid = false;
   }
-<<<<<<< HEAD
-  if (config_->delay_based_limit_factor < 1.0) {
-    RTC_LOG(LS_WARNING)
-        << "The delay based limit factor must not be less than 1: "
-        << config_->delay_based_limit_factor;
-    valid = false;
-  }
-  if (config_->trendline_window_size < 2) {
-    RTC_LOG(LS_WARNING) << "The trendline window size must be at least 2: "
-                        << config_->trendline_window_size;
-=======
   if (config_->trendline_observations_window_size < 1) {
     RTC_LOG(LS_WARNING) << "The trendline window size must be at least 1: "
                         << config_->trendline_observations_window_size;
@@ -736,7 +681,6 @@ bool LossBasedBweV2::IsConfigValid() const {
       config_->high_loss_rate_threshold > 1.0) {
     RTC_LOG(LS_WARNING) << "The high loss rate threshold must be in (0, 1]: "
                         << config_->high_loss_rate_threshold;
->>>>>>> m108
     valid = false;
   }
   return valid;
@@ -798,47 +742,12 @@ DataRate LossBasedBweV2::GetCandidateBandwidthUpperBound(
   return candidate_bandwidth_upper_bound;
 }
 
-DataRate LossBasedBweV2::GetCandidateBandwidthUpperBound() const {
-  if (!acknowledged_bitrate_.has_value())
-    return DataRate::PlusInfinity();
-
-  DataRate candidate_bandwidth_upper_bound =
-      config_->bandwidth_rampup_upper_bound_factor * (*acknowledged_bitrate_);
-
-  if (config_->rampup_acceleration_max_factor > 0.0) {
-    const TimeDelta time_since_bandwidth_reduced = std::min(
-        config_->rampup_acceleration_maxout_time,
-        std::max(TimeDelta::Zero(), last_send_time_most_recent_observation_ -
-                                        last_time_estimate_reduced_));
-    const double rampup_acceleration = config_->rampup_acceleration_max_factor *
-                                       time_since_bandwidth_reduced /
-                                       config_->rampup_acceleration_maxout_time;
-
-    candidate_bandwidth_upper_bound +=
-        rampup_acceleration * (*acknowledged_bitrate_);
-  }
-  return candidate_bandwidth_upper_bound;
-}
-
 std::vector<LossBasedBweV2::ChannelParameters> LossBasedBweV2::GetCandidates(
     DataRate delay_based_estimate) const {
   std::vector<DataRate> bandwidths;
   bool can_increase_bitrate = TrendlineEsimateAllowBitrateIncrease();
-<<<<<<< HEAD
-  bool can_decrease_bitrate = TrendlineEsimateAllowBitrateDecrease();
-  for (double candidate_factor : config_->candidate_factors) {
-    if (!can_increase_bitrate && candidate_factor >= 1.0) {
-      // When the network is overusing, the estimate is forced to decrease
-      // even if there is no loss yet.
-      if (candidate_factor > 1 || config_->backoff_when_overusing) {
-        continue;
-      }
-    }
-    if (!can_decrease_bitrate && candidate_factor < 1.0) {
-=======
   for (double candidate_factor : config_->candidate_factors) {
     if (!can_increase_bitrate && candidate_factor > 1.0) {
->>>>>>> m108
       continue;
     }
     bandwidths.push_back(candidate_factor *
@@ -861,11 +770,7 @@ std::vector<LossBasedBweV2::ChannelParameters> LossBasedBweV2::GetCandidates(
   }
 
   const DataRate candidate_bandwidth_upper_bound =
-<<<<<<< HEAD
-      GetCandidateBandwidthUpperBound();
-=======
       GetCandidateBandwidthUpperBound(delay_based_estimate);
->>>>>>> m108
 
   std::vector<ChannelParameters> candidates;
   candidates.resize(bandwidths.size());
@@ -1023,9 +928,6 @@ void LossBasedBweV2::CalculateInstantUpperBound() {
     instant_limit = config_->instant_upper_bound_bandwidth_balance /
                     (average_reported_loss_ratio -
                      config_->instant_upper_bound_loss_offset);
-<<<<<<< HEAD
-  }
-=======
     if (average_reported_loss_ratio > config_->high_loss_rate_threshold) {
       instant_limit = std::min(
           instant_limit, DataRate::KilobitsPerSec(std::max(
@@ -1036,7 +938,6 @@ void LossBasedBweV2::CalculateInstantUpperBound() {
     }
   }
 
->>>>>>> m108
   cached_instant_upper_bound_ = instant_limit;
 }
 
@@ -1063,57 +964,26 @@ void LossBasedBweV2::NewtonsMethodUpdate(
   }
 }
 
-<<<<<<< HEAD
-bool LossBasedBweV2::TrendlineEsimateAllowBitrateDecrease() const {
-=======
 bool LossBasedBweV2::TrendlineEsimateAllowBitrateIncrease() const {
->>>>>>> m108
   if (!config_->trendline_integration_enabled) {
     return true;
   }
 
   for (const auto& detector_state : delay_detector_states_) {
-<<<<<<< HEAD
-    if (detector_state == BandwidthUsage::kBwOverusing) {
-      return true;
-    }
-  }
-
-  for (const auto& detector_state : delay_detector_states_) {
-    if (detector_state == BandwidthUsage::kBwUnderusing) {
-=======
     if (detector_state == BandwidthUsage::kBwOverusing ||
         detector_state == BandwidthUsage::kBwUnderusing) {
->>>>>>> m108
       return false;
     }
   }
   return true;
 }
 
-<<<<<<< HEAD
-bool LossBasedBweV2::TrendlineEsimateAllowBitrateIncrease() const {
-=======
 bool LossBasedBweV2::TrendlineEsimateAllowEmergencyBackoff() const {
->>>>>>> m108
   if (!config_->trendline_integration_enabled) {
     return true;
   }
 
-<<<<<<< HEAD
-  for (const auto& detector_state : delay_detector_states_) {
-    if (detector_state == BandwidthUsage::kBwOverusing) {
-      return false;
-    }
-  }
-  return true;
-}
-
-bool LossBasedBweV2::TrendlineEsimateAllowEmergencyBackoff() const {
-  if (!config_->trendline_integration_enabled) {
-=======
   if (!config_->use_acked_bitrate_only_when_overusing) {
->>>>>>> m108
     return true;
   }
 
@@ -1131,11 +1001,7 @@ bool LossBasedBweV2::PushBackObservation(
     BandwidthUsage delay_detector_state) {
   delay_detector_states_.push_front(delay_detector_state);
   if (static_cast<int>(delay_detector_states_.size()) >
-<<<<<<< HEAD
-      config_->trendline_window_size) {
-=======
       config_->trendline_observations_window_size) {
->>>>>>> m108
     delay_detector_states_.pop_back();
   }
 
@@ -1163,11 +1029,7 @@ bool LossBasedBweV2::PushBackObservation(
   // Too small to be meaningful.
   if (observation_duration <= TimeDelta::Zero() ||
       (observation_duration < config_->observation_duration_lower_bound &&
-<<<<<<< HEAD
-       (delay_detector_state == BandwidthUsage::kBwNormal ||
-=======
        (delay_detector_state != BandwidthUsage::kBwOverusing ||
->>>>>>> m108
         !config_->trendline_integration_enabled))) {
     return false;
   }

@@ -31,36 +31,18 @@ class AudioBuffer;
 // microphone gain and/or applying digital gain.
 class GainController2 {
  public:
-<<<<<<< HEAD
-  GainController2(const AudioProcessing::Config::GainController2& config,
-                  int sample_rate_hz,
-                  int num_channels);
-=======
   // Ctor. If `use_internal_vad` is true, an internal voice activity
   // detector is used for digital adaptive gain.
   GainController2(const AudioProcessing::Config::GainController2& config,
                   int sample_rate_hz,
                   int num_channels,
                   bool use_internal_vad);
->>>>>>> m108
   GainController2(const GainController2&) = delete;
   GainController2& operator=(const GainController2&) = delete;
   ~GainController2();
 
   // Detects and handles changes of sample rate and/or number of channels.
   void Initialize(int sample_rate_hz, int num_channels);
-<<<<<<< HEAD
-
-  // Sets the fixed digital gain.
-  void SetFixedGainDb(float gain_db);
-
-  // Applies fixed and adaptive digital gains to `audio` and runs a limiter.
-  void Process(AudioBuffer* audio);
-
-  // Handles analog level changes.
-  void NotifyAnalogLevel(int level);
-
-=======
 
   // Sets the fixed digital gain.
   void SetFixedGainDb(float gain_db);
@@ -75,17 +57,12 @@ class GainController2 {
                bool input_volume_changed,
                AudioBuffer* audio);
 
->>>>>>> m108
   static bool Validate(const AudioProcessing::Config::GainController2& config);
 
   AvailableCpuFeatures GetCpuFeatures() const { return cpu_features_; }
 
  private:
-<<<<<<< HEAD
-  static int instance_count_;
-=======
   static std::atomic<int> instance_count_;
->>>>>>> m108
   const AvailableCpuFeatures cpu_features_;
   ApmDataDumper data_dumper_;
   GainApplier fixed_gain_applier_;
@@ -93,10 +70,6 @@ class GainController2 {
   std::unique_ptr<AdaptiveDigitalGainController> adaptive_digital_controller_;
   Limiter limiter_;
   int calls_since_last_limiter_log_;
-<<<<<<< HEAD
-  int analog_level_;
-=======
->>>>>>> m108
 };
 
 }  // namespace webrtc

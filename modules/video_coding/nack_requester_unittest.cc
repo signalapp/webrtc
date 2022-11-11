@@ -83,11 +83,7 @@ class TestNackRequester : public ::testing::Test,
     test::ScopedKeyValueConfig empty_field_trials_;
     nack_module_ = std::make_unique<NackRequester>(
         TaskQueueBase::Current(), nack_periodic_processor_.get(), clock_.get(),
-<<<<<<< HEAD
-        this, this, field_trial_);
-=======
         this, this, empty_field_trials_);
->>>>>>> m108
     nack_module_->UpdateRtt(kDefaultRttMs);
     return *nack_module_.get();
   }
@@ -96,10 +92,6 @@ class TestNackRequester : public ::testing::Test,
   rtc::AutoThread main_thread_;
   test::RunLoop loop_;
   std::unique_ptr<SimulatedClock> clock_;
-<<<<<<< HEAD
-  test::ScopedKeyValueConfig field_trial_;
-=======
->>>>>>> m108
   std::unique_ptr<NackPeriodicProcessor> nack_periodic_processor_;
   std::unique_ptr<NackRequester> nack_module_;
   std::vector<uint16_t> sent_nacks_;
@@ -388,10 +380,7 @@ class TestNackRequesterWithFieldTrial : public ::testing::Test,
   void RequestKeyFrame() override { ++keyframes_requested_; }
 
   test::ScopedKeyValueConfig nack_delay_field_trial_;
-<<<<<<< HEAD
-=======
   rtc::AutoThread main_thread_;
->>>>>>> m108
   std::unique_ptr<SimulatedClock> clock_;
   NackPeriodicProcessor nack_periodic_processor_;
   NackRequester nack_module_;

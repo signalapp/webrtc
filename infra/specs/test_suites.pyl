@@ -35,21 +35,6 @@
       'common_video_unittests': {},
       'dcsctp_unittests': {},
       'modules_tests': {
-<<<<<<< HEAD
-        'swarming': {
-          'shards': 2
-        },
-      },
-      'modules_unittests': {
-        'swarming': {
-          'shards': 6
-        },
-      },
-      'peerconnection_unittests': {
-        'swarming': {
-          'shards': 4
-        },
-=======
         'mixins': ['shards-2'],
       },
       'modules_unittests': {
@@ -57,35 +42,22 @@
       },
       'peerconnection_unittests': {
         'mixins': ['shards-4'],
->>>>>>> m108
       },
       'rtc_media_unittests': {},
       'rtc_pc_unittests': {},
       'rtc_stats_unittests': {},
       'rtc_unittests': {
-<<<<<<< HEAD
-        'swarming': {
-          'shards': 6
-        },
-=======
         'mixins': ['shards-6'],
       },
       'slow_peer_connection_unittests': {},
       'svc_tests': {
         'mixins': ['shards-4'],
->>>>>>> m108
       },
       'system_wrappers_unittests': {},
       'test_support_unittests': {},
       'tools_unittests': {},
       'video_engine_tests': {
-<<<<<<< HEAD
-        'swarming': {
-          'shards': 4
-        },
-=======
         'mixins': ['shards-4'],
->>>>>>> m108
       },
       'voip_unittests': {},
       'webrtc_nonparallel_tests': {},
@@ -117,21 +89,6 @@
         'args': ['--quick']
       },
       'modules_tests': {
-<<<<<<< HEAD
-        'swarming': {
-          'shards': 2
-        },
-      },
-      'modules_unittests': {
-        'swarming': {
-          'shards': 6
-        },
-      },
-      'peerconnection_unittests': {
-        'swarming': {
-          'shards': 4
-        },
-=======
         'mixins': ['shards-2'],
       },
       'modules_unittests': {
@@ -139,35 +96,22 @@
       },
       'peerconnection_unittests': {
         'mixins': ['shards-4'],
->>>>>>> m108
       },
       'rtc_media_unittests': {},
       'rtc_pc_unittests': {},
       'rtc_stats_unittests': {},
       'rtc_unittests': {
-<<<<<<< HEAD
-        'swarming': {
-          'shards': 6
-        },
-=======
         'mixins': ['shards-6'],
       },
       'slow_peer_connection_unittests': {},
       'svc_tests': {
         'mixins': ['shards-4'],
->>>>>>> m108
       },
       'system_wrappers_unittests': {},
       'test_support_unittests': {},
       'tools_unittests': {},
       'video_engine_tests': {
-<<<<<<< HEAD
-        'swarming': {
-          'shards': 4
-        },
-=======
         'mixins': ['shards-4'],
->>>>>>> m108
       },
       'voip_unittests': {},
       'webrtc_nonparallel_tests': {},
@@ -178,23 +122,15 @@
       'common_audio_unittests': {},
       'common_video_unittests': {},
       'modules_tests': {
-<<<<<<< HEAD
-        'mixins': ['timeout-2h'],
-=======
         'mixins': ['shards-2', 'timeout-2h'],
->>>>>>> m108
         'args': [
           # Some tests exceed the default 180 seconds readline timeout.
           '--readline-timeout=1200',
         ]
       },
-<<<<<<< HEAD
-      'modules_unittests': {},
-=======
       'modules_unittests': {
         'mixins': ['shards-6'],
       },
->>>>>>> m108
       'rtc_pc_unittests': {},
       'rtc_stats_unittests': {},
       # TODO(bugs.webrtc.org/11362): Real XCTests fail to start on devices.
@@ -204,20 +140,6 @@
       'test_support_unittests': {},
       'tools_unittests': {},
       'video_capture_tests': {},
-<<<<<<< HEAD
-      'video_engine_tests': {},
-    },
-    'ios_perf_tests': {
-      'webrtc_perf_tests': {
-        'mixins': ['perf-webrtc-perf-tests'],
-        'args': ['--write_perf_output_on_ios', '--nologs']
-      },
-    },
-    'ios_simulator_tests': {
-      # TODO(bugs.webrtc.org/12244): Some tests are skipped on iOS simulator
-      # platforms because they fail or they are flaky.
-      #'apprtcmobile_tests': {'mixins': ['xcode_parallelization']},
-=======
       'video_engine_tests': {
         'mixins': ['shards-4'],
       },
@@ -226,25 +148,10 @@
       'apprtcmobile_tests': {
         'mixins': ['xcode_parallelization']
       },
->>>>>>> m108
       'audio_decoder_unittests': {},
       'common_audio_unittests': {},
       'common_video_unittests': {},
       'dcsctp_unittests': {},
-<<<<<<< HEAD
-      'modules_tests': {},
-      'modules_unittests': {},
-      'rtc_media_unittests': {},
-      'rtc_pc_unittests': {},
-      'rtc_stats_unittests': {},
-      'rtc_unittests': {},
-      'sdk_framework_unittests': {
-        'mixins': ['xcode_parallelization']
-      },
-      # TODO(bugs.webrtc.org/12244): Some tests are skipped on iOS simulator
-      # platforms because they fail or they are flaky.
-      #'sdk_unittests': {'mixins': ['xcode_parallelization']},
-=======
       'modules_tests': {
         'mixins': ['shards-2'],
       },
@@ -266,66 +173,16 @@
       'svc_tests': {
         'mixins': ['shards-4'],
       },
->>>>>>> m108
       'system_wrappers_unittests': {},
       'test_support_unittests': {},
       'tools_unittests': {},
       'video_capture_tests': {},
-<<<<<<< HEAD
-      'video_engine_tests': {},
-      'voip_unittests': {},
-      'webrtc_nonparallel_tests': {},
-    },
-    'linux_video_capture_tests': {
-      'video_capture_tests': {
-        'remove_mixins': ['linux-bionic'],
-        'mixins': ['linux', 'baremetal-pool'],
-      }
-    },
-    'linux_video_capture_tests_tryserver': {
-      'video_capture_tests': {
-        'remove_mixins': ['linux-bionic'],
-        'mixins': ['linux', 'baremetal-try-pool'],
-      }
-    },
-    'linux_webrtc_perf_tests_tryserver': {
-      'webrtc_perf_tests': {
-        'remove_mixins': ['linux-bionic', 'resultdb-json-format'],
-        'mixins': [
-          'linux', 'baremetal-try-pool', 'quick-perf-tests',
-          'resultdb-gtest-json-format'
-        ],
-      }
-    },
-    'mac_video_capture_tests': {
-      'video_capture_tests': {
-        'remove_mixins': ['mac11'],
-        'mixins': ['mac', 'baremetal-pool'],
-      }
-    },
-    'mac_video_capture_tests_tryserver': {
-      'video_capture_tests': {
-        'remove_mixins': ['mac11'],
-        'mixins': ['mac', 'baremetal-try-pool'],
-      }
-    },
-    'mac_webrtc_perf_tests_tryserver': {
-      'webrtc_perf_tests': {
-        'remove_mixins': ['mac11', 'resultdb-json-format'],
-        'mixins': [
-          'mac', 'baremetal-try-pool', 'quick-perf-tests',
-          'resultdb-gtest-json-format'
-        ],
-      }
-    },
-=======
       'video_engine_tests': {
         'mixins': ['shards-4'],
       },
       'voip_unittests': {},
       'webrtc_nonparallel_tests': {},
     },
->>>>>>> m108
     'more_configs_tests': {
       'peerconnection_unittests': {
         'swarming': {
@@ -333,27 +190,6 @@
         },
       },
     },
-<<<<<<< HEAD
-    'win_video_capture_tests': {
-      'video_capture_tests': {
-        'remove_mixins': ['win7'],
-        'mixins': ['win', 'baremetal-pool'],
-      }
-    },
-    'win_video_capture_tests_tryserver': {
-      'video_capture_tests': {
-        'remove_mixins': ['win7'],
-        'mixins': ['win', 'baremetal-try-pool'],
-      }
-    },
-    'win_webrtc_perf_tests_tryserver': {
-      'webrtc_perf_tests': {
-        'remove_mixins': ['win7', 'resultdb-json-format'],
-        'mixins': [
-          'win', 'baremetal-try-pool', 'quick-perf-tests',
-          'resultdb-gtest-json-format'
-        ],
-=======
     'video_capture_tests': {
       'video_capture_tests': {
         'mixins': ['baremetal-pool'],
@@ -372,7 +208,6 @@
     'webrtc_perf_tests_tryserver': {
       'webrtc_perf_tests': {
         'mixins': ['quick-perf-tests', 'resultdb-gtest-json-format'],
->>>>>>> m108
       }
     },
   },
@@ -381,34 +216,6 @@
       'android_tests',
       'android_webrtc_perf_tests_tryserver',
     ],
-<<<<<<< HEAD
-    'linux_tests': [
-      'desktop_tests',
-      'linux_video_capture_tests',
-    ],
-    'linux_tests_tryserver': [
-      'desktop_tests',
-      'linux_video_capture_tests_tryserver',
-      'linux_webrtc_perf_tests_tryserver',
-    ],
-    'mac_tests': [
-      'desktop_tests',
-      'mac_video_capture_tests',
-    ],
-    'mac_tests_tryserver': [
-      'desktop_tests',
-      'mac_video_capture_tests_tryserver',
-      'mac_webrtc_perf_tests_tryserver',
-    ],
-    'win_tests': [
-      'desktop_tests',
-      'win_video_capture_tests',
-    ],
-    'win_tests_tryserver': [
-      'desktop_tests',
-      'win_video_capture_tests_tryserver',
-      'win_webrtc_perf_tests_tryserver',
-=======
     'desktop_tests_tryserver': [
       'desktop_tests',
       'video_capture_tests_tryserver',
@@ -417,7 +224,6 @@
     'desktop_tests_with_video_capture': [
       'desktop_tests',
       'video_capture_tests',
->>>>>>> m108
     ],
   },
 }

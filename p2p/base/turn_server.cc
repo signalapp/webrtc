@@ -17,10 +17,7 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/memory/memory.h"
-<<<<<<< HEAD
-=======
 #include "absl/strings/string_view.h"
->>>>>>> m108
 #include "api/array_view.h"
 #include "api/packet_socket_factory.h"
 #include "api/task_queue/task_queue_base.h"
@@ -612,11 +609,7 @@ void TurnServerAllocation::HandleAllocateRequest(const TurnMessage* msg) {
   const StunByteStringAttribute* username_attr =
       msg->GetByteString(STUN_ATTR_USERNAME);
   RTC_DCHECK(username_attr != NULL);
-<<<<<<< HEAD
-  username_ = username_attr->GetString();
-=======
   username_ = std::string(username_attr->string_view());
->>>>>>> m108
 
   // Figure out the lifetime and start the allocation timer.
   TimeDelta lifetime = ComputeLifetime(*msg);

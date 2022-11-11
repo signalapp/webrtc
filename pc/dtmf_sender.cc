@@ -13,12 +13,9 @@
 #include <ctype.h>
 #include <string.h>
 
-<<<<<<< HEAD
-=======
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/units/time_delta.h"
->>>>>>> m108
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 
@@ -169,17 +166,6 @@ int DtmfSender::comma_delay() const {
   return comma_delay_;
 }
 
-<<<<<<< HEAD
-void DtmfSender::QueueInsertDtmf(const rtc::Location& posted_from,
-                                 uint32_t delay_ms) {
-  signaling_thread_->PostDelayedHighPrecisionTask(
-      ToQueuedTask(safety_flag_,
-                   [this] {
-                     RTC_DCHECK_RUN_ON(signaling_thread_);
-                     DoInsertDtmf();
-                   }),
-      delay_ms);
-=======
 void DtmfSender::QueueInsertDtmf(uint32_t delay_ms) {
   signaling_thread_->PostDelayedHighPrecisionTask(
       SafeTask(safety_flag_,
@@ -188,7 +174,6 @@ void DtmfSender::QueueInsertDtmf(uint32_t delay_ms) {
                  DoInsertDtmf();
                }),
       TimeDelta::Millis(delay_ms));
->>>>>>> m108
 }
 
 void DtmfSender::DoInsertDtmf() {

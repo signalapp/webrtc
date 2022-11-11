@@ -14,13 +14,9 @@
 #include <stdint.h>
 
 #include "absl/types/optional.h"
-<<<<<<< HEAD
-#include "rtc_base/numerics/moving_median_filter.h"
-=======
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "rtc_base/numerics/moving_percentile_filter.h"
->>>>>>> m108
 #include "system_wrappers/include/rtp_to_ntp_estimator.h"
 
 namespace webrtc {
@@ -38,23 +34,10 @@ class RemoteNtpTimeEstimator {
   RemoteNtpTimeEstimator& operator=(const RemoteNtpTimeEstimator&) = delete;
   ~RemoteNtpTimeEstimator() = default;
 
-<<<<<<< HEAD
-  ~RemoteNtpTimeEstimator();
-
-  RemoteNtpTimeEstimator(const RemoteNtpTimeEstimator&) = delete;
-  RemoteNtpTimeEstimator& operator=(const RemoteNtpTimeEstimator&) = delete;
-
-  // Updates the estimator with round trip time `rtt`, NTP seconds `ntp_secs`,
-  // NTP fraction `ntp_frac` and RTP timestamp `rtp_timestamp`.
-  bool UpdateRtcpTimestamp(int64_t rtt,
-                           uint32_t ntp_secs,
-                           uint32_t ntp_frac,
-=======
   // Updates the estimator with round trip time `rtt` and
   // new NTP time <-> RTP timestamp mapping from an RTCP sender report.
   bool UpdateRtcpTimestamp(TimeDelta rtt,
                            NtpTime sender_send_time,
->>>>>>> m108
                            uint32_t rtp_timestamp);
 
   // Estimates the NTP timestamp in local timebase from `rtp_timestamp`.
@@ -83,11 +66,7 @@ class RemoteNtpTimeEstimator {
   // 0.2 ns.
   MovingMedianFilter<int64_t> ntp_clocks_offset_estimator_;
   RtpToNtpEstimator rtp_to_ntp_;
-<<<<<<< HEAD
-  int64_t last_timing_log_ms_;
-=======
   Timestamp last_timing_log_ = Timestamp::MinusInfinity();
->>>>>>> m108
 };
 
 }  // namespace webrtc

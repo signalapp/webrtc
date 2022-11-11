@@ -97,8 +97,6 @@ TEST(TimeUtilTest, SaturatedToCompactNtp) {
       CompactNtpRttToTimeDelta(SaturatedToCompactNtp(TimeDelta::Micros(5'515)))
           .us(),
       5'515, 16);
-<<<<<<< HEAD
-=======
 }
 
 TEST(TimeUtilTest, ToNtpUnits) {
@@ -125,7 +123,6 @@ TEST(TimeUtilTest, ToNtpUnits) {
   // shouldn't cause integer overflow or other undefined behavior.
   ToNtpUnits(TimeDelta::Micros(std::numeric_limits<int64_t>::max() - 1));
   ToNtpUnits(TimeDelta::Micros(std::numeric_limits<int64_t>::min() + 1));
->>>>>>> m108
 }
 
 }  // namespace webrtc

@@ -102,17 +102,6 @@ class StatsBasedNetworkQualityMetricsReporter
                    const NetworkLayerStats& network_layer_stats,
                    int64_t packet_loss,
                    const Timestamp& end_time);
-<<<<<<< HEAD
-  void ReportResult(const std::string& metric_name,
-                    const std::string& network_label,
-                    double value,
-                    const std::string& unit) const;
-  void ReportResult(const std::string& metric_name,
-                    const std::string& network_label,
-                    const SamplesStatsCounter& value,
-                    const std::string& unit) const;
-=======
->>>>>>> m108
   std::string GetTestCaseName(absl::string_view network_label) const;
   void LogNetworkLayerStats(const std::string& peer_name,
                             const NetworkLayerStats& stats) const;

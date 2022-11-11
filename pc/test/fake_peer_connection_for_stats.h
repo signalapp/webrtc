@@ -158,12 +158,6 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase {
 
   ~FakePeerConnectionForStats() {
     for (auto transceiver : transceivers_) {
-<<<<<<< HEAD
-      transceiver->internal()->SetChannel(nullptr, nullptr);
-    }
-  }
-
-=======
       transceiver->internal()->ClearChannel();
     }
   }
@@ -176,7 +170,6 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase {
     return dependencies;
   }
 
->>>>>>> m108
   rtc::scoped_refptr<StreamCollection> mutable_local_streams() {
     return local_streams_;
   }
@@ -224,24 +217,12 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase {
       const std::string& mid,
       const std::string& transport_name,
       cricket::VoiceMediaInfo initial_stats = cricket::VoiceMediaInfo()) {
-<<<<<<< HEAD
-    RTC_DCHECK(!voice_channel_);
-=======
->>>>>>> m108
     auto voice_media_channel =
         std::make_unique<FakeVoiceMediaChannelForStats>(network_thread_);
     auto* voice_media_channel_ptr = voice_media_channel.get();
     auto voice_channel = std::make_unique<VoiceChannelForTesting>(
         worker_thread_, network_thread_, signaling_thread_,
         std::move(voice_media_channel), mid, kDefaultSrtpRequired,
-<<<<<<< HEAD
-        webrtc::CryptoOptions(), &channel_manager_.ssrc_generator(),
-        transport_name);
-    GetOrCreateFirstTransceiverOfType(cricket::MEDIA_TYPE_AUDIO)
-        ->internal()
-        ->SetChannel(voice_channel_.get(),
-                     [](const std::string&) { return nullptr; });
-=======
         webrtc::CryptoOptions(), context_->ssrc_generator(), transport_name);
     auto transceiver =
         GetOrCreateFirstTransceiverOfType(cricket::MEDIA_TYPE_AUDIO)
@@ -254,7 +235,6 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase {
     RTC_DCHECK(!transceiver->channel());
     transceiver->SetChannel(std::move(voice_channel),
                             [](const std::string&) { return nullptr; });
->>>>>>> m108
     voice_media_channel_ptr->SetStats(initial_stats);
     return voice_media_channel_ptr;
   }
@@ -263,24 +243,12 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase {
       const std::string& mid,
       const std::string& transport_name,
       cricket::VideoMediaInfo initial_stats = cricket::VideoMediaInfo()) {
-<<<<<<< HEAD
-    RTC_DCHECK(!video_channel_);
-=======
->>>>>>> m108
     auto video_media_channel =
         std::make_unique<FakeVideoMediaChannelForStats>(network_thread_);
     auto video_media_channel_ptr = video_media_channel.get();
     auto video_channel = std::make_unique<VideoChannelForTesting>(
         worker_thread_, network_thread_, signaling_thread_,
         std::move(video_media_channel), mid, kDefaultSrtpRequired,
-<<<<<<< HEAD
-        webrtc::CryptoOptions(), &channel_manager_.ssrc_generator(),
-        transport_name);
-    GetOrCreateFirstTransceiverOfType(cricket::MEDIA_TYPE_VIDEO)
-        ->internal()
-        ->SetChannel(video_channel_.get(),
-                     [](const std::string&) { return nullptr; });
-=======
         webrtc::CryptoOptions(), context_->ssrc_generator(), transport_name);
     auto transceiver =
         GetOrCreateFirstTransceiverOfType(cricket::MEDIA_TYPE_VIDEO)
@@ -293,7 +261,6 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase {
     RTC_DCHECK(!transceiver->channel());
     transceiver->SetChannel(std::move(video_channel),
                             [](const std::string&) { return nullptr; });
->>>>>>> m108
     video_media_channel_ptr->SetStats(initial_stats);
     return video_media_channel_ptr;
   }
@@ -467,35 +434,17 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase {
   CreateTransceiverOfType(cricket::MediaType media_type) {
     auto transceiver = RtpTransceiverProxyWithInternal<RtpTransceiver>::Create(
         signaling_thread_,
-<<<<<<< HEAD
-        rtc::make_ref_counted<RtpTransceiver>(media_type, &channel_manager_));
-=======
         rtc::make_ref_counted<RtpTransceiver>(media_type, context_.get()));
->>>>>>> m108
     transceivers_.push_back(transceiver);
     return transceiver;
   }
-
-  class TestChannelManager : public cricket::ChannelManager {
-   public:
-    TestChannelManager(rtc::Thread* worker, rtc::Thread* network)
-        : cricket::ChannelManager(nullptr, true, worker, network) {}
-
-    // Override DestroyChannel so that calls from the transceiver won't go to
-    // the default ChannelManager implementation.
-    void DestroyChannel(cricket::ChannelInterface*) override {}
-  };
 
   rtc::Thread* const network_thread_;
   rtc::Thread* const worker_thread_;
   rtc::Thread* const signaling_thread_;
 
-<<<<<<< HEAD
-  TestChannelManager channel_manager_{worker_thread_, network_thread_};
-=======
   PeerConnectionFactoryDependencies dependencies_;
   rtc::scoped_refptr<ConnectionContext> context_;
->>>>>>> m108
 
   rtc::scoped_refptr<StreamCollection> local_streams_;
   rtc::scoped_refptr<StreamCollection> remote_streams_;

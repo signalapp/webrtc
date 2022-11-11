@@ -55,13 +55,6 @@ class NetworkQualityMetricsReporter
                    std::unique_ptr<EmulatedNetworkStats> stats,
                    int64_t packet_loss);
   void ReportPCStats(const std::string& pc_label, const PCStats& stats);
-<<<<<<< HEAD
-  void ReportResult(const std::string& metric_name,
-                    const std::string& network_label,
-                    double value,
-                    const std::string& unit) const;
-=======
->>>>>>> m108
   std::string GetTestCaseName(const std::string& network_label) const;
 
   std::string test_case_name_;

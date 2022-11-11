@@ -10,16 +10,11 @@
 
 #include "video/video_receive_stream_timeout_tracker.h"
 
-<<<<<<< HEAD
-#include <utility>
-
-=======
 #include <algorithm>
 #include <utility>
 
 #include "rtc_base/logging.h"
 
->>>>>>> m108
 namespace webrtc {
 
 VideoReceiveStreamTimeoutTracker::VideoReceiveStreamTimeoutTracker(
@@ -30,11 +25,7 @@ VideoReceiveStreamTimeoutTracker::VideoReceiveStreamTimeoutTracker(
     : clock_(clock),
       bookkeeping_queue_(bookkeeping_queue),
       timeouts_(timeouts),
-<<<<<<< HEAD
-      callback_(std::move(callback)) {}
-=======
       timeout_cb_(std::move(callback)) {}
->>>>>>> m108
 
 VideoReceiveStreamTimeoutTracker::~VideoReceiveStreamTimeoutTracker() {
   RTC_DCHECK(!timeout_task_.Running());
@@ -44,18 +35,6 @@ bool VideoReceiveStreamTimeoutTracker::Running() const {
   return timeout_task_.Running();
 }
 
-<<<<<<< HEAD
-void VideoReceiveStreamTimeoutTracker::Start(bool waiting_for_keyframe) {
-  RTC_DCHECK(!timeout_task_.Running());
-  waiting_for_keyframe_ = waiting_for_keyframe;
-  TimeDelta timeout_delay = TimeoutForNextFrame();
-  timeout_ = clock_->CurrentTime() + timeout_delay;
-  timeout_task_ = RepeatingTaskHandle::DelayedStart(
-      bookkeeping_queue_, timeout_delay, [this] {
-        RTC_DCHECK_RUN_ON(bookkeeping_queue_);
-        return HandleTimeoutTask();
-      });
-=======
 TimeDelta VideoReceiveStreamTimeoutTracker::TimeUntilTimeout() const {
   return std::max(timeout_ - clock_->CurrentTime(), TimeDelta::Zero());
 }
@@ -70,7 +49,6 @@ void VideoReceiveStreamTimeoutTracker::Start(bool waiting_for_keyframe) {
   timeout_task_ =
       RepeatingTaskHandle::DelayedStart(bookkeeping_queue_, timeout_delay,
                                         [this] { return HandleTimeoutTask(); });
->>>>>>> m108
 }
 
 void VideoReceiveStreamTimeoutTracker::Stop() {
@@ -78,10 +56,7 @@ void VideoReceiveStreamTimeoutTracker::Stop() {
 }
 
 void VideoReceiveStreamTimeoutTracker::SetWaitingForKeyframe() {
-<<<<<<< HEAD
-=======
   RTC_DCHECK_RUN_ON(bookkeeping_queue_);
->>>>>>> m108
   waiting_for_keyframe_ = true;
   TimeDelta timeout_delay = TimeoutForNextFrame();
   if (clock_->CurrentTime() + timeout_delay < timeout_) {
@@ -91,14 +66,6 @@ void VideoReceiveStreamTimeoutTracker::SetWaitingForKeyframe() {
 }
 
 void VideoReceiveStreamTimeoutTracker::OnEncodedFrameReleased() {
-<<<<<<< HEAD
-  // If we were waiting for a keyframe, then it has just been released.
-  waiting_for_keyframe_ = false;
-  timeout_ = clock_->CurrentTime() + TimeoutForNextFrame();
-}
-
-TimeDelta VideoReceiveStreamTimeoutTracker::HandleTimeoutTask() {
-=======
   RTC_DCHECK_RUN_ON(bookkeeping_queue_);
   // If we were waiting for a keyframe, then it has just been released.
   waiting_for_keyframe_ = false;
@@ -108,21 +75,14 @@ TimeDelta VideoReceiveStreamTimeoutTracker::HandleTimeoutTask() {
 
 TimeDelta VideoReceiveStreamTimeoutTracker::HandleTimeoutTask() {
   RTC_DCHECK_RUN_ON(bookkeeping_queue_);
->>>>>>> m108
   Timestamp now = clock_->CurrentTime();
   // `timeout_` is hit and we have timed out. Schedule the next timeout at
   // the timeout delay.
   if (now >= timeout_) {
-<<<<<<< HEAD
-    TimeDelta timeout_delay = TimeoutForNextFrame();
-    timeout_ = now + timeout_delay;
-    callback_();
-=======
     RTC_DLOG(LS_VERBOSE) << "Stream timeout at " << now;
     TimeDelta timeout_delay = TimeoutForNextFrame();
     timeout_ = now + timeout_delay;
     timeout_cb_(now - last_frame_);
->>>>>>> m108
     return timeout_delay;
   }
   // Otherwise, `timeout_` changed since we scheduled a timeout. Reschedule
@@ -130,12 +90,9 @@ TimeDelta VideoReceiveStreamTimeoutTracker::HandleTimeoutTask() {
   return timeout_ - now;
 }
 
-<<<<<<< HEAD
-=======
 void VideoReceiveStreamTimeoutTracker::SetTimeouts(Timeouts timeouts) {
   RTC_DCHECK_RUN_ON(bookkeeping_queue_);
   timeouts_ = timeouts;
 }
 
->>>>>>> m108
 }  // namespace webrtc

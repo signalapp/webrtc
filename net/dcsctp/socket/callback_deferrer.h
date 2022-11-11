@@ -80,15 +80,12 @@ class CallbackDeferrer : public DcSctpSocketCallbacks {
       rtc::ArrayView<const StreamID> incoming_streams) override;
   void OnBufferedAmountLow(StreamID stream_id) override;
   void OnTotalBufferedAmountLow() override;
-<<<<<<< HEAD
-=======
 
   void OnLifecycleMessageExpired(LifecycleId lifecycle_id,
                                  bool maybe_delivered) override;
   void OnLifecycleMessageFullySent(LifecycleId lifecycle_id) override;
   void OnLifecycleMessageDelivered(LifecycleId lifecycle_id) override;
   void OnLifecycleEnd(LifecycleId lifecycle_id) override;
->>>>>>> m108
 
  private:
   void Prepare();

@@ -17,11 +17,8 @@
 
 #include "absl/memory/memory.h"
 #include "api/rtp_headers.h"
-<<<<<<< HEAD
-=======
 #include "api/task_queue/task_queue_base.h"
 #include "api/task_queue/task_queue_factory.h"
->>>>>>> m108
 #include "api/test/mock_frame_encryptor.h"
 #include "api/transport/field_trial_based_config.h"
 #include "api/transport/rtp/dependency_descriptor.h"
@@ -1503,8 +1500,6 @@ TEST_F(RtpSenderVideoWithFrameTransformerTest, ValidPayloadTypes) {
 TEST_F(RtpSenderVideoWithFrameTransformerTest, OnTransformedFrameSendsVideo) {
   auto mock_frame_transformer =
       rtc::make_ref_counted<NiceMock<MockFrameTransformer>>();
-<<<<<<< HEAD
-=======
   rtc::scoped_refptr<TransformedFrameCallback> callback;
   EXPECT_CALL(*mock_frame_transformer, RegisterTransformedFrameSinkCallback)
       .WillOnce(SaveArg<0>(&callback));
@@ -1565,7 +1560,6 @@ TEST_F(RtpSenderVideoWithFrameTransformerTest,
        OnTransformedFrameSendsVideoOnNewQueueForHwEncoders) {
   auto mock_frame_transformer =
       rtc::make_ref_counted<NiceMock<MockFrameTransformer>>();
->>>>>>> m108
   rtc::scoped_refptr<TransformedFrameCallback> callback;
   EXPECT_CALL(*mock_frame_transformer, RegisterTransformedFrameSinkCallback)
       .WillOnce(SaveArg<0>(&callback));

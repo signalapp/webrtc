@@ -47,12 +47,8 @@ float RunAgc2WithConstantInput(GainController2& agc2,
   // Give time to the level estimator to converge.
   for (int i = 0; i < num_frames + 1; ++i) {
     SetAudioBufferSamples(input_level, ab);
-<<<<<<< HEAD
-    agc2.Process(&ab);
-=======
     agc2.Process(/*speech_probability=*/absl::nullopt,
                  /*input_volume_changed=*/false, &ab);
->>>>>>> m108
   }
 
   // Return the last sample from the last processed frame.
@@ -67,12 +63,8 @@ std::unique_ptr<GainController2> CreateAgc2FixedDigitalMode(
   config.fixed_digital.gain_db = fixed_gain_db;
   EXPECT_TRUE(GainController2::Validate(config));
   return std::make_unique<GainController2>(config, sample_rate_hz,
-<<<<<<< HEAD
-                                           /*num_channels=*/1);
-=======
                                            /*num_channels=*/1,
                                            /*use_internal_vad=*/true);
->>>>>>> m108
 }
 
 }  // namespace
@@ -148,12 +140,8 @@ TEST(GainController2, CheckAdaptiveDigitalMaxOutputNoiseLevelConfig) {
 // Checks that the default config is applied.
 TEST(GainController2, ApplyDefaultConfig) {
   auto gain_controller2 = std::make_unique<GainController2>(
-<<<<<<< HEAD
-      Agc2Config{}, /*sample_rate_hz=*/16000, /*num_channels=*/2);
-=======
       Agc2Config{}, /*sample_rate_hz=*/16000, /*num_channels=*/2,
       /*use_internal_vad=*/true);
->>>>>>> m108
   EXPECT_TRUE(gain_controller2.get());
 }
 
@@ -268,12 +256,8 @@ TEST(GainController2, CheckFinalGainWithAdaptiveDigitalController) {
   Agc2Config config;
   config.fixed_digital.gain_db = 0.0f;
   config.adaptive_digital.enabled = true;
-<<<<<<< HEAD
-  GainController2 agc2(config, kSampleRateHz, kStereo);
-=======
   GainController2 agc2(config, kSampleRateHz, kStereo,
                        /*use_internal_vad=*/true);
->>>>>>> m108
 
   test::InputAudioFile input_file(
       test::GetApmCaptureTestVectorFileName(kSampleRateHz),
@@ -296,38 +280,24 @@ TEST(GainController2, CheckFinalGainWithAdaptiveDigitalController) {
                                    stream_config.num_channels(), &input_file,
                                    frame);
     // Apply a fixed gain to the input audio.
-<<<<<<< HEAD
-    for (float& x : frame)
-      x *= gain;
-    test::CopyVectorToAudioBuffer(stream_config, frame, &audio_buffer);
-    // Process.
-    agc2.Process(&audio_buffer);
-=======
     for (float& x : frame) {
       x *= gain;
     }
     test::CopyVectorToAudioBuffer(stream_config, frame, &audio_buffer);
     agc2.Process(/*speech_probability=*/absl::nullopt,
                  /*input_volume_changed=*/false, &audio_buffer);
->>>>>>> m108
   }
 
   // Estimate the applied gain by processing a probing frame.
   SetAudioBufferSamples(/*value=*/1.0f, audio_buffer);
-<<<<<<< HEAD
-  agc2.Process(&audio_buffer);
-=======
   agc2.Process(/*speech_probability=*/absl::nullopt,
                /*input_volume_changed=*/false, &audio_buffer);
->>>>>>> m108
   const float applied_gain_db =
       20.0f * std::log10(audio_buffer.channels_const()[0][0]);
 
   constexpr float kExpectedGainDb = 5.6f;
   constexpr float kToleranceDb = 0.3f;
   EXPECT_NEAR(applied_gain_db, kExpectedGainDb, kToleranceDb);
-<<<<<<< HEAD
-=======
 }
 
 // Processes a test audio file and checks that the injected speech probability
@@ -527,7 +497,6 @@ TEST(GainController2,
       }
     }
   }
->>>>>>> m108
 }
 
 }  // namespace test

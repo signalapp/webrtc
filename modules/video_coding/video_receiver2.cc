@@ -34,14 +34,8 @@ VideoReceiver2::VideoReceiver2(Clock* clock,
                                VCMTiming* timing,
                                const FieldTrialsView& field_trials)
     : clock_(clock),
-<<<<<<< HEAD
-      timing_(timing),
-      decodedFrameCallback_(timing_, clock_, field_trials),
-      codecDataBase_() {
-=======
       decoded_frame_callback_(timing, clock_, field_trials),
       codec_database_() {
->>>>>>> m108
   decoder_sequence_checker_.Detach();
 }
 

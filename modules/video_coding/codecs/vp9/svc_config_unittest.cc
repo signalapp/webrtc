@@ -30,22 +30,6 @@ TEST(SvcConfig, NumSpatialLayers) {
       kMinVp9SpatialLayerLongSideLength << (num_spatial_layers - 1),
       kMinVp9SpatialLayerShortSideLength << (num_spatial_layers - 1), 30,
       first_active_layer, max_num_spatial_layers, 1, false);
-<<<<<<< HEAD
-
-  EXPECT_EQ(spatial_layers.size(), num_spatial_layers);
-}
-
-TEST(SvcConfig, NumSpatialLayersPortrait) {
-  const size_t max_num_spatial_layers = 6;
-  const size_t first_active_layer = 0;
-  const size_t num_spatial_layers = 2;
-
-  std::vector<SpatialLayer> spatial_layers = GetSvcConfig(
-      kMinVp9SpatialLayerShortSideLength << (num_spatial_layers - 1),
-      kMinVp9SpatialLayerLongSideLength << (num_spatial_layers - 1), 30,
-      first_active_layer, max_num_spatial_layers, 1, false);
-=======
->>>>>>> m108
 
   EXPECT_EQ(spatial_layers.size(), num_spatial_layers);
 }

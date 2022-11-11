@@ -13,21 +13,12 @@
 #include <atomic>
 #include <memory>
 
-<<<<<<< HEAD
-#include "api/task_queue/queued_task.h"
-#include "api/task_queue/task_queue_base.h"
-#include "api/units/timestamp.h"
-#include "rtc_base/event.h"
-#include "rtc_base/task_queue_for_test.h"
-#include "rtc_base/task_utils/to_queued_task.h"
-=======
 #include "absl/functional/any_invocable.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "rtc_base/event.h"
 #include "rtc_base/task_queue_for_test.h"
->>>>>>> m108
 #include "system_wrappers/include/clock.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
@@ -76,26 +67,6 @@ class FakeTaskQueue : public TaskQueueBase {
 
   void Delete() override {}
 
-<<<<<<< HEAD
-  void PostTask(std::unique_ptr<QueuedTask> task) override {
-    last_task_ = std::move(task);
-    last_precision_ = absl::nullopt;
-    last_delay_ = 0;
-  }
-
-  void PostDelayedTask(std::unique_ptr<QueuedTask> task,
-                       uint32_t milliseconds) override {
-    last_task_ = std::move(task);
-    last_precision_ = TaskQueueBase::DelayPrecision::kLow;
-    last_delay_ = milliseconds;
-  }
-
-  void PostDelayedHighPrecisionTask(std::unique_ptr<QueuedTask> task,
-                                    uint32_t milliseconds) override {
-    last_task_ = std::move(task);
-    last_precision_ = TaskQueueBase::DelayPrecision::kHigh;
-    last_delay_ = milliseconds;
-=======
   void PostTask(absl::AnyInvocable<void() &&> task) override {
     last_task_ = std::move(task);
     last_precision_ = absl::nullopt;
@@ -114,43 +85,23 @@ class FakeTaskQueue : public TaskQueueBase {
     last_task_ = std::move(task);
     last_precision_ = TaskQueueBase::DelayPrecision::kHigh;
     last_delay_ = delay;
->>>>>>> m108
   }
 
   bool AdvanceTimeAndRunLastTask() {
     EXPECT_TRUE(last_task_);
-<<<<<<< HEAD
-    EXPECT_TRUE(last_delay_);
-    clock_->AdvanceTimeMilliseconds(last_delay_.value_or(0));
-    last_delay_.reset();
-    auto task = std::move(last_task_);
-    bool delete_task = task->Run();
-    if (!delete_task) {
-      // If the task should not be deleted then just release it.
-      task.release();
-    }
-    return delete_task;
-=======
     EXPECT_TRUE(last_delay_.IsFinite());
     clock_->AdvanceTime(last_delay_);
     last_delay_ = TimeDelta::MinusInfinity();
     auto task = std::move(last_task_);
     std::move(task)();
     return last_task_ == nullptr;
->>>>>>> m108
   }
 
   bool IsTaskQueued() { return !!last_task_; }
 
-<<<<<<< HEAD
-  uint32_t last_delay() const {
-    EXPECT_TRUE(last_delay_.has_value());
-    return last_delay_.value_or(-1);
-=======
   TimeDelta last_delay() const {
     EXPECT_TRUE(last_delay_.IsFinite());
     return last_delay_;
->>>>>>> m108
   }
 
   absl::optional<TaskQueueBase::DelayPrecision> last_precision() const {
@@ -160,13 +111,8 @@ class FakeTaskQueue : public TaskQueueBase {
  private:
   CurrentTaskQueueSetter task_queue_setter_;
   SimulatedClock* clock_;
-<<<<<<< HEAD
-  std::unique_ptr<QueuedTask> last_task_;
-  absl::optional<uint32_t> last_delay_;
-=======
   absl::AnyInvocable<void() &&> last_task_;
   TimeDelta last_delay_ = TimeDelta::MinusInfinity();
->>>>>>> m108
   absl::optional<TaskQueueBase::DelayPrecision> last_precision_;
 };
 
@@ -200,13 +146,6 @@ TEST(RepeatingTaskTest, TaskIsStoppedOnStop) {
   SimulatedClock clock(Timestamp::Zero());
   FakeTaskQueue task_queue(&clock);
   std::atomic_int counter(0);
-<<<<<<< HEAD
-  auto handle = RepeatingTaskHandle::Start(&task_queue, [&] {
-    counter++;
-    return kShortInterval;
-  });
-  EXPECT_EQ(task_queue.last_delay(), 0u);
-=======
   auto handle = RepeatingTaskHandle::Start(
       &task_queue,
       [&] {
@@ -215,16 +154,11 @@ TEST(RepeatingTaskTest, TaskIsStoppedOnStop) {
       },
       TaskQueueBase::DelayPrecision::kLow, &clock);
   EXPECT_EQ(task_queue.last_delay(), TimeDelta::Zero());
->>>>>>> m108
   EXPECT_FALSE(task_queue.AdvanceTimeAndRunLastTask());
   EXPECT_EQ(counter.load(), 1);
 
   // The handle reposted at the short interval.
-<<<<<<< HEAD
-  EXPECT_EQ(task_queue.last_delay(), kShortInterval.ms());
-=======
   EXPECT_EQ(task_queue.last_delay(), kShortInterval);
->>>>>>> m108
 
   // Stop the handle. This prevernts the counter from incrementing.
   handle.Stop();
@@ -251,29 +185,17 @@ TEST(RepeatingTaskTest, CompensatesForLongRunTime) {
       },
       TaskQueueBase::DelayPrecision::kLow, &clock);
 
-<<<<<<< HEAD
-  EXPECT_EQ(task_queue.last_delay(), 0u);
-=======
   EXPECT_EQ(task_queue.last_delay(), TimeDelta::Zero());
->>>>>>> m108
   EXPECT_FALSE(task_queue.AdvanceTimeAndRunLastTask());
 
   // Task is posted right away since it took longer to run then the repeat
   // interval.
-<<<<<<< HEAD
-  EXPECT_EQ(task_queue.last_delay(), 0u);
-=======
   EXPECT_EQ(task_queue.last_delay(), TimeDelta::Zero());
->>>>>>> m108
   EXPECT_EQ(counter.load(), 1);
 }
 
 TEST(RepeatingTaskTest, CompensatesForShortRunTime) {
-<<<<<<< HEAD
-  SimulatedClock clock(Timestamp::Millis(0));
-=======
   SimulatedClock clock(Timestamp::Zero());
->>>>>>> m108
   FakeTaskQueue task_queue(&clock);
   std::atomic_int counter(0);
   RepeatingTaskHandle::Start(
@@ -287,19 +209,11 @@ TEST(RepeatingTaskTest, CompensatesForShortRunTime) {
       TaskQueueBase::DelayPrecision::kLow, &clock);
 
   // Expect instant post task.
-<<<<<<< HEAD
-  EXPECT_EQ(task_queue.last_delay(), 0u);
-  // Task should be retained by the handler since it is not cancelled.
-  EXPECT_FALSE(task_queue.AdvanceTimeAndRunLastTask());
-  // New delay should be 200ms since repeat delay was 300ms but task took 100ms.
-  EXPECT_EQ(task_queue.last_delay(), 200u);
-=======
   EXPECT_EQ(task_queue.last_delay(), TimeDelta::Zero());
   // Task should be retained by the handler since it is not cancelled.
   EXPECT_FALSE(task_queue.AdvanceTimeAndRunLastTask());
   // New delay should be 200ms since repeat delay was 300ms but task took 100ms.
   EXPECT_EQ(task_queue.last_delay(), TimeDelta::Millis(200));
->>>>>>> m108
 }
 
 TEST(RepeatingTaskTest, CancelDelayedTaskBeforeItRuns) {
@@ -337,11 +251,7 @@ TEST(RepeatingTaskTest, TaskCanStopItself) {
     handle.Stop();
     return TimeDelta::Millis(2);
   });
-<<<<<<< HEAD
-  EXPECT_EQ(task_queue.last_delay(), 0u);
-=======
   EXPECT_EQ(task_queue.last_delay(), TimeDelta::Zero());
->>>>>>> m108
   // Task cancelled itself so wants to be released.
   EXPECT_TRUE(task_queue.AdvanceTimeAndRunLastTask());
   EXPECT_EQ(counter.load(), 1);
@@ -355,11 +265,7 @@ TEST(RepeatingTaskTest, TaskCanStopItselfByReturningInfinity) {
     ++counter;
     return TimeDelta::PlusInfinity();
   });
-<<<<<<< HEAD
-  EXPECT_EQ(task_queue.last_delay(), 0u);
-=======
   EXPECT_EQ(task_queue.last_delay(), TimeDelta::Zero());
->>>>>>> m108
   // Task cancelled itself so wants to be released.
   EXPECT_TRUE(task_queue.AdvanceTimeAndRunLastTask());
   EXPECT_EQ(counter.load(), 1);

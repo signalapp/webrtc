@@ -15,10 +15,6 @@ rtc_library("dcsctp_fuzzers") {
     "../../../api/task_queue:task_queue",
     "../../../rtc_base:checks",
     "../../../rtc_base:logging",
-<<<<<<< HEAD
-    "../../../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
     "../common:math",
     "../packet:chunk",
     "../packet:error_cause",
@@ -43,10 +39,6 @@ if (rtc_include_tests) {
       "../../../rtc_base:checks",
       "../../../rtc_base:gunit_helpers",
       "../../../rtc_base:logging",
-<<<<<<< HEAD
-      "../../../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
       "../../../test:test_support",
       "../packet:sctp_packet",
       "../public:socket",

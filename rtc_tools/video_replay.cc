@@ -278,56 +278,6 @@ class DecoderIvfFileWriter : public test::FakeDecoder {
   VideoCodecType video_codec_type_;
 };
 
-<<<<<<< HEAD
-// The RtpReplayer is responsible for parsing the configuration provided by the
-// user, setting up the windows, receive streams and decoders and then replaying
-// the provided RTP dump.
-class RtpReplayer final {
- public:
-  // Replay a rtp dump with an optional json configuration.
-  static void Replay(const std::string& replay_config_path,
-                     const std::string& rtp_dump_path) {
-    std::unique_ptr<webrtc::TaskQueueFactory> task_queue_factory =
-        webrtc::CreateDefaultTaskQueueFactory();
-    auto worker_thread = task_queue_factory->CreateTaskQueue(
-        "worker_thread", TaskQueueFactory::Priority::NORMAL);
-    rtc::Event sync_event(/*manual_reset=*/false,
-                          /*initially_signalled=*/false);
-    webrtc::RtcEventLogNull event_log;
-    Call::Config call_config(&event_log);
-    call_config.task_queue_factory = task_queue_factory.get();
-    call_config.trials = new FieldTrialBasedConfig();
-    std::unique_ptr<Call> call;
-    std::unique_ptr<StreamState> stream_state;
-
-    // Creation of the streams must happen inside a task queue because it is
-    // resued as a worker thread.
-    worker_thread->PostTask(ToQueuedTask([&]() {
-      call.reset(Call::Create(call_config));
-
-      // Attempt to load the configuration
-      if (replay_config_path.empty()) {
-        stream_state = ConfigureFromFlags(rtp_dump_path, call.get());
-      } else {
-        stream_state = ConfigureFromFile(replay_config_path, call.get());
-      }
-
-      if (stream_state == nullptr) {
-        return;
-      }
-      // Start replaying the provided stream now that it has been configured.
-      // VideoReceiveStreams must be started on the same thread as they were
-      // created on.
-      for (const auto& receive_stream : stream_state->receive_streams) {
-        receive_stream->Start();
-      }
-      sync_event.Set();
-    }));
-
-    // Attempt to create an RtpReader from the input file.
-    std::unique_ptr<test::RtpFileReader> rtp_reader =
-        CreateRtpReader(rtp_dump_path);
-=======
 // Holds all the shared memory structures required for a receive stream. This
 // structure is used to prevent members being deallocated before the replay
 // has been finished.
@@ -338,7 +288,6 @@ struct StreamState {
   std::vector<FlexfecReceiveStream*> flexfec_streams;
   std::unique_ptr<VideoDecoderFactory> decoder_factory;
 };
->>>>>>> m108
 
 // Loads multiple configurations from the provided configuration file.
 std::unique_ptr<StreamState> ConfigureFromFile(const std::string& config_path,
@@ -487,44 +436,10 @@ std::unique_ptr<StreamState> ConfigureFromFlags(
   receive_config.decoder_factory = stream_state->decoder_factory.get();
   receive_config.decoders.push_back(decoder);
 
-<<<<<<< HEAD
- private:
-  // Holds all the shared memory structures required for a receive stream. This
-  // structure is used to prevent members being deallocated before the replay
-  // has been finished.
-  struct StreamState {
-    test::NullTransport transport;
-    std::vector<std::unique_ptr<rtc::VideoSinkInterface<VideoFrame>>> sinks;
-    std::vector<VideoReceiveStream*> receive_streams;
-    std::unique_ptr<VideoDecoderFactory> decoder_factory;
-  };
-
-  // Loads multiple configurations from the provided configuration file.
-  static std::unique_ptr<StreamState> ConfigureFromFile(
-      const std::string& config_path,
-      Call* call) {
-    auto stream_state = std::make_unique<StreamState>();
-    // Parse the configuration file.
-    std::ifstream config_file(config_path);
-    std::stringstream raw_json_buffer;
-    raw_json_buffer << config_file.rdbuf();
-    std::string raw_json = raw_json_buffer.str();
-    Json::CharReaderBuilder builder;
-    Json::Value json_configs;
-    std::string error_message;
-    std::unique_ptr<Json::CharReader> json_reader(builder.newCharReader());
-    if (!json_reader->parse(raw_json.data(), raw_json.data() + raw_json.size(),
-                            &json_configs, &error_message)) {
-      fprintf(stderr, "Error parsing JSON config\n");
-      fprintf(stderr, "%s\n", error_message.c_str());
-      return nullptr;
-    }
-=======
   stream_state->receive_streams.emplace_back(
       call->CreateVideoReceiveStream(std::move(receive_config)));
   return stream_state;
 }
->>>>>>> m108
 
 std::unique_ptr<test::RtpFileReader> CreateRtpReader(
     const std::string& rtp_dump_path) {

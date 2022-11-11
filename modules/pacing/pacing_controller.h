@@ -82,12 +82,7 @@ class PacingController {
 
   PacingController(Clock* clock,
                    PacketSender* packet_sender,
-<<<<<<< HEAD
-                   const FieldTrialsView& field_trials,
-                   ProcessMode mode);
-=======
                    const FieldTrialsView& field_trials);
->>>>>>> m108
 
   ~PacingController();
 
@@ -108,11 +103,7 @@ class PacingController {
 
   // Sets the pacing rates. Must be called once before packets can be sent.
   void SetPacingRates(DataRate pacing_rate, DataRate padding_rate);
-<<<<<<< HEAD
-  DataRate pacing_rate() const { return pacing_bitrate_; }
-=======
   DataRate pacing_rate() const { return adjusted_media_rate_; }
->>>>>>> m108
 
   // Currently audio traffic is not accounted by pacer and passed through.
   // With the introduction of audio BWE audio traffic will be accounted for
@@ -184,10 +175,7 @@ class PacingController {
   void OnPacketSent(RtpPacketMediaType packet_type,
                     DataSize packet_size,
                     Timestamp send_time);
-<<<<<<< HEAD
-=======
   void MaybeUpdateMediaRateDueToLongQueue(Timestamp now);
->>>>>>> m108
 
   Timestamp CurrentTime() const;
 
@@ -216,23 +204,7 @@ class PacingController {
   mutable Timestamp last_timestamp_;
   bool paused_;
 
-<<<<<<< HEAD
-  // In periodic mode, `media_budget_` and `padding_budget_` will be used to
-  // track when packets can be sent.
-  // In dynamic mode, `media_debt_` and `padding_debt_` will be used together
-  // with the target rates.
-
-  // This is the media budget, keeping track of how many bits of media
-  // we can pace out during the current interval.
-  IntervalBudget media_budget_;
-  // This is the padding budget, keeping track of how many bits of padding we're
-  // allowed to send out during the current interval. This budget will be
-  // utilized when there's no media to send.
-  IntervalBudget padding_budget_;
-
-=======
   // Amount of outstanding data for media and padding.
->>>>>>> m108
   DataSize media_debt_;
   DataSize padding_debt_;
 

@@ -18,10 +18,6 @@
 #include "api/field_trials_view.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/task_queue_base.h"
-<<<<<<< HEAD
-#include "api/video/video_stream_encoder_observer.h"
-=======
->>>>>>> m108
 #include "rtc_base/experiments/field_trial_parser.h"
 #include "rtc_base/numerics/exp_filter.h"
 #include "rtc_base/system/no_unique_address.h"

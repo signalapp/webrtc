@@ -11,11 +11,8 @@
 
 #include <algorithm>
 #include <iterator>
-<<<<<<< HEAD
-=======
 #include <ostream>
 #include <string>
->>>>>>> m108
 
 #include "api/units/timestamp.h"
 #include "rtc_base/checks.h"

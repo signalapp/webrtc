@@ -233,13 +233,6 @@ class ChannelSend : public ChannelSendInterface,
   rtc::scoped_refptr<ChannelSendFrameTransformerDelegate>
       frame_transformer_delegate_ RTC_GUARDED_BY(encoder_queue_);
 
-<<<<<<< HEAD
-  // Defined last to ensure that there are no running tasks when the other
-  // members are destroyed.
-  rtc::TaskQueue encoder_queue_;
-
-=======
->>>>>>> m108
   const bool fixing_timestamp_stall_;
 
   mutable Mutex rtcp_counter_mutex_;
@@ -481,13 +474,7 @@ ChannelSend::ChannelSend(
           field_trials.IsDisabled("WebRTC-Audio-FixTimestampStall")),
       encoder_queue_(task_queue_factory->CreateTaskQueue(
           "AudioEncoder",
-<<<<<<< HEAD
-          TaskQueueFactory::Priority::NORMAL)),
-      fixing_timestamp_stall_(
-          field_trials.IsDisabled("WebRTC-Audio-FixTimestampStall")) {
-=======
           TaskQueueFactory::Priority::NORMAL)) {
->>>>>>> m108
   audio_coding_.reset(AudioCodingModule::Create(AudioCodingModule::Config()));
 
   RtpRtcpInterface::Configuration configuration;

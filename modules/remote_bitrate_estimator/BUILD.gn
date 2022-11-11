@@ -57,13 +57,9 @@ rtc_library("remote_bitrate_estimator") {
     "../../rtc_base:checks",
     "../../rtc_base:logging",
     "../../rtc_base:macromagic",
-<<<<<<< HEAD
-    "../../rtc_base:rtc_base_approved",
-=======
     "../../rtc_base:platform_thread",
     "../../rtc_base:race_checker",
     "../../rtc_base:rate_statistics",
->>>>>>> m108
     "../../rtc_base:rtc_numerics",
     "../../rtc_base:safe_minmax",
     "../../rtc_base:stringutils",
@@ -131,12 +127,9 @@ if (rtc_include_tests) {
       "../../api/transport:mock_network_control",
       "../../api/transport:network_control",
       "../../api/units:data_rate",
-<<<<<<< HEAD
-=======
       "../../api/units:data_size",
       "../../api/units:time_delta",
       "../../api/units:timestamp",
->>>>>>> m108
       "../../rtc_base",
       "../../rtc_base:checks",
       "../../rtc_base:random",

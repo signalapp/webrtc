@@ -15,22 +15,15 @@
 
 #include <string>
 
-<<<<<<< HEAD
-=======
 #include "absl/strings/string_view.h"
 
->>>>>>> m108
 namespace webrtc {
 namespace test {
 
 // Class for handling a looping input audio file.
 class InputAudioFile {
  public:
-<<<<<<< HEAD
-  explicit InputAudioFile(std::string file_name, bool loop_at_end = true);
-=======
   explicit InputAudioFile(absl::string_view file_name, bool loop_at_end = true);
->>>>>>> m108
 
   virtual ~InputAudioFile();
 

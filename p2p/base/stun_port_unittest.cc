@@ -22,11 +22,8 @@
 #include "rtc_base/virtual_socket_server.h"
 #include "test/gmock.h"
 #include "test/scoped_key_value_config.h"
-<<<<<<< HEAD
-=======
 
 namespace {
->>>>>>> m108
 
 using cricket::ServerAddresses;
 using rtc::SocketAddress;
@@ -102,11 +99,7 @@ class StunPortTestBase : public ::testing::Test, public sigslot::has_slots<> {
   StunPortTestBase(rtc::Network network, const rtc::IPAddress address)
       : ss_(new rtc::VirtualSocketServer()),
         thread_(ss_.get()),
-<<<<<<< HEAD
-        network_("unittest", "unittest", kLocalAddr.ipaddr(), 32),
-=======
         network_(network),
->>>>>>> m108
         socket_factory_(ss_.get()),
         stun_server_1_(cricket::TestStunServer::Create(ss_.get(), kStunAddr1)),
         stun_server_2_(cricket::TestStunServer::Create(ss_.get(), kStunAddr2)),
@@ -147,11 +140,7 @@ class StunPortTestBase : public ::testing::Test, public sigslot::has_slots<> {
     stun_port_ = cricket::StunPort::Create(
         rtc::Thread::Current(), socket_factory(), &network_, 0, 0,
         rtc::CreateRandomString(16), rtc::CreateRandomString(22), stun_servers,
-<<<<<<< HEAD
-        absl::nullopt, &field_trials_);
-=======
         absl::nullopt, field_trials);
->>>>>>> m108
     stun_port_->set_stun_keepalive_delay(stun_keepalive_delay_);
     // If `stun_keepalive_lifetime_` is negative, let the stun port
     // choose its lifetime from the network type.
@@ -178,15 +167,9 @@ class StunPortTestBase : public ::testing::Test, public sigslot::has_slots<> {
     ASSERT_TRUE(socket_ != NULL);
     socket_->SignalReadPacket.connect(this, &StunPortTestBase::OnReadPacket);
     stun_port_ = cricket::UDPPort::Create(
-<<<<<<< HEAD
-        rtc::Thread::Current(), &socket_factory_, &network_, socket_.get(),
-        rtc::CreateRandomString(16), rtc::CreateRandomString(22), false,
-        absl::nullopt, &field_trials_);
-=======
         rtc::Thread::Current(), socket_factory(), &network_, socket_.get(),
         rtc::CreateRandomString(16), rtc::CreateRandomString(22), false,
         absl::nullopt, field_trials);
->>>>>>> m108
     ASSERT_TRUE(stun_port_ != NULL);
     ServerAddresses stun_servers;
     stun_servers.insert(server_addr);
@@ -257,7 +240,6 @@ class StunPortTestBase : public ::testing::Test, public sigslot::has_slots<> {
 
  protected:
   cricket::IceCandidateErrorEvent error_event_;
-  webrtc::test::ScopedKeyValueConfig field_trials_;
 };
 
 class StunPortTestWithRealClock : public StunPortTestBase {};
@@ -494,14 +476,8 @@ TEST_F(StunPortTest, TestStunBindingRequestShortLifetime) {
   CreateStunPort(kStunAddr1);
   PrepareAddress();
   EXPECT_TRUE_SIMULATED_WAIT(done(), kTimeoutMs, fake_clock);
-<<<<<<< HEAD
-  EXPECT_TRUE_SIMULATED_WAIT(
-      !port()->HasPendingRequestForTest(cricket::STUN_BINDING_REQUEST), 2000,
-      fake_clock);
-=======
   EXPECT_TRUE_SIMULATED_WAIT(!HasPendingRequest(cricket::STUN_BINDING_REQUEST),
                              2000, fake_clock);
->>>>>>> m108
 }
 
 // Test that by default, the STUN binding requests will last for a long time.
@@ -510,14 +486,8 @@ TEST_F(StunPortTest, TestStunBindingRequestLongLifetime) {
   CreateStunPort(kStunAddr1);
   PrepareAddress();
   EXPECT_TRUE_SIMULATED_WAIT(done(), kTimeoutMs, fake_clock);
-<<<<<<< HEAD
-  EXPECT_TRUE_SIMULATED_WAIT(
-      port()->HasPendingRequestForTest(cricket::STUN_BINDING_REQUEST), 1000,
-      fake_clock);
-=======
   EXPECT_TRUE_SIMULATED_WAIT(HasPendingRequest(cricket::STUN_BINDING_REQUEST),
                              1000, fake_clock);
->>>>>>> m108
 }
 
 class MockAsyncPacketSocket : public rtc::AsyncPacketSocket {

@@ -54,10 +54,6 @@ rtc_library("rtc_event_field") {
     "../rtc_base:bitstream_reader",
     "../rtc_base:checks",
     "../rtc_base:logging",
-<<<<<<< HEAD
-    "../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
   ]
   absl_deps = [
     "//third_party/abseil-cpp/absl/strings",
@@ -273,18 +269,11 @@ rtc_library("rtc_event_number_encodings") {
   defines = []
 
   deps = [
-<<<<<<< HEAD
-=======
     "../rtc_base:bit_buffer",
->>>>>>> m108
     "../rtc_base:bitstream_reader",
     "../rtc_base:checks",
     "../rtc_base:ignore_wundef",
     "../rtc_base:macromagic",
-<<<<<<< HEAD
-    "../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
   ]
   absl_deps = [
     "//third_party/abseil-cpp/absl/memory",
@@ -316,10 +305,6 @@ rtc_library("rtc_event_log_impl_encoder") {
     "../rtc_base:checks",
     "../rtc_base:ignore_wundef",
     "../rtc_base:logging",
-<<<<<<< HEAD
-    "../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
     "../rtc_base:safe_conversions",
   ]
   absl_deps = [
@@ -386,10 +371,6 @@ if (rtc_enable_protobuf) {
       "../rtc_base:checks",
       "../rtc_base:logging",
       "../rtc_base:macromagic",
-<<<<<<< HEAD
-      "../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
       "../rtc_base:rtc_event",
       "../rtc_base:rtc_task_queue",
       "../rtc_base:safe_conversions",
@@ -538,11 +519,7 @@ if (rtc_enable_protobuf) {
         "../rtc_base:buffer",
         "../rtc_base:checks",
         "../rtc_base:macromagic",
-<<<<<<< HEAD
-        "../rtc_base:rtc_base_approved",
-=======
         "../rtc_base:random",
->>>>>>> m108
         "../rtc_base:rtc_base_tests_utils",
         "../rtc_base:timeutils",
         "../system_wrappers",
@@ -600,10 +577,7 @@ rtc_library("ice_log") {
 
   deps = [
     ":rtc_event_field",
-<<<<<<< HEAD
-=======
     "../api:dtls_transport_interface",
->>>>>>> m108
     "../api:libjingle_logging_api",
     "../api/rtc_event_log",
     "../api/units:timestamp",

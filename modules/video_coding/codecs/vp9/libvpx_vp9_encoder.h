@@ -14,10 +14,7 @@
 
 #ifdef RTC_ENABLE_VP9
 
-<<<<<<< HEAD
-=======
 #include <array>
->>>>>>> m108
 #include <memory>
 #include <vector>
 
@@ -71,24 +68,15 @@ class LibvpxVp9Encoder : public VP9Encoder {
 
   bool PopulateCodecSpecific(CodecSpecificInfo* codec_specific,
                              absl::optional<int>* spatial_idx,
-<<<<<<< HEAD
-=======
                              absl::optional<int>* temporal_idx,
->>>>>>> m108
                              const vpx_codec_cx_pkt& pkt);
   void FillReferenceIndices(const vpx_codec_cx_pkt& pkt,
                             size_t pic_num,
                             bool inter_layer_predicted,
                             CodecSpecificInfoVP9* vp9_info);
   void UpdateReferenceBuffers(const vpx_codec_cx_pkt& pkt, size_t pic_num);
-<<<<<<< HEAD
-  vpx_svc_ref_frame_config_t SetReferences(
-      bool is_key_pic,
-      size_t first_active_spatial_layer_id);
-=======
   vpx_svc_ref_frame_config_t SetReferences(bool is_key_pic,
                                            int first_active_spatial_layer_id);
->>>>>>> m108
 
   bool ExplicitlyConfiguredSpatialLayers() const;
   bool SetSvcRates(const VideoBitrateAllocation& bitrate_allocation);
@@ -177,11 +165,7 @@ class LibvpxVp9Encoder : public VP9Encoder {
     int spatial_layer_id = 0;
     int temporal_layer_id = 0;
   };
-<<<<<<< HEAD
-  flat_map<size_t, RefFrameBuffer> ref_buf_;
-=======
   std::array<RefFrameBuffer, kNumVp9Buffers> ref_buf_;
->>>>>>> m108
   std::vector<ScalableVideoController::LayerFrameConfig> layer_frames_;
 
   // Variable frame-rate related fields and methods.

@@ -67,12 +67,6 @@
 #include "api/scoped_refptr.h"
 #include "api/task_queue/task_queue_base.h"
 #include "rtc_base/event.h"
-<<<<<<< HEAD
-#include "rtc_base/location.h"
-#include "rtc_base/message_handler.h"
-#include "rtc_base/ref_counted_object.h"
-=======
->>>>>>> m108
 #include "rtc_base/string_utils.h"
 #include "rtc_base/system/rtc_export.h"
 #include "rtc_base/thread.h"
@@ -247,11 +241,7 @@ class ConstMethodCall {
   ~class_name##ProxyWithInternal() {                            \
     MethodCall<class_name##ProxyWithInternal, void> call(       \
         this, &class_name##ProxyWithInternal::DestroyInternal); \
-<<<<<<< HEAD
-    call.Marshal(RTC_FROM_HERE, destructor_thread());           \
-=======
     call.Marshal(destructor_thread());                          \
->>>>>>> m108
   }                                                             \
                                                                 \
  private:                                                       \
@@ -270,11 +260,7 @@ class ConstMethodCall {
   ~class_name##ProxyWithInternal() {                            \
     MethodCall<class_name##ProxyWithInternal, void> call(       \
         this, &class_name##ProxyWithInternal::DestroyInternal); \
-<<<<<<< HEAD
-    call.Marshal(RTC_FROM_HERE, destructor_thread());           \
-=======
     call.Marshal(destructor_thread());                          \
->>>>>>> m108
   }                                                             \
                                                                 \
  private:                                                       \
@@ -332,20 +318,6 @@ class ConstMethodCall {
 
 #endif  // if defined(RTC_DISABLE_PROXY_TRACE_EVENTS)
 
-<<<<<<< HEAD
-#define PROXY_METHOD0(r, method)                         \
-  r method() override {                                  \
-    TRACE_BOILERPLATE(method);                           \
-    MethodCall<C, r> call(c(), &C::method);              \
-    return call.Marshal(RTC_FROM_HERE, primary_thread_); \
-  }
-
-#define PROXY_CONSTMETHOD0(r, method)                    \
-  r method() const override {                            \
-    TRACE_BOILERPLATE(method);                           \
-    ConstMethodCall<C, r> call(c(), &C::method);         \
-    return call.Marshal(RTC_FROM_HERE, primary_thread_); \
-=======
 #define PROXY_METHOD0(r, method)            \
   r method() override {                     \
     TRACE_BOILERPLATE(method);              \
@@ -358,29 +330,20 @@ class ConstMethodCall {
     TRACE_BOILERPLATE(method);                   \
     ConstMethodCall<C, r> call(c(), &C::method); \
     return call.Marshal(primary_thread_);        \
->>>>>>> m108
   }
 
 #define PROXY_METHOD1(r, method, t1)                           \
   r method(t1 a1) override {                                   \
     TRACE_BOILERPLATE(method);                                 \
     MethodCall<C, r, t1> call(c(), &C::method, std::move(a1)); \
-<<<<<<< HEAD
-    return call.Marshal(RTC_FROM_HERE, primary_thread_);       \
-=======
     return call.Marshal(primary_thread_);                      \
->>>>>>> m108
   }
 
 #define PROXY_CONSTMETHOD1(r, method, t1)                           \
   r method(t1 a1) const override {                                  \
     TRACE_BOILERPLATE(method);                                      \
     ConstMethodCall<C, r, t1> call(c(), &C::method, std::move(a1)); \
-<<<<<<< HEAD
-    return call.Marshal(RTC_FROM_HERE, primary_thread_);            \
-=======
     return call.Marshal(primary_thread_);                           \
->>>>>>> m108
   }
 
 #define PROXY_METHOD2(r, method, t1, t2)                          \
@@ -388,11 +351,7 @@ class ConstMethodCall {
     TRACE_BOILERPLATE(method);                                    \
     MethodCall<C, r, t1, t2> call(c(), &C::method, std::move(a1), \
                                   std::move(a2));                 \
-<<<<<<< HEAD
-    return call.Marshal(RTC_FROM_HERE, primary_thread_);          \
-=======
     return call.Marshal(primary_thread_);                         \
->>>>>>> m108
   }
 
 #define PROXY_METHOD3(r, method, t1, t2, t3)                          \
@@ -400,11 +359,7 @@ class ConstMethodCall {
     TRACE_BOILERPLATE(method);                                        \
     MethodCall<C, r, t1, t2, t3> call(c(), &C::method, std::move(a1), \
                                       std::move(a2), std::move(a3));  \
-<<<<<<< HEAD
-    return call.Marshal(RTC_FROM_HERE, primary_thread_);              \
-=======
     return call.Marshal(primary_thread_);                             \
->>>>>>> m108
   }
 
 #define PROXY_METHOD4(r, method, t1, t2, t3, t4)                          \
@@ -413,11 +368,7 @@ class ConstMethodCall {
     MethodCall<C, r, t1, t2, t3, t4> call(c(), &C::method, std::move(a1), \
                                           std::move(a2), std::move(a3),   \
                                           std::move(a4));                 \
-<<<<<<< HEAD
-    return call.Marshal(RTC_FROM_HERE, primary_thread_);                  \
-=======
     return call.Marshal(primary_thread_);                                 \
->>>>>>> m108
   }
 
 #define PROXY_METHOD5(r, method, t1, t2, t3, t4, t5)                          \
@@ -426,24 +377,6 @@ class ConstMethodCall {
     MethodCall<C, r, t1, t2, t3, t4, t5> call(c(), &C::method, std::move(a1), \
                                               std::move(a2), std::move(a3),   \
                                               std::move(a4), std::move(a5));  \
-<<<<<<< HEAD
-    return call.Marshal(RTC_FROM_HERE, primary_thread_);                      \
-  }
-
-// Define methods which should be invoked on the secondary thread.
-#define PROXY_SECONDARY_METHOD0(r, method)                 \
-  r method() override {                                    \
-    TRACE_BOILERPLATE(method);                             \
-    MethodCall<C, r> call(c(), &C::method);                \
-    return call.Marshal(RTC_FROM_HERE, secondary_thread_); \
-  }
-
-#define PROXY_SECONDARY_CONSTMETHOD0(r, method)            \
-  r method() const override {                              \
-    TRACE_BOILERPLATE(method);                             \
-    ConstMethodCall<C, r> call(c(), &C::method);           \
-    return call.Marshal(RTC_FROM_HERE, secondary_thread_); \
-=======
     return call.Marshal(primary_thread_);                                     \
   }
 
@@ -460,29 +393,20 @@ class ConstMethodCall {
     TRACE_BOILERPLATE(method);                   \
     ConstMethodCall<C, r> call(c(), &C::method); \
     return call.Marshal(secondary_thread_);      \
->>>>>>> m108
   }
 
 #define PROXY_SECONDARY_METHOD1(r, method, t1)                 \
   r method(t1 a1) override {                                   \
     TRACE_BOILERPLATE(method);                                 \
     MethodCall<C, r, t1> call(c(), &C::method, std::move(a1)); \
-<<<<<<< HEAD
-    return call.Marshal(RTC_FROM_HERE, secondary_thread_);     \
-=======
     return call.Marshal(secondary_thread_);                    \
->>>>>>> m108
   }
 
 #define PROXY_SECONDARY_CONSTMETHOD1(r, method, t1)                 \
   r method(t1 a1) const override {                                  \
     TRACE_BOILERPLATE(method);                                      \
     ConstMethodCall<C, r, t1> call(c(), &C::method, std::move(a1)); \
-<<<<<<< HEAD
-    return call.Marshal(RTC_FROM_HERE, secondary_thread_);          \
-=======
     return call.Marshal(secondary_thread_);                         \
->>>>>>> m108
   }
 
 #define PROXY_SECONDARY_METHOD2(r, method, t1, t2)                \
@@ -490,11 +414,7 @@ class ConstMethodCall {
     TRACE_BOILERPLATE(method);                                    \
     MethodCall<C, r, t1, t2> call(c(), &C::method, std::move(a1), \
                                   std::move(a2));                 \
-<<<<<<< HEAD
-    return call.Marshal(RTC_FROM_HERE, secondary_thread_);        \
-=======
     return call.Marshal(secondary_thread_);                       \
->>>>>>> m108
   }
 
 #define PROXY_SECONDARY_CONSTMETHOD2(r, method, t1, t2)                \
@@ -502,11 +422,7 @@ class ConstMethodCall {
     TRACE_BOILERPLATE(method);                                         \
     ConstMethodCall<C, r, t1, t2> call(c(), &C::method, std::move(a1), \
                                        std::move(a2));                 \
-<<<<<<< HEAD
-    return call.Marshal(RTC_FROM_HERE, secondary_thread_);             \
-=======
     return call.Marshal(secondary_thread_);                            \
->>>>>>> m108
   }
 
 #define PROXY_SECONDARY_METHOD3(r, method, t1, t2, t3)                \
@@ -514,11 +430,7 @@ class ConstMethodCall {
     TRACE_BOILERPLATE(method);                                        \
     MethodCall<C, r, t1, t2, t3> call(c(), &C::method, std::move(a1), \
                                       std::move(a2), std::move(a3));  \
-<<<<<<< HEAD
-    return call.Marshal(RTC_FROM_HERE, secondary_thread_);            \
-=======
     return call.Marshal(secondary_thread_);                           \
->>>>>>> m108
   }
 
 #define PROXY_SECONDARY_CONSTMETHOD3(r, method, t1, t2)                    \
@@ -526,11 +438,7 @@ class ConstMethodCall {
     TRACE_BOILERPLATE(method);                                             \
     ConstMethodCall<C, r, t1, t2, t3> call(c(), &C::method, std::move(a1), \
                                            std::move(a2), std::move(a3));  \
-<<<<<<< HEAD
-    return call.Marshal(RTC_FROM_HERE, secondary_thread_);                 \
-=======
     return call.Marshal(secondary_thread_);                                \
->>>>>>> m108
   }
 
 // For use when returning purely const state (set during construction).

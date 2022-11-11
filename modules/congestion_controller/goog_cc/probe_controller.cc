@@ -230,11 +230,7 @@ std::vector<ProbeClusterConfig> ProbeController::OnMaxTotalAllocatedBitrate(
       if (second_probe_rate > first_probe_rate)
         probes.push_back(second_probe_rate);
     }
-<<<<<<< HEAD
-    return InitiateProbing(at_time_ms, probes,
-=======
     return InitiateProbing(at_time, probes,
->>>>>>> m108
                            config_.allocation_allow_further_probing.Get());
   }
   max_total_allocated_bitrate_ = max_total_allocated_bitrate;

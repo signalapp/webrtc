@@ -100,15 +100,9 @@ class ScalabilityStructureTest : public TestWithParam<SvcTestParam> {};
 TEST_P(ScalabilityStructureTest,
        StaticConfigMatchesConfigReturnedByController) {
   std::unique_ptr<ScalableVideoController> controller =
-<<<<<<< HEAD
-      CreateScalabilityStructure(GetParam().name);
-  absl::optional<ScalableVideoController::StreamLayersConfig> static_config =
-      ScalabilityStructureConfig(GetParam().name);
-=======
       CreateScalabilityStructure(GetParam().GetScalabilityMode());
   absl::optional<ScalableVideoController::StreamLayersConfig> static_config =
       ScalabilityStructureConfig(GetParam().GetScalabilityMode());
->>>>>>> m108
   ASSERT_THAT(controller, NotNull());
   ASSERT_NE(static_config, absl::nullopt);
   ScalableVideoController::StreamLayersConfig config =

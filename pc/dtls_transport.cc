@@ -19,10 +19,6 @@
 #include "pc/ice_transport.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
-<<<<<<< HEAD
-#include "rtc_base/ref_counted_object.h"
-=======
->>>>>>> m108
 #include "rtc_base/ssl_stream_adapter.h"
 
 namespace webrtc {

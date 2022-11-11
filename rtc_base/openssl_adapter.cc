@@ -271,11 +271,7 @@ void OpenSSLAdapter::SetRole(SSLRole role) {
   role_ = role;
 }
 
-<<<<<<< HEAD
-int OpenSSLAdapter::StartSSL(const char* hostname) {
-=======
 int OpenSSLAdapter::StartSSL(absl::string_view hostname) {
->>>>>>> m108
   if (state_ != SSL_NONE)
     return -1;
 

@@ -26,10 +26,7 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/strings/ascii.h"
-<<<<<<< HEAD
-=======
 #include "absl/strings/match.h"
->>>>>>> m108
 #include "api/candidate.h"
 #include "api/crypto_params.h"
 #include "api/jsep_ice_candidate.h"

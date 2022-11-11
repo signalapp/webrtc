@@ -113,11 +113,7 @@ void ResourceAdaptationProcessor::AddResource(
         << "Resource \"" << resource->Name() << "\" was already registered.";
     resources_.push_back(resource);
   }
-<<<<<<< HEAD
-  resource->SetResourceListener(resource_listener_delegate_);
-=======
   resource->SetResourceListener(resource_listener_delegate_.get());
->>>>>>> m108
   RTC_LOG(LS_INFO) << "Registered resource \"" << resource->Name() << "\".";
 }
 

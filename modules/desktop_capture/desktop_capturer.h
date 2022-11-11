@@ -19,12 +19,9 @@
 #include <type_traits>
 #include <vector>
 
-<<<<<<< HEAD
-=======
 // TODO(alcooper): Update include usage in downstream consumers and then change
 // this to a forward declaration.
 #include "modules/desktop_capture/delegated_source_list_controller.h"
->>>>>>> m108
 #if defined(WEBRTC_USE_GIO)
 #include "modules/desktop_capture/desktop_capture_metadata.h"
 #endif  // defined(WEBRTC_USE_GIO)

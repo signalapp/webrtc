@@ -23,7 +23,6 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/helpers.h"
 #include "rtc_base/logging.h"
-#include "rtc_base/ref_counted_object.h"
 
 namespace webrtc {
 
@@ -266,11 +265,7 @@ RtpTransmissionManager::CreateAndAddTransceiver(
   auto transceiver = RtpTransceiverProxyWithInternal<RtpTransceiver>::Create(
       signaling_thread(),
       rtc::make_ref_counted<RtpTransceiver>(
-<<<<<<< HEAD
-          sender, receiver, channel_manager(),
-=======
           sender, receiver, context_,
->>>>>>> m108
           sender->media_type() == cricket::MEDIA_TYPE_AUDIO
               ? media_engine()->voice().GetRtpHeaderExtensions()
               : media_engine()->video().GetRtpHeaderExtensions(),

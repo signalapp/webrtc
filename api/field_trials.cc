@@ -63,12 +63,8 @@ std::atomic<bool> instance_created_{false};
 namespace webrtc {
 
 FieldTrials::FieldTrials(const std::string& s)
-<<<<<<< HEAD
-    : field_trial_string_(s),
-=======
     : uses_global_(true),
       field_trial_string_(s),
->>>>>>> m108
       previous_field_trial_string_(webrtc::field_trial::GetFieldTrialString()),
       key_value_map_(InsertIntoMap(s)) {
   // TODO(bugs.webrtc.org/10335): Remove the global string!
@@ -77,12 +73,6 @@ FieldTrials::FieldTrials(const std::string& s)
       << "Only one instance may be instanciated at any given time!";
 }
 
-<<<<<<< HEAD
-FieldTrials::~FieldTrials() {
-  // TODO(bugs.webrtc.org/10335): Remove the global string!
-  field_trial::InitFieldTrialsFromString(previous_field_trial_string_);
-  RTC_CHECK(instance_created_.exchange(false));
-=======
 std::unique_ptr<FieldTrials> FieldTrials::CreateNoGlobal(const std::string& s) {
   return std::unique_ptr<FieldTrials>(new FieldTrials(s, true));
 }
@@ -98,7 +88,6 @@ FieldTrials::~FieldTrials() {
     field_trial::InitFieldTrialsFromString(previous_field_trial_string_);
     RTC_CHECK(instance_created_.exchange(false));
   }
->>>>>>> m108
 }
 
 std::string FieldTrials::Lookup(absl::string_view key) const {
@@ -109,14 +98,10 @@ std::string FieldTrials::Lookup(absl::string_view key) const {
   // Check the global string so that programs using
   // a mix between FieldTrials and the global string continue to work
   // TODO(bugs.webrtc.org/10335): Remove the global string!
-<<<<<<< HEAD
-  return field_trial::FindFullName(std::string(key));
-=======
   if (uses_global_) {
     return field_trial::FindFullName(std::string(key));
   }
   return "";
->>>>>>> m108
 }
 
 }  // namespace webrtc

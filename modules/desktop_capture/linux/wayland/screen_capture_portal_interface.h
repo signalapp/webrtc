@@ -11,8 +11,6 @@
 #ifndef MODULES_DESKTOP_CAPTURE_LINUX_WAYLAND_SCREEN_CAPTURE_PORTAL_INTERFACE_H_
 #define MODULES_DESKTOP_CAPTURE_LINUX_WAYLAND_SCREEN_CAPTURE_PORTAL_INTERFACE_H_
 
-<<<<<<< HEAD
-=======
 #include <gio/gio.h>
 
 #include <string>
@@ -20,15 +18,11 @@
 #include "modules/desktop_capture/linux/wayland/portal_request_response.h"
 #include "modules/desktop_capture/linux/wayland/scoped_glib.h"
 #include "modules/desktop_capture/linux/wayland/xdg_desktop_portal_utils.h"
->>>>>>> m108
 #include "modules/desktop_capture/linux/wayland/xdg_session_details.h"
 
 namespace webrtc {
 namespace xdg_portal {
 
-<<<<<<< HEAD
-// An interface for XDG desktop portals that can capture desktop/screen.
-=======
 using SessionClosedSignalHandler = void (*)(GDBusConnection*,
                                             const char*,
                                             const char*,
@@ -41,16 +35,10 @@ using SessionClosedSignalHandler = void (*)(GDBusConnection*,
 // Note: downstream clients inherit from this class so it is advisable to
 // provide a default implementation of any new virtual methods that may be added
 // to this class.
->>>>>>> m108
 class ScreenCapturePortalInterface {
  public:
   virtual ~ScreenCapturePortalInterface() {}
   // Gets details about the session such as session handle.
-<<<<<<< HEAD
-  virtual xdg_portal::SessionDetails GetSessionDetails() = 0;
-  // Starts the portal setup.
-  virtual void Start() = 0;
-=======
   virtual xdg_portal::SessionDetails GetSessionDetails() { return {}; }
   // Starts the portal setup.
   virtual void Start() {}
@@ -80,7 +68,6 @@ class ScreenCapturePortalInterface {
       guint& session_closed_signal_id);
   // Handles the result of session start request.
   void OnStartRequestResult(GDBusProxy* proxy, GAsyncResult* result);
->>>>>>> m108
 };
 
 }  // namespace xdg_portal

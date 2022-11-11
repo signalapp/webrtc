@@ -70,11 +70,7 @@ if (rtc_enable_protobuf) {
       "../../../rtc_base:logging",
       "../../../rtc_base:macromagic",
       "../../../rtc_base:protobuf_utils",
-<<<<<<< HEAD
-      "../../../rtc_base:rtc_base_approved",
-=======
       "../../../rtc_base:race_checker",
->>>>>>> m108
       "../../../rtc_base:rtc_event",
       "../../../rtc_base:rtc_task_queue",
       "../../../rtc_base/system:file_wrapper",

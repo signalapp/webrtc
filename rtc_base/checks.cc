@@ -39,24 +39,6 @@
 
 namespace {
 
-<<<<<<< HEAD
-RTC_NORETURN void WriteFatalLogAndAbort(absl::string_view output) {
-#if defined(WEBRTC_ANDROID)
-  std::string output_str = std::string(output);
-  __android_log_print(ANDROID_LOG_ERROR, RTC_LOG_TAG_ANDROID, "%s\n",
-                      output_str.c_str());
-#endif
-  fflush(stdout);
-  fwrite(output.data(), output.size(), 1, stderr);
-  fflush(stderr);
-#if defined(WEBRTC_WIN)
-  DebugBreak();
-#endif
-  abort();
-}
-
-=======
->>>>>>> m108
 #if defined(__GNUC__)
 __attribute__((__format__(__printf__, 2, 3)))
 #endif

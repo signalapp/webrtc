@@ -137,11 +137,7 @@ class PeerConnectionRtpBaseTest : public ::testing::Test {
     auto result = pc_factory_->CreatePeerConnectionOrError(
         config, PeerConnectionDependencies(observer.get()));
     EXPECT_TRUE(result.ok());
-<<<<<<< HEAD
-    observer->SetPeerConnectionInterface(result.value());
-=======
     observer->SetPeerConnectionInterface(result.value().get());
->>>>>>> m108
     return std::make_unique<PeerConnectionWrapper>(
         pc_factory_, result.MoveValue(), std::move(observer));
   }

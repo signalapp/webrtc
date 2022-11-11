@@ -42,10 +42,6 @@ class RenderDelayControllerMetrics {
   int call_counter_ = 0;
   int initial_call_counter_ = 0;
   bool initial_update = true;
-<<<<<<< HEAD
-  int skew_shift_count_ = 0;
-=======
->>>>>>> m108
 };
 
 }  // namespace webrtc

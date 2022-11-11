@@ -27,52 +27,14 @@ rtc_library("repeating_task") {
 }
 
 if (rtc_include_tests) {
-<<<<<<< HEAD
-  rtc_library("pending_task_safety_flag_unittests") {
-    testonly = true
-    sources = [ "pending_task_safety_flag_unittest.cc" ]
-    deps = [
-      ":pending_task_safety_flag",
-      ":to_queued_task",
-      "..:logging",
-      "..:rtc_base_approved",
-      "..:rtc_event",
-      "..:rtc_task_queue",
-      "..:task_queue_for_test",
-      "../../test:test_support",
-    ]
-  }
-
-=======
->>>>>>> m108
   rtc_library("repeating_task_unittests") {
     testonly = true
     sources = [ "repeating_task_unittest.cc" ]
     deps = [
       ":repeating_task",
-<<<<<<< HEAD
-      ":to_queued_task",
-      "..:rtc_base_approved",
       "..:rtc_event",
       "..:rtc_task_queue",
       "..:task_queue_for_test",
-      "../../api/task_queue",
-      "../../api/units:timestamp",
-      "../../system_wrappers:system_wrappers",
-      "../../test:test_support",
-    ]
-  }
-
-  rtc_library("to_queued_task_unittests") {
-    testonly = true
-    sources = [ "to_queued_task_unittest.cc" ]
-    deps = [
-      ":to_queued_task",
-=======
-      "..:rtc_event",
-      "..:rtc_task_queue",
-      "..:task_queue_for_test",
->>>>>>> m108
       "../../api/task_queue",
       "../../api/units:time_delta",
       "../../api/units:timestamp",

@@ -368,17 +368,6 @@ class VirtualSocketServer : public SocketServer {
 
   // Computes the number of milliseconds required to send a packet of this size.
   uint32_t SendDelay(uint32_t size) RTC_LOCKS_EXCLUDED(mutex_);
-<<<<<<< HEAD
-
-  // Cancel attempts to connect to a socket that is being closed.
-  void CancelConnects(VirtualSocket* socket);
-
-  // Clear incoming messages for a socket that is being closed.
-  void Clear(VirtualSocket* socket);
-
-  void PostSignalReadEvent(VirtualSocket* socket);
-=======
->>>>>>> m108
 
   // Sending was previously blocked, but now isn't.
   sigslot::signal0<> SignalReadyToSend;

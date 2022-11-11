@@ -79,17 +79,10 @@ class MAYBE_FileRotatingStreamTest : public ::testing::Test {
 
   // Checks that the stream reads in the expected contents and then returns an
   // end of stream result.
-<<<<<<< HEAD
-  void VerifyStreamRead(const char* expected_contents,
-                        const size_t expected_length,
-                        absl::string_view dir_path,
-                        const char* file_prefix) {
-=======
   void VerifyStreamRead(absl::string_view expected_contents,
                         absl::string_view dir_path,
                         absl::string_view file_prefix) {
     size_t expected_length = expected_contents.size();
->>>>>>> m108
     FileRotatingStreamReader reader(dir_path, file_prefix);
     EXPECT_EQ(reader.GetSize(), expected_length);
     std::unique_ptr<uint8_t[]> buffer(new uint8_t[expected_length]);
@@ -99,18 +92,11 @@ class MAYBE_FileRotatingStreamTest : public ::testing::Test {
               memcmp(expected_contents.data(), buffer.get(), expected_length));
   }
 
-<<<<<<< HEAD
-  void VerifyFileContents(const char* expected_contents,
-                          const size_t expected_length,
-                          absl::string_view file_path) {
-=======
   void VerifyFileContents(absl::string_view expected_contents,
                           absl::string_view file_path) {
     size_t expected_length = expected_contents.size();
->>>>>>> m108
     std::unique_ptr<uint8_t[]> buffer(new uint8_t[expected_length + 1]);
-    webrtc::FileWrapper f =
-        webrtc::FileWrapper::OpenReadOnly(std::string(file_path));
+    webrtc::FileWrapper f = webrtc::FileWrapper::OpenReadOnly(file_path);
     ASSERT_TRUE(f.is_open());
     size_t size_read = f.Read(buffer.get(), expected_length + 1);
     EXPECT_EQ(size_read, expected_length);
@@ -203,11 +189,7 @@ TEST_F(MAYBE_FileRotatingStreamTest, WriteWithoutDelimiterAndRead) {
 
   // Reopen for read.
   std::string expected_contents("bbccd");
-<<<<<<< HEAD
-  VerifyStreamRead(expected_contents.c_str(), expected_contents.size(),
-=======
   VerifyStreamRead(expected_contents,
->>>>>>> m108
                    dir_path_ + std::string(webrtc::test::kPathDelimiter),
                    kFilePrefix);
 }
@@ -300,15 +282,9 @@ class MAYBE_CallSessionFileRotatingStreamTest : public ::testing::Test {
 
   // Checks that the stream reads in the expected contents and then returns an
   // end of stream result.
-<<<<<<< HEAD
-  void VerifyStreamRead(const char* expected_contents,
-                        const size_t expected_length,
-                        absl::string_view dir_path) {
-=======
   void VerifyStreamRead(absl::string_view expected_contents,
                         absl::string_view dir_path) {
     size_t expected_length = expected_contents.size();
->>>>>>> m108
     CallSessionFileRotatingStreamReader reader(dir_path);
     EXPECT_EQ(reader.GetSize(), expected_length);
     std::unique_ptr<uint8_t[]> buffer(new uint8_t[expected_length]);

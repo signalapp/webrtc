@@ -13,10 +13,7 @@
 
 #include <map>
 #include <memory>
-<<<<<<< HEAD
-=======
 #include <ostream>
->>>>>>> m108
 #include <set>
 #include <string>
 #include <utility>
@@ -244,12 +241,9 @@ struct DefaultVideoQualityAnalyzerOptions {
   bool compute_ssim = true;
   // If true, weights the luma plane more than the chroma planes in the PSNR.
   bool use_weighted_psnr = false;
-<<<<<<< HEAD
-=======
   // Tells DefaultVideoQualityAnalyzer if detailed frame stats should be
   // reported.
   bool report_detailed_frame_stats = false;
->>>>>>> m108
   // If true DefaultVideoQualityAnalyzer will try to adjust frames before
   // computing PSNR and SSIM for them. In some cases picture may be shifted by
   // a few pixels after the encode/decode step. Those difference is invisible

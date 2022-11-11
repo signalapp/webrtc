@@ -556,11 +556,7 @@ bool TransportFeedback::IsConsistent() const {
                       << num_seq_no_;
     return false;
   }
-<<<<<<< HEAD
-  int64_t timestamp_us = GetBaseTimeUs();
-=======
   Timestamp timestamp = BaseTime();
->>>>>>> m108
   auto packet_it = received_packets_.begin();
   uint16_t seq_no = base_seq_no_;
   for (DeltaSize delta_size : delta_sizes) {

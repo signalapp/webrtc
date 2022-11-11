@@ -33,11 +33,7 @@
           ],
           "dimension_sets": [
             {
-<<<<<<< HEAD
-              "os": "iOS-15.3",
-=======
               "os": "iOS-15.7",
->>>>>>> m108
               "pool": "chrome.tests"
             }
           ],
@@ -81,11 +77,7 @@
           ],
           "dimension_sets": [
             {
-<<<<<<< HEAD
-              "os": "iOS-15.3",
-=======
               "os": "iOS-15.7",
->>>>>>> m108
               "pool": "chrome.tests"
             }
           ],
@@ -130,11 +122,7 @@
           ],
           "dimension_sets": [
             {
-<<<<<<< HEAD
-              "os": "iOS-15.3",
-=======
               "os": "iOS-15.7",
->>>>>>> m108
               "pool": "chrome.tests"
             }
           ],
@@ -146,12 +134,8 @@
               "path": "Xcode.app"
             }
           ],
-<<<<<<< HEAD
-          "service_account": "chrome-tester@chops-service-accounts.iam.gserviceaccount.com"
-=======
           "service_account": "chrome-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 2
->>>>>>> m108
         },
         "test_id_prefix": "ninja://modules:modules_tests/"
       },
@@ -185,11 +169,7 @@
           ],
           "dimension_sets": [
             {
-<<<<<<< HEAD
-              "os": "iOS-15.3",
-=======
               "os": "iOS-15.7",
->>>>>>> m108
               "pool": "chrome.tests"
             }
           ],
@@ -199,12 +179,8 @@
               "path": "Xcode.app"
             }
           ],
-<<<<<<< HEAD
-          "service_account": "chrome-tester@chops-service-accounts.iam.gserviceaccount.com"
-=======
           "service_account": "chrome-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 6
->>>>>>> m108
         },
         "test_id_prefix": "ninja://modules:modules_unittests/"
       },
@@ -238,11 +214,7 @@
           ],
           "dimension_sets": [
             {
-<<<<<<< HEAD
-              "os": "iOS-15.3",
-=======
               "os": "iOS-15.7",
->>>>>>> m108
               "pool": "chrome.tests"
             }
           ],
@@ -286,11 +258,7 @@
           ],
           "dimension_sets": [
             {
-<<<<<<< HEAD
-              "os": "iOS-15.3",
-=======
               "os": "iOS-15.7",
->>>>>>> m108
               "pool": "chrome.tests"
             }
           ],
@@ -334,11 +302,7 @@
           ],
           "dimension_sets": [
             {
-<<<<<<< HEAD
-              "os": "iOS-15.3",
-=======
               "os": "iOS-15.7",
->>>>>>> m108
               "pool": "chrome.tests"
             }
           ],
@@ -382,11 +346,7 @@
           ],
           "dimension_sets": [
             {
-<<<<<<< HEAD
-              "os": "iOS-15.3",
-=======
               "os": "iOS-15.7",
->>>>>>> m108
               "pool": "chrome.tests"
             }
           ],
@@ -430,11 +390,7 @@
           ],
           "dimension_sets": [
             {
-<<<<<<< HEAD
-              "os": "iOS-15.3",
-=======
               "os": "iOS-15.7",
->>>>>>> m108
               "pool": "chrome.tests"
             }
           ],
@@ -478,11 +434,7 @@
           ],
           "dimension_sets": [
             {
-<<<<<<< HEAD
-              "os": "iOS-15.3",
-=======
               "os": "iOS-15.7",
->>>>>>> m108
               "pool": "chrome.tests"
             }
           ],
@@ -526,11 +478,7 @@
           ],
           "dimension_sets": [
             {
-<<<<<<< HEAD
-              "os": "iOS-15.3",
-=======
               "os": "iOS-15.7",
->>>>>>> m108
               "pool": "chrome.tests"
             }
           ],
@@ -540,12 +488,8 @@
               "path": "Xcode.app"
             }
           ],
-<<<<<<< HEAD
-          "service_account": "chrome-tester@chops-service-accounts.iam.gserviceaccount.com"
-=======
           "service_account": "chrome-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 4
->>>>>>> m108
         },
         "test_id_prefix": "ninja://:video_engine_tests/"
       }
@@ -556,10 +500,6 @@
       {
         "args": [
           "--write_perf_output_on_ios",
-<<<<<<< HEAD
-          "--nologs",
-=======
->>>>>>> m108
           "--xcode-build-version",
           "12d4e",
           "--out-dir",
@@ -572,11 +512,7 @@
             "--test-suite",
             "webrtc_perf_tests"
           ],
-<<<<<<< HEAD
-          "script": "//tools_webrtc/perf/process_perf_results_py2.py"
-=======
           "script": "//tools_webrtc/perf/process_perf_results.py"
->>>>>>> m108
         },
         "name": "webrtc_perf_tests",
         "resultdb": {
@@ -646,11 +582,7 @@
           ],
           "dimension_sets": [
             {
-<<<<<<< HEAD
-              "os": "iOS-15.3",
-=======
               "os": "iOS-15.7",
->>>>>>> m108
               "pool": "chrome.tests"
             }
           ],
@@ -694,11 +626,7 @@
           ],
           "dimension_sets": [
             {
-<<<<<<< HEAD
-              "os": "iOS-15.3",
-=======
               "os": "iOS-15.7",
->>>>>>> m108
               "pool": "chrome.tests"
             }
           ],
@@ -743,11 +671,7 @@
           ],
           "dimension_sets": [
             {
-<<<<<<< HEAD
-              "os": "iOS-15.3",
-=======
               "os": "iOS-15.7",
->>>>>>> m108
               "pool": "chrome.tests"
             }
           ],
@@ -759,12 +683,8 @@
               "path": "Xcode.app"
             }
           ],
-<<<<<<< HEAD
-          "service_account": "chrome-tester@chops-service-accounts.iam.gserviceaccount.com"
-=======
           "service_account": "chrome-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 2
->>>>>>> m108
         },
         "test_id_prefix": "ninja://modules:modules_tests/"
       },
@@ -798,11 +718,7 @@
           ],
           "dimension_sets": [
             {
-<<<<<<< HEAD
-              "os": "iOS-15.3",
-=======
               "os": "iOS-15.7",
->>>>>>> m108
               "pool": "chrome.tests"
             }
           ],
@@ -812,12 +728,8 @@
               "path": "Xcode.app"
             }
           ],
-<<<<<<< HEAD
-          "service_account": "chrome-tester@chops-service-accounts.iam.gserviceaccount.com"
-=======
           "service_account": "chrome-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 6
->>>>>>> m108
         },
         "test_id_prefix": "ninja://modules:modules_unittests/"
       },
@@ -851,11 +763,7 @@
           ],
           "dimension_sets": [
             {
-<<<<<<< HEAD
-              "os": "iOS-15.3",
-=======
               "os": "iOS-15.7",
->>>>>>> m108
               "pool": "chrome.tests"
             }
           ],
@@ -899,11 +807,7 @@
           ],
           "dimension_sets": [
             {
-<<<<<<< HEAD
-              "os": "iOS-15.3",
-=======
               "os": "iOS-15.7",
->>>>>>> m108
               "pool": "chrome.tests"
             }
           ],
@@ -947,11 +851,7 @@
           ],
           "dimension_sets": [
             {
-<<<<<<< HEAD
-              "os": "iOS-15.3",
-=======
               "os": "iOS-15.7",
->>>>>>> m108
               "pool": "chrome.tests"
             }
           ],
@@ -995,11 +895,7 @@
           ],
           "dimension_sets": [
             {
-<<<<<<< HEAD
-              "os": "iOS-15.3",
-=======
               "os": "iOS-15.7",
->>>>>>> m108
               "pool": "chrome.tests"
             }
           ],
@@ -1043,11 +939,7 @@
           ],
           "dimension_sets": [
             {
-<<<<<<< HEAD
-              "os": "iOS-15.3",
-=======
               "os": "iOS-15.7",
->>>>>>> m108
               "pool": "chrome.tests"
             }
           ],
@@ -1091,11 +983,7 @@
           ],
           "dimension_sets": [
             {
-<<<<<<< HEAD
-              "os": "iOS-15.3",
-=======
               "os": "iOS-15.7",
->>>>>>> m108
               "pool": "chrome.tests"
             }
           ],
@@ -1139,11 +1027,7 @@
           ],
           "dimension_sets": [
             {
-<<<<<<< HEAD
-              "os": "iOS-15.3",
-=======
               "os": "iOS-15.7",
->>>>>>> m108
               "pool": "chrome.tests"
             }
           ],
@@ -1153,12 +1037,8 @@
               "path": "Xcode.app"
             }
           ],
-<<<<<<< HEAD
-          "service_account": "chrome-tester@chops-service-accounts.iam.gserviceaccount.com"
-=======
           "service_account": "chrome-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 4
->>>>>>> m108
         },
         "test_id_prefix": "ninja://:video_engine_tests/"
       }

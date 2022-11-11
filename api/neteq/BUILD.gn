@@ -20,10 +20,6 @@ rtc_source_set("neteq_api") {
     "..:rtp_headers",
     "..:rtp_packet_info",
     "..:scoped_refptr",
-<<<<<<< HEAD
-    "../../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
     "../../rtc_base:stringutils",
     "../../system_wrappers:system_wrappers",
     "../audio_codecs:audio_codecs_api",

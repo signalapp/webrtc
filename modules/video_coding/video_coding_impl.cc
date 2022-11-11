@@ -18,12 +18,8 @@
 #include "api/transport/field_trial_based_config.h"
 #include "api/video/encoded_image.h"
 #include "modules/video_coding/include/video_codec_interface.h"
-<<<<<<< HEAD
-#include "modules/video_coding/timing.h"
-=======
 #include "modules/video_coding/timing/timing.h"
 #include "rtc_base/logging.h"
->>>>>>> m108
 #include "rtc_base/memory/always_valid_pointer.h"
 #include "system_wrappers/include/clock.h"
 

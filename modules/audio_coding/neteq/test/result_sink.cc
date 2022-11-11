@@ -91,11 +91,7 @@ void ResultSink::AddResult(const NetEqNetworkStatistics& stats_raw) {
 #endif  // WEBRTC_NETEQ_UNITTEST_BITEXACT
 }
 
-<<<<<<< HEAD
-void ResultSink::VerifyChecksum(const std::string& checksum) {
-=======
 void ResultSink::VerifyChecksum(absl::string_view checksum) {
->>>>>>> m108
   std::string buffer;
   buffer.resize(digest_->Size());
   digest_->Finish(buffer.data(), buffer.size());

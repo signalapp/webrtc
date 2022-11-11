@@ -36,10 +36,6 @@
 #include "pc/legacy_stats_collector_interface.h"
 #include "pc/peer_connection_internal.h"
 #include "pc/rtp_transceiver.h"
-<<<<<<< HEAD:pc/stats_collector.h
-#include "pc/stats_collector_interface.h"
-=======
->>>>>>> m108:pc/legacy_stats_collector.h
 #include "pc/transport_stats.h"
 #include "rtc_base/network_constants.h"
 #include "rtc_base/ssl_certificate.h"

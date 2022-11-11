@@ -20,11 +20,8 @@
 
 #include "absl/types/optional.h"
 #include "api/field_trials_view.h"
-<<<<<<< HEAD
-=======
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/task_queue/task_queue_base.h"
->>>>>>> m108
 #include "api/video/encoded_image.h"
 #include "api/video/video_bitrate_allocation.h"
 #include "api/video/video_bitrate_allocator.h"

@@ -15,12 +15,6 @@
 #include <string>
 #include <vector>
 
-<<<<<<< HEAD
-#include "absl/types/optional.h"
-#include "api/video_codecs/sdp_video_format.h"
-#include "api/video_codecs/video_encoder.h"
-=======
->>>>>>> m108
 #include "api/video_codecs/video_encoder_factory.h"
 #include "rtc_base/system/rtc_export.h"
 

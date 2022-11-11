@@ -54,8 +54,6 @@ class MovingPercentileFilter {
   std::list<T> samples_;
   size_t samples_stored_;
   const size_t window_size_;
-<<<<<<< HEAD:rtc_base/numerics/moving_median_filter.h
-=======
 };
 
 // Convenience type for the common median case.
@@ -64,7 +62,6 @@ class MovingMedianFilter : public MovingPercentileFilter<T> {
  public:
   explicit MovingMedianFilter(size_t window_size)
       : MovingPercentileFilter<T>(0.5f, window_size) {}
->>>>>>> m108:rtc_base/numerics/moving_percentile_filter.h
 };
 
 template <typename T>

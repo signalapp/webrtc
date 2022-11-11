@@ -136,21 +136,7 @@ VideoCodecType PayloadStringToCodecType(const std::string& name) {
 }
 
 VideoCodecComplexity VideoCodec::GetVideoEncoderComplexity() const {
-<<<<<<< HEAD
-  if (complexity_.has_value()) {
-    return complexity_.value();
-  }
-  switch (codecType) {
-    case kVideoCodecVP8:
-      return VP8().complexity;
-    case kVideoCodecVP9:
-      return VP9().complexity;
-    default:
-      return VideoCodecComplexity::kComplexityNormal;
-  }
-=======
   return complexity_;
->>>>>>> m108
 }
 
 void VideoCodec::SetVideoEncoderComplexity(
@@ -158,8 +144,6 @@ void VideoCodec::SetVideoEncoderComplexity(
   complexity_ = complexity_setting;
 }
 
-<<<<<<< HEAD
-=======
 bool VideoCodec::GetFrameDropEnabled() const {
   return frame_drop_enabled_;
 }
@@ -168,5 +152,4 @@ void VideoCodec::SetFrameDropEnabled(bool enabled) {
   frame_drop_enabled_ = enabled;
 }
 
->>>>>>> m108
 }  // namespace webrtc

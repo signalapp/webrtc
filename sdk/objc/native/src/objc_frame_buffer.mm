@@ -68,8 +68,6 @@ int ObjCFrameBuffer::height() const {
 
 rtc::scoped_refptr<I420BufferInterface> ObjCFrameBuffer::ToI420() {
   return rtc::make_ref_counted<ObjCI420FrameBuffer>([frame_buffer_ toI420]);
-<<<<<<< HEAD
-=======
 }
 
 rtc::scoped_refptr<VideoFrameBuffer> ObjCFrameBuffer::CropAndScale(int offset_x,
@@ -91,7 +89,6 @@ rtc::scoped_refptr<VideoFrameBuffer> ObjCFrameBuffer::CropAndScale(int offset_x,
   // Use the default implementation.
   return VideoFrameBuffer::CropAndScale(
       offset_x, offset_y, crop_width, crop_height, scaled_width, scaled_height);
->>>>>>> m108
 }
 
 id<RTC_OBJC_TYPE(RTCVideoFrameBuffer)> ObjCFrameBuffer::wrapped_frame_buffer() const {

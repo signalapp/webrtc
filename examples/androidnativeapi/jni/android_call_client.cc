@@ -208,11 +208,7 @@ void AndroidCallClient::CreatePeerConnection() {
 
 void AndroidCallClient::Connect() {
   webrtc::MutexLock lock(&pc_mutex_);
-<<<<<<< HEAD
-  pc_->CreateOffer(rtc::make_ref_counted<CreateOfferObserver>(pc_),
-=======
   pc_->CreateOffer(rtc::make_ref_counted<CreateOfferObserver>(pc_).get(),
->>>>>>> m108
                    webrtc::PeerConnectionInterface::RTCOfferAnswerOptions());
 }
 
@@ -262,11 +258,7 @@ void CreateOfferObserver::OnSuccess(webrtc::SessionDescriptionInterface* desc) {
 
   // Ownership of desc was transferred to us, now we transfer it forward.
   pc_->SetLocalDescription(
-<<<<<<< HEAD
-      rtc::make_ref_counted<SetLocalSessionDescriptionObserver>(), desc);
-=======
       rtc::make_ref_counted<SetLocalSessionDescriptionObserver>().get(), desc);
->>>>>>> m108
 
   // Generate a fake answer.
   std::unique_ptr<webrtc::SessionDescriptionInterface> answer(

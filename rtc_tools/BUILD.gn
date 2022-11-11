@@ -66,10 +66,6 @@ rtc_library("video_file_reader") {
     "../rtc_base:checks",
     "../rtc_base:logging",
     "../rtc_base:refcount",
-<<<<<<< HEAD
-    "../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
     "../rtc_base:stringutils",
   ]
   absl_deps = [
@@ -89,10 +85,6 @@ rtc_library("video_file_writer") {
     "../api/video:video_frame",
     "../api/video:video_rtp_headers",
     "../rtc_base:logging",
-<<<<<<< HEAD
-    "../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
   ]
   absl_deps = [
     "//third_party/abseil-cpp/absl/strings",
@@ -127,12 +119,6 @@ rtc_library("video_quality_analysis") {
     "../common_video",
     "../rtc_base:checks",
     "../rtc_base:logging",
-<<<<<<< HEAD
-    "../rtc_base:refcount",
-    "../rtc_base:rtc_base_approved",
-    "../test:perf_test",
-=======
->>>>>>> m108
     "//third_party/libyuv",
   ]
   absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
@@ -409,10 +395,7 @@ if (!build_with_chromium) {
         "../rtc_base:ignore_wundef",
         "../rtc_base:logging",
         "../rtc_base:macromagic",
-<<<<<<< HEAD
-=======
         "../rtc_base:rate_statistics",
->>>>>>> m108
         "../rtc_base:refcount",
 
         # TODO(kwiberg): Remove this dependency.
@@ -647,13 +630,8 @@ if (rtc_include_tests) {
           "../rtc_base:ignore_wundef",
           "../rtc_base:macromagic",
           "../rtc_base:protobuf_utils",
-<<<<<<< HEAD
-          "../rtc_base:rtc_base_approved",
-          "../rtc_base:stringutils",
-=======
           "../rtc_base:stringutils",
           "../rtc_base/system:arch",
->>>>>>> m108
           "//third_party/abseil-cpp/absl/flags:flag",
           "//third_party/abseil-cpp/absl/flags:parse",
         ]

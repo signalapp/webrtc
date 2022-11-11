@@ -16,11 +16,6 @@
 #include <memory>
 #include <vector>
 
-<<<<<<< HEAD
-#include "api/field_trials_view.h"
-#include "api/transport/network_control.h"
-#include "modules/remote_bitrate_estimator/include/remote_bitrate_estimator.h"
-=======
 #include "absl/types/optional.h"
 #include "api/field_trials_view.h"
 #include "api/rtp_headers.h"
@@ -28,7 +23,6 @@
 #include "api/units/data_size.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
->>>>>>> m108
 #include "modules/remote_bitrate_estimator/packet_arrival_map.h"
 #include "modules/rtp_rtcp/source/rtcp_packet.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/transport_feedback.h"
@@ -47,12 +41,7 @@ class RemoteEstimatorProxy {
   // BWE is used.
   using TransportFeedbackSender = std::function<void(
       std::vector<std::unique_ptr<rtcp::RtcpPacket>> packets)>;
-<<<<<<< HEAD
-  RemoteEstimatorProxy(Clock* clock,
-                       TransportFeedbackSender feedback_sender,
-=======
   RemoteEstimatorProxy(TransportFeedbackSender feedback_sender,
->>>>>>> m108
                        const FieldTrialsView* key_value_config,
                        NetworkStateEstimator* network_state_estimator);
   ~RemoteEstimatorProxy();

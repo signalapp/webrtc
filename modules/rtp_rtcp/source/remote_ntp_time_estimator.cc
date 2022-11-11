@@ -53,10 +53,6 @@ RemoteNtpTimeEstimator::RemoteNtpTimeEstimator(Clock* clock)
 bool RemoteNtpTimeEstimator::UpdateRtcpTimestamp(TimeDelta rtt,
                                                  NtpTime sender_send_time,
                                                  uint32_t rtp_timestamp) {
-<<<<<<< HEAD
-  NtpTime sender_send_time(ntp_secs, ntp_frac);
-=======
->>>>>>> m108
   switch (rtp_to_ntp_.UpdateMeasurements(sender_send_time, rtp_timestamp)) {
     case RtpToNtpEstimator::kInvalidMeasurement:
       return false;
@@ -72,32 +68,18 @@ bool RemoteNtpTimeEstimator::UpdateRtcpTimestamp(TimeDelta rtt,
   int64_t deliver_time_ntp = ToNtpUnits(rtt) / 2;
 
   // Update extrapolator with the new arrival time.
-<<<<<<< HEAD
-  // The extrapolator assumes the ntp time.
-  int64_t receiver_arrival_time_ms = clock_->CurrentNtpInMilliseconds();
-  int64_t sender_arrival_time_ms = sender_send_time.ToMs() + rtt / 2;
-=======
   NtpTime receiver_arrival_time = clock_->CurrentNtpTime();
->>>>>>> m108
   int64_t remote_to_local_clocks_offset =
       Subtract(receiver_arrival_time, sender_send_time) - deliver_time_ntp;
   ntp_clocks_offset_estimator_.Insert(remote_to_local_clocks_offset);
   return true;
 }
 
-<<<<<<< HEAD
-int64_t RemoteNtpTimeEstimator::Estimate(uint32_t rtp_timestamp) {
-  NtpTime sender_capture = rtp_to_ntp_.Estimate(rtp_timestamp);
-  if (!sender_capture.Valid()) {
-    return -1;
-=======
 NtpTime RemoteNtpTimeEstimator::EstimateNtp(uint32_t rtp_timestamp) {
   NtpTime sender_capture = rtp_to_ntp_.Estimate(rtp_timestamp);
   if (!sender_capture.Valid()) {
     return sender_capture;
->>>>>>> m108
   }
-  int64_t sender_capture_ntp_ms = sender_capture.ToMs();
 
   int64_t remote_to_local_clocks_offset =
       ntp_clocks_offset_estimator_.GetFilteredValue();

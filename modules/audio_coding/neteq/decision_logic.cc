@@ -48,8 +48,6 @@ std::unique_ptr<DelayManager> CreateDelayManager(
   return std::make_unique<DelayManager>(config, neteq_config.tick_timer);
 }
 
-<<<<<<< HEAD
-=======
 bool IsTimestretch(NetEq::Mode mode) {
   return mode == NetEq::Mode::kAccelerateSuccess ||
          mode == NetEq::Mode::kAccelerateLowEnergy ||
@@ -62,7 +60,6 @@ bool IsCng(NetEq::Mode mode) {
          mode == NetEq::Mode::kCodecInternalCng;
 }
 
->>>>>>> m108
 bool IsExpand(NetEq::Mode mode) {
   return mode == NetEq::Mode::kExpand || mode == NetEq::Mode::kCodecPlc;
 }
@@ -102,21 +99,7 @@ DecisionLogic::DecisionLogic(
       tick_timer_(config.tick_timer),
       disallow_time_stretching_(!config.allow_time_stretching),
       timescale_countdown_(
-<<<<<<< HEAD
-          tick_timer_->GetNewCountdown(kMinTimescaleInterval + 1)),
-      target_level_window_ms_("target_level_window",
-                              kDefaultTargetLevelWindowMs,
-                              0,
-                              absl::nullopt) {
-  const std::string field_trial_name =
-      field_trial::FindFullName("WebRTC-Audio-NetEqDecisionLogicSettings");
-  ParseFieldTrial({&target_level_window_ms_}, field_trial_name);
-  RTC_LOG(LS_INFO) << "NetEq decision logic settings:"
-                   << " target_level_window_ms=" << target_level_window_ms_;
-}
-=======
           tick_timer_->GetNewCountdown(kMinTimescaleInterval + 1)) {}
->>>>>>> m108
 
 DecisionLogic::~DecisionLogic() = default;
 
@@ -159,19 +142,6 @@ NetEq::Operation DecisionLogic::GetDecision(const NetEqStatus& status,
     num_consecutive_expands_ = 0;
   }
 
-<<<<<<< HEAD
-  prev_time_scale_ =
-      prev_time_scale_ &&
-      (status.last_mode == NetEq::Mode::kAccelerateSuccess ||
-       status.last_mode == NetEq::Mode::kAccelerateLowEnergy ||
-       status.last_mode == NetEq::Mode::kPreemptiveExpandSuccess ||
-       status.last_mode == NetEq::Mode::kPreemptiveExpandLowEnergy);
-
-  // Do not update buffer history if currently playing CNG since it will bias
-  // the filtered buffer level.
-  if (status.last_mode != NetEq::Mode::kRfc3389Cng &&
-      status.last_mode != NetEq::Mode::kCodecInternalCng) {
-=======
   if (!IsExpand(status.last_mode) && !IsCng(status.last_mode)) {
     last_playout_delay_ms_ = GetPlayoutDelayMs(status);
   }
@@ -181,7 +151,6 @@ NetEq::Operation DecisionLogic::GetDecision(const NetEqStatus& status,
     timescale_countdown_ = tick_timer_->GetNewCountdown(kMinTimescaleInterval);
   }
   if (!IsCng(status.last_mode)) {
->>>>>>> m108
     FilterBufferLevel(status.packet_buffer_info.span_samples);
   }
 
@@ -218,15 +187,9 @@ NetEq::Operation DecisionLogic::GetDecision(const NetEqStatus& status,
   // if the mute factor is low enough (otherwise the expansion was short enough
   // to not be noticable).
   // Note that the MuteFactor is in Q14, so a value of 16384 corresponds to 1.
-<<<<<<< HEAD
-  const int target_level_samples =
-      delay_manager_->TargetDelayMs() * sample_rate_ / 1000;
-  if (IsExpand(status.last_mode) && status.expand_mutefactor < 16384 / 2 &&
-=======
   const int target_level_samples = TargetLevelMs() * sample_rate_khz_;
   if (!config_.enable_stable_playout_delay && IsExpand(status.last_mode) &&
       status.expand_mutefactor < 16384 / 2 &&
->>>>>>> m108
       status.packet_buffer_info.span_samples <
           static_cast<size_t>(target_level_samples * kPostponeDecodingLevel /
                               100) &&
@@ -252,8 +215,6 @@ NetEq::Operation DecisionLogic::GetDecision(const NetEqStatus& status,
 
 void DecisionLogic::NotifyMutedState() {
   ++num_consecutive_expands_;
-<<<<<<< HEAD
-=======
 }
 
 int DecisionLogic::TargetLevelMs() const {
@@ -275,7 +236,6 @@ int DecisionLogic::GetFilteredBufferLevel() const {
     return last_playout_delay_ms_ * sample_rate_khz_;
   }
   return buffer_level_filter_->filtered_current_level();
->>>>>>> m108
 }
 
 absl::optional<int> DecisionLogic::PacketArrived(
@@ -417,16 +377,8 @@ NetEq::Operation DecisionLogic::FuturePacketAvailable(
   // Required packet is not available, but a future packet is.
   // Check if we should continue with an ongoing expand because the new packet
   // is too far into the future.
-<<<<<<< HEAD
-  uint32_t timestamp_leap = available_timestamp - target_timestamp;
-  if (IsExpand(prev_mode) && !ReinitAfterExpands(timestamp_leap) &&
-      !MaxWaitForPacket() && PacketTooEarly(timestamp_leap) &&
-      UnderTargetLevel()) {
-    if (play_dtmf) {
-=======
   if (IsExpand(status.last_mode) && ShouldContinueExpand(status)) {
     if (status.play_dtmf) {
->>>>>>> m108
       // Still have DTMF to play, so do not do expand.
       return NetEq::Operation::kDtmf;
     } else {
@@ -440,29 +392,6 @@ NetEq::Operation DecisionLogic::FuturePacketAvailable(
   }
 
   // If previous was comfort noise, then no merge is needed.
-<<<<<<< HEAD
-  if (prev_mode == NetEq::Mode::kRfc3389Cng ||
-      prev_mode == NetEq::Mode::kCodecInternalCng) {
-    const size_t target_level_samples =
-        delay_manager_->TargetDelayMs() * sample_rate_ / 1000;
-    const bool generated_enough_noise =
-        static_cast<uint32_t>(generated_noise_samples + target_timestamp) >=
-        available_timestamp;
-    const size_t target_threshold_samples =
-        target_level_window_ms_ / 2 * (sample_rate_ / 1000);
-    const bool above_target_window =
-        span_samples_in_packet_buffer >
-        target_level_samples + target_threshold_samples;
-    const bool below_target_window =
-        target_level_samples > target_threshold_samples &&
-        span_samples_in_packet_buffer <
-            target_level_samples - target_threshold_samples;
-    // Keep the delay same as before CNG, but make sure that it is within the
-    // target window.
-    if ((generated_enough_noise && !below_target_window) ||
-        above_target_window) {
-      time_stretched_cn_samples_ = timestamp_leap - generated_noise_samples;
-=======
   if (IsCng(status.last_mode)) {
     uint32_t timestamp_leap =
         status.next_packet->timestamp - status.target_timestamp;
@@ -477,7 +406,6 @@ NetEq::Operation DecisionLogic::FuturePacketAvailable(
     if ((generated_enough_noise && !below_target_delay) || above_target_delay) {
       time_stretched_cn_samples_ =
           timestamp_leap - status.generated_noise_samples;
->>>>>>> m108
       return NetEq::Operation::kNormal;
     }
 

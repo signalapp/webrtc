@@ -84,11 +84,7 @@ class StatsObserverAdapter : public StatsObserver {
 - (void)statisticsWithCompletionHandler:(RTCStatisticsCompletionHandler)completionHandler {
   rtc::scoped_refptr<webrtc::StatsCollectorCallbackAdapter> collector =
       rtc::make_ref_counted<webrtc::StatsCollectorCallbackAdapter>(completionHandler);
-<<<<<<< HEAD
-  self.nativePeerConnection->GetStats(collector);
-=======
   self.nativePeerConnection->GetStats(collector.get());
->>>>>>> m108
 }
 
 - (void)statsForTrack:(RTC_OBJC_TYPE(RTCMediaStreamTrack) *)mediaStreamTrack

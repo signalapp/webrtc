@@ -28,7 +28,6 @@ rtc_library("agc") {
     "../../../api:array_view",
     "../../../common_audio",
     "../../../common_audio:common_audio_c",
-    "../../../rtc_base:atomicops",
     "../../../rtc_base:checks",
     "../../../rtc_base:gtest_prod",
     "../../../rtc_base:logging",
@@ -43,23 +42,6 @@ rtc_library("agc") {
 }
 
 rtc_library("analog_gain_stats_reporter") {
-<<<<<<< HEAD
-  sources = [
-    "analog_gain_stats_reporter.cc",
-    "analog_gain_stats_reporter.h",
-  ]
-  deps = [
-    "../../../rtc_base:gtest_prod",
-    "../../../rtc_base:logging",
-    "../../../rtc_base:safe_minmax",
-    "../../../system_wrappers:metrics",
-  ]
-  absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
-}
-
-rtc_library("clipping_predictor") {
-=======
->>>>>>> m108
   sources = [
     "analog_gain_stats_reporter.cc",
     "analog_gain_stats_reporter.h",
@@ -128,12 +110,6 @@ if (rtc_include_tests) {
     sources = [
       "agc_manager_direct_unittest.cc",
       "analog_gain_stats_reporter_unittest.cc",
-<<<<<<< HEAD
-      "clipping_predictor_evaluator_unittest.cc",
-      "clipping_predictor_level_buffer_unittest.cc",
-      "clipping_predictor_unittest.cc",
-=======
->>>>>>> m108
       "loudness_histogram_unittest.cc",
       "mock_agc.h",
     ]
@@ -142,12 +118,6 @@ if (rtc_include_tests) {
     deps = [
       ":agc",
       ":analog_gain_stats_reporter",
-<<<<<<< HEAD
-      ":clipping_predictor",
-      ":clipping_predictor_evaluator",
-      ":clipping_predictor_level_buffer",
-=======
->>>>>>> m108
       ":gain_control_interface",
       ":level_estimation",
       "..:mocks",
@@ -155,10 +125,7 @@ if (rtc_include_tests) {
       "../../../rtc_base:checks",
       "../../../rtc_base:random",
       "../../../rtc_base:safe_conversions",
-<<<<<<< HEAD
-=======
       "../../../rtc_base:safe_minmax",
->>>>>>> m108
       "../../../rtc_base:stringutils",
       "../../../system_wrappers:metrics",
       "../../../test:field_trial",

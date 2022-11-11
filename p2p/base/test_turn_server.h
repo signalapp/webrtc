@@ -59,11 +59,7 @@ class TestTurnServer : public TurnAuthInterface {
                  const rtc::SocketAddress& udp_ext_addr,
                  ProtocolType int_protocol = PROTO_UDP,
                  bool ignore_bad_cert = true,
-<<<<<<< HEAD
-                 const std::string& common_name = "test turn server")
-=======
                  absl::string_view common_name = "test turn server")
->>>>>>> m108
       : server_(thread), socket_factory_(socket_factory) {
     AddInternalSocket(int_addr, int_protocol, ignore_bad_cert, common_name);
     server_.SetExternalSocketFactory(

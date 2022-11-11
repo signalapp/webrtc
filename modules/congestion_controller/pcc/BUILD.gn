@@ -52,10 +52,6 @@ rtc_library("monitor_interval") {
     "../../../api/units:time_delta",
     "../../../api/units:timestamp",
     "../../../rtc_base:logging",
-<<<<<<< HEAD
-    "../../../rtc_base:rtc_base_approved",
-=======
->>>>>>> m108
   ]
 }
 

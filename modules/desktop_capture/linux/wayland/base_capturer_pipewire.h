@@ -11,15 +11,10 @@
 #ifndef MODULES_DESKTOP_CAPTURE_LINUX_WAYLAND_BASE_CAPTURER_PIPEWIRE_H_
 #define MODULES_DESKTOP_CAPTURE_LINUX_WAYLAND_BASE_CAPTURER_PIPEWIRE_H_
 
-<<<<<<< HEAD
-#include "modules/desktop_capture/desktop_capture_options.h"
-#include "modules/desktop_capture/desktop_capturer.h"
-=======
 #include "modules/desktop_capture/delegated_source_list_controller.h"
 #include "modules/desktop_capture/desktop_capture_options.h"
 #include "modules/desktop_capture/desktop_capturer.h"
 #include "modules/desktop_capture/linux/wayland/portal_request_response.h"
->>>>>>> m108
 #include "modules/desktop_capture/linux/wayland/screen_capture_portal_interface.h"
 #include "modules/desktop_capture/linux/wayland/screencast_portal.h"
 #include "modules/desktop_capture/linux/wayland/shared_screencast_stream.h"
@@ -29,16 +24,10 @@
 namespace webrtc {
 
 class BaseCapturerPipeWire : public DesktopCapturer,
-<<<<<<< HEAD
-                             public ScreenCastPortal::PortalNotifier {
- public:
-  explicit BaseCapturerPipeWire(const DesktopCaptureOptions& options);
-=======
                              public DelegatedSourceListController,
                              public ScreenCastPortal::PortalNotifier {
  public:
   BaseCapturerPipeWire(const DesktopCaptureOptions& options, CaptureType type);
->>>>>>> m108
   BaseCapturerPipeWire(
       const DesktopCaptureOptions& options,
       std::unique_ptr<xdg_portal::ScreenCapturePortalInterface> portal);
@@ -52,34 +41,23 @@ class BaseCapturerPipeWire : public DesktopCapturer,
   void CaptureFrame() override;
   bool GetSourceList(SourceList* sources) override;
   bool SelectSource(SourceId id) override;
-<<<<<<< HEAD
-=======
   DelegatedSourceListController* GetDelegatedSourceListController() override;
 
   // DelegatedSourceListController
   void Observe(Observer* observer) override;
   void EnsureVisible() override;
   void EnsureHidden() override;
->>>>>>> m108
 
   // ScreenCastPortal::PortalNotifier interface.
   void OnScreenCastRequestResult(xdg_portal::RequestResponse result,
                                  uint32_t stream_node_id,
                                  int fd) override;
   void OnScreenCastSessionClosed() override;
-<<<<<<< HEAD
-=======
   void UpdateResolution(uint32_t width, uint32_t height) override;
->>>>>>> m108
 
   xdg_portal::SessionDetails GetSessionDetails();
 
  private:
-<<<<<<< HEAD
-  DesktopCaptureOptions options_ = {};
-  Callback* callback_ = nullptr;
-  bool capturer_failed_ = false;
-=======
   ScreenCastPortal* GetScreenCastPortal();
 
   DesktopCaptureOptions options_ = {};
@@ -99,7 +77,6 @@ class BaseCapturerPipeWire : public DesktopCapturer,
   // available source that will later get assigned to a restore token in order
   // to be restored later using SelectSource().
   SourceId source_id_ = 0;
->>>>>>> m108
   std::unique_ptr<xdg_portal::ScreenCapturePortalInterface> portal_;
 };
 

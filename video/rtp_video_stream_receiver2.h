@@ -42,10 +42,6 @@
 #include "modules/video_coding/nack_requester.h"
 #include "modules/video_coding/packet_buffer.h"
 #include "modules/video_coding/rtp_frame_reference_finder.h"
-<<<<<<< HEAD
-#include "modules/video_coding/unique_timestamp_counter.h"
-=======
->>>>>>> m108
 #include "rtc_base/experiments/field_trial_parser.h"
 #include "rtc_base/numerics/sequence_number_util.h"
 #include "rtc_base/system/no_unique_address.h"
@@ -100,12 +96,8 @@ class RtpVideoStreamReceiver2 : public LossNotificationSender,
       OnCompleteFrameCallback* complete_frame_callback,
       rtc::scoped_refptr<FrameDecryptorInterface> frame_decryptor,
       rtc::scoped_refptr<FrameTransformerInterface> frame_transformer,
-<<<<<<< HEAD
-      const FieldTrialsView& field_trials);
-=======
       const FieldTrialsView& field_trials,
       RtcEventLog* event_log);
->>>>>>> m108
   ~RtpVideoStreamReceiver2() override;
 
   void AddReceiveCodec(uint8_t payload_type,
@@ -322,10 +314,7 @@ class RtpVideoStreamReceiver2 : public LossNotificationSender,
       RTC_RUN_ON(packet_sequence_checker_);
 
   const FieldTrialsView& field_trials_;
-<<<<<<< HEAD
-=======
   TaskQueueBase* const worker_queue_;
->>>>>>> m108
   Clock* const clock_;
   // Ownership of this object lies with VideoReceiveStreamInterface, which owns
   // `this`.
@@ -362,10 +351,6 @@ class RtpVideoStreamReceiver2 : public LossNotificationSender,
 
   NackPeriodicProcessor* const nack_periodic_processor_;
   OnCompleteFrameCallback* complete_frame_callback_;
-<<<<<<< HEAD
-  KeyFrameRequestSender* const keyframe_request_sender_;
-=======
->>>>>>> m108
   const KeyFrameReqMethod keyframe_request_method_;
 
   RtcpFeedbackBuffer rtcp_feedback_buffer_;

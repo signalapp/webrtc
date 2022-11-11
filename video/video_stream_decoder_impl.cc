@@ -33,14 +33,7 @@ VideoStreamDecoderImpl::VideoStreamDecoderImpl(
       decoder_factory_(decoder_factory),
       decoder_settings_(std::move(decoder_settings)),
       shut_down_(false),
-<<<<<<< HEAD
-      frame_buffer_(Clock::GetRealTimeClock(),
-                    &timing_,
-                    nullptr,
-                    *field_trials_),
-=======
       frame_buffer_(Clock::GetRealTimeClock(), &timing_, *field_trials_),
->>>>>>> m108
       bookkeeping_queue_(task_queue_factory->CreateTaskQueue(
           "video_stream_decoder_bookkeeping_queue",
           TaskQueueFactory::Priority::NORMAL)),
@@ -144,11 +137,7 @@ void VideoStreamDecoderImpl::StartNextDecode() {
   int64_t max_wait_time = keyframe_required_ ? 200 : 3000;
 
   frame_buffer_.NextFrame(max_wait_time, keyframe_required_,
-<<<<<<< HEAD
-                          &bookkeeping_queue_,
-=======
                           bookkeeping_queue_.Get(),
->>>>>>> m108
                           [this](std::unique_ptr<EncodedFrame> frame) {
                             RTC_DCHECK_RUN_ON(&bookkeeping_queue_);
                             OnNextFrameCallback(std::move(frame));

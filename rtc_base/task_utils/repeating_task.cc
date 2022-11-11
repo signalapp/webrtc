@@ -61,16 +61,6 @@ void RepeatingTask::operator()() && {
   if (!alive_flag_->alive())
     return;
 
-<<<<<<< HEAD
-  TimeDelta delay = RunClosure();
-  RTC_DCHECK_GE(delay, TimeDelta::Zero());
-
-  // A delay of +infinity means that the task should not be run again.
-  // Alternatively, the closure might have stopped this task. In either which
-  // case we return true to destruct this object.
-  if (delay.IsPlusInfinity() || !alive_flag_->alive())
-    return true;
-=======
   webrtc_repeating_task_impl::RepeatingTaskImplDTraceProbeRun();
   TimeDelta delay = task_();
   RTC_DCHECK_GE(delay, TimeDelta::Zero());
@@ -79,21 +69,15 @@ void RepeatingTask::operator()() && {
   // Alternatively, the closure might have stopped this task.
   if (delay.IsPlusInfinity() || !alive_flag_->alive())
     return;
->>>>>>> m108
 
   TimeDelta lost_time = clock_->CurrentTime() - next_run_time_;
   next_run_time_ += delay;
   delay -= lost_time;
   delay = std::max(delay, TimeDelta::Zero());
 
-<<<<<<< HEAD
-  task_queue_->PostDelayedTaskWithPrecision(precision_, absl::WrapUnique(this),
-                                            delay.ms());
-=======
   task_queue_->PostDelayedTaskWithPrecision(precision_, std::move(*this),
                                             delay);
 }
->>>>>>> m108
 
 }  // namespace
 

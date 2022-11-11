@@ -14,10 +14,7 @@
 
 #include <memory>
 #include <string>
-<<<<<<< HEAD
-=======
 #include <utility>
->>>>>>> m108
 
 #include "absl/algorithm/container.h"
 #include "api/scoped_refptr.h"

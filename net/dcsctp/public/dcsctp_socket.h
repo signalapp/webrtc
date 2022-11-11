@@ -253,31 +253,6 @@ struct Metrics {
   uint16_t negotiated_maximum_outgoing_streams = 0;
 };
 
-// Represent known SCTP implementations.
-enum class SctpImplementation {
-  // There is not enough information toto determine any SCTP implementation.
-  kUnknown,
-  // This implementation.
-  kDcsctp,
-  // https://github.com/sctplab/usrsctp.
-  kUsrSctp,
-  // Any other implementation.
-  kOther,
-};
-
-inline constexpr absl::string_view ToString(SctpImplementation implementation) {
-  switch (implementation) {
-    case SctpImplementation::kUnknown:
-      return "unknown";
-    case SctpImplementation::kDcsctp:
-      return "dcsctp";
-    case SctpImplementation::kUsrSctp:
-      return "usrsctp";
-    case SctpImplementation::kOther:
-      return "other";
-  }
-}
-
 // Callbacks that the DcSctpSocket will call synchronously to the owning
 // client. It is allowed to call back into the library from callbacks that start
 // with "On". It has been explicitly documented when it's not allowed to call
@@ -607,14 +582,9 @@ class DcSctpSocketInterface {
   virtual void SetBufferedAmountLowThreshold(StreamID stream_id,
                                              size_t bytes) = 0;
 
-<<<<<<< HEAD
-  // Retrieves the latest metrics.
-  virtual Metrics GetMetrics() const = 0;
-=======
   // Retrieves the latest metrics. If the socket is not fully connected,
   // `absl::nullopt` will be returned.
   virtual absl::optional<Metrics> GetMetrics() const = 0;
->>>>>>> m108
 
   // Returns empty bitmask if the socket is in the state in which a snapshot of
   // the state can be made by `GetHandoverStateAndClose()`. Return value is
@@ -637,14 +607,10 @@ class DcSctpSocketInterface {
   // If this method is called too early (before
   // `DcSctpSocketCallbacks::OnConnected` has triggered), this will likely
   // return `SctpImplementation::kUnknown`.
-<<<<<<< HEAD
-  virtual SctpImplementation peer_implementation() const = 0;
-=======
   ABSL_DEPRECATED("See Metrics::peer_implementation instead")
   virtual SctpImplementation peer_implementation() const {
     return SctpImplementation::kUnknown;
   }
->>>>>>> m108
 };
 }  // namespace dcsctp
 

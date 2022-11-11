@@ -35,10 +35,6 @@ class DelayManager {
     double forget_factor = 0.983;
     absl::optional<double> start_forget_weight = 2;
     absl::optional<int> resample_interval_ms = 500;
-<<<<<<< HEAD
-    int max_history_ms = 2000;
-=======
->>>>>>> m108
 
     bool use_reorder_optimizer = true;
     double reorder_forget_factor = 0.9993;
@@ -56,22 +52,11 @@ class DelayManager {
   DelayManager(const DelayManager&) = delete;
   DelayManager& operator=(const DelayManager&) = delete;
 
-<<<<<<< HEAD
-  // Updates the delay manager with a new incoming packet, with `timestamp` from
-  // the RTP header. This updates the statistics and a new target buffer level
-  // is calculated. Returns the relative delay if it can be calculated. If
-  // `reset` is true, restarts the relative arrival delay calculation from this
-  // packet.
-  virtual absl::optional<int> Update(uint32_t timestamp,
-                                     int sample_rate_hz,
-                                     bool reset = false);
-=======
   // Updates the delay manager that a new packet arrived with delay
   // `arrival_delay_ms`. This updates the statistics and a new target buffer
   // level is calculated. The `reordered` flag indicates if the packet was
   // reordered.
   virtual void Update(int arrival_delay_ms, bool reordered);
->>>>>>> m108
 
   // Resets all state.
   virtual void Reset();
@@ -128,12 +113,8 @@ class DelayManager {
   int maximum_delay_ms_;            // Externally set maximum allowed delay.
 
   int packet_len_ms_ = 0;
-<<<<<<< HEAD
-  int target_level_ms_;  // Currently preferred buffer level.
-=======
   int target_level_ms_ = 0;  // Currently preferred buffer level.
   int unlimited_target_level_ms_ = 0;
->>>>>>> m108
 };
 
 }  // namespace webrtc

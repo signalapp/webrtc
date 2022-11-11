@@ -20,15 +20,9 @@ namespace webrtc {
 
 class RttFilter {
  public:
-<<<<<<< HEAD:modules/video_coding/rtt_filter.h
-  VCMRttFilter();
-  VCMRttFilter(const VCMRttFilter&) = delete;
-  VCMRttFilter& operator=(const VCMRttFilter&) = delete;
-=======
   RttFilter();
   RttFilter(const RttFilter&) = delete;
   RttFilter& operator=(const RttFilter&) = delete;
->>>>>>> m108:modules/video_coding/timing/rtt_filter.h
 
   // Resets the filter.
   void Reset();

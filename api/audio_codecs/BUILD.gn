@@ -34,16 +34,10 @@ rtc_library("audio_codecs_api") {
     "..:make_ref_counted",
     "..:scoped_refptr",
     "../../api:field_trials_view",
-<<<<<<< HEAD
-    "../../rtc_base:checks",
-    "../../rtc_base:refcount",
-    "../../rtc_base:rtc_base_approved",
-=======
     "../../rtc_base:buffer",
     "../../rtc_base:checks",
     "../../rtc_base:event_tracer",
     "../../rtc_base:refcount",
->>>>>>> m108
     "../../rtc_base:sanitizer",
     "../../rtc_base/system:rtc_export",
     "../units:time_delta",

@@ -29,15 +29,8 @@ namespace dcsctp {
 // RFC4960 is to be followed.
 class TraditionalReassemblyStreams : public ReassemblyStreams {
  public:
-<<<<<<< HEAD
-  TraditionalReassemblyStreams(
-      absl::string_view log_prefix,
-      OnAssembledMessage on_assembled_message,
-      const DcSctpSocketHandoverState* handover_state = nullptr);
-=======
   TraditionalReassemblyStreams(absl::string_view log_prefix,
                                OnAssembledMessage on_assembled_message);
->>>>>>> m108
 
   int Add(UnwrappedTSN tsn, Data data) override;
 
@@ -50,10 +43,7 @@ class TraditionalReassemblyStreams : public ReassemblyStreams {
 
   HandoverReadinessStatus GetHandoverReadiness() const override;
   void AddHandoverState(DcSctpSocketHandoverState& state) override;
-<<<<<<< HEAD
-=======
   void RestoreFromState(const DcSctpSocketHandoverState& state) override;
->>>>>>> m108
 
  private:
   using ChunkMap = std::map<UnwrappedTSN, Data>;
