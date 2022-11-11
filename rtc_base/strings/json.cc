@@ -243,7 +243,11 @@ bool GetDoubleFromJsonArray(const Json::Value& in, size_t n, double* out) {
 bool GetValueFromJsonObject(const Json::Value& in,
                             absl::string_view k,
                             Json::Value* out) {
+<<<<<<< HEAD
   std::string k_str = std::string(k);
+=======
+  std::string k_str(k);
+>>>>>>> m108
   if (!in.isObject() || !in.isMember(k_str)) {
     return false;
   }

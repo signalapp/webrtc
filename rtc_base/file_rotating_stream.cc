@@ -130,7 +130,11 @@ std::string AddTrailingPathDelimiterIfNeeded(absl::string_view directory) {
 std::vector<std::string> GetFilesWithPrefix(absl::string_view directory,
                                             absl::string_view prefix) {
   RTC_DCHECK(absl::EndsWith(directory, "/"));
+<<<<<<< HEAD
   std::string directory_str = std::string(directory);
+=======
+  std::string directory_str(directory);
+>>>>>>> m108
   DIR* dir = ::opendir(directory_str.c_str());
   if (dir == nullptr)
     return {};

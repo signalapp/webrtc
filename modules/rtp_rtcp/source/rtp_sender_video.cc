@@ -97,8 +97,7 @@ bool IsBaseLayer(const RTPVideoHeader& video_header) {
   return true;
 }
 
-#if RTC_TRACE_EVENTS_ENABLED
-const char* FrameTypeToString(VideoFrameType frame_type) {
+[[maybe_unused]] const char* FrameTypeToString(VideoFrameType frame_type) {
   switch (frame_type) {
     case VideoFrameType::kEmptyFrame:
       return "empty";
@@ -111,7 +110,6 @@ const char* FrameTypeToString(VideoFrameType frame_type) {
       return "";
   }
 }
-#endif
 
 bool IsNoopDelay(const VideoPlayoutDelay& delay) {
   return delay.min_ms == -1 && delay.max_ms == -1;
@@ -173,7 +171,7 @@ RTPSenderVideo::RTPSenderVideo(const Config& config)
                     this,
                     config.frame_transformer,
                     rtp_sender_->SSRC(),
-                    config.send_transport_queue)
+                    config.task_queue_factory)
               : nullptr),
       include_capture_clock_offset_(!absl::StartsWith(
           config.field_trials->Lookup(kIncludeCaptureClockOffset),
@@ -477,10 +475,12 @@ bool RTPSenderVideo::SendVideo(
     rtc::ArrayView<const uint8_t> payload,
     RTPVideoHeader video_header,
     absl::optional<int64_t> expected_retransmission_time_ms) {
+<<<<<<< HEAD
 #if RTC_TRACE_EVENTS_ENABLED
+=======
+>>>>>>> m108
   TRACE_EVENT_ASYNC_STEP1("webrtc", "Video", capture_time_ms, "Send", "type",
                           FrameTypeToString(video_header.frame_type));
-#endif
   RTC_CHECK_RUNS_SERIALIZED(&send_checker_);
 
   if (video_header.frame_type == VideoFrameType::kEmptyFrame)

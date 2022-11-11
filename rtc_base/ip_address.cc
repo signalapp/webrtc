@@ -283,10 +283,16 @@ bool IPFromString(absl::string_view str, IPAddress* out) {
     return false;
   }
   in_addr addr;
+<<<<<<< HEAD
   const std::string str_copy = std::string(str);
   if (rtc::inet_pton(AF_INET, str_copy.c_str(), &addr) == 0) {
     in6_addr addr6;
     if (rtc::inet_pton(AF_INET6, str_copy.c_str(), &addr6) == 0) {
+=======
+  if (rtc::inet_pton(AF_INET, str, &addr) == 0) {
+    in6_addr addr6;
+    if (rtc::inet_pton(AF_INET6, str, &addr6) == 0) {
+>>>>>>> m108
       *out = IPAddress();
       return false;
     }

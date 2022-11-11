@@ -19,7 +19,6 @@
 #include "api/video/recordable_encoded_frame.h"
 #include "pc/video_track.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/location.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/ref_counted_object.h"
 
@@ -114,21 +113,21 @@ void VideoRtpReceiver::Stop() {
   track_->internal()->set_ended();
 }
 
-// RTC_RUN_ON(&signaling_thread_checker_)
 void VideoRtpReceiver::RestartMediaChannel(absl::optional<uint32_t> ssrc) {
+  RTC_DCHECK_RUN_ON(&signaling_thread_checker_);
   MediaSourceInterface::SourceState state = source_->state();
   // TODO(tommi): Can we restart the media channel without blocking?
-  worker_thread_->Invoke<void>(RTC_FROM_HERE, [&] {
+  worker_thread_->BlockingCall([&] {
     RTC_DCHECK_RUN_ON(worker_thread_);
     RestartMediaChannel_w(std::move(ssrc), state);
   });
   source_->SetState(MediaSourceInterface::kLive);
 }
 
-// RTC_RUN_ON(worker_thread_)
 void VideoRtpReceiver::RestartMediaChannel_w(
     absl::optional<uint32_t> ssrc,
     MediaSourceInterface::SourceState state) {
+  RTC_DCHECK_RUN_ON(worker_thread_);
   if (!media_channel_) {
     return;  // Can't restart.
   }
@@ -167,8 +166,8 @@ void VideoRtpReceiver::RestartMediaChannel_w(
   }
 }
 
-// RTC_RUN_ON(worker_thread_)
 void VideoRtpReceiver::SetSink(rtc::VideoSinkInterface<VideoFrame>* sink) {
+  RTC_DCHECK_RUN_ON(worker_thread_);
   if (ssrc_) {
     media_channel_->SetSink(*ssrc_, sink);
   } else {
@@ -216,7 +215,7 @@ void VideoRtpReceiver::SetStreams(
       }
     }
     if (removed) {
-      existing_stream->RemoveTrack(track_);
+      existing_stream->RemoveTrack(video_track());
     }
   }
   // Add remote track to any streams that are new.
@@ -230,7 +229,7 @@ void VideoRtpReceiver::SetStreams(
       }
     }
     if (added) {
-      stream->AddTrack(track_);
+      stream->AddTrack(video_track());
     }
   }
   streams_ = streams;
@@ -261,8 +260,8 @@ void VideoRtpReceiver::SetMediaChannel(cricket::MediaChannel* media_channel) {
   SetMediaChannel_w(media_channel);
 }
 
-// RTC_RUN_ON(worker_thread_)
 void VideoRtpReceiver::SetMediaChannel_w(cricket::MediaChannel* media_channel) {
+  RTC_DCHECK_RUN_ON(worker_thread_);
   if (media_channel == media_channel_)
     return;
 
@@ -317,7 +316,7 @@ void VideoRtpReceiver::SetupMediaChannel(absl::optional<uint32_t> ssrc,
   RTC_DCHECK_RUN_ON(&signaling_thread_checker_);
   RTC_DCHECK(media_channel);
   MediaSourceInterface::SourceState state = source_->state();
-  worker_thread_->Invoke<void>(RTC_FROM_HERE, [&] {
+  worker_thread_->BlockingCall([&] {
     RTC_DCHECK_RUN_ON(worker_thread_);
     SetMediaChannel_w(media_channel);
     RestartMediaChannel_w(std::move(ssrc), state);
@@ -348,8 +347,8 @@ void VideoRtpReceiver::OnEncodedSinkEnabled(bool enable) {
   saved_encoded_sink_enabled_ = enable;
 }
 
-// RTC_RUN_ON(worker_thread_)
 void VideoRtpReceiver::SetEncodedSinkEnabled(bool enable) {
+  RTC_DCHECK_RUN_ON(worker_thread_);
   if (!media_channel_)
     return;
 

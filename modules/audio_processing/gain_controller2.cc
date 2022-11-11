@@ -18,7 +18,6 @@
 #include "modules/audio_processing/audio_buffer.h"
 #include "modules/audio_processing/include/audio_frame_view.h"
 #include "modules/audio_processing/logging/apm_data_dumper.h"
-#include "rtc_base/atomic_ops.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/strings/string_builder.h"
@@ -29,7 +28,10 @@ namespace {
 
 using Agc2Config = AudioProcessing::Config::GainController2;
 
+<<<<<<< HEAD
 constexpr int kUnspecifiedAnalogLevel = -1;
+=======
+>>>>>>> m108
 constexpr int kLogLimiterStatsPeriodMs = 30'000;
 constexpr int kFrameLengthMs = 10;
 constexpr int kLogLimiterStatsPeriodNumFrames =
@@ -49,6 +51,7 @@ AvailableCpuFeatures GetAllowedCpuFeatures() {
   }
   return features;
 }
+<<<<<<< HEAD
 
 // Creates an adaptive digital gain controller if enabled.
 std::unique_ptr<AdaptiveDigitalGainController> CreateAdaptiveDigitalController(
@@ -64,14 +67,40 @@ std::unique_ptr<AdaptiveDigitalGainController> CreateAdaptiveDigitalController(
 }
 
 }  // namespace
+=======
+>>>>>>> m108
 
-int GainController2::instance_count_ = 0;
+// Creates an adaptive digital gain controller if enabled.
+std::unique_ptr<AdaptiveDigitalGainController> CreateAdaptiveDigitalController(
+    const Agc2Config::AdaptiveDigital& config,
+    int sample_rate_hz,
+    int num_channels,
+    ApmDataDumper* data_dumper) {
+  if (config.enabled) {
+    return std::make_unique<AdaptiveDigitalGainController>(
+        data_dumper, config, sample_rate_hz, num_channels);
+  }
+  return nullptr;
+}
 
+<<<<<<< HEAD
 GainController2::GainController2(const Agc2Config& config,
                                  int sample_rate_hz,
                                  int num_channels)
     : cpu_features_(GetAllowedCpuFeatures()),
       data_dumper_(rtc::AtomicOps::Increment(&instance_count_)),
+=======
+}  // namespace
+
+std::atomic<int> GainController2::instance_count_(0);
+
+GainController2::GainController2(const Agc2Config& config,
+                                 int sample_rate_hz,
+                                 int num_channels,
+                                 bool use_internal_vad)
+    : cpu_features_(GetAllowedCpuFeatures()),
+      data_dumper_(instance_count_.fetch_add(1) + 1),
+>>>>>>> m108
       fixed_gain_applier_(
           /*hard_clip_samples=*/false,
           /*initial_gain_factor=*/DbToRatio(config.fixed_digital.gain_db)),
@@ -81,12 +110,20 @@ GainController2::GainController2(const Agc2Config& config,
                                           num_channels,
                                           &data_dumper_)),
       limiter_(sample_rate_hz, &data_dumper_, /*histogram_name_prefix=*/"Agc2"),
+<<<<<<< HEAD
       calls_since_last_limiter_log_(0),
       analog_level_(kUnspecifiedAnalogLevel) {
   RTC_DCHECK(Validate(config));
   data_dumper_.InitiateNewSetOfRecordings();
   const bool use_vad = config.adaptive_digital.enabled;
   if (use_vad) {
+=======
+      calls_since_last_limiter_log_(0) {
+  RTC_DCHECK(Validate(config));
+  data_dumper_.InitiateNewSetOfRecordings();
+  const bool use_vad = config.adaptive_digital.enabled;
+  if (use_vad && use_internal_vad) {
+>>>>>>> m108
     // TODO(bugs.webrtc.org/7494): Move `vad_reset_period_ms` from adaptive
     // digital to gain controller 2 config.
     vad_ = std::make_unique<VoiceActivityDetectorWrapper>(
@@ -125,13 +162,40 @@ void GainController2::SetFixedGainDb(float gain_db) {
   fixed_gain_applier_.SetGainFactor(gain_factor);
 }
 
-void GainController2::Process(AudioBuffer* audio) {
-  data_dumper_.DumpRaw("agc2_notified_analog_level", analog_level_);
+void GainController2::SetFixedGainDb(float gain_db) {
+  const float gain_factor = DbToRatio(gain_db);
+  if (fixed_gain_applier_.GetGainFactor() != gain_factor) {
+    // Reset the limiter to quickly react on abrupt level changes caused by
+    // large changes of the fixed gain.
+    limiter_.Reset();
+  }
+  fixed_gain_applier_.SetGainFactor(gain_factor);
+}
+
+void GainController2::Process(absl::optional<float> speech_probability,
+                              bool input_volume_changed,
+                              AudioBuffer* audio) {
+  data_dumper_.DumpRaw("agc2_applied_input_volume_changed",
+                       input_volume_changed);
+  if (input_volume_changed && !!adaptive_digital_controller_) {
+    adaptive_digital_controller_->HandleInputGainChange();
+  }
+
   AudioFrameView<float> float_frame(audio->channels(), audio->num_channels(),
                                     audio->num_frames());
+<<<<<<< HEAD
   absl::optional<float> speech_probability;
   if (vad_) {
     speech_probability = vad_->Analyze(float_frame);
+=======
+  if (vad_) {
+    speech_probability = vad_->Analyze(float_frame);
+  } else if (speech_probability.has_value()) {
+    RTC_DCHECK_GE(speech_probability.value(), 0.0f);
+    RTC_DCHECK_LE(speech_probability.value(), 1.0f);
+  }
+  if (speech_probability.has_value()) {
+>>>>>>> m108
     data_dumper_.DumpRaw("agc2_speech_probability", speech_probability.value());
   }
   fixed_gain_applier_.ApplyGain(float_frame);
@@ -154,6 +218,7 @@ void GainController2::Process(AudioBuffer* audio) {
   }
 }
 
+<<<<<<< HEAD
 void GainController2::NotifyAnalogLevel(int level) {
   if (analog_level_ != level && adaptive_digital_controller_) {
     adaptive_digital_controller_->HandleInputGainChange();
@@ -161,6 +226,8 @@ void GainController2::NotifyAnalogLevel(int level) {
   analog_level_ = level;
 }
 
+=======
+>>>>>>> m108
 bool GainController2::Validate(
     const AudioProcessing::Config::GainController2& config) {
   const auto& fixed = config.fixed_digital;

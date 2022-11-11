@@ -14,9 +14,15 @@
 #include <algorithm>
 #include <utility>
 
+<<<<<<< HEAD
 #include "api/video/i420_buffer.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/ref_counted_object.h"
+=======
+#include "api/make_ref_counted.h"
+#include "api/video/i420_buffer.h"
+#include "rtc_base/checks.h"
+>>>>>>> m108
 #include "third_party/libyuv/include/libyuv/convert.h"
 #include "third_party/libyuv/include/libyuv/planar_functions.h"
 #include "third_party/libyuv/include/libyuv/scale.h"
@@ -31,6 +37,7 @@ namespace {
 int I422DataSize(int height, int stride_y, int stride_u, int stride_v) {
   return stride_y * height + stride_u * height + stride_v * height;
 }
+<<<<<<< HEAD
 
 // TODO(sergio.garcia.murillo@gmail.com): Remove as soon it is available in
 // libyuv. Due to the rotate&scale required, this function may not be merged in
@@ -154,6 +161,8 @@ int webrtcI422Scale(const uint8_t* src_y,
                      dst_stride_v, dst_halfwidth, dst_height, filtering);
   return 0;
 }
+=======
+>>>>>>> m108
 }  // namespace
 
 I422Buffer::I422Buffer(int width, int height)
@@ -257,7 +266,11 @@ rtc::scoped_refptr<I422Buffer> I422Buffer::Rotate(
       I422Buffer::Create(rotated_width, rotated_height);
 
   RTC_CHECK_EQ(0,
+<<<<<<< HEAD
                webrtcI422Rotate(
+=======
+               libyuv::I422Rotate(
+>>>>>>> m108
                    src.DataY(), src.StrideY(), src.DataU(), src.StrideU(),
                    src.DataV(), src.StrideV(), buffer->MutableDataY(),
                    buffer->StrideY(), buffer->MutableDataU(), buffer->StrideU(),
@@ -343,11 +356,20 @@ void I422Buffer::CropAndScaleFrom(const I422BufferInterface& src,
       src.DataU() + src.StrideU() * uv_offset_y + uv_offset_x;
   const uint8_t* v_plane =
       src.DataV() + src.StrideV() * uv_offset_y + uv_offset_x;
+<<<<<<< HEAD
   int res =
       webrtcI422Scale(y_plane, src.StrideY(), u_plane, src.StrideU(), v_plane,
                       src.StrideV(), crop_width, crop_height, MutableDataY(),
                       StrideY(), MutableDataU(), StrideU(), MutableDataV(),
                       StrideV(), width(), height(), libyuv::kFilterBox);
+=======
+
+  int res =
+      libyuv::I422Scale(y_plane, src.StrideY(), u_plane, src.StrideU(), v_plane,
+                        src.StrideV(), crop_width, crop_height, MutableDataY(),
+                        StrideY(), MutableDataU(), StrideU(), MutableDataV(),
+                        StrideV(), width(), height(), libyuv::kFilterBox);
+>>>>>>> m108
 
   RTC_DCHECK_EQ(res, 0);
 }

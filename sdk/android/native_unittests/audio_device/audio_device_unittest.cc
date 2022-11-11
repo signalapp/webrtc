@@ -8,16 +8,16 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#include "modules/audio_device/include/audio_device.h"
+
 #include <list>
 #include <memory>
 #include <numeric>
 
 #include "api/scoped_refptr.h"
-#include "modules/audio_device/include/audio_device.h"
 #include "modules/audio_device/include/mock_audio_transport.h"
 #include "rtc_base/arraysize.h"
 #include "rtc_base/event.h"
-#include "rtc_base/format_macros.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/time_utils.h"
 #include "sdk/android/generated_native_unittests_jni/BuildInfo_jni.h"
@@ -57,7 +57,7 @@ namespace jni {
 // an event indicating that the test was OK.
 static const size_t kNumCallbacks = 10;
 // Max amount of time we wait for an event to be set while counting callbacks.
-static const int kTestTimeOutInMilliseconds = 10 * 1000;
+static constexpr TimeDelta kTestTimeOut = TimeDelta::Seconds(10);
 // Average number of audio callbacks per second assuming 10ms packet size.
 static const size_t kNumCallbacksPerSecond = 100;
 // Play out a test file during this time (unit is in seconds).
@@ -66,7 +66,7 @@ static const size_t kBitsPerSample = 16;
 static const size_t kBytesPerSample = kBitsPerSample / 8;
 // Run the full-duplex test during this time (unit is in seconds).
 // Note that first `kNumIgnoreFirstCallbacks` are ignored.
-static const int kFullDuplexTimeInSec = 5;
+static constexpr TimeDelta kFullDuplexTime = TimeDelta::Seconds(5);
 // Wait for the callback sequence to stabilize by ignoring this amount of the
 // initial callbacks (avoids initial FIFO access).
 // Only used in the RunPlayoutAndRecordingInFullDuplex test.
@@ -74,8 +74,8 @@ static const size_t kNumIgnoreFirstCallbacks = 50;
 // Sets the number of impulses per second in the latency test.
 static const int kImpulseFrequencyInHz = 1;
 // Length of round-trip latency measurements. Number of transmitted impulses
-// is kImpulseFrequencyInHz * kMeasureLatencyTimeInSec - 1.
-static const int kMeasureLatencyTimeInSec = 11;
+// is kImpulseFrequencyInHz * kMeasureLatencyTime - 1.
+static constexpr TimeDelta kMeasureLatencyTime = TimeDelta::Seconds(11);
 // Utilized in round-trip latency measurements to avoid capturing noise samples.
 static const int kImpulseThreshold = 1000;
 static const char kTag[] = "[..........] ";
@@ -184,7 +184,7 @@ class FifoAudioStream : public AudioStreamInterface {
     const size_t size = fifo_->size();
     if (size > largest_size_) {
       largest_size_ = size;
-      PRINTD("(%" RTC_PRIuS ")", largest_size_);
+      PRINTD("(%zu)", largest_size_);
     }
     total_written_elements_ += size;
   }
@@ -547,13 +547,12 @@ class AudioDeviceTest : public ::testing::Test {
 #ifdef ENABLE_PRINTF
     PRINT("file name: %s\n", file_name.c_str());
     const size_t bytes = test::GetFileSize(file_name);
-    PRINT("file size: %" RTC_PRIuS " [bytes]\n", bytes);
-    PRINT("file size: %" RTC_PRIuS " [samples]\n", bytes / kBytesPerSample);
+    PRINT("file size: %zu [bytes]\n", bytes);
+    PRINT("file size: %zu [samples]\n", bytes / kBytesPerSample);
     const int seconds =
         static_cast<int>(bytes / (sample_rate * kBytesPerSample));
     PRINT("file size: %d [secs]\n", seconds);
-    PRINT("file size: %" RTC_PRIuS " [callbacks]\n",
-          seconds * kNumCallbacksPerSecond);
+    PRINT("file size: %zu [callbacks]\n", seconds * kNumCallbacksPerSecond);
 #endif
     return file_name;
   }
@@ -881,7 +880,7 @@ TEST_F(AudioDeviceTest, StartPlayoutVerifyCallbacks) {
       .Times(AtLeast(kNumCallbacks));
   EXPECT_EQ(0, audio_device()->RegisterAudioCallback(&mock));
   StartPlayout();
-  test_is_done_.Wait(kTestTimeOutInMilliseconds);
+  test_is_done_.Wait(kTestTimeOut);
   StopPlayout();
 }
 
@@ -898,7 +897,7 @@ TEST_F(AudioDeviceTest, StartRecordingVerifyCallbacks) {
 
   EXPECT_EQ(0, audio_device()->RegisterAudioCallback(&mock));
   StartRecording();
-  test_is_done_.Wait(kTestTimeOutInMilliseconds);
+  test_is_done_.Wait(kTestTimeOut);
   StopRecording();
 }
 
@@ -919,7 +918,7 @@ TEST_F(AudioDeviceTest, StartPlayoutAndRecordingVerifyCallbacks) {
   EXPECT_EQ(0, audio_device()->RegisterAudioCallback(&mock));
   StartPlayout();
   StartRecording();
-  test_is_done_.Wait(kTestTimeOutInMilliseconds);
+  test_is_done_.Wait(kTestTimeOut);
   StopRecording();
   StopPlayout();
 }
@@ -939,7 +938,7 @@ TEST_F(AudioDeviceTest, RunPlayoutWithFileAsSource) {
   // SetMaxPlayoutVolume();
   EXPECT_EQ(0, audio_device()->RegisterAudioCallback(&mock));
   StartPlayout();
-  test_is_done_.Wait(kTestTimeOutInMilliseconds);
+  test_is_done_.Wait(kTestTimeOut);
   StopPlayout();
 }
 
@@ -972,16 +971,16 @@ TEST_F(AudioDeviceTest, ShowAudioParameterInfo) {
   PRINT("%saudio layer: %s\n", kTag,
         low_latency_out ? "Low latency OpenSL" : "Java/JNI based AudioTrack");
   PRINT("%ssample rate: %d Hz\n", kTag, output_parameters_.sample_rate());
-  PRINT("%schannels: %" RTC_PRIuS "\n", kTag, output_parameters_.channels());
-  PRINT("%sframes per buffer: %" RTC_PRIuS " <=> %.2f ms\n", kTag,
+  PRINT("%schannels: %zu\n", kTag, output_parameters_.channels());
+  PRINT("%sframes per buffer: %zu <=> %.2f ms\n", kTag,
         output_parameters_.frames_per_buffer(),
         output_parameters_.GetBufferSizeInMilliseconds());
   PRINT("RECORD: \n");
   PRINT("%saudio layer: %s\n", kTag,
         low_latency_in ? "Low latency OpenSL" : "Java/JNI based AudioRecord");
   PRINT("%ssample rate: %d Hz\n", kTag, input_parameters_.sample_rate());
-  PRINT("%schannels: %" RTC_PRIuS "\n", kTag, input_parameters_.channels());
-  PRINT("%sframes per buffer: %" RTC_PRIuS " <=> %.2f ms\n", kTag,
+  PRINT("%schannels: %zu\n", kTag, input_parameters_.channels());
+  PRINT("%sframes per buffer: %zu <=> %.2f ms\n", kTag,
         input_parameters_.frames_per_buffer(),
         input_parameters_.GetBufferSizeInMilliseconds());
 }
@@ -1060,7 +1059,7 @@ TEST_F(AudioDeviceTest, AudioParametersWithNonDefaultConstruction) {
 // one packet on average. However, under more realistic conditions, the size
 // of the FIFO will vary more due to an unbalance between the two sides.
 // This test tries to verify that the device maintains a balanced callback-
-// sequence by running in loopback for kFullDuplexTimeInSec seconds while
+// sequence by running in loopback for kFullDuplexTime seconds while
 // measuring the size (max and average) of the FIFO. The size of the FIFO is
 // increased by the recording side and decreased by the playout side.
 // TODO(henrika): tune the final test parameters after running tests on several
@@ -1078,13 +1077,12 @@ TEST_F(AudioDeviceTest, DISABLED_RunPlayoutAndRecordingInFullDuplex) {
   std::unique_ptr<FifoAudioStream> fifo_audio_stream(
       new FifoAudioStream(playout_frames_per_10ms_buffer()));
   mock.HandleCallbacks(&test_is_done_, fifo_audio_stream.get(),
-                       kFullDuplexTimeInSec * kNumCallbacksPerSecond);
+                       kFullDuplexTime.seconds() * kNumCallbacksPerSecond);
   SetMaxPlayoutVolume();
   EXPECT_EQ(0, audio_device()->RegisterAudioCallback(&mock));
   StartRecording();
   StartPlayout();
-  test_is_done_.Wait(
-      std::max(kTestTimeOutInMilliseconds, 1000 * kFullDuplexTimeInSec));
+  test_is_done_.Wait(std::max(kTestTimeOut, kFullDuplexTime));
   StopPlayout();
   StopRecording();
 
@@ -1111,20 +1109,19 @@ TEST_F(AudioDeviceTest, DISABLED_MeasureLoopbackLatency) {
   std::unique_ptr<LatencyMeasuringAudioStream> latency_audio_stream(
       new LatencyMeasuringAudioStream(playout_frames_per_10ms_buffer()));
   mock.HandleCallbacks(&test_is_done_, latency_audio_stream.get(),
-                       kMeasureLatencyTimeInSec * kNumCallbacksPerSecond);
+                       kMeasureLatencyTime.seconds() * kNumCallbacksPerSecond);
   EXPECT_EQ(0, audio_device()->RegisterAudioCallback(&mock));
   SetMaxPlayoutVolume();
   DisableBuiltInAECIfAvailable();
   StartRecording();
   StartPlayout();
-  test_is_done_.Wait(
-      std::max(kTestTimeOutInMilliseconds, 1000 * kMeasureLatencyTimeInSec));
+  test_is_done_.Wait(std::max(kTestTimeOut, kMeasureLatencyTime));
   StopPlayout();
   StopRecording();
   // Verify that the correct number of transmitted impulses are detected.
   EXPECT_EQ(latency_audio_stream->num_latency_values(),
             static_cast<size_t>(
-                kImpulseFrequencyInHz * kMeasureLatencyTimeInSec - 1));
+                kImpulseFrequencyInHz * kMeasureLatencyTime.seconds() - 1));
   latency_audio_stream->PrintResults();
 }
 

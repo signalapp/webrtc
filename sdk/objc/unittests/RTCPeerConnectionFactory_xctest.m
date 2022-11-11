@@ -134,6 +134,7 @@
 - (void)testRTCRtpSenderLifetime {
   @autoreleasepool {
     RTC_OBJC_TYPE(RTCConfiguration) *config = [[RTC_OBJC_TYPE(RTCConfiguration) alloc] init];
+    config.sdpSemantics = RTCSdpSemanticsPlanB;
     RTC_OBJC_TYPE(RTCMediaConstraints) *constraints =
         [[RTC_OBJC_TYPE(RTCMediaConstraints) alloc] initWithMandatoryConstraints:@{}
                                                              optionalConstraints:nil];
@@ -161,6 +162,7 @@
 - (void)testRTCRtpReceiverLifetime {
   @autoreleasepool {
     RTC_OBJC_TYPE(RTCConfiguration) *config = [[RTC_OBJC_TYPE(RTCConfiguration) alloc] init];
+    config.sdpSemantics = RTCSdpSemanticsPlanB;
     RTC_OBJC_TYPE(RTCMediaConstraints) *constraints =
         [[RTC_OBJC_TYPE(RTCMediaConstraints) alloc] initWithMandatoryConstraints:@{}
                                                              optionalConstraints:nil];

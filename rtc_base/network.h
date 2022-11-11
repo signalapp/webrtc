@@ -24,6 +24,7 @@
 #include "api/array_view.h"
 #include "api/field_trials_view.h"
 #include "api/sequence_checker.h"
+#include "api/task_queue/pending_task_safety_flag.h"
 #include "api/transport/field_trial_based_config.h"
 #include "rtc_base/ip_address.h"
 #include "rtc_base/mdns_responder_interface.h"
@@ -68,7 +69,7 @@ std::string MakeNetworkKey(absl::string_view name,
 // Utility function that attempts to determine an adapter type by an interface
 // name (e.g., "wlan0"). Can be used by NetworkManager subclasses when other
 // mechanisms fail to determine the type.
-RTC_EXPORT AdapterType GetAdapterTypeFromName(const char* network_name);
+RTC_EXPORT AdapterType GetAdapterTypeFromName(absl::string_view network_name);
 
 class DefaultLocalAddressProvider {
  public:
@@ -233,7 +234,7 @@ class RTC_EXPORT NetworkManagerBase : public NetworkManager {
 
  private:
   friend class NetworkTest;
-
+  const webrtc::FieldTrialsView* field_trials_ = nullptr;
   EnumerationPermission enumeration_permission_;
 
   std::vector<Network*> networks_;
@@ -262,16 +263,6 @@ class RTC_EXPORT BasicNetworkManager : public NetworkManagerBase,
                                        public NetworkBinderInterface,
                                        public sigslot::has_slots<> {
  public:
-  // This version is used by chromium.
-  ABSL_DEPRECATED(
-      "Use the version with socket_factory, see bugs.webrtc.org/13145")
-  explicit BasicNetworkManager(
-      const webrtc::FieldTrialsView* field_trials = nullptr)
-      : BasicNetworkManager(
-            /* network_monitor_factory= */ nullptr,
-            /* socket_factory= */ nullptr,
-            field_trials) {}
-
   // This is used by lots of downstream code.
   BasicNetworkManager(SocketFactory* socket_factory,
                       const webrtc::FieldTrialsView* field_trials = nullptr)
@@ -380,18 +371,21 @@ class RTC_EXPORT Network {
   Network(absl::string_view name,
           absl::string_view description,
           const IPAddress& prefix,
-          int prefix_length)
+          int prefix_length,
+          const webrtc::FieldTrialsView* field_trials = nullptr)
       : Network(name,
                 description,
                 prefix,
                 prefix_length,
-                rtc::ADAPTER_TYPE_UNKNOWN) {}
+                rtc::ADAPTER_TYPE_UNKNOWN,
+                field_trials) {}
 
   Network(absl::string_view name,
           absl::string_view description,
           const IPAddress& prefix,
           int prefix_length,
-          AdapterType type);
+          AdapterType type,
+          const webrtc::FieldTrialsView* field_trials = nullptr);
 
   Network(const Network&);
   ~Network();
@@ -428,6 +422,9 @@ class RTC_EXPORT Network {
   // Returns the length, in bits, of this network's prefix.
   int prefix_length() const { return prefix_length_; }
 
+  // Returns the family for the network prefix.
+  int family() const { return prefix_.family(); }
+
   // `key_` has unique value per network interface. Used in sorting network
   // interfaces. Key is derived from interface name and it's prefix.
   std::string key() const { return key_; }
@@ -437,9 +434,11 @@ class RTC_EXPORT Network {
   // Here is the rule on how we mark the IPv6 address as ignorable for WebRTC.
   // 1) return all global temporary dynamic and non-deprecated ones.
   // 2) if #1 not available, return global ones.
-  // 3) if #2 not available, use ULA ipv6 as last resort. (ULA stands
-  // for unique local address, which is not route-able in open
-  // internet but might be useful for a close WebRTC deployment.
+  // 3) if #2 not available and WebRTC-IPv6NetworkResolutionFixes enabled,
+  // return local link ones.
+  // 4) if #3 not available, use ULA ipv6 as last resort. (ULA stands for
+  // unique local address, which is not route-able in open internet but might
+  // be useful for a close WebRTC deployment.
 
   // TODO(guoweis): rule #3 actually won't happen at current
   // implementation. The reason being that ULA address starting with
@@ -451,10 +450,6 @@ class RTC_EXPORT Network {
   // Note that when not specifying any flag, it's treated as case global
   // IPv6 address
   IPAddress GetBestIP() const;
-
-  // Keep the original function here for now.
-  // TODO(guoweis): Remove this when all callers are migrated to GetBestIP().
-  IPAddress ip() const { return GetBestIP(); }
 
   // Adds an active IP address to this network. Does not check for duplicates.
   void AddIP(const InterfaceAddress& ip) { ips_.push_back(ip); }
@@ -574,6 +569,7 @@ class RTC_EXPORT Network {
   std::string ToString() const;
 
  private:
+  const webrtc::FieldTrialsView* field_trials_ = nullptr;
   const DefaultLocalAddressProvider* default_local_address_provider_ = nullptr;
   const MdnsResponderProvider* mdns_responder_provider_ = nullptr;
   std::string name_;

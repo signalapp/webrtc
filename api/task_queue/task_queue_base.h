@@ -13,7 +13,8 @@
 #include <memory>
 #include <utility>
 
-#include "api/task_queue/queued_task.h"
+#include "absl/functional/any_invocable.h"
+#include "api/units/time_delta.h"
 #include "rtc_base/system/rtc_export.h"
 #include "rtc_base/thread_annotations.h"
 
@@ -48,20 +49,19 @@ class RTC_LOCKABLE RTC_EXPORT TaskQueueBase {
   // was created on.
   virtual void Delete() = 0;
 
-  // Schedules a task to execute. Tasks are executed in FIFO order.
-  // If `task->Run()` returns true, task is deleted on the task queue
-  // before next QueuedTask starts executing.
+  // Schedules a `task` to execute. Tasks are executed in FIFO order.
   // When a TaskQueue is deleted, pending tasks will not be executed but they
   // will be deleted. The deletion of tasks may happen synchronously on the
   // TaskQueue or it may happen asynchronously after TaskQueue is deleted.
   // This may vary from one implementation to the next so assumptions about
   // lifetimes of pending tasks should not be made.
   // May be called on any thread or task queue, including this task queue.
-  virtual void PostTask(std::unique_ptr<QueuedTask> task) = 0;
+  virtual void PostTask(absl::AnyInvocable<void() &&> task) = 0;
 
   // Prefer PostDelayedTask() over PostDelayedHighPrecisionTask() whenever
   // possible.
   //
+<<<<<<< HEAD
   // Schedules a task to execute a specified number of milliseconds from when
   // the call is made, using "low" precision. All scheduling is affected by
   // OS-specific leeway and current workloads which means that in terms of
@@ -69,6 +69,15 @@ class RTC_LOCKABLE RTC_EXPORT TaskQueueBase {
   // leeway, "low" precision adds up to a 17 ms additional leeway. The purpose
   // of this leeway is to achieve more efficient CPU scheduling and reduce Idle
   // Wake Up frequency.
+=======
+  // Schedules a `task` to execute a specified `delay` from when the call is
+  // made, using "low" precision. All scheduling is affected by OS-specific
+  // leeway and current workloads which means that in terms of precision there
+  // are no hard guarantees, but in addition to the OS induced leeway, "low"
+  // precision adds up to a 17 ms additional leeway. The purpose of this leeway
+  // is to achieve more efficient CPU scheduling and reduce Idle Wake Up
+  // frequency.
+>>>>>>> m108
   //
   // The task may execute with [-1, 17 + OS induced leeway) ms additional delay.
   //
@@ -82,8 +91,42 @@ class RTC_LOCKABLE RTC_EXPORT TaskQueueBase {
   // https://crbug.com/webrtc/13583 for more information.
   //
   // May be called on any thread or task queue, including this task queue.
-  virtual void PostDelayedTask(std::unique_ptr<QueuedTask> task,
-                               uint32_t milliseconds) = 0;
+  virtual void PostDelayedTask(absl::AnyInvocable<void() &&> task,
+                               TimeDelta delay) = 0;
+
+  // Prefer PostDelayedTask() over PostDelayedHighPrecisionTask() whenever
+  // possible.
+  //
+  // Schedules a `task` to execute a specified `delay` from when the call is
+  // made, using "high" precision. All scheduling is affected by OS-specific
+  // leeway and current workloads which means that in terms of precision there
+  // are no hard guarantees.
+  //
+  // The task may execute with [-1, OS induced leeway] ms additional delay.
+  //
+  // Avoid making assumptions about the precision of the OS scheduler. On macOS,
+  // the OS induced leeway may be 10% of sleep interval. On Windows, 1 ms
+  // precision timers may be used but there are cases, such as when running on
+  // battery, when the timer precision can be as poor as 15 ms.
+  //
+  // May be called on any thread or task queue, including this task queue.
+  virtual void PostDelayedHighPrecisionTask(absl::AnyInvocable<void() &&> task,
+                                            TimeDelta delay) = 0;
+
+  // As specified by `precision`, calls either PostDelayedTask() or
+  // PostDelayedHighPrecisionTask().
+  void PostDelayedTaskWithPrecision(DelayPrecision precision,
+                                    absl::AnyInvocable<void() &&> task,
+                                    TimeDelta delay) {
+    switch (precision) {
+      case DelayPrecision::kLow:
+        PostDelayedTask(std::move(task), delay);
+        break;
+      case DelayPrecision::kHigh:
+        PostDelayedHighPrecisionTask(std::move(task), delay);
+        break;
+    }
+  }
 
   // Prefer PostDelayedTask() over PostDelayedHighPrecisionTask() whenever
   // possible.
@@ -130,7 +173,7 @@ class RTC_LOCKABLE RTC_EXPORT TaskQueueBase {
   bool IsCurrent() const { return Current() == this; }
 
  protected:
-  class CurrentTaskQueueSetter {
+  class RTC_EXPORT CurrentTaskQueueSetter {
    public:
     explicit CurrentTaskQueueSetter(TaskQueueBase* task_queue);
     CurrentTaskQueueSetter(const CurrentTaskQueueSetter&) = delete;

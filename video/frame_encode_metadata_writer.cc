@@ -19,7 +19,6 @@
 #include "modules/video_coding/include/video_coding_defines.h"
 #include "modules/video_coding/svc/create_scalability_structure.h"
 #include "rtc_base/logging.h"
-#include "rtc_base/ref_counted_object.h"
 #include "rtc_base/time_utils.h"
 
 namespace webrtc {
@@ -67,9 +66,15 @@ void FrameEncodeMetadataWriter::OnEncoderInit(const VideoCodec& codec) {
         num_spatial_layers,
         static_cast<size_t>(codec_settings_.VP9()->numberOfSpatialLayers));
   } else if (codec_settings_.codecType == kVideoCodecAV1 &&
+<<<<<<< HEAD
              codec_settings_.ScalabilityMode() != "") {
     std::unique_ptr<ScalableVideoController> structure =
         CreateScalabilityStructure(codec_settings_.ScalabilityMode());
+=======
+             codec_settings_.GetScalabilityMode().has_value()) {
+    std::unique_ptr<ScalableVideoController> structure =
+        CreateScalabilityStructure(*codec_settings_.GetScalabilityMode());
+>>>>>>> m108
     if (structure) {
       num_spatial_layers = structure->StreamConfig().num_spatial_layers;
     } else {

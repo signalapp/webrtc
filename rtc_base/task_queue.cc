@@ -29,6 +29,7 @@ bool TaskQueue::IsCurrent() const {
   return impl_->IsCurrent();
 }
 
+<<<<<<< HEAD
 void TaskQueue::PostTask(std::unique_ptr<webrtc::QueuedTask> task) {
   impl_->PostTask(std::move(task));
 }
@@ -51,4 +52,6 @@ void TaskQueue::PostDelayedTaskWithPrecision(
   impl_->PostDelayedTaskWithPrecision(precision, std::move(task), milliseconds);
 }
 
+=======
+>>>>>>> m108
 }  // namespace rtc

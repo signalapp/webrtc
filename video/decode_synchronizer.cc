@@ -38,7 +38,11 @@ void DecodeSynchronizer::ScheduledFrame::RunFrameReleaseCallback() && {
   // before execution to ensure internal state is cleared after callback
   // execution.
   auto sf = std::move(*this);
+<<<<<<< HEAD
   sf.callback_(sf.rtp_timestamp_, sf.schedule_.render_time);
+=======
+  std::move(sf.callback_)(sf.rtp_timestamp_, sf.schedule_.render_time);
+>>>>>>> m108
 }
 
 Timestamp DecodeSynchronizer::ScheduledFrame::LatestDecodeTime() const {

@@ -12,6 +12,10 @@
 #include <memory>
 #include <string>
 
+<<<<<<< HEAD
+=======
+#include "absl/strings/string_view.h"
+>>>>>>> m108
 #include "api/rtc_event_log/rtc_event.h"
 #include "logging/rtc_event_log/encoder/var_int.h"
 #include "logging/rtc_event_log/events/rtc_event_field_encoding_parser.h"
@@ -158,7 +162,11 @@ class RtcTestEvent final : public RtcEvent {
                absl::optional<int32_t> optional_signed32,
                absl::optional<int64_t> optional_signed64,
                uint32_t wrapping21,
+<<<<<<< HEAD
                std::string string)
+=======
+               absl::string_view string)
+>>>>>>> m108
       : b_(b),
         signed32_(signed32),
         unsigned32_(unsigned32),
@@ -255,7 +263,11 @@ class RtcEventFieldTest : public ::testing::Test {
     }
   }
 
+<<<<<<< HEAD
   void PrintBytes(const std::string& s) {
+=======
+  void PrintBytes(absl::string_view s) {
+>>>>>>> m108
     for (auto c : s) {
       fprintf(stderr, "%d ", static_cast<uint8_t>(c));
     }

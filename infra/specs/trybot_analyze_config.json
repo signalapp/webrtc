@@ -1,8 +1,17 @@
 {
   "base": {
       "exclusions": [
+<<<<<<< HEAD
+=======
+          ".vpython",
+          ".vpython3",
+>>>>>>> m108
           "DEPS",
           "infra/specs/.*"
       ]
   }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> m108

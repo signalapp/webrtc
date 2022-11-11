@@ -9,9 +9,9 @@
  */
 #include "net/dcsctp/timer/task_queue_timeout.h"
 
+#include "api/task_queue/pending_task_safety_flag.h"
+#include "api/units/time_delta.h"
 #include "rtc_base/logging.h"
-#include "rtc_base/task_utils/pending_task_safety_flag.h"
-#include "rtc_base/task_utils/to_queued_task.h"
 
 namespace dcsctp {
 
@@ -58,7 +58,11 @@ void TaskQueueTimeoutFactory::TaskQueueTimeout::Start(DurationMs duration_ms,
   posted_task_expiration_ = timeout_expiration_;
   parent_.task_queue_.PostDelayedTaskWithPrecision(
       precision_,
+<<<<<<< HEAD
       webrtc::ToQueuedTask(
+=======
+      webrtc::SafeTask(
+>>>>>>> m108
           pending_task_safety_flag_,
           [timeout_id, this]() {
             RTC_DLOG(LS_VERBOSE) << "Timout expired: " << timeout_id.value();
@@ -86,7 +90,7 @@ void TaskQueueTimeoutFactory::TaskQueueTimeout::Start(DurationMs duration_ms,
               }
             }
           }),
-      duration_ms.value());
+      webrtc::TimeDelta::Millis(duration_ms.value()));
 }
 
 void TaskQueueTimeoutFactory::TaskQueueTimeout::Stop() {

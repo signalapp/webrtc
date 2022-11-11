@@ -19,13 +19,14 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "api/call/transport.h"
 #include "api/fec_controller.h"
 #include "api/media_types.h"
 #include "api/rtp_headers.h"
+#include "api/task_queue/pending_task_safety_flag.h"
 #include "api/test/simulated_network.h"
-#include "api/video_codecs/video_encoder_config.h"
 #include "call/audio_receive_stream.h"
 #include "call/audio_send_stream.h"
 #include "call/call.h"
@@ -41,6 +42,7 @@
 #include "rtc_base/task_queue.h"
 #include "rtc_base/task_utils/pending_task_safety_flag.h"
 #include "system_wrappers/include/clock.h"
+#include "video/config/video_encoder_config.h"
 
 namespace webrtc {
 class DegradedCall : public Call, private PacketReceiver {
@@ -60,9 +62,10 @@ class DegradedCall : public Call, private PacketReceiver {
       const AudioSendStream::Config& config) override;
   void DestroyAudioSendStream(AudioSendStream* send_stream) override;
 
-  AudioReceiveStream* CreateAudioReceiveStream(
-      const AudioReceiveStream::Config& config) override;
-  void DestroyAudioReceiveStream(AudioReceiveStream* receive_stream) override;
+  AudioReceiveStreamInterface* CreateAudioReceiveStream(
+      const AudioReceiveStreamInterface::Config& config) override;
+  void DestroyAudioReceiveStream(
+      AudioReceiveStreamInterface* receive_stream) override;
 
   VideoSendStream* CreateVideoSendStream(
       VideoSendStream::Config config,
@@ -73,12 +76,13 @@ class DegradedCall : public Call, private PacketReceiver {
       std::unique_ptr<FecController> fec_controller) override;
   void DestroyVideoSendStream(VideoSendStream* send_stream) override;
 
-  VideoReceiveStream* CreateVideoReceiveStream(
-      VideoReceiveStream::Config configuration) override;
-  void DestroyVideoReceiveStream(VideoReceiveStream* receive_stream) override;
+  VideoReceiveStreamInterface* CreateVideoReceiveStream(
+      VideoReceiveStreamInterface::Config configuration) override;
+  void DestroyVideoReceiveStream(
+      VideoReceiveStreamInterface* receive_stream) override;
 
   FlexfecReceiveStream* CreateFlexfecReceiveStream(
-      const FlexfecReceiveStream::Config& config) override;
+      const FlexfecReceiveStream::Config config) override;
   void DestroyFlexfecReceiveStream(
       FlexfecReceiveStream* receive_stream) override;
 
@@ -98,10 +102,14 @@ class DegradedCall : public Call, private PacketReceiver {
   void SignalChannelNetworkState(MediaType media, NetworkState state) override;
   void OnAudioTransportOverheadChanged(
       int transport_overhead_per_packet) override;
-  void OnLocalSsrcUpdated(AudioReceiveStream& stream,
+  void OnLocalSsrcUpdated(AudioReceiveStreamInterface& stream,
                           uint32_t local_ssrc) override;
-  void OnUpdateSyncGroup(AudioReceiveStream& stream,
-                         const std::string& sync_group) override;
+  void OnLocalSsrcUpdated(VideoReceiveStreamInterface& stream,
+                          uint32_t local_ssrc) override;
+  void OnLocalSsrcUpdated(FlexfecReceiveStream& stream,
+                          uint32_t local_ssrc) override;
+  void OnUpdateSyncGroup(AudioReceiveStreamInterface& stream,
+                         absl::string_view sync_group) override;
   void OnSentPacket(const rtc::SentPacket& sent_packet) override;
 
  protected:
@@ -115,7 +123,11 @@ class DegradedCall : public Call, private PacketReceiver {
    public:
     FakeNetworkPipeOnTaskQueue(
         TaskQueueBase* task_queue,
+<<<<<<< HEAD
         const ScopedTaskSafety& task_safety,
+=======
+        rtc::scoped_refptr<PendingTaskSafetyFlag> call_alive,
+>>>>>>> m108
         Clock* clock,
         std::unique_ptr<NetworkBehaviorInterface> network_behavior);
 
@@ -135,9 +147,32 @@ class DegradedCall : public Call, private PacketReceiver {
 
     Clock* const clock_;
     TaskQueueBase* const task_queue_;
+<<<<<<< HEAD
     const ScopedTaskSafety& task_safety_;
+=======
+    rtc::scoped_refptr<PendingTaskSafetyFlag> call_alive_;
+>>>>>>> m108
     FakeNetworkPipe pipe_;
     absl::optional<int64_t> next_process_ms_ RTC_GUARDED_BY(&task_queue_);
+  };
+
+  class ThreadedPacketReceiver : public PacketReceiver {
+   public:
+    ThreadedPacketReceiver(webrtc::TaskQueueBase* worker_thread,
+                           webrtc::TaskQueueBase* network_thread,
+                           rtc::scoped_refptr<PendingTaskSafetyFlag> call_alive,
+                           PacketReceiver* receiver);
+    ~ThreadedPacketReceiver() override;
+
+    DeliveryStatus DeliverPacket(MediaType media_type,
+                                 rtc::CopyOnWriteBuffer packet,
+                                 int64_t packet_time_us) override;
+
+   private:
+    webrtc::TaskQueueBase* const worker_thread_;
+    webrtc::TaskQueueBase* const network_thread_;
+    rtc::scoped_refptr<PendingTaskSafetyFlag> call_alive_;
+    webrtc::PacketReceiver* const receiver_;
   };
 
   // For audio/video send stream, a TransportAdapter instance is used to
@@ -171,7 +206,12 @@ class DegradedCall : public Call, private PacketReceiver {
 
   Clock* const clock_;
   const std::unique_ptr<Call> call_;
+<<<<<<< HEAD
   ScopedTaskSafety task_safety_;
+=======
+  // For cancelling tasks on the network thread when DegradedCall is destroyed
+  rtc::scoped_refptr<PendingTaskSafetyFlag> call_alive_;
+>>>>>>> m108
   size_t send_config_index_;
   const std::vector<TimeScopedNetworkConfig> send_configs_;
   SimulatedNetwork* send_simulated_network_;
@@ -185,6 +225,7 @@ class DegradedCall : public Call, private PacketReceiver {
   const std::vector<TimeScopedNetworkConfig> receive_configs_;
   SimulatedNetwork* receive_simulated_network_;
   std::unique_ptr<FakeNetworkPipe> receive_pipe_;
+  std::unique_ptr<ThreadedPacketReceiver> packet_receiver_;
 };
 
 }  // namespace webrtc

@@ -15,7 +15,6 @@
 #include <utility>
 
 #include "rtc_base/checks.h"
-#include "rtc_base/ref_counted_object.h"
 
 namespace webrtc {
 
@@ -36,6 +35,7 @@ rtc::scoped_refptr<MediaStream> MediaStream::Create(const std::string& id) {
 
 MediaStream::MediaStream(const std::string& id) : id_(id) {}
 
+<<<<<<< HEAD
 bool MediaStream::AddTrack(AudioTrackInterface* track) {
   return AddTrack<AudioTrackVector, AudioTrackInterface>(
       &audio_tracks_, rtc::scoped_refptr<AudioTrackInterface>(track));
@@ -44,13 +44,21 @@ bool MediaStream::AddTrack(AudioTrackInterface* track) {
 bool MediaStream::AddTrack(VideoTrackInterface* track) {
   return AddTrack<VideoTrackVector, VideoTrackInterface>(
       &video_tracks_, rtc::scoped_refptr<VideoTrackInterface>(track));
+=======
+bool MediaStream::AddTrack(rtc::scoped_refptr<AudioTrackInterface> track) {
+  return AddTrack<AudioTrackVector, AudioTrackInterface>(&audio_tracks_, track);
 }
 
-bool MediaStream::RemoveTrack(AudioTrackInterface* track) {
+bool MediaStream::AddTrack(rtc::scoped_refptr<VideoTrackInterface> track) {
+  return AddTrack<VideoTrackVector, VideoTrackInterface>(&video_tracks_, track);
+>>>>>>> m108
+}
+
+bool MediaStream::RemoveTrack(rtc::scoped_refptr<AudioTrackInterface> track) {
   return RemoveTrack<AudioTrackVector>(&audio_tracks_, track);
 }
 
-bool MediaStream::RemoveTrack(VideoTrackInterface* track) {
+bool MediaStream::RemoveTrack(rtc::scoped_refptr<VideoTrackInterface> track) {
   return RemoveTrack<VideoTrackVector>(&video_tracks_, track);
 }
 
@@ -82,8 +90,9 @@ bool MediaStream::AddTrack(TrackVector* tracks,
 }
 
 template <typename TrackVector>
-bool MediaStream::RemoveTrack(TrackVector* tracks,
-                              MediaStreamTrackInterface* track) {
+bool MediaStream::RemoveTrack(
+    TrackVector* tracks,
+    rtc::scoped_refptr<MediaStreamTrackInterface> track) {
   RTC_DCHECK(tracks != NULL);
   if (!track)
     return false;

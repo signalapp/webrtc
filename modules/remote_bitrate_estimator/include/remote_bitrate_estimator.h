@@ -17,7 +17,8 @@
 #include <memory>
 #include <vector>
 
-#include "modules/include/module.h"
+#include "api/units/data_rate.h"
+#include "api/units/time_delta.h"
 #include "modules/include/module_common_types.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/rtp_rtcp/source/rtcp_packet.h"
@@ -38,7 +39,11 @@ class RemoteBitrateObserver {
   virtual ~RemoteBitrateObserver() {}
 };
 
+<<<<<<< HEAD
 class RemoteBitrateEstimator : public CallStatsObserver, public Module {
+=======
+class RemoteBitrateEstimator : public CallStatsObserver {
+>>>>>>> m108
  public:
   ~RemoteBitrateEstimator() override {}
 
@@ -54,6 +59,7 @@ class RemoteBitrateEstimator : public CallStatsObserver, public Module {
   // Removes all data for `ssrc`.
   virtual void RemoveStream(uint32_t ssrc) = 0;
 
+<<<<<<< HEAD
   // Returns true if a valid estimate exists and sets `bitrate_bps` to the
   // estimated payload bitrate in bits per second. `ssrcs` is the list of ssrcs
   // currently being received and of which the bitrate estimate is based upon.
@@ -61,6 +67,12 @@ class RemoteBitrateEstimator : public CallStatsObserver, public Module {
                               uint32_t* bitrate_bps) const = 0;
 
   virtual void SetMinBitrate(int min_bitrate_bps) = 0;
+=======
+  // Returns latest estimate or DataRate::Zero() if estimation is unavailable.
+  virtual DataRate LatestEstimate() const = 0;
+
+  virtual TimeDelta Process() = 0;
+>>>>>>> m108
 
  protected:
   static const int64_t kProcessIntervalMs = 500;

@@ -10,9 +10,6 @@
 #ifndef RTC_BASE_REF_COUNTED_OBJECT_H_
 #define RTC_BASE_REF_COUNTED_OBJECT_H_
 
-#include <type_traits>
-#include <utility>
-
 #include "api/scoped_refptr.h"
 #include "rtc_base/ref_count.h"
 #include "rtc_base/ref_counter.h"
@@ -104,6 +101,7 @@ class FinalRefCountedObject final : public T {
   mutable webrtc::webrtc_impl::RefCounter ref_count_{0};
 };
 
+<<<<<<< HEAD
 // General utilities for constructing a reference counted class and the
 // appropriate reference count implementation for that class.
 //
@@ -238,6 +236,8 @@ struct Ref {
   typedef scoped_refptr<Type> Ptr;
 };
 
+=======
+>>>>>>> m108
 }  // namespace rtc
 
 #endif  // RTC_BASE_REF_COUNTED_OBJECT_H_

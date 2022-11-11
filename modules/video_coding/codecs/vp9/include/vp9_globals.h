@@ -37,7 +37,6 @@ enum TemporalStructureMode {
   kTemporalStructureMode1,  // 1 temporal layer structure - i.e., IPPP...
   kTemporalStructureMode2,  // 2 temporal layers 01...
   kTemporalStructureMode3,  // 3 temporal layers 0212...
-  kTemporalStructureMode4   // 3 temporal layers 02120212...
 };
 
 struct GofInfoVP9 {
@@ -84,6 +83,7 @@ struct GofInfoVP9 {
         num_ref_pics[3] = 1;
         pid_diff[3][0] = 1;
         break;
+<<<<<<< HEAD
       case kTemporalStructureMode4:
         num_frames_in_gof = 8;
         temporal_idx[0] = 0;
@@ -130,6 +130,8 @@ struct GofInfoVP9 {
         pid_diff[7][0] = 1;
         pid_diff[7][1] = 2;
         break;
+=======
+>>>>>>> m108
       default:
         RTC_DCHECK_NOTREACHED();
     }

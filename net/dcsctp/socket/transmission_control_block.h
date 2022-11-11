@@ -45,6 +45,7 @@ namespace dcsctp {
 // closed or restarted, this object will be deleted and/or replaced.
 class TransmissionControlBlock : public Context {
  public:
+<<<<<<< HEAD
   TransmissionControlBlock(
       TimerManager& timer_manager,
       absl::string_view log_prefix,
@@ -119,6 +120,22 @@ class TransmissionControlBlock : public Context {
                               &retransmission_queue_,
                               handover_state),
         heartbeat_handler_(log_prefix, options, this, &timer_manager_) {}
+=======
+  TransmissionControlBlock(TimerManager& timer_manager,
+                           absl::string_view log_prefix,
+                           const DcSctpOptions& options,
+                           const Capabilities& capabilities,
+                           DcSctpSocketCallbacks& callbacks,
+                           SendQueue& send_queue,
+                           VerificationTag my_verification_tag,
+                           TSN my_initial_tsn,
+                           VerificationTag peer_verification_tag,
+                           TSN peer_initial_tsn,
+                           size_t a_rwnd,
+                           TieTag tie_tag,
+                           PacketSender& packet_sender,
+                           std::function<bool()> is_connection_established);
+>>>>>>> m108
 
   // Implementation of `Context`.
   bool is_connection_established() const override {
@@ -183,6 +200,8 @@ class TransmissionControlBlock : public Context {
 
   bool has_cookie_echo_chunk() const { return cookie_echo_chunk_.has_value(); }
 
+  void MaybeSendFastRetransmit();
+
   // Fills `builder` (which may already be filled with control chunks) with
   // other control and data chunks, and sends packets as much as can be
   // allowed by the congestion control algorithm.
@@ -202,6 +221,10 @@ class TransmissionControlBlock : public Context {
   HandoverReadinessStatus GetHandoverReadiness() const;
 
   void AddHandoverState(DcSctpSocketHandoverState& state);
+<<<<<<< HEAD
+=======
+  void RestoreFromState(const DcSctpSocketHandoverState& handover_state);
+>>>>>>> m108
 
  private:
   // Will be called when the retransmission timer (t3-rtx) expires.

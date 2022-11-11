@@ -16,7 +16,10 @@
 #include "api/units/time_delta.h"
 #include "rtc_base/event.h"
 #include "rtc_base/task_utils/repeating_task.h"
+<<<<<<< HEAD
 #include "rtc_base/task_utils/to_queued_task.h"
+=======
+>>>>>>> m108
 
 namespace webrtc::test {
 
@@ -41,8 +44,12 @@ size_t ForcedTickMetronome::NumListeners() {
 
 void ForcedTickMetronome::Tick() {
   for (auto* listener : listeners_) {
+<<<<<<< HEAD
     listener->OnTickTaskQueue()->PostTask(
         ToQueuedTask([listener] { listener->OnTick(); }));
+=======
+    listener->OnTickTaskQueue()->PostTask([listener] { listener->OnTick(); });
+>>>>>>> m108
   }
 }
 
@@ -66,7 +73,11 @@ void FakeMetronome::AddListener(TickListener* listener) {
         return TimeDelta::PlusInfinity();
       for (auto* listener : listeners_) {
         listener->OnTickTaskQueue()->PostTask(
+<<<<<<< HEAD
             ToQueuedTask([listener] { listener->OnTick(); }));
+=======
+            [listener] { listener->OnTick(); });
+>>>>>>> m108
       }
       return tick_period_;
     });

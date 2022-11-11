@@ -46,7 +46,6 @@
 #include "p2p/base/port_allocator.h"
 #include "p2p/base/transport_description.h"
 #include "p2p/base/transport_info.h"
-#include "pc/channel.h"
 #include "pc/dtls_srtp_transport.h"
 #include "pc/dtls_transport.h"
 #include "pc/jsep_transport.h"
@@ -61,7 +60,6 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/helpers.h"
-#include "rtc_base/ref_counted_object.h"
 #include "rtc_base/rtc_certificate.h"
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_stream_adapter.h"
@@ -168,7 +166,7 @@ class JsepTransportController : public sigslot::has_slots<> {
 
   // Get transports to be used for the provided `mid`. If bundling is enabled,
   // calling GetRtpTransport for multiple MIDs may yield the same object.
-  RtpTransportInternal* GetRtpTransport(const std::string& mid) const;
+  RtpTransportInternal* GetRtpTransport(absl::string_view mid) const;
 
   // RingRTC change to configure OPUS
   // If bundling, return the transport used for it.
@@ -382,6 +380,10 @@ class JsepTransportController : public sigslot::has_slots<> {
   const cricket::JsepTransport* GetJsepTransportForMid(
       const std::string& mid) const RTC_RUN_ON(network_thread_);
   cricket::JsepTransport* GetJsepTransportForMid(const std::string& mid)
+      RTC_RUN_ON(network_thread_);
+  const cricket::JsepTransport* GetJsepTransportForMid(
+      absl::string_view mid) const RTC_RUN_ON(network_thread_);
+  cricket::JsepTransport* GetJsepTransportForMid(absl::string_view mid)
       RTC_RUN_ON(network_thread_);
 
   // Get the JsepTransport without considering the BUNDLE group. Return nullptr

@@ -174,6 +174,7 @@ bool tokenize_first(absl::string_view source,
   return true;
 }
 
+<<<<<<< HEAD
 std::string join(const std::vector<std::string>& source, char delimiter) {
   if (source.size() == 0) {
     return std::string();
@@ -196,6 +197,8 @@ std::string join(const std::vector<std::string>& source, char delimiter) {
   return joined_string;
 }
 
+=======
+>>>>>>> m108
 std::vector<absl::string_view> split(absl::string_view source, char delimiter) {
   std::vector<absl::string_view> fields;
   size_t last = 0;
@@ -207,6 +210,7 @@ std::vector<absl::string_view> split(absl::string_view source, char delimiter) {
   }
   fields.push_back(source.substr(last));
   return fields;
+<<<<<<< HEAD
 }
 
 size_t split(absl::string_view source,
@@ -218,6 +222,8 @@ size_t split(absl::string_view source,
     fields->emplace_back(field_view);
   }
   return fields->size();
+=======
+>>>>>>> m108
 }
 
 std::string ToString(const bool b) {

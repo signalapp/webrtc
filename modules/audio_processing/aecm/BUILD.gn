@@ -19,7 +19,10 @@ rtc_library("aecm_core") {
   deps = [
     "../../../common_audio:common_audio_c",
     "../../../rtc_base:checks",
+<<<<<<< HEAD
     "../../../rtc_base:rtc_base_approved",
+=======
+>>>>>>> m108
     "../../../rtc_base:safe_conversions",
     "../../../rtc_base:sanitizer",
     "../../../system_wrappers",

@@ -20,12 +20,12 @@
 #include "api/adaptation/resource.h"
 #include "api/field_trials_view.h"
 #include "api/sequence_checker.h"
+#include "api/task_queue/pending_task_safety_flag.h"
 #include "api/units/data_rate.h"
+#include "api/video/encoded_image.h"
 #include "api/video/video_bitrate_allocator.h"
 #include "api/video/video_rotation.h"
 #include "api/video/video_sink_interface.h"
-#include "api/video/video_stream_encoder_interface.h"
-#include "api/video/video_stream_encoder_observer.h"
 #include "api/video/video_stream_encoder_settings.h"
 #include "api/video_codecs/video_codec.h"
 #include "api/video_codecs/video_encoder.h"
@@ -41,7 +41,6 @@
 #include "rtc_base/race_checker.h"
 #include "rtc_base/rate_statistics.h"
 #include "rtc_base/task_queue.h"
-#include "rtc_base/task_utils/pending_task_safety_flag.h"
 #include "rtc_base/thread_annotations.h"
 #include "system_wrappers/include/clock.h"
 #include "video/adaptation/video_stream_encoder_resource_manager.h"
@@ -49,6 +48,8 @@
 #include "video/frame_cadence_adapter.h"
 #include "video/frame_encode_metadata_writer.h"
 #include "video/video_source_sink_controller.h"
+#include "video/video_stream_encoder_interface.h"
+#include "video/video_stream_encoder_observer.h"
 
 namespace webrtc {
 
@@ -81,7 +82,9 @@ class VideoStreamEncoder : public VideoStreamEncoderInterface,
       std::unique_ptr<webrtc::TaskQueueBase, webrtc::TaskQueueDeleter>
           encoder_queue,
       BitrateAllocationCallbackType allocation_cb_type,
-      const FieldTrialsView& field_trials);
+      const FieldTrialsView& field_trials,
+      webrtc::VideoEncoderFactory::EncoderSelectorInterface* encoder_selector =
+          nullptr);
   ~VideoStreamEncoder() override;
 
   VideoStreamEncoder(const VideoStreamEncoder&) = delete;
@@ -126,7 +129,7 @@ class VideoStreamEncoder : public VideoStreamEncoderInterface,
  protected:
   // Used for testing. For example the `ScalingObserverInterface` methods must
   // be called on `encoder_queue_`.
-  rtc::TaskQueue* encoder_queue() { return &encoder_queue_; }
+  TaskQueueBase* encoder_queue() { return encoder_queue_.Get(); }
 
   void OnVideoSourceRestrictionsUpdated(
       VideoSourceRestrictions restrictions,
@@ -252,6 +255,12 @@ class VideoStreamEncoder : public VideoStreamEncoderInterface,
 
   void RequestEncoderSwitch() RTC_RUN_ON(&encoder_queue_);
 
+  // Augments an EncodedImage received from an encoder with parsable
+  // information.
+  EncodedImage AugmentEncodedImage(
+      const EncodedImage& encoded_image,
+      const CodecSpecificInfo* codec_specific_info);
+
   const FieldTrialsView& field_trials_;
   TaskQueueBase* const worker_queue_;
 
@@ -262,8 +271,14 @@ class VideoStreamEncoder : public VideoStreamEncoderInterface,
   const BitrateAllocationCallbackType allocation_cb_type_;
   const RateControlSettings rate_control_settings_;
 
+  webrtc::VideoEncoderFactory::EncoderSelectorInterface* const
+      encoder_selector_from_constructor_;
   std::unique_ptr<VideoEncoderFactory::EncoderSelectorInterface> const
-      encoder_selector_;
+      encoder_selector_from_factory_;
+  // Pointing to either encoder_selector_from_constructor_ or
+  // encoder_selector_from_factory_ but can be nullptr.
+  VideoEncoderFactory::EncoderSelectorInterface* const encoder_selector_;
+
   VideoStreamEncoderObserver* const encoder_stats_observer_;
   // Adapter that avoids public inheritance of the cadence adapter's callback
   // interface.
@@ -442,12 +457,29 @@ class VideoStreamEncoder : public VideoStreamEncoderInterface,
 
   const absl::optional<int> vp9_low_tier_core_threshold_;
 
+  // These are copies of restrictions (glorified max_pixel_count) set by
+  // a) OnVideoSourceRestrictionsUpdated
+  // b) CheckForAnimatedContent
+  // They are used to scale down encoding resolution if needed when using
+  // requested_resolution.
+  //
+  // TODO(webrtc:14451) Split video_source_sink_controller_
+  // so that ownership on restrictions/wants is kept on &encoder_queue_, that
+  // these extra copies would not be needed.
+  absl::optional<VideoSourceRestrictions> latest_restrictions_
+      RTC_GUARDED_BY(&encoder_queue_);
+  absl::optional<VideoSourceRestrictions> animate_restrictions_
+      RTC_GUARDED_BY(&encoder_queue_);
+
+  // Used to cancel any potentially pending tasks to the worker thread.
+  // Refrenced by tasks running on `encoder_queue_` so need to be destroyed
+  // after stopping that queue. Must be created and destroyed on
+  // `worker_queue_`.
+  ScopedTaskSafety task_safety_;
+
   // Public methods are proxied to the task queues. The queues must be destroyed
   // first to make sure no tasks run that use other members.
   rtc::TaskQueue encoder_queue_;
-
-  // Used to cancel any potentially pending tasks to the worker thread.
-  ScopedTaskSafety task_safety_;
 };
 
 }  // namespace webrtc

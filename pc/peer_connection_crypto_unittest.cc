@@ -43,7 +43,10 @@
 #include "pc/session_description.h"
 #include "pc/test/mock_peer_connection_observers.h"
 #include "rtc_base/checks.h"
+<<<<<<< HEAD
 #include "rtc_base/ref_counted_object.h"
+=======
+>>>>>>> m108
 #include "rtc_base/rtc_certificate.h"
 #include "rtc_base/rtc_certificate_generator.h"
 #include "rtc_base/ssl_fingerprint.h"
@@ -97,7 +100,8 @@ class PeerConnectionCryptoBaseTest : public ::testing::Test {
       const RTCConfiguration& config,
       std::unique_ptr<rtc::RTCCertificateGeneratorInterface> cert_gen) {
     auto fake_port_allocator = std::make_unique<cricket::FakePortAllocator>(
-        rtc::Thread::Current(), nullptr);
+        rtc::Thread::Current(),
+        std::make_unique<rtc::BasicPacketSocketFactory>(vss_.get()));
     auto observer = std::make_unique<MockPeerConnectionObserver>();
     RTCConfiguration modified_config = config;
     modified_config.sdp_semantics = sdp_semantics_;
@@ -110,7 +114,11 @@ class PeerConnectionCryptoBaseTest : public ::testing::Test {
       return nullptr;
     }
 
+<<<<<<< HEAD
     observer->SetPeerConnectionInterface(result.value());
+=======
+    observer->SetPeerConnectionInterface(result.value().get());
+>>>>>>> m108
     return std::make_unique<PeerConnectionWrapper>(
         pc_factory_, result.MoveValue(), std::move(observer));
   }
@@ -662,10 +670,10 @@ TEST_P(PeerConnectionCryptoDtlsCertGenTest, TestCertificateGeneration) {
         rtc::make_ref_counted<MockCreateSessionDescriptionObserver>();
     observers.push_back(observer);
     if (sdp_type_ == SdpType::kOffer) {
-      pc->pc()->CreateOffer(observer,
+      pc->pc()->CreateOffer(observer.get(),
                             PeerConnectionInterface::RTCOfferAnswerOptions());
     } else {
-      pc->pc()->CreateAnswer(observer,
+      pc->pc()->CreateAnswer(observer.get(),
                              PeerConnectionInterface::RTCOfferAnswerOptions());
     }
   }

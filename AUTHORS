@@ -24,7 +24,10 @@ Anil Kumar <an1kumar@gmail.com>
 Ben Strong <bstrong@gmail.com>
 Berthold Herrmann <bertholdherrmann08@googlemail.com>
 Bob Withers <bwit@pobox.com>
+Brett Hebert <brett@quebic.com>
+Brett Hebert <hebert.brett@pm.me>
 Bridger Maxwell <bridgeyman@gmail.com>
+Bruno Pitrus <brunopitrus@hotmail.com>
 Cheng Qian <chengqian1521@qq.com>
 Christophe Dumez <ch.dumez@samsung.com>
 Chris Tserng <tserng@amazon.com>
@@ -44,6 +47,7 @@ Dirk-Jan C. Binnema <djcb@djcbsoftware.nl>
 Dmitry Lizin <sdkdimon@gmail.com>
 Eike Rathke <erathke@redhat.com>
 Eric Rescorla, RTFM Inc. <ekr@rtfm.com>
+Filip Hlasek <filip@orcamobility.ai>
 Frederik Riedel, Frogg GmbH <frederik.riedel@frogg.io>
 Giji Gangadharan <giji.g@samsung.com>
 Graham Yoakum <gyoakum@skobalt.com>
@@ -78,8 +82,13 @@ Michael Iedema <michael@kapsulate.com>
 Michel Promonet <michel.promonet.1@gmail.com>
 Miguel Paris <mparisdiaz@gmail.com>
 Mike Gilbert <floppymaster@gmail.com>
+Mike Wei <Mike.WeiB@gmail.com>
 Min Wang <mingewang@gmail.com>
 Mo Zanaty <mzanaty@cisco.com>
+<<<<<<< HEAD
+=======
+Nico Schlumprecht <me@github.nico.onl>
+>>>>>>> m108
 Niek van der Maas <mail@niekvandermaas.nl>
 Olivier Crête <olivier.crete@ocrete.ca>
 Pali Rohar
@@ -116,10 +125,15 @@ Victor Costan <costan@gmail.com>
 Vladimir Beloborodov <VladimirTechMan@gmail.com>
 Xiaohong Xu <freemine@yeah.net>
 Xiaolei Yu <dreifachstein@gmail.com>
+<<<<<<< HEAD
+=======
+Xinchao Tian <tianxinchao@360.cn>
+>>>>>>> m108
 Yaowen Guo <albertguo88@gmail.com>
 Yura Yaroshevich <yura.yaroshevich@gmail.com>
 Yuriy Pavlyshak <yuriy@appear.in>
 Yusuke Suzuki <utatane.tea@gmail.com>
+Pengfei Han <hanpfei@gmail.com>
 # END individuals section.
 
 # BEGIN organizations section.
@@ -135,6 +149,7 @@ Google Inc. <*@google.com>
 Highfive, Inc. <*@highfive.com>
 HyperConnect Inc. <*@hpcnt.com>
 Intel Corporation <*@intel.com>
+LG Electronics, Inc. <*@lge.com>
 Life On Air Inc. <*@lifeonair.com>
 Microsoft Corporation <*@microsoft.com>
 MIPS Technologies <*@mips.com>
@@ -145,6 +160,8 @@ NVIDIA Corporation <*@nvidia.com>
 Opera Software ASA <*@opera.com>
 Optical Tone Ltd <*@opticaltone.com>
 Pengutronix e.K. <*@pengutronix.de>
+Quebic Inc. <*@quebic.com>
+Raptor Computing Systems, LLC <*@raptorcs.com>
 RingCentral, Inc. <*@ringcentral.com>
 Signal Messenger, LLC <*@signal.org>
 Sinch AB <*@sinch.com>
@@ -161,6 +178,7 @@ Videona Socialmedia <*@videona.com>
 Videxio AS <*@videxio.com>
 Vidyo, Inc. <*@vidyo.com>
 Vonage Holdings Corp. <*@vonage.com>
+Wang Qing <wangqing-hf@loongson.cn>
 Wire Swiss GmbH <*@wire.com>
 &yet LLC <*@andyet.com>
 # END organizations section.

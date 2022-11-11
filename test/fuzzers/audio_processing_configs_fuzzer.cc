@@ -40,6 +40,7 @@ rtc::scoped_refptr<AudioProcessing> CreateApm(test::FuzzDataHelper* fuzz_data,
                                               rtc::TaskQueue* worker_queue) {
   // Parse boolean values for optionally enabling different
   // configurable public components of APM.
+<<<<<<< HEAD
   static_cast<void>(fuzz_data->ReadOrDefaultValue(true));
   bool use_ts = fuzz_data->ReadOrDefaultValue(true);
   static_cast<void>(fuzz_data->ReadOrDefaultValue(true));
@@ -49,18 +50,28 @@ rtc::scoped_refptr<AudioProcessing> CreateApm(test::FuzzDataHelper* fuzz_data,
   bool use_hpf = fuzz_data->ReadOrDefaultValue(true);
   bool use_aec3 = fuzz_data->ReadOrDefaultValue(true);
 
+=======
+  bool use_ts = fuzz_data->ReadOrDefaultValue(true);
+  bool use_red = fuzz_data->ReadOrDefaultValue(true);
+  bool use_hpf = fuzz_data->ReadOrDefaultValue(true);
+  bool use_aec3 = fuzz_data->ReadOrDefaultValue(true);
+>>>>>>> m108
   bool use_aec = fuzz_data->ReadOrDefaultValue(true);
   bool use_aecm = fuzz_data->ReadOrDefaultValue(true);
   bool use_agc = fuzz_data->ReadOrDefaultValue(true);
   bool use_ns = fuzz_data->ReadOrDefaultValue(true);
+<<<<<<< HEAD
   static_cast<void>(fuzz_data->ReadOrDefaultValue(true));
   static_cast<void>(fuzz_data->ReadOrDefaultValue(true));
+=======
+>>>>>>> m108
   bool use_agc_limiter = fuzz_data->ReadOrDefaultValue(true);
   bool use_agc2 = fuzz_data->ReadOrDefaultValue(true);
+  bool use_agc2_adaptive_digital = fuzz_data->ReadOrDefaultValue(true);
 
-  // Read an int8 value, but don't let it be too large or small.
+  // Read a gain value supported by GainController2::Validate().
   const float gain_controller2_gain_db =
-      rtc::SafeClamp<int>(fuzz_data->ReadOrDefaultValue<int8_t>(0), -40, 40);
+      fuzz_data->ReadOrDefaultValue<uint8_t>(0) % 50;
 
   constexpr size_t kNumFieldTrials = arraysize(kFieldTrialNames);
   // Verify that the read data type has enough bits to fuzz the field trials.
@@ -76,10 +87,13 @@ rtc::scoped_refptr<AudioProcessing> CreateApm(test::FuzzDataHelper* fuzz_data,
   }
   field_trial::InitFieldTrialsFromString(field_trial_string->c_str());
 
+<<<<<<< HEAD
   bool use_agc2_adaptive_digital = fuzz_data->ReadOrDefaultValue(true);
   static_cast<void>(fuzz_data->ReadOrDefaultValue(true));
   static_cast<void>(fuzz_data->ReadOrDefaultValue(true));
 
+=======
+>>>>>>> m108
   // Ignore a few bytes. Bytes from this segment will be used for
   // future config flag changes. We assume 40 bytes is enough for
   // configuring the APM.

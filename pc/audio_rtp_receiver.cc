@@ -20,9 +20,6 @@
 #include "pc/audio_track.h"
 #include "pc/media_stream_track_proxy.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/location.h"
-#include "rtc_base/ref_counted_object.h"
-#include "rtc_base/task_utils/to_queued_task.h"
 
 namespace webrtc {
 
@@ -79,15 +76,14 @@ void AudioRtpReceiver::OnChanged() {
   if (cached_track_enabled_ == enabled)
     return;
   cached_track_enabled_ = enabled;
-  worker_thread_->PostTask(
-      ToQueuedTask(worker_thread_safety_, [this, enabled]() {
-        RTC_DCHECK_RUN_ON(worker_thread_);
-        Reconfigure(enabled);
-      }));
+  worker_thread_->PostTask(SafeTask(worker_thread_safety_, [this, enabled]() {
+    RTC_DCHECK_RUN_ON(worker_thread_);
+    Reconfigure(enabled);
+  }));
 }
 
-// RTC_RUN_ON(worker_thread_)
 void AudioRtpReceiver::SetOutputVolume_w(double volume) {
+  RTC_DCHECK_RUN_ON(worker_thread_);
   RTC_DCHECK_GE(volume, 0.0);
   RTC_DCHECK_LE(volume, 10.0);
 
@@ -104,7 +100,7 @@ void AudioRtpReceiver::OnSetVolume(double volume) {
   RTC_DCHECK_LE(volume, 10);
 
   bool track_enabled = track_->internal()->enabled();
-  worker_thread_->Invoke<void>(RTC_FROM_HERE, [&]() {
+  worker_thread_->BlockingCall([&]() {
     RTC_DCHECK_RUN_ON(worker_thread_);
     // Update the cached_volume_ even when stopped, to allow clients to set
     // the volume before starting/restarting, eg see crbug.com/1272566.
@@ -167,22 +163,22 @@ void AudioRtpReceiver::Stop() {
   track_->internal()->set_ended();
 }
 
-// RTC_RUN_ON(&signaling_thread_checker_)
 void AudioRtpReceiver::RestartMediaChannel(absl::optional<uint32_t> ssrc) {
+  RTC_DCHECK_RUN_ON(&signaling_thread_checker_);
   bool enabled = track_->internal()->enabled();
   MediaSourceInterface::SourceState state = source_->state();
-  worker_thread_->Invoke<void>(RTC_FROM_HERE, [&]() {
+  worker_thread_->BlockingCall([&]() {
     RTC_DCHECK_RUN_ON(worker_thread_);
     RestartMediaChannel_w(std::move(ssrc), enabled, state);
   });
   source_->SetState(MediaSourceInterface::kLive);
 }
 
-// RTC_RUN_ON(worker_thread_)
 void AudioRtpReceiver::RestartMediaChannel_w(
     absl::optional<uint32_t> ssrc,
     bool track_enabled,
     MediaSourceInterface::SourceState state) {
+  RTC_DCHECK_RUN_ON(worker_thread_);
   if (!media_channel_)
     return;  // Can't restart.
 
@@ -246,7 +242,7 @@ void AudioRtpReceiver::SetStreams(
       }
     }
     if (removed) {
-      existing_stream->RemoveTrack(track_);
+      existing_stream->RemoveTrack(audio_track());
     }
   }
   // Add remote track to any streams that are new.
@@ -260,7 +256,7 @@ void AudioRtpReceiver::SetStreams(
       }
     }
     if (added) {
-      stream->AddTrack(track_);
+      stream->AddTrack(audio_track());
     }
   }
   streams_ = streams;
@@ -284,8 +280,8 @@ void AudioRtpReceiver::SetDepacketizerToDecoderFrameTransformer(
   frame_transformer_ = std::move(frame_transformer);
 }
 
-// RTC_RUN_ON(worker_thread_)
 void AudioRtpReceiver::Reconfigure(bool track_enabled) {
+  RTC_DCHECK_RUN_ON(worker_thread_);
   RTC_DCHECK(media_channel_);
 
   SetOutputVolume_w(track_enabled ? cached_volume_ : 0);

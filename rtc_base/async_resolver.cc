@@ -14,6 +14,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "api/ref_counted_base.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread_annotations.h"
@@ -37,7 +38,6 @@
 #include "rtc_base/logging.h"
 #include "rtc_base/platform_thread.h"
 #include "rtc_base/task_queue.h"
-#include "rtc_base/task_utils/to_queued_task.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"  // for signal_with_thread...
 
 #if defined(WEBRTC_MAC) || defined(WEBRTC_IOS)
@@ -50,6 +50,7 @@ namespace rtc {
 namespace {
 
 void GlobalGcdRunTask(void* context) {
+<<<<<<< HEAD
   std::unique_ptr<webrtc::QueuedTask> task(
       static_cast<webrtc::QueuedTask*>(context));
   task->Run();
@@ -61,12 +62,29 @@ void PostTaskToGlobalQueue(std::unique_ptr<webrtc::QueuedTask> task) {
       dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
   webrtc::QueuedTask* context = task.release();
   dispatch_async_f(global_queue, context, &GlobalGcdRunTask);
+=======
+  std::unique_ptr<absl::AnyInvocable<void() &&>> task(
+      static_cast<absl::AnyInvocable<void() &&>*>(context));
+  std::move (*task)();
+}
+
+// Post a task into the system-defined global concurrent queue.
+void PostTaskToGlobalQueue(
+    std::unique_ptr<absl::AnyInvocable<void() &&>> task) {
+  dispatch_queue_global_t global_queue =
+      dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+  dispatch_async_f(global_queue, task.release(), &GlobalGcdRunTask);
+>>>>>>> m108
 }
 
 }  // namespace
 #endif
 
+<<<<<<< HEAD
 int ResolveHostname(const std::string& hostname,
+=======
+int ResolveHostname(absl::string_view hostname,
+>>>>>>> m108
                     int family,
                     std::vector<IPAddress>* addresses) {
 #ifdef __native_client__
@@ -99,7 +117,8 @@ int ResolveHostname(const std::string& hostname,
   // https://android.googlesource.com/platform/bionic/+/
   // 7e0bfb511e85834d7c6cb9631206b62f82701d60/libc/netbsd/net/getaddrinfo.c#1657
   hints.ai_flags = AI_ADDRCONFIG;
-  int ret = getaddrinfo(hostname.c_str(), nullptr, &hints, &result);
+  int ret =
+      getaddrinfo(std::string(hostname).c_str(), nullptr, &hints, &result);
   if (ret != 0) {
     return ret;
   }
@@ -144,18 +163,25 @@ void RunResolution(void* obj) {
 }
 
 void AsyncResolver::Start(const SocketAddress& addr) {
+  Start(addr, addr.family());
+}
+
+void AsyncResolver::Start(const SocketAddress& addr, int family) {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
   RTC_DCHECK(!destroy_called_);
   addr_ = addr;
   auto thread_function =
+<<<<<<< HEAD
       [this, addr, caller_task_queue = webrtc::TaskQueueBase::Current(),
+=======
+      [this, addr, family, caller_task_queue = webrtc::TaskQueueBase::Current(),
+>>>>>>> m108
        state = state_] {
         std::vector<IPAddress> addresses;
-        int error =
-            ResolveHostname(addr.hostname().c_str(), addr.family(), &addresses);
+        int error = ResolveHostname(addr.hostname(), family, &addresses);
         webrtc::MutexLock lock(&state->mutex);
         if (state->status == State::Status::kLive) {
-          caller_task_queue->PostTask(webrtc::ToQueuedTask(
+          caller_task_queue->PostTask(
               [this, error, addresses = std::move(addresses), state] {
                 bool live;
                 {
@@ -168,11 +194,16 @@ void AsyncResolver::Start(const SocketAddress& addr) {
                   RTC_DCHECK_RUN_ON(&sequence_checker_);
                   ResolveDone(std::move(addresses), error);
                 }
-              }));
+              });
         }
       };
 #if defined(WEBRTC_MAC) || defined(WEBRTC_IOS)
+<<<<<<< HEAD
   PostTaskToGlobalQueue(webrtc::ToQueuedTask(std::move(thread_function)));
+=======
+  PostTaskToGlobalQueue(
+      std::make_unique<absl::AnyInvocable<void() &&>>(thread_function));
+>>>>>>> m108
 #else
   PlatformThread::SpawnDetached(std::move(thread_function), "AsyncResolver");
 #endif

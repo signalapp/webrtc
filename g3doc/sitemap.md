@@ -34,7 +34,7 @@
     *   DataChannel
     *   [PeerConnection](/pc/g3doc/peer_connection.md)
     *   Desktop capture
-    *   Stats
+    *   [Stats](/stats/g3doc/stats.md)
     *   [Logging](/logging/g3doc/rtc_event_log.md)
 *   Testing
     *   Media Quality and performance
@@ -46,3 +46,5 @@
     *   Network emulation
         *   [Implementation](/test/network/g3doc/index.md)
     *   Performance stats collection
+*   Experimentation
+    *   [Field trials](/g3doc/field-trials.md)

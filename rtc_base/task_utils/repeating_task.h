@@ -15,11 +15,10 @@
 #include <type_traits>
 #include <utility>
 
-#include "api/task_queue/queued_task.h"
+#include "absl/functional/any_invocable.h"
+#include "api/task_queue/pending_task_safety_flag.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/units/time_delta.h"
-#include "api/units/timestamp.h"
-#include "rtc_base/task_utils/pending_task_safety_flag.h"
 #include "system_wrappers/include/clock.h"
 
 namespace webrtc {
@@ -31,6 +30,7 @@ void RepeatingTaskHandleDTraceProbeStart();
 void RepeatingTaskHandleDTraceProbeDelayedStart();
 void RepeatingTaskImplDTraceProbeRun();
 
+<<<<<<< HEAD
 class RepeatingTaskBase : public QueuedTask {
  public:
   RepeatingTaskBase(TaskQueueBase* task_queue,
@@ -89,6 +89,8 @@ class RepeatingTaskImpl final : public RepeatingTaskBase {
   typename std::remove_const<
       typename std::remove_reference<Closure>::type>::type closure_;
 };
+=======
+>>>>>>> m108
 }  // namespace webrtc_repeating_task_impl
 
 // Allows starting tasks that repeat themselves on a TaskQueue indefinately
@@ -111,6 +113,7 @@ class RepeatingTaskHandle {
   // TaskQueue deletes it. It's perfectly fine to destroy the handle while the
   // task is running, since the repeated task is owned by the TaskQueue.
   // The tasks are scheduled onto the task queue using the specified precision.
+<<<<<<< HEAD
   template <class Closure>
   static RepeatingTaskHandle Start(TaskQueueBase* task_queue,
                                    Closure&& closure,
@@ -126,13 +129,20 @@ class RepeatingTaskHandle {
             std::forward<Closure>(closure), clock, alive_flag));
     return RepeatingTaskHandle(std::move(alive_flag));
   }
+=======
+  static RepeatingTaskHandle Start(TaskQueueBase* task_queue,
+                                   absl::AnyInvocable<TimeDelta()> closure,
+                                   TaskQueueBase::DelayPrecision precision =
+                                       TaskQueueBase::DelayPrecision::kLow,
+                                   Clock* clock = Clock::GetRealTimeClock());
+>>>>>>> m108
 
   // DelayedStart is equivalent to Start except that the first invocation of the
   // closure will be delayed by the given amount.
-  template <class Closure>
   static RepeatingTaskHandle DelayedStart(
       TaskQueueBase* task_queue,
       TimeDelta first_delay,
+<<<<<<< HEAD
       Closure&& closure,
       TaskQueueBase::DelayPrecision precision =
           TaskQueueBase::DelayPrecision::kLow,
@@ -148,6 +158,12 @@ class RepeatingTaskHandle {
         first_delay.ms());
     return RepeatingTaskHandle(std::move(alive_flag));
   }
+=======
+      absl::AnyInvocable<TimeDelta()> closure,
+      TaskQueueBase::DelayPrecision precision =
+          TaskQueueBase::DelayPrecision::kLow,
+      Clock* clock = Clock::GetRealTimeClock());
+>>>>>>> m108
 
   // Stops future invocations of the repeating task closure. Can only be called
   // from the TaskQueue where the task is running. The closure is guaranteed to

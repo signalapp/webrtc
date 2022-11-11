@@ -25,8 +25,8 @@
 #include "api/video/video_timing.h"
 #include "modules/video_coding/frame_helpers.h"
 #include "modules/video_coding/include/video_coding_defines.h"
-#include "modules/video_coding/jitter_estimator.h"
-#include "modules/video_coding/timing.h"
+#include "modules/video_coding/timing/jitter_estimator.h"
+#include "modules/video_coding/timing/timing.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/experiments/rtt_mult_experiment.h"
 #include "rtc_base/logging.h"
@@ -57,7 +57,6 @@ constexpr int64_t kLogNonDecodedIntervalMs = 5000;
 
 FrameBuffer::FrameBuffer(Clock* clock,
                          VCMTiming* timing,
-                         VCMReceiveStatisticsCallback* stats_callback,
                          const FieldTrialsView& field_trials)
     : decoded_frames_history_(kMaxFramesHistory),
       clock_(clock),
@@ -66,7 +65,6 @@ FrameBuffer::FrameBuffer(Clock* clock,
       timing_(timing),
       stopped_(false),
       protection_mode_(kProtectionNack),
-      stats_callback_(stats_callback),
       last_log_non_decoded_ms_(-kLogNonDecodedIntervalMs),
       rtt_mult_settings_(RttMultExperiment::GetRttMultValue()),
       zero_playout_delay_max_decode_queue_size_(
@@ -83,7 +81,7 @@ FrameBuffer::~FrameBuffer() {
 
 void FrameBuffer::NextFrame(int64_t max_wait_time_ms,
                             bool keyframe_required,
-                            rtc::TaskQueue* callback_queue,
+                            TaskQueueBase* callback_queue,
                             NextFrameCallback handler) {
   RTC_DCHECK_RUN_ON(&callback_checker_);
   RTC_DCHECK(callback_queue->IsCurrent());
@@ -107,7 +105,7 @@ void FrameBuffer::StartWaitForNextFrameOnQueue() {
   RTC_DCHECK(!callback_task_.Running());
   int64_t wait_ms = FindNextFrame(clock_->CurrentTime());
   callback_task_ = RepeatingTaskHandle::DelayedStart(
-      callback_queue_->Get(), TimeDelta::Millis(wait_ms),
+      callback_queue_, TimeDelta::Millis(wait_ms),
       [this] {
         RTC_DCHECK_RUN_ON(&callback_checker_);
         // If this task has not been cancelled, we did not get any new frames
@@ -256,8 +254,11 @@ std::unique_ptr<EncodedFrame> FrameBuffer::GetNextFrame() {
   absl::optional<Timestamp> render_time = first_frame.RenderTimestamp();
   int64_t receive_time_ms = first_frame.ReceivedTime();
   // Gracefully handle bad RTP timestamps and render time issues.
-  if (!render_time ||
-      FrameHasBadRenderTiming(*render_time, now, timing_->TargetVideoDelay())) {
+  if (!render_time || FrameHasBadRenderTiming(*render_time, now) ||
+      TargetVideoDelayIsTooLarge(timing_->TargetVideoDelay())) {
+    RTC_LOG(LS_WARNING) << "Resetting jitter estimator and timing module due "
+                           "to bad render timing for rtp_timestamp="
+                        << first_frame.Timestamp();
     jitter_estimator_.Reset();
     timing_->Reset();
     render_time = timing_->RenderTime(first_frame.Timestamp(), now);
@@ -275,18 +276,6 @@ std::unique_ptr<EncodedFrame> FrameBuffer::GetNextFrame() {
 
     PropagateDecodability(frame_it->second);
     decoded_frames_history_.InsertDecoded(frame_it->first, frame->Timestamp());
-
-    // Remove decoded frame and all undecoded frames before it.
-    if (stats_callback_) {
-      unsigned int dropped_frames =
-          std::count_if(frames_.begin(), frame_it,
-                        [](const std::pair<const int64_t, FrameInfo>& frame) {
-                          return frame.second.frame != nullptr;
-                        });
-      if (dropped_frames > 0) {
-        stats_callback_->OnDroppedFrames(dropped_frames);
-      }
-    }
 
     frames_.erase(frames_.begin(), ++frame_it);
 
@@ -315,9 +304,6 @@ std::unique_ptr<EncodedFrame> FrameBuffer::GetNextFrame() {
     if (RttMultExperiment::RttMultEnabled())
       jitter_estimator_.FrameNacked();
   }
-
-  UpdateJitterDelay();
-  UpdateTimingFrameInfo();
 
   if (frames_out.size() == 1) {
     return std::move(frames_out[0]);
@@ -456,11 +442,6 @@ int64_t FrameBuffer::InsertFrame(std::unique_ptr<EncodedFrame> frame) {
 
   // It can happen that a frame will be reported as fully received even if a
   // lower spatial layer frame is missing.
-  if (stats_callback_ && frame->is_last_spatial_layer) {
-    stats_callback_->OnCompleteFrame(frame->is_keyframe(), frame->size(),
-                                     frame->contentType());
-  }
-
   info->second.frame = std::move(frame);
 
   if (info->second.num_missing_continuous == 0) {
@@ -591,39 +572,8 @@ bool FrameBuffer::UpdateFrameInfoWithIncomingFrame(const EncodedFrame& frame,
   return true;
 }
 
-void FrameBuffer::UpdateJitterDelay() {
-  TRACE_EVENT0("webrtc", "FrameBuffer::UpdateJitterDelay");
-  if (!stats_callback_)
-    return;
-
-  auto timings = timing_->GetTimings();
-  if (timings.num_decoded_frames > 0) {
-    stats_callback_->OnFrameBufferTimingsUpdated(
-        timings.max_decode_duration.ms(), timings.current_delay.ms(),
-        timings.target_delay.ms(), timings.jitter_buffer_delay.ms(),
-        timings.min_playout_delay.ms(), timings.render_delay.ms());
-  }
-}
-
-void FrameBuffer::UpdateTimingFrameInfo() {
-  TRACE_EVENT0("webrtc", "FrameBuffer::UpdateTimingFrameInfo");
-  absl::optional<TimingFrameInfo> info = timing_->GetTimingFrameInfo();
-  if (info && stats_callback_)
-    stats_callback_->OnTimingFrameInfoUpdated(*info);
-}
-
 void FrameBuffer::ClearFramesAndHistory() {
   TRACE_EVENT0("webrtc", "FrameBuffer::ClearFramesAndHistory");
-  if (stats_callback_) {
-    unsigned int dropped_frames =
-        std::count_if(frames_.begin(), frames_.end(),
-                      [](const std::pair<const int64_t, FrameInfo>& frame) {
-                        return frame.second.frame != nullptr;
-                      });
-    if (dropped_frames > 0) {
-      stats_callback_->OnDroppedFrames(dropped_frames);
-    }
-  }
   frames_.clear();
   last_continuous_frame_.reset();
   frames_to_decode_.clear();

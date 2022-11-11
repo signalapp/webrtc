@@ -11,7 +11,6 @@
 #include "rtc_base/experiments/stable_target_rate_experiment.h"
 
 #include "api/transport/field_trial_based_config.h"
-#include "rtc_base/experiments/rate_control_settings.h"
 
 namespace webrtc {
 namespace {
@@ -44,6 +43,7 @@ StableTargetRateExperiment StableTargetRateExperiment::ParseFromFieldTrials() {
 
 StableTargetRateExperiment StableTargetRateExperiment::ParseFromKeyValueConfig(
     const FieldTrialsView* const key_value_config) {
+<<<<<<< HEAD
   RateControlSettings rate_control =
       RateControlSettings::ParseFromKeyValueConfig(key_value_config);
   return StableTargetRateExperiment(
@@ -51,6 +51,11 @@ StableTargetRateExperiment StableTargetRateExperiment::ParseFromKeyValueConfig(
       rate_control.GetSimulcastHysteresisFactor(VideoCodecMode::kRealtimeVideo),
       rate_control.GetSimulcastHysteresisFactor(
           VideoCodecMode::kScreensharing));
+=======
+  return StableTargetRateExperiment(key_value_config,
+                                    /*default_video_hysteresis=*/1.2,
+                                    /*default_screenshare_hysteresis=*/1.35);
+>>>>>>> m108
 }
 
 bool StableTargetRateExperiment::IsEnabled() const {

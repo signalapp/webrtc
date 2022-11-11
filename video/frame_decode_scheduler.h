@@ -13,8 +13,12 @@
 
 #include <stdint.h>
 
+<<<<<<< HEAD
 #include <functional>
 
+=======
+#include "absl/functional/any_invocable.h"
+>>>>>>> m108
 #include "absl/types/optional.h"
 #include "api/units/timestamp.h"
 #include "video/frame_decode_timing.h"
@@ -25,7 +29,12 @@ class FrameDecodeScheduler {
  public:
   // Invoked when a frame with `rtp_timestamp` is ready for decoding.
   using FrameReleaseCallback =
+<<<<<<< HEAD
       std::function<void(uint32_t rtp_timestamp, Timestamp render_time)>;
+=======
+      absl::AnyInvocable<void(uint32_t rtp_timestamp,
+                              Timestamp render_time) &&>;
+>>>>>>> m108
 
   virtual ~FrameDecodeScheduler() = default;
 
@@ -33,8 +42,14 @@ class FrameDecodeScheduler {
   // `nullopt` if no frame is currently scheduled.
   virtual absl::optional<uint32_t> ScheduledRtpTimestamp() = 0;
 
+<<<<<<< HEAD
   // Shedules a frame for release based on `schedule`. When released, `callback`
   // will be invoked with the `rtp` timestamp of the frame and the `render_time`
+=======
+  // Schedules a frame for release based on `schedule`. When released,
+  // `callback` will be invoked with the `rtp` timestamp of the frame and the
+  // `render_time`
+>>>>>>> m108
   virtual void ScheduleFrame(uint32_t rtp,
                              FrameDecodeTiming::FrameSchedule schedule,
                              FrameReleaseCallback callback) = 0;

@@ -22,11 +22,14 @@
 #include "api/video/video_bitrate_allocation.h"
 #include "api/video/video_codec_type.h"
 #include "api/video_codecs/video_codec.h"
-#include "api/video_codecs/video_encoder_config.h"
 #include "rtc_base/fake_clock.h"
 #include "system_wrappers/include/metrics.h"
 #include "test/gtest.h"
 #include "test/scoped_key_value_config.h"
+<<<<<<< HEAD
+=======
+#include "video/config/video_encoder_config.h"
+>>>>>>> m108
 
 namespace webrtc {
 namespace {
@@ -2401,7 +2404,6 @@ TEST_F(SendStatisticsProxyTest, ResetsRtcpCountersOnContentChange) {
   RtcpPacketTypeCounterObserver* proxy =
       static_cast<RtcpPacketTypeCounterObserver*>(statistics_proxy_.get());
   RtcpPacketTypeCounter counters;
-  counters.first_packet_time_ms = fake_clock_.TimeInMilliseconds();
   proxy->RtcpPacketTypesCounterUpdated(kFirstSsrc, counters);
   proxy->RtcpPacketTypesCounterUpdated(kSecondSsrc, counters);
 

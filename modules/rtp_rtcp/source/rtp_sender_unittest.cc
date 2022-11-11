@@ -13,6 +13,7 @@
 #include <memory>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "api/rtc_event_log/rtc_event.h"
 #include "api/transport/field_trial_based_config.h"
 #include "api/video/video_codec_constants.h"
@@ -35,11 +36,11 @@
 #include "rtc_base/logging.h"
 #include "rtc_base/rate_limiter.h"
 #include "rtc_base/strings/string_builder.h"
-#include "rtc_base/task_utils/to_queued_task.h"
 #include "test/field_trial.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/mock_transport.h"
+#include "test/scoped_key_value_config.h"
 #include "test/time_controller/simulated_time_controller.h"
 
 namespace webrtc {
@@ -71,6 +72,9 @@ const uint8_t kPayloadData[] = {47, 11, 32, 93, 89};
 const int64_t kDefaultExpectedRetransmissionTimeMs = 125;
 const size_t kMaxPaddingLength = 224;      // Value taken from rtp_sender.cc.
 const uint32_t kTimestampTicksPerMs = 90;  // 90kHz clock.
+constexpr absl::string_view kMid = "mid";
+constexpr absl::string_view kRid = "f";
+constexpr bool kMarkerBit = true;
 
 using ::testing::_;
 using ::testing::AllOf;
@@ -100,6 +104,7 @@ class MockRtpPacketPacer : public RtpPacketSender {
               (override));
 };
 
+<<<<<<< HEAD
 class FieldTrialConfig : public FieldTrialsView {
  public:
   FieldTrialConfig() : max_padding_factor_(1200) {}
@@ -121,6 +126,8 @@ class FieldTrialConfig : public FieldTrialsView {
   double max_padding_factor_;
 };
 
+=======
+>>>>>>> m108
 }  // namespace
 
 class RtpSenderTest : public ::testing::Test {
@@ -136,8 +143,7 @@ class RtpSenderTest : public ::testing::Test {
                         std::vector<RtpExtension>(),
                         std::vector<RtpExtensionSize>(),
                         nullptr,
-                        clock_),
-        kMarkerBit(true) {}
+                        clock_) {}
 
   void SetUp() override { SetUpRtpSender(true, false, nullptr); }
 
@@ -160,6 +166,9 @@ class RtpSenderTest : public ::testing::Test {
     config.retransmission_rate_limiter = &retransmission_rate_limiter_;
     config.paced_sender = &mock_paced_sender_;
     config.field_trials = &field_trials_;
+    // Configure rid unconditionally, it has effect only if
+    // corresponding header extension is enabled.
+    config.rid = std::string(kRid);
     return config;
   }
 
@@ -186,8 +195,7 @@ class RtpSenderTest : public ::testing::Test {
   std::unique_ptr<RtpPacketHistory> packet_history_;
   std::unique_ptr<RTPSender> rtp_sender_;
 
-  const bool kMarkerBit;
-  FieldTrialConfig field_trials_;
+  const test::ScopedKeyValueConfig field_trials_;
 
   std::unique_ptr<RtpPacketToSend> BuildRtpPacket(int payload_type,
                                                   bool marker_bit,
@@ -266,19 +274,26 @@ class RtpSenderTest : public ::testing::Test {
 
   // Enable sending of the MID header extension for both the primary SSRC and
   // the RTX SSRC.
+<<<<<<< HEAD
   void EnableMidSending(const std::string& mid) {
+=======
+  void EnableMidSending(absl::string_view mid) {
+>>>>>>> m108
     rtp_sender_->RegisterRtpHeaderExtension(RtpMid::Uri(), kMidExtensionId);
     rtp_sender_->SetMid(mid);
   }
 
   // Enable sending of the RSID header extension for the primary SSRC and the
   // RRSID header extension for the RTX SSRC.
+<<<<<<< HEAD
   void EnableRidSending(const std::string& rid) {
+=======
+  void EnableRidSending() {
+>>>>>>> m108
     rtp_sender_->RegisterRtpHeaderExtension(RtpStreamId::Uri(),
                                             kRidExtensionId);
     rtp_sender_->RegisterRtpHeaderExtension(RepairedRtpStreamId::Uri(),
                                             kRepairedRidExtensionId);
-    rtp_sender_->SetRid(rid);
   }
 };
 
@@ -558,7 +573,7 @@ TEST_F(RtpSenderTest, KeepsTimestampsOnPayloadPadding) {
   // Timestamps as set based on capture time in RtpSenderTest.
   const int64_t start_time = clock_->TimeInMilliseconds();
   const uint32_t start_timestamp = start_time * kTimestampTicksPerMs;
-  const size_t kPayloadSize = 600;
+  const size_t kPayloadSize = 200;
   const size_t kRtxHeaderSize = 2;
 
   // Start by sending one media packet and putting in the packet history.
@@ -592,7 +607,6 @@ TEST_F(RtpSenderTest, KeepsTimestampsOnPayloadPadding) {
 // Test that the MID header extension is included on sent packets when
 // configured.
 TEST_F(RtpSenderTest, MidIncludedOnSentPackets) {
-  const char kMid[] = "mid";
   EnableMidSending(kMid);
 
   // Send a couple packets, expect both packets to have the MID set.
@@ -605,8 +619,7 @@ TEST_F(RtpSenderTest, MidIncludedOnSentPackets) {
 }
 
 TEST_F(RtpSenderTest, RidIncludedOnSentPackets) {
-  const char kRid[] = "f";
-  EnableRidSending(kRid);
+  EnableRidSending();
 
   EXPECT_CALL(mock_paced_sender_,
               EnqueuePackets(ElementsAre(Pointee(Property(
@@ -615,9 +628,8 @@ TEST_F(RtpSenderTest, RidIncludedOnSentPackets) {
 }
 
 TEST_F(RtpSenderTest, RidIncludedOnRtxSentPackets) {
-  const char kRid[] = "f";
   EnableRtx();
-  EnableRidSending(kRid);
+  EnableRidSending();
 
   EXPECT_CALL(mock_paced_sender_,
               EnqueuePackets(ElementsAre(Pointee(AllOf(
@@ -640,11 +652,8 @@ TEST_F(RtpSenderTest, RidIncludedOnRtxSentPackets) {
 }
 
 TEST_F(RtpSenderTest, MidAndRidNotIncludedOnSentPacketsAfterAck) {
-  const char kMid[] = "mid";
-  const char kRid[] = "f";
-
   EnableMidSending(kMid);
-  EnableRidSending(kRid);
+  EnableRidSending();
 
   // This first packet should include both MID and RID.
   EXPECT_CALL(
@@ -666,10 +675,8 @@ TEST_F(RtpSenderTest, MidAndRidNotIncludedOnSentPacketsAfterAck) {
 
 TEST_F(RtpSenderTest, MidAndRidAlwaysIncludedOnSentPacketsWhenConfigured) {
   SetUpRtpSender(false, /*always_send_mid_and_rid=*/true, nullptr);
-  const char kMid[] = "mid";
-  const char kRid[] = "f";
   EnableMidSending(kMid);
-  EnableRidSending(kRid);
+  EnableRidSending();
 
   // Send two media packets: one before and one after the ack.
   // Due to the configuration, both sent packets should contain MID and RID.
@@ -689,12 +696,9 @@ TEST_F(RtpSenderTest, MidAndRidAlwaysIncludedOnSentPacketsWhenConfigured) {
 // the first packets for a given SSRC, and RTX packets are sent on a separate
 // SSRC.
 TEST_F(RtpSenderTest, MidAndRidIncludedOnFirstRtxPacket) {
-  const char kMid[] = "mid";
-  const char kRid[] = "f";
-
   EnableRtx();
   EnableMidSending(kMid);
-  EnableRidSending(kRid);
+  EnableRidSending();
 
   // This first packet will include both MID and RID.
   EXPECT_CALL(mock_paced_sender_, EnqueuePackets);
@@ -723,12 +727,9 @@ TEST_F(RtpSenderTest, MidAndRidIncludedOnFirstRtxPacket) {
 // not include either MID or RRID even if the packet being retransmitted did
 // had a MID or RID.
 TEST_F(RtpSenderTest, MidAndRidNotIncludedOnRtxPacketsAfterAck) {
-  const char kMid[] = "mid";
-  const char kRid[] = "f";
-
   EnableRtx();
   EnableMidSending(kMid);
-  EnableRidSending(kRid);
+  EnableRidSending();
 
   // This first packet will include both MID and RID.
   auto first_built_packet = SendGenericPacket();
@@ -767,11 +768,9 @@ TEST_F(RtpSenderTest, MidAndRidNotIncludedOnRtxPacketsAfterAck) {
 
 TEST_F(RtpSenderTest, MidAndRidAlwaysIncludedOnRtxPacketsWhenConfigured) {
   SetUpRtpSender(false, /*always_send_mid_and_rid=*/true, nullptr);
-  const char kMid[] = "mid";
-  const char kRid[] = "f";
   EnableRtx();
   EnableMidSending(kMid);
-  EnableRidSending(kRid);
+  EnableRidSending();
 
   // Send two media packets: one before and one after the ack.
   EXPECT_CALL(
@@ -813,11 +812,8 @@ TEST_F(RtpSenderTest, MidAndRidAlwaysIncludedOnRtxPacketsWhenConfigured) {
 // Test that if the RtpState indicates an ACK has been received on that SSRC
 // then neither the MID nor RID header extensions will be sent.
 TEST_F(RtpSenderTest, MidAndRidNotIncludedOnSentPacketsAfterRtpStateRestored) {
-  const char kMid[] = "mid";
-  const char kRid[] = "f";
-
   EnableMidSending(kMid);
-  EnableRidSending(kRid);
+  EnableRidSending();
 
   RtpState state = rtp_sender_->GetRtpState();
   EXPECT_FALSE(state.ssrc_has_acked);
@@ -836,12 +832,9 @@ TEST_F(RtpSenderTest, MidAndRidNotIncludedOnSentPacketsAfterRtpStateRestored) {
 // RTX SSRC then neither the MID nor RRID header extensions will be sent on
 // RTX packets.
 TEST_F(RtpSenderTest, MidAndRridNotIncludedOnRtxPacketsAfterRtpStateRestored) {
-  const char kMid[] = "mid";
-  const char kRid[] = "f";
-
   EnableRtx();
   EnableMidSending(kMid);
-  EnableRidSending(kRid);
+  EnableRidSending();
 
   RtpState rtx_state = rtp_sender_->GetRtxRtpState();
   EXPECT_FALSE(rtx_state.ssrc_has_acked);
@@ -946,13 +939,16 @@ TEST_F(RtpSenderTest, CountMidOnlyUntilAcked) {
   EXPECT_EQ(rtp_sender_->ExpectedPerPacketOverhead(), 12u);
 
   rtp_sender_->RegisterRtpHeaderExtension(RtpMid::Uri(), kMidExtensionId);
+<<<<<<< HEAD
   rtp_sender_->RegisterRtpHeaderExtension(RtpStreamId::Uri(), kRidExtensionId);
+=======
+>>>>>>> m108
 
   // Counted only if set.
   EXPECT_EQ(rtp_sender_->ExpectedPerPacketOverhead(), 12u);
   rtp_sender_->SetMid("foo");
   EXPECT_EQ(rtp_sender_->ExpectedPerPacketOverhead(), 36u);
-  rtp_sender_->SetRid("bar");
+  rtp_sender_->RegisterRtpHeaderExtension(RtpStreamId::Uri(), kRidExtensionId);
   EXPECT_EQ(rtp_sender_->ExpectedPerPacketOverhead(), 52u);
 
   // Ack received, mid/rid no longer sent.
@@ -1127,9 +1123,8 @@ TEST_F(RtpSenderTest, GeneratePaddingResendsOldPacketsWithRtx) {
 }
 
 TEST_F(RtpSenderTest, LimitsPayloadPaddingSize) {
-  // Limit RTX payload padding to 2x target size.
-  const double kFactor = 2.0;
-  field_trials_.SetMaxPaddingFactor(kFactor);
+  // RTX payload padding is limited to 3x target size.
+  const double kFactor = 3.0;
   SetUpRtpSender(false, false, nullptr);
   rtp_sender_->SetRtxPayloadType(kRtxPayload, kPayload);
   rtp_sender_->SetRtxStatus(kRtxRetransmitted | kRtxRedundantPayloads);
@@ -1332,11 +1327,10 @@ TEST_F(RtpSenderTest, DoesntFecProtectRetransmissions) {
 }
 
 TEST_F(RtpSenderTest, MarksPacketsWithKeyframeStatus) {
-  FieldTrialBasedConfig field_trials;
   RTPSenderVideo::Config video_config;
   video_config.clock = clock_;
   video_config.rtp_sender = rtp_sender_.get();
-  video_config.field_trials = &field_trials;
+  video_config.field_trials = &field_trials_;
   RTPSenderVideo rtp_sender_video(video_config);
 
   const uint8_t kPayloadType = 127;

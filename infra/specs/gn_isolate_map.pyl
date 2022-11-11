@@ -102,6 +102,17 @@
   },
   "sdk_unittests": {
     "label": "//sdk:sdk_unittests",
+<<<<<<< HEAD:infra/specs/gn_isolate_map.pyl
+=======
+    "type": "console_test_launcher",
+  },
+  "slow_peer_connection_unittests": {
+    "label": "//pc:slow_peer_connection_unittests",
+    "type": "console_test_launcher",
+  },
+  "svc_tests": {
+    "label": "//pc:svc_tests",
+>>>>>>> m108:tools_webrtc/mb/gn_isolate_map.pyl
     "type": "console_test_launcher",
   },
   "system_wrappers_unittests": {

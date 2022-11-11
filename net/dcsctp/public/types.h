@@ -30,6 +30,13 @@ using TimeoutID = webrtc::StrongAlias<class TimeoutTag, uint64_t>;
 // Indicates if a message is allowed to be received out-of-order compared to
 // other messages on the same stream.
 using IsUnordered = webrtc::StrongAlias<class IsUnorderedTag, bool>;
+<<<<<<< HEAD
+=======
+
+// Stream priority, where higher values indicate higher priority. The meaning of
+// this value and how it's used depends on the stream scheduler.
+using StreamPriority = webrtc::StrongAlias<class StreamPriorityTag, uint16_t>;
+>>>>>>> m108
 
 // Duration, as milliseconds. Overflows after 24 days.
 class DurationMs : public webrtc::StrongAlias<class DurationMsTag, int32_t> {
@@ -107,16 +114,43 @@ constexpr inline DurationMs operator-(TimeMs lhs, TimeMs rhs) {
 
 // The maximum number of times the socket should attempt to retransmit a
 // message which fails the first time in unreliable mode.
+<<<<<<< HEAD
 class MaxRetransmits : public webrtc::StrongAlias<class TimeMsTag, uint16_t> {
  public:
   constexpr explicit MaxRetransmits(const UnderlyingType& v)
       : webrtc::StrongAlias<class TimeMsTag, uint16_t>(v) {}
+=======
+class MaxRetransmits
+    : public webrtc::StrongAlias<class MaxRetransmitsTag, uint16_t> {
+ public:
+  constexpr explicit MaxRetransmits(const UnderlyingType& v)
+      : webrtc::StrongAlias<class MaxRetransmitsTag, uint16_t>(v) {}
+>>>>>>> m108
 
   // There should be no limit - the message should be sent reliably.
   static constexpr MaxRetransmits NoLimit() {
     return MaxRetransmits(std::numeric_limits<uint16_t>::max());
   }
 };
+<<<<<<< HEAD
+=======
+
+// An identifier that can be set on sent messages, and picked by the sending
+// client. If different from `::NotSet()`, lifecycle events will be generated,
+// and eventually `DcSctpSocketCallbacks::OnLifecycleEnd` will be called to
+// indicate that the lifecycle isn't tracked any longer. The value zero (0) is
+// not a valid lifecycle identifier, and will be interpreted as not having it
+// set.
+class LifecycleId : public webrtc::StrongAlias<class LifecycleIdTag, uint64_t> {
+ public:
+  constexpr explicit LifecycleId(const UnderlyingType& v)
+      : webrtc::StrongAlias<class LifecycleIdTag, uint64_t>(v) {}
+
+  constexpr bool IsSet() const { return value_ != 0; }
+
+  static constexpr LifecycleId NotSet() { return LifecycleId(0); }
+};
+>>>>>>> m108
 }  // namespace dcsctp
 
 #endif  // NET_DCSCTP_PUBLIC_TYPES_H_

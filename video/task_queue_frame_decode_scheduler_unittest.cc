@@ -15,17 +15,24 @@
 #include <memory>
 #include <utility>
 
+<<<<<<< HEAD
 #include "absl/functional/bind_front.h"
 #include "absl/types/optional.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "rtc_base/task_queue.h"
+=======
+#include "absl/types/optional.h"
+#include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
+>>>>>>> m108
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/time_controller/simulated_time_controller.h"
 
 namespace webrtc {
 
+<<<<<<< HEAD
 using ::testing::Eq;
 using ::testing::Optional;
 
@@ -70,11 +77,25 @@ class TaskQueueFrameDecodeSchedulerTest : public ::testing::Test {
 
 TEST_F(TaskQueueFrameDecodeSchedulerTest, FrameYieldedAfterSpecifiedPeriod) {
   constexpr TimeDelta decode_delay = TimeDelta::Millis(5);
+=======
+using ::testing::_;
+using ::testing::Eq;
+using ::testing::MockFunction;
+using ::testing::Optional;
+
+TEST(TaskQueueFrameDecodeSchedulerTest, FrameYieldedAfterSpecifiedPeriod) {
+  GlobalSimulatedTimeController time_controller_(Timestamp::Seconds(2000));
+  TaskQueueFrameDecodeScheduler scheduler(time_controller_.GetClock(),
+                                          time_controller_.GetMainThread());
+  constexpr TimeDelta decode_delay = TimeDelta::Millis(5);
+
+>>>>>>> m108
   const Timestamp now = time_controller_.GetClock()->CurrentTime();
   const uint32_t rtp = 90000;
   const Timestamp render_time = now + TimeDelta::Millis(15);
   FrameDecodeTiming::FrameSchedule schedule = {
       .latest_decode_time = now + decode_delay, .render_time = render_time};
+<<<<<<< HEAD
   OnQueue([&] {
     scheduler_->ScheduleFrame(
         rtp, schedule,
@@ -90,12 +111,34 @@ TEST_F(TaskQueueFrameDecodeSchedulerTest, FrameYieldedAfterSpecifiedPeriod) {
 }
 
 TEST_F(TaskQueueFrameDecodeSchedulerTest, NegativeDecodeDelayIsRoundedToZero) {
+=======
+
+  MockFunction<void(uint32_t, Timestamp)> ready_cb;
+  scheduler.ScheduleFrame(rtp, schedule, ready_cb.AsStdFunction());
+  EXPECT_CALL(ready_cb, Call(_, _)).Times(0);
+  EXPECT_THAT(scheduler.ScheduledRtpTimestamp(), Optional(rtp));
+  time_controller_.AdvanceTime(TimeDelta::Zero());
+  // Check that `ready_cb` has not been invoked yet.
+  ::testing::Mock::VerifyAndClearExpectations(&ready_cb);
+
+  EXPECT_CALL(ready_cb, Call(rtp, render_time)).Times(1);
+  time_controller_.AdvanceTime(decode_delay);
+
+  scheduler.Stop();
+}
+
+TEST(TaskQueueFrameDecodeSchedulerTest, NegativeDecodeDelayIsRoundedToZero) {
+  GlobalSimulatedTimeController time_controller_(Timestamp::Seconds(2000));
+  TaskQueueFrameDecodeScheduler scheduler(time_controller_.GetClock(),
+                                          time_controller_.GetMainThread());
+>>>>>>> m108
   constexpr TimeDelta decode_delay = TimeDelta::Millis(-5);
   const Timestamp now = time_controller_.GetClock()->CurrentTime();
   const uint32_t rtp = 90000;
   const Timestamp render_time = now + TimeDelta::Millis(15);
   FrameDecodeTiming::FrameSchedule schedule = {
       .latest_decode_time = now + decode_delay, .render_time = render_time};
+<<<<<<< HEAD
   OnQueue([&] {
     scheduler_->ScheduleFrame(
         rtp, schedule,
@@ -108,12 +151,29 @@ TEST_F(TaskQueueFrameDecodeSchedulerTest, NegativeDecodeDelayIsRoundedToZero) {
 }
 
 TEST_F(TaskQueueFrameDecodeSchedulerTest, CancelOutstanding) {
+=======
+
+  MockFunction<void(uint32_t, Timestamp)> ready_cb;
+  EXPECT_CALL(ready_cb, Call(rtp, render_time)).Times(1);
+  scheduler.ScheduleFrame(rtp, schedule, ready_cb.AsStdFunction());
+  EXPECT_THAT(scheduler.ScheduledRtpTimestamp(), Optional(rtp));
+  time_controller_.AdvanceTime(TimeDelta::Zero());
+
+  scheduler.Stop();
+}
+
+TEST(TaskQueueFrameDecodeSchedulerTest, CancelOutstanding) {
+  GlobalSimulatedTimeController time_controller_(Timestamp::Seconds(2000));
+  TaskQueueFrameDecodeScheduler scheduler(time_controller_.GetClock(),
+                                          time_controller_.GetMainThread());
+>>>>>>> m108
   constexpr TimeDelta decode_delay = TimeDelta::Millis(50);
   const Timestamp now = time_controller_.GetClock()->CurrentTime();
   const uint32_t rtp = 90000;
   FrameDecodeTiming::FrameSchedule schedule = {
       .latest_decode_time = now + decode_delay,
       .render_time = now + TimeDelta::Millis(75)};
+<<<<<<< HEAD
   OnQueue([&] {
     scheduler_->ScheduleFrame(
         rtp, schedule,
@@ -130,6 +190,20 @@ TEST_F(TaskQueueFrameDecodeSchedulerTest, CancelOutstanding) {
   time_controller_.AdvanceTime(decode_delay / 2);
   EXPECT_THAT(last_rtp_, Eq(absl::nullopt));
   EXPECT_THAT(last_render_time_, Eq(absl::nullopt));
+=======
+
+  MockFunction<void(uint32_t, Timestamp)> ready_cb;
+  EXPECT_CALL(ready_cb, Call).Times(0);
+  scheduler.ScheduleFrame(rtp, schedule, ready_cb.AsStdFunction());
+  EXPECT_THAT(scheduler.ScheduledRtpTimestamp(), Optional(rtp));
+  time_controller_.AdvanceTime(decode_delay / 2);
+  EXPECT_THAT(scheduler.ScheduledRtpTimestamp(), Optional(rtp));
+  scheduler.CancelOutstanding();
+  EXPECT_THAT(scheduler.ScheduledRtpTimestamp(), Eq(absl::nullopt));
+  time_controller_.AdvanceTime(decode_delay / 2);
+
+  scheduler.Stop();
+>>>>>>> m108
 }
 
 }  // namespace webrtc

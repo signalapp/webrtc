@@ -15,6 +15,7 @@
 #include <utility>
 #include <vector>
 
+#include "api/make_ref_counted.h"
 #include "api/ref_counted_base.h"
 #include "api/rtp_packet_info.h"
 #include "api/scoped_refptr.h"

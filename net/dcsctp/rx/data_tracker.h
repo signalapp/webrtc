@@ -54,11 +54,17 @@ class DataTracker {
 
   DataTracker(absl::string_view log_prefix,
               Timer* delayed_ack_timer,
+<<<<<<< HEAD
               TSN peer_initial_tsn,
               const DcSctpSocketHandoverState* handover_state = nullptr)
       : log_prefix_(std::string(log_prefix) + "dtrack: "),
         seen_packet_(handover_state != nullptr ? handover_state->rx.seen_packet
                                                : false),
+=======
+              TSN peer_initial_tsn)
+      : log_prefix_(std::string(log_prefix) + "dtrack: "),
+        seen_packet_(false),
+>>>>>>> m108
         delayed_ack_timer_(*delayed_ack_timer),
         last_cumulative_acked_tsn_(tsn_unwrapper_.Unwrap(
             handover_state ? TSN(handover_state->rx.last_cumulative_acked_tsn)
@@ -110,6 +116,10 @@ class DataTracker {
   HandoverReadinessStatus GetHandoverReadiness() const;
 
   void AddHandoverState(DcSctpSocketHandoverState& state);
+<<<<<<< HEAD
+=======
+  void RestoreFromState(const DcSctpSocketHandoverState& state);
+>>>>>>> m108
 
  private:
   enum class AckState {

@@ -21,6 +21,7 @@
 
 #include "absl/strings/string_view.h"
 #include "api/numerics/samples_stats_counter.h"
+#include "api/test/metrics/metrics_logger.h"
 #include "api/test/network_emulation/network_emulation_interfaces.h"
 #include "api/test/network_emulation_manager.h"
 #include "api/test/peerconnection_quality_test_fixture.h"
@@ -40,9 +41,8 @@ class StatsBasedNetworkQualityMetricsReporter
   // and to log network layer metrics.
   StatsBasedNetworkQualityMetricsReporter(
       std::map<std::string, std::vector<EmulatedEndpoint*>> peer_endpoints,
-      NetworkEmulationManager* network_emulation)
-      : collector_(std::move(peer_endpoints), network_emulation),
-        clock_(network_emulation->time_controller()->GetClock()) {}
+      NetworkEmulationManager* network_emulation,
+      test::MetricsLogger* metrics_logger);
   ~StatsBasedNetworkQualityMetricsReporter() override = default;
 
   void AddPeer(absl::string_view peer_name,
@@ -58,8 +58,9 @@ class StatsBasedNetworkQualityMetricsReporter
 
  private:
   struct PCStats {
-    // TODO(nisse): Separate audio and video counters. Depends on standard stat
-    // counters, enabled by field trial "WebRTC-UseStandardBytesStats".
+    // TODO(bugs.webrtc.org/10525): Separate audio and video counters. Depends
+    // on standard stat counters, enabled by field trial
+    // "WebRTC-UseStandardBytesStats".
     DataSize payload_received = DataSize::Zero();
     DataSize payload_sent = DataSize::Zero();
 
@@ -101,6 +102,7 @@ class StatsBasedNetworkQualityMetricsReporter
                    const NetworkLayerStats& network_layer_stats,
                    int64_t packet_loss,
                    const Timestamp& end_time);
+<<<<<<< HEAD
   void ReportResult(const std::string& metric_name,
                     const std::string& network_label,
                     double value,
@@ -109,12 +111,15 @@ class StatsBasedNetworkQualityMetricsReporter
                     const std::string& network_label,
                     const SamplesStatsCounter& value,
                     const std::string& unit) const;
+=======
+>>>>>>> m108
   std::string GetTestCaseName(absl::string_view network_label) const;
   void LogNetworkLayerStats(const std::string& peer_name,
                             const NetworkLayerStats& stats) const;
 
   NetworkLayerStatsCollector collector_;
   Clock* const clock_;
+  test::MetricsLogger* const metrics_logger_;
 
   std::string test_case_name_;
   Timestamp start_time_ = Timestamp::MinusInfinity();

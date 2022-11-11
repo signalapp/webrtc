@@ -11,8 +11,11 @@
 """Tests for mb.py."""
 
 import ast
+<<<<<<< HEAD
 import json
 from io import StringIO  # for Python3
+=======
+>>>>>>> m108
 import os
 import re
 import sys
@@ -59,6 +62,7 @@ class FakeMBW(mb.WebRTCMetaBuildWrapper):
     self.rmdirs = []
 
   def ExpandUser(self, path):
+    # pylint: disable=no-self-use
     return '$HOME/%s' % path
 
   def Exists(self, path):
@@ -92,9 +96,15 @@ class FakeMBW(mb.WebRTCMetaBuildWrapper):
     abpath = self._AbsPath(path)
     self.files[abpath] = contents
 
+<<<<<<< HEAD
   def Call(self, cmd, env=None, buffer_output=True, stdin=None):
     del env
     del buffer_output
+=======
+  def Call(self, cmd, env=None, capture_output=True, stdin=None):
+    del env
+    del capture_output
+>>>>>>> m108
     del stdin
     self.calls.append(cmd)
     if self.cmds:
@@ -232,11 +242,19 @@ def CreateFakeMBW(files=None, win32=False):
       mbw.files[path] = contents
       if path.endswith('.runtime_deps'):
 
+<<<<<<< HEAD
         def FakeCall(cmd, env=None, buffer_output=True, stdin=None):
           # pylint: disable=cell-var-from-loop
           del cmd
           del env
           del buffer_output
+=======
+        def FakeCall(cmd, env=None, capture_output=True, stdin=None):
+          # pylint: disable=cell-var-from-loop
+          del cmd
+          del env
+          del capture_output
+>>>>>>> m108
           del stdin
           mbw.files[path] = contents
           return 0, '', ''
@@ -274,6 +292,7 @@ class UnitTest(unittest.TestCase):
       self.assertEqual(mbw.err, err)
     return mbw
 
+<<<<<<< HEAD
   def test_analyze(self):
     files = {
         '/tmp/in.json':
@@ -360,6 +379,19 @@ class UnitTest(unittest.TestCase):
          "}}\n"),
         '/fake_src/out/Default/base_unittests.runtime_deps':
         ("base_unittests\n"),
+=======
+  def test_gen_swarming(self):
+    files = {
+        '/tmp/swarming_targets':
+        'foo_unittests\n',
+        '/fake_src/testing/buildbot/gn_isolate_map.pyl':
+        ("{'foo_unittests': {"
+         "  'label': '//foo:foo_unittests',"
+         "  'type': 'raw',"
+         "  'args': [],"
+         "}}\n"),
+        '/fake_src/out/Default/foo_unittests.runtime_deps': ("foo_unittests\n"),
+>>>>>>> m108
     }
     mbw = CreateFakeMBW(files)
     self.check([
@@ -368,13 +400,19 @@ class UnitTest(unittest.TestCase):
     ],
                mbw=mbw,
                ret=0)
+<<<<<<< HEAD
     self.assertIn('/fake_src/out/Default/base_unittests.isolate', mbw.files)
     self.assertIn('/fake_src/out/Default/base_unittests.isolated.gen.json',
+=======
+    self.assertIn('/fake_src/out/Default/foo_unittests.isolate', mbw.files)
+    self.assertIn('/fake_src/out/Default/foo_unittests.isolated.gen.json',
+>>>>>>> m108
                   mbw.files)
 
   def test_gen_swarming_android(self):
     test_files = {
         '/tmp/swarming_targets':
+<<<<<<< HEAD
         'base_unittests\n',
         '/fake_src/testing/buildbot/gn_isolate_map.pyl':
         ("{'base_unittests': {"
@@ -383,6 +421,15 @@ class UnitTest(unittest.TestCase):
          "}}\n"),
         '/fake_src/out/Default/base_unittests.runtime_deps':
         ("base_unittests\n"),
+=======
+        'foo_unittests\n',
+        '/fake_src/testing/buildbot/gn_isolate_map.pyl':
+        ("{'foo_unittests': {"
+         "  'label': '//foo:foo_unittests',"
+         "  'type': 'console_test_launcher',"
+         "}}\n"),
+        '/fake_src/out/Default/foo_unittests.runtime_deps': ("foo_unittests\n"),
+>>>>>>> m108
     }
     mbw = self.check([
         'gen', '-c', 'android_bot', '//out/Default', '--swarming-targets-file',
@@ -392,18 +439,32 @@ class UnitTest(unittest.TestCase):
                      files=test_files,
                      ret=0)
 
+<<<<<<< HEAD
     isolate_file = mbw.files['/fake_src/out/Default/base_unittests.isolate']
+=======
+    isolate_file = mbw.files['/fake_src/out/Default/foo_unittests.isolate']
+>>>>>>> m108
     isolate_file_contents = ast.literal_eval(isolate_file)
     files = isolate_file_contents['variables']['files']
     command = isolate_file_contents['variables']['command']
 
+<<<<<<< HEAD
     self.assertEqual(files, ['../../.vpython3', '../../testing/test_env.py',
                              'base_unittests'])
+=======
+    self.assertEqual(
+        files,
+        ['../../.vpython3', '../../testing/test_env.py', 'foo_unittests'])
+>>>>>>> m108
     self.assertEqual(command, [
         'vpython3',
         '../../build/android/test_wrapper/logdog_wrapper.py',
         '--target',
+<<<<<<< HEAD
         'base_unittests',
+=======
+        'foo_unittests',
+>>>>>>> m108
         '--logdog-bin-cmd',
         '../../bin/logdog_butler',
         '--logcat-output-file',
@@ -414,6 +475,7 @@ class UnitTest(unittest.TestCase):
   def test_gen_swarming_android_junit_test(self):
     test_files = {
         '/tmp/swarming_targets':
+<<<<<<< HEAD
         'base_unittests\n',
         '/fake_src/testing/buildbot/gn_isolate_map.pyl':
         ("{'base_unittests': {"
@@ -422,6 +484,15 @@ class UnitTest(unittest.TestCase):
          "}}\n"),
         '/fake_src/out/Default/base_unittests.runtime_deps':
         ("base_unittests\n"),
+=======
+        'foo_unittests\n',
+        '/fake_src/testing/buildbot/gn_isolate_map.pyl':
+        ("{'foo_unittests': {"
+         "  'label': '//foo:foo_unittests',"
+         "  'type': 'junit_test',"
+         "}}\n"),
+        '/fake_src/out/Default/foo_unittests.runtime_deps': ("foo_unittests\n"),
+>>>>>>> m108
     }
     mbw = self.check([
         'gen', '-c', 'android_bot', '//out/Default', '--swarming-targets-file',
@@ -431,18 +502,32 @@ class UnitTest(unittest.TestCase):
                      files=test_files,
                      ret=0)
 
+<<<<<<< HEAD
     isolate_file = mbw.files['/fake_src/out/Default/base_unittests.isolate']
+=======
+    isolate_file = mbw.files['/fake_src/out/Default/foo_unittests.isolate']
+>>>>>>> m108
     isolate_file_contents = ast.literal_eval(isolate_file)
     files = isolate_file_contents['variables']['files']
     command = isolate_file_contents['variables']['command']
 
+<<<<<<< HEAD
     self.assertEqual(files, ['../../.vpython3', '../../testing/test_env.py',
                              'base_unittests'])
+=======
+    self.assertEqual(
+        files,
+        ['../../.vpython3', '../../testing/test_env.py', 'foo_unittests'])
+>>>>>>> m108
     self.assertEqual(command, [
         'vpython3',
         '../../build/android/test_wrapper/logdog_wrapper.py',
         '--target',
+<<<<<<< HEAD
         'base_unittests',
+=======
+        'foo_unittests',
+>>>>>>> m108
         '--logdog-bin-cmd',
         '../../bin/logdog_butler',
         '--logcat-output-file',
@@ -453,6 +538,7 @@ class UnitTest(unittest.TestCase):
   def test_gen_timeout(self):
     test_files = {
         '/tmp/swarming_targets':
+<<<<<<< HEAD
         'base_unittests\n',
         '/fake_src/testing/buildbot/gn_isolate_map.pyl':
         ("{'base_unittests': {"
@@ -462,6 +548,16 @@ class UnitTest(unittest.TestCase):
          "}}\n"),
         '/fake_src/out/Default/base_unittests.runtime_deps':
         ("base_unittests\n"),
+=======
+        'foo_unittests\n',
+        '/fake_src/testing/buildbot/gn_isolate_map.pyl':
+        ("{'foo_unittests': {"
+         "  'label': '//foo:foo_unittests',"
+         "  'type': 'non_parallel_console_test_launcher',"
+         "  'timeout': 500,"
+         "}}\n"),
+        '/fake_src/out/Default/foo_unittests.runtime_deps': ("foo_unittests\n"),
+>>>>>>> m108
     }
     mbw = self.check([
         'gen', '-c', 'debug_goma', '//out/Default', '--swarming-targets-file',
@@ -471,7 +567,11 @@ class UnitTest(unittest.TestCase):
                      files=test_files,
                      ret=0)
 
+<<<<<<< HEAD
     isolate_file = mbw.files['/fake_src/out/Default/base_unittests.isolate']
+=======
+    isolate_file = mbw.files['/fake_src/out/Default/foo_unittests.isolate']
+>>>>>>> m108
     isolate_file_contents = ast.literal_eval(isolate_file)
     files = isolate_file_contents['variables']['files']
     command = isolate_file_contents['variables']['command']
@@ -482,7 +582,7 @@ class UnitTest(unittest.TestCase):
         '../../third_party/gtest-parallel/gtest-parallel',
         '../../third_party/gtest-parallel/gtest_parallel.py',
         '../../tools_webrtc/gtest-parallel-wrapper.py',
-        'base_unittests',
+        'foo_unittests',
     ])
     self.assertEqual(command, [
         'vpython3',
@@ -493,7 +593,7 @@ class UnitTest(unittest.TestCase):
         '--timeout=500',
         '--workers=1',
         '--retry_failed=3',
-        './base_unittests',
+        './foo_unittests',
         '--asan=0',
         '--lsan=0',
         '--msan=0',
@@ -503,6 +603,7 @@ class UnitTest(unittest.TestCase):
   def test_gen_script(self):
     test_files = {
         '/tmp/swarming_targets':
+<<<<<<< HEAD
         'base_unittests_script\n',
         '/fake_src/testing/buildbot/gn_isolate_map.pyl':
         ("{'base_unittests_script': {"
@@ -513,6 +614,18 @@ class UnitTest(unittest.TestCase):
         '/fake_src/out/Default/base_unittests_script.runtime_deps':
         ("base_unittests\n"
          "base_unittests_script.py\n"),
+=======
+        'foo_unittests_script\n',
+        '/fake_src/testing/buildbot/gn_isolate_map.pyl':
+        ("{'foo_unittests_script': {"
+         "  'label': '//foo:foo_unittests',"
+         "  'type': 'script',"
+         "  'script': '//foo/foo_unittests_script.py',"
+         "}}\n"),
+        '/fake_src/out/Default/foo_unittests_script.runtime_deps':
+        ("foo_unittests\n"
+         "foo_unittests_script.py\n"),
+>>>>>>> m108
     }
     mbw = self.check([
         'gen', '-c', 'debug_goma', '//out/Default', '--swarming-targets-file',
@@ -523,23 +636,35 @@ class UnitTest(unittest.TestCase):
                      ret=0)
 
     isolate_file = (
-        mbw.files['/fake_src/out/Default/base_unittests_script.isolate'])
+        mbw.files['/fake_src/out/Default/foo_unittests_script.isolate'])
     isolate_file_contents = ast.literal_eval(isolate_file)
     files = isolate_file_contents['variables']['files']
     command = isolate_file_contents['variables']['command']
 
     self.assertEqual(files, [
+<<<<<<< HEAD
         '../../.vpython3', '../../testing/test_env.py',
         'base_unittests', 'base_unittests_script.py',
     ])
     self.assertEqual(command, [
         'vpython3',
         '../../base/base_unittests_script.py',
+=======
+        '../../.vpython3',
+        '../../testing/test_env.py',
+        'foo_unittests',
+        'foo_unittests_script.py',
+    ])
+    self.assertEqual(command, [
+        'vpython3',
+        '../../foo/foo_unittests_script.py',
+>>>>>>> m108
     ])
 
   def test_gen_raw(self):
     test_files = {
         '/tmp/swarming_targets':
+<<<<<<< HEAD
         'base_unittests\n',
         '/fake_src/testing/buildbot/gn_isolate_map.pyl':
         ("{'base_unittests': {"
@@ -548,6 +673,15 @@ class UnitTest(unittest.TestCase):
          "}}\n"),
         '/fake_src/out/Default/base_unittests.runtime_deps':
         ("base_unittests\n"),
+=======
+        'foo_unittests\n',
+        '/fake_src/testing/buildbot/gn_isolate_map.pyl':
+        ("{'foo_unittests': {"
+         "  'label': '//foo:foo_unittests',"
+         "  'type': 'raw',"
+         "}}\n"),
+        '/fake_src/out/Default/foo_unittests.runtime_deps': ("foo_unittests\n"),
+>>>>>>> m108
     }
     mbw = self.check([
         'gen', '-c', 'debug_goma', '//out/Default', '--swarming-targets-file',
@@ -557,7 +691,11 @@ class UnitTest(unittest.TestCase):
                      files=test_files,
                      ret=0)
 
+<<<<<<< HEAD
     isolate_file = mbw.files['/fake_src/out/Default/base_unittests.isolate']
+=======
+    isolate_file = mbw.files['/fake_src/out/Default/foo_unittests.isolate']
+>>>>>>> m108
     isolate_file_contents = ast.literal_eval(isolate_file)
     files = isolate_file_contents['variables']['files']
     command = isolate_file_contents['variables']['command']
@@ -566,17 +704,22 @@ class UnitTest(unittest.TestCase):
         '../../.vpython3',
         '../../testing/test_env.py',
         '../../tools_webrtc/flags_compatibility.py',
-        'base_unittests',
+        'foo_unittests',
     ])
     self.assertEqual(command, [
         'vpython3',
         '../../tools_webrtc/flags_compatibility.py',
+<<<<<<< HEAD
         './base_unittests',
+=======
+        './foo_unittests',
+>>>>>>> m108
     ])
 
   def test_gen_non_parallel_console_test_launcher(self):
     test_files = {
         '/tmp/swarming_targets':
+<<<<<<< HEAD
         'base_unittests\n',
         '/fake_src/testing/buildbot/gn_isolate_map.pyl':
         ("{'base_unittests': {"
@@ -585,6 +728,15 @@ class UnitTest(unittest.TestCase):
          "}}\n"),
         '/fake_src/out/Default/base_unittests.runtime_deps':
         ("base_unittests\n"),
+=======
+        'foo_unittests\n',
+        '/fake_src/testing/buildbot/gn_isolate_map.pyl':
+        ("{'foo_unittests': {"
+         "  'label': '//foo:foo_unittests',"
+         "  'type': 'non_parallel_console_test_launcher',"
+         "}}\n"),
+        '/fake_src/out/Default/foo_unittests.runtime_deps': ("foo_unittests\n"),
+>>>>>>> m108
     }
     mbw = self.check([
         'gen', '-c', 'debug_goma', '//out/Default', '--swarming-targets-file',
@@ -594,7 +746,11 @@ class UnitTest(unittest.TestCase):
                      files=test_files,
                      ret=0)
 
+<<<<<<< HEAD
     isolate_file = mbw.files['/fake_src/out/Default/base_unittests.isolate']
+=======
+    isolate_file = mbw.files['/fake_src/out/Default/foo_unittests.isolate']
+>>>>>>> m108
     isolate_file_contents = ast.literal_eval(isolate_file)
     files = isolate_file_contents['variables']['files']
     command = isolate_file_contents['variables']['command']
@@ -605,7 +761,7 @@ class UnitTest(unittest.TestCase):
         '../../third_party/gtest-parallel/gtest-parallel',
         '../../third_party/gtest-parallel/gtest_parallel.py',
         '../../tools_webrtc/gtest-parallel-wrapper.py',
-        'base_unittests',
+        'foo_unittests',
     ])
     self.assertEqual(command, [
         'vpython3',
@@ -616,7 +772,7 @@ class UnitTest(unittest.TestCase):
         '--timeout=900',
         '--workers=1',
         '--retry_failed=3',
-        './base_unittests',
+        './foo_unittests',
         '--asan=0',
         '--lsan=0',
         '--msan=0',
@@ -626,6 +782,7 @@ class UnitTest(unittest.TestCase):
   def test_isolate_windowed_test_launcher_linux(self):
     test_files = {
         '/tmp/swarming_targets':
+<<<<<<< HEAD
         'base_unittests\n',
         '/fake_src/testing/buildbot/gn_isolate_map.pyl':
         ("{'base_unittests': {"
@@ -634,6 +791,16 @@ class UnitTest(unittest.TestCase):
          "}}\n"),
         '/fake_src/out/Default/base_unittests.runtime_deps':
         ("base_unittests\n"
+=======
+        'foo_unittests\n',
+        '/fake_src/testing/buildbot/gn_isolate_map.pyl':
+        ("{'foo_unittests': {"
+         "  'label': '//foo:foo_unittests',"
+         "  'type': 'windowed_test_launcher',"
+         "}}\n"),
+        '/fake_src/out/Default/foo_unittests.runtime_deps':
+        ("foo_unittests\n"
+>>>>>>> m108
          "some_resource_file\n"),
     }
     mbw = self.check([
@@ -644,7 +811,11 @@ class UnitTest(unittest.TestCase):
                      files=test_files,
                      ret=0)
 
+<<<<<<< HEAD
     isolate_file = mbw.files['/fake_src/out/Default/base_unittests.isolate']
+=======
+    isolate_file = mbw.files['/fake_src/out/Default/foo_unittests.isolate']
+>>>>>>> m108
     isolate_file_contents = ast.literal_eval(isolate_file)
     files = isolate_file_contents['variables']['files']
     command = isolate_file_contents['variables']['command']
@@ -656,7 +827,7 @@ class UnitTest(unittest.TestCase):
         '../../third_party/gtest-parallel/gtest-parallel',
         '../../third_party/gtest-parallel/gtest_parallel.py',
         '../../tools_webrtc/gtest-parallel-wrapper.py',
-        'base_unittests',
+        'foo_unittests',
         'some_resource_file',
     ])
     self.assertEqual(command, [
@@ -667,7 +838,7 @@ class UnitTest(unittest.TestCase):
         '--gtest_color=no',
         '--timeout=900',
         '--retry_failed=3',
-        './base_unittests',
+        './foo_unittests',
         '--asan=0',
         '--lsan=0',
         '--msan=0',
@@ -715,7 +886,7 @@ class UnitTest(unittest.TestCase):
         'vpython3',
         '../../testing/test_env.py',
         '../../tools_webrtc/gtest-parallel-wrapper.py',
-        '--output_dir=${ISOLATED_OUTDIR}\\test_logs',
+        '--output_dir=${ISOLATED_OUTDIR}/test_logs',
         '--gtest_color=no',
         '--timeout=900',
         '--retry_failed=3',
@@ -729,6 +900,7 @@ class UnitTest(unittest.TestCase):
   def test_gen_console_test_launcher(self):
     test_files = {
         '/tmp/swarming_targets':
+<<<<<<< HEAD
         'base_unittests\n',
         '/fake_src/testing/buildbot/gn_isolate_map.pyl':
         ("{'base_unittests': {"
@@ -737,6 +909,15 @@ class UnitTest(unittest.TestCase):
          "}}\n"),
         '/fake_src/out/Default/base_unittests.runtime_deps':
         ("base_unittests\n"),
+=======
+        'foo_unittests\n',
+        '/fake_src/testing/buildbot/gn_isolate_map.pyl':
+        ("{'foo_unittests': {"
+         "  'label': '//foo:foo_unittests',"
+         "  'type': 'console_test_launcher',"
+         "}}\n"),
+        '/fake_src/out/Default/foo_unittests.runtime_deps': ("foo_unittests\n"),
+>>>>>>> m108
     }
     mbw = self.check([
         'gen', '-c', 'debug_goma', '//out/Default', '--swarming-targets-file',
@@ -746,7 +927,11 @@ class UnitTest(unittest.TestCase):
                      files=test_files,
                      ret=0)
 
+<<<<<<< HEAD
     isolate_file = mbw.files['/fake_src/out/Default/base_unittests.isolate']
+=======
+    isolate_file = mbw.files['/fake_src/out/Default/foo_unittests.isolate']
+>>>>>>> m108
     isolate_file_contents = ast.literal_eval(isolate_file)
     files = isolate_file_contents['variables']['files']
     command = isolate_file_contents['variables']['command']
@@ -757,7 +942,7 @@ class UnitTest(unittest.TestCase):
         '../../third_party/gtest-parallel/gtest-parallel',
         '../../third_party/gtest-parallel/gtest_parallel.py',
         '../../tools_webrtc/gtest-parallel-wrapper.py',
-        'base_unittests',
+        'foo_unittests',
     ])
     self.assertEqual(command, [
         'vpython3',
@@ -767,7 +952,7 @@ class UnitTest(unittest.TestCase):
         '--gtest_color=no',
         '--timeout=900',
         '--retry_failed=3',
-        './base_unittests',
+        './foo_unittests',
         '--asan=0',
         '--lsan=0',
         '--msan=0',
@@ -777,6 +962,7 @@ class UnitTest(unittest.TestCase):
   def test_isolate_test_launcher_with_webcam(self):
     test_files = {
         '/tmp/swarming_targets':
+<<<<<<< HEAD
         'base_unittests\n',
         '/fake_src/testing/buildbot/gn_isolate_map.pyl':
         ("{'base_unittests': {"
@@ -786,6 +972,17 @@ class UnitTest(unittest.TestCase):
          "}}\n"),
         '/fake_src/out/Default/base_unittests.runtime_deps':
         ("base_unittests\n"
+=======
+        'foo_unittests\n',
+        '/fake_src/testing/buildbot/gn_isolate_map.pyl':
+        ("{'foo_unittests': {"
+         "  'label': '//foo:foo_unittests',"
+         "  'type': 'console_test_launcher',"
+         "  'use_webcam': True,"
+         "}}\n"),
+        '/fake_src/out/Default/foo_unittests.runtime_deps':
+        ("foo_unittests\n"
+>>>>>>> m108
          "some_resource_file\n"),
     }
     mbw = self.check([
@@ -796,7 +993,11 @@ class UnitTest(unittest.TestCase):
                      files=test_files,
                      ret=0)
 
+<<<<<<< HEAD
     isolate_file = mbw.files['/fake_src/out/Default/base_unittests.isolate']
+=======
+    isolate_file = mbw.files['/fake_src/out/Default/foo_unittests.isolate']
+>>>>>>> m108
     isolate_file_contents = ast.literal_eval(isolate_file)
     files = isolate_file_contents['variables']['files']
     command = isolate_file_contents['variables']['command']
@@ -808,7 +1009,7 @@ class UnitTest(unittest.TestCase):
         '../../third_party/gtest-parallel/gtest_parallel.py',
         '../../tools_webrtc/ensure_webcam_is_running.py',
         '../../tools_webrtc/gtest-parallel-wrapper.py',
-        'base_unittests',
+        'foo_unittests',
         'some_resource_file',
     ])
     self.assertEqual(command, [
@@ -821,7 +1022,7 @@ class UnitTest(unittest.TestCase):
         '--gtest_color=no',
         '--timeout=900',
         '--retry_failed=3',
-        './base_unittests',
+        './foo_unittests',
         '--asan=0',
         '--lsan=0',
         '--msan=0',
@@ -832,6 +1033,7 @@ class UnitTest(unittest.TestCase):
     files = {
         '/fake_src/out/Default/toolchain.ninja':
         "",
+<<<<<<< HEAD
         '/fake_src/testing/buildbot/gn_isolate_map.pyl':
         ("{'base_unittests': {"
          "  'label': '//base:base_unittests',"
@@ -872,11 +1074,14 @@ class UnitTest(unittest.TestCase):
   def test_run_swarmed(self):
     # pylint: disable=attribute-defined-outside-init
     files = {
+=======
+>>>>>>> m108
         '/fake_src/testing/buildbot/gn_isolate_map.pyl':
-        ("{'base_unittests': {"
-         "  'label': '//base:base_unittests',"
-         "  'type': 'console_test_launcher',"
+        ("{'foo_unittests': {"
+         "  'label': '//foo:foo_unittests',"
+         "  'type': 'non_parallel_console_test_launcher',"
          "}}\n"),
+<<<<<<< HEAD
         '/fake_src/out/Default/base_unittests.runtime_deps':
         ("base_unittests\n"),
         '/fake_src/out/Default/base_unittests.archive.json':
@@ -986,7 +1191,24 @@ class UnitTest(unittest.TestCase):
   def test_validate(self):
     mbw = CreateFakeMBW()
     self.check(['validate'], mbw=mbw, ret=0)
+=======
+        '/fake_src/out/Default/foo_unittests.runtime_deps': ("foo_unittests\n"),
+    }
+    self.check(
+        ['isolate', '-c', 'debug_goma', '//out/Default', 'foo_unittests'],
+        files=files,
+        ret=0)
+>>>>>>> m108
 
+    # test running isolate on an existing build_dir
+    files['/fake_src/out/Default/args.gn'] = 'is_debug = true\n'
+    self.check(['isolate', '//out/Default', 'foo_unittests'],
+               files=files,
+               ret=0)
+    files['/fake_src/out/Default/mb_type'] = 'gn\n'
+    self.check(['isolate', '//out/Default', 'foo_unittests'],
+               files=files,
+               ret=0)
 
 if __name__ == '__main__':
   unittest.main()

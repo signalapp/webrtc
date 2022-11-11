@@ -180,6 +180,11 @@ def main():
       dep = Rebase(path, dep_path, dep)
       # Replacing /target:target with /target
       dep = re.sub(r'/(\w+):(\1)$', r'/\1', dep)
+<<<<<<< HEAD
+=======
+      # Replacing target:target with target
+      dep = re.sub(r'^(\w+):(\1)$', r'\1', dep)
+>>>>>>> m108
       path = os.path.join(path[2:], 'BUILD.gn')
       errors_by_file[path][target].add(dep)
     elif error[index + 1] == 'has a source file:':

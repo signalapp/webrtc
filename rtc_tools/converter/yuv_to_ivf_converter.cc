@@ -56,7 +56,7 @@ constexpr int kMaxFramerate = 30;
 // We use very big value here to ensure that codec won't hit any limits.
 constexpr uint32_t kBitrateBps = 100000000;
 constexpr int kKeyFrameIntervalMs = 30000;
-constexpr int kMaxFrameEncodeWaitTimeoutMs = 2000;
+constexpr TimeDelta kMaxFrameEncodeWaitTimeout = TimeDelta::Seconds(2);
 constexpr int kFrameLogInterval = 100;
 static const VideoEncoder::Capabilities kCapabilities(false);
 
@@ -88,8 +88,8 @@ class IvfFileWriterEncodedCallback : public EncodedImageCallback {
     return Result(Result::Error::OK);
   }
 
-  void WaitNextFrameWritten(int timeout_ms) {
-    RTC_CHECK(next_frame_written_.Wait(timeout_ms));
+  void WaitNextFrameWritten(TimeDelta timeout) {
+    RTC_CHECK(next_frame_written_.Wait(timeout));
     next_frame_written_.Reset();
   }
 
@@ -127,23 +127,21 @@ class Encoder {
       codec_settings.startBitrate = kBitrateBps;
       codec_settings.minBitrate = kBitrateBps;
       codec_settings.maxBitrate = kBitrateBps;
+      codec_settings.SetFrameDropEnabled(false);
       switch (video_codec_type) {
         case VideoCodecType::kVideoCodecVP8: {
           VideoCodecVP8* vp8_settings = codec_settings.VP8();
-          vp8_settings->frameDroppingOn = false;
           vp8_settings->keyFrameInterval = kKeyFrameIntervalMs;
           vp8_settings->denoisingOn = false;
         } break;
         case VideoCodecType::kVideoCodecVP9: {
           VideoCodecVP9* vp9_settings = codec_settings.VP9();
           vp9_settings->denoisingOn = false;
-          vp9_settings->frameDroppingOn = false;
           vp9_settings->keyFrameInterval = kKeyFrameIntervalMs;
           vp9_settings->automaticResizeOn = false;
         } break;
         case VideoCodecType::kVideoCodecH264: {
           VideoCodecH264* h264_settings = codec_settings.H264();
-          h264_settings->frameDroppingOn = false;
           h264_settings->keyFrameInterval = kKeyFrameIntervalMs;
         } break;
         default:
@@ -173,8 +171,8 @@ class Encoder {
     });
   }
 
-  void WaitNextFrameWritten(int timeout_ms) {
-    ivf_writer_callback_->WaitNextFrameWritten(timeout_ms);
+  void WaitNextFrameWritten(TimeDelta timeout) {
+    ivf_writer_callback_->WaitNextFrameWritten(timeout);
   }
 
  private:
@@ -228,7 +226,7 @@ void WriteVideoFile(std::string input_file_name,
     last_frame_timestamp = timestamp;
 
     encoder.Encode(frame);
-    encoder.WaitNextFrameWritten(kMaxFrameEncodeWaitTimeoutMs);
+    encoder.WaitNextFrameWritten(kMaxFrameEncodeWaitTimeout);
 
     if ((i + 1) % kFrameLogInterval == 0) {
       RTC_LOG(LS_INFO) << i + 1 << " out of " << frames_count

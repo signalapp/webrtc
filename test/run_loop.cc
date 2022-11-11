@@ -9,7 +9,10 @@
  */
 #include "test/run_loop.h"
 
+<<<<<<< HEAD
 #include "rtc_base/task_utils/to_queued_task.h"
+=======
+>>>>>>> m108
 #include "rtc_base/time_utils.h"
 
 namespace webrtc {
@@ -36,8 +39,12 @@ void RunLoop::Quit() {
 }
 
 void RunLoop::Flush() {
+<<<<<<< HEAD
   worker_thread_.PostTask(
       ToQueuedTask([this]() { socket_server_.FailNextWait(); }));
+=======
+  worker_thread_.PostTask([this]() { socket_server_.FailNextWait(); });
+>>>>>>> m108
   // If a test clock is used, like with GlobalSimulatedTimeController then the
   // thread will loop forever since time never increases. Since the clock is
   // simulated, 0ms can be used as the loop delay, which will process all
@@ -53,7 +60,8 @@ void RunLoop::FakeSocketServer::FailNextWait() {
   fail_next_wait_ = true;
 }
 
-bool RunLoop::FakeSocketServer::Wait(int cms, bool process_io) {
+bool RunLoop::FakeSocketServer::Wait(webrtc::TimeDelta max_wait_duration,
+                                     bool process_io) {
   if (fail_next_wait_) {
     fail_next_wait_ = false;
     return false;

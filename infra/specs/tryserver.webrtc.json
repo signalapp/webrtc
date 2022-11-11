@@ -424,6 +424,70 @@
             }
           ]
         },
+<<<<<<< HEAD
+=======
+        "test": "slow_peer_connection_unittests",
+        "test_id_prefix": "ninja://pc:slow_peer_connection_unittests/"
+      },
+      {
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_gtest_merge.py"
+        },
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "cipd_packages": [
+            {
+              "cipd_package": "infra/tools/luci/logdog/butler/${platform}",
+              "location": "bin",
+              "revision": "git_revision:ff387eadf445b24c935f1cf7d6ddd279f8a6b04c"
+            }
+          ],
+          "dimension_sets": [
+            {
+              "android_devices": "1",
+              "device_os": "MMB29Q",
+              "device_type": "bullhead",
+              "os": "Android"
+            }
+          ],
+          "shards": 4
+        },
+        "test": "svc_tests",
+        "test_id_prefix": "ninja://pc:svc_tests/"
+      },
+      {
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_gtest_merge.py"
+        },
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "cipd_packages": [
+            {
+              "cipd_package": "infra/tools/luci/logdog/butler/${platform}",
+              "location": "bin",
+              "revision": "git_revision:ff387eadf445b24c935f1cf7d6ddd279f8a6b04c"
+            }
+          ],
+          "dimension_sets": [
+            {
+              "android_devices": "1",
+              "device_os": "MMB29Q",
+              "device_type": "bullhead",
+              "os": "Android"
+            }
+          ]
+        },
+>>>>>>> m108
         "test": "system_wrappers_unittests",
         "test_id_prefix": "ninja://system_wrappers:system_wrappers_unittests/"
       },
@@ -1059,6 +1123,70 @@
             }
           ]
         },
+<<<<<<< HEAD
+=======
+        "test": "slow_peer_connection_unittests",
+        "test_id_prefix": "ninja://pc:slow_peer_connection_unittests/"
+      },
+      {
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_gtest_merge.py"
+        },
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "cipd_packages": [
+            {
+              "cipd_package": "infra/tools/luci/logdog/butler/${platform}",
+              "location": "bin",
+              "revision": "git_revision:ff387eadf445b24c935f1cf7d6ddd279f8a6b04c"
+            }
+          ],
+          "dimension_sets": [
+            {
+              "android_devices": "1",
+              "device_os": "MMB29Q",
+              "device_type": "bullhead",
+              "os": "Android"
+            }
+          ],
+          "shards": 4
+        },
+        "test": "svc_tests",
+        "test_id_prefix": "ninja://pc:svc_tests/"
+      },
+      {
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_gtest_merge.py"
+        },
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "cipd_packages": [
+            {
+              "cipd_package": "infra/tools/luci/logdog/butler/${platform}",
+              "location": "bin",
+              "revision": "git_revision:ff387eadf445b24c935f1cf7d6ddd279f8a6b04c"
+            }
+          ],
+          "dimension_sets": [
+            {
+              "android_devices": "1",
+              "device_os": "MMB29Q",
+              "device_type": "bullhead",
+              "os": "Android"
+            }
+          ]
+        },
+>>>>>>> m108
         "test": "system_wrappers_unittests",
         "test_id_prefix": "ninja://system_wrappers:system_wrappers_unittests/"
       },
@@ -1694,6 +1822,70 @@
             }
           ]
         },
+<<<<<<< HEAD
+=======
+        "test": "slow_peer_connection_unittests",
+        "test_id_prefix": "ninja://pc:slow_peer_connection_unittests/"
+      },
+      {
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_gtest_merge.py"
+        },
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "cipd_packages": [
+            {
+              "cipd_package": "infra/tools/luci/logdog/butler/${platform}",
+              "location": "bin",
+              "revision": "git_revision:ff387eadf445b24c935f1cf7d6ddd279f8a6b04c"
+            }
+          ],
+          "dimension_sets": [
+            {
+              "android_devices": "1",
+              "device_os": "MMB29Q",
+              "device_type": "bullhead",
+              "os": "Android"
+            }
+          ],
+          "shards": 4
+        },
+        "test": "svc_tests",
+        "test_id_prefix": "ninja://pc:svc_tests/"
+      },
+      {
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_gtest_merge.py"
+        },
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "cipd_packages": [
+            {
+              "cipd_package": "infra/tools/luci/logdog/butler/${platform}",
+              "location": "bin",
+              "revision": "git_revision:ff387eadf445b24c935f1cf7d6ddd279f8a6b04c"
+            }
+          ],
+          "dimension_sets": [
+            {
+              "android_devices": "1",
+              "device_os": "MMB29Q",
+              "device_type": "bullhead",
+              "os": "Android"
+            }
+          ]
+        },
+>>>>>>> m108
         "test": "system_wrappers_unittests",
         "test_id_prefix": "ninja://system_wrappers:system_wrappers_unittests/"
       },
@@ -2364,6 +2556,70 @@
             }
           ]
         },
+<<<<<<< HEAD
+=======
+        "test": "slow_peer_connection_unittests",
+        "test_id_prefix": "ninja://pc:slow_peer_connection_unittests/"
+      },
+      {
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_gtest_merge.py"
+        },
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "cipd_packages": [
+            {
+              "cipd_package": "infra/tools/luci/logdog/butler/${platform}",
+              "location": "bin",
+              "revision": "git_revision:ff387eadf445b24c935f1cf7d6ddd279f8a6b04c"
+            }
+          ],
+          "dimension_sets": [
+            {
+              "android_devices": "1",
+              "device_os": "MMB29Q",
+              "device_type": "bullhead",
+              "os": "Android"
+            }
+          ],
+          "shards": 4
+        },
+        "test": "svc_tests",
+        "test_id_prefix": "ninja://pc:svc_tests/"
+      },
+      {
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_gtest_merge.py"
+        },
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "cipd_packages": [
+            {
+              "cipd_package": "infra/tools/luci/logdog/butler/${platform}",
+              "location": "bin",
+              "revision": "git_revision:ff387eadf445b24c935f1cf7d6ddd279f8a6b04c"
+            }
+          ],
+          "dimension_sets": [
+            {
+              "android_devices": "1",
+              "device_os": "MMB29Q",
+              "device_type": "bullhead",
+              "os": "Android"
+            }
+          ]
+        },
+>>>>>>> m108
         "test": "system_wrappers_unittests",
         "test_id_prefix": "ninja://system_wrappers:system_wrappers_unittests/"
       },
@@ -2584,6 +2840,10 @@
   "android_compile_x64_rel": {},
   "android_compile_x86_dbg": {},
   "android_compile_x86_rel": {},
+<<<<<<< HEAD
+=======
+  "fuchsia_rel": {},
+>>>>>>> m108
   "ios_compile_arm64_dbg": {},
   "ios_compile_arm64_rel": {},
   "ios_sim_x64_dbg_ios12": {
@@ -2595,16 +2855,29 @@
           "--version",
           "12.4",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
         "isolate_name": "audio_decoder_unittests",
+=======
+          "13c100",
+          "--out-dir",
+          "${ISOLATED_OUTDIR}",
+          "--xcode-parallelization"
+        ],
+        "isolate_name": "apprtcmobile_tests",
+>>>>>>> m108
         "merge": {
           "args": [],
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+<<<<<<< HEAD
         "name": "audio_decoder_unittests",
+=======
+        "name": "apprtcmobile_tests",
+>>>>>>> m108
         "resultdb": {
           "enable": true,
           "has_native_resultdb_integration": true
@@ -2620,22 +2893,35 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_12_4",
               "path": "Runtime-ios-12.4"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
         },
+<<<<<<< HEAD
         "test_id_prefix": "ninja://modules/audio_coding:audio_decoder_unittests/"
+=======
+        "test_id_prefix": "ninja://examples:apprtcmobile_tests/"
+>>>>>>> m108
       },
       {
         "args": [
@@ -2644,16 +2930,28 @@
           "--version",
           "12.4",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
         "isolate_name": "common_audio_unittests",
+=======
+          "13c100",
+          "--out-dir",
+          "${ISOLATED_OUTDIR}"
+        ],
+        "isolate_name": "audio_decoder_unittests",
+>>>>>>> m108
         "merge": {
           "args": [],
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+<<<<<<< HEAD
         "name": "common_audio_unittests",
+=======
+        "name": "audio_decoder_unittests",
+>>>>>>> m108
         "resultdb": {
           "enable": true,
           "has_native_resultdb_integration": true
@@ -2669,22 +2967,35 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_12_4",
               "path": "Runtime-ios-12.4"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
         },
+<<<<<<< HEAD
         "test_id_prefix": "ninja://common_audio:common_audio_unittests/"
+=======
+        "test_id_prefix": "ninja://modules/audio_coding:audio_decoder_unittests/"
+>>>>>>> m108
       },
       {
         "args": [
@@ -2693,16 +3004,28 @@
           "--version",
           "12.4",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
         "isolate_name": "common_video_unittests",
+=======
+          "13c100",
+          "--out-dir",
+          "${ISOLATED_OUTDIR}"
+        ],
+        "isolate_name": "common_audio_unittests",
+>>>>>>> m108
         "merge": {
           "args": [],
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+<<<<<<< HEAD
         "name": "common_video_unittests",
+=======
+        "name": "common_audio_unittests",
+>>>>>>> m108
         "resultdb": {
           "enable": true,
           "has_native_resultdb_integration": true
@@ -2718,16 +3041,98 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_12_4",
               "path": "Runtime-ios-12.4"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
+              "path": "Xcode.app"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+<<<<<<< HEAD
+        "test_id_prefix": "ninja://common_video:common_video_unittests/"
+=======
+        "test_id_prefix": "ninja://common_audio:common_audio_unittests/"
+>>>>>>> m108
+      },
+      {
+        "args": [
+          "--platform",
+          "iPhone X",
+          "--version",
+          "12.4",
+          "--xcode-build-version",
+<<<<<<< HEAD
+          "12a7209",
+          "--out-dir",
+          "${ISOLATED_OUTDIR}"
+        ],
+        "isolate_name": "dcsctp_unittests",
+=======
+          "13c100",
+          "--out-dir",
+          "${ISOLATED_OUTDIR}"
+        ],
+        "isolate_name": "common_video_unittests",
+>>>>>>> m108
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+<<<<<<< HEAD
+        "name": "dcsctp_unittests",
+=======
+        "name": "common_video_unittests",
+>>>>>>> m108
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "cipd_packages": [
+            {
+              "cipd_package": "infra/tools/mac_toolchain/${platform}",
+              "location": ".",
+              "revision": "git_revision:723fc1a6c8cdf2631a57851f5610e598db0c1de1"
+            }
+          ],
+          "dimension_sets": [
+            {
+<<<<<<< HEAD
+              "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
+            }
+          ],
+          "named_caches": [
+            {
+<<<<<<< HEAD
+              "name": "runtime_ios_12_4",
+              "path": "Runtime-ios-12.4"
+            },
+            {
+              "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
               "path": "Xcode.app"
             }
           ],
@@ -2742,7 +3147,7 @@
           "--version",
           "12.4",
           "--xcode-build-version",
-          "12a7209",
+          "13c100",
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -2767,16 +3172,14 @@
           ],
           "dimension_sets": [
             {
-              "os": "Mac-11"
+              "cpu": "x86-64",
+              "os": "Mac-12"
             }
           ],
           "named_caches": [
             {
-              "name": "runtime_ios_12_4",
-              "path": "Runtime-ios-12.4"
-            },
-            {
-              "name": "xcode_ios_12a7209",
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -2791,7 +3194,11 @@
           "--version",
           "12.4",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
+=======
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -2816,11 +3223,17 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_12_4",
               "path": "Runtime-ios-12.4"
             },
@@ -2830,6 +3243,14 @@
             }
           ],
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+=======
+              "name": "xcode_ios_13c100",
+              "path": "Xcode.app"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
+          "shards": 2
+>>>>>>> m108
         },
         "test_id_prefix": "ninja://modules:modules_tests/"
       },
@@ -2840,7 +3261,11 @@
           "--version",
           "12.4",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
+=======
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -2865,11 +3290,17 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_12_4",
               "path": "Runtime-ios-12.4"
             },
@@ -2879,6 +3310,14 @@
             }
           ],
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+=======
+              "name": "xcode_ios_13c100",
+              "path": "Xcode.app"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
+          "shards": 6
+>>>>>>> m108
         },
         "test_id_prefix": "ninja://modules:modules_unittests/"
       },
@@ -2889,7 +3328,11 @@
           "--version",
           "12.4",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
+=======
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -2914,16 +3357,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_12_4",
               "path": "Runtime-ios-12.4"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -2938,7 +3390,11 @@
           "--version",
           "12.4",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
+=======
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -2963,16 +3419,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_12_4",
               "path": "Runtime-ios-12.4"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -2987,7 +3452,11 @@
           "--version",
           "12.4",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
+=======
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -3012,16 +3481,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_12_4",
               "path": "Runtime-ios-12.4"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -3036,7 +3514,11 @@
           "--version",
           "12.4",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
+=======
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -3061,11 +3543,17 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_12_4",
               "path": "Runtime-ios-12.4"
             },
@@ -3075,6 +3563,14 @@
             }
           ],
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+=======
+              "name": "xcode_ios_13c100",
+              "path": "Xcode.app"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
+          "shards": 6
+>>>>>>> m108
         },
         "test_id_prefix": "ninja://:rtc_unittests/"
       },
@@ -3085,7 +3581,11 @@
           "--version",
           "12.4",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
+=======
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-parallelization"
@@ -3111,16 +3611,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_12_4",
               "path": "Runtime-ios-12.4"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -3135,7 +3644,105 @@
           "--version",
           "12.4",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
+=======
+          "13c100",
+          "--out-dir",
+          "${ISOLATED_OUTDIR}",
+          "--xcode-parallelization"
+        ],
+        "isolate_name": "sdk_unittests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "sdk_unittests",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "cipd_packages": [
+            {
+              "cipd_package": "infra/tools/mac_toolchain/${platform}",
+              "location": ".",
+              "revision": "git_revision:723fc1a6c8cdf2631a57851f5610e598db0c1de1"
+            }
+          ],
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Mac-12"
+            }
+          ],
+          "named_caches": [
+            {
+              "name": "xcode_ios_13c100",
+              "path": "Xcode.app"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test_id_prefix": "ninja://sdk:sdk_unittests/"
+      },
+      {
+        "args": [
+          "--platform",
+          "iPhone X",
+          "--version",
+          "12.4",
+          "--xcode-build-version",
+          "13c100",
+          "--out-dir",
+          "${ISOLATED_OUTDIR}"
+        ],
+        "isolate_name": "svc_tests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "svc_tests",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "cipd_packages": [
+            {
+              "cipd_package": "infra/tools/mac_toolchain/${platform}",
+              "location": ".",
+              "revision": "git_revision:723fc1a6c8cdf2631a57851f5610e598db0c1de1"
+            }
+          ],
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Mac-12"
+            }
+          ],
+          "named_caches": [
+            {
+              "name": "xcode_ios_13c100",
+              "path": "Xcode.app"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
+          "shards": 4
+        },
+        "test_id_prefix": "ninja://pc:svc_tests/"
+      },
+      {
+        "args": [
+          "--platform",
+          "iPhone X",
+          "--version",
+          "12.4",
+          "--xcode-build-version",
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -3160,16 +3767,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_12_4",
               "path": "Runtime-ios-12.4"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -3184,7 +3800,11 @@
           "--version",
           "12.4",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
+=======
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -3209,16 +3829,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_12_4",
               "path": "Runtime-ios-12.4"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -3233,7 +3862,11 @@
           "--version",
           "12.4",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
+=======
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -3258,16 +3891,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_12_4",
               "path": "Runtime-ios-12.4"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -3282,7 +3924,11 @@
           "--version",
           "12.4",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
+=======
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -3307,16 +3953,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_12_4",
               "path": "Runtime-ios-12.4"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -3331,7 +3986,11 @@
           "--version",
           "12.4",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
+=======
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -3356,11 +4015,17 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_12_4",
               "path": "Runtime-ios-12.4"
             },
@@ -3370,6 +4035,14 @@
             }
           ],
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+=======
+              "name": "xcode_ios_13c100",
+              "path": "Xcode.app"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
+          "shards": 4
+>>>>>>> m108
         },
         "test_id_prefix": "ninja://:video_engine_tests/"
       },
@@ -3380,7 +4053,11 @@
           "--version",
           "12.4",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
+=======
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -3405,16 +4082,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_12_4",
               "path": "Runtime-ios-12.4"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -3429,7 +4115,11 @@
           "--version",
           "12.4",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
+=======
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -3454,16 +4144,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_12_4",
               "path": "Runtime-ios-12.4"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -3482,7 +4181,58 @@
           "--version",
           "13.6",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
+=======
+          "13c100",
+          "--out-dir",
+          "${ISOLATED_OUTDIR}",
+          "--xcode-parallelization"
+        ],
+        "isolate_name": "apprtcmobile_tests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "apprtcmobile_tests",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "cipd_packages": [
+            {
+              "cipd_package": "infra/tools/mac_toolchain/${platform}",
+              "location": ".",
+              "revision": "git_revision:723fc1a6c8cdf2631a57851f5610e598db0c1de1"
+            }
+          ],
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Mac-12"
+            }
+          ],
+          "named_caches": [
+            {
+              "name": "xcode_ios_13c100",
+              "path": "Xcode.app"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test_id_prefix": "ninja://examples:apprtcmobile_tests/"
+      },
+      {
+        "args": [
+          "--platform",
+          "iPhone X",
+          "--version",
+          "13.6",
+          "--xcode-build-version",
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -3507,16 +4257,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_13_6",
               "path": "Runtime-ios-13.6"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -3531,7 +4290,11 @@
           "--version",
           "13.6",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
+=======
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -3556,16 +4319,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_13_6",
               "path": "Runtime-ios-13.6"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -3580,7 +4352,11 @@
           "--version",
           "13.6",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
+=======
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -3605,16 +4381,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_13_6",
               "path": "Runtime-ios-13.6"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -3629,7 +4414,11 @@
           "--version",
           "13.6",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
+=======
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -3654,16 +4443,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_13_6",
               "path": "Runtime-ios-13.6"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -3678,7 +4476,11 @@
           "--version",
           "13.6",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
+=======
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -3703,11 +4505,17 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_13_6",
               "path": "Runtime-ios-13.6"
             },
@@ -3717,6 +4525,14 @@
             }
           ],
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+=======
+              "name": "xcode_ios_13c100",
+              "path": "Xcode.app"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
+          "shards": 2
+>>>>>>> m108
         },
         "test_id_prefix": "ninja://modules:modules_tests/"
       },
@@ -3727,7 +4543,11 @@
           "--version",
           "13.6",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
+=======
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -3752,11 +4572,17 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_13_6",
               "path": "Runtime-ios-13.6"
             },
@@ -3766,6 +4592,14 @@
             }
           ],
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+=======
+              "name": "xcode_ios_13c100",
+              "path": "Xcode.app"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
+          "shards": 6
+>>>>>>> m108
         },
         "test_id_prefix": "ninja://modules:modules_unittests/"
       },
@@ -3776,7 +4610,11 @@
           "--version",
           "13.6",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
+=======
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -3801,16 +4639,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_13_6",
               "path": "Runtime-ios-13.6"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -3825,7 +4672,11 @@
           "--version",
           "13.6",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
+=======
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -3850,16 +4701,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_13_6",
               "path": "Runtime-ios-13.6"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -3874,7 +4734,11 @@
           "--version",
           "13.6",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
+=======
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -3899,16 +4763,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_13_6",
               "path": "Runtime-ios-13.6"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -3923,7 +4796,11 @@
           "--version",
           "13.6",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
+=======
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -3948,11 +4825,17 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_13_6",
               "path": "Runtime-ios-13.6"
             },
@@ -3962,6 +4845,14 @@
             }
           ],
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+=======
+              "name": "xcode_ios_13c100",
+              "path": "Xcode.app"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
+          "shards": 6
+>>>>>>> m108
         },
         "test_id_prefix": "ninja://:rtc_unittests/"
       },
@@ -3972,7 +4863,11 @@
           "--version",
           "13.6",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
+=======
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-parallelization"
@@ -3998,16 +4893,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_13_6",
               "path": "Runtime-ios-13.6"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -4022,7 +4926,105 @@
           "--version",
           "13.6",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
+=======
+          "13c100",
+          "--out-dir",
+          "${ISOLATED_OUTDIR}",
+          "--xcode-parallelization"
+        ],
+        "isolate_name": "sdk_unittests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "sdk_unittests",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "cipd_packages": [
+            {
+              "cipd_package": "infra/tools/mac_toolchain/${platform}",
+              "location": ".",
+              "revision": "git_revision:723fc1a6c8cdf2631a57851f5610e598db0c1de1"
+            }
+          ],
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Mac-12"
+            }
+          ],
+          "named_caches": [
+            {
+              "name": "xcode_ios_13c100",
+              "path": "Xcode.app"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test_id_prefix": "ninja://sdk:sdk_unittests/"
+      },
+      {
+        "args": [
+          "--platform",
+          "iPhone X",
+          "--version",
+          "13.6",
+          "--xcode-build-version",
+          "13c100",
+          "--out-dir",
+          "${ISOLATED_OUTDIR}"
+        ],
+        "isolate_name": "svc_tests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "svc_tests",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "cipd_packages": [
+            {
+              "cipd_package": "infra/tools/mac_toolchain/${platform}",
+              "location": ".",
+              "revision": "git_revision:723fc1a6c8cdf2631a57851f5610e598db0c1de1"
+            }
+          ],
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Mac-12"
+            }
+          ],
+          "named_caches": [
+            {
+              "name": "xcode_ios_13c100",
+              "path": "Xcode.app"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
+          "shards": 4
+        },
+        "test_id_prefix": "ninja://pc:svc_tests/"
+      },
+      {
+        "args": [
+          "--platform",
+          "iPhone X",
+          "--version",
+          "13.6",
+          "--xcode-build-version",
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -4047,16 +5049,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_13_6",
               "path": "Runtime-ios-13.6"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -4071,7 +5082,11 @@
           "--version",
           "13.6",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
+=======
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -4096,16 +5111,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_13_6",
               "path": "Runtime-ios-13.6"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -4120,7 +5144,11 @@
           "--version",
           "13.6",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
+=======
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -4145,16 +5173,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_13_6",
               "path": "Runtime-ios-13.6"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -4169,7 +5206,11 @@
           "--version",
           "13.6",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
+=======
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -4194,16 +5235,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_13_6",
               "path": "Runtime-ios-13.6"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -4218,7 +5268,11 @@
           "--version",
           "13.6",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
+=======
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -4243,11 +5297,17 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_13_6",
               "path": "Runtime-ios-13.6"
             },
@@ -4257,6 +5317,14 @@
             }
           ],
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+=======
+              "name": "xcode_ios_13c100",
+              "path": "Xcode.app"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
+          "shards": 4
+>>>>>>> m108
         },
         "test_id_prefix": "ninja://:video_engine_tests/"
       },
@@ -4267,7 +5335,11 @@
           "--version",
           "13.6",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
+=======
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -4292,16 +5364,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_13_6",
               "path": "Runtime-ios-13.6"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -4316,7 +5397,11 @@
           "--version",
           "13.6",
           "--xcode-build-version",
+<<<<<<< HEAD
           "12a7209",
+=======
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -4341,16 +5426,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_13_6",
               "path": "Runtime-ios-13.6"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -4367,9 +5461,62 @@
           "--platform",
           "iPhone X",
           "--version",
+<<<<<<< HEAD
           "14.0",
           "--xcode-build-version",
           "12a7209",
+=======
+          "14.5",
+          "--xcode-build-version",
+          "13c100",
+          "--out-dir",
+          "${ISOLATED_OUTDIR}",
+          "--xcode-parallelization"
+        ],
+        "isolate_name": "apprtcmobile_tests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "apprtcmobile_tests",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "cipd_packages": [
+            {
+              "cipd_package": "infra/tools/mac_toolchain/${platform}",
+              "location": ".",
+              "revision": "git_revision:723fc1a6c8cdf2631a57851f5610e598db0c1de1"
+            }
+          ],
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Mac-12"
+            }
+          ],
+          "named_caches": [
+            {
+              "name": "xcode_ios_13c100",
+              "path": "Xcode.app"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test_id_prefix": "ninja://examples:apprtcmobile_tests/"
+      },
+      {
+        "args": [
+          "--platform",
+          "iPhone X",
+          "--version",
+          "14.5",
+          "--xcode-build-version",
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -4394,16 +5541,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_14_0",
               "path": "Runtime-ios-14.0"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -4416,9 +5572,15 @@
           "--platform",
           "iPhone X",
           "--version",
+<<<<<<< HEAD
           "14.0",
           "--xcode-build-version",
           "12a7209",
+=======
+          "14.5",
+          "--xcode-build-version",
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -4443,16 +5605,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_14_0",
               "path": "Runtime-ios-14.0"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -4465,9 +5636,15 @@
           "--platform",
           "iPhone X",
           "--version",
+<<<<<<< HEAD
           "14.0",
           "--xcode-build-version",
           "12a7209",
+=======
+          "14.5",
+          "--xcode-build-version",
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -4492,16 +5669,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_14_0",
               "path": "Runtime-ios-14.0"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -4514,9 +5700,15 @@
           "--platform",
           "iPhone X",
           "--version",
+<<<<<<< HEAD
           "14.0",
           "--xcode-build-version",
           "12a7209",
+=======
+          "14.5",
+          "--xcode-build-version",
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -4541,16 +5733,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_14_0",
               "path": "Runtime-ios-14.0"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -4563,9 +5764,15 @@
           "--platform",
           "iPhone X",
           "--version",
+<<<<<<< HEAD
           "14.0",
           "--xcode-build-version",
           "12a7209",
+=======
+          "14.5",
+          "--xcode-build-version",
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -4590,11 +5797,17 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_14_0",
               "path": "Runtime-ios-14.0"
             },
@@ -4604,6 +5817,14 @@
             }
           ],
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+=======
+              "name": "xcode_ios_13c100",
+              "path": "Xcode.app"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
+          "shards": 2
+>>>>>>> m108
         },
         "test_id_prefix": "ninja://modules:modules_tests/"
       },
@@ -4612,9 +5833,15 @@
           "--platform",
           "iPhone X",
           "--version",
+<<<<<<< HEAD
           "14.0",
           "--xcode-build-version",
           "12a7209",
+=======
+          "14.5",
+          "--xcode-build-version",
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -4639,11 +5866,17 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_14_0",
               "path": "Runtime-ios-14.0"
             },
@@ -4653,6 +5886,14 @@
             }
           ],
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+=======
+              "name": "xcode_ios_13c100",
+              "path": "Xcode.app"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
+          "shards": 6
+>>>>>>> m108
         },
         "test_id_prefix": "ninja://modules:modules_unittests/"
       },
@@ -4661,9 +5902,15 @@
           "--platform",
           "iPhone X",
           "--version",
+<<<<<<< HEAD
           "14.0",
           "--xcode-build-version",
           "12a7209",
+=======
+          "14.5",
+          "--xcode-build-version",
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -4688,16 +5935,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_14_0",
               "path": "Runtime-ios-14.0"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -4710,9 +5966,15 @@
           "--platform",
           "iPhone X",
           "--version",
+<<<<<<< HEAD
           "14.0",
           "--xcode-build-version",
           "12a7209",
+=======
+          "14.5",
+          "--xcode-build-version",
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -4737,16 +5999,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_14_0",
               "path": "Runtime-ios-14.0"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -4759,9 +6030,15 @@
           "--platform",
           "iPhone X",
           "--version",
+<<<<<<< HEAD
           "14.0",
           "--xcode-build-version",
           "12a7209",
+=======
+          "14.5",
+          "--xcode-build-version",
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -4786,16 +6063,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_14_0",
               "path": "Runtime-ios-14.0"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -4808,9 +6094,15 @@
           "--platform",
           "iPhone X",
           "--version",
+<<<<<<< HEAD
           "14.0",
           "--xcode-build-version",
           "12a7209",
+=======
+          "14.5",
+          "--xcode-build-version",
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -4835,11 +6127,17 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_14_0",
               "path": "Runtime-ios-14.0"
             },
@@ -4849,6 +6147,14 @@
             }
           ],
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+=======
+              "name": "xcode_ios_13c100",
+              "path": "Xcode.app"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
+          "shards": 6
+>>>>>>> m108
         },
         "test_id_prefix": "ninja://:rtc_unittests/"
       },
@@ -4857,9 +6163,15 @@
           "--platform",
           "iPhone X",
           "--version",
+<<<<<<< HEAD
           "14.0",
           "--xcode-build-version",
           "12a7209",
+=======
+          "14.5",
+          "--xcode-build-version",
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-parallelization"
@@ -4885,16 +6197,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_14_0",
               "path": "Runtime-ios-14.0"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -4907,9 +6228,109 @@
           "--platform",
           "iPhone X",
           "--version",
+<<<<<<< HEAD
           "14.0",
           "--xcode-build-version",
           "12a7209",
+=======
+          "14.5",
+          "--xcode-build-version",
+          "13c100",
+          "--out-dir",
+          "${ISOLATED_OUTDIR}",
+          "--xcode-parallelization"
+        ],
+        "isolate_name": "sdk_unittests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "sdk_unittests",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "cipd_packages": [
+            {
+              "cipd_package": "infra/tools/mac_toolchain/${platform}",
+              "location": ".",
+              "revision": "git_revision:723fc1a6c8cdf2631a57851f5610e598db0c1de1"
+            }
+          ],
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Mac-12"
+            }
+          ],
+          "named_caches": [
+            {
+              "name": "xcode_ios_13c100",
+              "path": "Xcode.app"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test_id_prefix": "ninja://sdk:sdk_unittests/"
+      },
+      {
+        "args": [
+          "--platform",
+          "iPhone X",
+          "--version",
+          "14.5",
+          "--xcode-build-version",
+          "13c100",
+          "--out-dir",
+          "${ISOLATED_OUTDIR}"
+        ],
+        "isolate_name": "svc_tests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "svc_tests",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "cipd_packages": [
+            {
+              "cipd_package": "infra/tools/mac_toolchain/${platform}",
+              "location": ".",
+              "revision": "git_revision:723fc1a6c8cdf2631a57851f5610e598db0c1de1"
+            }
+          ],
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Mac-12"
+            }
+          ],
+          "named_caches": [
+            {
+              "name": "xcode_ios_13c100",
+              "path": "Xcode.app"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
+          "shards": 4
+        },
+        "test_id_prefix": "ninja://pc:svc_tests/"
+      },
+      {
+        "args": [
+          "--platform",
+          "iPhone X",
+          "--version",
+          "14.5",
+          "--xcode-build-version",
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -4934,16 +6355,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_14_0",
               "path": "Runtime-ios-14.0"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -4956,9 +6386,15 @@
           "--platform",
           "iPhone X",
           "--version",
+<<<<<<< HEAD
           "14.0",
           "--xcode-build-version",
           "12a7209",
+=======
+          "14.5",
+          "--xcode-build-version",
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -4983,16 +6419,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_14_0",
               "path": "Runtime-ios-14.0"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -5005,9 +6450,15 @@
           "--platform",
           "iPhone X",
           "--version",
+<<<<<<< HEAD
           "14.0",
           "--xcode-build-version",
           "12a7209",
+=======
+          "14.5",
+          "--xcode-build-version",
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -5032,16 +6483,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_14_0",
               "path": "Runtime-ios-14.0"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -5054,9 +6514,15 @@
           "--platform",
           "iPhone X",
           "--version",
+<<<<<<< HEAD
           "14.0",
           "--xcode-build-version",
           "12a7209",
+=======
+          "14.5",
+          "--xcode-build-version",
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -5081,16 +6547,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_14_0",
               "path": "Runtime-ios-14.0"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -5103,9 +6578,15 @@
           "--platform",
           "iPhone X",
           "--version",
+<<<<<<< HEAD
           "14.0",
           "--xcode-build-version",
           "12a7209",
+=======
+          "14.5",
+          "--xcode-build-version",
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -5130,11 +6611,17 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_14_0",
               "path": "Runtime-ios-14.0"
             },
@@ -5144,6 +6631,14 @@
             }
           ],
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+=======
+              "name": "xcode_ios_13c100",
+              "path": "Xcode.app"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
+          "shards": 4
+>>>>>>> m108
         },
         "test_id_prefix": "ninja://:video_engine_tests/"
       },
@@ -5152,9 +6647,15 @@
           "--platform",
           "iPhone X",
           "--version",
+<<<<<<< HEAD
           "14.0",
           "--xcode-build-version",
           "12a7209",
+=======
+          "14.5",
+          "--xcode-build-version",
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -5179,16 +6680,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_14_0",
               "path": "Runtime-ios-14.0"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -5201,9 +6711,15 @@
           "--platform",
           "iPhone X",
           "--version",
+<<<<<<< HEAD
           "14.0",
           "--xcode-build-version",
           "12a7209",
+=======
+          "14.5",
+          "--xcode-build-version",
+          "13c100",
+>>>>>>> m108
           "--out-dir",
           "${ISOLATED_OUTDIR}"
         ],
@@ -5228,16 +6744,25 @@
           ],
           "dimension_sets": [
             {
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "cpu": "x86-64",
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "named_caches": [
             {
+<<<<<<< HEAD
               "name": "runtime_ios_14_0",
               "path": "Runtime-ios-14.0"
             },
             {
               "name": "xcode_ios_12a7209",
+=======
+              "name": "xcode_ios_13c100",
+>>>>>>> m108
               "path": "Xcode.app"
             }
           ],
@@ -5509,6 +7034,52 @@
         "test_id_prefix": "ninja://:rtc_unittests/"
       },
       {
+<<<<<<< HEAD
+=======
+        "isolate_name": "slow_peer_connection_unittests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "slow_peer_connection_unittests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Ubuntu-18.04"
+            }
+          ]
+        },
+        "test_id_prefix": "ninja://pc:slow_peer_connection_unittests/"
+      },
+      {
+        "isolate_name": "svc_tests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "svc_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Ubuntu-18.04"
+            }
+          ],
+          "shards": 4
+        },
+        "test_id_prefix": "ninja://pc:svc_tests/"
+      },
+      {
+>>>>>>> m108
         "isolate_name": "system_wrappers_unittests",
         "merge": {
           "args": [],
@@ -5817,6 +7388,12 @@
           ],
           "shards": 4
         },
+<<<<<<< HEAD
+        "test_id_prefix": "ninja://pc:peerconnection_unittests/"
+      },
+      {
+        "isolate_name": "rtc_media_unittests",
+=======
         "test_id_prefix": "ninja://pc:peerconnection_unittests/"
       },
       {
@@ -5863,11 +7440,16 @@
       },
       {
         "isolate_name": "rtc_stats_unittests",
+>>>>>>> m108
         "merge": {
           "args": [],
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+<<<<<<< HEAD
+        "name": "rtc_media_unittests",
+=======
         "name": "rtc_stats_unittests",
+>>>>>>> m108
         "resultdb": {
           "result_format": "json"
         },
@@ -5880,15 +7462,93 @@
             }
           ]
         },
+<<<<<<< HEAD
+        "test_id_prefix": "ninja://media:rtc_media_unittests/"
+      },
+      {
+        "isolate_name": "rtc_pc_unittests",
+=======
         "test_id_prefix": "ninja://stats:rtc_stats_unittests/"
       },
       {
         "isolate_name": "rtc_unittests",
+>>>>>>> m108
         "merge": {
           "args": [],
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+<<<<<<< HEAD
+        "name": "rtc_pc_unittests",
+=======
         "name": "rtc_unittests",
+>>>>>>> m108
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Ubuntu-18.04"
+            }
+<<<<<<< HEAD
+          ]
+        },
+        "test_id_prefix": "ninja://pc:rtc_pc_unittests/"
+      },
+      {
+        "isolate_name": "rtc_stats_unittests",
+=======
+          ],
+          "shards": 6
+        },
+        "test_id_prefix": "ninja://:rtc_unittests/"
+      },
+      {
+        "isolate_name": "slow_peer_connection_unittests",
+>>>>>>> m108
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+<<<<<<< HEAD
+        "name": "rtc_stats_unittests",
+=======
+        "name": "slow_peer_connection_unittests",
+>>>>>>> m108
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Ubuntu-18.04"
+            }
+          ]
+        },
+<<<<<<< HEAD
+        "test_id_prefix": "ninja://stats:rtc_stats_unittests/"
+      },
+      {
+        "isolate_name": "rtc_unittests",
+=======
+        "test_id_prefix": "ninja://pc:slow_peer_connection_unittests/"
+      },
+      {
+        "isolate_name": "svc_tests",
+>>>>>>> m108
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+<<<<<<< HEAD
+        "name": "rtc_unittests",
+=======
+        "name": "svc_tests",
+>>>>>>> m108
         "resultdb": {
           "result_format": "json"
         },
@@ -5900,9 +7560,15 @@
               "os": "Ubuntu-18.04"
             }
           ],
+<<<<<<< HEAD
           "shards": 6
         },
         "test_id_prefix": "ninja://:rtc_unittests/"
+=======
+          "shards": 4
+        },
+        "test_id_prefix": "ninja://pc:svc_tests/"
+>>>>>>> m108
       },
       {
         "isolate_name": "system_wrappers_unittests",
@@ -6296,6 +7962,52 @@
         "test_id_prefix": "ninja://:rtc_unittests/"
       },
       {
+<<<<<<< HEAD
+=======
+        "isolate_name": "slow_peer_connection_unittests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "slow_peer_connection_unittests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Ubuntu-18.04"
+            }
+          ]
+        },
+        "test_id_prefix": "ninja://pc:slow_peer_connection_unittests/"
+      },
+      {
+        "isolate_name": "svc_tests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "svc_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Ubuntu-18.04"
+            }
+          ],
+          "shards": 4
+        },
+        "test_id_prefix": "ninja://pc:svc_tests/"
+      },
+      {
+>>>>>>> m108
         "isolate_name": "system_wrappers_unittests",
         "merge": {
           "args": [],
@@ -6712,6 +8424,52 @@
         "test_id_prefix": "ninja://:rtc_unittests/"
       },
       {
+<<<<<<< HEAD
+=======
+        "isolate_name": "slow_peer_connection_unittests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "slow_peer_connection_unittests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Ubuntu-18.04"
+            }
+          ]
+        },
+        "test_id_prefix": "ninja://pc:slow_peer_connection_unittests/"
+      },
+      {
+        "isolate_name": "svc_tests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "svc_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Ubuntu-18.04"
+            }
+          ],
+          "shards": 4
+        },
+        "test_id_prefix": "ninja://pc:svc_tests/"
+      },
+      {
+>>>>>>> m108
         "isolate_name": "system_wrappers_unittests",
         "merge": {
           "args": [],
@@ -7102,6 +8860,52 @@
         "test_id_prefix": "ninja://:rtc_unittests/"
       },
       {
+<<<<<<< HEAD
+=======
+        "isolate_name": "slow_peer_connection_unittests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "slow_peer_connection_unittests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Ubuntu-18.04"
+            }
+          ]
+        },
+        "test_id_prefix": "ninja://pc:slow_peer_connection_unittests/"
+      },
+      {
+        "isolate_name": "svc_tests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "svc_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Ubuntu-18.04"
+            }
+          ],
+          "shards": 4
+        },
+        "test_id_prefix": "ninja://pc:svc_tests/"
+      },
+      {
+>>>>>>> m108
         "isolate_name": "system_wrappers_unittests",
         "merge": {
           "args": [],
@@ -7179,7 +8983,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Ubuntu",
+=======
+              "os": "Ubuntu-18.04",
+>>>>>>> m108
               "pool": "WebRTC-baremetal-try"
             }
           ]
@@ -7271,8 +9079,12 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Ubuntu",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Ubuntu-18.04"
+>>>>>>> m108
             }
           ]
         },
@@ -7542,6 +9354,52 @@
         "test_id_prefix": "ninja://:rtc_unittests/"
       },
       {
+<<<<<<< HEAD
+=======
+        "isolate_name": "slow_peer_connection_unittests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "slow_peer_connection_unittests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Ubuntu-18.04"
+            }
+          ]
+        },
+        "test_id_prefix": "ninja://pc:slow_peer_connection_unittests/"
+      },
+      {
+        "isolate_name": "svc_tests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "svc_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Ubuntu-18.04"
+            }
+          ],
+          "shards": 4
+        },
+        "test_id_prefix": "ninja://pc:svc_tests/"
+      },
+      {
+>>>>>>> m108
         "isolate_name": "system_wrappers_unittests",
         "merge": {
           "args": [],
@@ -7932,6 +9790,52 @@
         "test_id_prefix": "ninja://:rtc_unittests/"
       },
       {
+<<<<<<< HEAD
+=======
+        "isolate_name": "slow_peer_connection_unittests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "slow_peer_connection_unittests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Ubuntu-18.04"
+            }
+          ]
+        },
+        "test_id_prefix": "ninja://pc:slow_peer_connection_unittests/"
+      },
+      {
+        "isolate_name": "svc_tests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "svc_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Ubuntu-18.04"
+            }
+          ],
+          "shards": 4
+        },
+        "test_id_prefix": "ninja://pc:svc_tests/"
+      },
+      {
+>>>>>>> m108
         "isolate_name": "system_wrappers_unittests",
         "merge": {
           "args": [],
@@ -8276,6 +10180,12 @@
             }
           ]
         },
+<<<<<<< HEAD
+        "test_id_prefix": "ninja://pc:rtc_pc_unittests/"
+      },
+      {
+        "isolate_name": "rtc_stats_unittests",
+=======
         "test_id_prefix": "ninja://pc:rtc_pc_unittests/"
       },
       {
@@ -8320,6 +10230,71 @@
           "shards": 6
         },
         "test_id_prefix": "ninja://:rtc_unittests/"
+      },
+      {
+        "isolate_name": "slow_peer_connection_unittests",
+>>>>>>> m108
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+<<<<<<< HEAD
+        "name": "rtc_stats_unittests",
+=======
+        "name": "slow_peer_connection_unittests",
+>>>>>>> m108
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Ubuntu-18.04"
+            }
+          ]
+        },
+<<<<<<< HEAD
+        "test_id_prefix": "ninja://stats:rtc_stats_unittests/"
+      },
+      {
+        "isolate_name": "rtc_unittests",
+=======
+        "test_id_prefix": "ninja://pc:slow_peer_connection_unittests/"
+      },
+      {
+        "isolate_name": "svc_tests",
+>>>>>>> m108
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+<<<<<<< HEAD
+        "name": "rtc_unittests",
+=======
+        "name": "svc_tests",
+>>>>>>> m108
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Ubuntu-18.04"
+            }
+          ],
+<<<<<<< HEAD
+          "shards": 6
+        },
+        "test_id_prefix": "ninja://:rtc_unittests/"
+=======
+          "shards": 4
+        },
+        "test_id_prefix": "ninja://pc:svc_tests/"
+>>>>>>> m108
       },
       {
         "isolate_name": "system_wrappers_unittests",
@@ -8712,6 +10687,52 @@
         "test_id_prefix": "ninja://:rtc_unittests/"
       },
       {
+<<<<<<< HEAD
+=======
+        "isolate_name": "slow_peer_connection_unittests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "slow_peer_connection_unittests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Ubuntu-18.04"
+            }
+          ]
+        },
+        "test_id_prefix": "ninja://pc:slow_peer_connection_unittests/"
+      },
+      {
+        "isolate_name": "svc_tests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "svc_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Ubuntu-18.04"
+            }
+          ],
+          "shards": 4
+        },
+        "test_id_prefix": "ninja://pc:svc_tests/"
+      },
+      {
+>>>>>>> m108
         "isolate_name": "system_wrappers_unittests",
         "merge": {
           "args": [],
@@ -9102,6 +11123,52 @@
         "test_id_prefix": "ninja://:rtc_unittests/"
       },
       {
+<<<<<<< HEAD
+=======
+        "isolate_name": "slow_peer_connection_unittests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "slow_peer_connection_unittests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Ubuntu-18.04"
+            }
+          ]
+        },
+        "test_id_prefix": "ninja://pc:slow_peer_connection_unittests/"
+      },
+      {
+        "isolate_name": "svc_tests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "svc_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Ubuntu-18.04"
+            }
+          ],
+          "shards": 4
+        },
+        "test_id_prefix": "ninja://pc:svc_tests/"
+      },
+      {
+>>>>>>> m108
         "isolate_name": "system_wrappers_unittests",
         "merge": {
           "args": [],
@@ -9248,7 +11315,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -9270,7 +11341,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -9292,7 +11367,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -9314,7 +11393,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -9339,7 +11422,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -9361,7 +11448,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "shards": 2
@@ -9384,7 +11475,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "shards": 6
@@ -9407,7 +11502,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "shards": 4
@@ -9430,7 +11529,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -9452,7 +11555,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -9474,7 +11581,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -9496,7 +11607,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "shards": 6
@@ -9504,6 +11619,54 @@
         "test_id_prefix": "ninja://:rtc_unittests/"
       },
       {
+<<<<<<< HEAD
+=======
+        "isolate_name": "slow_peer_connection_unittests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "slow_peer_connection_unittests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cores": "12",
+              "cpu": "x86-64",
+              "os": "Mac-12"
+            }
+          ]
+        },
+        "test_id_prefix": "ninja://pc:slow_peer_connection_unittests/"
+      },
+      {
+        "isolate_name": "svc_tests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "svc_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cores": "12",
+              "cpu": "x86-64",
+              "os": "Mac-12"
+            }
+          ],
+          "shards": 4
+        },
+        "test_id_prefix": "ninja://pc:svc_tests/"
+      },
+      {
+>>>>>>> m108
         "isolate_name": "system_wrappers_unittests",
         "merge": {
           "args": [],
@@ -9519,7 +11682,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -9541,7 +11708,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -9563,7 +11734,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -9585,7 +11760,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "shards": 4
@@ -9608,7 +11787,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -9630,7 +11813,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -9658,7 +11845,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -9680,7 +11871,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -9702,7 +11897,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -9724,7 +11923,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -9749,7 +11952,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -9771,7 +11978,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "shards": 2
@@ -9794,7 +12005,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "shards": 6
@@ -9817,7 +12032,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "shards": 4
@@ -9840,7 +12059,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -9862,7 +12085,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -9884,7 +12111,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -9906,7 +12137,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "shards": 6
@@ -9914,6 +12149,54 @@
         "test_id_prefix": "ninja://:rtc_unittests/"
       },
       {
+<<<<<<< HEAD
+=======
+        "isolate_name": "slow_peer_connection_unittests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "slow_peer_connection_unittests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cores": "12",
+              "cpu": "x86-64",
+              "os": "Mac-12"
+            }
+          ]
+        },
+        "test_id_prefix": "ninja://pc:slow_peer_connection_unittests/"
+      },
+      {
+        "isolate_name": "svc_tests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "svc_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cores": "12",
+              "cpu": "x86-64",
+              "os": "Mac-12"
+            }
+          ],
+          "shards": 4
+        },
+        "test_id_prefix": "ninja://pc:svc_tests/"
+      },
+      {
+>>>>>>> m108
         "isolate_name": "system_wrappers_unittests",
         "merge": {
           "args": [],
@@ -9929,7 +12212,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -9951,7 +12238,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -9973,7 +12264,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -9995,7 +12290,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "shards": 4
@@ -10018,7 +12317,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -10040,7 +12343,11 @@
             {
               "cores": "12",
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -10065,8 +12372,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -10087,8 +12398,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -10109,8 +12424,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -10131,8 +12450,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -10156,8 +12479,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -10178,8 +12505,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "shards": 2
@@ -10201,8 +12532,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "shards": 6
@@ -10224,8 +12559,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "shards": 4
@@ -10247,8 +12586,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -10269,8 +12612,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -10291,8 +12638,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -10313,8 +12664,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "shards": 6
@@ -10322,6 +12677,52 @@
         "test_id_prefix": "ninja://:rtc_unittests/"
       },
       {
+<<<<<<< HEAD
+=======
+        "isolate_name": "slow_peer_connection_unittests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "slow_peer_connection_unittests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "arm64-64-Apple_M1",
+              "os": "Mac-12"
+            }
+          ]
+        },
+        "test_id_prefix": "ninja://pc:slow_peer_connection_unittests/"
+      },
+      {
+        "isolate_name": "svc_tests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "svc_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "arm64-64-Apple_M1",
+              "os": "Mac-12"
+            }
+          ],
+          "shards": 4
+        },
+        "test_id_prefix": "ninja://pc:svc_tests/"
+      },
+      {
+>>>>>>> m108
         "isolate_name": "system_wrappers_unittests",
         "merge": {
           "args": [],
@@ -10336,8 +12737,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -10358,8 +12763,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -10380,8 +12789,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -10402,8 +12815,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "shards": 4
@@ -10425,8 +12842,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -10447,8 +12868,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -10473,7 +12898,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -10494,7 +12923,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -10515,7 +12948,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -10536,7 +12973,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -10560,7 +13001,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -10581,7 +13026,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "shards": 2
@@ -10603,7 +13052,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "shards": 6
@@ -10625,7 +13078,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "shards": 4
@@ -10647,7 +13104,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -10668,7 +13129,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -10689,7 +13154,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -10710,7 +13179,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "shards": 6
@@ -10718,6 +13191,52 @@
         "test_id_prefix": "ninja://:rtc_unittests/"
       },
       {
+<<<<<<< HEAD
+=======
+        "isolate_name": "slow_peer_connection_unittests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "slow_peer_connection_unittests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Mac-12"
+            }
+          ]
+        },
+        "test_id_prefix": "ninja://pc:slow_peer_connection_unittests/"
+      },
+      {
+        "isolate_name": "svc_tests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "svc_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Mac-12"
+            }
+          ],
+          "shards": 4
+        },
+        "test_id_prefix": "ninja://pc:svc_tests/"
+      },
+      {
+>>>>>>> m108
         "isolate_name": "system_wrappers_unittests",
         "merge": {
           "args": [],
@@ -10732,7 +13251,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -10753,7 +13276,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -10774,7 +13301,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -10795,7 +13326,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac",
+=======
+              "os": "Mac-12",
+>>>>>>> m108
               "pool": "WebRTC-baremetal-try"
             }
           ]
@@ -10817,7 +13352,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "shards": 4
@@ -10839,7 +13378,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -10860,7 +13403,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac-11"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -10887,8 +13434,12 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -10913,8 +13464,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -10935,8 +13490,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -10957,8 +13516,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -10979,8 +13542,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -11004,8 +13571,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -11026,8 +13597,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "shards": 2
@@ -11049,8 +13624,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "shards": 6
@@ -11072,8 +13651,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "shards": 4
@@ -11095,8 +13678,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -11117,8 +13704,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -11139,8 +13730,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -11161,8 +13756,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "shards": 6
@@ -11170,6 +13769,52 @@
         "test_id_prefix": "ninja://:rtc_unittests/"
       },
       {
+<<<<<<< HEAD
+=======
+        "isolate_name": "slow_peer_connection_unittests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "slow_peer_connection_unittests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "arm64-64-Apple_M1",
+              "os": "Mac-12"
+            }
+          ]
+        },
+        "test_id_prefix": "ninja://pc:slow_peer_connection_unittests/"
+      },
+      {
+        "isolate_name": "svc_tests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "svc_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "arm64-64-Apple_M1",
+              "os": "Mac-12"
+            }
+          ],
+          "shards": 4
+        },
+        "test_id_prefix": "ninja://pc:svc_tests/"
+      },
+      {
+>>>>>>> m108
         "isolate_name": "system_wrappers_unittests",
         "merge": {
           "args": [],
@@ -11184,8 +13829,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -11206,8 +13855,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -11228,8 +13881,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -11250,8 +13907,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ],
           "shards": 4
@@ -11273,8 +13934,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -11295,8 +13960,12 @@
           "dimension_sets": [
             {
               "cpu": "arm64-64-Apple_M1",
+<<<<<<< HEAD
               "os": "Mac",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Mac-12"
+>>>>>>> m108
             }
           ]
         },
@@ -11321,7 +13990,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -11342,7 +14015,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -11363,7 +14040,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -11384,7 +14065,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -11408,7 +14093,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -11429,7 +14118,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ],
           "shards": 2
@@ -11451,7 +14144,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ],
           "shards": 6
@@ -11473,7 +14170,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ],
           "shards": 4
@@ -11495,7 +14196,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -11516,7 +14221,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -11537,7 +14246,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -11558,7 +14271,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ],
           "shards": 6
@@ -11566,6 +14283,52 @@
         "test_id_prefix": "ninja://:rtc_unittests/"
       },
       {
+<<<<<<< HEAD
+=======
+        "isolate_name": "slow_peer_connection_unittests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "slow_peer_connection_unittests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Windows-10-19042"
+            }
+          ]
+        },
+        "test_id_prefix": "ninja://pc:slow_peer_connection_unittests/"
+      },
+      {
+        "isolate_name": "svc_tests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "svc_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Windows-10-19042"
+            }
+          ],
+          "shards": 4
+        },
+        "test_id_prefix": "ninja://pc:svc_tests/"
+      },
+      {
+>>>>>>> m108
         "isolate_name": "system_wrappers_unittests",
         "merge": {
           "args": [],
@@ -11580,7 +14343,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -11601,7 +14368,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -11622,7 +14393,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -11643,7 +14418,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ],
           "shards": 4
@@ -11665,7 +14444,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -11686,7 +14469,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -11715,7 +14502,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -11736,7 +14527,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -11757,7 +14552,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -11778,7 +14577,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -11802,7 +14605,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -11823,7 +14630,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ],
           "shards": 2
@@ -11845,7 +14656,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ],
           "shards": 6
@@ -11867,7 +14682,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ],
           "shards": 4
@@ -11889,7 +14708,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -11910,7 +14733,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -11931,7 +14758,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -11952,7 +14783,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ],
           "shards": 6
@@ -11960,6 +14795,52 @@
         "test_id_prefix": "ninja://:rtc_unittests/"
       },
       {
+<<<<<<< HEAD
+=======
+        "isolate_name": "slow_peer_connection_unittests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "slow_peer_connection_unittests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Windows-10-19042"
+            }
+          ]
+        },
+        "test_id_prefix": "ninja://pc:slow_peer_connection_unittests/"
+      },
+      {
+        "isolate_name": "svc_tests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "svc_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Windows-10-19042"
+            }
+          ],
+          "shards": 4
+        },
+        "test_id_prefix": "ninja://pc:svc_tests/"
+      },
+      {
+>>>>>>> m108
         "isolate_name": "system_wrappers_unittests",
         "merge": {
           "args": [],
@@ -11974,7 +14855,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -11995,7 +14880,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12016,7 +14905,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12037,7 +14930,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ],
           "shards": 4
@@ -12059,7 +14956,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12080,7 +14981,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12105,7 +15010,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12126,7 +15035,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12147,7 +15060,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12168,7 +15085,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12192,7 +15113,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12213,7 +15138,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ],
           "shards": 2
@@ -12235,7 +15164,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ],
           "shards": 6
@@ -12257,7 +15190,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ],
           "shards": 4
@@ -12279,7 +15216,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12300,7 +15241,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12321,7 +15266,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12342,7 +15291,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ],
           "shards": 6
@@ -12350,6 +15303,52 @@
         "test_id_prefix": "ninja://:rtc_unittests/"
       },
       {
+<<<<<<< HEAD
+=======
+        "isolate_name": "slow_peer_connection_unittests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "slow_peer_connection_unittests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Windows-10-19042"
+            }
+          ]
+        },
+        "test_id_prefix": "ninja://pc:slow_peer_connection_unittests/"
+      },
+      {
+        "isolate_name": "svc_tests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "svc_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Windows-10-19042"
+            }
+          ],
+          "shards": 4
+        },
+        "test_id_prefix": "ninja://pc:svc_tests/"
+      },
+      {
+>>>>>>> m108
         "isolate_name": "system_wrappers_unittests",
         "merge": {
           "args": [],
@@ -12364,7 +15363,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12385,7 +15388,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12406,7 +15413,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12427,7 +15438,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ],
           "shards": 4
@@ -12449,7 +15464,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12470,7 +15489,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-10-15063"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12495,7 +15518,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12516,7 +15543,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12537,7 +15568,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12558,7 +15593,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12582,7 +15621,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12603,7 +15646,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ],
           "shards": 2
@@ -12625,7 +15672,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ],
           "shards": 6
@@ -12647,7 +15698,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ],
           "shards": 4
@@ -12669,7 +15724,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12690,7 +15749,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12711,7 +15774,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12732,7 +15799,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ],
           "shards": 6
@@ -12740,6 +15811,52 @@
         "test_id_prefix": "ninja://:rtc_unittests/"
       },
       {
+<<<<<<< HEAD
+=======
+        "isolate_name": "slow_peer_connection_unittests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "slow_peer_connection_unittests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Windows-10-19042"
+            }
+          ]
+        },
+        "test_id_prefix": "ninja://pc:slow_peer_connection_unittests/"
+      },
+      {
+        "isolate_name": "svc_tests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "svc_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Windows-10-19042"
+            }
+          ],
+          "shards": 4
+        },
+        "test_id_prefix": "ninja://pc:svc_tests/"
+      },
+      {
+>>>>>>> m108
         "isolate_name": "system_wrappers_unittests",
         "merge": {
           "args": [],
@@ -12754,7 +15871,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12775,7 +15896,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12796,7 +15921,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12817,7 +15946,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ],
           "shards": 4
@@ -12839,7 +15972,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12860,7 +15997,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12885,7 +16026,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12906,7 +16051,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12927,7 +16076,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12948,7 +16101,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12972,7 +16129,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -12993,7 +16154,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ],
           "shards": 2
@@ -13015,7 +16180,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ],
           "shards": 6
@@ -13037,7 +16206,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ],
           "shards": 4
@@ -13059,7 +16232,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -13080,7 +16257,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -13101,7 +16282,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -13122,7 +16307,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ],
           "shards": 6
@@ -13130,6 +16319,52 @@
         "test_id_prefix": "ninja://:rtc_unittests/"
       },
       {
+<<<<<<< HEAD
+=======
+        "isolate_name": "slow_peer_connection_unittests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "slow_peer_connection_unittests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Windows-10-19042"
+            }
+          ]
+        },
+        "test_id_prefix": "ninja://pc:slow_peer_connection_unittests/"
+      },
+      {
+        "isolate_name": "svc_tests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "svc_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Windows-10-19042"
+            }
+          ],
+          "shards": 4
+        },
+        "test_id_prefix": "ninja://pc:svc_tests/"
+      },
+      {
+>>>>>>> m108
         "isolate_name": "system_wrappers_unittests",
         "merge": {
           "args": [],
@@ -13144,7 +16379,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -13165,7 +16404,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -13186,7 +16429,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -13207,7 +16454,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ],
           "shards": 4
@@ -13229,7 +16480,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -13250,7 +16505,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -13275,7 +16534,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -13296,7 +16559,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -13317,7 +16584,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -13338,7 +16609,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -13362,7 +16637,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -13383,7 +16662,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ],
           "shards": 2
@@ -13405,7 +16688,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ],
           "shards": 6
@@ -13427,7 +16714,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ],
           "shards": 4
@@ -13449,7 +16740,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -13470,7 +16765,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -13491,7 +16790,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -13512,7 +16815,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ],
           "shards": 6
@@ -13520,6 +16827,52 @@
         "test_id_prefix": "ninja://:rtc_unittests/"
       },
       {
+<<<<<<< HEAD
+=======
+        "isolate_name": "slow_peer_connection_unittests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "slow_peer_connection_unittests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Windows-10-19042"
+            }
+          ]
+        },
+        "test_id_prefix": "ninja://pc:slow_peer_connection_unittests/"
+      },
+      {
+        "isolate_name": "svc_tests",
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "svc_tests",
+        "resultdb": {
+          "result_format": "json"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "dimension_sets": [
+            {
+              "cpu": "x86-64",
+              "os": "Windows-10-19042"
+            }
+          ],
+          "shards": 4
+        },
+        "test_id_prefix": "ninja://pc:svc_tests/"
+      },
+      {
+>>>>>>> m108
         "isolate_name": "system_wrappers_unittests",
         "merge": {
           "args": [],
@@ -13534,7 +16887,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -13555,7 +16912,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -13576,7 +16937,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -13597,7 +16962,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows",
+=======
+              "os": "Windows-10-19042",
+>>>>>>> m108
               "pool": "WebRTC-baremetal-try"
             }
           ]
@@ -13619,7 +16988,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ],
           "shards": 4
@@ -13641,7 +17014,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -13662,7 +17039,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -13689,8 +17070,12 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows",
               "pool": "WebRTC-baremetal-try"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ]
         },
@@ -13715,7 +17100,11 @@
           "dimension_sets": [
             {
               "cpu": "x86-64",
+<<<<<<< HEAD
               "os": "Windows-7-SP1"
+=======
+              "os": "Windows-10-19042"
+>>>>>>> m108
             }
           ],
           "shards": 4

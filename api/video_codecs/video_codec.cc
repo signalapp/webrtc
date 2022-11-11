@@ -31,19 +31,15 @@ constexpr char kPayloadNameMultiplex[] = "Multiplex";
 }  // namespace
 
 bool VideoCodecVP8::operator==(const VideoCodecVP8& other) const {
-  return (complexity == other.complexity &&
-          numberOfTemporalLayers == other.numberOfTemporalLayers &&
+  return (numberOfTemporalLayers == other.numberOfTemporalLayers &&
           denoisingOn == other.denoisingOn &&
           automaticResizeOn == other.automaticResizeOn &&
-          frameDroppingOn == other.frameDroppingOn &&
           keyFrameInterval == other.keyFrameInterval);
 }
 
 bool VideoCodecVP9::operator==(const VideoCodecVP9& other) const {
-  return (complexity == other.complexity &&
-          numberOfTemporalLayers == other.numberOfTemporalLayers &&
+  return (numberOfTemporalLayers == other.numberOfTemporalLayers &&
           denoisingOn == other.denoisingOn &&
-          frameDroppingOn == other.frameDroppingOn &&
           keyFrameInterval == other.keyFrameInterval &&
           adaptiveQpMode == other.adaptiveQpMode &&
           automaticResizeOn == other.automaticResizeOn &&
@@ -52,8 +48,7 @@ bool VideoCodecVP9::operator==(const VideoCodecVP9& other) const {
 }
 
 bool VideoCodecH264::operator==(const VideoCodecH264& other) const {
-  return (frameDroppingOn == other.frameDroppingOn &&
-          keyFrameInterval == other.keyFrameInterval &&
+  return (keyFrameInterval == other.keyFrameInterval &&
           numberOfTemporalLayers == other.numberOfTemporalLayers);
 }
 
@@ -74,7 +69,8 @@ VideoCodec::VideoCodec()
       expect_encode_from_texture(false),
       timing_frame_thresholds({0, 0}),
       legacy_conference_mode(false),
-      codec_specific_() {}
+      codec_specific_(),
+      complexity_(VideoCodecComplexity::kComplexityNormal) {}
 
 VideoCodecVP8* VideoCodec::VP8() {
   RTC_DCHECK_EQ(codecType, kVideoCodecVP8);
@@ -140,6 +136,7 @@ VideoCodecType PayloadStringToCodecType(const std::string& name) {
 }
 
 VideoCodecComplexity VideoCodec::GetVideoEncoderComplexity() const {
+<<<<<<< HEAD
   if (complexity_.has_value()) {
     return complexity_.value();
   }
@@ -151,6 +148,9 @@ VideoCodecComplexity VideoCodec::GetVideoEncoderComplexity() const {
     default:
       return VideoCodecComplexity::kComplexityNormal;
   }
+=======
+  return complexity_;
+>>>>>>> m108
 }
 
 void VideoCodec::SetVideoEncoderComplexity(
@@ -158,4 +158,15 @@ void VideoCodec::SetVideoEncoderComplexity(
   complexity_ = complexity_setting;
 }
 
+<<<<<<< HEAD
+=======
+bool VideoCodec::GetFrameDropEnabled() const {
+  return frame_drop_enabled_;
+}
+
+void VideoCodec::SetFrameDropEnabled(bool enabled) {
+  frame_drop_enabled_ = enabled;
+}
+
+>>>>>>> m108
 }  // namespace webrtc

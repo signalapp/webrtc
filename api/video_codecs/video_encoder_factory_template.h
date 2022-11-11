@@ -16,8 +16,15 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
+<<<<<<< HEAD
 #include "api/video_codecs/video_encoder.h"
 #include "api/video_codecs/video_encoder_factory.h"
+=======
+#include "api/array_view.h"
+#include "api/video_codecs/video_encoder.h"
+#include "api/video_codecs/video_encoder_factory.h"
+#include "modules/video_coding/svc/scalability_mode_util.h"
+>>>>>>> m108
 
 namespace webrtc {
 // The VideoEncoderFactoryTemplate supports encoders implementations given as
@@ -35,7 +42,11 @@ namespace webrtc {
 //
 //   // Returns true if the encoder supports the given scalability mode.
 //   static bool
+<<<<<<< HEAD
 //       IsScalabilityModeSupported(const absl::string_view scalability_mode);
+=======
+//       IsScalabilityModeSupported(ScalabilityMode scalability_mode);
+>>>>>>> m108
 //
 // Note that the order of the template arguments matter as the factory will
 // query/return the first encoder implementation supporting the given
@@ -44,9 +55,13 @@ template <typename... Ts>
 class VideoEncoderFactoryTemplate : public VideoEncoderFactory {
  public:
   std::vector<SdpVideoFormat> GetSupportedFormats() const override {
+<<<<<<< HEAD
     std::vector<SdpVideoFormat> formats;
     GetSupportedFormatsInternal<Ts...>(formats);
     return formats;
+=======
+    return GetSupportedFormatsInternal<Ts...>();
+>>>>>>> m108
   }
 
   std::unique_ptr<VideoEncoder> CreateVideoEncoder(
@@ -61,6 +76,7 @@ class VideoEncoderFactoryTemplate : public VideoEncoderFactory {
   }
 
  private:
+<<<<<<< HEAD
   template <typename V>
   bool IsFormatSupported(const SdpVideoFormat& format) const {
     return absl::c_count(V::SupportedFormats(), format) > 0;
@@ -78,12 +94,55 @@ class VideoEncoderFactoryTemplate : public VideoEncoderFactory {
     if constexpr (sizeof...(Vs) > 0) {
       return GetSupportedFormatsInternal<Vs...>(formats);
     }
+=======
+  bool IsFormatInList(
+      const SdpVideoFormat& format,
+      rtc::ArrayView<const SdpVideoFormat> supported_formats) const {
+    return absl::c_any_of(
+        supported_formats, [&](const SdpVideoFormat& supported_format) {
+          return supported_format.name == format.name &&
+                 supported_format.parameters == format.parameters;
+        });
+  }
+
+  template <typename V>
+  bool IsScalabilityModeSupported(
+      const absl::optional<std::string>& scalability_mode_string) const {
+    if (!scalability_mode_string.has_value()) {
+      return true;
+    }
+    absl::optional<ScalabilityMode> scalability_mode =
+        ScalabilityModeFromString(*scalability_mode_string);
+    return scalability_mode.has_value() &&
+           V::IsScalabilityModeSupported(*scalability_mode);
+  }
+
+  template <typename V, typename... Vs>
+  std::vector<SdpVideoFormat> GetSupportedFormatsInternal() const {
+    auto supported_formats = V::SupportedFormats();
+
+    if constexpr (sizeof...(Vs) > 0) {
+      // Supported formats may overlap between implementations, so duplicates
+      // should be filtered out.
+      for (const auto& other_format : GetSupportedFormatsInternal<Vs...>()) {
+        if (!IsFormatInList(other_format, supported_formats)) {
+          supported_formats.push_back(other_format);
+        }
+      }
+    }
+
+    return supported_formats;
+>>>>>>> m108
   }
 
   template <typename V, typename... Vs>
   std::unique_ptr<VideoEncoder> CreateVideoEncoderInternal(
       const SdpVideoFormat& format) {
+<<<<<<< HEAD
     if (IsFormatSupported<V>(format)) {
+=======
+    if (IsFormatInList(format, V::SupportedFormats())) {
+>>>>>>> m108
       return V::CreateEncoder(format);
     }
 
@@ -98,9 +157,14 @@ class VideoEncoderFactoryTemplate : public VideoEncoderFactory {
   CodecSupport QueryCodecSupportInternal(
       const SdpVideoFormat& format,
       const absl::optional<std::string>& scalability_mode) const {
+<<<<<<< HEAD
     if (IsFormatSupported<V>(format)) {
       return {.is_supported = !scalability_mode ||
                               V::IsScalabilityModeSupported(*scalability_mode)};
+=======
+    if (IsFormatInList(format, V::SupportedFormats())) {
+      return {.is_supported = IsScalabilityModeSupported<V>(scalability_mode)};
+>>>>>>> m108
     }
 
     if constexpr (sizeof...(Vs) > 0) {

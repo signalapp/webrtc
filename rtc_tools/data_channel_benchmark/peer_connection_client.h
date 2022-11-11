@@ -22,7 +22,10 @@
 #include "api/scoped_refptr.h"
 #include "api/set_local_description_observer_interface.h"
 #include "rtc_base/logging.h"
+<<<<<<< HEAD
 #include "rtc_base/ref_counted_object.h"
+=======
+>>>>>>> m108
 #include "rtc_base/thread.h"
 #include "rtc_tools/data_channel_benchmark/signaling_interface.h"
 

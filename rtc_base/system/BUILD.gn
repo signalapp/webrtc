@@ -30,6 +30,7 @@ rtc_library("file_wrapper") {
     "..:criticalsection",
     "..:safe_conversions",
   ]
+  absl_deps = [ "//third_party/abseil-cpp/absl/strings" ]
 }
 
 if (rtc_include_tests) {
@@ -70,6 +71,12 @@ rtc_source_set("rtc_export") {
 
 rtc_source_set("no_unique_address") {
   sources = [ "no_unique_address.h" ]
+}
+
+rtc_source_set("no_cfi_icall") {
+  sources = [ "no_cfi_icall.h" ]
+
+  deps = [ "..:sanitizer" ]
 }
 
 if (is_mac || is_ios) {

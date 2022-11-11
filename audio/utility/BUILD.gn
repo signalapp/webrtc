@@ -27,7 +27,10 @@ rtc_library("audio_frame_operations") {
     "../../common_audio",
     "../../rtc_base:checks",
     "../../rtc_base:logging",
+<<<<<<< HEAD
     "../../rtc_base:rtc_base_approved",
+=======
+>>>>>>> m108
     "../../rtc_base:safe_conversions",
     "../../system_wrappers:field_trial",
   ]
@@ -48,7 +51,10 @@ if (rtc_include_tests) {
       "../../rtc_base:checks",
       "../../rtc_base:logging",
       "../../rtc_base:macromagic",
+<<<<<<< HEAD
       "../../rtc_base:rtc_base_approved",
+=======
+>>>>>>> m108
       "../../rtc_base:stringutils",
       "../../test:field_trial",
       "../../test:test_support",

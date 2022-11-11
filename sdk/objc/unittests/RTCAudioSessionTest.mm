@@ -10,6 +10,7 @@
 
 #import <Foundation/Foundation.h>
 #import <OCMock/OCMock.h>
+#import <XCTest/XCTest.h>
 
 #include <vector>
 
@@ -111,8 +112,7 @@
 
 @end
 
-
-@interface RTCAudioSessionTest : NSObject
+@interface RTCAudioSessionTest : XCTestCase
 
 @end
 
@@ -287,6 +287,7 @@ OCMLocation *OCMMakeLocation(id testCase, const char *fileCString, int line){
 
   rtc::Event waitLock;
   rtc::Event waitCleanup;
+<<<<<<< HEAD
   constexpr int timeoutMs = 5000;
   thread->PostTask([audioSession, &waitLock, &waitCleanup] {
     [audioSession lockForConfiguration];
@@ -296,6 +297,17 @@ OCMLocation *OCMMakeLocation(id testCase, const char *fileCString, int line){
   });
 
   waitLock.Wait(timeoutMs);
+=======
+  constexpr webrtc::TimeDelta timeout = webrtc::TimeDelta::Seconds(5);
+  thread->PostTask([audioSession, &waitLock, &waitCleanup, timeout] {
+    [audioSession lockForConfiguration];
+    waitLock.Set();
+    waitCleanup.Wait(timeout);
+    [audioSession unlockForConfiguration];
+  });
+
+  waitLock.Wait(timeout);
+>>>>>>> m108
   [audioSession setCategory:AVAudioSessionCategoryPlayAndRecord withOptions:0 error:&error];
   EXPECT_TRUE(error != nil);
   EXPECT_EQ(error.domain, kRTCAudioSessionErrorDomain);
@@ -322,6 +334,7 @@ OCMLocation *OCMMakeLocation(id testCase, const char *fileCString, int line){
 }
 
 @end
+<<<<<<< HEAD
 
 namespace webrtc {
 
@@ -376,3 +389,5 @@ TEST_F(AudioSessionTest, AudioVolumeDidNotify) {
 }
 
 }  // namespace webrtc
+=======
+>>>>>>> m108

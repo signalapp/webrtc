@@ -21,6 +21,10 @@ RetransmissionTimeout::RetransmissionTimeout(const DcSctpOptions& options)
       max_rto_(*options.rto_max),
       max_rtt_(*options.rtt_max),
       min_rtt_variance_(*options.min_rtt_variance),
+<<<<<<< HEAD
+=======
+      scaled_srtt_(*options.rto_initial << kRttShift),
+>>>>>>> m108
       rto_(*options.rto_initial) {}
 
 void RetransmissionTimeout::ObserveRTT(DurationMs measured_rtt) {

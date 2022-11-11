@@ -19,11 +19,9 @@ rtc_library("agc") {
   ]
   configs += [ "..:apm_debug_dump" ]
   deps = [
-    ":clipping_predictor",
-    ":clipping_predictor_evaluator",
     ":gain_control_interface",
-    ":gain_map",
     ":level_estimation",
+    "..:api",
     "..:apm_logging",
     "..:audio_buffer",
     "..:audio_frame_view",
@@ -34,16 +32,18 @@ rtc_library("agc") {
     "../../../rtc_base:checks",
     "../../../rtc_base:gtest_prod",
     "../../../rtc_base:logging",
-    "../../../rtc_base:rtc_base_approved",
     "../../../rtc_base:safe_minmax",
     "../../../system_wrappers:field_trial",
     "../../../system_wrappers:metrics",
+    "../agc2:clipping_predictor",
+    "../agc2:gain_map",
     "../vad",
   ]
   absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
 }
 
 rtc_library("analog_gain_stats_reporter") {
+<<<<<<< HEAD
   sources = [
     "analog_gain_stats_reporter.cc",
     "analog_gain_stats_reporter.h",
@@ -58,44 +58,17 @@ rtc_library("analog_gain_stats_reporter") {
 }
 
 rtc_library("clipping_predictor") {
+=======
+>>>>>>> m108
   sources = [
-    "clipping_predictor.cc",
-    "clipping_predictor.h",
+    "analog_gain_stats_reporter.cc",
+    "analog_gain_stats_reporter.h",
   ]
   deps = [
-    ":clipping_predictor_level_buffer",
-    ":gain_map",
-    "..:api",
-    "..:audio_frame_view",
-    "../../../common_audio",
-    "../../../rtc_base:checks",
+    "../../../rtc_base:gtest_prod",
     "../../../rtc_base:logging",
     "../../../rtc_base:safe_minmax",
-  ]
-  absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
-}
-
-rtc_library("clipping_predictor_evaluator") {
-  sources = [
-    "clipping_predictor_evaluator.cc",
-    "clipping_predictor_evaluator.h",
-  ]
-  deps = [
-    "../../../rtc_base:checks",
-    "../../../rtc_base:logging",
-  ]
-  absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
-}
-
-rtc_library("clipping_predictor_level_buffer") {
-  sources = [
-    "clipping_predictor_level_buffer.cc",
-    "clipping_predictor_level_buffer.h",
-  ]
-  deps = [
-    "../../../rtc_base:checks",
-    "../../../rtc_base:logging",
-    "../../../rtc_base:rtc_base_approved",
+    "../../../system_wrappers:metrics",
   ]
   absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
 }
@@ -137,7 +110,6 @@ rtc_library("legacy_agc") {
     "../../../common_audio:common_audio_c",
     "../../../common_audio/third_party/ooura:fft_size_256",
     "../../../rtc_base:checks",
-    "../../../rtc_base:rtc_base_approved",
     "../../../system_wrappers",
   ]
 
@@ -150,19 +122,18 @@ rtc_library("legacy_agc") {
   }
 }
 
-rtc_source_set("gain_map") {
-  sources = [ "gain_map_internal.h" ]
-}
-
 if (rtc_include_tests) {
   rtc_library("agc_unittests") {
     testonly = true
     sources = [
       "agc_manager_direct_unittest.cc",
       "analog_gain_stats_reporter_unittest.cc",
+<<<<<<< HEAD
       "clipping_predictor_evaluator_unittest.cc",
       "clipping_predictor_level_buffer_unittest.cc",
       "clipping_predictor_unittest.cc",
+=======
+>>>>>>> m108
       "loudness_histogram_unittest.cc",
       "mock_agc.h",
     ]
@@ -171,16 +142,23 @@ if (rtc_include_tests) {
     deps = [
       ":agc",
       ":analog_gain_stats_reporter",
+<<<<<<< HEAD
       ":clipping_predictor",
       ":clipping_predictor_evaluator",
       ":clipping_predictor_level_buffer",
+=======
+>>>>>>> m108
       ":gain_control_interface",
       ":level_estimation",
       "..:mocks",
       "../../../api:array_view",
       "../../../rtc_base:checks",
-      "../../../rtc_base:rtc_base_approved",
+      "../../../rtc_base:random",
       "../../../rtc_base:safe_conversions",
+<<<<<<< HEAD
+=======
+      "../../../rtc_base:safe_minmax",
+>>>>>>> m108
       "../../../rtc_base:stringutils",
       "../../../system_wrappers:metrics",
       "../../../test:field_trial",
@@ -188,6 +166,9 @@ if (rtc_include_tests) {
       "../../../test:test_support",
       "//testing/gtest",
     ]
-    absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
+    absl_deps = [
+      "//third_party/abseil-cpp/absl/strings",
+      "//third_party/abseil-cpp/absl/types:optional",
+    ]
   }
 }

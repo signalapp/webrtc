@@ -30,7 +30,6 @@
 #include "pc/test/peer_connection_test_wrapper.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/gunit.h"
-#include "rtc_base/ref_counted_object.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/time_utils.h"
 #include "rtc_base/virtual_socket_server.h"
@@ -65,7 +64,7 @@ TrackWithPeriodicSource CreateTrackWithPeriodicSource(
           periodic_track_source_config, /* remote */ false);
   TrackWithPeriodicSource track_with_source;
   track_with_source.track =
-      factory->CreateVideoTrack("PeriodicTrack", periodic_track_source);
+      factory->CreateVideoTrack("PeriodicTrack", periodic_track_source.get());
   track_with_source.periodic_track_source = periodic_track_source;
   return track_with_source;
 }
@@ -95,7 +94,8 @@ class PeerConnectionAdaptationIntegrationTest : public ::testing::Test {
       const char* name) {
     rtc::scoped_refptr<PeerConnectionTestWrapper> pc_wrapper =
         rtc::make_ref_counted<PeerConnectionTestWrapper>(
-            name, network_thread_.get(), worker_thread_.get());
+            name, &virtual_socket_server_, network_thread_.get(),
+            worker_thread_.get());
     PeerConnectionInterface::RTCConfiguration config;
     config.sdp_semantics = SdpSemantics::kUnifiedPlan;
     EXPECT_TRUE(pc_wrapper->CreatePc(config, CreateBuiltinAudioEncoderFactory(),

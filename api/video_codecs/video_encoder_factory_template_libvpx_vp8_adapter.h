@@ -14,12 +14,30 @@
 #include <memory>
 #include <vector>
 
+<<<<<<< HEAD
 #include "modules/video_coding/codecs/vp8/include/vp8.h"
+=======
+#include "absl/container/inlined_vector.h"
+#include "api/video_codecs/sdp_video_format.h"
+#include "modules/video_coding/codecs/vp8/include/vp8.h"
+#include "modules/video_coding/codecs/vp8/vp8_scalability.h"
+>>>>>>> m108
 
 namespace webrtc {
 struct LibvpxVp8EncoderTemplateAdapter {
   static std::vector<SdpVideoFormat> SupportedFormats() {
+<<<<<<< HEAD
     return {SdpVideoFormat("VP8")};
+=======
+    absl::InlinedVector<ScalabilityMode, kScalabilityModeCount>
+        scalability_modes;
+    for (const auto scalability_mode : kVP8SupportedScalabilityModes) {
+      scalability_modes.push_back(scalability_mode);
+    }
+
+    return {
+        SdpVideoFormat("VP8", SdpVideoFormat::Parameters(), scalability_modes)};
+>>>>>>> m108
   }
 
   static std::unique_ptr<VideoEncoder> CreateEncoder(
@@ -27,9 +45,14 @@ struct LibvpxVp8EncoderTemplateAdapter {
     return VP8Encoder::Create();
   }
 
+<<<<<<< HEAD
   static bool IsScalabilityModeSupported(
       const absl::string_view scalability_mode) {
     return VP8Encoder::SupportsScalabilityMode(scalability_mode);
+=======
+  static bool IsScalabilityModeSupported(ScalabilityMode scalability_mode) {
+    return VP8SupportsScalabilityMode(scalability_mode);
+>>>>>>> m108
   }
 };
 }  // namespace webrtc

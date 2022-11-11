@@ -13,8 +13,13 @@
 #include <memory>
 
 #include "api/task_queue/default_task_queue_factory.h"
+<<<<<<< HEAD
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "rtc_base/task_utils/to_queued_task.h"
+=======
+#include "api/task_queue/task_queue_base.h"
+#include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
+>>>>>>> m108
 #include "rtc_base/thread.h"
 #include "system_wrappers/include/metrics.h"
 #include "test/gmock.h"
@@ -43,21 +48,37 @@ class CallStats2Test : public ::testing::Test {
   // Queues an rtt update call on the process thread.
   void AsyncSimulateRttUpdate(int64_t rtt) {
     RtcpRttStats* rtcp_rtt_stats = call_stats_.AsRtcpRttStats();
+<<<<<<< HEAD
     task_queue_.PostTask(ToQueuedTask(
         [rtcp_rtt_stats, rtt] { rtcp_rtt_stats->OnRttUpdate(rtt); }));
+=======
+    task_queue_->PostTask(
+        [rtcp_rtt_stats, rtt] { rtcp_rtt_stats->OnRttUpdate(rtt); });
+>>>>>>> m108
   }
 
  protected:
   void FlushProcessAndWorker() {
+<<<<<<< HEAD
     task_queue_.PostTask(
         ToQueuedTask([this] { loop_.PostTask([this]() { loop_.Quit(); }); }));
+=======
+    task_queue_->PostTask([this] { loop_.PostTask([this] { loop_.Quit(); }); });
+>>>>>>> m108
     loop_.Run();
   }
 
   test::RunLoop loop_;
+<<<<<<< HEAD
   rtc::TaskQueue task_queue_{CreateDefaultTaskQueueFactory()->CreateTaskQueue(
       "CallStats",
       TaskQueueFactory::Priority::NORMAL)};
+=======
+  std::unique_ptr<TaskQueueBase, TaskQueueDeleter> task_queue_ =
+      CreateDefaultTaskQueueFactory()->CreateTaskQueue(
+          "CallStats",
+          TaskQueueFactory::Priority::NORMAL);
+>>>>>>> m108
 
   // Note: Since rtc::Thread doesn't support injecting a Clock, we're going
   // to be using a mix of the fake clock (used by CallStats) as well as the

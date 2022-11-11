@@ -48,7 +48,10 @@ if (rtc_include_tests) {
       "../../../../../common_audio",
       "../../../../../common_audio:common_audio_c",
       "../../../../../rtc_base:macromagic",
+<<<<<<< HEAD
       "../../../../../rtc_base:rtc_base_approved",
+=======
+>>>>>>> m108
       "../../../../../test:test_support",
       "//testing/gtest",
     ]

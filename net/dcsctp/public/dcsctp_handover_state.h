@@ -40,6 +40,11 @@ struct DcSctpSocketHandoverState {
     bool partial_reliability = false;
     bool message_interleaving = false;
     bool reconfig = false;
+<<<<<<< HEAD
+=======
+    uint16_t negotiated_maximum_incoming_streams = 0;
+    uint16_t negotiated_maximum_outgoing_streams = 0;
+>>>>>>> m108
   };
   Capabilities capabilities;
 
@@ -48,6 +53,10 @@ struct DcSctpSocketHandoverState {
     uint32_t next_ssn = 0;
     uint32_t next_unordered_mid = 0;
     uint32_t next_ordered_mid = 0;
+<<<<<<< HEAD
+=======
+    uint16_t priority = 0;
+>>>>>>> m108
   };
   struct Transmission {
     uint32_t next_tsn = 0;

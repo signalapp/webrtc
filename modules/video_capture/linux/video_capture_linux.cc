@@ -8,8 +8,6 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include "modules/video_capture/linux/video_capture_linux.h"
-
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/videodev2.h>
@@ -26,9 +24,9 @@
 
 #include "api/scoped_refptr.h"
 #include "media/base/video_common.h"
+#include "modules/video_capture/linux/video_capture_v4l2.h"
 #include "modules/video_capture/video_capture.h"
 #include "rtc_base/logging.h"
-#include "rtc_base/ref_counted_object.h"
 
 namespace webrtc {
 namespace videocapturemodule {
@@ -41,6 +39,7 @@ rtc::scoped_refptr<VideoCaptureModule> VideoCaptureImpl::Create(
 
   return implementation;
 }
+<<<<<<< HEAD
 
 VideoCaptureModuleV4L2::VideoCaptureModuleV4L2()
     : VideoCaptureImpl(),
@@ -430,5 +429,7 @@ int32_t VideoCaptureModuleV4L2::CaptureSettings(
 
   return 0;
 }
+=======
+>>>>>>> m108
 }  // namespace videocapturemodule
 }  // namespace webrtc

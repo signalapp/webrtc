@@ -14,19 +14,18 @@
 #include <memory>
 #include <utility>
 
-#include "api/task_queue/queued_task.h"
+#include "absl/functional/any_invocable.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/task_queue/task_queue_factory.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
-#include "modules/include/module.h"
-#include "modules/utility/include/process_thread.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/synchronization/yield_policy.h"
 #include "test/time_controller/simulated_time_controller.h"
 
 namespace webrtc {
 
+<<<<<<< HEAD
 // Wraps a ProcessThread so that it can reschedule the time controller whenever
 // an external call changes the ProcessThread's state.  For example, when a new
 // module is registered, the ProcessThread may need to be called sooner than the
@@ -123,6 +122,8 @@ class ExternalTimeController::ProcessThreadWrapper : public ProcessThread {
   std::map<Module*, std::unique_ptr<ModuleWrapper>> module_wrappers_;
 };
 
+=======
+>>>>>>> m108
 // Wraps a TaskQueue so that it can reschedule the time controller whenever
 // an external call schedules a new task.
 class ExternalTimeController::TaskQueueWrapper : public TaskQueueBase {
@@ -131,41 +132,36 @@ class ExternalTimeController::TaskQueueWrapper : public TaskQueueBase {
                    std::unique_ptr<TaskQueueBase, TaskQueueDeleter> base)
       : parent_(parent), base_(std::move(base)) {}
 
-  void PostTask(std::unique_ptr<QueuedTask> task) override {
+  void PostTask(absl::AnyInvocable<void() &&> task) override {
     parent_->UpdateTime();
-    base_->PostTask(std::make_unique<TaskWrapper>(std::move(task), this));
+    base_->PostTask(TaskWrapper(std::move(task)));
     parent_->ScheduleNext();
   }
 
-  void PostDelayedTask(std::unique_ptr<QueuedTask> task, uint32_t ms) override {
+  void PostDelayedTask(absl::AnyInvocable<void() &&> task,
+                       TimeDelta delay) override {
     parent_->UpdateTime();
-    base_->PostDelayedTask(std::make_unique<TaskWrapper>(std::move(task), this),
-                           ms);
+    base_->PostDelayedTask(TaskWrapper(std::move(task)), delay);
+    parent_->ScheduleNext();
+  }
+
+  void PostDelayedHighPrecisionTask(absl::AnyInvocable<void() &&> task,
+                                    TimeDelta delay) override {
+    parent_->UpdateTime();
+    base_->PostDelayedHighPrecisionTask(TaskWrapper(std::move(task)), delay);
     parent_->ScheduleNext();
   }
 
   void Delete() override { delete this; }
 
  private:
-  class TaskWrapper : public QueuedTask {
-   public:
-    TaskWrapper(std::unique_ptr<QueuedTask> task, TaskQueueWrapper* queue)
-        : task_(std::move(task)), queue_(queue) {}
-
-    bool Run() override {
-      CurrentTaskQueueSetter current(queue_);
-      if (!task_->Run()) {
-        task_.release();
-      }
-      // The wrapper should always be deleted, even if it releases the inner
-      // task, in order to avoid leaking wrappers.
-      return true;
-    }
-
-   private:
-    std::unique_ptr<QueuedTask> task_;
-    TaskQueueWrapper* queue_;
-  };
+  absl::AnyInvocable<void() &&> TaskWrapper(
+      absl::AnyInvocable<void() &&> task) {
+    return [task = std::move(task), this]() mutable {
+      CurrentTaskQueueSetter current(this);
+      std::move(task)();
+    };
+  }
 
   ExternalTimeController* const parent_;
   std::unique_ptr<TaskQueueBase, TaskQueueDeleter> base_;
@@ -185,12 +181,6 @@ Clock* ExternalTimeController::GetClock() {
 
 TaskQueueFactory* ExternalTimeController::GetTaskQueueFactory() {
   return this;
-}
-
-std::unique_ptr<ProcessThread> ExternalTimeController::CreateProcessThread(
-    const char* thread_name) {
-  return std::make_unique<ProcessThreadWrapper>(
-      this, impl_.CreateProcessThread(thread_name));
 }
 
 void ExternalTimeController::AdvanceTime(TimeDelta duration) {

@@ -44,6 +44,7 @@ group("rtc_tools") {
     deps += [
       ":audioproc_f",
       ":event_log_visualizer",
+      ":rtc_event_log_to_text",
       ":unpack_aecdump",
     ]
   }
@@ -58,13 +59,17 @@ rtc_library("video_file_reader") {
     "video_file_reader.h",
   ]
   deps = [
+    "../api:make_ref_counted",
     "../api:scoped_refptr",
     "../api/video:video_frame",
     "../api/video:video_rtp_headers",
     "../rtc_base:checks",
     "../rtc_base:logging",
     "../rtc_base:refcount",
+<<<<<<< HEAD
     "../rtc_base:rtc_base_approved",
+=======
+>>>>>>> m108
     "../rtc_base:stringutils",
   ]
   absl_deps = [
@@ -84,7 +89,10 @@ rtc_library("video_file_writer") {
     "../api/video:video_frame",
     "../api/video:video_rtp_headers",
     "../rtc_base:logging",
+<<<<<<< HEAD
     "../rtc_base:rtc_base_approved",
+=======
+>>>>>>> m108
   ]
   absl_deps = [
     "//third_party/abseil-cpp/absl/strings",
@@ -109,15 +117,22 @@ rtc_library("video_quality_analysis") {
   deps = [
     ":video_file_reader",
     "../api:array_view",
+    "../api:make_ref_counted",
     "../api:scoped_refptr",
+    "../api/numerics",
+    "../api/test/metrics:metric",
+    "../api/test/metrics:metrics_logger",
     "../api/video:video_frame",
     "../api/video:video_rtp_headers",
     "../common_video",
     "../rtc_base:checks",
     "../rtc_base:logging",
+<<<<<<< HEAD
     "../rtc_base:refcount",
     "../rtc_base:rtc_base_approved",
     "../test:perf_test",
+=======
+>>>>>>> m108
     "//third_party/libyuv",
   ]
   absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
@@ -138,9 +153,13 @@ rtc_executable("frame_analyzer") {
     ":video_file_reader",
     ":video_file_writer",
     ":video_quality_analysis",
+    "../api:make_ref_counted",
     "../api:scoped_refptr",
+    "../api/test/metrics:chrome_perf_dashboard_metrics_exporter",
+    "../api/test/metrics:global_metrics_logger_and_exporter",
+    "../api/test/metrics:metrics_exporter",
+    "../api/test/metrics:stdout_metrics_exporter",
     "../rtc_base:stringutils",
-    "../test:perf_test",
     "//third_party/abseil-cpp/absl/flags:flag",
     "//third_party/abseil-cpp/absl/flags:parse",
     "//third_party/abseil-cpp/absl/strings",
@@ -208,13 +227,14 @@ if (!is_component_build) {
       "../media:rtc_audio_video",
       "../media:rtc_media_base",
       "../rtc_base",
-      "../rtc_base:rtc_base_approved",
       "../rtc_base:rtc_json",
       "../rtc_base:threading",
       "../rtc_base/system:file_wrapper",
       "../test:fileutils",
       "../test:rtp_test_utils",
       "../test:video_test_common",
+      "../video/config:encoder_config",
+      "../video/config:streams_config",
       "//third_party/abseil-cpp/absl/flags:flag",
       "//third_party/abseil-cpp/absl/flags:parse",
       "//third_party/abseil-cpp/absl/flags:usage",
@@ -242,6 +262,7 @@ if (!is_component_build) {
     testonly = true
     sources = [ "video_replay.cc" ]
     deps = [
+      "../api:field_trials",
       "../api/rtc_event_log",
       "../api/task_queue:default_task_queue_factory",
       "../api/test/video:function_video_factory",
@@ -264,6 +285,7 @@ if (!is_component_build) {
       "../test:fake_video_codecs",
       "../test:null_transport",
       "../test:rtp_test_utils",
+      "../test:run_loop",
       "../test:run_test",
       "../test:run_test_interface",
       "../test:test_common",
@@ -271,6 +293,7 @@ if (!is_component_build) {
       "../test:test_support",
       "../test:video_test_common",
       "../test:video_test_support",
+      "../test/time_controller:time_controller",
       "//third_party/abseil-cpp/absl/flags:flag",
       "//third_party/abseil-cpp/absl/flags:parse",
     ]
@@ -381,9 +404,15 @@ if (!build_with_chromium) {
         ":chart_proto",
         "../api:function_view",
         "../api:network_state_predictor_api",
+        "../modules/audio_coding:neteq_input_audio_tools",
+        "../modules/audio_coding:neteq_tools_minimal",
         "../rtc_base:ignore_wundef",
         "../rtc_base:logging",
         "../rtc_base:macromagic",
+<<<<<<< HEAD
+=======
+        "../rtc_base:rate_statistics",
+>>>>>>> m108
         "../rtc_base:refcount",
 
         # TODO(kwiberg): Remove this dependency.
@@ -407,7 +436,6 @@ if (!build_with_chromium) {
         "../modules/rtp_rtcp",
         "../modules/rtp_rtcp:rtp_rtcp_format",
         "../rtc_base:checks",
-        "../rtc_base:rtc_base_approved",
         "../rtc_base:rtc_numerics",
         "../rtc_base:stringutils",
         "../system_wrappers",
@@ -463,14 +491,12 @@ if (rtc_include_tests) {
 
     if (rtc_enable_protobuf) {
       rtc_executable("event_log_visualizer") {
-        testonly = true
-        sources = [ "rtc_event_log_visualizer/main.cc" ]
-        data = [
-          # If --wav_filename is not provided, event_log_visualizer uses
-          # EN_script2_F_sp2_B1.wav by default. This is a good default to use
-          # for example with flags --plot=all when there is no need to use a
-          # specific .wav file.
-          "../resources/audio_processing/conversational_speech/EN_script2_F_sp2_B1.wav",
+        # TODO(bugs.webrtc.org/14248): Remove once usage of std::tmpnam
+        # is removed (in favor of in memory InputAudioFile.
+        cflags_cc = [ "-Wno-deprecated-declarations" ]
+        sources = [
+          "rtc_event_log_visualizer/conversational_speech_en.h",
+          "rtc_event_log_visualizer/main.cc",
         ]
         deps = [
           ":event_log_visualizer_utils",
@@ -482,13 +508,42 @@ if (rtc_include_tests) {
           "../rtc_base:checks",
           "../rtc_base:logging",
           "../rtc_base:protobuf_utils",
-          "../rtc_base:rtc_base_approved",
           "../system_wrappers:field_trial",
-          "../test:field_trial",
-          "../test:fileutils",
-          "../test:test_support",
           "//third_party/abseil-cpp/absl/algorithm:container",
           "//third_party/abseil-cpp/absl/flags:config",
+          "//third_party/abseil-cpp/absl/flags:flag",
+          "//third_party/abseil-cpp/absl/flags:parse",
+          "//third_party/abseil-cpp/absl/flags:usage",
+          "//third_party/abseil-cpp/absl/strings",
+        ]
+      }
+
+      rtc_executable("rtc_event_log_to_text") {
+        testonly = true
+        sources = [
+          "rtc_event_log_to_text/converter.cc",
+          "rtc_event_log_to_text/converter.h",
+          "rtc_event_log_to_text/main.cc",
+        ]
+        deps = [
+          "../api/rtc_event_log",
+          "../logging:ice_log",
+          "../logging:rtc_event_audio",
+          "../logging:rtc_event_begin_end",
+          "../logging:rtc_event_bwe",
+          "../logging:rtc_event_frame_events",
+          "../logging:rtc_event_generic_packet_events",
+          "../logging:rtc_event_log2_proto",
+          "../logging:rtc_event_log_impl_encoder",
+          "../logging:rtc_event_log_parser",
+          "../logging:rtc_event_log_proto",
+          "../logging:rtc_event_pacing",
+          "../logging:rtc_event_rtp_rtcp",
+          "../logging:rtc_event_video",
+          "../logging:rtc_stream_config",
+          "../rtc_base:checks",
+          "../rtc_base:logging",
+          "//third_party/abseil-cpp/absl/base:core_headers",
           "//third_party/abseil-cpp/absl/flags:flag",
           "//third_party/abseil-cpp/absl/flags:parse",
           "//third_party/abseil-cpp/absl/flags:usage",
@@ -531,6 +586,8 @@ if (rtc_include_tests) {
         ":video_file_writer",
         ":video_quality_analysis",
         "../api:scoped_refptr",
+        "../api/test/metrics:metric",
+        "../api/test/metrics:metrics_logger",
         "../api/video:video_frame",
         "../api/video:video_rtp_headers",
         "../common_video",
@@ -538,6 +595,7 @@ if (rtc_include_tests) {
         "../rtc_base:checks",
         "../rtc_base:null_socket_server",
         "../rtc_base:threading",
+        "../system_wrappers",
         "../test:fileutils",
         "../test:test_main",
         "../test:test_support",
@@ -571,13 +629,11 @@ if (rtc_include_tests) {
           "../api:audioproc_f_api",
           "../modules/audio_processing",
           "../modules/audio_processing:api",
-          "../rtc_base:rtc_base_approved",
         ]
       }
 
       rtc_executable("unpack_aecdump") {
         visibility = [ "*" ]
-        testonly = true
         sources = [ "unpack_aecdump/unpack.cc" ]
 
         deps = [
@@ -587,12 +643,17 @@ if (rtc_include_tests) {
           "../modules/audio_processing:audioproc_debug_proto",
           "../modules/audio_processing:audioproc_debug_proto",
           "../modules/audio_processing:audioproc_protobuf_utils",
-          "../modules/audio_processing:audioproc_test_utils",
+          "../rtc_base:checks",
           "../rtc_base:ignore_wundef",
           "../rtc_base:macromagic",
           "../rtc_base:protobuf_utils",
+<<<<<<< HEAD
           "../rtc_base:rtc_base_approved",
           "../rtc_base:stringutils",
+=======
+          "../rtc_base:stringutils",
+          "../rtc_base/system:arch",
+>>>>>>> m108
           "//third_party/abseil-cpp/absl/flags:flag",
           "//third_party/abseil-cpp/absl/flags:parse",
         ]

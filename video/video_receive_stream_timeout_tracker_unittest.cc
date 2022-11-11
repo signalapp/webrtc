@@ -11,9 +11,15 @@
 #include "video/video_receive_stream_timeout_tracker.h"
 
 #include <utility>
+<<<<<<< HEAD
 
 #include "api/task_queue/task_queue_base.h"
 #include "rtc_base/task_queue.h"
+=======
+#include <vector>
+
+#include "api/task_queue/task_queue_base.h"
+>>>>>>> m108
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/time_controller/simulated_time_controller.h"
@@ -32,6 +38,7 @@ class VideoReceiveStreamTimeoutTrackerTest : public ::testing::Test {
  public:
   VideoReceiveStreamTimeoutTrackerTest()
       : time_controller_(Timestamp::Millis(2000)),
+<<<<<<< HEAD
         task_queue_(time_controller_.GetTaskQueueFactory()->CreateTaskQueue(
             "scheduler",
             TaskQueueFactory::Priority::NORMAL)),
@@ -90,6 +97,65 @@ TEST_F(VideoReceiveStreamTimeoutTrackerTest, TimeoutForKeyframeWhenForced) {
   EXPECT_EQ(1, timeouts_);
 
   OnQueue([&] { timeout_tracker_.Stop(); });
+=======
+        timeout_tracker_(time_controller_.GetClock(),
+                         time_controller_.GetMainThread(),
+                         config,
+                         [this](TimeDelta delay) { OnTimeout(delay); }) {}
+
+ protected:
+  GlobalSimulatedTimeController time_controller_;
+  VideoReceiveStreamTimeoutTracker timeout_tracker_;
+  std::vector<TimeDelta> timeouts_;
+
+ private:
+  void OnTimeout(TimeDelta delay) { timeouts_.push_back(delay); }
+};
+
+TEST_F(VideoReceiveStreamTimeoutTrackerTest, TimeoutAfterInitialPeriod) {
+  timeout_tracker_.Start(true);
+  time_controller_.AdvanceTime(kMaxWaitForKeyframe);
+  EXPECT_THAT(timeouts_, testing::ElementsAre(kMaxWaitForKeyframe));
+  timeout_tracker_.Stop();
+}
+
+TEST_F(VideoReceiveStreamTimeoutTrackerTest, NoTimeoutAfterStop) {
+  timeout_tracker_.Start(true);
+  time_controller_.AdvanceTime(kMaxWaitForKeyframe / 2);
+  timeout_tracker_.Stop();
+  time_controller_.AdvanceTime(kMaxWaitForKeyframe);
+  EXPECT_THAT(timeouts_, testing::IsEmpty());
+}
+
+TEST_F(VideoReceiveStreamTimeoutTrackerTest, TimeoutForDeltaFrame) {
+  timeout_tracker_.Start(true);
+  time_controller_.AdvanceTime(TimeDelta::Millis(5));
+  timeout_tracker_.OnEncodedFrameReleased();
+  time_controller_.AdvanceTime(kMaxWaitForFrame);
+  EXPECT_THAT(timeouts_, testing::ElementsAre(kMaxWaitForFrame));
+  timeout_tracker_.Stop();
+}
+
+TEST_F(VideoReceiveStreamTimeoutTrackerTest, TimeoutForKeyframeWhenForced) {
+  timeout_tracker_.Start(true);
+  time_controller_.AdvanceTime(TimeDelta::Millis(5));
+  timeout_tracker_.OnEncodedFrameReleased();
+  timeout_tracker_.SetWaitingForKeyframe();
+  time_controller_.AdvanceTime(kMaxWaitForKeyframe);
+  EXPECT_THAT(timeouts_, testing::ElementsAre(kMaxWaitForKeyframe));
+  timeout_tracker_.Stop();
+}
+
+TEST_F(VideoReceiveStreamTimeoutTrackerTest, TotalTimeoutUsedInCallback) {
+  timeout_tracker_.Start(true);
+  time_controller_.AdvanceTime(kMaxWaitForKeyframe * 2);
+  timeout_tracker_.OnEncodedFrameReleased();
+  time_controller_.AdvanceTime(kMaxWaitForFrame * 2);
+  EXPECT_THAT(timeouts_,
+              testing::ElementsAre(kMaxWaitForKeyframe, kMaxWaitForKeyframe * 2,
+                                   kMaxWaitForFrame, kMaxWaitForFrame * 2));
+  timeout_tracker_.Stop();
+>>>>>>> m108
 }
 
 }  // namespace webrtc

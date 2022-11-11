@@ -14,6 +14,10 @@
 #include <string>
 #include <vector>
 
+<<<<<<< HEAD
+=======
+#include "absl/strings/string_view.h"
+>>>>>>> m108
 #include "api/rtp_headers.h"
 #include "api/units/timestamp.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/bye.h"
@@ -79,7 +83,11 @@ struct LoggedRtpPacketOutgoing {
 struct LoggedRtcpPacket {
   LoggedRtcpPacket(Timestamp timestamp, const std::vector<uint8_t>& packet)
       : timestamp(timestamp), raw_data(packet) {}
+<<<<<<< HEAD
   LoggedRtcpPacket(Timestamp timestamp, const std::string& packet)
+=======
+  LoggedRtcpPacket(Timestamp timestamp, absl::string_view packet)
+>>>>>>> m108
       : timestamp(timestamp), raw_data(packet.size()) {
     memcpy(raw_data.data(), packet.data(), packet.size());
   }
@@ -100,7 +108,11 @@ struct LoggedRtcpPacketIncoming {
   LoggedRtcpPacketIncoming(Timestamp timestamp,
                            const std::vector<uint8_t>& packet)
       : rtcp(timestamp, packet) {}
+<<<<<<< HEAD
   LoggedRtcpPacketIncoming(Timestamp timestamp, const std::string& packet)
+=======
+  LoggedRtcpPacketIncoming(Timestamp timestamp, absl::string_view packet)
+>>>>>>> m108
       : rtcp(timestamp, packet) {}
 
   int64_t log_time_us() const { return rtcp.timestamp.us(); }
@@ -114,7 +126,11 @@ struct LoggedRtcpPacketOutgoing {
   LoggedRtcpPacketOutgoing(Timestamp timestamp,
                            const std::vector<uint8_t>& packet)
       : rtcp(timestamp, packet) {}
+<<<<<<< HEAD
   LoggedRtcpPacketOutgoing(Timestamp timestamp, const std::string& packet)
+=======
+  LoggedRtcpPacketOutgoing(Timestamp timestamp, absl::string_view packet)
+>>>>>>> m108
       : rtcp(timestamp, packet) {}
 
   int64_t log_time_us() const { return rtcp.timestamp.us(); }

@@ -14,6 +14,10 @@
 #include <string>
 #include <vector>
 
+<<<<<<< HEAD
+=======
+#include "absl/strings/string_view.h"
+>>>>>>> m108
 #include "logging/rtc_event_log/events/rtc_event_field_encoding.h"
 
 // TODO(terelius): Compared to a generic 'Status' class, this
@@ -29,8 +33,13 @@ class RtcEventLogParseStatus {
 
  public:
   static RtcEventLogParseStatus Success() { return RtcEventLogParseStatus(); }
+<<<<<<< HEAD
   static RtcEventLogParseStatus Error(std::string error,
                                       std::string file,
+=======
+  static RtcEventLogParseStatus Error(absl::string_view error,
+                                      absl::string_view file,
+>>>>>>> m108
                                       int line) {
     return RtcEventLogParseStatus(error, file, line);
   }
@@ -44,8 +53,16 @@ class RtcEventLogParseStatus {
 
  private:
   RtcEventLogParseStatus() : error_() {}
+<<<<<<< HEAD
   RtcEventLogParseStatus(std::string error, std::string file, int line)
       : error_(error + " (" + file + ": " + std::to_string(line) + ")") {}
+=======
+  RtcEventLogParseStatus(absl::string_view error,
+                         absl::string_view file,
+                         int line)
+      : error_(std::string(error) + " (" + std::string(file) + ": " +
+               std::to_string(line) + ")") {}
+>>>>>>> m108
 
   std::string error_;
 };
@@ -74,15 +91,26 @@ class RtcEventLogParseStatusOr {
     return value_;
   }
 
+<<<<<<< HEAD
   static RtcEventLogParseStatusOr Error(std::string error,
                                         std::string file,
+=======
+  static RtcEventLogParseStatusOr Error(absl::string_view error,
+                                        absl::string_view file,
+>>>>>>> m108
                                         int line) {
     return RtcEventLogParseStatusOr(error, file, line);
   }
 
  private:
   RtcEventLogParseStatusOr() : status_() {}
+<<<<<<< HEAD
   RtcEventLogParseStatusOr(std::string error, std::string file, int line)
+=======
+  RtcEventLogParseStatusOr(absl::string_view error,
+                           absl::string_view file,
+                           int line)
+>>>>>>> m108
       : status_(error, file, line), value_() {}
 
   RtcEventLogParseStatus status_;

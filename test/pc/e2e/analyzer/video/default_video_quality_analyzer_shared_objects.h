@@ -13,6 +13,10 @@
 
 #include <map>
 #include <memory>
+<<<<<<< HEAD
+=======
+#include <ostream>
+>>>>>>> m108
 #include <set>
 #include <string>
 #include <utility>
@@ -21,6 +25,7 @@
 #include "absl/types/optional.h"
 #include "api/numerics/samples_stats_counter.h"
 #include "api/units/timestamp.h"
+#include "rtc_base/strings/string_builder.h"
 
 namespace webrtc {
 
@@ -62,6 +67,9 @@ struct FrameCounters {
   // Count of frames that were dropped in any point between capturing and
   // rendering.
   int64_t dropped = 0;
+  // Count of frames for which decoder returned error when they were sent for
+  // decoding.
+  int64_t failed_to_decode = 0;
 };
 
 // Contains information about the codec that was used for encoding or decoding
@@ -77,7 +85,14 @@ struct StreamCodecInfo {
   Timestamp switched_on_at = Timestamp::PlusInfinity();
   // Timestamp when this codec was used last time.
   Timestamp switched_from_at = Timestamp::PlusInfinity();
+
+  std::string ToString() const;
 };
+
+std::ostream& operator<<(std::ostream& os, const StreamCodecInfo& state);
+rtc::StringBuilder& operator<<(rtc::StringBuilder& sb,
+                               const StreamCodecInfo& state);
+bool operator==(const StreamCodecInfo& a, const StreamCodecInfo& b);
 
 // Represents phases where video frame can be dropped and such drop will be
 // detected by analyzer.
@@ -85,10 +100,15 @@ enum class FrameDropPhase : int {
   kBeforeEncoder,
   kByEncoder,
   kTransport,
+  kByDecoder,
   kAfterDecoder,
   // kLastValue must be the last value in this enumeration.
   kLastValue
 };
+
+std::string ToString(FrameDropPhase phase);
+std::ostream& operator<<(std::ostream& os, FrameDropPhase phase);
+rtc::StringBuilder& operator<<(rtc::StringBuilder& sb, FrameDropPhase phase);
 
 struct StreamStats {
   explicit StreamStats(Timestamp stream_started_time);
@@ -96,8 +116,10 @@ struct StreamStats {
   // The time when the first frame of this stream was captured.
   Timestamp stream_started_time;
 
+  // Spatial quality metrics.
   SamplesStatsCounter psnr;
   SamplesStatsCounter ssim;
+
   // Time from frame encoded (time point on exit from encoder) to the
   // encoded image received in decoder (time point on entrance to decoder).
   SamplesStatsCounter transport_time_ms;
@@ -128,6 +150,14 @@ struct StreamStats {
   int64_t total_encoded_images_payload = 0;
   // Counters on which phase how many frames were dropped.
   std::map<FrameDropPhase, int64_t> dropped_by_phase;
+
+  // Frame count metrics.
+  int64_t num_send_key_frames = 0;
+  int64_t num_recv_key_frames = 0;
+
+  // Encoded frame size (in bytes) metrics.
+  SamplesStatsCounter recv_key_frame_size_bytes;
+  SamplesStatsCounter recv_delta_frame_size_bytes;
 
   // Vector of encoders used for this stream by sending client.
   std::vector<StreamCodecInfo> encoders;
@@ -214,6 +244,12 @@ struct DefaultVideoQualityAnalyzerOptions {
   bool compute_ssim = true;
   // If true, weights the luma plane more than the chroma planes in the PSNR.
   bool use_weighted_psnr = false;
+<<<<<<< HEAD
+=======
+  // Tells DefaultVideoQualityAnalyzer if detailed frame stats should be
+  // reported.
+  bool report_detailed_frame_stats = false;
+>>>>>>> m108
   // If true DefaultVideoQualityAnalyzer will try to adjust frames before
   // computing PSNR and SSIM for them. In some cases picture may be shifted by
   // a few pixels after the encode/decode step. Those difference is invisible

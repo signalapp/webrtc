@@ -41,11 +41,6 @@ PeerConnectionInterface::RTCConfiguration::RTCConfiguration(
 
 PeerConnectionInterface::RTCConfiguration::~RTCConfiguration() = default;
 
-RTCError PeerConnectionInterface::SetConfiguration(
-    const PeerConnectionInterface::RTCConfiguration& config) {
-  return RTCError();
-}
-
 // RingRTC change to add ICE forking
 rtc::scoped_refptr<webrtc::IceGathererInterface>
 PeerConnectionInterface::CreateSharedIceGatherer() {

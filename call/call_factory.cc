@@ -17,6 +17,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/memory/memory.h"
 #include "absl/types/optional.h"
 #include "api/test/simulated_network.h"
 #include "api/units/time_delta.h"
@@ -30,6 +31,7 @@
 namespace webrtc {
 namespace {
 using TimeScopedNetworkConfig = DegradedCall::TimeScopedNetworkConfig;
+<<<<<<< HEAD
 
 bool ParseConfigParam(const FieldTrialsView& trials,
                       absl::string_view exp_name,
@@ -137,6 +139,54 @@ std::vector<TimeScopedNetworkConfig> GetNetworkConfigs(
   return configs;
 }
 
+=======
+
+std::vector<TimeScopedNetworkConfig> GetNetworkConfigs(
+    const FieldTrialsView& trials,
+    bool send) {
+  FieldTrialStructList<TimeScopedNetworkConfig> trials_list(
+      {FieldTrialStructMember("queue_length_packets",
+                              [](TimeScopedNetworkConfig* p) {
+                                // FieldTrialParser does not natively support
+                                // size_t type, so use this ugly cast as
+                                // workaround.
+                                return reinterpret_cast<unsigned*>(
+                                    &p->queue_length_packets);
+                              }),
+       FieldTrialStructMember(
+           "queue_delay_ms",
+           [](TimeScopedNetworkConfig* p) { return &p->queue_delay_ms; }),
+       FieldTrialStructMember("delay_standard_deviation_ms",
+                              [](TimeScopedNetworkConfig* p) {
+                                return &p->delay_standard_deviation_ms;
+                              }),
+       FieldTrialStructMember(
+           "link_capacity_kbps",
+           [](TimeScopedNetworkConfig* p) { return &p->link_capacity_kbps; }),
+       FieldTrialStructMember(
+           "loss_percent",
+           [](TimeScopedNetworkConfig* p) { return &p->loss_percent; }),
+       FieldTrialStructMember(
+           "allow_reordering",
+           [](TimeScopedNetworkConfig* p) { return &p->allow_reordering; }),
+       FieldTrialStructMember("avg_burst_loss_length",
+                              [](TimeScopedNetworkConfig* p) {
+                                return &p->avg_burst_loss_length;
+                              }),
+       FieldTrialStructMember(
+           "packet_overhead",
+           [](TimeScopedNetworkConfig* p) { return &p->packet_overhead; }),
+       FieldTrialStructMember(
+           "duration",
+           [](TimeScopedNetworkConfig* p) { return &p->duration; })},
+      {});
+  ParseFieldTrial({&trials_list},
+                  trials.Lookup(send ? "WebRTC-FakeNetworkSendConfig"
+                                     : "WebRTC-FakeNetworkReceiveConfig"));
+  return trials_list.Get();
+}
+
+>>>>>>> m108
 }  // namespace
 
 CallFactory::CallFactory() {
@@ -155,6 +205,7 @@ Call* CallFactory::CreateCall(const Call::Config& config) {
 
   RtpTransportConfig transportConfig = config.ExtractTransportConfig();
 
+<<<<<<< HEAD
   if (!send_degradation_configs.empty() ||
       !receive_degradation_configs.empty()) {
     return new DegradedCall(
@@ -167,19 +218,20 @@ Call* CallFactory::CreateCall(const Call::Config& config) {
                 ProcessThread::Create("PacerThread")))),
         send_degradation_configs, receive_degradation_configs);
   }
+=======
+  Call* call =
+      Call::Create(config, Clock::GetRealTimeClock(),
+                   config.rtp_transport_controller_send_factory->Create(
+                       transportConfig, Clock::GetRealTimeClock()));
+>>>>>>> m108
 
-  if (!module_thread_) {
-    module_thread_ = SharedModuleThread::Create(
-        ProcessThread::Create("SharedModThread"), [this]() {
-          RTC_DCHECK_RUN_ON(&call_thread_);
-          module_thread_ = nullptr;
-        });
+  if (!send_degradation_configs.empty() ||
+      !receive_degradation_configs.empty()) {
+    return new DegradedCall(absl::WrapUnique(call), send_degradation_configs,
+                            receive_degradation_configs);
   }
 
-  return Call::Create(config, Clock::GetRealTimeClock(), module_thread_,
-                      config.rtp_transport_controller_send_factory->Create(
-                          transportConfig, Clock::GetRealTimeClock(),
-                          ProcessThread::Create("PacerThread")));
+  return call;
 }
 
 std::unique_ptr<CallFactoryInterface> CreateCallFactory() {

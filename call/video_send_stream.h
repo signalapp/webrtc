@@ -29,13 +29,13 @@
 #include "api/video/video_sink_interface.h"
 #include "api/video/video_source_interface.h"
 #include "api/video/video_stream_encoder_settings.h"
-#include "api/video_codecs/video_encoder_config.h"
 #include "call/rtp_config.h"
 #include "common_video/frame_counts.h"
 #include "common_video/include/quality_limitation_reason.h"
 #include "modules/rtp_rtcp/include/report_block_data.h"
 #include "modules/rtp_rtcp/include/rtcp_statistics.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
+#include "video/config/video_encoder_config.h"
 
 namespace webrtc {
 
@@ -189,6 +189,11 @@ class VideoSendStream {
     // encrypted in whatever way the caller chooses. This is not required by
     // default.
     rtc::scoped_refptr<webrtc::FrameEncryptorInterface> frame_encryptor;
+
+    // An optional encoder selector provided by the user.
+    // Overrides VideoEncoderFactory::GetEncoderSelector().
+    // Owned by RtpSenderBase.
+    VideoEncoderFactory::EncoderSelectorInterface* encoder_selector = nullptr;
 
     // Per PeerConnection cryptography options.
     CryptoOptions crypto_options;

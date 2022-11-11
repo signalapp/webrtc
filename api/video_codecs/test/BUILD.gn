@@ -20,6 +20,10 @@ if (rtc_include_tests) {
     ]
 
     deps = [
+<<<<<<< HEAD
+=======
+      ":video_decoder_factory_template_tests",
+>>>>>>> m108
       ":video_encoder_factory_template_tests",
       "..:builtin_video_encoder_factory",
       "..:rtc_software_fallback_wrappers",
@@ -60,4 +64,23 @@ if (rtc_include_tests) {
       "//testing/gtest",
     ]
   }
+<<<<<<< HEAD
+=======
+
+  rtc_library("video_decoder_factory_template_tests") {
+    testonly = true
+    sources = [ "video_decoder_factory_template_tests.cc" ]
+
+    deps = [
+      "..:video_decoder_factory_template",
+      "..:video_decoder_factory_template_dav1d_adapter",
+      "..:video_decoder_factory_template_libvpx_vp8_adapter",
+      "..:video_decoder_factory_template_libvpx_vp9_adapter",
+      "..:video_decoder_factory_template_open_h264_adapter",
+      "../../:mock_video_decoder",
+      "../../../test:test_support",
+      "//testing/gtest",
+    ]
+  }
+>>>>>>> m108
 }

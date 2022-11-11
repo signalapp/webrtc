@@ -88,11 +88,6 @@ def _ParseArgs():
       type=int,
       default=0,
       help='Specifies a revision number to embed if building the framework.')
-  parser.add_argument('-e',
-                      '--bitcode',
-                      action='store_true',
-                      default=False,
-                      help='Compile with bitcode.')
   parser.add_argument('--verbose',
                       action='store_true',
                       default=False,
@@ -101,6 +96,10 @@ def _ParseArgs():
                       action='store_true',
                       default=False,
                       help='Use goma to build.')
+  parser.add_argument('--use-remoteexec',
+                      action='store_true',
+                      default=False,
+                      help='Use RBE to build.')
   parser.add_argument(
       '--extra-gn-args',
       default=[],
@@ -155,7 +154,7 @@ def _ParseArchitecture(architectures):
 
 def BuildWebRTC(output_dir, target_environment, target_arch, flavor,
                 gn_target_name, ios_deployment_target, libvpx_build_vp9,
-                use_bitcode, use_goma, extra_gn_args):
+                use_goma, use_remoteexec, extra_gn_args):
   gn_args = [
       'target_os="ios"',
       'ios_enable_code_signing=false',
@@ -180,15 +179,9 @@ def BuildWebRTC(output_dir, target_environment, target_arch, flavor,
   gn_args.append('rtc_libvpx_build_vp9=' +
                  ('true' if libvpx_build_vp9 else 'false'))
 
-  gn_args.append('enable_ios_bitcode=' + ('true' if use_bitcode else 'false'))
-
-  # RingRTC change to use the system linker for Catalyst instead of lld.
-  # This is due to an incompatibility between WebRTC's vendored lld and the Xcode 13/14 SDKs,
-  # which only shows up when compiling for catalyst:arm64.
-  # When updating to a new WebRTC, it's worth checking if this is still necessary.
-  gn_args.append('use_lld=' + ('false' if use_bitcode or target_environment == 'catalyst' else 'true'))
-
+  gn_args.append('use_lld=true')
   gn_args.append('use_goma=' + ('true' if use_goma else 'false'))
+  gn_args.append('use_remoteexec=' + ('true' if use_remoteexec else 'false'))
   gn_args.append('rtc_enable_objc_symbol_export=true')
 
   args_string = ' '.join(gn_args + extra_gn_args)
@@ -210,7 +203,7 @@ def BuildWebRTC(output_dir, target_environment, target_arch, flavor,
       output_dir,
       gn_target_name,
   ]
-  if use_goma:
+  if use_goma or use_remoteexec:
     cmd.extend(['-j', '200'])
   _RunCommand(cmd)
 
@@ -235,8 +228,7 @@ def main():
     return 0
 
   gn_target_name = 'framework_objc'
-  if not args.bitcode:
-    gn_args.append('enable_dsyms=true')
+  gn_args.append('enable_dsyms=true')
   gn_args.append('enable_stripping=true')
 
   # Build all architectures.
@@ -251,7 +243,7 @@ def main():
       lib_paths.append(lib_path)
       BuildWebRTC(lib_path, environment, arch, args.build_config,
                   gn_target_name, IOS_DEPLOYMENT_TARGET[environment],
-                  LIBVPX_BUILD_VP9, args.bitcode, args.use_goma, gn_args)
+                  LIBVPX_BUILD_VP9, args.use_goma, args.use_remoteexec, gn_args)
     all_lib_paths.extend(lib_paths)
 
     # Combine the slices.

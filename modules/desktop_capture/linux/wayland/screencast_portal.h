@@ -15,6 +15,11 @@
 
 #include <string>
 
+<<<<<<< HEAD
+=======
+#include "modules/desktop_capture/desktop_capture_types.h"
+#include "modules/desktop_capture/linux/wayland/portal_request_response.h"
+>>>>>>> m108
 #include "modules/desktop_capture/linux/wayland/screen_capture_portal_interface.h"
 #include "modules/desktop_capture/linux/wayland/xdg_desktop_portal_utils.h"
 #include "modules/desktop_capture/linux/wayland/xdg_session_details.h"
@@ -36,6 +41,7 @@ class ScreenCastPortal : public xdg_portal::ScreenCapturePortalInterface {
                GVariant* parameters,
                gpointer user_data);
 
+<<<<<<< HEAD
   // Values are set based on source type property in
   // xdg-desktop-portal/screencast
   // https://github.com/flatpak/xdg-desktop-portal/blob/master/data/org.freedesktop.portal.ScreenCast.xml
@@ -45,6 +51,8 @@ class ScreenCastPortal : public xdg_portal::ScreenCapturePortalInterface {
     kAnyScreenContent = kScreen | kWindow
   };
 
+=======
+>>>>>>> m108
   // Values are set based on cursor mode property in
   // xdg-desktop-portal/screencast
   // https://github.com/flatpak/xdg-desktop-portal/blob/master/data/org.freedesktop.portal.ScreenCast.xml
@@ -57,6 +65,24 @@ class ScreenCastPortal : public xdg_portal::ScreenCapturePortalInterface {
     kMetadata = 0b100
   };
 
+<<<<<<< HEAD
+=======
+  // Values are set based on persist mode property in
+  // xdg-desktop-portal/screencast
+  // https://github.com/flatpak/xdg-desktop-portal/blob/master/data/org.freedesktop.portal.ScreenCast.xml
+  enum class PersistMode : uint32_t {
+    // Do not allow to restore stream
+    kDoNotPersist = 0b00,
+    // The restore token is valid as long as the application is alive. It's
+    // stored in memory and revoked when the application closes its DBus
+    // connection
+    kTransient = 0b01,
+    // The restore token is stored in disk and is valid until the user manually
+    // revokes it
+    kPersistent = 0b10
+  };
+
+>>>>>>> m108
   // Interface that must be implemented by the ScreenCastPortal consumers.
   class PortalNotifier {
    public:
@@ -70,6 +96,7 @@ class ScreenCastPortal : public xdg_portal::ScreenCapturePortalInterface {
     virtual ~PortalNotifier() = default;
   };
 
+<<<<<<< HEAD
   explicit ScreenCastPortal(ScreenCastPortal::CaptureSourceType source_type,
                             PortalNotifier* notifier);
   explicit ScreenCastPortal(
@@ -79,6 +106,16 @@ class ScreenCastPortal : public xdg_portal::ScreenCapturePortalInterface {
       SourcesRequestResponseSignalHandler
           sources_request_response_signal_handler,
       gpointer user_data);
+=======
+  ScreenCastPortal(CaptureType type, PortalNotifier* notifier);
+  ScreenCastPortal(CaptureType type,
+                   PortalNotifier* notifier,
+                   ProxyRequestResponseHandler proxy_request_response_handler,
+                   SourcesRequestResponseSignalHandler
+                       sources_request_response_signal_handler,
+                   gpointer user_data);
+
+>>>>>>> m108
   ~ScreenCastPortal();
 
   // Initialize ScreenCastPortal with series of DBus calls where we try to
@@ -89,6 +126,7 @@ class ScreenCastPortal : public xdg_portal::ScreenCapturePortalInterface {
   // was successful and only then you will be able to get all the required
   // information in order to continue working with PipeWire.
   void Start() override;
+<<<<<<< HEAD
   xdg_portal::SessionDetails GetSessionDetails() override;
 
   // Method to notify the reason for failure of a portal request.
@@ -98,6 +136,16 @@ class ScreenCastPortal : public xdg_portal::ScreenCapturePortalInterface {
   void SessionRequest(GDBusProxy* proxy);
 
   void UnsubscribeSignalHandlers();
+=======
+  void Stop() override;
+  xdg_portal::SessionDetails GetSessionDetails() override;
+
+  // Method to notify the reason for failure of a portal request.
+  void OnPortalDone(xdg_portal::RequestResponse result) override;
+
+  // Sends a create session request to the portal.
+  void RequestSession(GDBusProxy* proxy) override;
+>>>>>>> m108
 
   // Set of methods leveraged by remote desktop portal to setup a common session
   // with screen cast portal.
@@ -106,19 +154,48 @@ class ScreenCastPortal : public xdg_portal::ScreenCapturePortalInterface {
   void SourcesRequest();
   void OpenPipeWireRemote();
 
+<<<<<<< HEAD
  private:
+=======
+  // ScreenCast specific methods for stream restoration
+  void SetPersistMode(ScreenCastPortal::PersistMode mode);
+  void SetRestoreToken(const std::string& token);
+  std::string RestoreToken() const;
+
+ private:
+  // Values are set based on source type property in
+  // xdg-desktop-portal/screencast
+  // https://github.com/flatpak/xdg-desktop-portal/blob/master/data/org.freedesktop.portal.ScreenCast.xml
+  enum class CaptureSourceType : uint32_t {
+    kScreen = 0b01,
+    kWindow = 0b10,
+    kAnyScreenContent = kScreen | kWindow
+  };
+  static CaptureSourceType ToCaptureSourceType(CaptureType type);
+
+>>>>>>> m108
   PortalNotifier* notifier_;
 
   // A PipeWire stream ID of stream we will be connecting to
   uint32_t pw_stream_node_id_ = 0;
   // A file descriptor of PipeWire socket
   int pw_fd_ = -1;
+<<<<<<< HEAD
+=======
+  // Restore token that can be used to restore previous session
+  std::string restore_token_;
+>>>>>>> m108
 
   CaptureSourceType capture_source_type_ =
       ScreenCastPortal::CaptureSourceType::kScreen;
 
   CursorMode cursor_mode_ = ScreenCastPortal::CursorMode::kMetadata;
 
+<<<<<<< HEAD
+=======
+  PersistMode persist_mode_ = ScreenCastPortal::PersistMode::kDoNotPersist;
+
+>>>>>>> m108
   ProxyRequestResponseHandler proxy_request_response_handler_;
   SourcesRequestResponseSignalHandler sources_request_response_signal_handler_;
   gpointer user_data_;
@@ -135,6 +212,10 @@ class ScreenCastPortal : public xdg_portal::ScreenCapturePortalInterface {
   guint start_request_signal_id_ = 0;
   guint session_closed_signal_id_ = 0;
 
+<<<<<<< HEAD
+=======
+  void UnsubscribeSignalHandlers();
+>>>>>>> m108
   static void OnProxyRequested(GObject* object,
                                GAsyncResult* result,
                                gpointer user_data);

@@ -52,6 +52,7 @@ class WebRTCMetaBuildWrapper(mb.MetaBuildWrapper):
     test_type = isolate_map[target]['type']
 
     is_android = 'target_os="android"' in vals['gn_args']
+    is_fuchsia = 'target_os="fuchsia"' in vals['gn_args']
     is_linux = self.platform.startswith('linux') and not is_android
     is_ios = 'target_os="ios"' in vals['gn_args']
 
@@ -85,7 +86,11 @@ class WebRTCMetaBuildWrapper(mb.MetaBuildWrapper):
           '--logcat-output-file', '${ISOLATED_OUTDIR}/logcats',
           '--store-tombstones'
       ]
+<<<<<<< HEAD
     elif is_ios:
+=======
+    elif is_ios or is_fuchsia:
+>>>>>>> m108
       cmdline += [
           vpython_exe, '../../tools_webrtc/flags_compatibility.py',
           'bin/run_%s' % target
@@ -117,8 +122,12 @@ class WebRTCMetaBuildWrapper(mb.MetaBuildWrapper):
           '../../third_party/gtest-parallel/gtest_parallel.py',
           '../../tools_webrtc/gtest-parallel-wrapper.py',
       ]
+<<<<<<< HEAD
       sep = '\\' if self.platform == 'win32' else '/'
       output_dir = '${ISOLATED_OUTDIR}' + sep + 'test_logs'
+=======
+      output_dir = '${ISOLATED_OUTDIR}/test_logs'
+>>>>>>> m108
       timeout = isolate_map[target].get('timeout', 900)
       cmdline += [
           '../../tools_webrtc/gtest-parallel-wrapper.py',

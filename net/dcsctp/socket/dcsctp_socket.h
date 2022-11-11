@@ -96,14 +96,24 @@ class DcSctpSocket : public DcSctpSocketInterface {
   SocketState state() const override;
   const DcSctpOptions& options() const override { return options_; }
   void SetMaxMessageSize(size_t max_message_size) override;
+  void SetStreamPriority(StreamID stream_id, StreamPriority priority) override;
+  StreamPriority GetStreamPriority(StreamID stream_id) const override;
   size_t buffered_amount(StreamID stream_id) const override;
   size_t buffered_amount_low_threshold(StreamID stream_id) const override;
   void SetBufferedAmountLowThreshold(StreamID stream_id, size_t bytes) override;
+<<<<<<< HEAD
   Metrics GetMetrics() const override;
   HandoverReadinessStatus GetHandoverReadiness() const override;
   absl::optional<DcSctpSocketHandoverState> GetHandoverStateAndClose() override;
   SctpImplementation peer_implementation() const override {
     return peer_implementation_;
+=======
+  absl::optional<Metrics> GetMetrics() const override;
+  HandoverReadinessStatus GetHandoverReadiness() const override;
+  absl::optional<DcSctpSocketHandoverState> GetHandoverStateAndClose() override;
+  SctpImplementation peer_implementation() const override {
+    return metrics_.peer_implementation;
+>>>>>>> m108
   }
   // Returns this socket's verification tag, or zero if not yet connected.
   VerificationTag verification_tag() const {
@@ -135,6 +145,14 @@ class DcSctpSocket : public DcSctpSocketInterface {
 
   bool IsConsistent() const;
   static constexpr absl::string_view ToString(DcSctpSocket::State state);
+
+  void CreateTransmissionControlBlock(const Capabilities& capabilities,
+                                      VerificationTag my_verification_tag,
+                                      TSN my_initial_tsn,
+                                      VerificationTag peer_verification_tag,
+                                      TSN peer_initial_tsn,
+                                      size_t a_rwnd,
+                                      TieTag tie_tag);
 
   // Changes the socket state, given a `reason` (for debugging/logging).
   void SetState(State state, absl::string_view reason);

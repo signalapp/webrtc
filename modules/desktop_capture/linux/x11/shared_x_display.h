@@ -12,12 +12,17 @@
 #define MODULES_DESKTOP_CAPTURE_LINUX_X11_SHARED_X_DISPLAY_H_
 
 #include <map>
-#include <string>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "api/ref_counted_base.h"
 #include "api/scoped_refptr.h"
+<<<<<<< HEAD:modules/desktop_capture/linux/x11/shared_x_display.h
+=======
+#include "rtc_base/synchronization/mutex.h"
+>>>>>>> m108:modules/desktop_capture/linux/shared_x_display.h
 #include "rtc_base/system/rtc_export.h"
+#include "rtc_base/thread_annotations.h"
 
 // Including Xlib.h will involve evil defines (Bool, Status, True, False), which
 // easily conflict with other headers.
@@ -42,7 +47,7 @@ class RTC_EXPORT SharedXDisplay
   // connection failed. Equivalent to CreateDefault() when `display_name` is
   // empty.
   static rtc::scoped_refptr<SharedXDisplay> Create(
-      const std::string& display_name);
+      absl::string_view display_name);
 
   // Creates X11 Display connection for the default display (e.g. specified in
   // DISPLAY). NULL is returned if X11 connection failed.
@@ -76,7 +81,13 @@ class RTC_EXPORT SharedXDisplay
 
   Display* display_;
 
+<<<<<<< HEAD:modules/desktop_capture/linux/x11/shared_x_display.h
   EventHandlersMap event_handlers_;
+=======
+  Mutex mutex_;
+
+  EventHandlersMap event_handlers_ RTC_GUARDED_BY(mutex_);
+>>>>>>> m108:modules/desktop_capture/linux/shared_x_display.h
 };
 
 }  // namespace webrtc

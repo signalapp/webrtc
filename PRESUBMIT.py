@@ -953,7 +953,11 @@ def CommonChecks(input_api, output_api):
   # Skip long-lines check for DEPS and GN files.
   build_file_filter_list = (r'.+\.gn$', r'.+\.gni$', 'DEPS')
   # Also we will skip most checks for third_party directory.
+<<<<<<< HEAD
   third_party_filter_list = (r'^third_party[\\\/].+', )
+=======
+  third_party_filter_list = (r'(^|.*[\\\/])third_party[\\\/].+', )
+>>>>>>> m108
   eighty_char_sources = lambda x: input_api.FilterSourceFile(
       x,
       files_to_skip=build_file_filter_list + objc_filter_list +

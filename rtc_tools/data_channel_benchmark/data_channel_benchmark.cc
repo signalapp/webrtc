@@ -108,6 +108,7 @@ class DataChannelObserverImpl : public webrtc::DataChannelObserver {
       low_buffered_threshold_event_.Reset();
   }
 
+<<<<<<< HEAD
   bool WaitForOpenState(int duration_ms) {
     return dc_->state() == webrtc::DataChannelInterface::DataState::kOpen ||
            open_event_.Wait(duration_ms);
@@ -115,6 +116,15 @@ class DataChannelObserverImpl : public webrtc::DataChannelObserver {
   bool WaitForClosedState(int duration_ms) {
     return dc_->state() == webrtc::DataChannelInterface::DataState::kClosed ||
            closed_event_.Wait(duration_ms);
+=======
+  bool WaitForOpenState() {
+    return dc_->state() == webrtc::DataChannelInterface::DataState::kOpen ||
+           open_event_.Wait(rtc::Event::kForever);
+  }
+  bool WaitForClosedState() {
+    return dc_->state() == webrtc::DataChannelInterface::DataState::kClosed ||
+           closed_event_.Wait(rtc::Event::kForever);
+>>>>>>> m108
   }
 
   // Set how many received bytes are required until
@@ -125,6 +135,7 @@ class DataChannelObserverImpl : public webrtc::DataChannelObserver {
       bytes_received_event_.Set();
   }
   // Wait until the received byte count reaches the desired value.
+<<<<<<< HEAD
   bool WaitForBytesReceivedThreshold(int duration_ms) {
     return (bytes_received_threshold_ &&
             bytes_received_ >= bytes_received_threshold_) ||
@@ -137,6 +148,20 @@ class DataChannelObserverImpl : public webrtc::DataChannelObserver {
   std::string SetupMessage() { return setup_message_; }
   bool WaitForSetupMessage(int duration_ms) {
     return setup_message_event_.Wait(duration_ms);
+=======
+  bool WaitForBytesReceivedThreshold() {
+    return (bytes_received_threshold_ &&
+            bytes_received_ >= bytes_received_threshold_) ||
+           bytes_received_event_.Wait(rtc::Event::kForever);
+  }
+
+  bool WaitForLowbufferedThreshold() {
+    return low_buffered_threshold_event_.Wait(rtc::Event::kForever);
+  }
+  std::string SetupMessage() { return setup_message_; }
+  bool WaitForSetupMessage() {
+    return setup_message_event_.Wait(rtc::Event::kForever);
+>>>>>>> m108
   }
 
  private:
@@ -173,7 +198,11 @@ int RunServer() {
               peer_connection->CreateDataChannelOrError("benchmark", nullptr);
           auto data_channel = dc_or_error.MoveValue();
           auto data_channel_observer =
+<<<<<<< HEAD
               std::make_unique<DataChannelObserverImpl>(data_channel);
+=======
+              std::make_unique<DataChannelObserverImpl>(data_channel.get());
+>>>>>>> m108
           data_channel->RegisterObserver(data_channel_observer.get());
           absl::Cleanup unregister_observer(
               [data_channel] { data_channel->UnregisterObserver(); });
@@ -182,7 +211,11 @@ int RunServer() {
           // It configures how much data should be sent and how big the packets
           // should be.
           // First message is "packet_size,transfer_size".
+<<<<<<< HEAD
           data_channel_observer->WaitForSetupMessage(rtc::Event::kForever);
+=======
+          data_channel_observer->WaitForSetupMessage();
+>>>>>>> m108
           auto parameters =
               SetupMessage::FromString(data_channel_observer->SetupMessage());
 
@@ -204,8 +237,12 @@ int RunServer() {
             if (!data_channel->Send(data_buffer)) {
               // If the send() call failed, the buffers are full.
               // We wait until there's more room.
+<<<<<<< HEAD
               data_channel_observer->WaitForLowbufferedThreshold(
                   rtc::Event::kForever);
+=======
+              data_channel_observer->WaitForLowbufferedThreshold();
+>>>>>>> m108
               continue;
             }
             remaining_data -= buffer.size();
@@ -217,7 +254,11 @@ int RunServer() {
 
           // Receiver signals the data channel close event when it has received
           // all the data it requested.
+<<<<<<< HEAD
           data_channel_observer->WaitForClosedState(rtc::Event::kForever);
+=======
+          data_channel_observer->WaitForClosedState();
+>>>>>>> m108
 
           auto end_time = webrtc::Clock::GetRealTimeClock()->CurrentTime();
           auto duration_ms = (end_time - begin_time).ms<size_t>();
@@ -280,7 +321,11 @@ int RunClient() {
 
     // Send a configuration string to the server to tell it to send
     // 'packet_size' bytes packets and send a total of 'transfer_size' MB.
+<<<<<<< HEAD
     observer.WaitForOpenState(rtc::Event::kForever);
+=======
+    observer.WaitForOpenState();
+>>>>>>> m108
     SetupMessage setup_message = {
         .packet_size = packet_size,
         .transfer_size = transfer_size,
@@ -291,7 +336,11 @@ int RunClient() {
     }
 
     // Wait until we have received all the data
+<<<<<<< HEAD
     observer.WaitForBytesReceivedThreshold(rtc::Event::kForever);
+=======
+    observer.WaitForBytesReceivedThreshold();
+>>>>>>> m108
 
     // Close the data channel, signaling to the server we have received
     // all the requested data.

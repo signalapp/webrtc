@@ -1,3 +1,4 @@
+
 /*
  *  Copyright (c) 2016 The WebRTC project authors. All Rights Reserved.
  *
@@ -7,7 +8,6 @@
  *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
-
 #include "video/video_stream_encoder.h"
 
 #include <algorithm>
@@ -17,6 +17,7 @@
 #include <utility>
 
 #include "absl/memory/memory.h"
+#include "api/field_trials_view.h"
 #include "api/rtp_parameters.h"
 #include "api/task_queue/default_task_queue_factory.h"
 #include "api/task_queue/task_queue_base.h"
@@ -25,6 +26,7 @@
 #include "api/test/mock_video_encoder.h"
 #include "api/test/mock_video_encoder_factory.h"
 #include "api/units/data_rate.h"
+#include "api/units/time_delta.h"
 #include "api/video/builtin_video_bitrate_allocator_factory.h"
 #include "api/video/i420_buffer.h"
 #include "api/video/nv12_buffer.h"
@@ -41,7 +43,7 @@
 #include "common_video/include/video_frame_buffer.h"
 #include "media/base/video_adapter.h"
 #include "media/engine/webrtc_video_engine.h"
-#include "modules/video_coding/codecs/av1/libaom_av1_encoder_supported.h"
+#include "modules/video_coding/codecs/av1/libaom_av1_encoder.h"
 #include "modules/video_coding/codecs/h264/include/h264.h"
 #include "modules/video_coding/codecs/multiplex/include/multiplex_encoder_adapter.h"
 #include "modules/video_coding/codecs/vp8/include/vp8.h"
@@ -50,6 +52,7 @@
 #include "modules/video_coding/codecs/vp9/svc_config.h"
 #include "modules/video_coding/utility/quality_scaler.h"
 #include "modules/video_coding/utility/simulcast_rate_allocator.h"
+#include "modules/video_coding/utility/vp8_constants.h"
 #include "rtc_base/event.h"
 #include "rtc_base/experiments/encoder_info_settings.h"
 #include "rtc_base/gunit.h"
@@ -67,6 +70,7 @@
 #include "test/time_controller/simulated_time_controller.h"
 #include "test/video_encoder_nullable_proxy_factory.h"
 #include "test/video_encoder_proxy_factory.h"
+#include "video/config/encoder_stream_factory.h"
 #include "video/frame_cadence_adapter.h"
 #include "video/send_statistics_proxy.h"
 
@@ -95,7 +99,7 @@ const int kQpLow = 1;
 const int kQpHigh = 2;
 const int kMinFramerateFps = 2;
 const int kMinBalancedFramerateFps = 7;
-const int64_t kFrameTimeoutMs = 100;
+constexpr TimeDelta kFrameTimeout = TimeDelta::Millis(100);
 const size_t kMaxPayloadLength = 1440;
 const DataRate kTargetBitrate = DataRate::KilobitsPerSec(1000);
 const DataRate kLowTargetBitrate = DataRate::KilobitsPerSec(100);
@@ -131,11 +135,10 @@ void PassAFrame(
     TaskQueueBase* encoder_queue,
     FrameCadenceAdapterInterface::Callback* video_stream_encoder_callback,
     int64_t ntp_time_ms) {
-  encoder_queue->PostTask(
-      ToQueuedTask([video_stream_encoder_callback, ntp_time_ms] {
-        video_stream_encoder_callback->OnFrame(Timestamp::Millis(ntp_time_ms),
-                                               1, CreateSimpleNV12Frame());
-      }));
+  encoder_queue->PostTask([video_stream_encoder_callback, ntp_time_ms] {
+    video_stream_encoder_callback->OnFrame(Timestamp::Millis(ntp_time_ms), 1,
+                                           CreateSimpleNV12Frame());
+  });
 }
 
 class TestBuffer : public webrtc::I420Buffer {
@@ -205,7 +208,7 @@ class FakeNV12NativeBuffer : public webrtc::VideoFrameBuffer {
     }
     return nullptr;
   }
-  const NV12BufferInterface* GetNV12() const { return nv12_buffer_; }
+  const NV12BufferInterface* GetNV12() const { return nv12_buffer_.get(); }
 
  private:
   friend class rtc::RefCountedObject<FakeNV12NativeBuffer>;
@@ -219,8 +222,9 @@ class FakeNV12NativeBuffer : public webrtc::VideoFrameBuffer {
 
 class CpuOveruseDetectorProxy : public OveruseFrameDetector {
  public:
-  explicit CpuOveruseDetectorProxy(CpuOveruseMetricsObserver* metrics_observer)
-      : OveruseFrameDetector(metrics_observer),
+  CpuOveruseDetectorProxy(CpuOveruseMetricsObserver* metrics_observer,
+                          const FieldTrialsView& field_trials)
+      : OveruseFrameDetector(metrics_observer, field_trials),
         last_target_framerate_fps_(-1),
         framerate_updated_event_(true /* manual_reset */,
                                  false /* initially_signaled */) {}
@@ -379,17 +383,18 @@ class VideoStreamEncoderUnderTest : public VideoStreamEncoder {
           allocation_callback_type,
       const FieldTrialsView& field_trials,
       int num_cores)
-      : VideoStreamEncoder(time_controller->GetClock(),
-                           num_cores,
-                           stats_proxy,
-                           settings,
-                           std::unique_ptr<OveruseFrameDetector>(
-                               overuse_detector_proxy_ =
-                                   new CpuOveruseDetectorProxy(stats_proxy)),
-                           std::move(cadence_adapter),
-                           std::move(encoder_queue),
-                           allocation_callback_type,
-                           field_trials),
+      : VideoStreamEncoder(
+            time_controller->GetClock(),
+            num_cores,
+            stats_proxy,
+            settings,
+            std::unique_ptr<OveruseFrameDetector>(
+                overuse_detector_proxy_ =
+                    new CpuOveruseDetectorProxy(stats_proxy, field_trials)),
+            std::move(cadence_adapter),
+            std::move(encoder_queue),
+            allocation_callback_type,
+            field_trials),
         time_controller_(time_controller),
         fake_cpu_resource_(FakeResource::Create("FakeResource[CPU]")),
         fake_quality_resource_(FakeResource::Create("FakeResource[QP]")),
@@ -406,7 +411,7 @@ class VideoStreamEncoderUnderTest : public VideoStreamEncoder {
     FakeVideoSourceRestrictionsListener listener;
     AddRestrictionsListenerForTesting(&listener);
     SetSource(source, degradation_preference);
-    listener.restrictions_updated_event()->Wait(5000);
+    listener.restrictions_updated_event()->Wait(TimeDelta::Seconds(5));
     RemoveRestrictionsListenerForTesting(&listener);
   }
 
@@ -415,7 +420,8 @@ class VideoStreamEncoderUnderTest : public VideoStreamEncoder {
       const DegradationPreference& degradation_preference) {
     overuse_detector_proxy_->framerate_updated_event()->Reset();
     SetSource(source, degradation_preference);
-    overuse_detector_proxy_->framerate_updated_event()->Wait(5000);
+    overuse_detector_proxy_->framerate_updated_event()->Wait(
+        TimeDelta::Seconds(5));
   }
 
   void OnBitrateUpdatedAndWaitForManagedResources(
@@ -444,7 +450,7 @@ class VideoStreamEncoderUnderTest : public VideoStreamEncoder {
       fake_cpu_resource_->SetUsageState(ResourceUsageState::kOveruse);
       event.Set();
     });
-    ASSERT_TRUE(event.Wait(5000));
+    ASSERT_TRUE(event.Wait(TimeDelta::Seconds(5)));
     time_controller_->AdvanceTime(TimeDelta::Zero());
   }
 
@@ -454,7 +460,7 @@ class VideoStreamEncoderUnderTest : public VideoStreamEncoder {
       fake_cpu_resource_->SetUsageState(ResourceUsageState::kUnderuse);
       event.Set();
     });
-    ASSERT_TRUE(event.Wait(5000));
+    ASSERT_TRUE(event.Wait(TimeDelta::Seconds(5)));
     time_controller_->AdvanceTime(TimeDelta::Zero());
   }
 
@@ -465,7 +471,7 @@ class VideoStreamEncoderUnderTest : public VideoStreamEncoder {
       fake_quality_resource_->SetUsageState(ResourceUsageState::kOveruse);
       event.Set();
     });
-    ASSERT_TRUE(event.Wait(5000));
+    ASSERT_TRUE(event.Wait(TimeDelta::Seconds(5)));
     time_controller_->AdvanceTime(TimeDelta::Zero());
   }
   void TriggerQualityHigh() {
@@ -474,7 +480,7 @@ class VideoStreamEncoderUnderTest : public VideoStreamEncoder {
       fake_quality_resource_->SetUsageState(ResourceUsageState::kUnderuse);
       event.Set();
     });
-    ASSERT_TRUE(event.Wait(5000));
+    ASSERT_TRUE(event.Wait(TimeDelta::Seconds(5)));
     time_controller_->AdvanceTime(TimeDelta::Zero());
   }
 
@@ -494,11 +500,12 @@ class CroppingVideoStreamFactory
 
  private:
   std::vector<VideoStream> CreateEncoderStreams(
-      int width,
-      int height,
+      int frame_width,
+      int frame_height,
       const VideoEncoderConfig& encoder_config) override {
     std::vector<VideoStream> streams = test::CreateVideoStreams(
-        width - width % 4, height - height % 4, encoder_config);
+        frame_width - frame_width % 4, frame_height - frame_height % 4,
+        encoder_config);
     return streams;
   }
 };
@@ -601,12 +608,15 @@ class AdaptingFrameForwarder : public test::FrameForwarder {
     test::FrameForwarder::AddOrUpdateSinkLocked(sink, wants);
   }
 
+  void RequestRefreshFrame() override { ++refresh_frames_requested_; }
+
   TimeController* const time_controller_;
   cricket::VideoAdapter adapter_;
   bool adaptation_enabled_ RTC_GUARDED_BY(mutex_);
   rtc::VideoSinkWants last_wants_ RTC_GUARDED_BY(mutex_);
   absl::optional<int> last_width_;
   absl::optional<int> last_height_;
+  int refresh_frames_requested_{0};
 };
 
 // TODO(nisse): Mock only VideoStreamEncoderObserver.
@@ -689,7 +699,9 @@ class SimpleVideoStreamEncoderFactory {
         time_controller_.GetClock(),
         /*number_of_cores=*/1,
         /*stats_proxy=*/stats_proxy_.get(), encoder_settings_,
-        std::make_unique<CpuOveruseDetectorProxy>(/*stats_proxy=*/nullptr),
+        std::make_unique<CpuOveruseDetectorProxy>(
+            /*stats_proxy=*/nullptr,
+            field_trials ? *field_trials : field_trials_),
         std::move(zero_hertz_adapter), std::move(encoder_queue),
         VideoStreamEncoder::BitrateAllocationCallbackType::
             kVideoBitrateAllocation,
@@ -738,7 +750,7 @@ class SimpleVideoStreamEncoderFactory {
   };
 
   test::ScopedKeyValueConfig field_trials_;
-  GlobalSimulatedTimeController time_controller_{Timestamp::Millis(0)};
+  GlobalSimulatedTimeController time_controller_{Timestamp::Zero()};
   std::unique_ptr<TaskQueueFactory> task_queue_factory_{
       time_controller_.CreateTaskQueueFactory()};
   std::unique_ptr<MockableSendStatisticsProxy> stats_proxy_ =
@@ -768,11 +780,11 @@ class MockFrameCadenceAdapter : public FrameCadenceAdapterInterface {
   MOCK_METHOD(void, UpdateFrameRate, (), (override));
   MOCK_METHOD(void,
               UpdateLayerQualityConvergence,
-              (int spatial_index, bool converged),
+              (size_t spatial_index, bool converged),
               (override));
   MOCK_METHOD(void,
               UpdateLayerStatus,
-              (int spatial_index, bool enabled),
+              (size_t spatial_index, bool enabled),
               (override));
   MOCK_METHOD(void, ProcessKeyFrameRequest, (), (override));
 };
@@ -813,7 +825,7 @@ class MockVideoSourceInterface : public rtc::VideoSourceInterface<VideoFrame> {
 
 class VideoStreamEncoderTest : public ::testing::Test {
  public:
-  static const int kDefaultTimeoutMs = 1000;
+  static constexpr TimeDelta kDefaultTimeout = TimeDelta::Seconds(1);
 
   VideoStreamEncoderTest()
       : video_send_config_(VideoSendStream::Config(nullptr)),
@@ -1004,8 +1016,8 @@ class VideoStreamEncoderTest : public ::testing::Test {
     AdvanceTime(TimeDelta::Seconds(1) / max_framerate_);
   }
 
-  bool TimedWaitForEncodedFrame(int64_t expected_ntp_time, int64_t timeout_ms) {
-    bool ok = sink_.TimedWaitForEncodedFrame(expected_ntp_time, timeout_ms);
+  bool TimedWaitForEncodedFrame(int64_t expected_ntp_time, TimeDelta timeout) {
+    bool ok = sink_.TimedWaitForEncodedFrame(expected_ntp_time, timeout);
     AdvanceTime(TimeDelta::Seconds(1) / max_framerate_);
     return ok;
   }
@@ -1020,8 +1032,8 @@ class VideoStreamEncoderTest : public ::testing::Test {
     AdvanceTime(TimeDelta::Seconds(1) / max_framerate_);
   }
 
-  bool WaitForFrame(int64_t timeout_ms) {
-    bool ok = sink_.WaitForFrame(timeout_ms);
+  bool WaitForFrame(TimeDelta timeout) {
+    bool ok = sink_.WaitForFrame(timeout);
     AdvanceTime(TimeDelta::Seconds(1) / max_framerate_);
     return ok;
   }
@@ -1362,14 +1374,13 @@ class VideoStreamEncoderTest : public ::testing::Test {
     }
 
     void WaitForEncodedFrame(int64_t expected_ntp_time) {
-      EXPECT_TRUE(
-          TimedWaitForEncodedFrame(expected_ntp_time, kDefaultTimeoutMs));
+      EXPECT_TRUE(TimedWaitForEncodedFrame(expected_ntp_time, kDefaultTimeout));
     }
 
     bool TimedWaitForEncodedFrame(int64_t expected_ntp_time,
-                                  int64_t timeout_ms) {
+                                  TimeDelta timeout) {
       uint32_t timestamp = 0;
-      if (!WaitForFrame(timeout_ms))
+      if (!WaitForFrame(timeout))
         return false;
       {
         MutexLock lock(&mutex_);
@@ -1381,7 +1392,7 @@ class VideoStreamEncoderTest : public ::testing::Test {
 
     void WaitForEncodedFrame(uint32_t expected_width,
                              uint32_t expected_height) {
-      EXPECT_TRUE(WaitForFrame(kDefaultTimeoutMs));
+      EXPECT_TRUE(WaitForFrame(kDefaultTimeout));
       CheckLastFrameSizeMatches(expected_width, expected_height);
     }
 
@@ -1407,12 +1418,14 @@ class VideoStreamEncoderTest : public ::testing::Test {
       EXPECT_EQ(expected_rotation, rotation);
     }
 
-    void ExpectDroppedFrame() { EXPECT_FALSE(WaitForFrame(100)); }
+    void ExpectDroppedFrame() {
+      EXPECT_FALSE(WaitForFrame(TimeDelta::Millis(100)));
+    }
 
-    bool WaitForFrame(int64_t timeout_ms) {
+    bool WaitForFrame(TimeDelta timeout) {
       RTC_DCHECK(time_controller_->GetMainThread()->IsCurrent());
       time_controller_->AdvanceTime(TimeDelta::Zero());
-      bool ret = encoded_frame_event_.Wait(timeout_ms);
+      bool ret = encoded_frame_event_.Wait(timeout);
       time_controller_->AdvanceTime(TimeDelta::Zero());
       return ret;
     }
@@ -1617,7 +1630,7 @@ TEST_F(VideoStreamEncoderTest, EncodeOneFrame) {
   rtc::Event frame_destroyed_event;
   video_source_.IncomingCapturedFrame(CreateFrame(1, &frame_destroyed_event));
   WaitForEncodedFrame(1);
-  EXPECT_TRUE(frame_destroyed_event.Wait(kDefaultTimeoutMs));
+  EXPECT_TRUE(frame_destroyed_event.Wait(kDefaultTimeout));
   video_stream_encoder_->Stop();
 }
 
@@ -1631,7 +1644,7 @@ TEST_F(VideoStreamEncoderTest, DropsFramesBeforeFirstOnBitrateUpdated) {
   AdvanceTime(TimeDelta::Millis(10));
   video_source_.IncomingCapturedFrame(CreateFrame(2, nullptr));
   AdvanceTime(TimeDelta::Zero());
-  EXPECT_TRUE(frame_destroyed_event.Wait(kDefaultTimeoutMs));
+  EXPECT_TRUE(frame_destroyed_event.Wait(kDefaultTimeout));
 
   video_stream_encoder_->OnBitrateUpdatedAndWaitForManagedResources(
       kTargetBitrate, kTargetBitrate, kTargetBitrate, 0, 0, 0);
@@ -1692,7 +1705,7 @@ TEST_F(VideoStreamEncoderTest, DropsFrameAfterStop) {
   sink_.SetExpectNoFrames();
   rtc::Event frame_destroyed_event;
   video_source_.IncomingCapturedFrame(CreateFrame(2, &frame_destroyed_event));
-  EXPECT_TRUE(frame_destroyed_event.Wait(kDefaultTimeoutMs));
+  EXPECT_TRUE(frame_destroyed_event.Wait(kDefaultTimeout));
 }
 
 TEST_F(VideoStreamEncoderTest, DropsPendingFramesOnSlowEncode) {
@@ -2178,6 +2191,7 @@ TEST_F(VideoStreamEncoderTest,
 
   // Two streams, highest stream active.
   VideoEncoderConfig config;
+  webrtc::VideoEncoder::EncoderInfo encoder_info;
   const int kNumStreams = 2;
   test::FillEncoderConfiguration(kVideoCodecVP8, kNumStreams, &config);
   config.max_bitrate_bps = 0;
@@ -2186,12 +2200,12 @@ TEST_F(VideoStreamEncoderTest,
   config.video_stream_factory =
       rtc::make_ref_counted<cricket::EncoderStreamFactory>(
           "VP8", /*max qp*/ 56, /*screencast*/ false,
-          /*screenshare enabled*/ false);
+          /*screenshare enabled*/ false, encoder_info);
   video_stream_encoder_->ConfigureEncoder(config.Copy(), kMaxPayloadLength);
 
   // The encoder bitrate limits for 270p should be used.
   video_source_.IncomingCapturedFrame(CreateFrame(1, 480, 270));
-  EXPECT_FALSE(WaitForFrame(1000));
+  video_stream_encoder_->WaitUntilTaskQueueIsIdle();
   EXPECT_EQ(fake_encoder_.config().numberOfSimulcastStreams, kNumStreams);
   EXPECT_EQ(static_cast<uint32_t>(kEncoderLimits270p.min_bitrate_bps),
             fake_encoder_.config().simulcastStream[1].minBitrate * 1000);
@@ -2200,7 +2214,7 @@ TEST_F(VideoStreamEncoderTest,
 
   // The encoder bitrate limits for 360p should be used.
   video_source_.IncomingCapturedFrame(CreateFrame(2, 640, 360));
-  EXPECT_FALSE(WaitForFrame(1000));
+  video_stream_encoder_->WaitUntilTaskQueueIsIdle();
   EXPECT_EQ(static_cast<uint32_t>(kEncoderLimits360p.min_bitrate_bps),
             fake_encoder_.config().simulcastStream[1].minBitrate * 1000);
   EXPECT_EQ(static_cast<uint32_t>(kEncoderLimits360p.max_bitrate_bps),
@@ -2209,7 +2223,7 @@ TEST_F(VideoStreamEncoderTest,
   // Resolution b/w 270p and 360p. The encoder limits for 360p should be used.
   video_source_.IncomingCapturedFrame(
       CreateFrame(3, (640 + 480) / 2, (360 + 270) / 2));
-  EXPECT_FALSE(WaitForFrame(1000));
+  video_stream_encoder_->WaitUntilTaskQueueIsIdle();
   EXPECT_EQ(static_cast<uint32_t>(kEncoderLimits360p.min_bitrate_bps),
             fake_encoder_.config().simulcastStream[1].minBitrate * 1000);
   EXPECT_EQ(static_cast<uint32_t>(kEncoderLimits360p.max_bitrate_bps),
@@ -2217,7 +2231,7 @@ TEST_F(VideoStreamEncoderTest,
 
   // Resolution higher than 360p. Encoder limits should be ignored.
   video_source_.IncomingCapturedFrame(CreateFrame(4, 960, 540));
-  EXPECT_FALSE(WaitForFrame(1000));
+  video_stream_encoder_->WaitUntilTaskQueueIsIdle();
   EXPECT_NE(static_cast<uint32_t>(kEncoderLimits270p.min_bitrate_bps),
             fake_encoder_.config().simulcastStream[1].minBitrate * 1000);
   EXPECT_NE(static_cast<uint32_t>(kEncoderLimits270p.max_bitrate_bps),
@@ -2229,7 +2243,7 @@ TEST_F(VideoStreamEncoderTest,
 
   // Resolution lower than 270p. The encoder limits for 270p should be used.
   video_source_.IncomingCapturedFrame(CreateFrame(5, 320, 180));
-  EXPECT_FALSE(WaitForFrame(1000));
+  video_stream_encoder_->WaitUntilTaskQueueIsIdle();
   EXPECT_EQ(static_cast<uint32_t>(kEncoderLimits270p.min_bitrate_bps),
             fake_encoder_.config().simulcastStream[1].minBitrate * 1000);
   EXPECT_EQ(static_cast<uint32_t>(kEncoderLimits270p.max_bitrate_bps),
@@ -2242,6 +2256,7 @@ TEST_F(VideoStreamEncoderTest,
        DefaultEncoderMaxAndMinBitratesUsedForTwoStreamsHighestActive) {
   // Two streams, highest stream active.
   VideoEncoderConfig config;
+  webrtc::VideoEncoder::EncoderInfo encoder_info;
   const int kNumStreams = 2;
   test::FillEncoderConfiguration(kVideoCodecVP8, kNumStreams, &config);
   config.max_bitrate_bps = 0;
@@ -2250,7 +2265,7 @@ TEST_F(VideoStreamEncoderTest,
   config.video_stream_factory =
       rtc::make_ref_counted<cricket::EncoderStreamFactory>(
           "VP8", /*max qp*/ 56, /*screencast*/ false,
-          /*screenshare enabled*/ false);
+          /*screenshare enabled*/ false, encoder_info);
   video_stream_encoder_->ConfigureEncoder(config.Copy(), kMaxPayloadLength);
 
   // Default bitrate limits for 270p should be used.
@@ -2259,7 +2274,7 @@ TEST_F(VideoStreamEncoderTest,
           EncoderInfoSettings::GetDefaultSinglecastBitrateLimitsForResolution(
               kVideoCodecVP8, 480 * 270);
   video_source_.IncomingCapturedFrame(CreateFrame(1, 480, 270));
-  EXPECT_FALSE(WaitForFrame(1000));
+  video_stream_encoder_->WaitUntilTaskQueueIsIdle();
   EXPECT_EQ(fake_encoder_.config().numberOfSimulcastStreams, kNumStreams);
   EXPECT_EQ(static_cast<uint32_t>(kDefaultLimits270p->min_bitrate_bps),
             fake_encoder_.config().simulcastStream[1].minBitrate * 1000);
@@ -2272,7 +2287,7 @@ TEST_F(VideoStreamEncoderTest,
           EncoderInfoSettings::GetDefaultSinglecastBitrateLimitsForResolution(
               kVideoCodecVP8, 640 * 360);
   video_source_.IncomingCapturedFrame(CreateFrame(2, 640, 360));
-  EXPECT_FALSE(WaitForFrame(1000));
+  video_stream_encoder_->WaitUntilTaskQueueIsIdle();
   EXPECT_EQ(static_cast<uint32_t>(kDefaultLimits360p->min_bitrate_bps),
             fake_encoder_.config().simulcastStream[1].minBitrate * 1000);
   EXPECT_EQ(static_cast<uint32_t>(kDefaultLimits360p->max_bitrate_bps),
@@ -2281,7 +2296,7 @@ TEST_F(VideoStreamEncoderTest,
   // Resolution b/w 270p and 360p. The default limits for 360p should be used.
   video_source_.IncomingCapturedFrame(
       CreateFrame(3, (640 + 480) / 2, (360 + 270) / 2));
-  EXPECT_FALSE(WaitForFrame(1000));
+  video_stream_encoder_->WaitUntilTaskQueueIsIdle();
   EXPECT_EQ(static_cast<uint32_t>(kDefaultLimits360p->min_bitrate_bps),
             fake_encoder_.config().simulcastStream[1].minBitrate * 1000);
   EXPECT_EQ(static_cast<uint32_t>(kDefaultLimits360p->max_bitrate_bps),
@@ -2293,7 +2308,7 @@ TEST_F(VideoStreamEncoderTest,
           EncoderInfoSettings::GetDefaultSinglecastBitrateLimitsForResolution(
               kVideoCodecVP8, 960 * 540);
   video_source_.IncomingCapturedFrame(CreateFrame(4, 960, 540));
-  EXPECT_FALSE(WaitForFrame(1000));
+  video_stream_encoder_->WaitUntilTaskQueueIsIdle();
   EXPECT_EQ(static_cast<uint32_t>(kDefaultLimits540p->min_bitrate_bps),
             fake_encoder_.config().simulcastStream[1].minBitrate * 1000);
   EXPECT_EQ(static_cast<uint32_t>(kDefaultLimits540p->max_bitrate_bps),
@@ -2315,6 +2330,7 @@ TEST_F(VideoStreamEncoderTest,
 
   // Three streams, middle stream active.
   VideoEncoderConfig config;
+  webrtc::VideoEncoder::EncoderInfo encoder_info;
   const int kNumStreams = 3;
   test::FillEncoderConfiguration(kVideoCodecVP8, kNumStreams, &config);
   config.simulcast_layers[0].active = false;
@@ -2323,12 +2339,12 @@ TEST_F(VideoStreamEncoderTest,
   config.video_stream_factory =
       rtc::make_ref_counted<cricket::EncoderStreamFactory>(
           "VP8", /*max qp*/ 56, /*screencast*/ false,
-          /*screenshare enabled*/ false);
+          /*screenshare enabled*/ false, encoder_info);
   video_stream_encoder_->ConfigureEncoder(config.Copy(), kMaxPayloadLength);
 
   // The encoder bitrate limits for 360p should be used.
   video_source_.IncomingCapturedFrame(CreateFrame(1, 1280, 720));
-  EXPECT_FALSE(WaitForFrame(1000));
+  video_stream_encoder_->WaitUntilTaskQueueIsIdle();
   EXPECT_EQ(fake_encoder_.config().numberOfSimulcastStreams, kNumStreams);
   EXPECT_EQ(static_cast<uint32_t>(kEncoderLimits360p.min_bitrate_bps),
             fake_encoder_.config().simulcastStream[1].minBitrate * 1000);
@@ -2337,7 +2353,7 @@ TEST_F(VideoStreamEncoderTest,
 
   // The encoder bitrate limits for 270p should be used.
   video_source_.IncomingCapturedFrame(CreateFrame(2, 960, 540));
-  EXPECT_FALSE(WaitForFrame(1000));
+  video_stream_encoder_->WaitUntilTaskQueueIsIdle();
   EXPECT_EQ(static_cast<uint32_t>(kEncoderLimits270p.min_bitrate_bps),
             fake_encoder_.config().simulcastStream[1].minBitrate * 1000);
   EXPECT_EQ(static_cast<uint32_t>(kEncoderLimits270p.max_bitrate_bps),
@@ -2359,6 +2375,7 @@ TEST_F(VideoStreamEncoderTest,
 
   // Three streams, lowest stream active.
   VideoEncoderConfig config;
+  webrtc::VideoEncoder::EncoderInfo encoder_info;
   const int kNumStreams = 3;
   test::FillEncoderConfiguration(kVideoCodecVP8, kNumStreams, &config);
   config.simulcast_layers[0].active = true;
@@ -2367,13 +2384,13 @@ TEST_F(VideoStreamEncoderTest,
   config.video_stream_factory =
       rtc::make_ref_counted<cricket::EncoderStreamFactory>(
           "VP8", /*max qp*/ 56, /*screencast*/ false,
-          /*screenshare enabled*/ false);
+          /*screenshare enabled*/ false, encoder_info);
   video_stream_encoder_->ConfigureEncoder(config.Copy(), kMaxPayloadLength);
 
   // Resolution on lowest stream lower than 270p. The encoder limits not applied
   // on lowest stream, limits for 270p should not be used
   video_source_.IncomingCapturedFrame(CreateFrame(1, 1280, 720));
-  EXPECT_FALSE(WaitForFrame(1000));
+  video_stream_encoder_->WaitUntilTaskQueueIsIdle();
   EXPECT_EQ(fake_encoder_.config().numberOfSimulcastStreams, kNumStreams);
   EXPECT_NE(static_cast<uint32_t>(kEncoderLimits270p.min_bitrate_bps),
             fake_encoder_.config().simulcastStream[1].minBitrate * 1000);
@@ -2395,6 +2412,7 @@ TEST_F(VideoStreamEncoderTest,
 
   // Two streams, highest stream active.
   VideoEncoderConfig config;
+  webrtc::VideoEncoder::EncoderInfo encoder_info;
   const int kNumStreams = 2;
   test::FillEncoderConfiguration(kVideoCodecVP8, kNumStreams, &config);
   config.simulcast_layers[0].active = false;
@@ -2403,12 +2421,12 @@ TEST_F(VideoStreamEncoderTest,
   config.video_stream_factory =
       rtc::make_ref_counted<cricket::EncoderStreamFactory>(
           "VP8", /*max qp*/ 56, /*screencast*/ false,
-          /*screenshare enabled*/ false);
+          /*screenshare enabled*/ false, encoder_info);
   video_stream_encoder_->ConfigureEncoder(config.Copy(), kMaxPayloadLength);
 
   // The encoder bitrate limits for 270p should be used.
   video_source_.IncomingCapturedFrame(CreateFrame(1, 480, 270));
-  EXPECT_FALSE(WaitForFrame(1000));
+  video_stream_encoder_->WaitUntilTaskQueueIsIdle();
   EXPECT_EQ(fake_encoder_.config().numberOfSimulcastStreams, kNumStreams);
   EXPECT_EQ(static_cast<uint32_t>(kEncoderLimits270p.min_bitrate_bps),
             fake_encoder_.config().simulcastStream[1].minBitrate * 1000);
@@ -2417,7 +2435,7 @@ TEST_F(VideoStreamEncoderTest,
 
   // The max configured bitrate is less than the encoder limit for 360p.
   video_source_.IncomingCapturedFrame(CreateFrame(2, 640, 360));
-  EXPECT_FALSE(WaitForFrame(1000));
+  video_stream_encoder_->WaitUntilTaskQueueIsIdle();
   EXPECT_EQ(static_cast<uint32_t>(kEncoderLimits360p.min_bitrate_bps),
             fake_encoder_.config().simulcastStream[1].minBitrate * 1000);
   EXPECT_EQ(static_cast<uint32_t>(kMaxBitrateBps),
@@ -2484,6 +2502,7 @@ TEST_P(ResolutionAlignmentTest, SinkWantsAlignmentApplied) {
   // Fill config with the scaling factor by which to reduce encoding size.
   const int num_streams = scale_factors_.size();
   VideoEncoderConfig config;
+  webrtc::VideoEncoder::EncoderInfo encoder_info;
   test::FillEncoderConfiguration(kVideoCodecVP8, num_streams, &config);
   for (int i = 0; i < num_streams; ++i) {
     config.simulcast_layers[i].scale_resolution_down_by = scale_factors_[i];
@@ -2491,7 +2510,7 @@ TEST_P(ResolutionAlignmentTest, SinkWantsAlignmentApplied) {
   config.video_stream_factory =
       rtc::make_ref_counted<cricket::EncoderStreamFactory>(
           "VP8", /*max qp*/ 56, /*screencast*/ false,
-          /*screenshare enabled*/ false);
+          /*screenshare enabled*/ false, encoder_info);
   video_stream_encoder_->ConfigureEncoder(std::move(config), kMaxPayloadLength);
 
   video_stream_encoder_->OnBitrateUpdatedAndWaitForManagedResources(
@@ -4277,14 +4296,14 @@ TEST_F(BalancedDegradationTest,
   // Insert frame, expect scaled down:
   // framerate (640x360@24fps) -> resolution (480x270@24fps).
   InsertFrame();
-  EXPECT_FALSE(WaitForFrame(1000));
+  EXPECT_FALSE(WaitForFrame(TimeDelta::Seconds(1)));
   EXPECT_LT(source_.sink_wants().max_pixel_count, kWidth * kHeight);
   EXPECT_EQ(source_.sink_wants().max_framerate_fps, 24);
 
   // Insert frame, expect scaled down:
   // resolution (320x180@24fps).
   InsertFrame();
-  EXPECT_FALSE(WaitForFrame(1000));
+  EXPECT_FALSE(WaitForFrame(TimeDelta::Seconds(1)));
   EXPECT_LT(source_.sink_wants().max_pixel_count,
             source_.last_wants().max_pixel_count);
   EXPECT_EQ(source_.sink_wants().max_framerate_fps, 24);
@@ -5635,12 +5654,13 @@ TEST_F(VideoStreamEncoderTest, InitialFrameDropActivatesWhenLayersChange) {
   // Trigger QVGA "singlecast"
   // Update the config.
   VideoEncoderConfig video_encoder_config;
+  webrtc::VideoEncoder::EncoderInfo encoder_info;
   test::FillEncoderConfiguration(PayloadStringToCodecType("VP8"), 3,
                                  &video_encoder_config);
   video_encoder_config.video_stream_factory =
       rtc::make_ref_counted<cricket::EncoderStreamFactory>(
           "VP8", /*max qp*/ 56, /*screencast*/ false,
-          /*screenshare enabled*/ false);
+          /*screenshare enabled*/ false, encoder_info);
   for (auto& layer : video_encoder_config.simulcast_layers) {
     layer.num_temporal_layers = 1;
     layer.max_framerate = kDefaultFramerate;
@@ -5775,11 +5795,10 @@ TEST_F(VideoStreamEncoderTest,
 
   video_stream_encoder_->ConfigureEncoder(video_encoder_config.Copy(),
                                           kMaxPayloadLength);
-  video_stream_encoder_->WaitUntilTaskQueueIsIdle();
 
   // The encoder bitrate limits for 360p should be used.
   video_source_.IncomingCapturedFrame(CreateFrame(1, 1280, 720));
-  EXPECT_FALSE(WaitForFrame(1000));
+  video_stream_encoder_->WaitUntilTaskQueueIsIdle();
   EXPECT_EQ(fake_encoder_.config().numberOfSimulcastStreams, 1);
   EXPECT_EQ(fake_encoder_.config().codecType, VideoCodecType::kVideoCodecVP9);
   EXPECT_EQ(fake_encoder_.config().VP9().numberOfSpatialLayers, 2);
@@ -5793,7 +5812,7 @@ TEST_F(VideoStreamEncoderTest,
 
   // The encoder bitrate limits for 270p should be used.
   video_source_.IncomingCapturedFrame(CreateFrame(2, 960, 540));
-  EXPECT_FALSE(WaitForFrame(1000));
+  video_stream_encoder_->WaitUntilTaskQueueIsIdle();
   EXPECT_EQ(fake_encoder_.config().numberOfSimulcastStreams, 1);
   EXPECT_EQ(fake_encoder_.config().codecType, VideoCodecType::kVideoCodecVP9);
   EXPECT_EQ(fake_encoder_.config().VP9().numberOfSpatialLayers, 2);
@@ -5831,14 +5850,13 @@ TEST_F(VideoStreamEncoderTest,
 
   video_stream_encoder_->ConfigureEncoder(video_encoder_config.Copy(),
                                           kMaxPayloadLength);
-  video_stream_encoder_->WaitUntilTaskQueueIsIdle();
 
   // The default bitrate limits for 360p should be used.
   const absl::optional<VideoEncoder::ResolutionBitrateLimits> kLimits360p =
       EncoderInfoSettings::GetDefaultSinglecastBitrateLimitsForResolution(
           kVideoCodecVP9, 640 * 360);
   video_source_.IncomingCapturedFrame(CreateFrame(1, 1280, 720));
-  EXPECT_FALSE(WaitForFrame(1000));
+  video_stream_encoder_->WaitUntilTaskQueueIsIdle();
   EXPECT_EQ(fake_encoder_.config().numberOfSimulcastStreams, 1);
   EXPECT_EQ(fake_encoder_.config().codecType, VideoCodecType::kVideoCodecVP9);
   EXPECT_EQ(fake_encoder_.config().VP9().numberOfSpatialLayers, 2);
@@ -5855,7 +5873,7 @@ TEST_F(VideoStreamEncoderTest,
       EncoderInfoSettings::GetDefaultSinglecastBitrateLimitsForResolution(
           kVideoCodecVP9, 480 * 270);
   video_source_.IncomingCapturedFrame(CreateFrame(2, 960, 540));
-  EXPECT_FALSE(WaitForFrame(1000));
+  video_stream_encoder_->WaitUntilTaskQueueIsIdle();
   EXPECT_EQ(fake_encoder_.config().numberOfSimulcastStreams, 1);
   EXPECT_EQ(fake_encoder_.config().codecType, VideoCodecType::kVideoCodecVP9);
   EXPECT_EQ(fake_encoder_.config().VP9().numberOfSpatialLayers, 2);
@@ -5897,14 +5915,13 @@ TEST_F(VideoStreamEncoderTest, DefaultMaxAndMinBitratesNotUsedIfDisabled) {
 
   video_stream_encoder_->ConfigureEncoder(video_encoder_config.Copy(),
                                           kMaxPayloadLength);
-  video_stream_encoder_->WaitUntilTaskQueueIsIdle();
 
   // The default bitrate limits for 360p should not be used.
   const absl::optional<VideoEncoder::ResolutionBitrateLimits> kLimits360p =
       EncoderInfoSettings::GetDefaultSinglecastBitrateLimitsForResolution(
           kVideoCodecVP9, 640 * 360);
   video_source_.IncomingCapturedFrame(CreateFrame(1, 1280, 720));
-  EXPECT_FALSE(WaitForFrame(1000));
+  video_stream_encoder_->WaitUntilTaskQueueIsIdle();
   EXPECT_EQ(fake_encoder_.config().numberOfSimulcastStreams, 1);
   EXPECT_EQ(fake_encoder_.config().codecType, kVideoCodecVP9);
   EXPECT_EQ(fake_encoder_.config().VP9().numberOfSpatialLayers, 2);
@@ -5926,7 +5943,7 @@ TEST_F(VideoStreamEncoderTest, SinglecastBitrateLimitsNotUsedForOneStream) {
       EncoderInfoSettings::GetDefaultSinglecastBitrateLimitsForResolution(
           kVideoCodecVP9, 1280 * 720);
   video_source_.IncomingCapturedFrame(CreateFrame(1, 1280, 720));
-  EXPECT_FALSE(WaitForFrame(1000));
+  video_stream_encoder_->WaitUntilTaskQueueIsIdle();
   EXPECT_EQ(fake_encoder_.config().numberOfSimulcastStreams, 1);
   EXPECT_EQ(fake_encoder_.config().codecType, VideoCodecType::kVideoCodecVP9);
   EXPECT_EQ(fake_encoder_.config().VP9().numberOfSpatialLayers, 1);
@@ -5969,11 +5986,10 @@ TEST_F(VideoStreamEncoderTest,
 
   video_stream_encoder_->ConfigureEncoder(video_encoder_config.Copy(),
                                           kMaxPayloadLength);
-  video_stream_encoder_->WaitUntilTaskQueueIsIdle();
 
   // Limits not applied on lowest stream, limits for 180p should not be used.
   video_source_.IncomingCapturedFrame(CreateFrame(1, 1280, 720));
-  EXPECT_FALSE(WaitForFrame(1000));
+  video_stream_encoder_->WaitUntilTaskQueueIsIdle();
   EXPECT_EQ(fake_encoder_.config().numberOfSimulcastStreams, 1);
   EXPECT_EQ(fake_encoder_.config().codecType, VideoCodecType::kVideoCodecVP9);
   EXPECT_EQ(fake_encoder_.config().VP9().numberOfSpatialLayers, 3);
@@ -6391,7 +6407,7 @@ TEST_F(VideoStreamEncoderTest,
     timestamp_ms += kFrameIntervalMs;
     video_source_.IncomingCapturedFrame(
         CreateFrame(timestamp_ms, kFrameWidth, kFrameHeight));
-    if (!WaitForFrame(kFrameTimeoutMs)) {
+    if (!WaitForFrame(kFrameTimeout)) {
       ++num_frames_dropped;
     } else {
       sink_.CheckLastFrameSizeMatches(kFrameWidth, kFrameHeight);
@@ -6410,7 +6426,7 @@ TEST_F(VideoStreamEncoderTest,
     timestamp_ms += kFrameIntervalMs;
     video_source_.IncomingCapturedFrame(
         CreateFrame(timestamp_ms, kFrameWidth, kFrameHeight));
-    if (!WaitForFrame(kFrameTimeoutMs)) {
+    if (!WaitForFrame(kFrameTimeout)) {
       ++num_frames_dropped;
     } else {
       sink_.CheckLastFrameSizeMatches(kFrameWidth, kFrameHeight);
@@ -6426,7 +6442,7 @@ TEST_F(VideoStreamEncoderTest,
     timestamp_ms += kFrameIntervalMs;
     video_source_.IncomingCapturedFrame(
         CreateFrame(timestamp_ms, kFrameWidth, kFrameHeight));
-    if (!WaitForFrame(kFrameTimeoutMs)) {
+    if (!WaitForFrame(kFrameTimeout)) {
       ++num_frames_dropped;
     } else {
       sink_.CheckLastFrameSizeMatches(kFrameWidth, kFrameHeight);
@@ -6442,7 +6458,7 @@ TEST_F(VideoStreamEncoderTest,
     timestamp_ms += kFrameIntervalMs;
     video_source_.IncomingCapturedFrame(
         CreateFrame(timestamp_ms, kFrameWidth, kFrameHeight));
-    if (!WaitForFrame(kFrameTimeoutMs)) {
+    if (!WaitForFrame(kFrameTimeout)) {
       ++num_frames_dropped;
     } else {
       sink_.CheckLastFrameSizeMatches(kFrameWidth, kFrameHeight);
@@ -6918,10 +6934,10 @@ TEST_F(VideoStreamEncoderTest,
 TEST_F(VideoStreamEncoderTest, AcceptsFullHdAdaptedDownSimulcastFrames) {
   const int kFrameWidth = 1920;
   const int kFrameHeight = 1080;
-  // 3/4 of 1920.
-  const int kAdaptedFrameWidth = 1440;
-  // 3/4 of 1080 rounded down to multiple of 4.
-  const int kAdaptedFrameHeight = 808;
+  // 2/3 of 1920.
+  const int kAdaptedFrameWidth = 1280;
+  // 2/3 of 1080.
+  const int kAdaptedFrameHeight = 720;
   const int kFramerate = 24;
 
   video_stream_encoder_->OnBitrateUpdatedAndWaitForManagedResources(
@@ -6984,7 +7000,7 @@ TEST_F(VideoStreamEncoderTest, PeriodicallyUpdatesChannelParameters) {
 
   // Insert 30fps frames for just a little more than the forced update period.
   const int kVcmTimerIntervalFrames = (kProcessIntervalMs * kHighFps) / 1000;
-  const int kFrameIntervalMs = 1000 / kHighFps;
+  constexpr TimeDelta kFrameInterval = TimeDelta::Seconds(1) / kHighFps;
   max_framerate_ = kHighFps;
   for (int i = 0; i < kVcmTimerIntervalFrames + 2; ++i) {
     video_source_.IncomingCapturedFrame(
@@ -6993,8 +7009,8 @@ TEST_F(VideoStreamEncoderTest, PeriodicallyUpdatesChannelParameters) {
     // be dropped if the encoder hans't been updated with the new higher target
     // framerate yet, causing it to overshoot the target bitrate and then
     // suffering the wrath of the media optimizer.
-    TimedWaitForEncodedFrame(timestamp_ms, 2 * kFrameIntervalMs);
-    timestamp_ms += kFrameIntervalMs;
+    TimedWaitForEncodedFrame(timestamp_ms, 2 * kFrameInterval);
+    timestamp_ms += kFrameInterval.ms();
   }
 
   // Don expect correct measurement just yet, but it should be higher than
@@ -7043,7 +7059,8 @@ TEST_F(VideoStreamEncoderTest,
        DefaultCpuAdaptationThresholdsForSoftwareEncoder) {
   const int kFrameWidth = 1280;
   const int kFrameHeight = 720;
-  const CpuOveruseOptions default_options;
+  const test::ScopedKeyValueConfig kFieldTrials;
+  const CpuOveruseOptions default_options(kFieldTrials);
   video_stream_encoder_->OnBitrateUpdatedAndWaitForManagedResources(
       kTargetBitrate, kTargetBitrate, kTargetBitrate, 0, 0, 0);
   video_source_.IncomingCapturedFrame(
@@ -7062,7 +7079,8 @@ TEST_F(VideoStreamEncoderTest,
        HigherCpuAdaptationThresholdsForHardwareEncoder) {
   const int kFrameWidth = 1280;
   const int kFrameHeight = 720;
-  CpuOveruseOptions hardware_options;
+  const test::ScopedKeyValueConfig kFieldTrials;
+  CpuOveruseOptions hardware_options(kFieldTrials);
   hardware_options.low_encode_usage_threshold_percent = 150;
   hardware_options.high_encode_usage_threshold_percent = 200;
   fake_encoder_.SetIsHardwareAccelerated(true);
@@ -7086,7 +7104,8 @@ TEST_F(VideoStreamEncoderTest,
   const int kFrameWidth = 1280;
   const int kFrameHeight = 720;
 
-  const CpuOveruseOptions default_options;
+  const test::ScopedKeyValueConfig kFieldTrials;
+  const CpuOveruseOptions default_options(kFieldTrials);
   video_stream_encoder_->OnBitrateUpdatedAndWaitForManagedResources(
       kTargetBitrate, kTargetBitrate, kTargetBitrate, 0, 0, 0);
   video_source_.IncomingCapturedFrame(
@@ -7099,7 +7118,7 @@ TEST_F(VideoStreamEncoderTest,
                 .high_encode_usage_threshold_percent,
             default_options.high_encode_usage_threshold_percent);
 
-  CpuOveruseOptions hardware_options;
+  CpuOveruseOptions hardware_options(kFieldTrials);
   hardware_options.low_encode_usage_threshold_percent = 150;
   hardware_options.high_encode_usage_threshold_percent = 200;
   fake_encoder_.SetIsHardwareAccelerated(true);
@@ -7138,7 +7157,8 @@ TEST_F(VideoStreamEncoderTest, DropsFramesWhenEncoderOvershoots) {
     video_source_.IncomingCapturedFrame(
         CreateFrame(timestamp_ms, kFrameWidth, kFrameHeight));
     // Wait up to two frame durations for a frame to arrive.
-    if (!TimedWaitForEncodedFrame(timestamp_ms, 2 * 1000 / kFps)) {
+    if (!TimedWaitForEncodedFrame(timestamp_ms,
+                                  2 * TimeDelta::Seconds(1) / kFps)) {
       ++num_dropped;
     }
     timestamp_ms += 1000 / kFps;
@@ -7175,7 +7195,8 @@ TEST_F(VideoStreamEncoderTest, DropsFramesWhenEncoderOvershoots) {
     video_source_.IncomingCapturedFrame(
         CreateFrame(timestamp_ms, kFrameWidth, kFrameHeight));
     // Wait up to two frame durations for a frame to arrive.
-    if (!TimedWaitForEncodedFrame(timestamp_ms, 2 * 1000 / kFps)) {
+    if (!TimedWaitForEncodedFrame(timestamp_ms,
+                                  2 * TimeDelta::Seconds(1) / kFps)) {
       ++num_dropped;
     }
     timestamp_ms += 1000 / kFps;
@@ -7644,7 +7665,7 @@ TEST_F(VideoStreamEncoderTest, EncoderSelectorBrokenEncoderSwitch) {
       .WillOnce([&encode_attempted]() { encode_attempted.Set(); });
 
   video_source_.IncomingCapturedFrame(CreateFrame(1, kDontCare, kDontCare));
-  encode_attempted.Wait(3000);
+  encode_attempted.Wait(TimeDelta::Seconds(3));
 
   AdvanceTime(TimeDelta::Zero());
 
@@ -7688,7 +7709,7 @@ TEST_F(VideoStreamEncoderTest, SwitchEncoderOnInitFailureWithEncoderSelector) {
       .WillOnce([&encode_attempted]() { encode_attempted.Set(); });
 
   video_source_.IncomingCapturedFrame(CreateFrame(1, nullptr));
-  encode_attempted.Wait(3000);
+  encode_attempted.Wait(TimeDelta::Seconds(3));
 
   AdvanceTime(TimeDelta::Zero());
 
@@ -7730,7 +7751,7 @@ TEST_F(VideoStreamEncoderTest,
       .WillOnce([&encode_attempted]() { encode_attempted.Set(); });
 
   video_source_.IncomingCapturedFrame(CreateFrame(1, nullptr));
-  encode_attempted.Wait(3000);
+  encode_attempted.Wait(TimeDelta::Seconds(3));
 
   AdvanceTime(TimeDelta::Zero());
 
@@ -7781,7 +7802,7 @@ TEST_F(VideoStreamEncoderTest, NullEncoderReturnSwitch) {
       .WillOnce([&encode_attempted]() { encode_attempted.Set(); });
 
   video_source_.IncomingCapturedFrame(CreateFrame(1, kDontCare, kDontCare));
-  encode_attempted.Wait(3000);
+  encode_attempted.Wait(TimeDelta::Seconds(3));
 
   AdvanceTime(TimeDelta::Zero());
 
@@ -7958,6 +7979,7 @@ TEST_F(VideoStreamEncoderTest, EncoderResetAccordingToParameterChange) {
   const int number_layers =
       sizeof(downscale_factors) / sizeof(downscale_factors[0]);
   VideoEncoderConfig config;
+  webrtc::VideoEncoder::EncoderInfo encoder_info;
   test::FillEncoderConfiguration(kVideoCodecVP8, number_layers, &config);
   for (int i = 0; i < number_layers; ++i) {
     config.simulcast_layers[i].scale_resolution_down_by = downscale_factors[i];
@@ -7966,7 +7988,7 @@ TEST_F(VideoStreamEncoderTest, EncoderResetAccordingToParameterChange) {
   config.video_stream_factory =
       rtc::make_ref_counted<cricket::EncoderStreamFactory>(
           "VP8", /*max qp*/ 56, /*screencast*/ false,
-          /*screenshare enabled*/ false);
+          /*screenshare enabled*/ false, encoder_info);
   video_stream_encoder_->OnBitrateUpdatedAndWaitForManagedResources(
       kSimulcastTargetBitrate, kSimulcastTargetBitrate, kSimulcastTargetBitrate,
       0, 0, 0);
@@ -8083,6 +8105,7 @@ TEST_F(VideoStreamEncoderTest, EncoderResolutionsExposedInSimulcast) {
       kFrameWidth / kDownscaleFactors[2], kFrameHeight / kDownscaleFactors[2]);
 
   VideoEncoderConfig config;
+  webrtc::VideoEncoder::EncoderInfo encoder_info;
   test::FillEncoderConfiguration(kVideoCodecVP8, kNumSimulcastLayers, &config);
   for (size_t i = 0; i < kNumSimulcastLayers; ++i) {
     config.simulcast_layers[i].scale_resolution_down_by = kDownscaleFactors[i];
@@ -8091,7 +8114,7 @@ TEST_F(VideoStreamEncoderTest, EncoderResolutionsExposedInSimulcast) {
   config.video_stream_factory =
       rtc::make_ref_counted<cricket::EncoderStreamFactory>(
           "VP8", /*max qp*/ 56, /*screencast*/ false,
-          /*screenshare enabled*/ false);
+          /*screenshare enabled*/ false, encoder_info);
   video_stream_encoder_->OnBitrateUpdatedAndWaitForManagedResources(
       kSimulcastTargetBitrate, kSimulcastTargetBitrate, kSimulcastTargetBitrate,
       0, 0, 0);
@@ -8158,7 +8181,7 @@ TEST_F(VideoStreamEncoderTest, QpPresent_QpKept) {
   CodecSpecificInfo codec_info;
   codec_info.codecType = kVideoCodecVP8;
   fake_encoder_.InjectEncodedImage(encoded_image, &codec_info);
-  EXPECT_TRUE(sink_.WaitForFrame(kDefaultTimeoutMs));
+  EXPECT_TRUE(sink_.WaitForFrame(kDefaultTimeout));
   EXPECT_EQ(sink_.GetLastEncodedImage().qp_, 123);
   video_stream_encoder_->Stop();
 }
@@ -8180,7 +8203,7 @@ TEST_F(VideoStreamEncoderTest, QpAbsent_QpParsed) {
   CodecSpecificInfo codec_info;
   codec_info.codecType = kVideoCodecVP8;
   fake_encoder_.InjectEncodedImage(encoded_image, &codec_info);
-  EXPECT_TRUE(sink_.WaitForFrame(kDefaultTimeoutMs));
+  EXPECT_TRUE(sink_.WaitForFrame(kDefaultTimeout));
   EXPECT_EQ(sink_.GetLastEncodedImage().qp_, 25);
   video_stream_encoder_->Stop();
 }
@@ -8203,7 +8226,7 @@ TEST_F(VideoStreamEncoderTest, QpAbsentParsingDisabled_QpAbsent) {
   CodecSpecificInfo codec_info;
   codec_info.codecType = kVideoCodecVP8;
   fake_encoder_.InjectEncodedImage(encoded_image, &codec_info);
-  EXPECT_TRUE(sink_.WaitForFrame(kDefaultTimeoutMs));
+  EXPECT_TRUE(sink_.WaitForFrame(kDefaultTimeout));
   EXPECT_EQ(sink_.GetLastEncodedImage().qp_, -1);
   video_stream_encoder_->Stop();
 }
@@ -8597,8 +8620,30 @@ TEST_F(VideoStreamEncoderTest,
   source.IncomingCapturedFrame(CreateFrame(1, 1280, 720));
   WaitForEncodedFrame(1);
   video_stream_encoder_->TriggerQualityLow();
-  // bandwidth_quality_scaler isn't working, but quality_scaler is working.
   EXPECT_TRUE(stats_proxy_->GetStats().bw_limited_resolution);
+
+  video_stream_encoder_->Stop();
+}
+
+TEST_F(VideoStreamEncoderTest,
+       RequestsRefreshFrameAfterEarlyDroppedNativeFrame) {
+  // Send a native frame before encoder rates have been set. The encoder is
+  // seen as paused at this time.
+  rtc::Event frame_destroyed_event;
+  video_source_.IncomingCapturedFrame(CreateFakeNativeFrame(
+      /*ntp_time_ms=*/1, &frame_destroyed_event, codec_width_, codec_height_));
+
+  // Frame should be dropped and destroyed.
+  ExpectDroppedFrame();
+  EXPECT_TRUE(frame_destroyed_event.Wait(kDefaultTimeout));
+  EXPECT_EQ(video_source_.refresh_frames_requested_, 0);
+
+  // Set bitrates, unpausing the encoder and triggering a request for a refresh
+  // frame.
+  video_stream_encoder_->OnBitrateUpdatedAndWaitForManagedResources(
+      kTargetBitrate, kTargetBitrate, kTargetBitrate, 0, 0, 0);
+  video_stream_encoder_->WaitUntilTaskQueueIsIdle();
+  EXPECT_EQ(video_source_.refresh_frames_requested_, 1);
 
   video_stream_encoder_->Stop();
 }
@@ -8626,7 +8671,7 @@ class VideoStreamEncoderWithRealEncoderTest
         encoder = VP9Encoder::Create();
         break;
       case kVideoCodecAV1:
-        encoder = CreateLibaomAv1EncoderIfSupported();
+        encoder = CreateLibaomAv1Encoder();
         break;
       case kVideoCodecH264:
         encoder =
@@ -8737,6 +8782,7 @@ TEST_P(VideoStreamEncoderWithRealEncoderTest, HandlesLayerToggling) {
       kFrameWidth / kDownscaleFactors[2], kFrameHeight / kDownscaleFactors[2]);
 
   VideoEncoderConfig config;
+  webrtc::VideoEncoder::EncoderInfo encoder_info;
   if (codec_type_ == VideoCodecType::kVideoCodecVP9) {
     test::FillEncoderConfiguration(codec_type_, 1, &config);
     config.max_bitrate_bps = kSimulcastTargetBitrate.bps();
@@ -8762,7 +8808,7 @@ TEST_P(VideoStreamEncoderWithRealEncoderTest, HandlesLayerToggling) {
                                          /*num_spatial_layers=*/3,
                                          /*num_temporal_layers=*/3,
                                          /*is_screenshare=*/false);
-    config.simulcast_layers[0].scalability_mode = "L3T3_KEY";
+    config.simulcast_layers[0].scalability_mode = ScalabilityMode::kL3T3_KEY;
   } else {
     // Simulcast for VP8/H264.
     test::FillEncoderConfiguration(codec_type_, kNumSpatialLayers, &config);
@@ -8773,10 +8819,7 @@ TEST_P(VideoStreamEncoderWithRealEncoderTest, HandlesLayerToggling) {
     }
     if (codec_type_ == VideoCodecType::kVideoCodecH264) {
       // Turn off frame dropping to prevent flakiness.
-      VideoCodecH264 h264_settings = VideoEncoder::GetDefaultH264Settings();
-      h264_settings.frameDroppingOn = false;
-      config.encoder_specific_settings = rtc::make_ref_counted<
-          VideoEncoderConfig::H264EncoderSpecificSettings>(h264_settings);
+      config.frame_drop_enabled = false;
     }
   }
 
@@ -8793,7 +8836,7 @@ TEST_P(VideoStreamEncoderWithRealEncoderTest, HandlesLayerToggling) {
       rtc::make_ref_counted<cricket::EncoderStreamFactory>(
           CodecTypeToPayloadString(codec_type_), /*max qp*/ 56,
           /*screencast*/ false,
-          /*screenshare enabled*/ false);
+          /*screenshare enabled*/ false, encoder_info);
   video_stream_encoder_->OnBitrateUpdatedAndWaitForManagedResources(
       kSimulcastTargetBitrate, kSimulcastTargetBitrate, kSimulcastTargetBitrate,
       0, 0, 0);
@@ -8937,13 +8980,15 @@ class ReconfigureEncoderTest : public VideoStreamEncoderTest {
 
   void ConfigureEncoder(const VideoStream& stream) {
     VideoEncoderConfig config;
+    webrtc::VideoEncoder::EncoderInfo encoder_info;
+
     test::FillEncoderConfiguration(kVideoCodecVP8, /*num_streams=*/1, &config);
     config.max_bitrate_bps = stream.max_bitrate_bps;
     config.simulcast_layers[0] = stream;
     config.video_stream_factory =
         rtc::make_ref_counted<cricket::EncoderStreamFactory>(
             /*codec_name=*/"VP8", /*max_qp=*/0, /*is_screenshare=*/false,
-            /*conference_mode=*/false);
+            /*conference_mode=*/false, encoder_info);
     video_stream_encoder_->ConfigureEncoder(std::move(config),
                                             kMaxPayloadLength);
   }
@@ -8974,7 +9019,7 @@ class ReconfigureEncoderTest : public VideoStreamEncoderTest {
               kHeight / expected.scale_resolution_down_by);
     EXPECT_EQ(actual.simulcastStream[0].numberOfTemporalLayers,
               expected.num_temporal_layers);
-    EXPECT_EQ(actual.ScalabilityMode(), expected.scalability_mode);
+    EXPECT_EQ(actual.GetScalabilityMode(), expected.scalability_mode);
   }
 
   VideoStream DefaultConfig() const {
@@ -8985,7 +9030,7 @@ class ReconfigureEncoderTest : public VideoStreamEncoderTest {
     stream.scale_resolution_down_by = 1.0;
     stream.num_temporal_layers = 1;
     stream.bitrate_priority = 1.0;
-    stream.scalability_mode = "";
+    stream.scalability_mode = absl::nullopt;
     return stream;
   }
 
@@ -9045,7 +9090,17 @@ TEST_F(ReconfigureEncoderTest, ReconfiguredIfNumTemporalLayerChanges) {
 TEST_F(ReconfigureEncoderTest, ReconfiguredIfScalabilityModeChanges) {
   VideoStream config1 = DefaultConfig();
   VideoStream config2 = config1;
-  config2.scalability_mode = "L1T2";
+  config2.scalability_mode = ScalabilityMode::kL2T1;
+
+  RunTest({config1, config2}, /*expected_num_init_encode=*/2);
+}
+
+TEST_F(ReconfigureEncoderTest,
+       UpdatesNumTemporalLayersFromScalabilityModeChanges) {
+  VideoStream config1 = DefaultConfig();
+  VideoStream config2 = config1;
+  config2.scalability_mode = ScalabilityMode::kL1T2;
+  config2.num_temporal_layers = 2;
 
   RunTest({config1, config2}, /*expected_num_init_encode=*/2);
 }
@@ -9061,18 +9116,22 @@ TEST(VideoStreamEncoderSimpleTest, CreateDestroy) {
 
    private:
     void Delete() override { delete this; }
-    void PostTask(std::unique_ptr<QueuedTask> task) override {
+    void PostTask(absl::AnyInvocable<void() &&> task) override {
       // meh.
     }
-    void PostDelayedTask(std::unique_ptr<QueuedTask> task,
-                         uint32_t milliseconds) override {
+    void PostDelayedTask(absl::AnyInvocable<void() &&> task,
+                         TimeDelta delay) override {
       ASSERT_TRUE(false);
+    }
+    void PostDelayedHighPrecisionTask(absl::AnyInvocable<void() &&> task,
+                                      TimeDelta delay) override {
+      ADD_FAILURE();
     }
   };
 
   // Lots of boiler plate.
   test::ScopedKeyValueConfig field_trials;
-  GlobalSimulatedTimeController time_controller(Timestamp::Millis(0));
+  GlobalSimulatedTimeController time_controller(Timestamp::Zero());
   auto stats_proxy = std::make_unique<MockableSendStatisticsProxy>(
       time_controller.GetClock(), VideoSendStream::Config(nullptr),
       webrtc::VideoEncoderConfig::ContentType::kRealtimeVideo, field_trials);
@@ -9097,11 +9156,17 @@ TEST(VideoStreamEncoderSimpleTest, CreateDestroy) {
   // the posted init task will simply be deleted.
   auto encoder = std::make_unique<VideoStreamEncoder>(
       time_controller.GetClock(), 1, stats_proxy.get(), encoder_settings,
-      std::make_unique<CpuOveruseDetectorProxy>(stats_proxy.get()),
+      std::make_unique<CpuOveruseDetectorProxy>(stats_proxy.get(),
+                                                field_trials),
       std::move(adapter), std::move(encoder_queue),
       VideoStreamEncoder::BitrateAllocationCallbackType::
           kVideoBitrateAllocation,
       field_trials);
+
+  // Stop the encoder explicitly. This additional step tests if we could
+  // hang when calling stop and the TQ has been stopped and/or isn't accepting
+  // any more tasks.
+  encoder->Stop();
 }
 
 TEST(VideoStreamEncoderFrameCadenceTest, ActivatesFrameCadenceOnContentType) {
@@ -9124,7 +9189,7 @@ TEST(VideoStreamEncoderFrameCadenceTest, ActivatesFrameCadenceOnContentType) {
   EXPECT_CALL(*adapter_ptr, SetZeroHertzModeEnabled(Optional(Field(
                                 &FrameCadenceAdapterInterface::
                                     ZeroHertzModeParams::num_simulcast_layers,
-                                Eq(0)))));
+                                Eq(0u)))));
   VideoEncoderConfig config;
   test::FillEncoderConfiguration(kVideoCodecVP8, 1, &config);
   config.content_type = VideoEncoderConfig::ContentType::kScreen;
@@ -9136,7 +9201,7 @@ TEST(VideoStreamEncoderFrameCadenceTest, ActivatesFrameCadenceOnContentType) {
   EXPECT_CALL(*adapter_ptr, SetZeroHertzModeEnabled(Optional(Field(
                                 &FrameCadenceAdapterInterface::
                                     ZeroHertzModeParams::num_simulcast_layers,
-                                Gt(0)))));
+                                Gt(0u)))));
   PassAFrame(encoder_queue, video_stream_encoder_callback, /*ntp_time_ms=*/1);
   factory.DepleteTaskQueues();
   Mock::VerifyAndClearExpectations(adapter_ptr);
@@ -9288,9 +9353,9 @@ TEST(VideoStreamEncoderFrameCadenceTest, UpdatesQualityConvergence) {
   EXPECT_CALL(factory.GetMockFakeEncoder(), EncodeHook)
       .WillRepeatedly(Invoke([](EncodedImage& encoded_image,
                                 rtc::scoped_refptr<EncodedImageBuffer> buffer) {
-        EXPECT_FALSE(encoded_image.IsAtTargetQuality());
+        encoded_image.qp_ = kVp8SteadyStateQpThreshold + 1;
         CodecSpecificInfo codec_specific;
-        codec_specific.codecType = kVideoCodecGeneric;
+        codec_specific.codecType = kVideoCodecVP8;
         return codec_specific;
       }));
   EXPECT_CALL(*adapter_ptr, UpdateLayerQualityConvergence(0, false));
@@ -9304,9 +9369,12 @@ TEST(VideoStreamEncoderFrameCadenceTest, UpdatesQualityConvergence) {
   EXPECT_CALL(factory.GetMockFakeEncoder(), EncodeHook)
       .WillRepeatedly(Invoke([](EncodedImage& encoded_image,
                                 rtc::scoped_refptr<EncodedImageBuffer> buffer) {
-        encoded_image.SetAtTargetQuality(encoded_image.SpatialIndex() == 0);
+        // This sets spatial index 0 content to be at target quality, while
+        // index 1 content is not.
+        encoded_image.qp_ = kVp8SteadyStateQpThreshold +
+                            (encoded_image.SpatialIndex() == 0 ? 0 : 1);
         CodecSpecificInfo codec_specific;
-        codec_specific.codecType = kVideoCodecGeneric;
+        codec_specific.codecType = kVideoCodecVP8;
         return codec_specific;
       }));
   EXPECT_CALL(*adapter_ptr, UpdateLayerQualityConvergence(0, true));
@@ -9390,8 +9458,12 @@ TEST(VideoStreamEncoderFrameCadenceTest,
   // synchronized.
   EXPECT_CALL(mock_source, RequestRefreshFrame);
   video_stream_encoder->SendKeyFrame();
-  adapter_ptr->OnConstraintsChanged(VideoTrackSourceConstraints{0, 30});
-  factory.DepleteTaskQueues();
+  constexpr int kMaxFps = 30;
+  adapter_ptr->OnConstraintsChanged(VideoTrackSourceConstraints{0, kMaxFps});
+  factory.GetTimeController()->AdvanceTime(
+      TimeDelta::Seconds(1) *
+      FrameCadenceAdapterInterface::kOnDiscardedFrameRefreshFramePeriod /
+      kMaxFps);
 }
 
 }  // namespace webrtc

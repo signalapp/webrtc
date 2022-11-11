@@ -175,7 +175,11 @@ EncoderInfoSettings::EncoderInfoSettings(absl::string_view name)
            [](BitrateLimit* b) { return &b->max_bitrate_bps; })},
       {});
 
+<<<<<<< HEAD
   std::string name_str = std::string(name);
+=======
+  std::string name_str(name);
+>>>>>>> m108
   if (field_trial::FindFullName(name_str).empty()) {
     // Encoder name not found, use common string applying to all encoders.
     name_str = "WebRTC-GetEncoderInfoOverride";

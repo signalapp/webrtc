@@ -13,6 +13,7 @@
 #include <utility>
 
 #include "absl/memory/memory.h"
+#include "absl/strings/string_view.h"
 #include "api/scoped_refptr.h"
 #include "modules/audio_processing/include/audio_processing.h"
 
@@ -20,6 +21,14 @@ namespace webrtc {
 namespace webrtc_pc_e2e {
 namespace {
 
+<<<<<<< HEAD
+=======
+using VideoSubscription = ::webrtc::webrtc_pc_e2e::
+    PeerConnectionE2EQualityTestFixture::VideoSubscription;
+using VideoConfig =
+    ::webrtc::webrtc_pc_e2e::PeerConnectionE2EQualityTestFixture::VideoConfig;
+
+>>>>>>> m108
 class SetRemoteDescriptionCallback
     : public webrtc::SetRemoteDescriptionObserverInterface {
  public:
@@ -39,6 +48,45 @@ class SetRemoteDescriptionCallback
 
 }  // namespace
 
+<<<<<<< HEAD
+=======
+ConfigurableParams TestPeer::configurable_params() const {
+  MutexLock lock(&mutex_);
+  return configurable_params_;
+}
+
+void TestPeer::AddVideoConfig(VideoConfig config) {
+  MutexLock lock(&mutex_);
+  configurable_params_.video_configs.push_back(std::move(config));
+}
+
+void TestPeer::RemoveVideoConfig(absl::string_view stream_label) {
+  MutexLock lock(&mutex_);
+  bool config_removed = false;
+  for (auto it = configurable_params_.video_configs.begin();
+       it != configurable_params_.video_configs.end(); ++it) {
+    if (*it->stream_label == stream_label) {
+      configurable_params_.video_configs.erase(it);
+      config_removed = true;
+      break;
+    }
+  }
+  RTC_CHECK(config_removed) << *params_.name << ": No video config with label ["
+                            << stream_label << "] was found";
+}
+
+void TestPeer::SetVideoSubscription(VideoSubscription subscription) {
+  MutexLock lock(&mutex_);
+  configurable_params_.video_subscription = std::move(subscription);
+}
+
+void TestPeer::GetStats(RTCStatsCollectorCallback* callback) {
+  pc()->signaling_thread()->PostTask(
+      SafeTask(signaling_thread_task_safety_,
+               [this, callback]() { pc()->GetStats(callback); }));
+}
+
+>>>>>>> m108
 bool TestPeer::SetRemoteDescription(
     std::unique_ptr<SessionDescriptionInterface> desc,
     std::string* error_out) {
@@ -50,8 +98,12 @@ bool TestPeer::SetRemoteDescription(
   pc()->SetRemoteDescription(std::move(desc), observer);
   RTC_CHECK(observer->is_called());
   if (!observer->error().ok()) {
+<<<<<<< HEAD
     RTC_LOG(LS_ERROR) << *params_->name
                       << ": Failed to set remote description: "
+=======
+    RTC_LOG(LS_ERROR) << *params_.name << ": Failed to set remote description: "
+>>>>>>> m108
                       << observer->error().message();
     if (error_out) {
       *error_out = observer->error().message();
@@ -80,6 +132,7 @@ bool TestPeer::AddIceCandidates(
 }
 
 void TestPeer::Close() {
+  signaling_thread_task_safety_->SetNotAlive();
   wrapper_->pc()->Close();
   remote_ice_candidates_.clear();
   audio_processing_ = nullptr;
@@ -92,17 +145,21 @@ TestPeer::TestPeer(
     rtc::scoped_refptr<PeerConnectionFactoryInterface> pc_factory,
     rtc::scoped_refptr<PeerConnectionInterface> pc,
     std::unique_ptr<MockPeerConnectionObserver> observer,
-    std::unique_ptr<Params> params,
+    Params params,
+    ConfigurableParams configurable_params,
     std::vector<PeerConfigurerImpl::VideoSource> video_sources,
     rtc::scoped_refptr<AudioProcessing> audio_processing,
     std::unique_ptr<rtc::Thread> worker_thread)
-    : worker_thread_(std::move(worker_thread)),
+    : params_(std::move(params)),
+      configurable_params_(std::move(configurable_params)),
+      worker_thread_(std::move(worker_thread)),
       wrapper_(std::make_unique<PeerConnectionWrapper>(std::move(pc_factory),
                                                        std::move(pc),
                                                        std::move(observer))),
-      params_(std::move(params)),
       video_sources_(std::move(video_sources)),
-      audio_processing_(audio_processing) {}
+      audio_processing_(audio_processing) {
+  signaling_thread_task_safety_ = PendingTaskSafetyFlag::CreateDetached();
+}
 
 }  // namespace webrtc_pc_e2e
 }  // namespace webrtc

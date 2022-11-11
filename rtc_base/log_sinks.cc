@@ -20,8 +20,8 @@
 
 namespace rtc {
 
-FileRotatingLogSink::FileRotatingLogSink(const std::string& log_dir_path,
-                                         const std::string& log_prefix,
+FileRotatingLogSink::FileRotatingLogSink(absl::string_view log_dir_path,
+                                         absl::string_view log_prefix,
                                          size_t max_log_size,
                                          size_t num_log_files)
     : FileRotatingLogSink(new FileRotatingStream(log_dir_path,
@@ -51,6 +51,12 @@ void FileRotatingLogSink::OnLogMessage(absl::string_view message) {
 void FileRotatingLogSink::OnLogMessage(absl::string_view message,
                                        LoggingSeverity sev,
                                        const char* tag) {
+  OnLogMessage(absl::string_view(message), sev, tag);
+}
+
+void FileRotatingLogSink::OnLogMessage(absl::string_view message,
+                                       LoggingSeverity sev,
+                                       const char* tag) {
   if (!stream_->IsOpen()) {
     std::fprintf(stderr, "Init() must be called before adding this sink.\n");
     return;
@@ -69,7 +75,7 @@ bool FileRotatingLogSink::DisableBuffering() {
 }
 
 CallSessionFileRotatingLogSink::CallSessionFileRotatingLogSink(
-    const std::string& log_dir_path,
+    absl::string_view log_dir_path,
     size_t max_total_log_size)
     : FileRotatingLogSink(
           new CallSessionFileRotatingStream(log_dir_path, max_total_log_size)) {

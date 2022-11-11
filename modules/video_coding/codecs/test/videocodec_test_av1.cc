@@ -40,6 +40,7 @@ VideoCodecTestFixture::Config CreateConfig(std::string filename) {
   return config;
 }
 
+<<<<<<< HEAD:modules/video_coding/codecs/test/videocodec_test_av1.cc
 class VideoCodecTestAv1 : public ::testing::TestWithParam<std::string> {
  public:
   VideoCodecTestAv1() : scoped_field_trial_(GetParam()) {}
@@ -53,6 +54,13 @@ TEST_P(VideoCodecTestAv1, HighBitrate) {
   config.SetCodecSettings(cricket::kAv1CodecName, 1, 1, 1, false, true, true,
                           kCifWidth, kCifHeight);
   config.codec_settings.SetScalabilityMode("L1T1");
+=======
+TEST(VideoCodecTestAv1, HighBitrate) {
+  auto config = CreateConfig("foreman_cif");
+  config.SetCodecSettings(cricket::kAv1CodecName, 1, 1, 1, false, true, true,
+                          kCifWidth, kCifHeight);
+  config.codec_settings.SetScalabilityMode(ScalabilityMode::kL1T1);
+>>>>>>> m108:modules/video_coding/codecs/test/videocodec_test_libaom.cc
   config.num_frames = kNumFramesLong;
   auto fixture = CreateVideoCodecTestFixture(config);
 
@@ -66,11 +74,19 @@ TEST_P(VideoCodecTestAv1, HighBitrate) {
   fixture->RunTest(rate_profiles, &rc_thresholds, &quality_thresholds, nullptr);
 }
 
+<<<<<<< HEAD:modules/video_coding/codecs/test/videocodec_test_av1.cc
 TEST_P(VideoCodecTestAv1, VeryLowBitrate) {
   auto config = CreateConfig("foreman_cif");
   config.SetCodecSettings(cricket::kAv1CodecName, 1, 1, 1, false, true, true,
                           kCifWidth, kCifHeight);
   config.codec_settings.SetScalabilityMode("L1T1");
+=======
+TEST(VideoCodecTestAv1, VeryLowBitrate) {
+  auto config = CreateConfig("foreman_cif");
+  config.SetCodecSettings(cricket::kAv1CodecName, 1, 1, 1, false, true, true,
+                          kCifWidth, kCifHeight);
+  config.codec_settings.SetScalabilityMode(ScalabilityMode::kL1T1);
+>>>>>>> m108:modules/video_coding/codecs/test/videocodec_test_libaom.cc
   auto fixture = CreateVideoCodecTestFixture(config);
 
   std::vector<RateProfile> rate_profiles = {{50, 30, 0}};
@@ -86,11 +102,19 @@ TEST_P(VideoCodecTestAv1, VeryLowBitrate) {
 #if !defined(WEBRTC_ANDROID)
 constexpr int kHdWidth = 1280;
 constexpr int kHdHeight = 720;
+<<<<<<< HEAD:modules/video_coding/codecs/test/videocodec_test_av1.cc
 TEST_P(VideoCodecTestAv1, Hd) {
   auto config = CreateConfig("ConferenceMotion_1280_720_50");
   config.SetCodecSettings(cricket::kAv1CodecName, 1, 1, 1, false, true, true,
                           kHdWidth, kHdHeight);
   config.codec_settings.SetScalabilityMode("L1T1");
+=======
+TEST(VideoCodecTestAv1, Hd) {
+  auto config = CreateConfig("ConferenceMotion_1280_720_50");
+  config.SetCodecSettings(cricket::kAv1CodecName, 1, 1, 1, false, true, true,
+                          kHdWidth, kHdHeight);
+  config.codec_settings.SetScalabilityMode(ScalabilityMode::kL1T1);
+>>>>>>> m108:modules/video_coding/codecs/test/videocodec_test_libaom.cc
   config.num_frames = kNumFramesLong;
   auto fixture = CreateVideoCodecTestFixture(config);
 
@@ -100,7 +124,11 @@ TEST_P(VideoCodecTestAv1, Hd) {
       {13, 3, 0, 1, 0.3, 0.1, 0, 1}};
 
   std::vector<QualityThresholds> quality_thresholds = {
+<<<<<<< HEAD:modules/video_coding/codecs/test/videocodec_test_av1.cc
       {35.9, 31.55, 0.925, 0.865}};
+=======
+      {35.9, 31.5, 0.925, 0.865}};
+>>>>>>> m108:modules/video_coding/codecs/test/videocodec_test_libaom.cc
 
   fixture->RunTest(rate_profiles, &rc_thresholds, &quality_thresholds, nullptr);
 }

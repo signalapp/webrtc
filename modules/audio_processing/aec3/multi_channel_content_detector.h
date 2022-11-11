@@ -13,6 +13,10 @@
 
 #include <stddef.h>
 
+<<<<<<< HEAD
+=======
+#include <memory>
+>>>>>>> m108
 #include <vector>
 
 #include "absl/types/optional.h"

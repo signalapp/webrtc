@@ -11,6 +11,8 @@
 #ifndef TEST_PC_E2E_ANALYZER_VIDEO_VIDEO_QUALITY_ANALYZER_INJECTION_HELPER_H_
 #define TEST_PC_E2E_ANALYZER_VIDEO_VIDEO_QUALITY_ANALYZER_INJECTION_HELPER_H_
 
+#include <stdio.h>
+
 #include <map>
 #include <memory>
 #include <string>
@@ -26,7 +28,9 @@
 #include "api/video_codecs/video_decoder_factory.h"
 #include "api/video_codecs/video_encoder_factory.h"
 #include "rtc_base/synchronization/mutex.h"
+#include "system_wrappers/include/clock.h"
 #include "test/pc/e2e/analyzer/video/encoded_image_data_injector.h"
+#include "test/pc/e2e/analyzer/video/quality_analyzing_video_encoder.h"
 #include "test/test_video_capturer.h"
 #include "test/testsupport/video_frame_writer.h"
 
@@ -40,6 +44,7 @@ class VideoQualityAnalyzerInjectionHelper : public StatsObserverInterface {
   using VideoConfig = PeerConnectionE2EQualityTestFixture::VideoConfig;
 
   VideoQualityAnalyzerInjectionHelper(
+      Clock* clock,
       std::unique_ptr<VideoQualityAnalyzerInterface> analyzer,
       EncodedImageDataInjector* injector,
       EncodedImageDataExtractor* extractor);
@@ -51,7 +56,7 @@ class VideoQualityAnalyzerInjectionHelper : public StatsObserverInterface {
       absl::string_view peer_name,
       std::unique_ptr<VideoEncoderFactory> delegate,
       double bitrate_multiplier,
-      std::map<std::string, absl::optional<int>> stream_required_spatial_index)
+      QualityAnalyzingVideoEncoder::EmulatedSFUConfigMap stream_to_sfu_config)
       const;
   // Wraps video decoder factory to give video quality analyzer access to
   // received encoded images and frames, that were decoded from them.
@@ -76,9 +81,14 @@ class VideoQualityAnalyzerInjectionHelper : public StatsObserverInterface {
   void Start(std::string test_case_name,
              rtc::ArrayView<const std::string> peer_names,
              int max_threads_count = 1);
+
   // Registers new call participant to the underlying video quality analyzer.
   // The method should be called before the participant is actually added.
   void RegisterParticipantInCall(absl::string_view peer_name);
+
+  // Will be called after test removed existing participant in the middle of the
+  // call.
+  void UnregisterParticipantInCall(absl::string_view peer_name);
 
   // Forwards `stats_reports` for Peer Connection `pc_label` to
   // `analyzer_`.
@@ -124,15 +134,13 @@ class VideoQualityAnalyzerInjectionHelper : public StatsObserverInterface {
     }
   };
 
-  test::VideoFrameWriter* MaybeCreateVideoWriter(
-      absl::optional<std::string> file_name,
-      const PeerConnectionE2EQualityTestFixture::VideoConfig& config);
   // Creates a deep copy of the frame and passes it to the video analyzer, while
   // passing real frame to the sinks
   void OnFrame(absl::string_view peer_name, const VideoFrame& frame);
   std::vector<std::unique_ptr<rtc::VideoSinkInterface<VideoFrame>>>*
   PopulateSinks(const ReceiverStream& receiver_stream);
 
+  Clock* const clock_;
   std::unique_ptr<VideoQualityAnalyzerInterface> analyzer_;
   EncodedImageDataInjector* injector_;
   EncodedImageDataExtractor* extractor_;

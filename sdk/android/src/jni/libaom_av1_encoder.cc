@@ -10,16 +10,51 @@
 
 #include <jni.h>
 
+<<<<<<< HEAD
 #include "modules/video_coding/codecs/av1/libaom_av1_encoder.h"
 #include "sdk/android/generated_libaom_av1_encoder_jni/LibaomAv1Encoder_jni.h"
+=======
+<<<<<<< HEAD:sdk/android/src/jni/libaom_av1_codec.cc
+#include "modules/video_coding/codecs/av1/libaom_av1_decoder.h"
+#include "modules/video_coding/codecs/av1/libaom_av1_encoder_supported.h"
+#include "sdk/android/generated_libaom_av1_jni_if_supported/LibaomAv1Decoder_jni.h"
+#include "sdk/android/generated_libaom_av1_jni_if_supported/LibaomAv1EncoderIfSupported_jni.h"
+=======
+#include "modules/video_coding/codecs/av1/libaom_av1_encoder.h"
+#include "sdk/android/generated_libaom_av1_encoder_jni/LibaomAv1Encoder_jni.h"
+>>>>>>> m108:sdk/android/src/jni/libaom_av1_encoder.cc
+>>>>>>> m108
 #include "sdk/android/src/jni/jni_helpers.h"
 
 namespace webrtc {
 namespace jni {
 
+<<<<<<< HEAD
 static jlong JNI_LibaomAv1Encoder_CreateEncoder(JNIEnv* jni) {
   return jlongFromPointer(webrtc::CreateLibaomAv1Encoder().release());
 }
 
+=======
+static jlong JNI_LibaomAv1EncoderIfSupported_CreateEncoder(JNIEnv* jni) {
+  return jlongFromPointer(
+      webrtc::CreateLibaomAv1EncoderIfSupported().release());
+}
+
+<<<<<<< HEAD:sdk/android/src/jni/libaom_av1_codec.cc
+static jboolean JNI_LibaomAv1EncoderIfSupported_IsSupported(JNIEnv* jni) {
+  return webrtc::kIsLibaomAv1EncoderSupported;
+}
+
+static jlong JNI_LibaomAv1Decoder_CreateDecoder(JNIEnv* jni) {
+  return jlongFromPointer(webrtc::CreateLibaomAv1Decoder().release());
+}
+
+static jboolean JNI_LibaomAv1Decoder_IsSupported(JNIEnv* jni) {
+  return webrtc::kIsLibaomAv1DecoderSupported;
+}
+
+=======
+>>>>>>> m108:sdk/android/src/jni/libaom_av1_encoder.cc
+>>>>>>> m108
 }  // namespace jni
 }  // namespace webrtc

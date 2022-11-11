@@ -11,6 +11,7 @@
 #ifndef PC_CHANNEL_INTERFACE_H_
 #define PC_CHANNEL_INTERFACE_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -28,8 +29,11 @@ class VideoBitrateAllocatorFactory;
 namespace cricket {
 
 class MediaContentDescription;
+<<<<<<< HEAD
 class VideoChannel;
 class VoiceChannel;
+=======
+>>>>>>> m108
 struct MediaConfig;
 
 // A Channel is a construct that groups media streams of the same type
@@ -42,11 +46,20 @@ struct MediaConfig;
 // ChannelInterface contains methods common to voice and video channels.
 // As more methods are added to BaseChannel, they should be included in the
 // interface as well.
+// TODO(bugs.webrtc.org/13931): Merge this class into RtpTransceiver.
 class ChannelInterface {
  public:
+  virtual ~ChannelInterface() = default;
   virtual cricket::MediaType media_type() const = 0;
 
   virtual MediaChannel* media_channel() const = 0;
+<<<<<<< HEAD
+=======
+  // Typecasts of media_channel(). Will cause an exception if the
+  // channel is of the wrong type.
+  virtual VideoMediaChannel* video_media_channel() const = 0;
+  virtual VoiceMediaChannel* voice_media_channel() const = 0;
+>>>>>>> m108
 
   // Returns a string view for the transport name. Fetching the transport name
   // must be done on the network thread only and note that the lifetime of
@@ -83,9 +96,6 @@ class ChannelInterface {
   //   * An SrtpTransport for SDES.
   //   * A DtlsSrtpTransport for DTLS-SRTP.
   virtual bool SetRtpTransport(webrtc::RtpTransportInternal* rtp_transport) = 0;
-
- protected:
-  virtual ~ChannelInterface() = default;
 };
 
 class ChannelFactoryInterface {

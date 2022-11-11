@@ -21,6 +21,10 @@
 #include "api/test/stats_observer_interface.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread_annotations.h"
+<<<<<<< HEAD
+=======
+#include "test/pc/e2e/stats_provider.h"
+>>>>>>> m108
 #include "test/pc/e2e/test_peer.h"
 
 namespace webrtc {
@@ -31,9 +35,17 @@ namespace webrtc_pc_e2e {
 class InternalStatsObserver : public RTCStatsCollectorCallback {
  public:
   InternalStatsObserver(absl::string_view pc_label,
+<<<<<<< HEAD
                         TestPeer* peer,
                         std::vector<StatsObserverInterface*> observers)
       : pc_label_(pc_label), peer_(peer), observers_(std::move(observers)) {}
+=======
+                        StatsProvider* peer,
+                        std::vector<StatsObserverInterface*> observers)
+      : pc_label_(pc_label), peer_(peer), observers_(std::move(observers)) {}
+
+  std::string pc_label() const { return pc_label_; }
+>>>>>>> m108
 
   void PollStats();
 
@@ -42,7 +54,7 @@ class InternalStatsObserver : public RTCStatsCollectorCallback {
 
  private:
   std::string pc_label_;
-  TestPeer* peer_;
+  StatsProvider* peer_;
   std::vector<StatsObserverInterface*> observers_;
 };
 
@@ -52,11 +64,21 @@ class InternalStatsObserver : public RTCStatsCollectorCallback {
 class StatsPoller {
  public:
   StatsPoller(std::vector<StatsObserverInterface*> observers,
+              std::map<std::string, StatsProvider*> peers_to_observe);
+  StatsPoller(std::vector<StatsObserverInterface*> observers,
               std::map<std::string, TestPeer*> peers_to_observe);
 
   void PollStatsAndNotifyObservers();
 
+<<<<<<< HEAD
   void RegisterParticipantInCall(absl::string_view peer_name, TestPeer* peer);
+=======
+  void RegisterParticipantInCall(absl::string_view peer_name,
+                                 StatsProvider* peer);
+  // Unregister participant from stats poller. Returns true if participant was
+  // removed and false if participant wasn't found.
+  bool UnregisterParticipantInCall(absl::string_view peer_name);
+>>>>>>> m108
 
  private:
   const std::vector<StatsObserverInterface*> observers_;

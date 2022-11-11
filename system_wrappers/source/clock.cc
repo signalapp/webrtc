@@ -10,24 +10,6 @@
 
 #include "system_wrappers/include/clock.h"
 
-#include "system_wrappers/include/field_trial.h"
-
-#if defined(WEBRTC_WIN)
-
-// Windows needs to be included before mmsystem.h
-#include "rtc_base/win32.h"
-
-#include <mmsystem.h>
-
-
-#elif defined(WEBRTC_POSIX)
-
-#include <sys/time.h>
-#include <time.h>
-
-#endif  // defined(WEBRTC_POSIX)
-
-#include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/time_utils.h"
 
 namespace webrtc {
@@ -60,44 +42,20 @@ NtpTime TimeMicrosToNtp(int64_t time_us) {
   return NtpTime(ntp_seconds, ntp_fractions);
 }
 
-void GetSecondsAndFraction(const timeval& time,
-                           uint32_t* seconds,
-                           double* fraction) {
-  *seconds = time.tv_sec + kNtpJan1970;
-  *fraction = time.tv_usec / 1e6;
-
-  while (*fraction >= 1) {
-    --*fraction;
-    ++*seconds;
-  }
-  while (*fraction < 0) {
-    ++*fraction;
-    --*seconds;
-  }
-}
-
 }  // namespace
 
 class RealTimeClock : public Clock {
  public:
-  RealTimeClock()
-      : use_system_independent_ntp_time_(!field_trial::IsEnabled(
-            "WebRTC-SystemIndependentNtpTimeKillSwitch")) {}
+  RealTimeClock() = default;
 
   Timestamp CurrentTime() override {
     return Timestamp::Micros(rtc::TimeMicros());
   }
 
-  NtpTime CurrentNtpTime() override {
-    return use_system_independent_ntp_time_ ? TimeMicrosToNtp(rtc::TimeMicros())
-                                            : SystemDependentNtpTime();
-  }
-
   NtpTime ConvertTimestampToNtpTime(Timestamp timestamp) override {
-    // This method does not check `use_system_independent_ntp_time_` because
-    // all callers never used the old behavior of `CurrentNtpTime`.
     return TimeMicrosToNtp(timestamp.us());
   }
+<<<<<<< HEAD
 
  protected:
   virtual timeval CurrentTimeVal() = 0;
@@ -251,19 +209,12 @@ class UnixRealTimeClock : public RealTimeClock {
     gettimeofday(&tv, nullptr);
     return tv;
   }
+=======
+>>>>>>> m108
 };
-#endif  // defined(WEBRTC_POSIX)
 
 Clock* Clock::GetRealTimeClock() {
-#if defined(WINUWP)
-  static Clock* const clock = new WinUwpRealTimeClock();
-#elif defined(WEBRTC_WIN)
-  static Clock* const clock = new WindowsRealTimeClock();
-#elif defined(WEBRTC_POSIX)
-  static Clock* const clock = new UnixRealTimeClock();
-#else
-  static Clock* const clock = nullptr;
-#endif
+  static Clock* const clock = new RealTimeClock();
   return clock;
 }
 

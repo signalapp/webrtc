@@ -31,19 +31,34 @@ size_t OutstandingData::GetSerializedChunkSize(const Data& data) const {
 }
 
 void OutstandingData::Item::Ack() {
+<<<<<<< HEAD
   ack_state_ = AckState::kAcked;
   should_be_retransmitted_ = false;
+=======
+  if (lifecycle_ != Lifecycle::kAbandoned) {
+    lifecycle_ = Lifecycle::kActive;
+  }
+  ack_state_ = AckState::kAcked;
+>>>>>>> m108
 }
 
 OutstandingData::Item::NackAction OutstandingData::Item::Nack(
     bool retransmit_now) {
   ack_state_ = AckState::kNacked;
   ++nack_count_;
+<<<<<<< HEAD
   if ((retransmit_now || nack_count_ >= kNumberOfNacksForRetransmission) &&
       !is_abandoned_) {
     // Nacked enough times - it's considered lost.
     if (num_retransmissions_ < *max_retransmissions_) {
       should_be_retransmitted_ = true;
+=======
+  if (!should_be_retransmitted() && !is_abandoned() &&
+      (retransmit_now || nack_count_ >= kNumberOfNacksForRetransmission)) {
+    // Nacked enough times - it's considered lost.
+    if (num_retransmissions_ < *max_retransmissions_) {
+      lifecycle_ = Lifecycle::kToBeRetransmitted;
+>>>>>>> m108
       return NackAction::kRetransmit;
     }
     Abandon();
@@ -52,17 +67,27 @@ OutstandingData::Item::NackAction OutstandingData::Item::Nack(
   return NackAction::kNothing;
 }
 
+<<<<<<< HEAD
 void OutstandingData::Item::Retransmit() {
   ack_state_ = AckState::kUnacked;
   should_be_retransmitted_ = false;
+=======
+void OutstandingData::Item::MarkAsRetransmitted() {
+  lifecycle_ = Lifecycle::kActive;
+  ack_state_ = AckState::kUnacked;
+>>>>>>> m108
 
   nack_count_ = 0;
   ++num_retransmissions_;
 }
 
 void OutstandingData::Item::Abandon() {
+<<<<<<< HEAD
   is_abandoned_ = true;
   should_be_retransmitted_ = false;
+=======
+  lifecycle_ = Lifecycle::kAbandoned;
+>>>>>>> m108
 }
 
 bool OutstandingData::Item::has_expired(TimeMs now) const {
@@ -73,7 +98,17 @@ bool OutstandingData::IsConsistent() const {
   size_t actual_outstanding_bytes = 0;
   size_t actual_outstanding_items = 0;
 
+<<<<<<< HEAD
   std::set<UnwrappedTSN> actual_to_be_retransmitted;
+=======
+  std::set<UnwrappedTSN> combined_to_be_retransmitted;
+  combined_to_be_retransmitted.insert(to_be_retransmitted_.begin(),
+                                      to_be_retransmitted_.end());
+  combined_to_be_retransmitted.insert(to_be_fast_retransmitted_.begin(),
+                                      to_be_fast_retransmitted_.end());
+
+  std::set<UnwrappedTSN> actual_combined_to_be_retransmitted;
+>>>>>>> m108
   for (const auto& [tsn, item] : outstanding_data_) {
     if (item.is_outstanding()) {
       actual_outstanding_bytes += GetSerializedChunkSize(item.data());
@@ -81,7 +116,11 @@ bool OutstandingData::IsConsistent() const {
     }
 
     if (item.should_be_retransmitted()) {
+<<<<<<< HEAD
       actual_to_be_retransmitted.insert(tsn);
+=======
+      actual_combined_to_be_retransmitted.insert(tsn);
+>>>>>>> m108
     }
   }
 
@@ -92,7 +131,11 @@ bool OutstandingData::IsConsistent() const {
 
   return actual_outstanding_bytes == outstanding_bytes_ &&
          actual_outstanding_items == outstanding_items_ &&
+<<<<<<< HEAD
          actual_to_be_retransmitted == to_be_retransmitted_;
+=======
+         actual_combined_to_be_retransmitted == combined_to_be_retransmitted;
+>>>>>>> m108
 }
 
 void OutstandingData::AckChunk(AckInfo& ack_info,
@@ -105,6 +148,11 @@ void OutstandingData::AckChunk(AckInfo& ack_info,
       --outstanding_items_;
     }
     if (iter->second.should_be_retransmitted()) {
+<<<<<<< HEAD
+=======
+      RTC_DCHECK(to_be_fast_retransmitted_.find(iter->first) ==
+                 to_be_fast_retransmitted_.end());
+>>>>>>> m108
       to_be_retransmitted_.erase(iter->first);
     }
     iter->second.Ack();
@@ -116,7 +164,11 @@ void OutstandingData::AckChunk(AckInfo& ack_info,
 OutstandingData::AckInfo OutstandingData::HandleSack(
     UnwrappedTSN cumulative_tsn_ack,
     rtc::ArrayView<const SackChunk::GapAckBlock> gap_ack_blocks,
+<<<<<<< HEAD
     bool is_in_fast_retransmit) {
+=======
+    bool is_in_fast_recovery) {
+>>>>>>> m108
   OutstandingData::AckInfo ack_info(cumulative_tsn_ack);
   // Erase all items up to cumulative_tsn_ack.
   RemoveAcked(cumulative_tsn_ack, ack_info);
@@ -125,8 +177,13 @@ OutstandingData::AckInfo OutstandingData::HandleSack(
   AckGapBlocks(cumulative_tsn_ack, gap_ack_blocks, ack_info);
 
   // NACK and possibly mark for retransmit chunks that weren't acked.
+<<<<<<< HEAD
   NackBetweenAckBlocks(cumulative_tsn_ack, gap_ack_blocks,
                        is_in_fast_retransmit, ack_info);
+=======
+  NackBetweenAckBlocks(cumulative_tsn_ack, gap_ack_blocks, is_in_fast_recovery,
+                       ack_info);
+>>>>>>> m108
 
   RTC_DCHECK(IsConsistent());
   return ack_info;
@@ -138,6 +195,17 @@ void OutstandingData::RemoveAcked(UnwrappedTSN cumulative_tsn_ack,
 
   for (auto iter = outstanding_data_.begin(); iter != first_unacked; ++iter) {
     AckChunk(ack_info, iter);
+<<<<<<< HEAD
+=======
+    if (iter->second.lifecycle_id().IsSet()) {
+      RTC_DCHECK(iter->second.data().is_end);
+      if (iter->second.is_abandoned()) {
+        ack_info.abandoned_lifecycle_ids.push_back(iter->second.lifecycle_id());
+      } else {
+        ack_info.acked_lifecycle_ids.push_back(iter->second.lifecycle_id());
+      }
+    }
+>>>>>>> m108
   }
 
   outstanding_data_.erase(outstanding_data_.begin(), first_unacked);
@@ -197,8 +265,14 @@ void OutstandingData::NackBetweenAckBlocks(
     for (auto iter = outstanding_data_.upper_bound(prev_block_last_acked);
          iter != outstanding_data_.lower_bound(cur_block_first_acked); ++iter) {
       if (iter->first <= max_tsn_to_nack) {
+<<<<<<< HEAD
         ack_info.has_packet_loss =
             NackItem(iter->first, iter->second, /*retransmit_now=*/false);
+=======
+        ack_info.has_packet_loss |=
+            NackItem(iter->first, iter->second, /*retransmit_now=*/false,
+                     /*do_fast_retransmit=*/!is_in_fast_recovery);
+>>>>>>> m108
       }
     }
     prev_block_last_acked = UnwrappedTSN::AddTo(cumulative_tsn_ack, block.end);
@@ -212,7 +286,12 @@ void OutstandingData::NackBetweenAckBlocks(
 
 bool OutstandingData::NackItem(UnwrappedTSN tsn,
                                Item& item,
+<<<<<<< HEAD
                                bool retransmit_now) {
+=======
+                               bool retransmit_now,
+                               bool do_fast_retransmit) {
+>>>>>>> m108
   if (item.is_outstanding()) {
     outstanding_bytes_ -= GetSerializedChunkSize(item.data());
     --outstanding_items_;
@@ -222,7 +301,15 @@ bool OutstandingData::NackItem(UnwrappedTSN tsn,
     case Item::NackAction::kNothing:
       return false;
     case Item::NackAction::kRetransmit:
+<<<<<<< HEAD
       to_be_retransmitted_.insert(tsn);
+=======
+      if (do_fast_retransmit) {
+        to_be_fast_retransmitted_.insert(tsn);
+      } else {
+        to_be_retransmitted_.insert(tsn);
+      }
+>>>>>>> m108
       RTC_DLOG(LS_VERBOSE) << *tsn.Wrap() << " marked for retransmission";
       break;
     case Item::NackAction::kAbandon:
@@ -252,9 +339,17 @@ void OutstandingData::AbandonAllFor(const Item& item) {
                      Data::IsEnd(true), item.data().is_unordered);
     Item& added_item =
         outstanding_data_
+<<<<<<< HEAD
             .emplace(tsn,
                      Item(std::move(message_end), MaxRetransmits::NoLimit(),
                           TimeMs(0), TimeMs::InfiniteFuture()))
+=======
+            .emplace(std::piecewise_construct, std::forward_as_tuple(tsn),
+                     std::forward_as_tuple(std::move(message_end), TimeMs(0),
+                                           MaxRetransmits::NoLimit(),
+                                           TimeMs::InfiniteFuture(),
+                                           LifecycleId::NotSet()))
+>>>>>>> m108
             .first->second;
     // The added chunk shouldn't be included in `outstanding_bytes`, so set it
     // as acked.
@@ -271,6 +366,10 @@ void OutstandingData::AbandonAllFor(const Item& item) {
       RTC_DLOG(LS_VERBOSE) << "Marking chunk " << *tsn.Wrap()
                            << " as abandoned";
       if (other.should_be_retransmitted()) {
+<<<<<<< HEAD
+=======
+        to_be_fast_retransmitted_.erase(tsn);
+>>>>>>> m108
         to_be_retransmitted_.erase(tsn);
       }
       other.Abandon();
@@ -278,12 +377,21 @@ void OutstandingData::AbandonAllFor(const Item& item) {
   }
 }
 
+<<<<<<< HEAD
 std::vector<std::pair<TSN, Data>> OutstandingData::GetChunksToBeRetransmitted(
     size_t max_size) {
   std::vector<std::pair<TSN, Data>> result;
 
   for (auto it = to_be_retransmitted_.begin();
        it != to_be_retransmitted_.end();) {
+=======
+std::vector<std::pair<TSN, Data>> OutstandingData::ExtractChunksThatCanFit(
+    std::set<UnwrappedTSN>& chunks,
+    size_t max_size) {
+  std::vector<std::pair<TSN, Data>> result;
+
+  for (auto it = chunks.begin(); it != chunks.end();) {
+>>>>>>> m108
     UnwrappedTSN tsn = *it;
     auto elem = outstanding_data_.find(tsn);
     RTC_DCHECK(elem != outstanding_data_.end());
@@ -295,12 +403,20 @@ std::vector<std::pair<TSN, Data>> OutstandingData::GetChunksToBeRetransmitted(
 
     size_t serialized_size = GetSerializedChunkSize(item.data());
     if (serialized_size <= max_size) {
+<<<<<<< HEAD
       item.Retransmit();
+=======
+      item.MarkAsRetransmitted();
+>>>>>>> m108
       result.emplace_back(tsn.Wrap(), item.data().Clone());
       max_size -= serialized_size;
       outstanding_bytes_ += serialized_size;
       ++outstanding_items_;
+<<<<<<< HEAD
       it = to_be_retransmitted_.erase(it);
+=======
+      it = chunks.erase(it);
+>>>>>>> m108
     } else {
       ++it;
     }
@@ -309,11 +425,43 @@ std::vector<std::pair<TSN, Data>> OutstandingData::GetChunksToBeRetransmitted(
       break;
     }
   }
+<<<<<<< HEAD
+=======
+  return result;
+}
+
+std::vector<std::pair<TSN, Data>>
+OutstandingData::GetChunksToBeFastRetransmitted(size_t max_size) {
+  std::vector<std::pair<TSN, Data>> result =
+      ExtractChunksThatCanFit(to_be_fast_retransmitted_, max_size);
+
+  // https://datatracker.ietf.org/doc/html/rfc4960#section-7.2.4
+  // "Those TSNs marked for retransmission due to the Fast-Retransmit algorithm
+  // that did not fit in the sent datagram carrying K other TSNs are also marked
+  // as ineligible for a subsequent Fast Retransmit.  However, as they are
+  // marked for retransmission they will be retransmitted later on as soon as
+  // cwnd allows."
+  if (!to_be_fast_retransmitted_.empty()) {
+    to_be_retransmitted_.insert(to_be_fast_retransmitted_.begin(),
+                                to_be_fast_retransmitted_.end());
+    to_be_fast_retransmitted_.clear();
+  }
+>>>>>>> m108
 
   RTC_DCHECK(IsConsistent());
   return result;
 }
 
+<<<<<<< HEAD
+=======
+std::vector<std::pair<TSN, Data>> OutstandingData::GetChunksToBeRetransmitted(
+    size_t max_size) {
+  // Chunks scheduled for fast retransmission must be sent first.
+  RTC_DCHECK(to_be_fast_retransmitted_.empty());
+  return ExtractChunksThatCanFit(to_be_retransmitted_, max_size);
+}
+
+>>>>>>> m108
 void OutstandingData::ExpireOutstandingChunks(TimeMs now) {
   for (const auto& [tsn, item] : outstanding_data_) {
     // Chunks that are nacked can be expired. Care should be taken not to expire
@@ -341,9 +489,16 @@ UnwrappedTSN OutstandingData::highest_outstanding_tsn() const {
 
 absl::optional<UnwrappedTSN> OutstandingData::Insert(
     const Data& data,
+<<<<<<< HEAD
     MaxRetransmits max_retransmissions,
     TimeMs time_sent,
     TimeMs expires_at) {
+=======
+    TimeMs time_sent,
+    MaxRetransmits max_retransmissions,
+    TimeMs expires_at,
+    LifecycleId lifecycle_id) {
+>>>>>>> m108
   UnwrappedTSN tsn = next_tsn_;
   next_tsn_.Increment();
 
@@ -352,8 +507,15 @@ absl::optional<UnwrappedTSN> OutstandingData::Insert(
   outstanding_bytes_ += chunk_size;
   ++outstanding_items_;
   auto it = outstanding_data_
+<<<<<<< HEAD
                 .emplace(tsn, Item(data.Clone(), max_retransmissions, time_sent,
                                    expires_at))
+=======
+                .emplace(std::piecewise_construct, std::forward_as_tuple(tsn),
+                         std::forward_as_tuple(data.Clone(), time_sent,
+                                               max_retransmissions, expires_at,
+                                               lifecycle_id))
+>>>>>>> m108
                 .first;
 
   if (it->second.has_expired(time_sent)) {
@@ -374,7 +536,12 @@ absl::optional<UnwrappedTSN> OutstandingData::Insert(
 void OutstandingData::NackAll() {
   for (auto& [tsn, item] : outstanding_data_) {
     if (!item.is_acked()) {
+<<<<<<< HEAD
       NackItem(tsn, item, /*retransmit_now=*/true);
+=======
+      NackItem(tsn, item, /*retransmit_now=*/true,
+               /*do_fast_retransmit=*/false);
+>>>>>>> m108
     }
   }
   RTC_DCHECK(IsConsistent());
@@ -476,4 +643,15 @@ IForwardTsnChunk OutstandingData::CreateIForwardTsn() const {
                           std::move(skipped_streams));
 }
 
+<<<<<<< HEAD
+=======
+void OutstandingData::ResetSequenceNumbers(UnwrappedTSN next_tsn,
+                                           UnwrappedTSN last_cumulative_tsn) {
+  RTC_DCHECK(outstanding_data_.empty());
+  RTC_DCHECK(next_tsn_ == last_cumulative_tsn_ack_.next_value());
+  RTC_DCHECK(next_tsn == last_cumulative_tsn.next_value());
+  next_tsn_ = next_tsn;
+  last_cumulative_tsn_ack_ = last_cumulative_tsn;
+}
+>>>>>>> m108
 }  // namespace dcsctp

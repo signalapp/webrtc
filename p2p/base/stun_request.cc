@@ -16,6 +16,10 @@
 #include <vector>
 
 #include "absl/memory/memory.h"
+<<<<<<< HEAD
+=======
+#include "api/task_queue/pending_task_safety_flag.h"
+>>>>>>> m108
 #include "rtc_base/checks.h"
 #include "rtc_base/helpers.h"
 #include "rtc_base/logging.h"
@@ -23,8 +27,7 @@
 #include "rtc_base/time_utils.h"  // For TimeMillis
 
 namespace cricket {
-
-const uint32_t MSG_STUN_SEND = 1;
+using ::webrtc::SafeTask;
 
 // RFC 5389 says SHOULD be 500ms.
 // For years, this was 100ms, but for networks that
@@ -44,7 +47,11 @@ const int STUN_MAX_RETRANSMISSIONS = 8;           // Total sends: 9
 const int STUN_MAX_RTO = 8000;  // milliseconds, or 5 doublings
 
 StunRequestManager::StunRequestManager(
+<<<<<<< HEAD
     rtc::Thread* thread,
+=======
+    webrtc::TaskQueueBase* thread,
+>>>>>>> m108
     std::function<void(const void*, size_t, StunRequest*)> send_packet)
     : thread_(thread), send_packet_(std::move(send_packet)) {}
 
@@ -57,6 +64,7 @@ void StunRequestManager::Send(StunRequest* request) {
 void StunRequestManager::SendDelayed(StunRequest* request, int delay) {
   RTC_DCHECK_RUN_ON(thread_);
   RTC_DCHECK_EQ(this, request->manager());
+<<<<<<< HEAD
   request->Construct();
   auto [iter, was_inserted] =
       requests_.emplace(request->id(), absl::WrapUnique(request));
@@ -67,22 +75,46 @@ void StunRequestManager::SendDelayed(StunRequest* request, int delay) {
   } else {
     thread_->Send(RTC_FROM_HERE, iter->second.get(), MSG_STUN_SEND, NULL);
   }
+=======
+  auto [iter, was_inserted] =
+      requests_.emplace(request->id(), absl::WrapUnique(request));
+  RTC_DCHECK(was_inserted);
+  request->Send(webrtc::TimeDelta::Millis(delay));
+>>>>>>> m108
 }
 
 void StunRequestManager::FlushForTest(int msg_type) {
   RTC_DCHECK_RUN_ON(thread_);
   for (const auto& [unused, request] : requests_) {
+<<<<<<< HEAD
     if (msg_type == kAllRequests || msg_type == request->type()) {
       thread_->Clear(request.get(), MSG_STUN_SEND);
       thread_->Send(RTC_FROM_HERE, request.get(), MSG_STUN_SEND, NULL);
+=======
+    if (msg_type == kAllRequestsForTest || msg_type == request->type()) {
+      // Calling `Send` implies starting the send operation which may be posted
+      // on a timer and be repeated on a timer until timeout. To make sure that
+      // a call to `Send` doesn't conflict with a previously started `Send`
+      // operation, we reset the `task_safety_` flag here, which has the effect
+      // of canceling any outstanding tasks and prepare a new flag for
+      // operations related to this call to `Send`.
+      request->ResetTasksForTest();
+      request->Send(webrtc::TimeDelta::Zero());
+>>>>>>> m108
     }
   }
 }
 
 bool StunRequestManager::HasRequestForTest(int msg_type) {
   RTC_DCHECK_RUN_ON(thread_);
+<<<<<<< HEAD
   for (const auto& [unused, request] : requests_) {
     if (msg_type == kAllRequests || msg_type == request->type()) {
+=======
+  RTC_DCHECK_NE(msg_type, kAllRequestsForTest);
+  for (const auto& [unused, request] : requests_) {
+    if (msg_type == request->type()) {
+>>>>>>> m108
       return true;
     }
   }
@@ -97,11 +129,8 @@ void StunRequestManager::Clear() {
 bool StunRequestManager::CheckResponse(StunMessage* msg) {
   RTC_DCHECK_RUN_ON(thread_);
   RequestMap::iterator iter = requests_.find(msg->transaction_id());
-  if (iter == requests_.end()) {
-    // TODO(pthatcher): Log unknown responses without being too spammy
-    // in the logs.
+  if (iter == requests_.end())
     return false;
-  }
 
   StunRequest* request = iter->second.get();
 
@@ -109,11 +138,30 @@ bool StunRequestManager::CheckResponse(StunMessage* msg) {
   // integrity-protected or not.
   // For some tests, the message integrity is not set in the request.
   // Complain, and then don't check.
-  bool skip_integrity_checking = false;
-  if (request->msg()->integrity() == StunMessage::IntegrityStatus::kNotSet) {
-    skip_integrity_checking = true;
+  bool skip_integrity_checking =
+      (request->msg()->integrity() == StunMessage::IntegrityStatus::kNotSet);
+  if (skip_integrity_checking) {
+    // This indicates lazy test writing (not adding integrity attribute).
+    // Complain, but only in debug mode (while developing).
+    RTC_DLOG(LS_ERROR)
+        << "CheckResponse called on a passwordless request. Fix test!";
   } else {
-    msg->ValidateMessageIntegrity(request->msg()->password());
+    if (msg->integrity() == StunMessage::IntegrityStatus::kNotSet) {
+      // Checking status for the first time. Normal.
+      msg->ValidateMessageIntegrity(request->msg()->password());
+    } else if (msg->integrity() == StunMessage::IntegrityStatus::kIntegrityOk &&
+               msg->password() == request->msg()->password()) {
+      // Status is already checked, with the same password. This is the case
+      // we would want to see happen.
+    } else if (msg->integrity() ==
+               StunMessage::IntegrityStatus::kIntegrityBad) {
+      // This indicates that the original check had the wrong password.
+      // Bad design, needs revisiting.
+      // TODO(crbug.com/1177125): Fix this.
+      msg->RevalidateMessageIntegrity(request->msg()->password());
+    } else {
+      RTC_CHECK_NOTREACHED();
+    }
   }
 
   bool success = true;
@@ -160,11 +208,8 @@ bool StunRequestManager::CheckResponse(const char* data, size_t size) {
   id.append(data + kStunTransactionIdOffset, kStunTransactionIdLength);
 
   RequestMap::iterator iter = requests_.find(id);
-  if (iter == requests_.end()) {
-    // TODO(pthatcher): Log unknown responses without being too spammy
-    // in the logs.
+  if (iter == requests_.end())
     return false;
-  }
 
   // Parse the STUN message and continue processing as usual.
 
@@ -182,6 +227,7 @@ bool StunRequestManager::CheckResponse(const char* data, size_t size) {
 void StunRequestManager::OnRequestTimedOut(StunRequest* request) {
   RTC_DCHECK_RUN_ON(thread_);
   requests_.erase(request->id());
+<<<<<<< HEAD
 }
 
 void StunRequestManager::SendPacket(const void* data,
@@ -219,7 +265,38 @@ void StunRequest::Construct() {
     Prepare(msg_.get());
     RTC_DCHECK(msg_->type() != 0);
   }
+=======
 }
+
+void StunRequestManager::SendPacket(const void* data,
+                                    size_t size,
+                                    StunRequest* request) {
+  RTC_DCHECK_EQ(this, request->manager());
+  send_packet_(data, size, request);
+}
+
+StunRequest::StunRequest(StunRequestManager& manager)
+    : manager_(manager),
+      msg_(new StunMessage(STUN_INVALID_MESSAGE_TYPE)),
+      tstamp_(0),
+      count_(0),
+      timeout_(false) {
+  RTC_DCHECK_RUN_ON(network_thread());
+}
+
+StunRequest::StunRequest(StunRequestManager& manager,
+                         std::unique_ptr<StunMessage> message)
+    : manager_(manager),
+      msg_(std::move(message)),
+      tstamp_(0),
+      count_(0),
+      timeout_(false) {
+  RTC_DCHECK_RUN_ON(network_thread());
+  RTC_DCHECK(!msg_->transaction_id().empty());
+>>>>>>> m108
+}
+
+StunRequest::~StunRequest() {}
 
 int StunRequest::type() {
   RTC_DCHECK(msg_ != NULL);
@@ -235,10 +312,15 @@ int StunRequest::Elapsed() const {
   return static_cast<int>(rtc::TimeMillis() - tstamp_);
 }
 
+<<<<<<< HEAD
 void StunRequest::OnMessage(rtc::Message* pmsg) {
   RTC_DCHECK_RUN_ON(network_thread());
   RTC_DCHECK(pmsg->message_id == MSG_STUN_SEND);
 
+=======
+void StunRequest::SendInternal() {
+  RTC_DCHECK_RUN_ON(network_thread());
+>>>>>>> m108
   if (timeout_) {
     OnTimeout();
     manager_.OnRequestTimedOut(this);
@@ -252,8 +334,34 @@ void StunRequest::OnMessage(rtc::Message* pmsg) {
   manager_.SendPacket(buf.Data(), buf.Length(), this);
 
   OnSent();
+<<<<<<< HEAD
   manager_.network_thread()->PostDelayed(RTC_FROM_HERE, resend_delay(), this,
                                          MSG_STUN_SEND, NULL);
+=======
+  SendDelayed(webrtc::TimeDelta::Millis(resend_delay()));
+}
+
+void StunRequest::SendDelayed(webrtc::TimeDelta delay) {
+  network_thread()->PostDelayedTask(
+      SafeTask(task_safety_.flag(), [this]() { SendInternal(); }), delay);
+}
+
+void StunRequest::Send(webrtc::TimeDelta delay) {
+  RTC_DCHECK_RUN_ON(network_thread());
+  RTC_DCHECK_GE(delay.ms(), 0);
+
+  RTC_DCHECK(!task_safety_.flag()->alive()) << "Send already called?";
+  task_safety_.flag()->SetAlive();
+
+  delay.IsZero() ? SendInternal() : SendDelayed(delay);
+}
+
+void StunRequest::ResetTasksForTest() {
+  RTC_DCHECK_RUN_ON(network_thread());
+  task_safety_.reset(webrtc::PendingTaskSafetyFlag::CreateDetachedInactive());
+  count_ = 0;
+  RTC_DCHECK(!timeout_);
+>>>>>>> m108
 }
 
 void StunRequest::OnSent() {

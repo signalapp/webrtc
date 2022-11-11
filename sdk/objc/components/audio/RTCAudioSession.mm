@@ -12,10 +12,14 @@
 
 #import <UIKit/UIKit.h>
 
+#include <atomic>
 #include <vector>
 
 #include "absl/base/attributes.h"
+<<<<<<< HEAD
 #include "rtc_base/atomic_ops.h"
+=======
+>>>>>>> m108
 #include "rtc_base/checks.h"
 #include "rtc_base/synchronization/mutex.h"
 
@@ -48,8 +52,8 @@ ABSL_CONST_INIT thread_local bool mutex_locked = false;
 @implementation RTC_OBJC_TYPE (RTCAudioSession) {
   webrtc::Mutex _mutex;
   AVAudioSession *_session;
-  volatile int _activationCount;
-  volatile int _webRTCSessionCount;
+  std::atomic<int> _activationCount;
+  std::atomic<int> _webRTCSessionCount;
   BOOL _isActive;
   BOOL _useManualAudio;
   BOOL _isAudioEnabled;
@@ -351,7 +355,11 @@ ABSL_CONST_INIT thread_local bool mutex_locked = false;
   if (![self checkLock:outError]) {
     return NO;
   }
+<<<<<<< HEAD
   int activationCount = _activationCount;
+=======
+  int activationCount = _activationCount.load();
+>>>>>>> m108
   if (!active && activationCount == 0) {
     RTCLogWarning(@"Attempting to deactivate without prior activation.");
   }
@@ -403,7 +411,7 @@ ABSL_CONST_INIT thread_local bool mutex_locked = false;
     [self notifyDidSetActive:active];
     [self decrementActivationCount];
   }
-  RTCLog(@"Number of current activations: %d", _activationCount);
+  RTCLog(@"Number of current activations: %d", _activationCount.load());
   return success;
 }
 
@@ -643,21 +651,21 @@ ABSL_CONST_INIT thread_local bool mutex_locked = false;
 }
 
 - (int)activationCount {
-  return _activationCount;
+  return _activationCount.load();
 }
 
 - (int)incrementActivationCount {
   RTCLog(@"Incrementing activation count.");
-  return rtc::AtomicOps::Increment(&_activationCount);
+  return _activationCount.fetch_add(1) + 1;
 }
 
 - (NSInteger)decrementActivationCount {
   RTCLog(@"Decrementing activation count.");
-  return rtc::AtomicOps::Decrement(&_activationCount);
+  return _activationCount.fetch_sub(1) - 1;
 }
 
 - (int)webRTCSessionCount {
-  return _webRTCSessionCount;
+  return _webRTCSessionCount.load();
 }
 
 - (BOOL)canPlayOrRecord {
@@ -693,7 +701,7 @@ ABSL_CONST_INIT thread_local bool mutex_locked = false;
   if (outError) {
     *outError = nil;
   }
-  rtc::AtomicOps::Increment(&_webRTCSessionCount);
+  _webRTCSessionCount.fetch_add(1);
   [self notifyDidStartPlayOrRecord];
   return YES;
 }
@@ -702,7 +710,7 @@ ABSL_CONST_INIT thread_local bool mutex_locked = false;
   if (outError) {
     *outError = nil;
   }
-  rtc::AtomicOps::Decrement(&_webRTCSessionCount);
+  _webRTCSessionCount.fetch_sub(1);
   [self notifyDidStopPlayOrRecord];
   return YES;
 }

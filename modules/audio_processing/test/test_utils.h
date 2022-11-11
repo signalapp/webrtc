@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "common_audio/channel_buffer.h"
 #include "common_audio/wav_file.h"
 #include "modules/audio_processing/include/audio_processing.h"
@@ -29,6 +30,7 @@ namespace webrtc {
 static const AudioProcessing::Error kNoErr = AudioProcessing::kNoError;
 #define EXPECT_NOERR(expr) EXPECT_EQ(kNoErr, (expr))
 
+<<<<<<< HEAD
 class RawFile final {
  public:
   explicit RawFile(const std::string& filename);
@@ -44,6 +46,8 @@ class RawFile final {
   FILE* file_handle_;
 };
 
+=======
+>>>>>>> m108
 // Encapsulates samples and metadata for an integer frame.
 struct Int16FrameData {
   // Max data size that matches the data size of the AudioFrame class, providing
@@ -126,21 +130,8 @@ class ChannelBufferVectorWriter final {
   std::vector<float>* output_;
 };
 
-void WriteIntData(const int16_t* data,
-                  size_t length,
-                  WavWriter* wav_file,
-                  RawFile* raw_file);
-
-void WriteFloatData(const float* const* data,
-                    size_t samples_per_channel,
-                    size_t num_channels,
-                    WavWriter* wav_file,
-                    RawFile* raw_file);
-
 // Exits on failure; do not use in unit tests.
-FILE* OpenFile(const std::string& filename, const char* mode);
-
-size_t SamplesFromRate(int rate);
+FILE* OpenFile(absl::string_view filename, absl::string_view mode);
 
 void SetFrameSampleRate(Int16FrameData* frame, int sample_rate_hz);
 
@@ -179,10 +170,11 @@ float ComputeSNR(const T* ref, const T* test, size_t length, float* variance) {
 // Returns a vector<T> parsed from whitespace delimited values in to_parse,
 // or an empty vector if the string could not be parsed.
 template <typename T>
-std::vector<T> ParseList(const std::string& to_parse) {
+std::vector<T> ParseList(absl::string_view to_parse) {
   std::vector<T> values;
 
-  std::istringstream str(to_parse);
+  std::istringstream str(  // no-presubmit-check TODO(webrtc:8982)
+      std::string{to_parse});
   std::copy(
       std::istream_iterator<T>(str),  // no-presubmit-check TODO(webrtc:8982)
       std::istream_iterator<T>(),     // no-presubmit-check TODO(webrtc:8982)
