@@ -29,7 +29,6 @@
 #include "pc/rtp_media_utils.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/copy_on_write_buffer.h"
-#include "rtc_base/location.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/network_route.h"
 #include "rtc_base/strings/string_format.h"
@@ -937,7 +936,7 @@ bool VoiceChannel::SetRemoteContent_w(const MediaContentDescription* content,
 
 // RingRTC change to configure OPUS
 void VoiceChannel::ConfigureEncoders(const webrtc::AudioEncoder::Config& config) {
-  worker_thread()->Invoke<void>(RTC_FROM_HERE, [this, &config] {
+  worker_thread()->BlockingCall([this, &config] {
     media_channel()->ConfigureEncoders(config);
   });
 }
@@ -948,7 +947,7 @@ void VoiceChannel::GetAudioLevels(
     cricket::ReceivedAudioLevel* received_out,
     size_t received_out_size,
     size_t* received_size_out) {
-  worker_thread()->Invoke<void>(RTC_FROM_HERE, [this, captured_out, received_out, received_out_size, received_size_out] {
+  worker_thread()->BlockingCall([this, captured_out, received_out, received_out_size, received_size_out] {
     media_channel()->GetAudioLevels(captured_out, received_out, received_out_size, received_size_out);
   });
 }

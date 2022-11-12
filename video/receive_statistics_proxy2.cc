@@ -96,11 +96,9 @@ bool IsCurrentTaskQueueOrThread(TaskQueueBase* task_queue) {
 
 }  // namespace
 
-ReceiveStatisticsProxy::ReceiveStatisticsProxy(
-    uint32_t remote_ssrc,
-    Clock* clock,
-    TaskQueueBase* worker_thread,
-    const FieldTrialsView& field_trials)
+ReceiveStatisticsProxy::ReceiveStatisticsProxy(uint32_t remote_ssrc,
+                                               Clock* clock,
+                                               TaskQueueBase* worker_thread)
     : clock_(clock),
       start_ms_(clock->TimeInMilliseconds()),
       last_sample_time_(clock->TimeInMilliseconds()),

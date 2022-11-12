@@ -249,11 +249,6 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
     }
     return nullptr;
   }
-    if (shared_gatherer_) {
-      return shared_gatherer_->port_allocator_session();
-    }
-    return nullptr;
-  }
 
   // Public for unit tests.
   const std::vector<RemoteCandidate>& remote_candidates() const {

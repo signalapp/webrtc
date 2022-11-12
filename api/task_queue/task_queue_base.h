@@ -118,44 +118,6 @@ class RTC_LOCKABLE RTC_EXPORT TaskQueueBase {
     }
   }
 
-  // Prefer PostDelayedTask() over PostDelayedHighPrecisionTask() whenever
-  // possible.
-  //
-  // Schedules a task to execute a specified number of milliseconds from when
-  // the call is made, using "high" precision. All scheduling is affected by
-  // OS-specific leeway and current workloads which means that in terms of
-  // precision there are no hard guarantees.
-  //
-  // The task may execute with [-1, OS induced leeway] ms additional delay.
-  //
-  // Avoid making assumptions about the precision of the OS scheduler. On macOS,
-  // the OS induced leeway may be 10% of sleep interval. On Windows, 1 ms
-  // precision timers may be used but there are cases, such as when running on
-  // battery, when the timer precision can be as poor as 15 ms.
-  //
-  // May be called on any thread or task queue, including this task queue.
-  virtual void PostDelayedHighPrecisionTask(std::unique_ptr<QueuedTask> task,
-                                            uint32_t milliseconds) {
-    // Remove default implementation when dependencies have implemented this
-    // method.
-    PostDelayedTask(std::move(task), milliseconds);
-  }
-
-  // As specified by |precision|, calls either PostDelayedTask() or
-  // PostDelayedHighPrecisionTask().
-  void PostDelayedTaskWithPrecision(DelayPrecision precision,
-                                    std::unique_ptr<QueuedTask> task,
-                                    uint32_t milliseconds) {
-    switch (precision) {
-      case DelayPrecision::kLow:
-        PostDelayedTask(std::move(task), milliseconds);
-        break;
-      case DelayPrecision::kHigh:
-        PostDelayedHighPrecisionTask(std::move(task), milliseconds);
-        break;
-    }
-  }
-
   // Returns the task queue that is running the current thread.
   // Returns nullptr if this thread is not associated with any task queue.
   // May be called on any thread or task queue, including this task queue.

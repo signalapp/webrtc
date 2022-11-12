@@ -43,6 +43,7 @@
 #include "p2p/base/p2p_constants.h"
 #include "p2p/base/p2p_transport_channel.h"
 #include "p2p/base/transport_info.h"
+#include "pc/channel.h"
 #include "pc/ice_server_parsing.h"
 #include "pc/rtp_receiver.h"
 #include "pc/rtp_receiver_proxy.h"
@@ -2952,8 +2953,8 @@ PeerConnection::InitializeRtcpCallback() {
 rtc::scoped_refptr<webrtc::IceGathererInterface>
 PeerConnection::CreateSharedIceGatherer() {
   return network_thread()
-      ->Invoke<rtc::scoped_refptr<webrtc::IceGathererInterface>>(
-          RTC_FROM_HERE, [this] {
+      ->BlockingCall(
+          [this] {
             RTC_DCHECK_RUN_ON(network_thread());
             return port_allocator_->CreateIceGatherer("shared");
           });
@@ -2967,7 +2968,7 @@ bool PeerConnection::UseSharedIceGatherer(
 }
 
 bool PeerConnection::SetIncomingRtpEnabled(bool enabled) {
-  return network_thread()->Invoke<bool>(RTC_FROM_HERE, [this, enabled] {
+  return network_thread()->BlockingCall([this, enabled] {
     JsepTransportController* transport_controller = this->transport_controller_n();
     return transport_controller->SetIncomingRtpEnabled(enabled);
   });
@@ -2978,7 +2979,7 @@ bool PeerConnection::SendRtp(std::unique_ptr<RtpPacket> rtp_packet) {
 
   // Is there a better way to std::move the unique_ptr?
   RtpPacket* raw_rtp_packet = rtp_packet.release();
-  return network_thread()->Invoke<bool>(RTC_FROM_HERE, [this, raw_rtp_packet] {
+  return network_thread()->BlockingCall([this, raw_rtp_packet] {
     JsepTransportController* transport_controller = this->transport_controller_n();
     RtpTransportInternal* rtp_transport = transport_controller->GetBundledRtpTransport();
     if (!rtp_transport) {
@@ -3000,7 +3001,7 @@ bool PeerConnection::ReceiveRtp(uint8_t pt) {
   RtpDemuxerCriteria demux_criteria;
   demux_criteria.payload_types().insert(pt);
   RtpPacketSinkInterface* sink = Observer();
-  return network_thread()->Invoke<bool>(RTC_FROM_HERE, [this, demux_criteria, sink] {
+  return network_thread()->BlockingCall([this, demux_criteria, sink] {
     JsepTransportController* transport_controller = this->transport_controller_n();
     RtpTransportInternal* rtp_transport = transport_controller->GetBundledRtpTransport();
     if (!rtp_transport) {

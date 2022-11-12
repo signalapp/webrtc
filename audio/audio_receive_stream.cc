@@ -190,7 +190,7 @@ void AudioReceiveStreamImpl::ReconfigureForTesting(
 }
 
 // RingRTC change to get recv audio levels
-uint16_t AudioReceiveStream::GetAudioLevel() {
+uint16_t AudioReceiveStreamImpl::GetAudioLevel() {
   return channel_receive_->GetSpeechOutputLevelFullRange();
 }
 

@@ -130,9 +130,6 @@ class RTC_EXPORT VideoCodec {
   bool GetFrameDropEnabled() const;
   void SetFrameDropEnabled(bool enabled);
 
-  VideoCodecComplexity GetVideoEncoderComplexity() const;
-  void SetVideoEncoderComplexity(VideoCodecComplexity complexity_setting);
-
   // Public variables. TODO(hta): Make them private with accessors.
   VideoCodecType codecType;
 

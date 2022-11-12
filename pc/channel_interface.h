@@ -90,32 +90,6 @@ class ChannelInterface {
   virtual bool SetRtpTransport(webrtc::RtpTransportInternal* rtp_transport) = 0;
 };
 
-class ChannelFactoryInterface {
- public:
-  virtual VideoChannel* CreateVideoChannel(
-      webrtc::Call* call,
-      const MediaConfig& media_config,
-      const std::string& mid,
-      bool srtp_required,
-      const webrtc::CryptoOptions& crypto_options,
-      const VideoOptions& options,
-      webrtc::VideoBitrateAllocatorFactory*
-          video_bitrate_allocator_factory) = 0;
-
-  virtual VoiceChannel* CreateVoiceChannel(
-      webrtc::Call* call,
-      const MediaConfig& media_config,
-      const std::string& mid,
-      bool srtp_required,
-      const webrtc::CryptoOptions& crypto_options,
-      const AudioOptions& options) = 0;
-
-  virtual void DestroyChannel(ChannelInterface* channel) = 0;
-
- protected:
-  virtual ~ChannelFactoryInterface() = default;
-};
-
 }  // namespace cricket
 
 #endif  // PC_CHANNEL_INTERFACE_H_

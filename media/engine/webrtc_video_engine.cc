@@ -1770,7 +1770,8 @@ void WebRtcVideoChannel::OnPacketReceived(rtc::CopyOnWriteBuffer packet,
             }
           }
           // Let the unsignalled ssrc handler decide whether to drop or deliver.
-          switch (unsignalled_ssrc_handler_->OnUnsignalledSsrc(this, ssrc)) {
+          switch (unsignalled_ssrc_handler_->OnUnsignalledSsrc(this, ssrc,
+                                                               rtx_ssrc)) {
             case UnsignalledSsrcHandler::kDropPacket:
               return;
             case UnsignalledSsrcHandler::kDeliverPacket:

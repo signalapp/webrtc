@@ -21,6 +21,7 @@
 #include "absl/algorithm/container.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
+#include "api/make_ref_counted.h"
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/transport/field_trial_based_config.h"
 #include "api/units/time_delta.h"
@@ -319,9 +320,8 @@ BasicPortAllocator::CreateIceGatherer(const std::string& name) {
   // for IceGatherers.
 
   // 1. Create with NetworkManager, PacketSocketFactory, and RelayPortFactory.
-  auto new_allocator = std::make_unique<BasicPortAllocator>(network_manager());
-  new_allocator->socket_factory_ = socket_factory_;
-  new_allocator->Init(relay_port_factory_, nullptr);
+  auto new_allocator = std::make_unique<BasicPortAllocator>(network_manager(), socket_factory_.get());
+  new_allocator->Init(relay_port_factory_);
 
   // 2. SetNetworkIgnoreMask().
   new_allocator->SetNetworkIgnoreMask(network_ignore_mask_);

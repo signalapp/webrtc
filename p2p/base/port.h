@@ -388,9 +388,6 @@ class Port : public PortInterface, public sigslot::has_slots<> {
                                 absl::string_view relay_protocol,
                                 const rtc::SocketAddress& base_address);
 
-  // TODO(tommi): Make protected after updating ProxyConnection.
-  rtc::WeakPtr<Port> NewWeakPtr() { return weak_factory_.GetWeakPtr(); }
-
  protected:
   virtual void UpdateNetworkCost();
 

@@ -101,26 +101,6 @@ class RTC_LOCKABLE RTC_EXPORT TaskQueue {
                                     webrtc::TimeDelta delay) {
     impl_->PostDelayedHighPrecisionTask(std::move(task), delay);
   }
-  template <class Closure,
-            typename std::enable_if<!std::is_convertible<
-                Closure,
-                std::unique_ptr<webrtc::QueuedTask>>::value>::type* = nullptr>
-  void PostDelayedHighPrecisionTask(Closure&& closure, uint32_t milliseconds) {
-    PostDelayedHighPrecisionTask(
-        webrtc::ToQueuedTask(std::forward<Closure>(closure)), milliseconds);
-  }
-  template <class Closure,
-            typename std::enable_if<!std::is_convertible<
-                Closure,
-                std::unique_ptr<webrtc::QueuedTask>>::value>::type* = nullptr>
-  void PostDelayedTaskWithPrecision(
-      webrtc::TaskQueueBase::DelayPrecision precision,
-      Closure&& closure,
-      uint32_t milliseconds) {
-    PostDelayedTaskWithPrecision(
-        precision, webrtc::ToQueuedTask(std::forward<Closure>(closure)),
-        milliseconds);
-  }
 
  private:
   webrtc::TaskQueueBase* const impl_;

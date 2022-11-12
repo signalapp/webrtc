@@ -34,9 +34,6 @@ class MovingPercentileFilter {
   MovingPercentileFilter(const MovingPercentileFilter&) = delete;
   MovingPercentileFilter& operator=(const MovingPercentileFilter&) = delete;
 
-  MovingMedianFilter(const MovingMedianFilter&) = delete;
-  MovingMedianFilter& operator=(const MovingMedianFilter&) = delete;
-
   // Insert a new sample.
   void Insert(const T& value);
 

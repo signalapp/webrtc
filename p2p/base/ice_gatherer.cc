@@ -26,7 +26,7 @@ BasicIceGatherer::BasicIceGatherer(
 
 BasicIceGatherer::~BasicIceGatherer() {
   if (!network_thread_->IsCurrent()) {
-    network_thread_->Invoke<void>(RTC_FROM_HERE, [this] {
+    network_thread_->BlockingCall([this] {
       port_allocator_session_.reset();
       port_allocator_.reset();
     });

@@ -1629,16 +1629,6 @@ void AudioProcessingImpl::set_stream_analog_level_locked(int level) {
   // `ProcessStream()`.
   capture_.recommended_input_volume = absl::nullopt;
 
-void AudioProcessingImpl::set_stream_analog_level_locked(int level) {
-  capture_.applied_input_volume_changed =
-      capture_.applied_input_volume.has_value() &&
-      *capture_.applied_input_volume != level;
-  capture_.applied_input_volume = level;
-
-  // Invalidate any previously recommended input volume which will be updated by
-  // `ProcessStream()`.
-  capture_.recommended_input_volume = absl::nullopt;
-
   if (submodules_.agc_manager) {
     submodules_.agc_manager->set_stream_analog_level(level);
     return;

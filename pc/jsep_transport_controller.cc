@@ -288,7 +288,7 @@ void JsepTransportController::MaybeStartGathering() {
 void JsepTransportController::StartGatheringWithSharedIceGatherer(
     rtc::scoped_refptr<webrtc::IceGathererInterface> shared_ice_gatherer) {
   if (!network_thread_->IsCurrent()) {
-    network_thread_->Invoke<void>(RTC_FROM_HERE, [=] {
+    network_thread_->BlockingCall([=] {
       StartGatheringWithSharedIceGatherer(std::move(shared_ice_gatherer));
     });
     return;
@@ -302,7 +302,7 @@ void JsepTransportController::StartGatheringWithSharedIceGatherer(
 
 bool JsepTransportController::SetIncomingRtpEnabled(bool enabled) {
   if (!network_thread_->IsCurrent()) {
-    return network_thread_->Invoke<bool>(RTC_FROM_HERE, [=] {
+    return network_thread_->BlockingCall([=] {
       return SetIncomingRtpEnabled(enabled);
     });
   }

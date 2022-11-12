@@ -33,7 +33,6 @@
 #include "rtc_base/task_queue.h"
 #include "rtc_base/thread_annotations.h"
 #include "system_wrappers/include/clock.h"
-#include "video/frame_buffer_proxy.h"
 #include "video/receive_statistics_proxy2.h"
 #include "video/rtp_streams_synchronizer2.h"
 #include "video/rtp_video_stream_receiver2.h"
@@ -339,8 +338,6 @@ class VideoReceiveStream2
   // determines the maximum number of decoders that are created up front before
   // any video frame has been received.
   FieldTrialParameter<int> maximum_pre_stream_decoders_;
-
-  DecodeSynchronizer* decode_sync_;
 
   // Defined last so they are destroyed before all other members.
   rtc::TaskQueue decode_queue_;

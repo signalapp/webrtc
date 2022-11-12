@@ -460,8 +460,6 @@ class PeerConnection : public PeerConnectionInternal,
   }
   void RequestUsagePatternReportForTesting();
 
-  const FieldTrialsView& trials() override { return context_->trials(); }
-
   rtc::scoped_refptr<IceGathererInterface> shared_ice_gatherer() override {
       return shared_ice_gatherer_;
   }
