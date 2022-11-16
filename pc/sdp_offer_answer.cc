@@ -85,9 +85,6 @@ namespace webrtc {
 
 namespace {
 
-constexpr const char* kDefaultScreencastMinBitrateKillSwitch =
-    "WebRTC-DefaultScreencastMinBitrateKillSwitch";
-
 typedef webrtc::PeerConnectionInterface::RTCOfferAnswerOptions
     RTCOfferAnswerOptions;
 
