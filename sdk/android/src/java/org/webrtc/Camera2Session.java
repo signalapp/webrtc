@@ -10,6 +10,8 @@
 
 package org.webrtc;
 
+// RingRTC change to keep support for SDK >= 19
+import android.annotation.TargetApi;
 import android.content.Context;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
