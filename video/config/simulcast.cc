@@ -111,8 +111,10 @@ constexpr webrtc::DataRate Interpolate(const webrtc::DataRate& a,
 
 // TODO(webrtc:12415): Flip this to a kill switch when this feature launches.
 bool EnableLowresBitrateInterpolation(const webrtc::FieldTrialsView& trials) {
-  return absl::StartsWith(
-      trials.Lookup("WebRTC-LowresSimulcastBitrateInterpolation"), "Enabled");
+  // RingRTC change to allow for 3 spatial layers when the highest layer is 640x480
+  return true;
+  // return absl::StartsWith(
+  //    trials.Lookup("WebRTC-LowresSimulcastBitrateInterpolation"), "Enabled")
 }
 
 std::vector<SimulcastFormat> GetSimulcastFormats(
