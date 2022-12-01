@@ -944,7 +944,9 @@ void AudioSendStream::ConfigureEncoder(const webrtc::AudioEncoder::Config& confi
   // it doesn't actually change.
   config_.min_bitrate_bps = config.min_bitrate_bps;
   config_.max_bitrate_bps = config.max_bitrate_bps;
-  frame_length_range_ = {{TimeDelta::Millis(config.packet_size_ms), TimeDelta::Millis(config.packet_size_ms)}};
+  if (config.packet_size_ms > 0) {
+    frame_length_range_ = {{TimeDelta::Millis(config.packet_size_ms), TimeDelta::Millis(config.packet_size_ms)}};
+  }
   channel_send_->CallEncoder([&](AudioEncoder* encoder) {
     if (!encoder->Configure(config)) {
       RTC_LOG(LS_INFO) << "Failed to configure audio send stream";

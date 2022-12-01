@@ -826,7 +826,9 @@ bool AudioEncoderOpusImpl::Configure(const webrtc::AudioEncoder::Config& config)
   // This sets next_frame_length_ms_ until the next time audio is sampled,
   // and then it sets config_.frame_size_ms as well.
   // It needs to be delayed to avoid a CHECK in Encode.
-  SetFrameLength(config.packet_size_ms);
+  if (config.packet_size_ms > 0) {
+    SetFrameLength(config.packet_size_ms);
+  }
 
   // I don't think any of the below are necessary, but the above is, so we might as well set these.
   config_.bitrate_bps = config.start_bitrate_bps;

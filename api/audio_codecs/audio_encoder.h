@@ -119,7 +119,7 @@ class AudioEncoder {
   // Very OPUS-specific
   struct Config {
     // AKA ptime or frame size
-    // One of 10, 20, 40, 60, 120
+    // One of 0, 10, 20, 40, 60, 120
     uint32_t packet_size_ms = 20;
 
     // 1101 = OPUS_BANDWIDTH_NARROWBAND
