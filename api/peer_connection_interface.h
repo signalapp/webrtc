@@ -311,8 +311,7 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
     // RingRTC change to default flags
     uint32_t flags = cricket::PORTALLOCATOR_ENABLE_SHARED_SOCKET
       | cricket::PORTALLOCATOR_ENABLE_IPV6
-      | cricket::PORTALLOCATOR_ENABLE_IPV6_ON_WIFI
-      | cricket::PORTALLOCATOR_ENABLE_ANY_ADDRESS_PORTS;
+      | cricket::PORTALLOCATOR_ENABLE_IPV6_ON_WIFI;
   };
 
   enum class RTCConfigurationType {
