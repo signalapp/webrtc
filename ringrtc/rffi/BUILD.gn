@@ -1,0 +1,100 @@
+#
+# Copyright 2019-2021 Signal Messenger, LLC
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+
+import("//webrtc.gni")
+
+# C++ source files common to all platforms
+common_sources = [
+  "src/field_trial.cc",
+  "src/injectable_network.cc",
+  "src/logging.cc",
+  "src/media.cc",
+  "src/network.cc",
+  "src/peer_connection_factory.cc",
+  "src/peer_connection.cc",
+  "src/peer_connection_observer.cc",
+  "src/ref_count.cc",
+  "src/sdp_observer.cc",
+  "src/stats_observer.cc",
+]
+
+config("ringrtc_rffi_config") {
+  include_dirs = [ ".." ]
+  defines = [ "ENABLE_RINGRTC" ]
+}
+
+if (is_android) {
+  import("//build/config/android/config.gni")
+  import("//build/config/android/rules.gni")
+
+  rtc_shared_library("libringrtc_rffi") {
+
+    visibility = [ "//ringrtc:*" ]
+
+    android_sdk = "//sdk/android"
+    # jni_onload.cc -- taken from webrtc/sdk/android/BUILD.gn.
+    sources = [
+      "${android_sdk}/src/jni/jni_onload.cc",
+      "src/android/java_media_stream.cc",
+      "src/android/jni_peer_connection.cc",
+    ] + common_sources
+
+    # suppressed_config and hide_all_but_jni taken from
+    # webrtc/sdk/android/BUILD.gn.
+    suppressed_configs += [ "//build/config/android:hide_all_but_jni_onload" ]
+    configs += [ "//build/config/android:hide_all_but_jni" ]
+
+    configs += [ ":ringrtc_rffi_config" ]
+
+    ldflags = [ "-Wl,--version-script=" +
+               rebase_path("config/rffi_include.lst",
+                           root_build_dir) ]
+
+    # deps -- taken from webrtc/sdk/android/BUILD.gn.
+    deps = [
+      "${android_sdk}:libjingle_peerconnection_jni",
+      "${android_sdk}:libjingle_peerconnection_metrics_default_jni",
+      "//api/video_codecs:builtin_video_encoder_factory",
+      "//api/video_codecs:builtin_video_decoder_factory",
+      "//pc:libjingle_peerconnection",
+      "//rtc_base:rtc_base",
+    ]
+    output_extension = "so"
+  }
+}
+
+if (is_ios) {
+  import("//build/config/ios/ios_sdk.gni")
+  import("//build/config/ios/rules.gni")
+
+  rtc_static_library("libringrtc_rffi") {
+
+    visibility = [ "//sdk/*:*" ]
+
+    sources = common_sources
+
+    configs += [ ":ringrtc_rffi_config" ]
+
+    deps = [
+      "//api/video_codecs:builtin_video_encoder_factory",
+      "//api/video_codecs:builtin_video_decoder_factory",
+      "//third_party/libyuv",
+    ]
+  }
+}
+
+if (is_linux || is_mac || is_win) {
+  rtc_library("libringrtc_rffi") {
+    visibility = [ "*" ]
+
+    sources = common_sources
+
+    configs += [ ":ringrtc_rffi_config" ]
+
+    deps = [
+      "//sdk:media_constraints",
+    ]
+  }
+}

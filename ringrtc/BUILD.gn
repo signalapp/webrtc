@@ -1,0 +1,31 @@
+#
+# Copyright 2019-2021 Signal Messenger, LLC
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+
+if (is_android) {
+  import("//webrtc.gni")
+
+  group("ringrtc") {
+    public_deps = [
+      "//sdk/android:libwebrtc",
+      "rffi:libringrtc_rffi",
+    ]
+  }
+}
+
+if (is_ios) {
+  group("ringrtc") {
+    # @note The RingRTC build is done outside of gn/ninja...
+  }
+}
+
+if (is_linux || is_mac || is_win) {
+  import("//webrtc.gni")
+
+  rtc_library("ringrtc") {
+    public_deps = [
+      "rffi:libringrtc_rffi",
+    ]
+  }
+}
