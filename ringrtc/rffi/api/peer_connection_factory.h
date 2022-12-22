@@ -66,12 +66,24 @@ typedef struct {
   size_t urls_size;
 } RffiIceServer;
 
+enum RffiAudioDeviceModuleType {
+    kRffiAudioDeviceModuleDefault = 0,
+    kRffiAudioDeviceModuleNew = 1,
+    kRffiAudioDeviceModuleFile = 2,
+};
+
 // Returns an owned RC.
 // You can create more than one, but you should probably only have one unless
 // you want to test separate endpoints that are as independent as possible.
 RUSTEXPORT webrtc::PeerConnectionFactoryOwner* Rust_createPeerConnectionFactory(
-  bool use_new_audio_device_module,
-  bool use_injectable_network);
+  RffiAudioDeviceModuleType audio_device_module_to_use,
+  const char* input_file_borrowed,
+  const char* output_file_borrowed,
+  bool use_injectable_network,
+  bool high_pass_filter_enabled,
+  bool aec_enabled,
+  bool ns_enabled,
+  bool agc_enabled);
 
 // Returns an owned RC.
 RUSTEXPORT webrtc::PeerConnectionFactoryOwner* Rust_createPeerConnectionFactoryWrapper(

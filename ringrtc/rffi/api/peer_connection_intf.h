@@ -99,7 +99,7 @@ RUSTEXPORT void
 Rust_deleteV4(RffiConnectionParametersV4* v4_owned);
 
 RUSTEXPORT webrtc::SessionDescriptionInterface*
-Rust_sessionDescriptionFromV4(bool offer, const RffiConnectionParametersV4* v4_borrowed);
+Rust_sessionDescriptionFromV4(bool offer, const RffiConnectionParametersV4* v4_borrowed, bool enable_red_audio, bool enable_tcc_audio);
 
 RUSTEXPORT void
 Rust_createAnswer(webrtc::PeerConnectionInterface*                    peer_connection_borrowed_rc,

@@ -40,6 +40,7 @@ int TX_TIME_OFFSET_EXT_ID = 13;
 // 101 used by connection.rs
 int DATA_PT = 101;
 int OPUS_PT = 102;
+int OPUS_RED_PT = 105;
 int VP8_PT = 108;
 int VP8_RTX_PT = 118;
 int VP9_PT = 109;
@@ -294,12 +295,13 @@ Rust_deleteV4(RffiConnectionParametersV4* v4_owned) {
 
 // Returns an owned pointer.
 RUSTEXPORT webrtc::SessionDescriptionInterface*
-Rust_sessionDescriptionFromV4(bool offer, const RffiConnectionParametersV4* v4_borrowed) {
+Rust_sessionDescriptionFromV4(bool offer, const RffiConnectionParametersV4* v4_borrowed, bool enable_red_audio, bool enable_tcc_audio) {
   // Major changes from the default WebRTC behavior:
   // 1. We remove all codecs except Opus, VP8, VP9, and H264
   // 2. We remove all header extensions except for transport-cc, video orientation,
   //    and abs send time.
   // 3. Opus CBR and DTX is enabled.
+  // 4. RED is enabled for audio.
 
   // For some reason, WebRTC insists that the video SSRCs for one side don't 
   // overlap with SSRCs from the other side.  To avoid potential problems, we'll give the
@@ -336,6 +338,12 @@ Rust_sessionDescriptionFromV4(bool offer, const RffiConnectionParametersV4* v4_b
   set_rtp_params(audio.get());
   auto video = std::make_unique<cricket::VideoContentDescription>();
   set_rtp_params(video.get());
+
+  if (enable_red_audio) {
+    auto opus_red = cricket::AudioCodec(OPUS_RED_PT, cricket::kRedCodecName, 48000, 0, 2);
+    opus_red.SetParam("", std::to_string(OPUS_PT) + "/" + std::to_string(OPUS_PT));
+    audio->AddCodec(opus_red);
+  }
 
   auto opus = cricket::AudioCodec(OPUS_PT, cricket::kOpusCodecName, 48000, 0, 2);
   // These are the current defaults for WebRTC
@@ -437,8 +445,12 @@ Rust_sessionDescriptionFromV4(bool offer, const RffiConnectionParametersV4* v4_b
   auto abs_send_time = webrtc::RtpExtension(webrtc::AbsoluteSendTime::Uri(), ABS_SEND_TIME_EXT_ID);
   // auto tx_time_offset = webrtc::RtpExtension(webrtc::TransmissionOffset::Uri(), TX_TIME_OFFSET_EXT_ID);
 
-  // Note: Do not add transport-cc for audio.  Using transport-cc with audio is still experimental in WebRTC.
+  // Note: Using transport-cc with audio is still experimental in WebRTC.
   // And don't add abs_send_time because it's only used for video.
+  if (enable_tcc_audio) {
+    audio->AddRtpHeaderExtension(transport_cc1);
+  }
+
   video->AddRtpHeaderExtension(transport_cc1);
   video->AddRtpHeaderExtension(video_orientation);
   video->AddRtpHeaderExtension(abs_send_time);
@@ -505,6 +517,7 @@ CreateSessionDescriptionForGroupCall(bool local,
   // 2. We remove all header extensions except for transport-cc, video orientation,
   //    abs send time, and audio level.
   // 3. Opus CBR and DTX is enabled.
+  // 4. RED is enabled for audio.
 
   // This must stay in sync with PeerConnectionFactory.createAudioTrack
   std::string LOCAL_AUDIO_TRACK_ID = "audio1";
@@ -542,6 +555,10 @@ CreateSessionDescriptionForGroupCall(bool local,
   set_rtp_params(audio.get());
   auto video = std::make_unique<cricket::VideoContentDescription>();
   set_rtp_params(video.get());
+
+  auto opus_red = cricket::AudioCodec(OPUS_RED_PT, cricket::kRedCodecName, 48000, 0, 2);
+  opus_red.SetParam("", std::to_string(OPUS_PT) + "/" + std::to_string(OPUS_PT));
+  audio->AddCodec(opus_red);
 
   auto opus = cricket::AudioCodec(OPUS_PT, cricket::kOpusCodecName, 48000, 0, 2);
   // These are the current defaults for WebRTC
