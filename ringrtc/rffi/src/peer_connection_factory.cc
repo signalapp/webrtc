@@ -13,6 +13,7 @@
 #include "api/video_codecs/builtin_video_encoder_factory.h"
 #include "media/engine/webrtc_media_engine.h"
 #include "modules/audio_mixer/audio_mixer_impl.h"
+#include "modules/audio_device/dummy/file_audio_device_factory.h"
 #include "modules/audio_processing/include/audio_processing.h"
 #include "pc/peer_connection_factory.h"
 #include "rffi/api/media.h"
@@ -42,8 +43,14 @@ class PeerConnectionFactoryWithOwnedThreads
     : public PeerConnectionFactoryOwner {
  public:
   static rtc::scoped_refptr<PeerConnectionFactoryWithOwnedThreads> Create(
-      bool use_new_audio_device_module,
-      bool use_injectable_network) {
+      RffiAudioDeviceModuleType audio_device_module_to_use,
+      const char* input_file_borrowed,
+      const char* output_file_borrowed,
+      bool use_injectable_network,
+      bool high_pass_filter_enabled,
+      bool aec_enabled,
+      bool ns_enabled,
+      bool agc_enabled) {
     // Creating a PeerConnectionFactory is a little complex.  To make sure we're doing it right, we read several examples:
     // Android SDK:
     //  https://cs.chromium.org/chromium/src/third_party/webrtc/sdk/android/src/jni/pc/peer_connection_factory.cc
@@ -88,7 +95,17 @@ class PeerConnectionFactoryWithOwnedThreads
     // The audio device module must be created (and destroyed) on the _worker_ thread.
     // It is safe to release the reference on this thread, however, because the PeerConnectionFactory keeps its own reference.
     auto adm = worker_thread->BlockingCall([&]() {
-      if (use_new_audio_device_module) {
+      RTC_LOG(LS_WARNING) << "WHAT is the audio_device_module_to_use = " << audio_device_module_to_use;
+
+      switch (audio_device_module_to_use) {
+      case kRffiAudioDeviceModuleFile:
+        RTC_LOG(LS_WARNING) << "Writing input/output filenames: " << input_file_borrowed << ", " << output_file_borrowed;
+
+        FileAudioDeviceFactory::SetFilenamesToUse(input_file_borrowed, output_file_borrowed);
+
+        return AudioDeviceModule::Create(
+          AudioDeviceModule::kDummyAudio, dependencies.task_queue_factory.get());
+      case kRffiAudioDeviceModuleNew:
 #if defined(WEBRTC_WIN)
         com_initializer = std::make_unique<ScopedCOMInitializer>(ScopedCOMInitializer::kMTA);
         if (com_initializer->Succeeded()) {
@@ -97,14 +114,25 @@ class PeerConnectionFactoryWithOwnedThreads
           RTC_LOG(LS_WARNING) << "Failed to initialize ScopedCOMInitializer. Will use the default.";
         }
 #endif
+      case kRffiAudioDeviceModuleDefault:
+        return AudioDeviceModule::Create(
+          AudioDeviceModule::kPlatformDefaultAudio, dependencies.task_queue_factory.get());
       }
-      return AudioDeviceModule::Create(
-        AudioDeviceModule::kPlatformDefaultAudio, dependencies.task_queue_factory.get());
     });
     media_dependencies.adm = adm;
     media_dependencies.audio_encoder_factory = CreateBuiltinAudioEncoderFactory();
     media_dependencies.audio_decoder_factory = CreateBuiltinAudioDecoderFactory();
-    media_dependencies.audio_processing = AudioProcessingBuilder().Create();
+
+    AudioProcessing::Config config;
+    config.high_pass_filter.enabled = high_pass_filter_enabled;
+    config.echo_canceller.enabled = aec_enabled;
+    config.noise_suppression.enabled = ns_enabled;
+    config.gain_controller1.enabled = agc_enabled;
+
+    media_dependencies.audio_processing = AudioProcessingBuilder()
+      .SetConfig(config)
+      .Create();
+
     media_dependencies.audio_mixer = AudioMixerImpl::Create();
     media_dependencies.video_encoder_factory = CreateBuiltinVideoEncoderFactory();
     media_dependencies.video_decoder_factory = CreateBuiltinVideoDecoderFactory();
@@ -263,11 +291,23 @@ class PeerConnectionFactoryWithOwnedThreads
 
 // Returns an owned RC.
 RUSTEXPORT PeerConnectionFactoryOwner* Rust_createPeerConnectionFactory(
-    bool use_new_audio_device_module,
-    bool use_injectable_network) {
+    RffiAudioDeviceModuleType audio_device_module_to_use,
+    const char* input_file_borrowed,
+    const char* output_file_borrowed,
+    bool use_injectable_network,
+    bool high_pass_filter_enabled,
+    bool aec_enabled,
+    bool ns_enabled,
+    bool agc_enabled) {
   auto factory_owner = PeerConnectionFactoryWithOwnedThreads::Create(
-    use_new_audio_device_module,
-    use_injectable_network);
+    audio_device_module_to_use,
+    input_file_borrowed,
+    output_file_borrowed,
+    use_injectable_network,
+    high_pass_filter_enabled,
+    aec_enabled,
+    ns_enabled,
+    agc_enabled);
   return take_rc(std::move(factory_owner));
 }
 
