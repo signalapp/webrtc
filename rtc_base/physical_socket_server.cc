@@ -1711,7 +1711,7 @@ bool PhysicalSocketServer::Wait(webrtc::TimeDelta max_wait_duration,
               }
               if ((wsaEvents.lNetworkEvents & FD_CONNECT) &&
                   wsaEvents.iErrorCode[FD_CONNECT_BIT] != 0) {
-                RTC_LOG(LS_INFO)
+                RTC_LOG(LS_WARNING)
                     << "PhysicalSocketServer got FD_CONNECT_BIT error "
                     << wsaEvents.iErrorCode[FD_CONNECT_BIT];
               }
