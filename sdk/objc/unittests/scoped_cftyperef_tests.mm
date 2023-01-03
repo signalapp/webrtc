@@ -8,9 +8,9 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include "sdk/objc/helpers/scoped_cftyperef.h"
+#import <XCTest/XCTest.h>
 
-#include "test/gtest.h"
+#include "sdk/objc/helpers/scoped_cftyperef.h"
 
 namespace {
 struct TestType {
@@ -40,65 +40,72 @@ using ScopedTestType = rtc::internal::ScopedTypeRef<TestTypeRef, TestTypeTraits>
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-variable"
 
-TEST(ScopedTypeRefTest, ShouldNotRetainByDefault) {
+@interface ScopedTypeRefTests : XCTestCase
+@end
+
+@implementation ScopedTypeRefTests
+
+- (void)testShouldNotRetainByDefault {
   TestType a;
   ScopedTestType ref(&a);
-  EXPECT_EQ(0, a.retain_count);
+  XCTAssertEqual(0, a.retain_count);
 }
 
-TEST(ScopedTypeRefTest, ShouldRetainWithPolicy) {
+- (void)testShouldRetainWithPolicy {
   TestType a;
   ScopedTestType ref(&a, rtc::RetainPolicy::RETAIN);
-  EXPECT_EQ(1, a.retain_count);
+  XCTAssertEqual(1, a.retain_count);
 }
 
-TEST(ScopedTypeRefTest, ShouldReleaseWhenLeavingScope) {
+- (void)testShouldReleaseWhenLeavingScope {
   TestType a;
-  EXPECT_EQ(0, a.retain_count);
+  XCTAssertEqual(0, a.retain_count);
   {
     ScopedTestType ref(&a, rtc::RetainPolicy::RETAIN);
-    EXPECT_EQ(1, a.retain_count);
+    XCTAssertEqual(1, a.retain_count);
   }
-  EXPECT_EQ(0, a.retain_count);
+  XCTAssertEqual(0, a.retain_count);
 }
 
-TEST(ScopedTypeRefTest, ShouldBeCopyable) {
+- (void)testShouldBeCopyable {
   TestType a;
-  EXPECT_EQ(0, a.retain_count);
+  XCTAssertEqual(0, a.retain_count);
   {
     ScopedTestType ref1(&a, rtc::RetainPolicy::RETAIN);
-    EXPECT_EQ(1, a.retain_count);
+    XCTAssertEqual(1, a.retain_count);
     ScopedTestType ref2 = ref1;
-    EXPECT_EQ(2, a.retain_count);
+    XCTAssertEqual(2, a.retain_count);
   }
-  EXPECT_EQ(0, a.retain_count);
+  XCTAssertEqual(0, a.retain_count);
 }
 
-TEST(ScopedTypeRefTest, CanReleaseOwnership) {
+- (void)testCanReleaseOwnership {
   TestType a;
-  EXPECT_EQ(0, a.retain_count);
+  XCTAssertEqual(0, a.retain_count);
   {
     ScopedTestType ref(&a, rtc::RetainPolicy::RETAIN);
-    EXPECT_EQ(1, a.retain_count);
+    XCTAssertEqual(1, a.retain_count);
     TestTypeRef b = ref.release();
   }
-  EXPECT_EQ(1, a.retain_count);
+  XCTAssertEqual(1, a.retain_count);
 }
 
-TEST(ScopedTypeRefTest, ShouldBeTestableForTruthiness) {
+- (void)testShouldBeTestableForTruthiness {
   ScopedTestType ref;
-  EXPECT_FALSE(ref);
+  XCTAssertFalse(ref);
   TestType a;
   ref = &a;
-  EXPECT_TRUE(ref);
+  XCTAssertTrue(ref);
   ref.release();
-  EXPECT_FALSE(ref);
+  XCTAssertFalse(ref);
 }
 
-TEST(ScopedTypeRefTest, ShouldProvideAccessToWrappedType) {
+- (void)testShouldProvideAccessToWrappedType {
   TestType a;
   ScopedTestType ref(&a);
-  EXPECT_EQ(&(a.retain_count), &(ref->retain_count));
+  XCTAssertEqual(&(a.retain_count), &(ref->retain_count));
 }
+
+@end
 
 #pragma clang diagnostic pop

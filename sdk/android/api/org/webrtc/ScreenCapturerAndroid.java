@@ -10,6 +10,7 @@
 
 package org.webrtc;
 
+// RingRTC change to keep support for SDK >= 19
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.Context;
@@ -31,8 +32,6 @@ import androidx.annotation.Nullable;
  * place on the HandlerThread of the given {@code SurfaceTextureHelper}. When done with each frame,
  * the native code returns the buffer to the  {@code SurfaceTextureHelper} to be used for new
  * frames. At any time, at most one frame is being processed.
- *
- * @note This class is only supported on Android Lollipop and above.
  */
 // RingRTC change to keep support for SDK >= 19
 @TargetApi(21)

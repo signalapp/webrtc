@@ -29,10 +29,8 @@
 #include "api/video/video_adaptation_reason.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_source_interface.h"
-#include "api/video/video_stream_encoder_observer.h"
 #include "api/video_codecs/video_codec.h"
 #include "api/video_codecs/video_encoder.h"
-#include "api/video_codecs/video_encoder_config.h"
 #include "call/adaptation/resource_adaptation_processor_interface.h"
 #include "call/adaptation/video_stream_adapter.h"
 #include "call/adaptation/video_stream_input_state_provider.h"
@@ -40,7 +38,6 @@
 #include "rtc_base/ref_count.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/synchronization/mutex.h"
-#include "rtc_base/task_queue.h"
 #include "rtc_base/thread_annotations.h"
 #include "system_wrappers/include/clock.h"
 #include "video/adaptation/balanced_constraint.h"
@@ -52,6 +49,8 @@
 #include "video/adaptation/quality_rampup_experiment_helper.h"
 #include "video/adaptation/quality_scaler_resource.h"
 #include "video/adaptation/video_stream_encoder_resource.h"
+#include "video/config/video_encoder_config.h"
+#include "video/video_stream_encoder_observer.h"
 
 namespace webrtc {
 
@@ -84,7 +83,7 @@ class VideoStreamEncoderResourceManager
       const FieldTrialsView& field_trials);
   ~VideoStreamEncoderResourceManager() override;
 
-  void Initialize(rtc::TaskQueue* encoder_queue);
+  void Initialize(TaskQueueBase* encoder_queue);
   void SetAdaptationProcessor(
       ResourceAdaptationProcessorInterface* adaptation_processor,
       VideoStreamAdapter* stream_adapter);
@@ -153,7 +152,8 @@ class VideoStreamEncoderResourceManager
   // QualityRampUpExperimentListener implementation.
   void OnQualityRampUp() override;
 
-  static bool IsSimulcast(const VideoEncoderConfig& encoder_config);
+  static bool IsSimulcastOrMultipleSpatialLayers(
+      const VideoEncoderConfig& encoder_config);
 
  private:
   class InitialFrameDropper;
@@ -195,7 +195,7 @@ class VideoStreamEncoderResourceManager
   const rtc::scoped_refptr<BandwidthQualityScalerResource>
       bandwidth_quality_scaler_resource_;
 
-  rtc::TaskQueue* encoder_queue_;
+  TaskQueueBase* encoder_queue_;
   VideoStreamInputStateProvider* const input_state_provider_
       RTC_GUARDED_BY(encoder_queue_);
   ResourceAdaptationProcessorInterface* adaptation_processor_;

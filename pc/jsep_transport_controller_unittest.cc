@@ -24,13 +24,12 @@
 #include "p2p/base/transport_info.h"
 #include "rtc_base/fake_ssl_identity.h"
 #include "rtc_base/gunit.h"
-#include "rtc_base/location.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/net_helper.h"
-#include "rtc_base/ref_counted_object.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/ssl_fingerprint.h"
 #include "rtc_base/ssl_identity.h"
+#include "rtc_base/task_queue_for_test.h"
 #include "rtc_base/thread.h"
 #include "test/gtest.h"
 #include "test/scoped_key_value_config.h"
@@ -105,8 +104,7 @@ class JsepTransportControllerTest : public JsepTransportController::Observer,
     transport_controller_ = std::make_unique<JsepTransportController>(
         network_thread, port_allocator, nullptr /* async_resolver_factory */,
         config);
-    network_thread->Invoke<void>(RTC_FROM_HERE,
-                                 [&] { ConnectTransportControllerSignals(); });
+    SendTask(network_thread, [&] { ConnectTransportControllerSignals(); });
   }
 
   void ConnectTransportControllerSignals() {
@@ -260,7 +258,7 @@ class JsepTransportControllerTest : public JsepTransportController::Observer,
 
   void CreateLocalDescriptionAndCompleteConnectionOnNetworkThread() {
     if (!network_thread_->IsCurrent()) {
-      network_thread_->Invoke<void>(RTC_FROM_HERE, [&] {
+      SendTask(network_thread_.get(), [&] {
         CreateLocalDescriptionAndCompleteConnectionOnNetworkThread();
       });
       return;
@@ -346,6 +344,7 @@ class JsepTransportControllerTest : public JsepTransportController::Observer,
     return true;
   }
 
+  rtc::AutoThread main_thread_;
   // Information received from signals from transport controller.
   cricket::IceConnectionState connection_state_ =
       cricket::kIceConnectionConnecting;
@@ -978,8 +977,7 @@ TEST_F(JsepTransportControllerTest, IceSignalingOccursOnNetworkThread) {
 
   EXPECT_EQ(ice_signaled_on_thread_, network_thread_.get());
 
-  network_thread_->Invoke<void>(RTC_FROM_HERE,
-                                [&] { transport_controller_.reset(); });
+  SendTask(network_thread_.get(), [&] { transport_controller_.reset(); });
 }
 
 // Test that if the TransportController was created with the

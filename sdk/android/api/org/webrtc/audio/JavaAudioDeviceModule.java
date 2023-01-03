@@ -52,6 +52,7 @@ public class JavaAudioDeviceModule implements AudioDeviceModule {
     private boolean useLowLatency;
     // RingRTC change to allow control of AEC3 vs AECM
     private boolean useAecm;
+    private boolean enableVolumeLogger;
 
     private Builder(Context context) {
       this.context = context;
@@ -60,6 +61,7 @@ public class JavaAudioDeviceModule implements AudioDeviceModule {
       this.outputSampleRate = WebRtcAudioManager.getSampleRate(audioManager);
       this.useLowLatency = false;
       this.useAecm = false;
+      this.enableVolumeLogger = true;
     }
 
     public Builder setScheduler(ScheduledExecutorService scheduler) {
@@ -225,6 +227,12 @@ public class JavaAudioDeviceModule implements AudioDeviceModule {
       return this;
     }
 
+    /** Disables the volume logger on the audio output track. */
+    public Builder setEnableVolumeLogger(boolean enableVolumeLogger) {
+      this.enableVolumeLogger = enableVolumeLogger;
+      return this;
+    }
+
     /**
      * Construct an AudioDeviceModule based on the supplied arguments. The caller takes ownership
      * and is responsible for calling release().
@@ -260,8 +268,9 @@ public class JavaAudioDeviceModule implements AudioDeviceModule {
       final WebRtcAudioRecord audioInput = new WebRtcAudioRecord(context, executor, audioManager,
           audioSource, audioFormat, audioRecordErrorCallback, audioRecordStateCallback,
           samplesReadyCallback, useHardwareAcousticEchoCanceler, useHardwareNoiseSuppressor);
-      final WebRtcAudioTrack audioOutput = new WebRtcAudioTrack(context, audioManager,
-          audioAttributes, audioTrackErrorCallback, audioTrackStateCallback, useLowLatency);
+      final WebRtcAudioTrack audioOutput =
+          new WebRtcAudioTrack(context, audioManager, audioAttributes, audioTrackErrorCallback,
+              audioTrackStateCallback, useLowLatency, enableVolumeLogger);
       return new JavaAudioDeviceModule(context, audioManager, audioInput, audioOutput,
           inputSampleRate, outputSampleRate, useStereoInput, useStereoOutput, useAecm);
     }

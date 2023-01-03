@@ -26,7 +26,6 @@
 #include "modules/rtp_rtcp/source/rtcp_packet/app.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/bye.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/compound_packet.h"
-#include "modules/rtp_rtcp/source/rtcp_packet/extended_jitter_report.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/extended_reports.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/fir.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/nack.h"
@@ -591,16 +590,6 @@ TEST(RtcpReceiverTest, GetRtt) {
 
   EXPECT_EQ(now, receiver.LastReceivedReportBlockMs());
   EXPECT_EQ(0, receiver.RTT(kSenderSsrc, nullptr, nullptr, nullptr, nullptr));
-}
-
-// Ij packets are ignored.
-TEST(RtcpReceiverTest, InjectIjWithNoItem) {
-  ReceiverMocks mocks;
-  RTCPReceiver receiver(DefaultConfiguration(&mocks), &mocks.rtp_rtcp_impl);
-  receiver.SetRemoteSSRC(kSenderSsrc);
-
-  rtcp::ExtendedJitterReport ij;
-  receiver.IncomingPacket(ij.Build());
 }
 
 // App packets are ignored.
@@ -1780,8 +1769,8 @@ TEST(RtcpReceiverTest, ReceivesTransportFeedback) {
   rtcp::TransportFeedback packet;
   packet.SetMediaSsrc(kReceiverMainSsrc);
   packet.SetSenderSsrc(kSenderSsrc);
-  packet.SetBase(1, 1000);
-  packet.AddReceivedPacket(1, 1000);
+  packet.SetBase(1, Timestamp::Millis(1));
+  packet.AddReceivedPacket(1, Timestamp::Millis(1));
 
   EXPECT_CALL(
       mocks.transport_feedback_observer,
@@ -1815,8 +1804,8 @@ TEST(RtcpReceiverTest, HandlesInvalidTransportFeedback) {
   auto packet = std::make_unique<rtcp::TransportFeedback>();
   packet->SetMediaSsrc(kReceiverMainSsrc);
   packet->SetSenderSsrc(kSenderSsrc);
-  packet->SetBase(1, 1000);
-  packet->AddReceivedPacket(1, 1000);
+  packet->SetBase(1, Timestamp::Millis(1));
+  packet->AddReceivedPacket(1, Timestamp::Millis(1));
 
   static uint32_t kBitrateBps = 50000;
   auto remb = std::make_unique<rtcp::Remb>();
@@ -1981,6 +1970,43 @@ TEST(RtcpReceiverTest, HandlesIncorrectTargetBitrate) {
   EXPECT_CALL(mocks.bitrate_allocation_observer,
               OnBitrateAllocationUpdated(expected_allocation));
   receiver.IncomingPacket(xr.Build());
+}
+
+TEST(RtcpReceiverTest, ChangeLocalMediaSsrc) {
+  ReceiverMocks mocks;
+  // Construct a receiver with `kReceiverMainSsrc` (default) local media ssrc.
+  RTCPReceiver receiver(DefaultConfiguration(&mocks), &mocks.rtp_rtcp_impl);
+  receiver.SetRemoteSSRC(kSenderSsrc);
+
+  constexpr uint32_t kSecondarySsrc = kReceiverMainSsrc + 1;
+
+  // Expect to only get the `OnReceivedNack()` callback once since we'll
+  // configure it for the `kReceiverMainSsrc` media ssrc.
+  EXPECT_CALL(mocks.rtp_rtcp_impl, OnReceivedNack);
+
+  // We'll get two callbacks to RtcpPacketTypesCounterUpdated, one for each
+  // call to `IncomingPacket`, differentiated by the local media ssrc.
+  EXPECT_CALL(mocks.packet_type_counter_observer,
+              RtcpPacketTypesCounterUpdated(kReceiverMainSsrc, _));
+  EXPECT_CALL(mocks.packet_type_counter_observer,
+              RtcpPacketTypesCounterUpdated(kSecondarySsrc, _));
+
+  // Construct a test nack packet with media ssrc set to `kReceiverMainSsrc`.
+  rtcp::Nack nack;
+  nack.SetSenderSsrc(kSenderSsrc);
+  nack.SetMediaSsrc(kReceiverMainSsrc);
+  const uint16_t kNackList[] = {1, 2, 3, 5};
+  nack.SetPacketIds(kNackList, std::size(kNackList));
+
+  // Deliver the first callback.
+  receiver.IncomingPacket(nack.Build());
+
+  // Change the set local media ssrc.
+  receiver.set_local_media_ssrc(kSecondarySsrc);
+
+  // Deliver another packet - this time there will be no callback to
+  // OnReceivedNack due to the ssrc not matching.
+  receiver.IncomingPacket(nack.Build());
 }
 
 }  // namespace webrtc

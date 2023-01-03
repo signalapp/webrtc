@@ -140,7 +140,7 @@ class PeerConnectionSimulcastTests : public ::testing::Test {
     auto result =
         pc_factory_->CreatePeerConnectionOrError(config, std::move(pcd));
     EXPECT_TRUE(result.ok());
-    observer->SetPeerConnectionInterface(result.value());
+    observer->SetPeerConnectionInterface(result.value().get());
     return result.MoveValue();
   }
 
@@ -600,6 +600,27 @@ TEST_F(PeerConnectionSimulcastTests, SimulcastAudioRejected) {
   EXPECT_EQ(1u, parameters.encodings.size());
   EXPECT_THAT(parameters.encodings,
               ElementsAre(Field("rid", &RtpEncodingParameters::rid, Eq(""))));
+}
+
+// Check that modifying the offer to remove simulcast and at the same
+// time leaving in a RID line does not cause an exception.
+TEST_F(PeerConnectionSimulcastTests, SimulcastSldModificationRejected) {
+  auto local = CreatePeerConnectionWrapper();
+  auto remote = CreatePeerConnectionWrapper();
+  auto layers = CreateLayers({"1", "2", "3"}, true);
+  AddTransceiver(local.get(), layers);
+  auto offer = local->CreateOffer();
+  std::string as_string;
+  EXPECT_TRUE(offer->ToString(&as_string));
+  auto simulcast_marker = "a=rid:3 send\r\na=simulcast:send 1;2;3\r\n";
+  auto pos = as_string.find(simulcast_marker);
+  EXPECT_NE(pos, std::string::npos);
+  as_string.erase(pos, strlen(simulcast_marker));
+  SdpParseError parse_error;
+  auto modified_offer =
+      CreateSessionDescription(SdpType::kOffer, as_string, &parse_error);
+  EXPECT_TRUE(modified_offer);
+  EXPECT_TRUE(local->SetLocalDescription(std::move(modified_offer)));
 }
 
 #if RTC_METRICS_ENABLED

@@ -43,18 +43,10 @@ size_t hex_decode_with_delimiter(ArrayView<char> buffer,
                                  absl::string_view source,
                                  char delimiter);
 
-// Joins the source vector of strings into a single string, with each
-// field in source being separated by delimiter. No trailing delimiter is added.
-std::string join(const std::vector<std::string>& source, char delimiter);
-
 // Splits the source string into multiple fields separated by delimiter,
 // with duplicates of delimiter creating empty fields. Empty input produces a
 // single, empty, field.
 std::vector<absl::string_view> split(absl::string_view source, char delimiter);
-
-size_t split(absl::string_view source,
-             char delimiter,
-             std::vector<std::string>* fields);
 
 // Splits the source string into multiple fields separated by delimiter,
 // with duplicates of delimiter ignored.  Trailing delimiter ignored.

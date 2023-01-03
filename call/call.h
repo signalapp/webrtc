@@ -15,6 +15,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "api/adaptation/resource.h"
 #include "api/media_types.h"
 #include "api/task_queue/task_queue_base.h"
@@ -26,43 +27,12 @@
 #include "call/rtp_transport_controller_send_interface.h"
 #include "call/video_receive_stream.h"
 #include "call/video_send_stream.h"
-#include "modules/utility/include/process_thread.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/network/sent_packet.h"
 #include "rtc_base/network_route.h"
 #include "rtc_base/ref_count.h"
 
 namespace webrtc {
-
-// A restricted way to share the module process thread across multiple instances
-// of Call that are constructed on the same worker thread (which is what the
-// peer connection factory guarantees).
-// SharedModuleThread supports a callback that is issued when only one reference
-// remains, which is used to indicate to the original owner that the thread may
-// be discarded.
-class SharedModuleThread final {
- public:
-  // Allows injection of an externally created process thread.
-  static rtc::scoped_refptr<SharedModuleThread> Create(
-      std::unique_ptr<ProcessThread> process_thread,
-      std::function<void()> on_one_ref_remaining);
-
-  void EnsureStarted();
-
-  ProcessThread* process_thread();
-
- private:
-  friend class rtc::scoped_refptr<SharedModuleThread>;
-  SharedModuleThread(std::unique_ptr<ProcessThread> process_thread,
-                     std::function<void()> on_one_ref_remaining);
-  ~SharedModuleThread();
-
-  void AddRef() const;
-  rtc::RefCountReleaseStatus Release() const;
-
-  class Impl;
-  mutable std::unique_ptr<Impl> impl_;
-};
 
 // A Call represents a two-way connection carrying zero or more outgoing
 // and incoming media streams, transported over one or more RTP transports.
@@ -91,11 +61,6 @@ class Call {
   static Call* Create(const Call::Config& config);
   static Call* Create(const Call::Config& config,
                       Clock* clock,
-                      rtc::scoped_refptr<SharedModuleThread> call_thread,
-                      std::unique_ptr<ProcessThread> pacer_thread);
-  static Call* Create(const Call::Config& config,
-                      Clock* clock,
-                      rtc::scoped_refptr<SharedModuleThread> call_thread,
                       std::unique_ptr<RtpTransportControllerSendInterface>
                           transportControllerSend);
 
@@ -104,10 +69,10 @@ class Call {
 
   virtual void DestroyAudioSendStream(AudioSendStream* send_stream) = 0;
 
-  virtual AudioReceiveStream* CreateAudioReceiveStream(
-      const AudioReceiveStream::Config& config) = 0;
+  virtual AudioReceiveStreamInterface* CreateAudioReceiveStream(
+      const AudioReceiveStreamInterface::Config& config) = 0;
   virtual void DestroyAudioReceiveStream(
-      AudioReceiveStream* receive_stream) = 0;
+      AudioReceiveStreamInterface* receive_stream) = 0;
 
   virtual VideoSendStream* CreateVideoSendStream(
       VideoSendStream::Config config,
@@ -118,16 +83,16 @@ class Call {
       std::unique_ptr<FecController> fec_controller);
   virtual void DestroyVideoSendStream(VideoSendStream* send_stream) = 0;
 
-  virtual VideoReceiveStream* CreateVideoReceiveStream(
-      VideoReceiveStream::Config configuration) = 0;
+  virtual VideoReceiveStreamInterface* CreateVideoReceiveStream(
+      VideoReceiveStreamInterface::Config configuration) = 0;
   virtual void DestroyVideoReceiveStream(
-      VideoReceiveStream* receive_stream) = 0;
+      VideoReceiveStreamInterface* receive_stream) = 0;
 
-  // In order for a created VideoReceiveStream to be aware that it is
+  // In order for a created VideoReceiveStreamInterface to be aware that it is
   // protected by a FlexfecReceiveStream, the latter should be created before
   // the former.
   virtual FlexfecReceiveStream* CreateFlexfecReceiveStream(
-      const FlexfecReceiveStream::Config& config) = 0;
+      const FlexfecReceiveStream::Config config) = 0;
   virtual void DestroyFlexfecReceiveStream(
       FlexfecReceiveStream* receive_stream) = 0;
 
@@ -163,11 +128,15 @@ class Call {
 
   // Called when a receive stream's local ssrc has changed and association with
   // send streams needs to be updated.
-  virtual void OnLocalSsrcUpdated(AudioReceiveStream& stream,
+  virtual void OnLocalSsrcUpdated(AudioReceiveStreamInterface& stream,
+                                  uint32_t local_ssrc) = 0;
+  virtual void OnLocalSsrcUpdated(VideoReceiveStreamInterface& stream,
+                                  uint32_t local_ssrc) = 0;
+  virtual void OnLocalSsrcUpdated(FlexfecReceiveStream& stream,
                                   uint32_t local_ssrc) = 0;
 
-  virtual void OnUpdateSyncGroup(AudioReceiveStream& stream,
-                                 const std::string& sync_group) = 0;
+  virtual void OnUpdateSyncGroup(AudioReceiveStreamInterface& stream,
+                                 absl::string_view sync_group) = 0;
 
   virtual void OnSentPacket(const rtc::SentPacket& sent_packet) = 0;
 

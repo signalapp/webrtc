@@ -467,26 +467,22 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
 
 - (RTC_OBJC_TYPE(RTCSessionDescription) *)localDescription {
   // It's only safe to operate on SessionDescriptionInterface on the signaling thread.
-  return _peerConnection->signaling_thread()->Invoke<RTC_OBJC_TYPE(RTCSessionDescription) *>(
-      RTC_FROM_HERE, [self] {
-        const webrtc::SessionDescriptionInterface *description =
-            _peerConnection->local_description();
-        return description ?
-            [[RTC_OBJC_TYPE(RTCSessionDescription) alloc] initWithNativeDescription:description] :
-            nil;
-      });
+  return _peerConnection->signaling_thread()->BlockingCall([self] {
+    const webrtc::SessionDescriptionInterface *description = _peerConnection->local_description();
+    return description ?
+        [[RTC_OBJC_TYPE(RTCSessionDescription) alloc] initWithNativeDescription:description] :
+        nil;
+  });
 }
 
 - (RTC_OBJC_TYPE(RTCSessionDescription) *)remoteDescription {
   // It's only safe to operate on SessionDescriptionInterface on the signaling thread.
-  return _peerConnection->signaling_thread()->Invoke<RTC_OBJC_TYPE(RTCSessionDescription) *>(
-      RTC_FROM_HERE, [self] {
-        const webrtc::SessionDescriptionInterface *description =
-            _peerConnection->remote_description();
-        return description ?
-            [[RTC_OBJC_TYPE(RTCSessionDescription) alloc] initWithNativeDescription:description] :
-            nil;
-      });
+  return _peerConnection->signaling_thread()->BlockingCall([self] {
+    const webrtc::SessionDescriptionInterface *description = _peerConnection->remote_description();
+    return description ?
+        [[RTC_OBJC_TYPE(RTCSessionDescription) alloc] initWithNativeDescription:description] :
+        nil;
+  });
 }
 
 - (RTCSignalingState)signalingState {
@@ -567,7 +563,7 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
 }
 
 - (void)addStream:(RTC_OBJC_TYPE(RTCMediaStream) *)stream {
-  if (!_peerConnection->AddStream(stream.nativeMediaStream)) {
+  if (!_peerConnection->AddStream(stream.nativeMediaStream.get())) {
     RTCLogError(@"Failed to add stream: %@", stream);
     return;
   }
@@ -575,7 +571,7 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
 }
 
 - (void)removeStream:(RTC_OBJC_TYPE(RTCMediaStream) *)stream {
-  _peerConnection->RemoveStream(stream.nativeMediaStream);
+  _peerConnection->RemoveStream(stream.nativeMediaStream.get());
   [_localStreams removeObject:stream];
 }
 
@@ -658,7 +654,7 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
   webrtc::PeerConnectionInterface::RTCOfferAnswerOptions options;
   CopyConstraintsIntoOfferAnswerOptions(constraints.nativeConstraints.get(), &options);
 
-  _peerConnection->CreateOffer(observer, options);
+  _peerConnection->CreateOffer(observer.get(), options);
 }
 
 - (void)answerForConstraints:(RTC_OBJC_TYPE(RTCMediaConstraints) *)constraints
@@ -669,7 +665,7 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
   webrtc::PeerConnectionInterface::RTCOfferAnswerOptions options;
   CopyConstraintsIntoOfferAnswerOptions(constraints.nativeConstraints.get(), &options);
 
-  _peerConnection->CreateAnswer(observer, options);
+  _peerConnection->CreateAnswer(observer.get(), options);
 }
 
 - (void)setLocalDescription:(RTC_OBJC_TYPE(RTCSessionDescription) *)sdp

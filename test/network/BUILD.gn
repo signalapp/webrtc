@@ -47,6 +47,7 @@ rtc_library("emulated_network") {
     "../../api:simulated_network_api",
     "../../api:time_controller",
     "../../api/numerics",
+    "../../api/task_queue:pending_task_safety_flag",
     "../../api/test/network_emulation",
     "../../api/transport:stun_types",
     "../../api/units:data_rate",
@@ -57,10 +58,12 @@ rtc_library("emulated_network") {
     "../../p2p:p2p_server_utils",
     "../../p2p:rtc_p2p",
     "../../rtc_base",
+    "../../rtc_base:copy_on_write_buffer",
     "../../rtc_base:ip_address",
     "../../rtc_base:logging",
     "../../rtc_base:macromagic",
     "../../rtc_base:network_constants",
+    "../../rtc_base:random",
     "../../rtc_base:rtc_base_tests_utils",
     "../../rtc_base:rtc_event",
     "../../rtc_base:rtc_task_queue",
@@ -73,9 +76,7 @@ rtc_library("emulated_network") {
     "../../rtc_base:threading",
     "../../rtc_base/memory:always_valid_pointer",
     "../../rtc_base/synchronization:mutex",
-    "../../rtc_base/task_utils:pending_task_safety_flag",
     "../../rtc_base/task_utils:repeating_task",
-    "../../rtc_base/task_utils:to_queued_task",
     "../../system_wrappers",
     "../../test:scoped_key_value_config",
     "../scenario:column_printer",
@@ -84,6 +85,7 @@ rtc_library("emulated_network") {
   absl_deps = [
     "//third_party/abseil-cpp/absl/algorithm:container",
     "//third_party/abseil-cpp/absl/memory",
+    "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/types:optional",
   ]
 }
@@ -100,6 +102,7 @@ rtc_library("network_emulation_unittest") {
     "../../rtc_base:gunit_helpers",
     "../../rtc_base:logging",
     "../../rtc_base:rtc_event",
+    "../../rtc_base:task_queue_for_test",
     "../../rtc_base/synchronization:mutex",
   ]
 }
@@ -129,6 +132,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../../rtc_base:gunit_helpers",
       "../../rtc_base:logging",
       "../../rtc_base:rtc_event",
+      "../../rtc_base:task_queue_for_test",
     ]
   }
 }

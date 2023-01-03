@@ -14,13 +14,18 @@
 #include <memory>
 #include <vector>
 
+#include "absl/container/inlined_vector.h"
+#include "api/video_codecs/sdp_video_format.h"
+#include "modules/video_coding/codecs/av1/av1_svc_config.h"
 #include "modules/video_coding/codecs/av1/libaom_av1_encoder.h"
-#include "modules/video_coding/svc/create_scalability_structure.h"
 
 namespace webrtc {
 struct LibaomAv1EncoderTemplateAdapter {
   static std::vector<SdpVideoFormat> SupportedFormats() {
-    return {SdpVideoFormat("AV1")};
+    absl::InlinedVector<ScalabilityMode, kScalabilityModeCount>
+        scalability_modes = LibaomAv1EncoderSupportedScalabilityModes();
+    return {
+        SdpVideoFormat("AV1", SdpVideoFormat::Parameters(), scalability_modes)};
   }
 
   static std::unique_ptr<VideoEncoder> CreateEncoder(
@@ -28,10 +33,8 @@ struct LibaomAv1EncoderTemplateAdapter {
     return CreateLibaomAv1Encoder();
   }
 
-  static bool IsScalabilityModeSupported(absl::string_view scalability_mode) {
-    // For libaom AV1, the scalability mode is supported if we can create the
-    // scalability structure.
-    return ScalabilityStructureConfig(scalability_mode) != absl::nullopt;
+  static bool IsScalabilityModeSupported(ScalabilityMode scalability_mode) {
+    return LibaomAv1EncoderSupportsScalabilityMode(scalability_mode);
   }
 };
 

@@ -45,8 +45,11 @@ interface MediaCodecWrapper {
 
   MediaFormat getOutputFormat();
 
-  ByteBuffer[] getInputBuffers();
+  ByteBuffer getInputBuffer(int index);
 
+  ByteBuffer getOutputBuffer(int index);
+
+  // RingRTC change (or ... retention?) to keep support for SDK >= 19.
   ByteBuffer[] getOutputBuffers();
 
   Surface createInputSurface();

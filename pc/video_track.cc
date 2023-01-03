@@ -16,13 +16,11 @@
 #include "api/notifier.h"
 #include "api/sequence_checker.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/location.h"
-#include "rtc_base/ref_counted_object.h"
 
 namespace webrtc {
 
 VideoTrack::VideoTrack(
-    const std::string& label,
+    absl::string_view label,
     rtc::scoped_refptr<
         VideoTrackSourceProxyWithInternal<VideoTrackSourceInterface>> source,
     rtc::Thread* worker_thread)
@@ -96,7 +94,7 @@ bool VideoTrack::set_enabled(bool enable) {
 
   bool ret = MediaStreamTrack<VideoTrackInterface>::set_enabled(enable);
 
-  worker_thread_->Invoke<void>(RTC_FROM_HERE, [&]() {
+  worker_thread_->BlockingCall([&]() {
     RTC_DCHECK_RUN_ON(worker_thread_);
     enabled_w_ = enable;
     for (auto& sink_pair : sink_pairs()) {
@@ -131,7 +129,7 @@ void VideoTrack::OnChanged() {
 }
 
 rtc::scoped_refptr<VideoTrack> VideoTrack::Create(
-    const std::string& id,
+    absl::string_view id,
     rtc::scoped_refptr<VideoTrackSourceInterface> source,
     rtc::Thread* worker_thread) {
   rtc::scoped_refptr<

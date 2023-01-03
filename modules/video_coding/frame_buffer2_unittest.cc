@@ -16,11 +16,12 @@
 #include <memory>
 #include <vector>
 
+#include "api/task_queue/task_queue_base.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "modules/video_coding/frame_object.h"
-#include "modules/video_coding/jitter_estimator.h"
-#include "modules/video_coding/timing.h"
+#include "modules/video_coding/timing/jitter_estimator.h"
+#include "modules/video_coding/timing/timing.h"
 #include "rtc_base/numerics/sequence_number_util.h"
 #include "rtc_base/platform_thread.h"
 #include "rtc_base/random.h"
@@ -136,7 +137,6 @@ class TestFrameBuffer2 : public ::testing::Test {
         timing_(time_controller_.GetClock(), field_trials_),
         buffer_(new FrameBuffer(time_controller_.GetClock(),
                                 &timing_,
-                                &stats_callback_,
                                 field_trials_)),
         rand_(0x34678213) {}
 
@@ -185,14 +185,15 @@ class TestFrameBuffer2 : public ::testing::Test {
   }
 
   void ExtractFrame(int64_t max_wait_time = 0, bool keyframe_required = false) {
-    time_task_queue_.PostTask([this, max_wait_time, keyframe_required]() {
-      buffer_->NextFrame(max_wait_time, keyframe_required, &time_task_queue_,
+    time_task_queue_->PostTask([this, max_wait_time, keyframe_required]() {
+      buffer_->NextFrame(max_wait_time, keyframe_required,
+                         time_task_queue_.get(),
                          [this](std::unique_ptr<EncodedFrame> frame) {
                            frames_.emplace_back(std::move(frame));
                          });
     });
     if (max_wait_time == 0) {
-      time_controller_.AdvanceTime(TimeDelta::Millis(0));
+      time_controller_.AdvanceTime(TimeDelta::Zero());
     }
   }
 
@@ -218,12 +219,11 @@ class TestFrameBuffer2 : public ::testing::Test {
 
   test::ScopedKeyValueConfig field_trials_;
   webrtc::GlobalSimulatedTimeController time_controller_;
-  rtc::TaskQueue time_task_queue_;
+  std::unique_ptr<TaskQueueBase, TaskQueueDeleter> time_task_queue_;
   VCMTimingFake timing_;
   std::unique_ptr<FrameBuffer> buffer_;
   std::vector<std::unique_ptr<EncodedFrame>> frames_;
   Random rand_;
-  ::testing::NiceMock<VCMReceiveStatisticsCallbackMock> stats_callback_;
 };
 
 // From https://en.cppreference.com/w/cpp/language/static: "If ... a constexpr
@@ -282,8 +282,8 @@ TEST_F(TestFrameBuffer2, OneSuperFrame) {
 TEST_F(TestFrameBuffer2, ZeroPlayoutDelay) {
   test::ScopedKeyValueConfig field_trials;
   VCMTiming timing(time_controller_.GetClock(), field_trials);
-  buffer_.reset(new FrameBuffer(time_controller_.GetClock(), &timing,
-                                &stats_callback_, field_trials));
+  buffer_ = std::make_unique<FrameBuffer>(time_controller_.GetClock(), &timing,
+                                          field_trials);
   const VideoPlayoutDelay kPlayoutDelayMs = {0, 0};
   std::unique_ptr<FrameObjectFake> test_frame(new FrameObjectFake());
   test_frame->SetId(0);
@@ -302,7 +302,7 @@ TEST_F(TestFrameBuffer2, DISABLED_OneUnorderedSuperFrame) {
   ExtractFrame(50);
   InsertFrame(pid, 1, ts, true, kFrameSize);
   InsertFrame(pid, 0, ts, false, kFrameSize);
-  time_controller_.AdvanceTime(TimeDelta::Millis(0));
+  time_controller_.AdvanceTime(TimeDelta::Zero());
 
   CheckFrame(0, pid, 0);
   CheckFrame(1, pid, 1);
@@ -377,8 +377,6 @@ TEST_F(TestFrameBuffer2, DropTemporalLayerSlowDecoder) {
                 pid + i - 1);
   }
 
-  EXPECT_CALL(stats_callback_, OnDroppedFrames(1)).Times(3);
-
   for (int i = 0; i < 10; ++i) {
     ExtractFrame();
     time_controller_.AdvanceTime(TimeDelta::Millis(70));
@@ -409,7 +407,6 @@ TEST_F(TestFrameBuffer2, DropFramesIfSystemIsStalled) {
   // Jump forward in time, simulating the system being stalled for some reason.
   time_controller_.AdvanceTime(TimeDelta::Millis(3) * kFps10);
   // Extract one more frame, expect second and third frame to be dropped.
-  EXPECT_CALL(stats_callback_, OnDroppedFrames(2)).Times(1);
   ExtractFrame();
 
   CheckFrame(0, pid + 0, 0);
@@ -426,7 +423,6 @@ TEST_F(TestFrameBuffer2, DroppedFramesCountedOnClear) {
   }
 
   // All frames should be dropped when Clear is called.
-  EXPECT_CALL(stats_callback_, OnDroppedFrames(5)).Times(1);
   buffer_->Clear();
 }
 
@@ -516,31 +512,6 @@ TEST_F(TestFrameBuffer2, PictureIdJumpBack) {
   ExtractFrame();
   CheckFrame(1, pid - 1, 0);
   CheckNoFrame(2);
-}
-
-TEST_F(TestFrameBuffer2, StatsCallback) {
-  uint16_t pid = Rand();
-  uint32_t ts = Rand();
-  const int kFrameSize = 5000;
-
-  EXPECT_CALL(stats_callback_,
-              OnCompleteFrame(true, kFrameSize, VideoContentType::UNSPECIFIED));
-  EXPECT_CALL(stats_callback_, OnFrameBufferTimingsUpdated(_, _, _, _, _, _));
-  // Stats callback requires a previously decoded frame.
-  timing_.StopDecodeTimer(TimeDelta::Millis(1), Timestamp::Zero());
-
-  {
-    std::unique_ptr<FrameObjectFake> frame(new FrameObjectFake());
-    frame->SetEncodedData(EncodedImageBuffer::Create(kFrameSize));
-    frame->SetId(pid);
-    frame->SetTimestamp(ts);
-    frame->num_references = 0;
-
-    EXPECT_EQ(buffer_->InsertFrame(std::move(frame)), pid);
-  }
-
-  ExtractFrame();
-  CheckFrame(0, pid, 0);
 }
 
 TEST_F(TestFrameBuffer2, ForwardJumps) {

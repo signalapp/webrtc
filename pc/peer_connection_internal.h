@@ -28,7 +28,7 @@
 namespace webrtc {
 
 class DataChannelController;
-class StatsCollector;
+class LegacyStatsCollector;
 
 // This interface defines the functions that are needed for
 // SdpOfferAnswerHandler to access PeerConnection internal state.
@@ -53,10 +53,6 @@ class PeerConnectionSdpMethods {
   virtual const PeerConnectionInterface::RTCConfiguration* configuration()
       const = 0;
 
-  // Report the UMA metric SdpFormatReceived for the given remote description.
-  virtual void ReportSdpFormatReceived(
-      const SessionDescriptionInterface& remote_description) = 0;
-
   // Report the UMA metric BundleUsage for the given remote description.
   virtual void ReportSdpBundleUsage(
       const SessionDescriptionInterface& remote_description) = 0;
@@ -75,7 +71,7 @@ class PeerConnectionSdpMethods {
   virtual JsepTransportController* transport_controller_n() = 0;
   virtual DataChannelController* data_channel_controller() = 0;
   virtual cricket::PortAllocator* port_allocator() = 0;
-  virtual StatsCollector* stats() = 0;
+  virtual LegacyStatsCollector* legacy_stats() = 0;
   // Returns the observer. Will crash on CHECK if the observer is removed.
   virtual PeerConnectionObserver* Observer() const = 0;
   virtual bool GetSctpSslRole(rtc::SSLRole* role) = 0;
@@ -127,6 +123,10 @@ class PeerConnectionSdpMethods {
   virtual rtc::scoped_refptr<IceGathererInterface> shared_ice_gatherer() {
       return nullptr;
   }
+
+  virtual const FieldTrialsView& trials() const = 0;
+
+  virtual void ClearStatsCache() = 0;
 };
 
 // Functions defined in this class are called by other objects,
@@ -182,8 +182,6 @@ class PeerConnectionInternal : public PeerConnectionInterface,
   virtual void NoteDataAddedEvent() {}
   // Handler for the "channel closed" signal
   virtual void OnSctpDataChannelClosed(DataChannelInterface* channel) {}
-
-  virtual const FieldTrialsView& trials() = 0;
 };
 
 }  // namespace webrtc

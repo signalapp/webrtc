@@ -15,15 +15,13 @@
 #include <string>
 #include <utility>
 
+#include "absl/cleanup/cleanup.h"
 #include "media/sctp/sctp_transport_internal.h"
 #include "pc/proxy.h"
 #include "pc/sctp_utils.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/location.h"
 #include "rtc_base/logging.h"
-#include "rtc_base/ref_counted_object.h"
 #include "rtc_base/system/unused.h"
-#include "rtc_base/task_utils/to_queued_task.h"
 #include "rtc_base/thread.h"
 
 namespace webrtc {
@@ -141,13 +139,13 @@ bool SctpSidAllocator::IsSidAvailable(int sid) const {
 }
 
 rtc::scoped_refptr<SctpDataChannel> SctpDataChannel::Create(
-    SctpDataChannelProviderInterface* provider,
+    SctpDataChannelControllerInterface* controller,
     const std::string& label,
     const InternalDataChannelInit& config,
     rtc::Thread* signaling_thread,
     rtc::Thread* network_thread) {
   auto channel = rtc::make_ref_counted<SctpDataChannel>(
-      config, provider, label, signaling_thread, network_thread);
+      config, controller, label, signaling_thread, network_thread);
   if (!channel->Init()) {
     return nullptr;
   }
@@ -163,7 +161,7 @@ rtc::scoped_refptr<DataChannelInterface> SctpDataChannel::CreateProxy(
 }
 
 SctpDataChannel::SctpDataChannel(const InternalDataChannelInit& config,
-                                 SctpDataChannelProviderInterface* provider,
+                                 SctpDataChannelControllerInterface* controller,
                                  const std::string& label,
                                  rtc::Thread* signaling_thread,
                                  rtc::Thread* network_thread)
@@ -173,9 +171,14 @@ SctpDataChannel::SctpDataChannel(const InternalDataChannelInit& config,
       label_(label),
       config_(config),
       observer_(nullptr),
-      provider_(provider) {
+      controller_(controller) {
   RTC_DCHECK_RUN_ON(signaling_thread_);
   RTC_UNUSED(network_thread_);
+}
+
+void SctpDataChannel::DetachFromController() {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
+  controller_detached_ = true;
 }
 
 bool SctpDataChannel::Init() {
@@ -214,15 +217,15 @@ bool SctpDataChannel::Init() {
   // This has to be done async because the upper layer objects (e.g.
   // Chrome glue and WebKit) are not wired up properly until after this
   // function returns.
-  if (provider_->ReadyToSendData()) {
+  RTC_DCHECK(!controller_detached_);
+  if (controller_->ReadyToSendData()) {
     AddRef();
-    rtc::Thread::Current()->PostTask(ToQueuedTask(
-        [this] {
-          RTC_DCHECK_RUN_ON(signaling_thread_);
-          if (state_ != kClosed)
-            OnTransportReady(true);
-        },
-        [this] { Release(); }));
+    absl::Cleanup release = [this] { Release(); };
+    rtc::Thread::Current()->PostTask([this, release = std::move(release)] {
+      RTC_DCHECK_RUN_ON(signaling_thread_);
+      if (state_ != kClosed)
+        OnTransportReady(true);
+    });
   }
 
   return true;
@@ -330,7 +333,8 @@ void SctpDataChannel::SetSctpSid(int sid) {
   }
 
   const_cast<InternalDataChannelInit&>(config_).id = sid;
-  provider_->AddSctpDataStream(sid);
+  RTC_DCHECK(!controller_detached_);
+  controller_->AddSctpDataStream(sid);
 }
 
 void SctpDataChannel::OnClosingProcedureStartedRemotely(int sid) {
@@ -356,20 +360,23 @@ void SctpDataChannel::OnClosingProcedureComplete(int sid) {
     // all pending data and transitioned to kClosing already.
     RTC_DCHECK_EQ(state_, kClosing);
     RTC_DCHECK(queued_send_data_.Empty());
-    DisconnectFromProvider();
+    DisconnectFromTransport();
     SetState(kClosed);
   }
 }
 
 void SctpDataChannel::OnTransportChannelCreated() {
   RTC_DCHECK_RUN_ON(signaling_thread_);
-  if (!connected_to_provider_) {
-    connected_to_provider_ = provider_->ConnectDataChannel(this);
+  if (controller_detached_) {
+    return;
   }
-  // The sid may have been unassigned when provider_->ConnectDataChannel was
-  // done. So always add the streams even if connected_to_provider_ is true.
+  if (!connected_to_transport_) {
+    connected_to_transport_ = controller_->ConnectDataChannel(this);
+  }
+  // The sid may have been unassigned when controller_->ConnectDataChannel was
+  // done. So always add the streams even if connected_to_transport_ is true.
   if (config_.id >= 0) {
-    provider_->AddSctpDataStream(config_.id);
+    controller_->AddSctpDataStream(config_.id);
   }
 }
 
@@ -472,8 +479,8 @@ void SctpDataChannel::CloseAbruptlyWithError(RTCError error) {
     return;
   }
 
-  if (connected_to_provider_) {
-    DisconnectFromProvider();
+  if (connected_to_transport_) {
+    DisconnectFromTransport();
   }
 
   // Closing abruptly means any queued data gets thrown away.
@@ -503,7 +510,7 @@ void SctpDataChannel::UpdateState() {
 
   switch (state_) {
     case kConnecting: {
-      if (connected_to_provider_) {
+      if (connected_to_transport_) {
         if (handshake_state_ == kHandshakeShouldSendOpen) {
           rtc::CopyOnWriteBuffer payload;
           WriteDataChannelOpenMessage(label_, config_, &payload);
@@ -534,10 +541,10 @@ void SctpDataChannel::UpdateState() {
         // to complete; after calling RemoveSctpDataStream,
         // OnClosingProcedureComplete will end up called asynchronously
         // afterwards.
-        if (connected_to_provider_ && !started_closing_procedure_ &&
-            config_.id >= 0) {
+        if (connected_to_transport_ && !started_closing_procedure_ &&
+            !controller_detached_ && config_.id >= 0) {
           started_closing_procedure_ = true;
-          provider_->RemoveSctpDataStream(config_.id);
+          controller_->RemoveSctpDataStream(config_.id);
         }
       }
       break;
@@ -564,13 +571,13 @@ void SctpDataChannel::SetState(DataState state) {
   }
 }
 
-void SctpDataChannel::DisconnectFromProvider() {
+void SctpDataChannel::DisconnectFromTransport() {
   RTC_DCHECK_RUN_ON(signaling_thread_);
-  if (!connected_to_provider_)
+  if (!connected_to_transport_ || controller_detached_)
     return;
 
-  provider_->DisconnectDataChannel(this);
-  connected_to_provider_ = false;
+  controller_->DisconnectDataChannel(this);
+  connected_to_transport_ = false;
 }
 
 void SctpDataChannel::DeliverQueuedReceivedData() {
@@ -609,6 +616,9 @@ bool SctpDataChannel::SendDataMessage(const DataBuffer& buffer,
                                       bool queue_if_blocked) {
   RTC_DCHECK_RUN_ON(signaling_thread_);
   SendDataParams send_params;
+  if (controller_detached_) {
+    return false;
+  }
 
   send_params.ordered = config_.ordered;
   // Send as ordered if it is still going through OPEN/ACK signaling.
@@ -626,7 +636,7 @@ bool SctpDataChannel::SendDataMessage(const DataBuffer& buffer,
 
   cricket::SendDataResult send_result = cricket::SDR_SUCCESS;
   bool success =
-      provider_->SendData(config_.id, send_params, buffer.data, &send_result);
+      controller_->SendData(config_.id, send_params, buffer.data, &send_result);
 
   if (success) {
     ++messages_sent_;
@@ -688,6 +698,9 @@ bool SctpDataChannel::SendControlMessage(const rtc::CopyOnWriteBuffer& buffer) {
   RTC_DCHECK(writable_);
   RTC_DCHECK_GE(config_.id, 0);
 
+  if (controller_detached_) {
+    return false;
+  }
   bool is_open_message = handshake_state_ == kHandshakeShouldSendOpen;
   RTC_DCHECK(!is_open_message || !config_.negotiated);
 
@@ -700,7 +713,7 @@ bool SctpDataChannel::SendControlMessage(const rtc::CopyOnWriteBuffer& buffer) {
 
   cricket::SendDataResult send_result = cricket::SDR_SUCCESS;
   bool retval =
-      provider_->SendData(config_.id, send_params, buffer, &send_result);
+      controller_->SendData(config_.id, send_params, buffer, &send_result);
   if (retval) {
     RTC_LOG(LS_VERBOSE) << "Sent CONTROL message on channel " << config_.id;
 
@@ -724,6 +737,12 @@ bool SctpDataChannel::SendControlMessage(const rtc::CopyOnWriteBuffer& buffer) {
 // static
 void SctpDataChannel::ResetInternalIdAllocatorForTesting(int new_value) {
   g_unique_id = new_value;
+}
+
+SctpDataChannel* DowncastProxiedDataChannelInterfaceToSctpDataChannelForTesting(
+    DataChannelInterface* channel) {
+  return static_cast<SctpDataChannel*>(
+      static_cast<DataChannelProxy*>(channel)->internal());
 }
 
 }  // namespace webrtc

@@ -28,8 +28,6 @@ import org.webrtc.ThreadUtils.ThreadChecker;
 
 /**
  * Android hardware video encoder.
- *
- * @note This class is only supported on Android Kitkat and above.
  */
 @SuppressWarnings("deprecation") // Cannot support API level 19 without using deprecated methods.
 class HardwareVideoEncoder implements VideoEncoder {
@@ -59,7 +57,7 @@ class HardwareVideoEncoder implements VideoEncoder {
   /**
    * Keeps track of the number of output buffers that have been passed down the pipeline and not yet
    * released. We need to wait for this to go down to zero before operations invalidating the output
-   * buffers, i.e., stop() and getOutputBuffers().
+   * buffers, i.e., stop() and getOutputBuffer().
    */
   private static class BusyCount {
     private final Object countLock = new Object();
@@ -135,6 +133,7 @@ class HardwareVideoEncoder implements VideoEncoder {
 
   // --- Valid and immutable while an encoding session is running.
   @Nullable private MediaCodecWrapper codec;
+  // RingRTC change (or ... retention?) to keep support for SDK >= 19.
   @Nullable private ByteBuffer[] outputBuffers;
   // Thread that delivers encoded frames to the user callback.
   @Nullable private Thread outputThread;
@@ -287,8 +286,11 @@ class HardwareVideoEncoder implements VideoEncoder {
       stride = getStride(inputFormat, width);
       sliceHeight = getSliceHeight(inputFormat, height);
 
+      // RingRTC change (or ... retention?) to keep support for SDK >= 19.
+      if (Build.VERSION.SDK_INT < 21) {
+        outputBuffers = codec.getOutputBuffers();
+      }
       codec.start();
-      outputBuffers = codec.getOutputBuffers();
     } catch (IllegalStateException e) {
       Logging.e(TAG, "initEncodeInternal failed", e);
       release();
@@ -338,6 +340,7 @@ class HardwareVideoEncoder implements VideoEncoder {
     outputBuilders.clear();
 
     codec = null;
+    // RingRTC change (or ... retention?) to keep support for SDK >= 19.
     outputBuffers = null;
     outputThread = null;
 
@@ -457,9 +460,9 @@ class HardwareVideoEncoder implements VideoEncoder {
 
     ByteBuffer buffer;
     try {
-      buffer = codec.getInputBuffers()[index];
+      buffer = codec.getInputBuffer(index);
     } catch (IllegalStateException e) {
-      Logging.e(TAG, "getInputBuffers failed", e);
+      Logging.e(TAG, "getInputBuffer with index=" + index + " failed", e);
       return VideoCodecStatus.ERROR;
     }
     fillInputBuffer(buffer, videoFrameBuffer);
@@ -585,12 +588,16 @@ class HardwareVideoEncoder implements VideoEncoder {
       if (index < 0) {
         if (index == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
           outputBuffersBusyCount.waitForZero();
-          outputBuffers = codec.getOutputBuffers();
+          // RingRTC change (or ... retention?) to keep support for SDK >= 19.
+          if (Build.VERSION.SDK_INT < 21) {
+            outputBuffers = codec.getOutputBuffers();
+          }
         }
         return;
       }
 
-      ByteBuffer codecOutputBuffer = outputBuffers[index];
+      // RingRTC change (or ... retention?) to keep support for SDK >= 19.
+      ByteBuffer codecOutputBuffer = Build.VERSION.SDK_INT >= 21 ? codec.getOutputBuffer(index) : outputBuffers[index];
       codecOutputBuffer.position(info.offset);
       codecOutputBuffer.limit(info.offset + info.size);
 

@@ -19,6 +19,7 @@
 #include <utility>
 
 #include "absl/memory/memory.h"
+#include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "api/network_state_predictor.h"
 #include "api/rtc_event_log/rtc_event_log.h"
@@ -38,6 +39,7 @@
 #include "modules/rtp_rtcp/source/rtp_header_extensions.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/numerics/sequence_number_util.h"
@@ -689,46 +691,40 @@ ParsedRtcEventLog::ParseStatus StoreRtcpBlocks(
         header.fmt() == rtcp::TransportFeedback::kFeedbackMessageType) {
       LoggedRtcpPacketTransportFeedback parsed_block;
       parsed_block.timestamp = timestamp;
-      if (parsed_block.transport_feedback.Parse(header))
-        transport_feedback_list->push_back(std::move(parsed_block));
+      RTC_PARSE_CHECK_OR_RETURN(parsed_block.transport_feedback.Parse(header));
+      transport_feedback_list->push_back(std::move(parsed_block));
     } else if (header.type() == rtcp::SenderReport::kPacketType) {
       LoggedRtcpPacketSenderReport parsed_block;
       parsed_block.timestamp = timestamp;
-      if (parsed_block.sr.Parse(header)) {
-        sr_list->push_back(std::move(parsed_block));
-      }
+      RTC_PARSE_CHECK_OR_RETURN(parsed_block.sr.Parse(header));
+      sr_list->push_back(std::move(parsed_block));
     } else if (header.type() == rtcp::ReceiverReport::kPacketType) {
       LoggedRtcpPacketReceiverReport parsed_block;
       parsed_block.timestamp = timestamp;
-      if (parsed_block.rr.Parse(header)) {
-        rr_list->push_back(std::move(parsed_block));
-      }
+      RTC_PARSE_CHECK_OR_RETURN(parsed_block.rr.Parse(header));
+      rr_list->push_back(std::move(parsed_block));
     } else if (header.type() == rtcp::ExtendedReports::kPacketType) {
       LoggedRtcpPacketExtendedReports parsed_block;
       parsed_block.timestamp = timestamp;
-      if (parsed_block.xr.Parse(header)) {
-        xr_list->push_back(std::move(parsed_block));
-      }
+      RTC_PARSE_CHECK_OR_RETURN(parsed_block.xr.Parse(header));
+      xr_list->push_back(std::move(parsed_block));
     } else if (header.type() == rtcp::Fir::kPacketType &&
                header.fmt() == rtcp::Fir::kFeedbackMessageType) {
       LoggedRtcpPacketFir parsed_block;
       parsed_block.timestamp = timestamp;
-      if (parsed_block.fir.Parse(header)) {
-        fir_list->push_back(std::move(parsed_block));
-      }
+      RTC_PARSE_CHECK_OR_RETURN(parsed_block.fir.Parse(header));
+      fir_list->push_back(std::move(parsed_block));
     } else if (header.type() == rtcp::Pli::kPacketType &&
                header.fmt() == rtcp::Pli::kFeedbackMessageType) {
       LoggedRtcpPacketPli parsed_block;
       parsed_block.timestamp = timestamp;
-      if (parsed_block.pli.Parse(header)) {
-        pli_list->push_back(std::move(parsed_block));
-      }
+      RTC_PARSE_CHECK_OR_RETURN(parsed_block.pli.Parse(header));
+      pli_list->push_back(std::move(parsed_block));
     } else if (header.type() == rtcp::Bye::kPacketType) {
       LoggedRtcpPacketBye parsed_block;
       parsed_block.timestamp = timestamp;
-      if (parsed_block.bye.Parse(header)) {
-        bye_list->push_back(std::move(parsed_block));
-      }
+      RTC_PARSE_CHECK_OR_RETURN(parsed_block.bye.Parse(header));
+      bye_list->push_back(std::move(parsed_block));
     } else if (header.type() == rtcp::Psfb::kPacketType &&
                header.fmt() == rtcp::Psfb::kAfbMessageType) {
       bool type_found = false;
@@ -748,13 +744,13 @@ ParsedRtcEventLog::ParseStatus StoreRtcpBlocks(
           type_found = true;
         }
       }
+      // We ignore other application-layer feedback types.
     } else if (header.type() == rtcp::Nack::kPacketType &&
                header.fmt() == rtcp::Nack::kFeedbackMessageType) {
       LoggedRtcpPacketNack parsed_block;
       parsed_block.timestamp = timestamp;
-      if (parsed_block.nack.Parse(header)) {
-        nack_list->push_back(std::move(parsed_block));
-      }
+      RTC_PARSE_CHECK_OR_RETURN(parsed_block.nack.Parse(header));
+      nack_list->push_back(std::move(parsed_block));
     }
   }
   return ParsedRtcEventLog::ParseStatus::Success();
@@ -1119,7 +1115,7 @@ void ParsedRtcEventLog::Clear() {
 }
 
 ParsedRtcEventLog::ParseStatus ParsedRtcEventLog::ParseFile(
-    const std::string& filename) {
+    absl::string_view filename) {
   FileWrapper file = FileWrapper::OpenReadOnly(filename);
   if (!file.is_open()) {
     RTC_LOG(LS_WARNING) << "Could not open file " << filename
@@ -1145,12 +1141,12 @@ ParsedRtcEventLog::ParseStatus ParsedRtcEventLog::ParseFile(
 }
 
 ParsedRtcEventLog::ParseStatus ParsedRtcEventLog::ParseString(
-    const std::string& s) {
+    absl::string_view s) {
   return ParseStream(s);
 }
 
 ParsedRtcEventLog::ParseStatus ParsedRtcEventLog::ParseStream(
-    const std::string& s) {
+    absl::string_view s) {
   Clear();
   ParseStatus status = ParseStreamInternal(s);
 
@@ -1637,7 +1633,8 @@ ParsedRtcEventLog::ParseStatus ParsedRtcEventLog::StoreParsedLegacyEvent(
       // Use RtpPacketReceived instead of more generic RtpPacket because former
       // has a buildin convertion to RTPHeader.
       RtpPacketReceived rtp_header;
-      RTC_PARSE_CHECK_OR_RETURN(rtp_header.Parse(rtp_packet.header()));
+      RTC_PARSE_CHECK_OR_RETURN(
+          rtp_header.Parse(rtc::CopyOnWriteBuffer(rtp_packet.header())));
 
       if (const RtpHeaderExtensionMap* extension_map = GetRtpHeaderExtensionMap(
               rtp_packet.incoming(), rtp_header.Ssrc())) {
@@ -1771,6 +1768,12 @@ ParsedRtcEventLog::ParseStatus ParsedRtcEventLog::StoreParsedLegacyEvent(
       auto status_or_value = GetIceCandidatePairEvent(event);
       RTC_RETURN_IF_ERROR(status_or_value.status());
       ice_candidate_pair_events_.push_back(status_or_value.value());
+      break;
+    }
+    case rtclog::Event::REMOTE_ESTIMATE: {
+      auto status_or_value = GetRemoteEstimateEvent(event);
+      RTC_RETURN_IF_ERROR(status_or_value.status());
+      remote_estimate_events_.push_back(status_or_value.value());
       break;
     }
     case rtclog::Event::UNKNOWN_EVENT: {
@@ -2147,7 +2150,7 @@ ParsedRtcEventLog::GetIceCandidatePairConfig(
   LoggedIceCandidatePairConfig res;
   const rtclog::IceCandidatePairConfig& config =
       rtc_event.ice_candidate_pair_config();
-  RTC_CHECK(rtc_event.has_timestamp_us());
+  RTC_PARSE_CHECK_OR_RETURN(rtc_event.has_timestamp_us());
   res.timestamp = Timestamp::Micros(rtc_event.timestamp_us());
   RTC_PARSE_CHECK_OR_RETURN(config.has_config_type());
   res.type = GetRuntimeIceCandidatePairConfigType(config.config_type());
@@ -2186,7 +2189,7 @@ ParsedRtcEventLog::GetIceCandidatePairEvent(
   LoggedIceCandidatePairEvent res;
   const rtclog::IceCandidatePairEvent& event =
       rtc_event.ice_candidate_pair_event();
-  RTC_CHECK(rtc_event.has_timestamp_us());
+  RTC_PARSE_CHECK_OR_RETURN(rtc_event.has_timestamp_us());
   res.timestamp = Timestamp::Micros(rtc_event.timestamp_us());
   RTC_PARSE_CHECK_OR_RETURN(event.has_event_type());
   res.type = GetRuntimeIceCandidatePairEventType(event.event_type());
@@ -2194,6 +2197,23 @@ ParsedRtcEventLog::GetIceCandidatePairEvent(
   res.candidate_pair_id = event.candidate_pair_id();
   // transaction_id is not supported by rtclog::Event
   res.transaction_id = 0;
+  return res;
+}
+
+ParsedRtcEventLog::ParseStatusOr<LoggedRemoteEstimateEvent>
+ParsedRtcEventLog::GetRemoteEstimateEvent(const rtclog::Event& event) const {
+  RTC_PARSE_CHECK_OR_RETURN(event.has_type());
+  RTC_PARSE_CHECK_OR_RETURN_EQ(event.type(), rtclog::Event::REMOTE_ESTIMATE);
+  LoggedRemoteEstimateEvent res;
+  const rtclog::RemoteEstimate& remote_estimate_event = event.remote_estimate();
+  RTC_PARSE_CHECK_OR_RETURN(event.has_timestamp_us());
+  res.timestamp = Timestamp::Micros(event.timestamp_us());
+  if (remote_estimate_event.has_link_capacity_lower_kbps())
+    res.link_capacity_lower = DataRate::KilobitsPerSec(
+        remote_estimate_event.link_capacity_lower_kbps());
+  if (remote_estimate_event.has_link_capacity_upper_kbps())
+    res.link_capacity_upper = DataRate::KilobitsPerSec(
+        remote_estimate_event.link_capacity_upper_kbps());
   return res;
 }
 
@@ -2284,12 +2304,12 @@ std::vector<LoggedPacketInfo> ParsedRtcEventLog::GetPacketInfos(
       seq_num_unwrapper = SequenceNumberUnwrapper();
       indices.clear();
     }
-    RTC_DCHECK(new_log_time >= last_log_time);
+    RTC_DCHECK_GE(new_log_time, last_log_time);
     last_log_time = new_log_time;
   };
 
   auto rtp_handler = [&](const LoggedRtpPacket& rtp) {
-    advance_time(Timestamp::Millis(rtp.log_time_ms()));
+    advance_time(rtp.log_time());
     MediaStreamInfo* stream = &streams[rtp.header.ssrc];
     Timestamp capture_time = Timestamp::MinusInfinity();
     if (!stream->rtx) {
@@ -2328,23 +2348,22 @@ std::vector<LoggedPacketInfo> ParsedRtcEventLog::GetPacketInfos(
   };
 
   Timestamp feedback_base_time = Timestamp::MinusInfinity();
-  absl::optional<int64_t> last_feedback_base_time_us;
+  Timestamp last_feedback_base_time = Timestamp::MinusInfinity();
 
   auto feedback_handler =
       [&](const LoggedRtcpPacketTransportFeedback& logged_rtcp) {
-        auto log_feedback_time = Timestamp::Millis(logged_rtcp.log_time_ms());
+        auto log_feedback_time = logged_rtcp.log_time();
         advance_time(log_feedback_time);
         const auto& feedback = logged_rtcp.transport_feedback;
         // Add timestamp deltas to a local time base selected on first packet
         // arrival. This won't be the true time base, but makes it easier to
         // manually inspect time stamps.
-        if (!last_feedback_base_time_us) {
+        if (!last_feedback_base_time.IsFinite()) {
           feedback_base_time = log_feedback_time;
         } else {
-          feedback_base_time += TimeDelta::Micros(
-              feedback.GetBaseDeltaUs(*last_feedback_base_time_us));
+          feedback_base_time += feedback.GetBaseDelta(last_feedback_base_time);
         }
-        last_feedback_base_time_us = feedback.GetBaseTimeUs();
+        last_feedback_base_time = feedback.BaseTime();
 
         std::vector<LoggedPacketInfo*> packet_feedbacks;
         packet_feedbacks.reserve(feedback.GetAllPackets().size());
@@ -2366,7 +2385,7 @@ std::vector<LoggedPacketInfo> ParsedRtcEventLog::GetPacketInfos(
             continue;
           }
           if (packet.received()) {
-            receive_timestamp += TimeDelta::Micros(packet.delta_us());
+            receive_timestamp += packet.delta();
             if (sent->reported_recv_time.IsInfinite()) {
               sent->reported_recv_time = receive_timestamp;
               sent->log_feedback_time = log_feedback_time;
@@ -2391,8 +2410,11 @@ std::vector<LoggedPacketInfo> ParsedRtcEventLog::GetPacketInfos(
         last->last_in_feedback = true;
         for (LoggedPacketInfo* fb : packet_feedbacks) {
           if (direction == PacketDirection::kOutgoingPacket) {
-            fb->feedback_hold_duration =
-                last->reported_recv_time - fb->reported_recv_time;
+            if (last->reported_recv_time.IsFinite() &&
+                fb->reported_recv_time.IsFinite()) {
+              fb->feedback_hold_duration =
+                  last->reported_recv_time - fb->reported_recv_time;
+            }
           } else {
             fb->feedback_hold_duration =
                 log_feedback_time - fb->log_packet_time;

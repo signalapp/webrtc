@@ -254,11 +254,11 @@ public class HardwareVideoEncoderFactory implements VideoEncoderFactory {
       if (Build.VERSION.SDK_INT == Build.VERSION_CODES.LOLLIPOP
           || Build.VERSION.SDK_INT == Build.VERSION_CODES.LOLLIPOP_MR1) {
         return QCOM_VP8_KEY_FRAME_INTERVAL_ANDROID_L_MS;
-      } else if (Build.VERSION.SDK_INT == Build.VERSION_CODES.M) {
-        return QCOM_VP8_KEY_FRAME_INTERVAL_ANDROID_M_MS;
-      } else if (Build.VERSION.SDK_INT > Build.VERSION_CODES.M) {
-        return QCOM_VP8_KEY_FRAME_INTERVAL_ANDROID_N_MS;
       }
+      if (Build.VERSION.SDK_INT == Build.VERSION_CODES.M) {
+        return QCOM_VP8_KEY_FRAME_INTERVAL_ANDROID_M_MS;
+      }
+      return QCOM_VP8_KEY_FRAME_INTERVAL_ANDROID_N_MS;
     }
     // Other codecs don't need key frame forcing.
     return 0;

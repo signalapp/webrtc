@@ -42,6 +42,7 @@ LIB_TO_LICENSES_DICT = {
     ],
     'boringssl': ['third_party/boringssl/src/LICENSE'],
     'crc32c': ['third_party/crc32c/src/LICENSE'],
+    'dav1d': ['third_party/dav1d/LICENSE'],
     'errorprone': [
         'third_party/android_deps/libs/'
         'com_google_errorprone_error_prone_core/LICENSE'
@@ -53,7 +54,7 @@ LIB_TO_LICENSES_DICT = {
     'libaom': ['third_party/libaom/source/libaom/LICENSE'],
     'libc++': ['buildtools/third_party/libc++/trunk/LICENSE.TXT'],
     'libc++abi': ['buildtools/third_party/libc++abi/trunk/LICENSE.TXT'],
-    'libevent': ['base/third_party/libevent/LICENSE'],
+    'libevent': ['third_party/libevent/LICENSE'],
     'libjpeg_turbo': ['third_party/libjpeg_turbo/LICENSE.md'],
     'libsrtp': ['third_party/libsrtp/LICENSE'],
     'libunwind': ['buildtools/third_party/libunwind/trunk/LICENSE.TXT'],
@@ -82,7 +83,6 @@ LIB_TO_LICENSES_DICT = {
     'androidx': [],
 
     # Compile time dependencies, no license needed:
-    'yasm': [],
     'ow2_asm': [],
     'jdk': [],
 }
@@ -100,17 +100,16 @@ LIB_REGEX_TO_LICENSES_DICT = {
 }
 
 
-def FindSrcDirPath():
-  """Returns the abs path to the src/ dir of the project."""
-  src_dir = os.path.dirname(os.path.abspath(__file__))
-  while os.path.basename(src_dir) != 'src':
-    src_dir = os.path.normpath(os.path.join(src_dir, os.pardir))
-  return src_dir
-
-
-SCRIPT_DIR = os.path.dirname(os.path.realpath(sys.argv[0]))
+SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 WEBRTC_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, os.pardir, os.pardir))
-SRC_DIR = FindSrcDirPath()
+SRC_DIR = os.path.dirname(os.path.dirname(SCRIPT_DIR))
+
+# Chromium, and potentially other repositories, embed us in the location
+# "//third_party/webrtc". When this is the case, we expect that some of the
+# tools we need are *actually* in their build folder, thus we need to move up
+# to the *true* source root, when we're embedded like this.
+if SRC_DIR.endswith(os.path.join('third_party', 'webrtc')):
+  SRC_DIR = os.path.abspath(os.path.join(SRC_DIR, os.pardir, os.pardir))
 sys.path.append(os.path.join(SRC_DIR, 'build'))
 import find_depot_tools
 

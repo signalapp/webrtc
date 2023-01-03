@@ -17,6 +17,8 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/string_view.h"
+#include "modules/desktop_capture/linux/wayland/portal_request_response.h"
 #include "modules/desktop_capture/linux/wayland/scoped_glib.h"
 #include "modules/desktop_capture/linux/wayland/xdg_session_details.h"
 #include "rtc_base/checks.h"
@@ -42,14 +44,6 @@ using SessionRequestResponseSignalHandler = void (*)(GDBusConnection*,
                                                      const char*,
                                                      GVariant*,
                                                      gpointer);
-using SessionRequestResponseSignalCallback = void (*)(std::string);
-using SessionClosedSignalHandler = void (*)(GDBusConnection*,
-                                            const char*,
-                                            const char*,
-                                            const char*,
-                                            const char*,
-                                            GVariant*,
-                                            gpointer);
 using StartRequestResponseSignalHandler = void (*)(GDBusConnection*,
                                                    const char*,
                                                    const char*,
@@ -61,41 +55,29 @@ using SessionStartRequestedHandler = void (*)(GDBusProxy*,
                                               GAsyncResult*,
                                               gpointer);
 
-// Contains type of responses that can be observed when making a request to
-// a desktop portal interface.
-enum class RequestResponse {
-  // Unknown, the initialized status.
-  kUnknown,
-  // Success, the request is carried out.
-  kSuccess,
-  // The user cancelled the interaction.
-  kUserCancelled,
-  // The user interaction was ended in some other way.
-  kError,
-
-  kMaxValue = kError,
-};
-
 std::string RequestResponseToString(RequestResponse request);
+
+RequestResponse RequestResponseFromPortalResponse(uint32_t portal_response);
 
 // Returns a string path for signal handle based on the provided connection and
 // token.
-std::string PrepareSignalHandle(const char* token, GDBusConnection* connection);
+std::string PrepareSignalHandle(absl::string_view token,
+                                GDBusConnection* connection);
 
 // Sets up the callback to execute when a response signal is received for the
 // given object.
-uint32_t SetupRequestResponseSignal(const char* object_path,
+uint32_t SetupRequestResponseSignal(absl::string_view object_path,
                                     const GDBusSignalCallback callback,
                                     gpointer user_data,
                                     GDBusConnection* connection);
 
-void RequestSessionProxy(const char* interface_name,
+void RequestSessionProxy(absl::string_view interface_name,
                          const ProxyRequestCallback proxy_request_callback,
                          GCancellable* cancellable,
                          gpointer user_data);
 
 void SetupSessionRequestHandlers(
-    const std::string& portal_prefix,
+    absl::string_view portal_prefix,
     const SessionRequestCallback session_request_callback,
     const SessionRequestResponseSignalHandler request_response_signale_handler,
     GDBusConnection* connection,
@@ -106,8 +88,8 @@ void SetupSessionRequestHandlers(
     gpointer user_data);
 
 void StartSessionRequest(
-    const std::string& prefix,
-    const std::string session_handle,
+    absl::string_view prefix,
+    absl::string_view session_handle,
     const StartRequestResponseSignalHandler signal_handler,
     const SessionStartRequestedHandler session_started_handler,
     GDBusProxy* proxy,
@@ -118,118 +100,10 @@ void StartSessionRequest(
     gpointer user_data);
 
 // Tears down the portal session and cleans up related objects.
-void TearDownSession(std::string session_handle,
+void TearDownSession(absl::string_view session_handle,
                      GDBusProxy* proxy,
                      GCancellable* cancellable,
                      GDBusConnection* connection);
-
-template <typename T>
-void RequestSessionUsingProxy(T* portal,
-                              GObject* gobject,
-                              GAsyncResult* result) {
-  RTC_DCHECK(portal);
-  Scoped<GError> error;
-  GDBusProxy* proxy = g_dbus_proxy_new_finish(result, error.receive());
-  if (!proxy) {
-    if (g_error_matches(error.get(), G_IO_ERROR, G_IO_ERROR_CANCELLED))
-      return;
-    RTC_LOG(LS_ERROR) << "Failed to get a proxy for the portal: "
-                      << error->message;
-    portal->OnPortalDone(RequestResponse::kError);
-    return;
-  }
-
-  RTC_LOG(LS_INFO) << "Successfully created proxy for the portal.";
-  portal->SessionRequest(proxy);
-}
-
-template <typename T>
-void SessionRequestHandler(T* portal,
-                           GDBusProxy* proxy,
-                           GAsyncResult* result,
-                           gpointer user_data) {
-  RTC_DCHECK(portal);
-
-  Scoped<GError> error;
-  Scoped<GVariant> variant(
-      g_dbus_proxy_call_finish(proxy, result, error.receive()));
-  if (!variant) {
-    if (g_error_matches(error.get(), G_IO_ERROR, G_IO_ERROR_CANCELLED))
-      return;
-    RTC_LOG(LS_ERROR) << "Failed to session: " << error->message;
-    portal->OnPortalDone(RequestResponse::kError);
-    return;
-  }
-
-  RTC_LOG(LS_INFO) << "Initializing the session.";
-
-  Scoped<char> handle;
-  g_variant_get_child(variant.get(), /*index=*/0, /*format_string=*/"o",
-                      &handle);
-  if (!handle) {
-    RTC_LOG(LS_ERROR) << "Failed to initialize the session.";
-    portal->UnsubscribeSignalHandlers();
-    portal->OnPortalDone(RequestResponse::kError);
-    return;
-  }
-}
-
-template <typename T>
-void SessionRequestResponseSignalHelper(
-    const SessionClosedSignalHandler session_close_signal_handler,
-    T* portal,
-    GDBusConnection* connection,
-    std::string& session_handle,
-    GVariant* parameters,
-    guint& session_closed_signal_id) {
-  uint32_t portal_response;
-  Scoped<GVariant> response_data;
-  g_variant_get(parameters, /*format_string=*/"(u@a{sv})", &portal_response,
-                response_data.receive());
-  Scoped<GVariant> g_session_handle(
-      g_variant_lookup_value(response_data.get(), /*key=*/"session_handle",
-                             /*expected_type=*/nullptr));
-  session_handle = g_variant_dup_string(
-      /*value=*/g_session_handle.get(), /*length=*/nullptr);
-
-  if (session_handle.empty() || portal_response) {
-    RTC_LOG(LS_ERROR) << "Failed to request the session subscription.";
-    portal->OnPortalDone(RequestResponse::kError);
-    return;
-  }
-
-  session_closed_signal_id = g_dbus_connection_signal_subscribe(
-      connection, kDesktopBusName, kSessionInterfaceName, /*member=*/"Closed",
-      session_handle.c_str(), /*arg0=*/nullptr, G_DBUS_SIGNAL_FLAGS_NONE,
-      session_close_signal_handler, portal, /*user_data_free_func=*/nullptr);
-}
-
-template <typename T>
-void StartRequestedHandler(T* portal, GDBusProxy* proxy, GAsyncResult* result) {
-  RTC_DCHECK(portal);
-  Scoped<GError> error;
-  Scoped<GVariant> variant(
-      g_dbus_proxy_call_finish(proxy, result, error.receive()));
-  if (!variant) {
-    if (g_error_matches(error.get(), G_IO_ERROR, G_IO_ERROR_CANCELLED))
-      return;
-    RTC_LOG(LS_ERROR) << "Failed to start the portal session: "
-                      << error->message;
-    portal->OnPortalDone(RequestResponse::kError);
-    return;
-  }
-
-  Scoped<char> handle;
-  g_variant_get_child(variant.get(), 0, "o", handle.receive());
-  if (!handle) {
-    RTC_LOG(LS_ERROR) << "Failed to initialize the start portal session.";
-    portal->UnsubscribeSignalHandlers();
-    portal->OnPortalDone(RequestResponse::kError);
-    return;
-  }
-
-  RTC_LOG(LS_INFO) << "Subscribed to the start signal.";
-}
 
 }  // namespace xdg_portal
 }  // namespace webrtc

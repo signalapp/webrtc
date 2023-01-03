@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "api/transport/field_trial_based_config.h"
 #include "api/transport/network_types.h"
 #include "modules/congestion_controller/goog_cc/acknowledged_bitrate_estimator.h"
@@ -117,7 +118,7 @@ class StreamGenerator {
 class DelayBasedBweTest : public ::testing::Test {
  public:
   DelayBasedBweTest();
-  explicit DelayBasedBweTest(const std::string& field_trial_string);
+  explicit DelayBasedBweTest(absl::string_view field_trial_string);
   ~DelayBasedBweTest() override;
 
  protected:
@@ -129,6 +130,10 @@ class DelayBasedBweTest : public ::testing::Test {
                         size_t payload_size);
   void IncomingFeedback(int64_t arrival_time_ms,
                         int64_t send_time_ms,
+                        size_t payload_size,
+                        const PacedPacketInfo& pacing_info);
+  void IncomingFeedback(Timestamp receive_time,
+                        Timestamp send_time,
                         size_t payload_size,
                         const PacedPacketInfo& pacing_info);
 

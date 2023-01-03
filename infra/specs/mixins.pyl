@@ -73,10 +73,10 @@
       'has_native_resultdb_integration': True
     }
   },
-  'ios-device-15.3': {
+  'ios-device-15.7': {
     'swarming': {
       'dimensions': {
-        'os': 'iOS-15.3',
+        'os': 'iOS-15.7',
         'pool': 'chrome.tests'
       }
     }
@@ -113,21 +113,14 @@
       }
     }
   },
-  'ios-simulator-14.0': {
+  'ios-simulator-14.5': {
     '$mixin_append': {
-      'args': ['--platform', 'iPhone X', '--version', '14.0'],
+      'args': ['--platform', 'iPhone X', '--version', '14.5'],
       'swarming': {
         'named_caches': [{
-          'name': 'runtime_ios_14_0',
-          'path': 'Runtime-ios-14.0'
+          'name': 'runtime_ios_14_5',
+          'path': 'Runtime-ios-14.5'
         }]
-      }
-    }
-  },
-  'linux': {
-    'swarming': {
-      'dimensions': {
-        'os': 'Ubuntu'
       }
     }
   },
@@ -135,13 +128,6 @@
     'swarming': {
       'dimensions': {
         'os': 'Ubuntu-18.04'
-      }
-    }
-  },
-  'linux-trusty': {
-    'swarming': {
-      'dimensions': {
-        'os': 'Ubuntu-14.04'
       }
     }
   },
@@ -157,18 +143,10 @@
       }]
     }
   },
-  'mac': {
+  'mac-m1-cpu': {
     'swarming': {
       'dimensions': {
-        'os': 'Mac'
-      }
-    }
-  },
-  'mac-m1': {
-    'swarming': {
-      'dimensions': {
-        'cpu': 'arm64-64-Apple_M1',
-        'os': 'Mac'
+        'cpu': 'arm64-64-Apple_M1'
       }
     }
   },
@@ -179,11 +157,19 @@
       }
     }
   },
-  'mac_10.12': {
+  'mac_12_arm64': {
+    'swarming': {
+      'dimensions': {
+        'cpu': 'arm64',
+        'os': 'Mac-12'
+      }
+    }
+  },
+  'mac_12_x64': {
     'swarming': {
       'dimensions': {
         'cpu': 'x86-64',
-        'os': 'Mac-10.12.6'
+        'os': 'Mac-12'
       }
     }
   },
@@ -220,7 +206,7 @@
   },
   'perf-low-bandwidth-audio-perf-test': {
     'merge': {
-      'script': '//tools_webrtc/perf/process_perf_results_py2.py',
+      'script': '//tools_webrtc/perf/process_perf_results.py',
       'args': ['--test-suite', 'low_bandwidth_audio_perf_test']
     }
   },
@@ -241,7 +227,7 @@
   },
   'perf-webrtc-perf-tests': {
     'merge': {
-      'script': '//tools_webrtc/perf/process_perf_results_py2.py',
+      'script': '//tools_webrtc/perf/process_perf_results.py',
       'args': ['--test-suite', 'webrtc_perf_tests']
     },
     '$mixin_append': {
@@ -276,6 +262,21 @@
       }
     }
   },
+  'shards-2': {
+    'swarming': {
+      'shards': 2
+    }
+  },
+  'shards-4': {
+    'swarming': {
+      'shards': 4
+    }
+  },
+  'shards-6': {
+    'swarming': {
+      'shards': 6
+    }
+  },
   'timeout-2h': {
     'swarming': {
       'hard_timeout': 7200,
@@ -301,24 +302,17 @@
       'args': ['--xctest', '--undefok=enable-run-ios-unittests-with-xctest']
     }
   },
-  'win': {
+  'win10': {
     'swarming': {
       'dimensions': {
-        'os': 'Windows'
+        'os': 'Windows-10-19042'
       }
     }
   },
-  'win10-1703': {
+  'win10-any': {
     'swarming': {
       'dimensions': {
-        'os': 'Windows-10-15063'
-      }
-    }
-  },
-  'win7': {
-    'swarming': {
-      'dimensions': {
-        'os': 'Windows-7-SP1'
+        'os': 'Windows-10'
       }
     }
   },
@@ -326,17 +320,6 @@
     'swarming': {
       'dimensions': {
         'cpu': 'x86-64'
-      }
-    }
-  },
-  'xcode_12a7209': {
-    '$mixin_append': {
-      'args': ['--xcode-build-version', '12a7209'],
-      'swarming': {
-        'named_caches': [{
-          'name': 'xcode_ios_12a7209',
-          'path': 'Xcode.app'
-        }]
       }
     }
   },

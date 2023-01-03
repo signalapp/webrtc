@@ -41,8 +41,6 @@
 #include "media/base/media_channel.h"
 #include "media/base/stream_params.h"
 #include "p2p/base/port_allocator.h"
-#include "pc/channel.h"
-#include "pc/channel_manager.h"
 #include "pc/connection_context.h"
 #include "pc/data_channel_controller.h"
 #include "pc/jsep_transport_controller.h"
@@ -60,11 +58,14 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/operations_chain.h"
 #include "rtc_base/ssl_stream_adapter.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
 #include "rtc_base/unique_id_generator.h"
 #include "rtc_base/weak_ptr.h"
+
+namespace cricket {
+class ChannelManager;
+}
 
 namespace webrtc {
 
@@ -75,8 +76,7 @@ namespace webrtc {
 // - Parsing and interpreting SDP.
 // - Generating offers and answers based on the current state.
 // This class lives on the signaling thread.
-class SdpOfferAnswerHandler : public SdpStateProvider,
-                              public sigslot::has_slots<> {
+class SdpOfferAnswerHandler : public SdpStateProvider {
  public:
   ~SdpOfferAnswerHandler();
 
@@ -476,7 +476,7 @@ class SdpOfferAnswerHandler : public SdpStateProvider,
   // This enables media to flow on all configured audio/video channels.
   void EnableSending();
   // Push the media parts of the local or remote session description
-  // down to all of the channels.
+  // down to all of the channels, and start SCTP if needed.
   RTCError PushdownMediaDescription(
       SdpType type,
       cricket::ContentSource source,
@@ -490,10 +490,6 @@ class SdpOfferAnswerHandler : public SdpStateProvider,
   // Deletes the corresponding channel of contents that don't exist in `desc`.
   // `desc` can be null. This means that all channels are deleted.
   void RemoveUnusedChannels(const cricket::SessionDescription* desc);
-
-  // Report inferred negotiated SDP semantics from a local/remote answer to the
-  // UMA observer.
-  void ReportNegotiatedSdpSemantics(const SessionDescriptionInterface& answer);
 
   // Finds remote MediaStreams without any tracks and removes them from
   // `remote_streams_` and notifies the observer that the MediaStreams no longer
@@ -528,9 +524,6 @@ class SdpOfferAnswerHandler : public SdpStateProvider,
   // This method will also delete any existing media channels before creating.
   RTCError CreateChannels(const cricket::SessionDescription& desc);
 
-  // Helper methods to create media channels.
-  cricket::VoiceChannel* CreateVoiceChannel(const std::string& mid);
-  cricket::VideoChannel* CreateVideoChannel(const std::string& mid);
   bool CreateDataChannel(const std::string& mid);
 
   // Destroys the RTP data channel transport and/or the SCTP data channel
@@ -577,6 +570,7 @@ class SdpOfferAnswerHandler : public SdpStateProvider,
   // ==================================================================
   // Access to pc_ variables
   cricket::ChannelManager* channel_manager() const;
+  cricket::MediaEngineInterface* media_engine() const;
   TransceiverList* transceivers();
   const TransceiverList* transceivers() const;
   DataChannelController* data_channel_controller();
@@ -596,6 +590,7 @@ class SdpOfferAnswerHandler : public SdpStateProvider,
   // ===================================================================
   const cricket::AudioOptions& audio_options() { return audio_options_; }
   const cricket::VideoOptions& video_options() { return video_options_; }
+  bool ConfiguredForMedia() const;
 
   PeerConnectionSdpMethods* const pc_;
   ConnectionContext* const context_;

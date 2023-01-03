@@ -9,6 +9,7 @@
  */
 
 #include "audio/voip/audio_ingress.h"
+
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
 #include "api/call/transport.h"
@@ -21,6 +22,7 @@
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/mock_transport.h"
+#include "test/run_loop.h"
 
 namespace webrtc {
 namespace {
@@ -91,6 +93,7 @@ class AudioIngressTest : public ::testing::Test {
     return frame;
   }
 
+  test::RunLoop run_loop_;
   SimulatedClock fake_clock_;
   SineWaveGenerator wave_generator_;
   NiceMock<MockTransport> transport_;
@@ -119,7 +122,7 @@ TEST_F(AudioIngressTest, GetAudioFrameAfterRtpReceived) {
   EXPECT_CALL(transport_, SendRtp).WillRepeatedly(Invoke(handle_rtp));
   egress_->SendAudioData(GetAudioFrame(0));
   egress_->SendAudioData(GetAudioFrame(1));
-  event.Wait(/*ms=*/1000);
+  event.Wait(TimeDelta::Seconds(1));
 
   AudioFrame audio_frame;
   EXPECT_EQ(
@@ -152,7 +155,7 @@ TEST_F(AudioIngressTest, TestSpeechOutputLevelAndEnergyDuration) {
     egress_->SendAudioData(GetAudioFrame(i));
     fake_clock_.AdvanceTimeMilliseconds(10);
   }
-  event.Wait(/*give_up_after_ms=*/1000);
+  event.Wait(/*give_up_after=*/TimeDelta::Seconds(1));
 
   for (int i = 0; i < kNumRtp * 2; ++i) {
     AudioFrame audio_frame;
@@ -179,7 +182,7 @@ TEST_F(AudioIngressTest, PreferredSampleRate) {
   EXPECT_CALL(transport_, SendRtp).WillRepeatedly(Invoke(handle_rtp));
   egress_->SendAudioData(GetAudioFrame(0));
   egress_->SendAudioData(GetAudioFrame(1));
-  event.Wait(/*ms=*/1000);
+  event.Wait(TimeDelta::Seconds(1));
 
   AudioFrame audio_frame;
   EXPECT_EQ(
@@ -211,7 +214,7 @@ TEST_F(AudioIngressTest, GetMutedAudioFrameAfterRtpReceivedAndStopPlay) {
     egress_->SendAudioData(GetAudioFrame(i));
     fake_clock_.AdvanceTimeMilliseconds(10);
   }
-  event.Wait(/*give_up_after_ms=*/1000);
+  event.Wait(/*give_up_after=*/TimeDelta::Seconds(1));
 
   for (int i = 0; i < kNumRtp * 2; ++i) {
     AudioFrame audio_frame;

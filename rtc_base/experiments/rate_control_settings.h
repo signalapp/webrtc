@@ -15,8 +15,8 @@
 #include "api/field_trials_view.h"
 #include "api/units/data_size.h"
 #include "api/video_codecs/video_codec.h"
-#include "api/video_codecs/video_encoder_config.h"
 #include "rtc_base/experiments/struct_parameters_parser.h"
+#include "video/config/video_encoder_config.h"
 
 namespace webrtc {
 
@@ -38,9 +38,6 @@ struct VideoRateControlConfig {
   absl::optional<int> vp8_min_pixels;
   bool trust_vp8 = true;
   bool trust_vp9 = true;
-  double video_hysteresis = 1.2;
-  // Default to 35% hysteresis for simulcast screenshare.
-  double screenshare_hysteresis = 1.35;
   bool probe_max_allocation = true;
   bool bitrate_adjuster = true;
   bool adjuster_use_headroom = true;
@@ -79,12 +76,6 @@ class RateControlSettings final {
   bool Vp8DynamicRateSettings() const;
   bool LibvpxVp9TrustedRateController() const;
   bool Vp9DynamicRateSettings() const;
-
-  // TODO(bugs.webrtc.org/10272): Remove one of these when we have merged
-  // VideoCodecMode and VideoEncoderConfig::ContentType.
-  double GetSimulcastHysteresisFactor(VideoCodecMode mode) const;
-  double GetSimulcastHysteresisFactor(
-      VideoEncoderConfig::ContentType content_type) const;
 
   bool Vp8BaseHeavyTl3RateAllocation() const;
 

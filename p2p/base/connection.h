@@ -15,6 +15,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "api/candidate.h"
 #include "api/transport/stun.h"
@@ -25,7 +26,6 @@
 #include "p2p/base/stun_request.h"
 #include "p2p/base/transport_description.h"
 #include "rtc_base/async_packet_socket.h"
-#include "rtc_base/message_handler.h"
 #include "rtc_base/network.h"
 #include "rtc_base/numerics/event_based_exponential_moving_average.h"
 #include "rtc_base/rate_tracker.h"
@@ -54,27 +54,12 @@ struct CandidatePair final : public CandidatePairInterface {
   Candidate remote;
 };
 
-// A ConnectionRequest is a simple STUN ping used to determine writability.
-class ConnectionRequest : public StunRequest {
- public:
-  ConnectionRequest(StunRequestManager& manager, Connection* connection);
-  void Prepare(StunMessage* message) override;
-  void OnResponse(StunMessage* response) override;
-  void OnErrorResponse(StunMessage* response) override;
-  void OnTimeout() override;
-  void OnSent() override;
-  int resend_delay() override;
-
- private:
-  Connection* const connection_;
-};
-
 // Represents a communication link between a port on the local client and a
 // port on the remote client.
-class Connection : public CandidatePairInterface, public sigslot::has_slots<> {
+class Connection : public CandidatePairInterface {
  public:
   struct SentPing {
-    SentPing(const std::string id, int64_t sent_time, uint32_t nomination)
+    SentPing(absl::string_view id, int64_t sent_time, uint32_t nomination)
         : id(id), sent_time(sent_time), nomination(nomination) {}
 
     std::string id;
@@ -113,6 +98,11 @@ class Connection : public CandidatePairInterface, public sigslot::has_slots<> {
   WriteState write_state() const;
   bool writable() const;
   bool receiving() const;
+
+  const Port* port() const {
+    RTC_DCHECK_RUN_ON(network_thread_);
+    return port_.get();
+  }
 
   // Determines whether the connection has finished connecting.  This can only
   // be false for TCP connections.
@@ -188,11 +178,17 @@ class Connection : public CandidatePairInterface, public sigslot::has_slots<> {
   int receiving_timeout() const;
   void set_receiving_timeout(absl::optional<int> receiving_timeout_ms);
 
-  // Makes the connection go away.
+  // Deletes a `Connection` instance is by calling the `DestroyConnection`
+  // method in `Port`.
+  // Note: When the function returns, the object has been deleted.
   void Destroy();
 
-  // Makes the connection go away, in a failed state.
-  void FailAndDestroy();
+  // Signals object destruction, releases outstanding references and performs
+  // final logging.
+  // The function will return `true` when shutdown was performed, signals
+  // emitted and outstanding references released. If the function returns
+  // `false`, `Shutdown()` has previously been called.
+  bool Shutdown();
 
   // Prunes the connection and sets its state to STATE_FAILED,
   // It will not be used or send pings although it can still receive packets.
@@ -202,13 +198,18 @@ class Connection : public CandidatePairInterface, public sigslot::has_slots<> {
   // the current time, which is compared against various timeouts.
   void UpdateState(int64_t now);
 
+  void UpdateLocalIceParameters(int component,
+                                absl::string_view username_fragment,
+                                absl::string_view password);
+
   // Called when this connection should try checking writability again.
   int64_t last_ping_sent() const;
   void Ping(int64_t now);
   void ReceivedPingResponse(
       int rtt,
-      const std::string& request_id,
+      absl::string_view request_id,
       const absl::optional<uint32_t>& nomination = absl::nullopt);
+  std::unique_ptr<IceMessage> BuildPingRequest() RTC_RUN_ON(network_thread_);
 
   int64_t last_ping_response_received() const;
   const absl::optional<std::string>& last_ping_id_received() const;
@@ -243,9 +244,6 @@ class Connection : public CandidatePairInterface, public sigslot::has_slots<> {
   // Prints pings_since_last_response_ into a string.
   void PrintPingsSinceLastResponse(std::string* pings, size_t max);
 
-  bool reported() const;
-  void set_reported(bool reported);
-
   // `set_selected` is only used for logging in ToString above.  The flag is
   // set true by P2PTransportChannel for its selected candidate pair.
   // TODO(tommi): Remove `selected()` once not referenced downstream.
@@ -255,9 +253,6 @@ class Connection : public CandidatePairInterface, public sigslot::has_slots<> {
   // This signal will be fired if this connection is nominated by the
   // controlling side.
   sigslot::signal1<Connection*> SignalNominated;
-
-  // Invoked when Connection receives STUN error response with 487 code.
-  void HandleRoleConflictFromPeer();
 
   IceCandidatePairState state() const;
 
@@ -282,10 +277,17 @@ class Connection : public CandidatePairInterface, public sigslot::has_slots<> {
   // Returns the last time when the connection changed its receiving state.
   int64_t receiving_unchanged_since() const;
 
+  // Constructs the prflx priority as described in
+  // https://datatracker.ietf.org/doc/html/rfc5245#section-4.1.2.1
+  uint32_t prflx_priority() const;
+
   bool stable(int64_t now) const;
 
   // Check if we sent `val` pings without receving a response.
   bool TooManyOutstandingPings(const absl::optional<int>& val) const;
+
+  // Called by Port when the network cost changes.
+  void SetLocalCandidateNetworkCost(uint16_t cost);
 
   void SetIceFieldTrials(const IceFieldTrials* field_trials);
   const rtc::EventBasedExponentialMovingAverage& GetRttEstimate() const {
@@ -319,6 +321,9 @@ class Connection : public CandidatePairInterface, public sigslot::has_slots<> {
   void set_remote_nomination(uint32_t remote_nomination);
 
  protected:
+  // A ConnectionRequest is a simple STUN ping used to determine writability.
+  class ConnectionRequest;
+
   // Constructs a new connection to the given remote port.
   Connection(rtc::WeakPtr<Port> port, size_t index, const Candidate& candidate);
 
@@ -326,7 +331,7 @@ class Connection : public CandidatePairInterface, public sigslot::has_slots<> {
   void OnSendStunPacket(const void* data, size_t size, StunRequest* req);
 
   // Callbacks from ConnectionRequest
-  virtual void OnConnectionRequestResponse(ConnectionRequest* req,
+  virtual void OnConnectionRequestResponse(StunRequest* req,
                                            StunMessage* response);
   void OnConnectionRequestErrorResponse(ConnectionRequest* req,
                                         StunMessage* response)
@@ -350,7 +355,6 @@ class Connection : public CandidatePairInterface, public sigslot::has_slots<> {
 
   // The local port where this connection sends and receives packets.
   Port* port() { return port_.get(); }
-  const Port* port() const { return port_.get(); }
 
   // NOTE: A pointer to the network thread is held by `port_` so in theory we
   // shouldn't need to hold on to this pointer here, but rather defer to
@@ -360,22 +364,18 @@ class Connection : public CandidatePairInterface, public sigslot::has_slots<> {
   webrtc::TaskQueueBase* const network_thread_;
   const uint32_t id_;
   rtc::WeakPtr<Port> port_;
-  size_t local_candidate_index_ RTC_GUARDED_BY(network_thread_);
+  Candidate local_candidate_ RTC_GUARDED_BY(network_thread_);
   Candidate remote_candidate_;
 
   ConnectionInfo stats_;
   rtc::RateTracker recv_rate_tracker_;
   rtc::RateTracker send_rate_tracker_;
   int64_t last_send_data_ = 0;
-  // Set to true when deletion has been scheduled and must not be done again.
-  // See `Destroy()` for more details.
-  bool pending_delete_ RTC_GUARDED_BY(network_thread_) = false;
 
  private:
   // Update the local candidate based on the mapped address attribute.
   // If the local candidate changed, fires SignalStateChange.
-  void MaybeUpdateLocalCandidate(ConnectionRequest* request,
-                                 StunMessage* response)
+  void MaybeUpdateLocalCandidate(StunRequest* request, StunMessage* response)
       RTC_RUN_ON(network_thread_);
 
   void LogCandidatePairConfig(webrtc::IceCandidatePairConfigType type)
@@ -439,7 +439,6 @@ class Connection : public CandidatePairInterface, public sigslot::has_slots<> {
   absl::optional<int> unwritable_min_checks_ RTC_GUARDED_BY(network_thread_);
   absl::optional<int> inactive_timeout_ RTC_GUARDED_BY(network_thread_);
 
-  bool reported_ RTC_GUARDED_BY(network_thread_);
   IceCandidatePairState state_ RTC_GUARDED_BY(network_thread_);
   // Time duration to switch from receiving to not receiving.
   absl::optional<int> receiving_timeout_ RTC_GUARDED_BY(network_thread_);
@@ -462,10 +461,6 @@ class Connection : public CandidatePairInterface, public sigslot::has_slots<> {
   const IceFieldTrials* field_trials_;
   rtc::EventBasedExponentialMovingAverage rtt_estimate_
       RTC_GUARDED_BY(network_thread_);
-
-  friend class Port;
-  friend class ConnectionRequest;
-  friend class P2PTransportChannel;
 };
 
 // ProxyConnection defers all the interesting work to the port.
@@ -474,9 +469,6 @@ class ProxyConnection : public Connection {
   ProxyConnection(rtc::WeakPtr<Port> port,
                   size_t index,
                   const Candidate& remote_candidate);
-
-  // TODO(tommi): Remove this ctor once it's no longer needed.
-  ProxyConnection(Port* port, size_t index, const Candidate& remote_candidate);
 
   int Send(const void* data,
            size_t size,

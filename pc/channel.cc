@@ -19,6 +19,7 @@
 #include "absl/strings/string_view.h"
 #include "api/rtp_parameters.h"
 #include "api/sequence_checker.h"
+#include "api/task_queue/pending_task_safety_flag.h"
 #include "api/units/timestamp.h"
 #include "media/base/codec.h"
 #include "media/base/rid_description.h"
@@ -28,12 +29,9 @@
 #include "pc/rtp_media_utils.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/copy_on_write_buffer.h"
-#include "rtc_base/location.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/network_route.h"
 #include "rtc_base/strings/string_format.h"
-#include "rtc_base/task_utils/pending_task_safety_flag.h"
-#include "rtc_base/task_utils/to_queued_task.h"
 #include "rtc_base/trace_event.h"
 
 namespace cricket {
@@ -43,7 +41,6 @@ using ::rtc::StringFormat;
 using ::rtc::UniqueRandomIdGenerator;
 using ::webrtc::PendingTaskSafetyFlag;
 using ::webrtc::SdpType;
-using ::webrtc::ToQueuedTask;
 
 // Finds a stream based on target's Primary SSRC or RIDs.
 // This struct is used in BaseChannel::UpdateLocalStreams_w.
@@ -117,7 +114,7 @@ BaseChannel::BaseChannel(rtc::Thread* worker_thread,
                          rtc::Thread* network_thread,
                          rtc::Thread* signaling_thread,
                          std::unique_ptr<MediaChannel> media_channel,
-                         const std::string& mid,
+                         absl::string_view mid,
                          bool srtp_required,
                          webrtc::CryptoOptions crypto_options,
                          UniqueRandomIdGenerator* ssrc_generator)
@@ -197,7 +194,7 @@ bool BaseChannel::SetRtpTransport(webrtc::RtpTransportInternal* rtp_transport) {
   if (rtp_transport_) {
     DisconnectFromRtpTransport_n();
     // Clear the cached header extensions on the worker.
-    worker_thread_->PostTask(ToQueuedTask(alive_, [this] {
+    worker_thread_->PostTask(SafeTask(alive_, [this] {
       RTC_DCHECK_RUN_ON(worker_thread());
       rtp_header_extensions_.clear();
     }));
@@ -237,7 +234,7 @@ void BaseChannel::Enable(bool enable) {
 
   enabled_s_ = enable;
 
-  worker_thread_->PostTask(ToQueuedTask(alive_, [this, enable] {
+  worker_thread_->PostTask(SafeTask(alive_, [this, enable] {
     RTC_DCHECK_RUN_ON(worker_thread());
     // Sanity check to make sure that enabled_ and enabled_s_
     // stay in sync.
@@ -271,8 +268,8 @@ bool BaseChannel::SetPayloadTypeDemuxingEnabled(bool enabled) {
   // network thread. At the moment there's a workaround for inconsistent state
   // between the worker and network thread because of this (see
   // OnDemuxerCriteriaUpdatePending elsewhere in this file) and
-  // SetPayloadTypeDemuxingEnabled_w has an Invoke over to the network thread
-  // to apply state updates.
+  // SetPayloadTypeDemuxingEnabled_w has a BlockingCall over to the network
+  // thread to apply state updates.
   RTC_DCHECK_RUN_ON(worker_thread());
   TRACE_EVENT0("webrtc", "BaseChannel::SetPayloadTypeDemuxingEnabled");
   return SetPayloadTypeDemuxingEnabled_w(enabled);
@@ -463,7 +460,7 @@ bool BaseChannel::MaybeUpdateDemuxerAndRtpExtensions_w(
   if (update_demuxer)
     media_channel()->OnDemuxerCriteriaUpdatePending();
 
-  bool success = network_thread()->Invoke<bool>(RTC_FROM_HERE, [&]() mutable {
+  bool success = network_thread()->BlockingCall([&]() mutable {
     RTC_DCHECK_RUN_ON(network_thread());
     // NOTE: This doesn't take the BUNDLE case in account meaning the RTP header
     // extension maps are not merged when BUNDLE is enabled. This is fine
@@ -493,8 +490,8 @@ bool BaseChannel::RegisterRtpDemuxerSink_w() {
   media_channel_->OnDemuxerCriteriaUpdatePending();
   // Copy demuxer criteria, since they're a worker-thread variable
   // and we want to pass them to the network thread
-  bool ret = network_thread_->Invoke<bool>(
-      RTC_FROM_HERE, [this, demuxer_criteria = demuxer_criteria_] {
+  bool ret = network_thread_->BlockingCall(
+      [this, demuxer_criteria = demuxer_criteria_] {
         RTC_DCHECK_RUN_ON(network_thread());
         if (!rtp_transport_) {
           // Transport was disconnected before attempting to update the
@@ -552,7 +549,7 @@ void BaseChannel::ChannelWritable_n() {
   // We only have to do this PostTask once, when first transitioning to
   // writable.
   if (!was_ever_writable_n_) {
-    worker_thread_->PostTask(ToQueuedTask(alive_, [this] {
+    worker_thread_->PostTask(SafeTask(alive_, [this] {
       RTC_DCHECK_RUN_ON(worker_thread());
       was_ever_writable_ = true;
       UpdateMediaSendRecvState_w();
@@ -818,7 +815,7 @@ VoiceChannel::VoiceChannel(rtc::Thread* worker_thread,
                            rtc::Thread* network_thread,
                            rtc::Thread* signaling_thread,
                            std::unique_ptr<VoiceMediaChannel> media_channel,
-                           const std::string& mid,
+                           absl::string_view mid,
                            bool srtp_required,
                            webrtc::CryptoOptions crypto_options,
                            UniqueRandomIdGenerator* ssrc_generator)
@@ -939,7 +936,7 @@ bool VoiceChannel::SetRemoteContent_w(const MediaContentDescription* content,
 
 // RingRTC change to configure OPUS
 void VoiceChannel::ConfigureEncoders(const webrtc::AudioEncoder::Config& config) {
-  worker_thread()->Invoke<void>(RTC_FROM_HERE, [this, &config] {
+  worker_thread()->BlockingCall([this, &config] {
     media_channel()->ConfigureEncoders(config);
   });
 }
@@ -950,7 +947,7 @@ void VoiceChannel::GetAudioLevels(
     cricket::ReceivedAudioLevel* received_out,
     size_t received_out_size,
     size_t* received_size_out) {
-  worker_thread()->Invoke<void>(RTC_FROM_HERE, [this, captured_out, received_out, received_out_size, received_size_out] {
+  worker_thread()->BlockingCall([this, captured_out, received_out, received_out_size, received_size_out] {
     media_channel()->GetAudioLevels(captured_out, received_out, received_out_size, received_size_out);
   });
 }
@@ -959,7 +956,7 @@ VideoChannel::VideoChannel(rtc::Thread* worker_thread,
                            rtc::Thread* network_thread,
                            rtc::Thread* signaling_thread,
                            std::unique_ptr<VideoMediaChannel> media_channel,
-                           const std::string& mid,
+                           absl::string_view mid,
                            bool srtp_required,
                            webrtc::CryptoOptions crypto_options,
                            UniqueRandomIdGenerator* ssrc_generator)
@@ -985,12 +982,6 @@ void VideoChannel::UpdateMediaSendRecvState_w() {
   media_channel()->SetSend(send);
   RTC_LOG(LS_INFO) << "Changing video state, send=" << send << " for "
                    << ToString();
-}
-
-void VideoChannel::FillBitrateInfo(BandwidthEstimationInfo* bwe_info) {
-  RTC_DCHECK_RUN_ON(worker_thread());
-  VideoMediaChannel* mc = media_channel();
-  mc->FillBitrateInfo(bwe_info);
 }
 
 bool VideoChannel::SetLocalContent_w(const MediaContentDescription* content,

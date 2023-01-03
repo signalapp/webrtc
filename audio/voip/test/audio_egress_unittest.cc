@@ -9,6 +9,7 @@
  */
 
 #include "audio/voip/audio_egress.h"
+
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
 #include "api/call/transport.h"
 #include "api/task_queue/default_task_queue_factory.h"
@@ -20,6 +21,7 @@
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/mock_transport.h"
+#include "test/run_loop.h"
 
 namespace webrtc {
 namespace {
@@ -98,6 +100,7 @@ class AudioEgressTest : public ::testing::Test {
     return frame;
   }
 
+  test::RunLoop run_loop_;
   // SimulatedClock doesn't directly affect this testcase as the the
   // AudioFrame's timestamp is driven by GetAudioFrame.
   SimulatedClock fake_clock_;
@@ -138,7 +141,7 @@ TEST_F(AudioEgressTest, ProcessAudioWithMute) {
     fake_clock_.AdvanceTimeMilliseconds(10);
   }
 
-  event.Wait(/*ms=*/1000);
+  event.Wait(TimeDelta::Seconds(1));
   EXPECT_EQ(rtp_count, kExpected);
 
   // we expect on pcmu payload to result in 255 for silenced payload
@@ -174,7 +177,7 @@ TEST_F(AudioEgressTest, ProcessAudioWithSineWave) {
     fake_clock_.AdvanceTimeMilliseconds(10);
   }
 
-  event.Wait(/*ms=*/1000);
+  event.Wait(TimeDelta::Seconds(1));
   EXPECT_EQ(rtp_count, kExpected);
 
   // we expect on pcmu to result in < 255 for payload with sine wave
@@ -208,7 +211,7 @@ TEST_F(AudioEgressTest, SkipAudioEncodingAfterStopSend) {
     fake_clock_.AdvanceTimeMilliseconds(10);
   }
 
-  event.Wait(/*ms=*/1000);
+  event.Wait(TimeDelta::Seconds(1));
   EXPECT_EQ(rtp_count, kExpected);
 
   // Now stop send and yet feed more data.
@@ -284,7 +287,7 @@ TEST_F(AudioEgressTest, SendDTMF) {
     fake_clock_.AdvanceTimeMilliseconds(10);
   }
 
-  event.Wait(/*ms=*/1000);
+  event.Wait(TimeDelta::Seconds(1));
   EXPECT_EQ(dtmf_count, kExpected);
 }
 
@@ -309,7 +312,7 @@ TEST_F(AudioEgressTest, TestAudioInputLevelAndEnergyDuration) {
     fake_clock_.AdvanceTimeMilliseconds(10);
   }
 
-  event.Wait(/*give_up_after_ms=*/1000);
+  event.Wait(/*give_up_after=*/TimeDelta::Seconds(1));
   EXPECT_EQ(rtp_count, kExpected);
 
   constexpr double kExpectedEnergy = 0.00016809565587789564;

@@ -66,6 +66,8 @@ if (!build_with_chromium) {
         "net/dcsctp:dcsctp_unittests",
         "pc:peerconnection_unittests",
         "pc:rtc_pc_unittests",
+        "pc:slow_peer_connection_unittests",
+        "pc:svc_tests",
         "rtc_tools:rtp_generator",
         "rtc_tools:video_replay",
         "stats:rtc_stats_unittests",
@@ -316,9 +318,15 @@ config("common_config") {
     defines += [ "WEBRTC_EXCLUDE_AUDIO_PROCESSING_MODULE" ]
   }
 
-  # TODO(webrtc:13219): Fix -Wshadow instances and enable.
   if (is_clang) {
-    cflags += [ "-Wno-shadow" ]
+    cflags += [
+      # TODO(webrtc:13219): Fix -Wshadow instances and enable.
+      "-Wno-shadow",
+
+      # See https://reviews.llvm.org/D56731 for details about this
+      # warning.
+      "-Wctad-maybe-unsupported",
+    ]
   }
 
   if (build_with_chromium) {
@@ -355,10 +363,14 @@ config("common_config") {
     }
 
     if (is_clang) {
-      cflags += [
-        "-Wc++11-narrowing",
-        "-Wundef",
-      ]
+      cflags += [ "-Wc++11-narrowing" ]
+
+      if (!is_fuchsia) {
+        # Compiling with the Fuchsia SDK results in Wundef errors
+        # TODO(bugs.fuchsia.dev/100722): Remove from (!is_fuchsia) branch when
+        # Fuchsia build errors are fixed.
+        cflags += [ "-Wundef" ]
+      }
 
       if (!is_nacl) {
         # Flags NaCl (Clang 3.7) do not recognize.
@@ -463,6 +475,7 @@ if (!build_with_chromium) {
       "api/rtc_event_log:rtc_event_log_factory",
       "api/task_queue",
       "api/task_queue:default_task_queue_factory",
+      "api/test/metrics",
       "audio",
       "call",
       "common_audio",
@@ -556,6 +569,8 @@ if (rtc_include_tests && !build_with_chromium) {
       "api/audio/test:audio_api_unittests",
       "api/audio_codecs/test:audio_codecs_api_unittests",
       "api/numerics:numerics_unittests",
+      "api/task_queue:pending_task_safety_flag_unittests",
+      "api/test/metrics:metrics_unittests",
       "api/transport:stun_unittest",
       "api/video/test:rtc_api_video_unittests",
       "api/video_codecs/test:video_codecs_api_unittests",
@@ -575,10 +590,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "rtc_base:weak_ptr_unittests",
       "rtc_base/experiments:experiments_unittests",
       "rtc_base/system:file_wrapper_unittests",
-      "rtc_base/task_utils:pending_task_safety_flag_unittests",
       "rtc_base/task_utils:repeating_task_unittests",
-      "rtc_base/task_utils:to_queued_task_unittests",
-      "rtc_base/time:timestamp_extrapolator_unittests",
       "rtc_base/units:units_unittests",
       "sdk:sdk_tests",
       "test:rtp_test_utils",
@@ -600,10 +612,6 @@ if (rtc_include_tests && !build_with_chromium) {
         "//testing/android/native_test:native_test_support",
       ]
       shard_timeout = 900
-    }
-
-    if (is_ios || is_mac) {
-      deps += [ "sdk:rtc_unittests_objc" ]
     }
   }
 
@@ -649,7 +657,12 @@ if (rtc_include_tests && !build_with_chromium) {
     ]
     data = video_engine_tests_resources
     if (is_android) {
-      deps += [ "//testing/android/native_test:native_test_native_code" ]
+      use_default_launcher = false
+      deps += [
+        "//build/android/gtest_apk:native_test_instrumentation_test_runner_java",
+        "//testing/android/native_test:native_test_java",
+        "//testing/android/native_test:native_test_support",
+      ]
       shard_timeout = 900
     }
     if (is_ios) {
@@ -694,7 +707,12 @@ if (rtc_include_tests && !build_with_chromium) {
 
     data = webrtc_perf_tests_resources
     if (is_android) {
-      deps += [ "//testing/android/native_test:native_test_native_code" ]
+      use_default_launcher = false
+      deps += [
+        "//build/android/gtest_apk:native_test_instrumentation_test_runner_java",
+        "//testing/android/native_test:native_test_java",
+        "//testing/android/native_test:native_test_support",
+      ]
       shard_timeout = 4500
     }
     if (is_ios) {

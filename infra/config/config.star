@@ -13,7 +13,6 @@ lucicfg.check_version("1.30.9")
 WEBRTC_GIT = "https://webrtc.googlesource.com/src"
 WEBRTC_GERRIT = "https://webrtc-review.googlesource.com/src"
 WEBRTC_TROOPER_EMAIL = "webrtc-troopers-robots@google.com"
-WEBRTC_IOS_XCODE_VERSION = "12a7209"
 WEBRTC_XCODE13 = "13c100"
 DEFAULT_CPU = "x86-64"
 
@@ -38,20 +37,38 @@ def make_goma_properties(enable_ats = True, jobs = None):
         goma_properties["jobs"] = jobs
     return {"$build/goma": goma_properties}
 
+def make_reclient_properties(instance, jobs = None):
+    """Makes a default reclient property with the specified argument.
+
+    Args:
+      instance: RBE insatnce name.
+      jobs: Number of jobs to be used by the builder.
+    Returns:
+      A dictonary with the reclient properties.
+    """
+    reclient_props = {
+        "instance": instance,
+        "metrics_project": "chromium-reclient-metrics",
+    }
+    if jobs:
+        reclient_props["jobs"] = jobs
+    return {"$build/reclient": reclient_props}
+
 # Add names of builders to remove from LKGR finder to this list. This is
 # useful when a failure can be safely ignored while fixing it without
 # blocking the LKGR finder on it.
 skipped_lkgr_bots = [
+    "Android32 (M Nexus5X)(reclient)",
+    "Linux64 Release (reclient)",
+    "Mac64 Release (reclient)",
+    "Win64 Release (Clang)(reclient)",
+    "iOS64 Release (reclient)",
+    "Fuchsia Release",
 ]
 
 # Use LUCI Scheduler BBv2 names and add Scheduler realms configs.
 lucicfg.enable_experiment("crbug.com/1182002")
 
-luci.builder.defaults.experiments.set(
-    {
-        "luci.recipes.use_python3": 100,
-    },
-)
 luci.builder.defaults.test_presentation.set(
     resultdb.test_presentation(grouping_keys = ["status", "v.test_suite"]),
 )
@@ -59,8 +76,7 @@ luci.builder.defaults.test_presentation.set(
 lucicfg.config(
     config_dir = ".",
     tracked_files = [
-        "chops-weetbix-dev.cfg",
-        "chops-weetbix.cfg",
+        "luci-analysis.cfg",
         "commit-queue.cfg",
         "cr-buildbucket.cfg",
         "luci-logdog.cfg",
@@ -113,6 +129,19 @@ luci.project(
                 "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
             ],
         ),
+        # Roles for LUCI Analysis.
+        luci.binding(
+            roles = "role/analysis.reader",
+            groups = "all",
+        ),
+        luci.binding(
+            roles = "role/analysis.queryUser",
+            groups = "authenticated-users",
+        ),
+        luci.binding(
+            roles = "role/analysis.editor",
+            groups = "googlers",
+        ),
     ],
 )
 
@@ -128,13 +157,8 @@ luci.milo(
 ################################################################################
 
 lucicfg.emit(
-    dest = "chops-weetbix-dev.cfg",
-    data = io.read_file("chops-weetbix-dev.cfg"),
-)
-
-lucicfg.emit(
-    dest = "chops-weetbix.cfg",
-    data = io.read_file("chops-weetbix.cfg"),
+    dest = "luci-analysis.cfg",
+    data = io.read_file("luci-analysis.cfg"),
 )
 
 ################################################################################
@@ -260,10 +284,6 @@ luci.bucket(
         acl.entry(acl.BUILDBUCKET_TRIGGERER, groups = [
             "project-webrtc-ci-schedulers",
         ]),
-        acl.entry(acl.BUILDBUCKET_TRIGGERER, groups = [
-            # Allow Pinpoint to trigger builds for bisection
-            "service-account-chromeperf",
-        ]),
     ],
 )
 
@@ -272,6 +292,10 @@ luci.bucket(
     acls = [
         acl.entry(acl.BUILDBUCKET_TRIGGERER, users = [
             "webrtc-ci-builder@chops-service-accounts.iam.gserviceaccount.com",
+        ]),
+        acl.entry(acl.BUILDBUCKET_TRIGGERER, groups = [
+            # Allow Pinpoint to trigger builds for bisection
+            "service-account-chromeperf",
         ]),
     ],
 )
@@ -381,7 +405,8 @@ luci.tree_closer(
         "compile",
         "gn",
     ],
-    failed_step_regexp_exclude = ".*\\(experimental\\).*",
+    # TODO(b/239908030, b/243594984): remove reclient builders after migration.
+    failed_step_regexp_exclude = ".*(\\(experimental\\)|\\(reclient\\)).*",
 )
 
 # Recipe definitions:
@@ -470,9 +495,6 @@ def webrtc_builder(
       A luci.builder.
     """
     properties = properties or {}
-    properties["$recipe_engine/isolated"] = {
-        "server": "https://isolateserver.appspot.com",
-    }
     resultdb_bq_table = "webrtc-ci.resultdb." + bucket + "_test_results"
     return luci.builder(
         name = name,
@@ -527,11 +549,15 @@ def ci_builder(
 
     if enabled:
         add_milo(name, {"ci": ci_cat, "perf": perf_cat})
-        if ci_cat:
+        if ci_cat and not perf_cat:
             lkgr_builders.append(name)
     dimensions.update({"pool": "luci.webrtc.ci", "cpu": kwargs.pop("cpu", DEFAULT_CPU)})
     properties = properties or {}
+    properties = dict(properties)  # Avoid mutating the original dict.
     properties["builder_group"] = "client.webrtc"
+    properties.update(make_reclient_properties("rbe-webrtc-trusted"))
+
+    # TODO(b/245249582): remove goma properties after reclient migration.
     properties.update(make_goma_properties())
     notifies = ["post_submit_failure_notifier", "infra_failure_notifier"]
     notifies += ["webrtc_tree_closer"] if name not in skipped_lkgr_bots else []
@@ -539,7 +565,7 @@ def ci_builder(
         name = name,
         dimensions = dimensions,
         properties = properties,
-        bucket = "ci",
+        bucket = "perf" if perf_cat else "ci",
         service_account = "webrtc-ci-builder@chops-service-accounts.iam.gserviceaccount.com",
         triggered_by = ["webrtc-gitiles-trigger-main"] if enabled else None,
         repo = WEBRTC_GIT,
@@ -593,8 +619,20 @@ def try_builder(
     )
 
 def perf_builder(name, perf_cat, **kwargs):
+    """Add a perf builder.
+
+    Args:
+      name: builder name (str).
+      perf_cat: the category + name for the /perf/ console, or None to omit from the console.
+      **kwargs: Pass on to webrtc_builder / luci.builder.
+    Returns:
+      A luci.builder.
+
+    Notifications are also disabled.
+    """
     add_milo(name, {"perf": perf_cat})
     properties = make_goma_properties()
+    properties.update(make_reclient_properties("rbe-webrtc-trusted"))
     properties["builder_group"] = "client.webrtc.perf"
     return webrtc_builder(
         name = name,
@@ -661,16 +699,7 @@ mac_builder, mac_try_job = normal_builder_factory(
 )
 
 ios_builder, ios_try_job = normal_builder_factory(
-    dimensions = {"os": "Mac-10.15"},
-    properties = {"xcode_build_version": WEBRTC_IOS_XCODE_VERSION},
-    caches = [swarming.cache(
-        name = "xcode_ios_" + WEBRTC_IOS_XCODE_VERSION,
-        path = "xcode_ios_" + WEBRTC_IOS_XCODE_VERSION + ".app",
-    )],
-)
-
-ios_builder_macos11, ios_try_job_macos11 = normal_builder_factory(
-    dimensions = {"os": "Mac-11"},
+    dimensions = {"os": "Mac"},
     properties = {"xcode_build_version": WEBRTC_XCODE13},
     caches = [swarming.cache(
         name = "xcode_ios_" + WEBRTC_XCODE13,
@@ -684,6 +713,7 @@ android_builder("Android32 (M Nexus5X)(dbg)", "Android|arm|dbg")
 android_try_job("android_compile_arm_dbg", cq = None)
 android_try_job("android_arm_dbg")
 android_builder("Android32 (M Nexus5X)", "Android|arm|rel")
+android_builder("Android32 (M Nexus5X)(reclient)", "Android|arm|re")
 android_try_job("android_arm_rel")
 android_builder("Android32 Builder arm", "Android|arm|size", perf_cat = "Android|arm|Builder|", prioritized = True)
 android_try_job("android_compile_arm_rel")
@@ -711,15 +741,16 @@ android_try_job("android_chromium_compile", recipe = "chromium_trybot", branch_c
 ios_builder("iOS64 Debug", "iOS|arm64|dbg")
 ios_try_job("ios_compile_arm64_dbg")
 ios_builder("iOS64 Release", "iOS|arm64|rel")
+ios_builder("iOS64 Release (reclient)", "iOS|arm64|re")
 ios_try_job("ios_compile_arm64_rel")
-ios_builder("iOS64 Sim Debug (iOS 14.0)", "iOS|x64|14")
+ios_builder("iOS64 Sim Debug (iOS 14)", "iOS|x64|14")
 ios_try_job("ios_sim_x64_dbg_ios14")
 ios_builder("iOS64 Sim Debug (iOS 13)", "iOS|x64|13")
 ios_try_job("ios_sim_x64_dbg_ios13")
 ios_builder("iOS64 Sim Debug (iOS 12)", "iOS|x64|12")
 ios_try_job("ios_sim_x64_dbg_ios12")
-ios_builder_macos11("iOS API Framework Builder", "iOS|fat|size", recipe = "ios_api_framework", prioritized = True)
-ios_try_job_macos11("ios_api_framework", recipe = "ios_api_framework")
+ios_builder("iOS API Framework Builder", "iOS|fat|size", recipe = "ios_api_framework", prioritized = True)
+ios_try_job("ios_api_framework", recipe = "ios_api_framework")
 
 linux_builder("Linux32 Debug", "Linux|x86|dbg")
 linux_try_job("linux_x86_dbg")
@@ -729,10 +760,10 @@ linux_builder("Linux64 Debug", "Linux|x64|dbg")
 linux_try_job("linux_dbg", cq = None)
 linux_try_job("linux_compile_dbg")
 linux_builder("Linux64 Release", "Linux|x64|rel")
+linux_builder("Linux64 Release (reclient)", "Linux|x64|re")
 linux_try_job("linux_rel")
 linux_builder("Linux64 Builder", "Linux|x64|size", perf_cat = "Linux|x64|Builder|", prioritized = True)
 linux_try_job("linux_compile_rel")
-perf_builder("Perf Linux Trusty", "Linux|x64|Tester|Trusty", triggered_by = ["Linux64 Builder"])
 perf_builder("Perf Linux Bionic", "Linux|x64|Tester|Bionic", triggered_by = ["Linux64 Builder"])
 linux_builder("Linux32 Debug (ARM)", "Linux|arm|dbg")
 linux_try_job("linux_compile_arm_dbg")
@@ -758,21 +789,27 @@ linux_builder("Linux (more configs)", "Linux|x64|more")
 linux_try_job("linux_more_configs")
 linux_try_job("linux_chromium_compile", recipe = "chromium_trybot", branch_cq = False)
 linux_try_job("linux_chromium_compile_dbg", recipe = "chromium_trybot", branch_cq = False)
+linux_builder("Fuchsia Release", "Fuchsia|x64|rel")
+linux_try_job("fuchsia_rel", cq = None)
 
 mac_builder("Mac64 Debug", "Mac|x64|dbg")
 mac_try_job("mac_dbg", cq = None)
 mac_try_job("mac_compile_dbg")
 mac_builder("Mac64 Release", "Mac|x64|rel")
+mac_builder("Mac64 Release (reclient)", "Mac|x64|re")
 mac_try_job("mac_rel")
 mac_try_job("mac_compile_rel", cq = None)
 mac_builder("Mac64 Builder", ci_cat = None, perf_cat = "Mac|x64|Builder|")
-perf_builder("Perf Mac 10.11", "Mac|x64|Tester|10.11", triggered_by = ["Mac64 Builder"])
+mac_builder("MacArm64 Builder", ci_cat = None, perf_cat = "Mac|arm64|Builder")
+perf_builder("Perf Mac 11", "Mac|x64|Tester|11", triggered_by = ["Mac64 Builder"])
+perf_builder("Perf Mac M1 Arm64 12", "Mac|arm64|Tester|12", triggered_by = ["MacArm64 Builder"])
+
 mac_builder("Mac Asan", "Mac|x64|asan")
 mac_try_job("mac_asan")
 mac_try_job("mac_chromium_compile", recipe = "chromium_trybot", branch_cq = False)
 mac_builder("MacARM64 M1 Release", "Mac|arm64M1|rel", cpu = "arm64-64-Apple_M1")
-mac_try_job("mac_rel_m1", try_cat = None, cq = None)
-mac_try_job("mac_dbg_m1", try_cat = None, cq = None)
+mac_try_job("mac_rel_m1")
+mac_try_job("mac_dbg_m1")
 
 win_builder("Win32 Debug (Clang)", "Win Clang|x86|dbg")
 win_try_job("win_x86_clang_dbg", cq = None)
@@ -787,6 +824,7 @@ win_try_job("win_x64_clang_dbg", cq = None)
 win_try_job("win_x64_clang_dbg_win10", cq = None)
 win_try_job("win_compile_x64_clang_dbg")
 win_builder("Win64 Release (Clang)", "Win Clang|x64|rel")
+win_builder("Win64 Release (Clang)(reclient)", "Win Clang|x64|re")
 win_try_job("win_x64_clang_rel", cq = None)
 win_try_job("win_compile_x64_clang_rel")
 win_builder("Win64 ASan", "Win Clang|x64|asan")
@@ -821,8 +859,8 @@ lkgr_config = {
     "project": "webrtc",
     "source_url": WEBRTC_GIT,
     "status_url": "https://webrtc-status.appspot.com",
-    "allowed_lag": 150,  # hours
-    "allowed_gap": 4,  # commits behind
+    "allowed_lag": 9,  # hours (up to 10x during low commit volume periods)
+    "allowed_gap": 150,  # commits behind
     "error_recipients": WEBRTC_TROOPER_EMAIL,
     "buckets": {
         "webrtc/ci": {
@@ -840,7 +878,6 @@ lkgr_config = {
                 "WebRTC Chromium FYI Android Builder ARM64 (dbg)",
                 "WebRTC Chromium FYI Android Builder",
                 "WebRTC Chromium FYI Android Tests (dbg) (M Nexus5X)",
-                "WebRTC Chromium FYI Android Tests (dbg) (N Nexus5X)",
                 "WebRTC Chromium FYI Linux Builder (dbg)",
                 "WebRTC Chromium FYI Linux Builder",
                 "WebRTC Chromium FYI Linux Tester",
@@ -850,7 +887,6 @@ lkgr_config = {
                 "WebRTC Chromium FYI Win Builder (dbg)",
                 "WebRTC Chromium FYI Win Builder",
                 "WebRTC Chromium FYI Win10 Tester",
-                "WebRTC Chromium FYI Win7 Tester",
                 "WebRTC Chromium FYI ios-device",
                 "WebRTC Chromium FYI ios-simulator",
             ],

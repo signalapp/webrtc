@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "api/crypto/crypto_options.h"
 #include "api/crypto/frame_encryptor_interface.h"
 #include "api/frame_transformer_interface.h"
@@ -49,7 +50,7 @@ class MockRtpTransportControllerSend
               DestroyRtpVideoSender,
               (RtpVideoSenderInterface*),
               (override));
-  MOCK_METHOD(rtc::TaskQueue*, GetWorkerQueue, (), (override));
+  MOCK_METHOD(MaybeWorkerThread*, GetWorkerQueue, (), (override));
   MOCK_METHOD(PacketRouter*, packet_router, (), (override));
   MOCK_METHOD(NetworkStateEstimateObserver*,
               network_state_estimate_observer,
@@ -76,7 +77,7 @@ class MockRtpTransportControllerSend
               (override));
   MOCK_METHOD(void,
               OnNetworkRouteChanged,
-              (const std::string&, const rtc::NetworkRoute&),
+              (absl::string_view, const rtc::NetworkRoute&),
               (override));
   MOCK_METHOD(void, OnNetworkAvailability, (bool), (override));
   MOCK_METHOD(RtcpBandwidthObserver*, GetBandwidthObserver, (), (override));

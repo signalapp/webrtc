@@ -105,7 +105,7 @@ if (!build_with_chromium) {
     output_dir = "${root_out_dir}/py_quality_assessment/quality_assessment"
     deps = [
       "../../../../rtc_base:checks",
-      "../../../../rtc_base:rtc_base_approved",
+      "//third_party/abseil-cpp/absl/strings",
     ]
   }
 
@@ -115,7 +115,6 @@ if (!build_with_chromium) {
     deps = [
       "../../../../common_audio",
       "../../../../rtc_base:logging",
-      "../../../../rtc_base:rtc_base_approved",
       "//third_party/abseil-cpp/absl/flags:flag",
       "//third_party/abseil-cpp/absl/flags:parse",
     ]
@@ -128,7 +127,6 @@ if (!build_with_chromium) {
       "../..",
       "../../../../common_audio",
       "../../../../rtc_base:logging",
-      "../../../../rtc_base:rtc_base_approved",
       "../../vad",
       "//third_party/abseil-cpp/absl/flags:flag",
       "//third_party/abseil-cpp/absl/flags:parse",
@@ -142,7 +140,6 @@ if (!build_with_chromium) {
       "../..",
       "../../../../common_audio",
       "../../../../rtc_base:logging",
-      "../../../../rtc_base:rtc_base_approved",
       "//third_party/abseil-cpp/absl/flags:flag",
       "//third_party/abseil-cpp/absl/flags:parse",
     ]

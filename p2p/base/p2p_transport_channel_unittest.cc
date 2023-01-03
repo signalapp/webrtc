@@ -12,15 +12,23 @@
 
 #include <list>
 #include <memory>
+#include <string>
+#include <tuple>
 #include <utility>
 
+#include "absl/algorithm/container.h"
+#include "absl/strings/string_view.h"
 #include "api/test/mock_async_dns_resolver.h"
+#include "p2p/base/active_ice_controller_factory_interface.h"
+#include "p2p/base/active_ice_controller_interface.h"
 #include "p2p/base/basic_ice_controller.h"
 #include "p2p/base/connection.h"
 #include "p2p/base/fake_port_allocator.h"
 #include "p2p/base/ice_gatherer.h"
 #include "p2p/base/ice_transport_internal.h"
+#include "p2p/base/mock_active_ice_controller.h"
 #include "p2p/base/mock_async_resolver.h"
+#include "p2p/base/mock_ice_controller.h"
 #include "p2p/base/packet_transport_internal.h"
 #include "p2p/base/test_stun_server.h"
 #include "p2p/base/test_turn_server.h"
@@ -33,6 +41,7 @@
 #include "rtc_base/firewall_socket_server.h"
 #include "rtc_base/gunit.h"
 #include "rtc_base/helpers.h"
+#include "rtc_base/internal/default_socket_server.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/mdns_responder_interface.h"
 #include "rtc_base/nat_server.h"
@@ -40,6 +49,7 @@
 #include "rtc_base/proxy_server.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/ssl_adapter.h"
+#include "rtc_base/strings/string_builder.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/virtual_socket_server.h"
 #include "system_wrappers/include/metrics.h"
@@ -50,17 +60,22 @@ namespace {
 using rtc::SocketAddress;
 using ::testing::_;
 using ::testing::Assign;
+using ::testing::Combine;
 using ::testing::Contains;
 using ::testing::DoAll;
 using ::testing::InSequence;
 using ::testing::InvokeArgument;
 using ::testing::InvokeWithoutArgs;
-using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::ReturnRef;
 using ::testing::SaveArg;
 using ::testing::SetArgPointee;
 using ::testing::SizeIs;
+using ::testing::TestWithParam;
+using ::testing::Values;
+using ::testing::WithParamInterface;
+using ::webrtc::PendingTaskSafetyFlag;
+using ::webrtc::SafeTask;
 
 // Default timeout for tests in this file.
 // Should be large enough for slow buildbots to run the tests reliably.
@@ -128,8 +143,6 @@ const cricket::IceParameters kIceParams[4] = {
 const uint64_t kLowTiebreaker = 11111;
 const uint64_t kHighTiebreaker = 22222;
 
-enum { MSG_ADD_CANDIDATES, MSG_REMOVE_CANDIDATES };
-
 cricket::IceConfig CreateIceConfig(
     int receiving_timeout,
     cricket::ContinualGatheringPolicy continual_gathering_policy,
@@ -141,11 +154,11 @@ cricket::IceConfig CreateIceConfig(
   return config;
 }
 
-cricket::Candidate CreateUdpCandidate(const std::string& type,
-                                      const std::string& ip,
+cricket::Candidate CreateUdpCandidate(absl::string_view type,
+                                      absl::string_view ip,
                                       int port,
                                       int priority,
-                                      const std::string& ufrag = "") {
+                                      absl::string_view ufrag = "") {
   cricket::Candidate c;
   c.set_address(rtc::SocketAddress(ip, port));
   c.set_component(cricket::ICE_CANDIDATE_COMPONENT_DEFAULT);
@@ -158,6 +171,7 @@ cricket::Candidate CreateUdpCandidate(const std::string& type,
 
 cricket::BasicPortAllocator* CreateBasicPortAllocator(
     rtc::NetworkManager* network_manager,
+    rtc::SocketServer* socket_server,
     const cricket::ServerAddresses& stun_servers,
     const rtc::SocketAddress& turn_server_udp,
     const rtc::SocketAddress& turn_server_tcp) {
@@ -173,24 +187,14 @@ cricket::BasicPortAllocator* CreateBasicPortAllocator(
   }
   std::vector<cricket::RelayServerConfig> turn_servers(1, turn_server);
 
-  cricket::BasicPortAllocator* allocator =
-      new cricket::BasicPortAllocator(network_manager);
+  std::unique_ptr<cricket::BasicPortAllocator> allocator =
+      std::make_unique<cricket::BasicPortAllocator>(
+          network_manager,
+          std::make_unique<rtc::BasicPacketSocketFactory>(socket_server));
   allocator->Initialize();
   allocator->SetConfiguration(stun_servers, turn_servers, 0, webrtc::NO_PRUNE);
-  return allocator;
+  return allocator.release();
 }
-
-class MockIceControllerFactory : public cricket::IceControllerFactoryInterface {
- public:
-  ~MockIceControllerFactory() override = default;
-  std::unique_ptr<cricket::IceControllerInterface> Create(
-      const cricket::IceControllerFactoryArgs& args) override {
-    RecordIceControllerCreated();
-    return std::make_unique<cricket::BasicIceController>(args);
-  }
-
-  MOCK_METHOD(void, RecordIceControllerCreated, ());
-};
 
 // An one-shot resolver factory with default return arguments.
 // Resolution is immediate, always succeeds, and returns nonsense.
@@ -198,15 +202,15 @@ class ResolverFactoryFixture : public webrtc::MockAsyncDnsResolverFactory {
  public:
   ResolverFactoryFixture() {
     mock_async_dns_resolver_ = std::make_unique<webrtc::MockAsyncDnsResolver>();
-    ON_CALL(*mock_async_dns_resolver_, Start(_, _))
-        .WillByDefault(InvokeArgument<1>());
+    EXPECT_CALL(*mock_async_dns_resolver_, Start(_, _))
+        .WillRepeatedly(InvokeArgument<1>());
     EXPECT_CALL(*mock_async_dns_resolver_, result())
         .WillOnce(ReturnRef(mock_async_dns_resolver_result_));
 
     // A default action for GetResolvedAddress. Will be overruled
     // by SetAddressToReturn.
-    ON_CALL(mock_async_dns_resolver_result_, GetResolvedAddress(_, _))
-        .WillByDefault(Return(true));
+    EXPECT_CALL(mock_async_dns_resolver_result_, GetResolvedAddress(_, _))
+        .WillRepeatedly(Return(true));
 
     EXPECT_CALL(mock_async_dns_resolver_result_, GetError())
         .WillOnce(Return(0));
@@ -237,6 +241,16 @@ class ResolverFactoryFixture : public webrtc::MockAsyncDnsResolverFactory {
   std::function<void()> saved_callback_;
 };
 
+bool HasLocalAddress(const cricket::CandidatePairInterface* pair,
+                     const SocketAddress& address) {
+  return pair->local_candidate().address().EqualIPs(address);
+}
+
+bool HasRemoteAddress(const cricket::CandidatePairInterface* pair,
+                      const SocketAddress& address) {
+  return pair->remote_candidate().address().EqualIPs(address);
+}
+
 }  // namespace
 
 namespace cricket {
@@ -257,11 +271,11 @@ namespace cricket {
 // Note that this class is a base class for use by other tests, who will provide
 // specialized test behavior.
 class P2PTransportChannelTestBase : public ::testing::Test,
-                                    public rtc::MessageHandlerAutoCleanup,
                                     public sigslot::has_slots<> {
  public:
-  P2PTransportChannelTestBase()
-      : vss_(new rtc::VirtualSocketServer()),
+  explicit P2PTransportChannelTestBase(absl::string_view field_trials)
+      : field_trials_(field_trials),
+        vss_(new rtc::VirtualSocketServer()),
         nss_(new rtc::NATSocketServer(vss_.get())),
         ss_(new rtc::FirewallSocketServer(nss_.get())),
         main_(ss_.get()),
@@ -281,14 +295,17 @@ class P2PTransportChannelTestBase : public ::testing::Test,
 
     ServerAddresses stun_servers;
     stun_servers.insert(kStunAddr);
-    ep1_.allocator_.reset(
-        CreateBasicPortAllocator(&ep1_.network_manager_, stun_servers,
-                                 kTurnUdpIntAddr, rtc::SocketAddress()));
-    ep2_.allocator_.reset(
-        CreateBasicPortAllocator(&ep2_.network_manager_, stun_servers,
-                                 kTurnUdpIntAddr, rtc::SocketAddress()));
+    ep1_.allocator_.reset(CreateBasicPortAllocator(
+        &ep1_.network_manager_, ss_.get(), stun_servers, kTurnUdpIntAddr,
+        rtc::SocketAddress()));
+    ep2_.allocator_.reset(CreateBasicPortAllocator(
+        &ep2_.network_manager_, ss_.get(), stun_servers, kTurnUdpIntAddr,
+        rtc::SocketAddress()));
     webrtc::metrics::Reset();
   }
+
+  P2PTransportChannelTestBase()
+      : P2PTransportChannelTestBase(absl::string_view()) {}
 
  protected:
   enum Config {
@@ -308,10 +325,10 @@ class P2PTransportChannelTestBase : public ::testing::Test,
   };
 
   struct Result {
-    Result(const std::string& controlling_type,
-           const std::string& controlling_protocol,
-           const std::string& controlled_type,
-           const std::string& controlled_protocol,
+    Result(absl::string_view controlling_type,
+           absl::string_view controlling_protocol,
+           absl::string_view controlled_type,
+           absl::string_view controlled_protocol,
            int wait)
         : controlling_type(controlling_type),
           controlling_protocol(controlling_protocol),
@@ -345,13 +362,9 @@ class P2PTransportChannelTestBase : public ::testing::Test,
     std::unique_ptr<P2PTransportChannel> ch_;
   };
 
-  struct CandidatesData : public rtc::MessageData {
-    CandidatesData(IceTransportInternal* ch, const Candidate& c)
-        : channel(ch), candidates(1, c) {}
-    CandidatesData(IceTransportInternal* ch, const std::vector<Candidate>& cc)
-        : channel(ch), candidates(cc) {}
+  struct CandidateData {
     IceTransportInternal* channel;
-    Candidates candidates;
+    Candidate candidate;
   };
 
   struct Endpoint : public sigslot::has_slots<> {
@@ -402,7 +415,7 @@ class P2PTransportChannelTestBase : public ::testing::Test,
     uint64_t tiebreaker_;
     bool role_conflict_;
     bool save_candidates_;
-    std::vector<std::unique_ptr<CandidatesData>> saved_candidates_;
+    std::vector<CandidateData> saved_candidates_;
     bool ready_to_send_ = false;
     std::map<IceRegatheringReason, int> ice_regathering_counter_;
   };
@@ -483,7 +496,7 @@ class P2PTransportChannelTestBase : public ::testing::Test,
   }
 
   void DestroyChannels() {
-    main_.Clear(this);
+    safety_->SetNotAlive();
     ep1_.cd1_.ch_.reset();
     ep2_.cd1_.ch_.reset();
     ep1_.cd2_.ch_.reset();
@@ -536,7 +549,7 @@ class P2PTransportChannelTestBase : public ::testing::Test,
   }
   void AddAddress(int endpoint,
                   const SocketAddress& addr,
-                  const std::string& ifname,
+                  absl::string_view ifname,
                   rtc::AdapterType adapter_type,
                   absl::optional<rtc::AdapterType> underlying_vpn_adapter_type =
                       absl::nullopt) {
@@ -818,10 +831,10 @@ class P2PTransportChannelTestBase : public ::testing::Test,
 
     if (GetEndpoint(ch)->save_candidates_) {
       GetEndpoint(ch)->saved_candidates_.push_back(
-          std::unique_ptr<CandidatesData>(new CandidatesData(ch, c)));
+          {.channel = ch, .candidate = c});
     } else {
-      main_.Post(RTC_FROM_HERE, this, MSG_ADD_CANDIDATES,
-                 new CandidatesData(ch, c));
+      main_.PostTask(SafeTask(
+          safety_, [this, ch, c = c]() mutable { AddCandidate(ch, c); }));
     }
   }
 
@@ -847,70 +860,60 @@ class P2PTransportChannelTestBase : public ::testing::Test,
   void OnCandidatesRemoved(IceTransportInternal* ch,
                            const std::vector<Candidate>& candidates) {
     // Candidate removals are not paused.
-    CandidatesData* candidates_data = new CandidatesData(ch, candidates);
-    main_.Post(RTC_FROM_HERE, this, MSG_REMOVE_CANDIDATES, candidates_data);
+    main_.PostTask(SafeTask(safety_, [this, ch, candidates]() mutable {
+      P2PTransportChannel* rch = GetRemoteChannel(ch);
+      if (rch == nullptr) {
+        return;
+      }
+      for (const Candidate& c : candidates) {
+        RTC_LOG(LS_INFO) << "Removed remote candidate " << c.ToString();
+        rch->RemoveRemoteCandidate(c);
+      }
+    }));
   }
 
   // Tcp candidate verification has to be done when they are generated.
-  void VerifySavedTcpCandidates(int endpoint, const std::string& tcptype) {
+  void VerifySavedTcpCandidates(int endpoint, absl::string_view tcptype) {
     for (auto& data : GetEndpoint(endpoint)->saved_candidates_) {
-      for (auto& candidate : data->candidates) {
-        EXPECT_EQ(candidate.protocol(), TCP_PROTOCOL_NAME);
-        EXPECT_EQ(candidate.tcptype(), tcptype);
-        if (candidate.tcptype() == TCPTYPE_ACTIVE_STR) {
-          EXPECT_EQ(candidate.address().port(), DISCARD_PORT);
-        } else if (candidate.tcptype() == TCPTYPE_PASSIVE_STR) {
-          EXPECT_NE(candidate.address().port(), DISCARD_PORT);
-        } else {
-          FAIL() << "Unknown tcptype: " << candidate.tcptype();
-        }
+      EXPECT_EQ(data.candidate.protocol(), TCP_PROTOCOL_NAME);
+      EXPECT_EQ(data.candidate.tcptype(), tcptype);
+      if (data.candidate.tcptype() == TCPTYPE_ACTIVE_STR) {
+        EXPECT_EQ(data.candidate.address().port(), DISCARD_PORT);
+      } else if (data.candidate.tcptype() == TCPTYPE_PASSIVE_STR) {
+        EXPECT_NE(data.candidate.address().port(), DISCARD_PORT);
+      } else {
+        FAIL() << "Unknown tcptype: " << data.candidate.tcptype();
       }
     }
   }
 
   void ResumeCandidates(int endpoint) {
     Endpoint* ed = GetEndpoint(endpoint);
-    for (auto& candidate : ed->saved_candidates_) {
-      main_.Post(RTC_FROM_HERE, this, MSG_ADD_CANDIDATES, candidate.release());
+    std::vector<CandidateData> candidates = std::move(ed->saved_candidates_);
+    if (!candidates.empty()) {
+      main_.PostTask(SafeTask(
+          safety_, [this, candidates = std::move(candidates)]() mutable {
+            for (CandidateData& data : candidates) {
+              AddCandidate(data.channel, data.candidate);
+            }
+          }));
     }
     ed->saved_candidates_.clear();
     ed->save_candidates_ = false;
   }
 
-  void OnMessage(rtc::Message* msg) {
-    switch (msg->message_id) {
-      case MSG_ADD_CANDIDATES: {
-        std::unique_ptr<CandidatesData> data(
-            static_cast<CandidatesData*>(msg->pdata));
-        P2PTransportChannel* rch = GetRemoteChannel(data->channel);
-        if (!rch) {
-          return;
-        }
-        for (auto& c : data->candidates) {
-          if (remote_ice_parameter_source_ != FROM_CANDIDATE) {
-            c.set_username("");
-            c.set_password("");
-          }
-          RTC_LOG(LS_INFO) << "Candidate(" << data->channel->component() << "->"
-                           << rch->component() << "): " << c.ToString();
-          rch->AddRemoteCandidate(c);
-        }
-        break;
-      }
-      case MSG_REMOVE_CANDIDATES: {
-        std::unique_ptr<CandidatesData> data(
-            static_cast<CandidatesData*>(msg->pdata));
-        P2PTransportChannel* rch = GetRemoteChannel(data->channel);
-        if (!rch) {
-          return;
-        }
-        for (Candidate& c : data->candidates) {
-          RTC_LOG(LS_INFO) << "Removed remote candidate " << c.ToString();
-          rch->RemoveRemoteCandidate(c);
-        }
-        break;
-      }
+  void AddCandidate(IceTransportInternal* channel, Candidate& candidate) {
+    P2PTransportChannel* rch = GetRemoteChannel(channel);
+    if (rch == nullptr) {
+      return;
     }
+    if (remote_ice_parameter_source_ != FROM_CANDIDATE) {
+      candidate.set_username("");
+      candidate.set_password("");
+    }
+    RTC_LOG(LS_INFO) << "Candidate(" << channel->component() << "->"
+                     << rch->component() << "): " << candidate.ToString();
+    rch->AddRemoteCandidate(candidate);
   }
 
   void OnReadPacket(rtc::PacketTransportInternal* transport,
@@ -1006,6 +1009,8 @@ class P2PTransportChannelTestBase : public ::testing::Test,
   std::unique_ptr<rtc::NATSocketServer> nss_;
   std::unique_ptr<rtc::FirewallSocketServer> ss_;
   rtc::AutoSocketServerThread main_;
+  rtc::scoped_refptr<PendingTaskSafetyFlag> safety_ =
+      PendingTaskSafetyFlag::Create();
   std::unique_ptr<TestStunServer> stun_server_;
   TestTurnServer turn_server_;
   rtc::SocksProxyServer socks_server1_;
@@ -1108,8 +1113,12 @@ const P2PTransportChannelTestBase::Result
 // Test the matrix of all the connectivity types we expect to see in the wild.
 // Just test every combination of the configs in the Config enum.
 class P2PTransportChannelTest : public P2PTransportChannelTestBase {
+ public:
+  P2PTransportChannelTest() : P2PTransportChannelTestBase() {}
+  explicit P2PTransportChannelTest(absl::string_view field_trials)
+      : P2PTransportChannelTestBase(field_trials) {}
+
  protected:
-  static const Result* kMatrix[NUM_CONFIGS][NUM_CONFIGS];
   void ConfigureEndpoints(Config config1,
                           Config config2,
                           int allocator_flags1,
@@ -1194,6 +1203,20 @@ class P2PTransportChannelTest : public P2PTransportChannelTestBase {
   }
 };
 
+class P2PTransportChannelTestWithFieldTrials
+    : public P2PTransportChannelTest,
+      public WithParamInterface<std::string> {
+ public:
+  P2PTransportChannelTestWithFieldTrials()
+      : P2PTransportChannelTest(GetParam()) {}
+};
+
+class P2PTransportChannelMatrixTest
+    : public P2PTransportChannelTestWithFieldTrials {
+ protected:
+  static const Result* kMatrix[NUM_CONFIGS][NUM_CONFIGS];
+};
+
 // Shorthands for use in the test matrix.
 #define LULU &kLocalUdpToLocalUdp
 #define LUSU &kLocalUdpToStunUdp
@@ -1218,8 +1241,8 @@ class P2PTransportChannelTest : public P2PTransportChannelTestBase {
 // TODO(?): Fix NULLs caused by lack of TCP support in NATSocket.
 // TODO(?): Fix NULLs caused by no HTTP proxy support.
 // TODO(?): Rearrange rows/columns from best to worst.
-const P2PTransportChannelTest::Result*
-    P2PTransportChannelTest::kMatrix[NUM_CONFIGS][NUM_CONFIGS] = {
+const P2PTransportChannelMatrixTest::Result*
+    P2PTransportChannelMatrixTest::kMatrix[NUM_CONFIGS][NUM_CONFIGS] = {
         //      OPEN  CONE  ADDR  PORT  SYMM  2CON  SCON  !UDP  !TCP  HTTP  PRXH
         //      PRXS
         /*OP*/ {LULU, LUSU, LUSU, LUSU, LUPU, LUSU, LUPU, LTPT, LTPT, LSRS,
@@ -1264,21 +1287,21 @@ class P2PTransportChannelTestWithFieldTrials
       public ::testing::WithParamInterface<std::string> {
  public:
   void Test(const Result& expected) override {
-    webrtc::test::ScopedKeyValueConfig field_trials(field_trials_, GetParam());
+    webrtc::test::ScopedFieldTrials field_trials(GetParam());
     P2PTransportChannelTest::Test(expected);
   }
 };
 
 // The actual tests that exercise all the various configurations.
 // Test names are of the form P2PTransportChannelTest_TestOPENToNAT_FULL_CONE
-#define P2P_TEST_DECLARATION(x, y, z)                                 \
-  TEST_P(P2PTransportChannelTestWithFieldTrials, z##Test##x##To##y) { \
-    ConfigureEndpoints(x, y, PORTALLOCATOR_ENABLE_SHARED_SOCKET,      \
-                       PORTALLOCATOR_ENABLE_SHARED_SOCKET);           \
-    if (kMatrix[x][y] != NULL)                                        \
-      Test(*kMatrix[x][y]);                                           \
-    else                                                              \
-      RTC_LOG(LS_WARNING) << "Not yet implemented";                   \
+#define P2P_TEST_DECLARATION(x, y, z)                            \
+  TEST_P(P2PTransportChannelMatrixTest, z##Test##x##To##y) {     \
+    ConfigureEndpoints(x, y, PORTALLOCATOR_ENABLE_SHARED_SOCKET, \
+                       PORTALLOCATOR_ENABLE_SHARED_SOCKET);      \
+    if (kMatrix[x][y] != NULL)                                   \
+      Test(*kMatrix[x][y]);                                      \
+    else                                                         \
+      RTC_LOG(LS_WARNING) << "Not yet implemented";              \
   }
 
 #define P2P_TEST(x, y) P2P_TEST_DECLARATION(x, y, /* empty argument */)
@@ -1311,14 +1334,28 @@ P2P_TEST_SET(PROXY_HTTPS)
 P2P_TEST_SET(PROXY_SOCKS)
 
 INSTANTIATE_TEST_SUITE_P(
-    P2PTransportChannelTestWithFieldTrials,
-    P2PTransportChannelTestWithFieldTrials,
+    Legacy,
+    P2PTransportChannelMatrixTest,
     // Each field-trial is ~144 tests (some return not-yet-implemented).
-    testing::Values("", "WebRTC-IceFieldTrials/enable_goog_ping:true/"));
+    Values("", "WebRTC-IceFieldTrials/enable_goog_ping:true/"));
+INSTANTIATE_TEST_SUITE_P(
+    Active,
+    P2PTransportChannelMatrixTest,
+    // Each field-trial is ~144 tests (some return not-yet-implemented).
+    Values("WebRTC-UseActiveIceController/Enabled/",
+           "WebRTC-IceFieldTrials/enable_goog_ping:true/"
+           "WebRTC-UseActiveIceController/Enabled/"));
+
+INSTANTIATE_TEST_SUITE_P(Legacy,
+                         P2PTransportChannelTestWithFieldTrials,
+                         Values(""));
+INSTANTIATE_TEST_SUITE_P(Active,
+                         P2PTransportChannelTestWithFieldTrials,
+                         Values("WebRTC-UseActiveIceController/Enabled/"));
 
 // Test that we restart candidate allocation when local ufrag&pwd changed.
 // Standard Ice protocol is used.
-TEST_F(P2PTransportChannelTest, HandleUfragPwdChange) {
+TEST_P(P2PTransportChannelTestWithFieldTrials, HandleUfragPwdChange) {
   ConfigureEndpoints(OPEN, OPEN, kDefaultPortAllocatorFlags,
                      kDefaultPortAllocatorFlags);
   CreateChannels();
@@ -1328,7 +1365,8 @@ TEST_F(P2PTransportChannelTest, HandleUfragPwdChange) {
 
 // Same as above test, but with a symmetric NAT.
 // We should end up with relay<->prflx candidate pairs, with generation "1".
-TEST_F(P2PTransportChannelTest, HandleUfragPwdChangeSymmetricNat) {
+TEST_P(P2PTransportChannelTestWithFieldTrials,
+       HandleUfragPwdChangeSymmetricNat) {
   ConfigureEndpoints(NAT_SYMMETRIC, NAT_SYMMETRIC, kDefaultPortAllocatorFlags,
                      kDefaultPortAllocatorFlags);
   CreateChannels();
@@ -1337,7 +1375,7 @@ TEST_F(P2PTransportChannelTest, HandleUfragPwdChangeSymmetricNat) {
 }
 
 // Test the operation of GetStats.
-TEST_F(P2PTransportChannelTest, GetStats) {
+TEST_P(P2PTransportChannelTestWithFieldTrials, GetStats) {
   rtc::ScopedFakeClock clock;
   ConfigureEndpoints(OPEN, OPEN, kDefaultPortAllocatorFlags,
                      kDefaultPortAllocatorFlags);
@@ -1368,7 +1406,6 @@ TEST_F(P2PTransportChannelTest, GetStats) {
     }
   }
   ASSERT_TRUE(best_conn_info != nullptr);
-  EXPECT_TRUE(best_conn_info->new_connection);
   EXPECT_TRUE(best_conn_info->receiving);
   EXPECT_TRUE(best_conn_info->writable);
   EXPECT_FALSE(best_conn_info->timeout);
@@ -1387,7 +1424,7 @@ TEST_F(P2PTransportChannelTest, GetStats) {
   DestroyChannels();
 }
 
-TEST_F(P2PTransportChannelTest, GetStatsSwitchConnection) {
+TEST_P(P2PTransportChannelTestWithFieldTrials, GetStatsSwitchConnection) {
   rtc::ScopedFakeClock clock;
   IceConfig continual_gathering_config =
       CreateIceConfig(1000, GATHER_CONTINUALLY);
@@ -1419,7 +1456,6 @@ TEST_F(P2PTransportChannelTest, GetStatsSwitchConnection) {
     }
   }
   ASSERT_TRUE(best_conn_info != nullptr);
-  EXPECT_TRUE(best_conn_info->new_connection);
   EXPECT_TRUE(best_conn_info->receiving);
   EXPECT_TRUE(best_conn_info->writable);
   EXPECT_FALSE(best_conn_info->timeout);
@@ -1460,7 +1496,8 @@ TEST_F(P2PTransportChannelTest, GetStatsSwitchConnection) {
 
 // Tests that UMAs are recorded when ICE restarts while the channel
 // is disconnected.
-TEST_F(P2PTransportChannelTest, TestUMAIceRestartWhileDisconnected) {
+TEST_P(P2PTransportChannelTestWithFieldTrials,
+       TestUMAIceRestartWhileDisconnected) {
   rtc::ScopedFakeClock clock;
   ConfigureEndpoints(OPEN, OPEN, kOnlyLocalPorts, kOnlyLocalPorts);
 
@@ -1493,7 +1530,8 @@ TEST_F(P2PTransportChannelTest, TestUMAIceRestartWhileDisconnected) {
 
 // Tests that UMAs are recorded when ICE restarts while the channel
 // is connected.
-TEST_F(P2PTransportChannelTest, TestUMAIceRestartWhileConnected) {
+TEST_P(P2PTransportChannelTestWithFieldTrials,
+       TestUMAIceRestartWhileConnected) {
   rtc::ScopedFakeClock clock;
   ConfigureEndpoints(OPEN, OPEN, kOnlyLocalPorts, kOnlyLocalPorts);
 
@@ -1520,7 +1558,8 @@ TEST_F(P2PTransportChannelTest, TestUMAIceRestartWhileConnected) {
 
 // Tests that UMAs are recorded when ICE restarts while the channel
 // is connecting.
-TEST_F(P2PTransportChannelTest, TestUMAIceRestartWhileConnecting) {
+TEST_P(P2PTransportChannelTestWithFieldTrials,
+       TestUMAIceRestartWhileConnecting) {
   rtc::ScopedFakeClock clock;
   ConfigureEndpoints(OPEN, OPEN, kOnlyLocalPorts, kOnlyLocalPorts);
 
@@ -1546,7 +1585,7 @@ TEST_F(P2PTransportChannelTest, TestUMAIceRestartWhileConnecting) {
 
 // Tests that a UMA on ICE regathering is recorded when there is a network
 // change if and only if continual gathering is enabled.
-TEST_F(P2PTransportChannelTest,
+TEST_P(P2PTransportChannelTestWithFieldTrials,
        TestIceRegatheringReasonContinualGatheringByNetworkChange) {
   rtc::ScopedFakeClock clock;
   ConfigureEndpoints(OPEN, OPEN, kOnlyLocalPorts, kOnlyLocalPorts);
@@ -1582,7 +1621,7 @@ TEST_F(P2PTransportChannelTest,
 
 // Tests that a UMA on ICE regathering is recorded when there is a network
 // failure if and only if continual gathering is enabled.
-TEST_F(P2PTransportChannelTest,
+TEST_P(P2PTransportChannelTestWithFieldTrials,
        TestIceRegatheringReasonContinualGatheringByNetworkFailure) {
   rtc::ScopedFakeClock clock;
   ConfigureEndpoints(OPEN, OPEN, kOnlyLocalPorts, kOnlyLocalPorts);
@@ -1615,7 +1654,8 @@ TEST_F(P2PTransportChannelTest,
 
 // Test that we properly create a connection on a STUN ping from unknown address
 // when the signaling is slow.
-TEST_F(P2PTransportChannelTest, PeerReflexiveCandidateBeforeSignaling) {
+TEST_P(P2PTransportChannelTestWithFieldTrials,
+       PeerReflexiveCandidateBeforeSignaling) {
   ConfigureEndpoints(OPEN, OPEN, kDefaultPortAllocatorFlags,
                      kDefaultPortAllocatorFlags);
   // Emulate no remote parameters coming in.
@@ -1659,7 +1699,8 @@ TEST_F(P2PTransportChannelTest, PeerReflexiveCandidateBeforeSignaling) {
 // 1. the selected candidate pair accessed via the public API, and
 // 2. the candidate pair stats
 // until we learn the same address from signaling.
-TEST_F(P2PTransportChannelTest, PeerReflexiveRemoteCandidateIsSanitized) {
+TEST_P(P2PTransportChannelTestWithFieldTrials,
+       PeerReflexiveRemoteCandidateIsSanitized) {
   ConfigureEndpoints(OPEN, OPEN, kOnlyLocalPorts, kOnlyLocalPorts);
   // Emulate no remote parameters coming in.
   set_remote_ice_parameter_source(FROM_CANDIDATE);
@@ -1707,8 +1748,7 @@ TEST_F(P2PTransportChannelTest, PeerReflexiveRemoteCandidateIsSanitized) {
   auto updated_pair_ep1 = ep1_ch1()->GetSelectedCandidatePair();
   ASSERT_TRUE(updated_pair_ep1.has_value());
   EXPECT_EQ(LOCAL_PORT_TYPE, updated_pair_ep1->remote_candidate().type());
-  EXPECT_TRUE(
-      updated_pair_ep1->remote_candidate().address().EqualIPs(kPublicAddrs[1]));
+  EXPECT_TRUE(HasRemoteAddress(&updated_pair_ep1.value(), kPublicAddrs[1]));
 
   ep1_ch1()->GetStats(&ice_transport_stats);
   // Check the candidate pair stats.
@@ -1724,7 +1764,8 @@ TEST_F(P2PTransportChannelTest, PeerReflexiveRemoteCandidateIsSanitized) {
 
 // Test that we properly create a connection on a STUN ping from unknown address
 // when the signaling is slow and the end points are behind NAT.
-TEST_F(P2PTransportChannelTest, PeerReflexiveCandidateBeforeSignalingWithNAT) {
+TEST_P(P2PTransportChannelTestWithFieldTrials,
+       PeerReflexiveCandidateBeforeSignalingWithNAT) {
   ConfigureEndpoints(OPEN, NAT_SYMMETRIC, kDefaultPortAllocatorFlags,
                      kDefaultPortAllocatorFlags);
   // Emulate no remote parameters coming in.
@@ -1773,7 +1814,7 @@ TEST_F(P2PTransportChannelTest, PeerReflexiveCandidateBeforeSignalingWithNAT) {
 // not older-generation candidate pairs created by pairing candidates across
 // generations. This resulted in the old-generation prflx candidate being
 // prioritized above new-generation candidate pairs.
-TEST_F(P2PTransportChannelTest,
+TEST_P(P2PTransportChannelTestWithFieldTrials,
        PeerReflexiveCandidateBeforeSignalingWithIceRestart) {
   ConfigureEndpoints(OPEN, OPEN, kDefaultPortAllocatorFlags,
                      kDefaultPortAllocatorFlags);
@@ -1823,7 +1864,8 @@ TEST_F(P2PTransportChannelTest,
 }
 
 // Test that if remote candidates don't have ufrag and pwd, we still work.
-TEST_F(P2PTransportChannelTest, RemoteCandidatesWithoutUfragPwd) {
+TEST_P(P2PTransportChannelTestWithFieldTrials,
+       RemoteCandidatesWithoutUfragPwd) {
   rtc::ScopedFakeClock clock;
   set_remote_ice_parameter_source(FROM_SETICEPARAMETERS);
   ConfigureEndpoints(OPEN, OPEN, kDefaultPortAllocatorFlags,
@@ -1843,7 +1885,7 @@ TEST_F(P2PTransportChannelTest, RemoteCandidatesWithoutUfragPwd) {
 
 // Test that a host behind NAT cannot be reached when incoming_only
 // is set to true.
-TEST_F(P2PTransportChannelTest, IncomingOnlyBlocked) {
+TEST_P(P2PTransportChannelTestWithFieldTrials, IncomingOnlyBlocked) {
   rtc::ScopedFakeClock clock;
   ConfigureEndpoints(NAT_FULL_CONE, OPEN, kDefaultPortAllocatorFlags,
                      kDefaultPortAllocatorFlags);
@@ -1865,7 +1907,7 @@ TEST_F(P2PTransportChannelTest, IncomingOnlyBlocked) {
 
 // Test that a peer behind NAT can connect to a peer that has
 // incoming_only flag set.
-TEST_F(P2PTransportChannelTest, IncomingOnlyOpen) {
+TEST_P(P2PTransportChannelTestWithFieldTrials, IncomingOnlyOpen) {
   rtc::ScopedFakeClock clock;
   ConfigureEndpoints(OPEN, NAT_FULL_CONE, kDefaultPortAllocatorFlags,
                      kDefaultPortAllocatorFlags);
@@ -1883,7 +1925,8 @@ TEST_F(P2PTransportChannelTest, IncomingOnlyOpen) {
 // Test that two peers can connect when one can only make outgoing TCP
 // connections. This has been observed in some scenarios involving
 // VPNs/firewalls.
-TEST_F(P2PTransportChannelTest, CanOnlyMakeOutgoingTcpConnections) {
+TEST_P(P2PTransportChannelTestWithFieldTrials,
+       CanOnlyMakeOutgoingTcpConnections) {
   // The PORTALLOCATOR_ENABLE_ANY_ADDRESS_PORTS flag is required if the
   // application needs this use case to work, since the application must accept
   // the tradeoff that more candidates need to be allocated.
@@ -1906,7 +1949,8 @@ TEST_F(P2PTransportChannelTest, CanOnlyMakeOutgoingTcpConnections) {
   DestroyChannels();
 }
 
-TEST_F(P2PTransportChannelTest, TestTcpConnectionsFromActiveToPassive) {
+TEST_P(P2PTransportChannelTestWithFieldTrials,
+       TestTcpConnectionsFromActiveToPassive) {
   rtc::ScopedFakeClock clock;
   AddAddress(0, kPublicAddrs[0]);
   AddAddress(1, kPublicAddrs[1]);
@@ -1952,7 +1996,7 @@ TEST_F(P2PTransportChannelTest, TestTcpConnectionsFromActiveToPassive) {
 }
 
 // Test that tcptype is set on all candidates for a connection running over TCP.
-TEST_F(P2PTransportChannelTest, TestTcpConnectionTcptypeSet) {
+TEST_P(P2PTransportChannelTestWithFieldTrials, TestTcpConnectionTcptypeSet) {
   rtc::ScopedFakeClock clock;
   ConfigureEndpoints(BLOCK_UDP_AND_INCOMING_TCP, OPEN,
                      PORTALLOCATOR_ENABLE_SHARED_SOCKET,
@@ -1974,7 +2018,7 @@ TEST_F(P2PTransportChannelTest, TestTcpConnectionTcptypeSet) {
   DestroyChannels();
 }
 
-TEST_F(P2PTransportChannelTest, TestIceRoleConflict) {
+TEST_P(P2PTransportChannelTestWithFieldTrials, TestIceRoleConflict) {
   AddAddress(0, kPublicAddrs[0]);
   AddAddress(1, kPublicAddrs[1]);
   TestSignalRoleConflict();
@@ -1982,7 +2026,8 @@ TEST_F(P2PTransportChannelTest, TestIceRoleConflict) {
 
 // Tests that the ice configs (protocol, tiebreaker and role) can be passed
 // down to ports.
-TEST_F(P2PTransportChannelTest, TestIceConfigWillPassDownToPort) {
+TEST_P(P2PTransportChannelTestWithFieldTrials,
+       TestIceConfigWillPassDownToPort) {
   rtc::ScopedFakeClock clock;
   AddAddress(0, kPublicAddrs[0]);
   AddAddress(1, kPublicAddrs[1]);
@@ -2026,7 +2071,7 @@ TEST_F(P2PTransportChannelTest, TestIceConfigWillPassDownToPort) {
 }
 
 // Verify that we can set DSCP value and retrieve properly from P2PTC.
-TEST_F(P2PTransportChannelTest, TestDefaultDscpValue) {
+TEST_P(P2PTransportChannelTestWithFieldTrials, TestDefaultDscpValue) {
   AddAddress(0, kPublicAddrs[0]);
   AddAddress(1, kPublicAddrs[1]);
 
@@ -2045,7 +2090,7 @@ TEST_F(P2PTransportChannelTest, TestDefaultDscpValue) {
 }
 
 // Verify IPv6 connection is preferred over IPv4.
-TEST_F(P2PTransportChannelTest, TestIPv6Connections) {
+TEST_P(P2PTransportChannelTestWithFieldTrials, TestIPv6Connections) {
   rtc::ScopedFakeClock clock;
   AddAddress(0, kIPv6PublicAddrs[0]);
   AddAddress(0, kPublicAddrs[0]);
@@ -2073,7 +2118,7 @@ TEST_F(P2PTransportChannelTest, TestIPv6Connections) {
 }
 
 // Testing forceful TURN connections.
-TEST_F(P2PTransportChannelTest, TestForceTurn) {
+TEST_P(P2PTransportChannelTestWithFieldTrials, TestForceTurn) {
   rtc::ScopedFakeClock clock;
   ConfigureEndpoints(
       NAT_PORT_RESTRICTED, NAT_SYMMETRIC,
@@ -2103,7 +2148,7 @@ TEST_F(P2PTransportChannelTest, TestForceTurn) {
 
 // Test that if continual gathering is set to true, ICE gathering state will
 // not change to "Complete", and vice versa.
-TEST_F(P2PTransportChannelTest, TestContinualGathering) {
+TEST_P(P2PTransportChannelTestWithFieldTrials, TestContinualGathering) {
   rtc::ScopedFakeClock clock;
   ConfigureEndpoints(OPEN, OPEN, kDefaultPortAllocatorFlags,
                      kDefaultPortAllocatorFlags);
@@ -2131,7 +2176,8 @@ TEST_F(P2PTransportChannelTest, TestContinualGathering) {
 
 // Test that a connection succeeds when the P2PTransportChannel uses a pooled
 // PortAllocatorSession that has not yet finished gathering candidates.
-TEST_F(P2PTransportChannelTest, TestUsingPooledSessionBeforeDoneGathering) {
+TEST_P(P2PTransportChannelTestWithFieldTrials,
+       TestUsingPooledSessionBeforeDoneGathering) {
   rtc::ScopedFakeClock clock;
   ConfigureEndpoints(OPEN, OPEN, kDefaultPortAllocatorFlags,
                      kDefaultPortAllocatorFlags);
@@ -2174,7 +2220,8 @@ TEST_F(P2PTransportChannelTest, TestUsingPooledSessionBeforeDoneGathering) {
 
 // Test that a connection succeeds when the P2PTransportChannel uses a pooled
 // PortAllocatorSession that already finished gathering candidates.
-TEST_F(P2PTransportChannelTest, TestUsingPooledSessionAfterDoneGathering) {
+TEST_P(P2PTransportChannelTestWithFieldTrials,
+       TestUsingPooledSessionAfterDoneGathering) {
   rtc::ScopedFakeClock clock;
   ConfigureEndpoints(OPEN, OPEN, kDefaultPortAllocatorFlags,
                      kDefaultPortAllocatorFlags);
@@ -2221,7 +2268,7 @@ TEST_F(P2PTransportChannelTest, TestUsingPooledSessionAfterDoneGathering) {
 // TODO(deadbeef): Move this and other "presumed writable" tests into a test
 // class that operates on a single P2PTransportChannel, once an appropriate one
 // (which supports TURN servers and TURN candidate gathering) is available.
-TEST_F(P2PTransportChannelTest, TurnToTurnPresumedWritable) {
+TEST_P(P2PTransportChannelTestWithFieldTrials, TurnToTurnPresumedWritable) {
   ConfigureEndpoints(OPEN, OPEN, kDefaultPortAllocatorFlags,
                      kDefaultPortAllocatorFlags);
   // Only configure one channel so we can control when the remote candidate
@@ -2258,7 +2305,7 @@ TEST_F(P2PTransportChannelTest, TurnToTurnPresumedWritable) {
 }
 
 // Test that a TURN/peer reflexive candidate pair is also presumed writable.
-TEST_F(P2PTransportChannelTest, TurnToPrflxPresumedWritable) {
+TEST_P(P2PTransportChannelTestWithFieldTrials, TurnToPrflxPresumedWritable) {
   rtc::ScopedFakeClock fake_clock;
 
   // We need to add artificial network delay to verify that the connection
@@ -2307,7 +2354,8 @@ TEST_F(P2PTransportChannelTest, TurnToPrflxPresumedWritable) {
 
 // Test that a presumed-writable TURN<->TURN connection is preferred above an
 // unreliable connection (one that has failed to be pinged for some time).
-TEST_F(P2PTransportChannelTest, PresumedWritablePreferredOverUnreliable) {
+TEST_P(P2PTransportChannelTestWithFieldTrials,
+       PresumedWritablePreferredOverUnreliable) {
   rtc::ScopedFakeClock fake_clock;
 
   ConfigureEndpoints(NAT_SYMMETRIC, NAT_SYMMETRIC, kDefaultPortAllocatorFlags,
@@ -2347,7 +2395,8 @@ TEST_F(P2PTransportChannelTest, PresumedWritablePreferredOverUnreliable) {
 
 // Ensure that "SignalReadyToSend" is fired as expected with a "presumed
 // writable" connection. Previously this did not work.
-TEST_F(P2PTransportChannelTest, SignalReadyToSendWithPresumedWritable) {
+TEST_P(P2PTransportChannelTestWithFieldTrials,
+       SignalReadyToSendWithPresumedWritable) {
   ConfigureEndpoints(OPEN, OPEN, kDefaultPortAllocatorFlags,
                      kDefaultPortAllocatorFlags);
   // Only test one endpoint, so we can ensure the connection doesn't receive a
@@ -2385,7 +2434,7 @@ TEST_F(P2PTransportChannelTest, SignalReadyToSendWithPresumedWritable) {
 // Test that role conflict error responses are sent as expected when receiving a
 // ping from an unknown address over a TURN connection. Regression test for
 // crbug.com/webrtc/9034.
-TEST_F(P2PTransportChannelTest,
+TEST_P(P2PTransportChannelTestWithFieldTrials,
        TurnToPrflxSelectedAfterResolvingIceControllingRoleConflict) {
   rtc::ScopedFakeClock clock;
   // Gather only relay candidates.
@@ -2428,7 +2477,7 @@ TEST_F(P2PTransportChannelTest,
 
 // Test that the writability can be established with the piggyback
 // acknowledgement in the connectivity check from the remote peer.
-TEST_F(P2PTransportChannelTest,
+TEST_P(P2PTransportChannelTestWithFieldTrials,
        CanConnectWithPiggybackCheckAcknowledgementWhenCheckResponseBlocked) {
   webrtc::test::ScopedKeyValueConfig field_trials(
       field_trials_, "WebRTC-PiggybackIceCheckAcknowledgement/Enabled/");
@@ -2475,7 +2524,11 @@ TEST_F(P2PTransportChannelTest,
 // Test what happens when we have 2 users behind the same NAT. This can lead
 // to interesting behavior because the STUN server will only give out the
 // address of the outermost NAT.
-class P2PTransportChannelSameNatTest : public P2PTransportChannelTestBase {
+class P2PTransportChannelSameNatTest : public P2PTransportChannelTestBase,
+                                       public WithParamInterface<std::string> {
+ public:
+  P2PTransportChannelSameNatTest() : P2PTransportChannelTestBase(GetParam()) {}
+
  protected:
   void ConfigureEndpoints(Config nat_type, Config config1, Config config2) {
     RTC_CHECK_GE(nat_type, NAT_FULL_CONE);
@@ -2503,7 +2556,12 @@ class P2PTransportChannelSameNatTest : public P2PTransportChannelTestBase {
   }
 };
 
-TEST_F(P2PTransportChannelSameNatTest, TestConesBehindSameCone) {
+INSTANTIATE_TEST_SUITE_P(Legacy, P2PTransportChannelSameNatTest, Values(""));
+INSTANTIATE_TEST_SUITE_P(Active,
+                         P2PTransportChannelSameNatTest,
+                         Values("WebRTC-UseActiveIceController/Enabled/"));
+
+TEST_P(P2PTransportChannelSameNatTest, TestConesBehindSameCone) {
   ConfigureEndpoints(NAT_FULL_CONE, NAT_FULL_CONE, NAT_FULL_CONE);
   Test(
       P2PTransportChannelTestBase::Result("prflx", "udp", "stun", "udp", 1000));
@@ -2512,13 +2570,14 @@ TEST_F(P2PTransportChannelSameNatTest, TestConesBehindSameCone) {
 // Test what happens when we have multiple available pathways.
 // In the future we will try different RTTs and configs for the different
 // interfaces, so that we can simulate a user with Ethernet and VPN networks.
-class P2PTransportChannelMultihomedTest : public P2PTransportChannelTestBase {
+class P2PTransportChannelMultihomedTest
+    : public P2PTransportChannelTestWithFieldTrials {
  public:
   const Connection* GetConnectionWithRemoteAddress(
       P2PTransportChannel* channel,
       const SocketAddress& address) {
     for (Connection* conn : channel->connections()) {
-      if (conn->remote_candidate().address().EqualIPs(address)) {
+      if (HasRemoteAddress(conn, address)) {
         return conn;
       }
     }
@@ -2528,7 +2587,7 @@ class P2PTransportChannelMultihomedTest : public P2PTransportChannelTestBase {
   Connection* GetConnectionWithLocalAddress(P2PTransportChannel* channel,
                                             const SocketAddress& address) {
     for (Connection* conn : channel->connections()) {
-      if (conn->local_candidate().address().EqualIPs(address)) {
+      if (HasLocalAddress(conn, address)) {
         return conn;
       }
     }
@@ -2539,12 +2598,31 @@ class P2PTransportChannelMultihomedTest : public P2PTransportChannelTestBase {
                             const SocketAddress& local,
                             const SocketAddress& remote) {
     for (Connection* conn : channel->connections()) {
-      if (conn->local_candidate().address().EqualIPs(local) &&
-          conn->remote_candidate().address().EqualIPs(remote)) {
+      if (HasLocalAddress(conn, local) && HasRemoteAddress(conn, remote)) {
         return conn;
       }
     }
     return nullptr;
+  }
+
+  Connection* GetBestConnection(P2PTransportChannel* channel) {
+    rtc::ArrayView<Connection*> connections = channel->connections();
+    auto it = absl::c_find(connections, channel->selected_connection());
+    if (it == connections.end()) {
+      return nullptr;
+    }
+    return *it;
+  }
+
+  Connection* GetBackupConnection(P2PTransportChannel* channel) {
+    rtc::ArrayView<Connection*> connections = channel->connections();
+    auto it = absl::c_find_if_not(connections, [channel](Connection* conn) {
+      return conn == channel->selected_connection();
+    });
+    if (it == connections.end()) {
+      return nullptr;
+    }
+    return *it;
   }
 
   void DestroyAllButBestConnection(P2PTransportChannel* channel) {
@@ -2559,8 +2637,13 @@ class P2PTransportChannelMultihomedTest : public P2PTransportChannelTestBase {
   }
 };
 
+INSTANTIATE_TEST_SUITE_P(Legacy, P2PTransportChannelMultihomedTest, Values(""));
+INSTANTIATE_TEST_SUITE_P(Active,
+                         P2PTransportChannelMultihomedTest,
+                         Values("WebRTC-UseActiveIceController/Enabled/"));
+
 // Test that we can establish connectivity when both peers are multihomed.
-TEST_F(P2PTransportChannelMultihomedTest, TestBasic) {
+TEST_P(P2PTransportChannelMultihomedTest, TestBasic) {
   AddAddress(0, kPublicAddrs[0]);
   AddAddress(0, kAlternateAddrs[0]);
   AddAddress(1, kPublicAddrs[1]);
@@ -2570,7 +2653,7 @@ TEST_F(P2PTransportChannelMultihomedTest, TestBasic) {
 
 // Test that we can quickly switch links if an interface goes down.
 // The controlled side has two interfaces and one will die.
-TEST_F(P2PTransportChannelMultihomedTest, TestFailoverControlledSide) {
+TEST_P(P2PTransportChannelMultihomedTest, TestFailoverControlledSide) {
   rtc::ScopedFakeClock clock;
   AddAddress(0, kPublicAddrs[0]);
   // Simulate failing over from Wi-Fi to cell interface.
@@ -2616,7 +2699,7 @@ TEST_F(P2PTransportChannelMultihomedTest, TestFailoverControlledSide) {
 
 // Test that we can quickly switch links if an interface goes down.
 // The controlling side has two interfaces and one will die.
-TEST_F(P2PTransportChannelMultihomedTest, TestFailoverControllingSide) {
+TEST_P(P2PTransportChannelMultihomedTest, TestFailoverControllingSide) {
   rtc::ScopedFakeClock clock;
   // Simulate failing over from Wi-Fi to cell interface.
   AddAddress(0, kPublicAddrs[0], "eth0", rtc::ADAPTER_TYPE_WIFI);
@@ -2653,7 +2736,7 @@ TEST_F(P2PTransportChannelMultihomedTest, TestFailoverControllingSide) {
 
 // Tests that we can quickly switch links if an interface goes down when
 // there are many connections.
-TEST_F(P2PTransportChannelMultihomedTest, TestFailoverWithManyConnections) {
+TEST_P(P2PTransportChannelMultihomedTest, TestFailoverWithManyConnections) {
   rtc::ScopedFakeClock clock;
   test_turn_server()->AddInternalSocket(kTurnTcpIntAddr, PROTO_TCP);
   RelayServerConfig turn_server;
@@ -2743,7 +2826,7 @@ TEST_F(P2PTransportChannelMultihomedTest, TestFailoverWithManyConnections) {
 // Test that when the controlling side switches the selected connection,
 // the nomination of the selected connection on the controlled side will
 // increase.
-TEST_F(P2PTransportChannelMultihomedTest, TestIceRenomination) {
+TEST_P(P2PTransportChannelMultihomedTest, TestIceRenomination) {
   rtc::ScopedFakeClock clock;
   // Simulate failing over from Wi-Fi to cell interface.
   AddAddress(0, kPublicAddrs[0], "eth0", rtc::ADAPTER_TYPE_WIFI);
@@ -2799,7 +2882,7 @@ TEST_F(P2PTransportChannelMultihomedTest, TestIceRenomination) {
 // The case that it will switch over to the backup connection if the selected
 // connection does not recover after enough time is covered in
 // TestFailoverControlledSide and TestFailoverControllingSide.
-TEST_F(P2PTransportChannelMultihomedTest,
+TEST_P(P2PTransportChannelMultihomedTest,
        TestConnectionSwitchDampeningControlledSide) {
   rtc::ScopedFakeClock clock;
   AddAddress(0, kPublicAddrs[0]);
@@ -2852,7 +2935,7 @@ TEST_F(P2PTransportChannelMultihomedTest,
 
 // Test that if an interface fails temporarily and then recovers quickly,
 // the selected connection will not switch.
-TEST_F(P2PTransportChannelMultihomedTest,
+TEST_P(P2PTransportChannelMultihomedTest,
        TestConnectionSwitchDampeningControllingSide) {
   rtc::ScopedFakeClock clock;
   // Simulate failing over from Wi-Fi to cell interface.
@@ -2901,7 +2984,7 @@ TEST_F(P2PTransportChannelMultihomedTest,
 
 // Tests that if the remote side's network failed, it won't cause the local
 // side to switch connections and networks.
-TEST_F(P2PTransportChannelMultihomedTest, TestRemoteFailover) {
+TEST_P(P2PTransportChannelMultihomedTest, TestRemoteFailover) {
   rtc::ScopedFakeClock clock;
   // The interface names are chosen so that `cellular` would have higher
   // candidate priority and higher cost.
@@ -2948,7 +3031,7 @@ TEST_F(P2PTransportChannelMultihomedTest, TestRemoteFailover) {
 }
 
 // Tests that a Wifi-Wifi connection has the highest precedence.
-TEST_F(P2PTransportChannelMultihomedTest, TestPreferWifiToWifiConnection) {
+TEST_P(P2PTransportChannelMultihomedTest, TestPreferWifiToWifiConnection) {
   // The interface names are chosen so that `cellular` would have higher
   // candidate priority if it is not for the network type.
   auto& wifi = kAlternateAddrs;
@@ -2975,7 +3058,7 @@ TEST_F(P2PTransportChannelMultihomedTest, TestPreferWifiToWifiConnection) {
 
 // Tests that a Wifi-Cellular connection has higher precedence than
 // a Cellular-Cellular connection.
-TEST_F(P2PTransportChannelMultihomedTest, TestPreferWifiOverCellularNetwork) {
+TEST_P(P2PTransportChannelMultihomedTest, TestPreferWifiOverCellularNetwork) {
   // The interface names are chosen so that `cellular` would have higher
   // candidate priority if it is not for the network type.
   auto& wifi = kAlternateAddrs;
@@ -2999,7 +3082,7 @@ TEST_F(P2PTransportChannelMultihomedTest, TestPreferWifiOverCellularNetwork) {
 
 // Test that the backup connection is pinged at a rate no faster than
 // what was configured.
-TEST_F(P2PTransportChannelMultihomedTest, TestPingBackupConnectionRate) {
+TEST_P(P2PTransportChannelMultihomedTest, TestPingBackupConnectionRate) {
   AddAddress(0, kPublicAddrs[0]);
   // Adding alternate address will make sure `kPublicAddrs` has the higher
   // priority than others. This is due to FakeNetwork::AddInterface method.
@@ -3022,7 +3105,7 @@ TEST_F(P2PTransportChannelMultihomedTest, TestPingBackupConnectionRate) {
                    1000);
   auto connections = ep2_ch1()->connections();
   ASSERT_EQ(2U, connections.size());
-  Connection* backup_conn = connections[1];
+  Connection* backup_conn = GetBackupConnection(ep2_ch1());
   EXPECT_TRUE_WAIT(backup_conn->writable(), kMediumTimeout);
   int64_t last_ping_response_ms = backup_conn->last_ping_response_received();
   EXPECT_TRUE_WAIT(
@@ -3038,7 +3121,7 @@ TEST_F(P2PTransportChannelMultihomedTest, TestPingBackupConnectionRate) {
 
 // Test that the connection is pinged at a rate no faster than
 // what was configured when stable and writable.
-TEST_F(P2PTransportChannelMultihomedTest, TestStableWritableRate) {
+TEST_P(P2PTransportChannelMultihomedTest, TestStableWritableRate) {
   AddAddress(0, kPublicAddrs[0]);
   // Adding alternate address will make sure `kPublicAddrs` has the higher
   // priority than others. This is due to FakeNetwork::AddInterface method.
@@ -3063,7 +3146,7 @@ TEST_F(P2PTransportChannelMultihomedTest, TestStableWritableRate) {
                    1000);
   auto connections = ep2_ch1()->connections();
   ASSERT_EQ(2U, connections.size());
-  Connection* conn = connections[0];
+  Connection* conn = GetBestConnection(ep2_ch1());
   EXPECT_TRUE_WAIT(conn->writable(), kMediumTimeout);
 
   int64_t last_ping_response_ms;
@@ -3083,7 +3166,7 @@ TEST_F(P2PTransportChannelMultihomedTest, TestStableWritableRate) {
   DestroyChannels();
 }
 
-TEST_F(P2PTransportChannelMultihomedTest, TestGetState) {
+TEST_P(P2PTransportChannelMultihomedTest, TestGetState) {
   rtc::ScopedFakeClock clock;
   AddAddress(0, kAlternateAddrs[0]);
   AddAddress(0, kPublicAddrs[0]);
@@ -3103,7 +3186,7 @@ TEST_F(P2PTransportChannelMultihomedTest, TestGetState) {
 // policy is GATHER_CONTINUALLY, the ports associated with that network
 // will be removed from the port list of the channel, and the respective
 // remote candidates on the other participant will be removed eventually.
-TEST_F(P2PTransportChannelMultihomedTest, TestNetworkBecomesInactive) {
+TEST_P(P2PTransportChannelMultihomedTest, TestNetworkBecomesInactive) {
   rtc::ScopedFakeClock clock;
   AddAddress(0, kPublicAddrs[0]);
   AddAddress(1, kPublicAddrs[1]);
@@ -3144,7 +3227,7 @@ TEST_F(P2PTransportChannelMultihomedTest, TestNetworkBecomesInactive) {
 
 // Tests that continual gathering will create new connections when a new
 // interface is added.
-TEST_F(P2PTransportChannelMultihomedTest,
+TEST_P(P2PTransportChannelMultihomedTest,
        TestContinualGatheringOnNewInterface) {
   auto& wifi = kAlternateAddrs;
   auto& cellular = kPublicAddrs;
@@ -3164,10 +3247,10 @@ TEST_F(P2PTransportChannelMultihomedTest,
   AddAddress(1, wifi[1], "test_wifi1", rtc::ADAPTER_TYPE_WIFI);
   const Connection* conn;
   EXPECT_TRUE_WAIT((conn = ep1_ch1()->selected_connection()) != nullptr &&
-                       conn->remote_candidate().address().EqualIPs(wifi[1]),
+                       HasRemoteAddress(conn, wifi[1]),
                    kDefaultTimeout);
   EXPECT_TRUE_WAIT((conn = ep2_ch1()->selected_connection()) != nullptr &&
-                       conn->local_candidate().address().EqualIPs(wifi[1]),
+                       HasLocalAddress(conn, wifi[1]),
                    kDefaultTimeout);
 
   // Add a new cellular interface on end point 1, we should expect a new
@@ -3175,22 +3258,30 @@ TEST_F(P2PTransportChannelMultihomedTest,
   AddAddress(0, cellular[0], "test_cellular0", rtc::ADAPTER_TYPE_CELLULAR);
   EXPECT_TRUE_WAIT(
       ep1_ch1()->GetState() == IceTransportState::STATE_COMPLETED &&
-          (conn = GetConnectionWithLocalAddress(ep1_ch1(), cellular[0])) !=
-              nullptr &&
-          conn != ep1_ch1()->selected_connection() && conn->writable(),
+          absl::c_any_of(ep1_ch1()->connections(),
+                         [channel = ep1_ch1(),
+                          address = cellular[0]](const Connection* conn) {
+                           return HasLocalAddress(conn, address) &&
+                                  conn != channel->selected_connection() &&
+                                  conn->writable();
+                         }),
       kDefaultTimeout);
   EXPECT_TRUE_WAIT(
       ep2_ch1()->GetState() == IceTransportState::STATE_COMPLETED &&
-          (conn = GetConnectionWithRemoteAddress(ep2_ch1(), cellular[0])) !=
-              nullptr &&
-          conn != ep2_ch1()->selected_connection() && conn->receiving(),
+          absl::c_any_of(ep2_ch1()->connections(),
+                         [channel = ep2_ch1(),
+                          address = cellular[0]](const Connection* conn) {
+                           return HasRemoteAddress(conn, address) &&
+                                  conn != channel->selected_connection() &&
+                                  conn->receiving();
+                         }),
       kDefaultTimeout);
 
   DestroyChannels();
 }
 
 // Tests that we can switch links via continual gathering.
-TEST_F(P2PTransportChannelMultihomedTest,
+TEST_P(P2PTransportChannelMultihomedTest,
        TestSwitchLinksViaContinualGathering) {
   rtc::ScopedFakeClock clock;
   AddAddress(0, kPublicAddrs[0]);
@@ -3232,7 +3323,7 @@ TEST_F(P2PTransportChannelMultihomedTest,
 }
 
 // Tests that the backup connection will be restored after it is destroyed.
-TEST_F(P2PTransportChannelMultihomedTest, TestRestoreBackupConnection) {
+TEST_P(P2PTransportChannelMultihomedTest, TestRestoreBackupConnection) {
   rtc::ScopedFakeClock clock;
   auto& wifi = kAlternateAddrs;
   auto& cellular = kPublicAddrs;
@@ -3268,7 +3359,7 @@ TEST_F(P2PTransportChannelMultihomedTest, TestRestoreBackupConnection) {
   DestroyChannels();
 }
 
-TEST_F(P2PTransportChannelMultihomedTest, TestVpnDefault) {
+TEST_P(P2PTransportChannelMultihomedTest, TestVpnDefault) {
   rtc::ScopedFakeClock clock;
   AddAddress(0, kPublicAddrs[0], "eth0", rtc::ADAPTER_TYPE_ETHERNET);
   AddAddress(0, kAlternateAddrs[0], "vpn0", rtc::ADAPTER_TYPE_VPN);
@@ -3282,7 +3373,7 @@ TEST_F(P2PTransportChannelMultihomedTest, TestVpnDefault) {
       kDefaultTimeout, clock);
 }
 
-TEST_F(P2PTransportChannelMultihomedTest, TestVpnPreferVpn) {
+TEST_P(P2PTransportChannelMultihomedTest, TestVpnPreferVpn) {
   rtc::ScopedFakeClock clock;
   AddAddress(0, kPublicAddrs[0], "eth0", rtc::ADAPTER_TYPE_ETHERNET);
   AddAddress(0, kAlternateAddrs[0], "vpn0", rtc::ADAPTER_TYPE_VPN,
@@ -3308,7 +3399,7 @@ TEST_F(P2PTransportChannelMultihomedTest, TestVpnPreferVpn) {
       kDefaultTimeout, clock);
 }
 
-TEST_F(P2PTransportChannelMultihomedTest, TestVpnAvoidVpn) {
+TEST_P(P2PTransportChannelMultihomedTest, TestVpnAvoidVpn) {
   rtc::ScopedFakeClock clock;
   AddAddress(0, kPublicAddrs[0], "eth0", rtc::ADAPTER_TYPE_CELLULAR);
   AddAddress(0, kAlternateAddrs[0], "vpn0", rtc::ADAPTER_TYPE_VPN,
@@ -3333,7 +3424,7 @@ TEST_F(P2PTransportChannelMultihomedTest, TestVpnAvoidVpn) {
       kDefaultTimeout, clock);
 }
 
-TEST_F(P2PTransportChannelMultihomedTest, TestVpnNeverVpn) {
+TEST_P(P2PTransportChannelMultihomedTest, TestVpnNeverVpn) {
   rtc::ScopedFakeClock clock;
   AddAddress(0, kPublicAddrs[0], "eth0", rtc::ADAPTER_TYPE_CELLULAR);
   AddAddress(0, kAlternateAddrs[0], "vpn0", rtc::ADAPTER_TYPE_VPN,
@@ -3357,7 +3448,7 @@ TEST_F(P2PTransportChannelMultihomedTest, TestVpnNeverVpn) {
                              kDefaultTimeout, clock);
 }
 
-TEST_F(P2PTransportChannelMultihomedTest, TestVpnOnlyVpn) {
+TEST_P(P2PTransportChannelMultihomedTest, TestVpnOnlyVpn) {
   rtc::ScopedFakeClock clock;
   AddAddress(0, kPublicAddrs[0], "eth0", rtc::ADAPTER_TYPE_CELLULAR);
   AddAddress(0, kAlternateAddrs[0], "vpn0", rtc::ADAPTER_TYPE_VPN,
@@ -3383,11 +3474,15 @@ TEST_F(P2PTransportChannelMultihomedTest, TestVpnOnlyVpn) {
 
 // A collection of tests which tests a single P2PTransportChannel by sending
 // pings.
-class P2PTransportChannelPingTest : public ::testing::Test,
+class P2PTransportChannelPingTest : public TestWithParam<std::string>,
                                     public sigslot::has_slots<> {
  public:
   P2PTransportChannelPingTest()
-      : vss_(new rtc::VirtualSocketServer()), thread_(vss_.get()) {}
+      : field_trials_(GetParam()),
+        vss_(std::make_unique<rtc::VirtualSocketServer>()),
+        packet_socket_factory_(
+            std::make_unique<rtc::BasicPacketSocketFactory>(vss_.get())),
+        thread_(vss_.get()) {}
 
  protected:
   void PrepareChannel(P2PTransportChannel* ch) {
@@ -3406,7 +3501,7 @@ class P2PTransportChannelPingTest : public ::testing::Test,
 
   Connection* WaitForConnectionTo(
       P2PTransportChannel* ch,
-      const std::string& ip,
+      absl::string_view ip,
       int port_num,
       rtc::ThreadProcessingFakeClock* clock = nullptr) {
     if (clock == nullptr) {
@@ -3434,7 +3529,7 @@ class P2PTransportChannelPingTest : public ::testing::Test,
   }
 
   Connection* GetConnectionTo(P2PTransportChannel* ch,
-                              const std::string& ip,
+                              absl::string_view ip,
                               int port_num) {
     Port* port = GetPort(ch);
     if (!port) {
@@ -3462,7 +3557,7 @@ class P2PTransportChannelPingTest : public ::testing::Test,
 
   Connection* CreateConnectionWithCandidate(P2PTransportChannel* channel,
                                             rtc::ScopedFakeClock* clock,
-                                            const std::string& ip_addr,
+                                            absl::string_view ip_addr,
                                             int port,
                                             int priority,
                                             bool writable) {
@@ -3494,15 +3589,14 @@ class P2PTransportChannelPingTest : public ::testing::Test,
 
   void ReceivePingOnConnection(
       Connection* conn,
-      const std::string& remote_ufrag,
+      absl::string_view remote_ufrag,
       int priority,
       uint32_t nomination,
       const absl::optional<std::string>& piggyback_ping_id) {
-    IceMessage msg;
-    msg.SetType(STUN_BINDING_REQUEST);
+    IceMessage msg(STUN_BINDING_REQUEST);
     msg.AddAttribute(std::make_unique<StunByteStringAttribute>(
         STUN_ATTR_USERNAME,
-        conn->local_candidate().username() + ":" + remote_ufrag));
+        conn->local_candidate().username() + ":" + std::string(remote_ufrag)));
     msg.AddAttribute(
         std::make_unique<StunUInt32Attribute>(STUN_ATTR_PRIORITY, priority));
     if (nomination != 0) {
@@ -3513,7 +3607,6 @@ class P2PTransportChannelPingTest : public ::testing::Test,
       msg.AddAttribute(std::make_unique<StunByteStringAttribute>(
           STUN_ATTR_GOOG_LAST_ICE_CHECK_RECEIVED, piggyback_ping_id.value()));
     }
-    msg.SetTransactionID(rtc::CreateRandomString(kStunTransactionIdLength));
     msg.AddMessageIntegrity(conn->local_candidate().password());
     msg.AddFingerprint();
     rtc::ByteBufferWriter buf;
@@ -3522,7 +3615,7 @@ class P2PTransportChannelPingTest : public ::testing::Test,
   }
 
   void ReceivePingOnConnection(Connection* conn,
-                               const std::string& remote_ufrag,
+                               absl::string_view remote_ufrag,
                                int priority,
                                uint32_t nomination = 0) {
     ReceivePingOnConnection(conn, remote_ufrag, priority, nomination,
@@ -3561,7 +3654,8 @@ class P2PTransportChannelPingTest : public ::testing::Test,
     }
   }
 
-  bool ConnectionMatchesChangeEvent(Connection* conn, std::string reason) {
+  bool ConnectionMatchesChangeEvent(Connection* conn,
+                                    absl::string_view reason) {
     if (!conn) {
       return !last_candidate_change_event_.has_value();
     } else {
@@ -3587,8 +3681,15 @@ class P2PTransportChannelPingTest : public ::testing::Test,
 
   rtc::SocketServer* ss() const { return vss_.get(); }
 
+  rtc::PacketSocketFactory* packet_socket_factory() const {
+    return packet_socket_factory_.get();
+  }
+
+  webrtc::test::ScopedKeyValueConfig field_trials_;
+
  private:
   std::unique_ptr<rtc::VirtualSocketServer> vss_;
+  std::unique_ptr<rtc::PacketSocketFactory> packet_socket_factory_;
   rtc::AutoSocketServerThread thread_;
   int selected_candidate_pair_switches_ = 0;
   int last_sent_packet_id_ = -1;
@@ -3598,9 +3699,14 @@ class P2PTransportChannelPingTest : public ::testing::Test,
   absl::optional<rtc::NetworkRoute> last_network_route_;
 };
 
-TEST_F(P2PTransportChannelPingTest, TestTriggeredChecks) {
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
-  P2PTransportChannel ch("trigger checks", 1, &pa);
+INSTANTIATE_TEST_SUITE_P(Legacy, P2PTransportChannelPingTest, Values(""));
+INSTANTIATE_TEST_SUITE_P(Active,
+                         P2PTransportChannelPingTest,
+                         Values("WebRTC-UseActiveIceController/Enabled/"));
+
+TEST_P(P2PTransportChannelPingTest, TestTriggeredChecks) {
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
+  P2PTransportChannel ch("trigger checks", 1, &pa, &field_trials_);
   PrepareChannel(&ch);
   ch.MaybeStartGathering();
   ch.AddRemoteCandidate(CreateUdpCandidate(LOCAL_PORT_TYPE, "1.1.1.1", 1, 1));
@@ -3622,9 +3728,9 @@ TEST_F(P2PTransportChannelPingTest, TestTriggeredChecks) {
   EXPECT_EQ(conn1, FindNextPingableConnectionAndPingIt(&ch));
 }
 
-TEST_F(P2PTransportChannelPingTest, TestAllConnectionsPingedSufficiently) {
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
-  P2PTransportChannel ch("ping sufficiently", 1, &pa);
+TEST_P(P2PTransportChannelPingTest, TestAllConnectionsPingedSufficiently) {
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
+  P2PTransportChannel ch("ping sufficiently", 1, &pa, &field_trials_);
   PrepareChannel(&ch);
   ch.MaybeStartGathering();
   ch.AddRemoteCandidate(CreateUdpCandidate(LOCAL_PORT_TYPE, "1.1.1.1", 1, 1));
@@ -3645,14 +3751,14 @@ TEST_F(P2PTransportChannelPingTest, TestAllConnectionsPingedSufficiently) {
 }
 
 // Verify that the connections are pinged at the right time.
-TEST_F(P2PTransportChannelPingTest, TestStunPingIntervals) {
+TEST_P(P2PTransportChannelPingTest, TestStunPingIntervals) {
   rtc::ScopedFakeClock clock;
   int RTT_RATIO = 4;
   int SCHEDULING_RANGE = 200;
   int RTT_RANGE = 10;
 
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
-  P2PTransportChannel ch("TestChannel", 1, &pa);
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
+  P2PTransportChannel ch("TestChannel", 1, &pa, &field_trials_);
   PrepareChannel(&ch);
   ch.MaybeStartGathering();
   ch.AddRemoteCandidate(CreateUdpCandidate(LOCAL_PORT_TYPE, "1.1.1.1", 1, 1));
@@ -3739,11 +3845,11 @@ TEST_F(P2PTransportChannelPingTest, TestStunPingIntervals) {
 
 // Test that we start pinging as soon as we have a connection and remote ICE
 // parameters.
-TEST_F(P2PTransportChannelPingTest, PingingStartedAsSoonAsPossible) {
+TEST_P(P2PTransportChannelPingTest, PingingStartedAsSoonAsPossible) {
   rtc::ScopedFakeClock clock;
 
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
-  P2PTransportChannel ch("TestChannel", 1, &pa);
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
+  P2PTransportChannel ch("TestChannel", 1, &pa, &field_trials_);
   ch.SetIceRole(ICEROLE_CONTROLLING);
   ch.SetIceParameters(kIceParams[0]);
   ch.MaybeStartGathering();
@@ -3752,8 +3858,7 @@ TEST_F(P2PTransportChannelPingTest, PingingStartedAsSoonAsPossible) {
 
   // Simulate a binding request being received, creating a peer reflexive
   // candidate pair while we still don't have remote ICE parameters.
-  IceMessage request;
-  request.SetType(STUN_BINDING_REQUEST);
+  IceMessage request(STUN_BINDING_REQUEST);
   request.AddAttribute(std::make_unique<StunByteStringAttribute>(
       STUN_ATTR_USERNAME, kIceUfrag[1]));
   uint32_t prflx_priority = ICE_TYPE_PREFERENCE_PRFLX << 24;
@@ -3778,9 +3883,9 @@ TEST_F(P2PTransportChannelPingTest, PingingStartedAsSoonAsPossible) {
   EXPECT_TRUE_SIMULATED_WAIT(conn->num_pings_sent() > 0, 1, clock);
 }
 
-TEST_F(P2PTransportChannelPingTest, TestNoTriggeredChecksWhenWritable) {
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
-  P2PTransportChannel ch("trigger checks", 1, &pa);
+TEST_P(P2PTransportChannelPingTest, TestNoTriggeredChecksWhenWritable) {
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
+  P2PTransportChannel ch("trigger checks", 1, &pa, &field_trials_);
   PrepareChannel(&ch);
   ch.MaybeStartGathering();
   ch.AddRemoteCandidate(CreateUdpCandidate(LOCAL_PORT_TYPE, "1.1.1.1", 1, 1));
@@ -3803,9 +3908,10 @@ TEST_F(P2PTransportChannelPingTest, TestNoTriggeredChecksWhenWritable) {
   EXPECT_EQ(conn2, FindNextPingableConnectionAndPingIt(&ch));
 }
 
-TEST_F(P2PTransportChannelPingTest, TestFailedConnectionNotPingable) {
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
-  P2PTransportChannel ch("Do not ping failed connections", 1, &pa);
+TEST_P(P2PTransportChannelPingTest, TestFailedConnectionNotPingable) {
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
+  P2PTransportChannel ch("Do not ping failed connections", 1, &pa,
+                         &field_trials_);
   PrepareChannel(&ch);
   ch.MaybeStartGathering();
   ch.AddRemoteCandidate(CreateUdpCandidate(LOCAL_PORT_TYPE, "1.1.1.1", 1, 1));
@@ -3820,9 +3926,9 @@ TEST_F(P2PTransportChannelPingTest, TestFailedConnectionNotPingable) {
   EXPECT_TRUE(nullptr == ch.FindNextPingableConnection());
 }
 
-TEST_F(P2PTransportChannelPingTest, TestSignalStateChanged) {
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
-  P2PTransportChannel ch("state change", 1, &pa);
+TEST_P(P2PTransportChannelPingTest, TestSignalStateChanged) {
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
+  P2PTransportChannel ch("state change", 1, &pa, &field_trials_);
   PrepareChannel(&ch);
   ch.MaybeStartGathering();
   ch.AddRemoteCandidate(CreateUdpCandidate(LOCAL_PORT_TYPE, "1.1.1.1", 1, 1));
@@ -3841,9 +3947,9 @@ TEST_F(P2PTransportChannelPingTest, TestSignalStateChanged) {
 // although the ICE pwd in the remote candidate will be set when the ICE
 // parameters arrive. If a remote candidate is added with the current ICE
 // ufrag, its pwd and generation will be set properly.
-TEST_F(P2PTransportChannelPingTest, TestAddRemoteCandidateWithVariousUfrags) {
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
-  P2PTransportChannel ch("add candidate", 1, &pa);
+TEST_P(P2PTransportChannelPingTest, TestAddRemoteCandidateWithVariousUfrags) {
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
+  P2PTransportChannel ch("add candidate", 1, &pa, &field_trials_);
   PrepareChannel(&ch);
   ch.MaybeStartGathering();
   // Add a candidate with a future ufrag.
@@ -3893,9 +3999,9 @@ TEST_F(P2PTransportChannelPingTest, TestAddRemoteCandidateWithVariousUfrags) {
   }
 }
 
-TEST_F(P2PTransportChannelPingTest, ConnectionResurrection) {
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
-  P2PTransportChannel ch("connection resurrection", 1, &pa);
+TEST_P(P2PTransportChannelPingTest, ConnectionResurrection) {
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
+  P2PTransportChannel ch("connection resurrection", 1, &pa, &field_trials_);
   PrepareChannel(&ch);
   ch.MaybeStartGathering();
 
@@ -3921,8 +4027,7 @@ TEST_F(P2PTransportChannelPingTest, ConnectionResurrection) {
                    kMediumTimeout);
 
   // Create a minimal STUN message with prflx priority.
-  IceMessage request;
-  request.SetType(STUN_BINDING_REQUEST);
+  IceMessage request(STUN_BINDING_REQUEST);
   request.AddAttribute(std::make_unique<StunByteStringAttribute>(
       STUN_ATTR_USERNAME, kIceUfrag[1]));
   uint32_t prflx_priority = ICE_TYPE_PREFERENCE_PRFLX << 24;
@@ -3946,10 +4051,10 @@ TEST_F(P2PTransportChannelPingTest, ConnectionResurrection) {
   EXPECT_EQ(conn3->remote_candidate().priority(), prflx_priority);
 }
 
-TEST_F(P2PTransportChannelPingTest, TestReceivingStateChange) {
+TEST_P(P2PTransportChannelPingTest, TestReceivingStateChange) {
   rtc::ScopedFakeClock clock;
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
-  P2PTransportChannel ch("receiving state change", 1, &pa);
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
+  P2PTransportChannel ch("receiving state change", 1, &pa, &field_trials_);
   PrepareChannel(&ch);
   // Default receiving timeout and checking receiving interval should not be too
   // small.
@@ -3976,9 +4081,9 @@ TEST_F(P2PTransportChannelPingTest, TestReceivingStateChange) {
 // "selected connection". Plus, SignalNetworkRouteChanged will be fired if the
 // selected connection changes and SignalReadyToSend will be fired if the new
 // selected connection is writable.
-TEST_F(P2PTransportChannelPingTest, TestSelectConnectionBeforeNomination) {
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
-  P2PTransportChannel ch("receiving state change", 1, &pa);
+TEST_P(P2PTransportChannelPingTest, TestSelectConnectionBeforeNomination) {
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
+  P2PTransportChannel ch("receiving state change", 1, &pa, &field_trials_);
   PrepareChannel(&ch);
   ch.SetIceRole(ICEROLE_CONTROLLED);
   ch.MaybeStartGathering();
@@ -4063,10 +4168,11 @@ TEST_F(P2PTransportChannelPingTest, TestSelectConnectionBeforeNomination) {
 // Test the field trial send_ping_on_nomination_ice_controlled
 // that sends a ping directly when a connection has been nominated
 // i.e on the ICE_CONTROLLED-side.
-TEST_F(P2PTransportChannelPingTest, TestPingOnNomination) {
+TEST_P(P2PTransportChannelPingTest, TestPingOnNomination) {
   webrtc::test::ScopedKeyValueConfig field_trials(
+      field_trials_,
       "WebRTC-IceFieldTrials/send_ping_on_nomination_ice_controlled:true/");
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
   P2PTransportChannel ch("receiving state change", 1, &pa, &field_trials);
   PrepareChannel(&ch);
   ch.SetIceConfig(ch.config());
@@ -4103,10 +4209,11 @@ TEST_F(P2PTransportChannelPingTest, TestPingOnNomination) {
 // Test the field trial send_ping_on_switch_ice_controlling
 // that sends a ping directly when switching to a new connection
 // on the ICE_CONTROLLING-side.
-TEST_F(P2PTransportChannelPingTest, TestPingOnSwitch) {
+TEST_P(P2PTransportChannelPingTest, TestPingOnSwitch) {
   webrtc::test::ScopedKeyValueConfig field_trials(
+      field_trials_,
       "WebRTC-IceFieldTrials/send_ping_on_switch_ice_controlling:true/");
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
   P2PTransportChannel ch("receiving state change", 1, &pa, &field_trials);
   PrepareChannel(&ch);
   ch.SetIceConfig(ch.config());
@@ -4140,10 +4247,11 @@ TEST_F(P2PTransportChannelPingTest, TestPingOnSwitch) {
 // Test the field trial send_ping_on_switch_ice_controlling
 // that sends a ping directly when selecteing a new connection
 // on the ICE_CONTROLLING-side (i.e also initial selection).
-TEST_F(P2PTransportChannelPingTest, TestPingOnSelected) {
+TEST_P(P2PTransportChannelPingTest, TestPingOnSelected) {
   webrtc::test::ScopedKeyValueConfig field_trials(
+      field_trials_,
       "WebRTC-IceFieldTrials/send_ping_on_selected_ice_controlling:true/");
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
   P2PTransportChannel ch("receiving state change", 1, &pa, &field_trials);
   PrepareChannel(&ch);
   ch.SetIceConfig(ch.config());
@@ -4170,15 +4278,14 @@ TEST_F(P2PTransportChannelPingTest, TestPingOnSelected) {
 // address if the request contains the use_candidate attribute. Plus, it will
 // also sends back a ping response and set the ICE pwd in the remote candidate
 // appropriately.
-TEST_F(P2PTransportChannelPingTest, TestSelectConnectionFromUnknownAddress) {
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
-  P2PTransportChannel ch("receiving state change", 1, &pa);
+TEST_P(P2PTransportChannelPingTest, TestSelectConnectionFromUnknownAddress) {
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
+  P2PTransportChannel ch("receiving state change", 1, &pa, &field_trials_);
   PrepareChannel(&ch);
   ch.SetIceRole(ICEROLE_CONTROLLED);
   ch.MaybeStartGathering();
   // A minimal STUN message with prflx priority.
-  IceMessage request;
-  request.SetType(STUN_BINDING_REQUEST);
+  IceMessage request(STUN_BINDING_REQUEST);
   request.AddAttribute(std::make_unique<StunByteStringAttribute>(
       STUN_ATTR_USERNAME, kIceUfrag[1]));
   uint32_t prflx_priority = ICE_TYPE_PREFERENCE_PRFLX << 24;
@@ -4248,9 +4355,9 @@ TEST_F(P2PTransportChannelPingTest, TestSelectConnectionFromUnknownAddress) {
 // based on media received until the controlling side nominates a connection,
 // at which point the controlled side will select that connection as
 // the "selected connection".
-TEST_F(P2PTransportChannelPingTest, TestSelectConnectionBasedOnMediaReceived) {
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
-  P2PTransportChannel ch("receiving state change", 1, &pa);
+TEST_P(P2PTransportChannelPingTest, TestSelectConnectionBasedOnMediaReceived) {
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
+  P2PTransportChannel ch("receiving state change", 1, &pa, &field_trials_);
   PrepareChannel(&ch);
   ch.SetIceRole(ICEROLE_CONTROLLED);
   ch.MaybeStartGathering();
@@ -4273,8 +4380,7 @@ TEST_F(P2PTransportChannelPingTest, TestSelectConnectionBasedOnMediaReceived) {
 
   // Now another STUN message with an unknown address and use_candidate will
   // nominate the selected connection.
-  IceMessage request;
-  request.SetType(STUN_BINDING_REQUEST);
+  IceMessage request(STUN_BINDING_REQUEST);
   request.AddAttribute(std::make_unique<StunByteStringAttribute>(
       STUN_ATTR_USERNAME, kIceUfrag[1]));
   uint32_t prflx_priority = ICE_TYPE_PREFERENCE_PRFLX << 24;
@@ -4299,12 +4405,12 @@ TEST_F(P2PTransportChannelPingTest, TestSelectConnectionBasedOnMediaReceived) {
   EXPECT_EQ_WAIT(conn3, ch.selected_connection(), kDefaultTimeout);
 }
 
-TEST_F(P2PTransportChannelPingTest,
+TEST_P(P2PTransportChannelPingTest,
        TestControlledAgentDataReceivingTakesHigherPrecedenceThanPriority) {
   rtc::ScopedFakeClock clock;
   clock.AdvanceTime(webrtc::TimeDelta::Seconds(1));
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
-  P2PTransportChannel ch("SwitchSelectedConnection", 1, &pa);
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
+  P2PTransportChannel ch("SwitchSelectedConnection", 1, &pa, &field_trials_);
   PrepareChannel(&ch);
   ch.SetIceRole(ICEROLE_CONTROLLED);
   ch.MaybeStartGathering();
@@ -4347,13 +4453,13 @@ TEST_F(P2PTransportChannelPingTest,
   EXPECT_EQ(0, reset_selected_candidate_pair_switches());
 }
 
-TEST_F(P2PTransportChannelPingTest,
+TEST_P(P2PTransportChannelPingTest,
        TestControlledAgentNominationTakesHigherPrecedenceThanDataReceiving) {
   rtc::ScopedFakeClock clock;
   clock.AdvanceTime(webrtc::TimeDelta::Seconds(1));
 
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
-  P2PTransportChannel ch("SwitchSelectedConnection", 1, &pa);
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
+  P2PTransportChannel ch("SwitchSelectedConnection", 1, &pa, &field_trials_);
   PrepareChannel(&ch);
   ch.SetIceRole(ICEROLE_CONTROLLED);
   ch.MaybeStartGathering();
@@ -4387,13 +4493,13 @@ TEST_F(P2PTransportChannelPingTest,
   EXPECT_EQ(0, reset_selected_candidate_pair_switches());
 }
 
-TEST_F(P2PTransportChannelPingTest,
+TEST_P(P2PTransportChannelPingTest,
        TestControlledAgentSelectsConnectionWithHigherNomination) {
   rtc::ScopedFakeClock clock;
   clock.AdvanceTime(webrtc::TimeDelta::Seconds(1));
 
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
-  P2PTransportChannel ch("test", 1, &pa);
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
+  P2PTransportChannel ch("test", 1, &pa, &field_trials_);
   PrepareChannel(&ch);
   ch.SetIceRole(ICEROLE_CONTROLLED);
   ch.MaybeStartGathering();
@@ -4434,12 +4540,12 @@ TEST_F(P2PTransportChannelPingTest,
   EXPECT_EQ(0, reset_selected_candidate_pair_switches());
 }
 
-TEST_F(P2PTransportChannelPingTest, TestEstimatedDisconnectedTime) {
+TEST_P(P2PTransportChannelPingTest, TestEstimatedDisconnectedTime) {
   rtc::ScopedFakeClock clock;
   clock.AdvanceTime(webrtc::TimeDelta::Seconds(1));
 
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
-  P2PTransportChannel ch("test", 1, &pa);
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
+  P2PTransportChannel ch("test", 1, &pa, &field_trials_);
   PrepareChannel(&ch);
   ch.SetIceRole(ICEROLE_CONTROLLED);
   ch.MaybeStartGathering();
@@ -4492,13 +4598,13 @@ TEST_F(P2PTransportChannelPingTest, TestEstimatedDisconnectedTime) {
   }
 }
 
-TEST_F(P2PTransportChannelPingTest,
+TEST_P(P2PTransportChannelPingTest,
        TestControlledAgentIgnoresSmallerNomination) {
   rtc::ScopedFakeClock clock;
   clock.AdvanceTime(webrtc::TimeDelta::Seconds(1));
 
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
-  P2PTransportChannel ch("test", 1, &pa);
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
+  P2PTransportChannel ch("test", 1, &pa, &field_trials_);
   PrepareChannel(&ch);
   ch.SetIceRole(ICEROLE_CONTROLLED);
   ch.MaybeStartGathering();
@@ -4511,12 +4617,12 @@ TEST_F(P2PTransportChannelPingTest,
   EXPECT_EQ(2U, conn->remote_nomination());
 }
 
-TEST_F(P2PTransportChannelPingTest,
+TEST_P(P2PTransportChannelPingTest,
        TestControlledAgentWriteStateTakesHigherPrecedenceThanNomination) {
   rtc::ScopedFakeClock clock;
 
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
-  P2PTransportChannel ch("SwitchSelectedConnection", 1, &pa);
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
+  P2PTransportChannel ch("SwitchSelectedConnection", 1, &pa, &field_trials_);
   PrepareChannel(&ch);
   ch.SetIceRole(ICEROLE_CONTROLLED);
   ch.MaybeStartGathering();
@@ -4555,9 +4661,9 @@ TEST_F(P2PTransportChannelPingTest,
 
 // Test that if a new remote candidate has the same address and port with
 // an old one, it will be used to create a new connection.
-TEST_F(P2PTransportChannelPingTest, TestAddRemoteCandidateWithAddressReuse) {
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
-  P2PTransportChannel ch("candidate reuse", 1, &pa);
+TEST_P(P2PTransportChannelPingTest, TestAddRemoteCandidateWithAddressReuse) {
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
+  P2PTransportChannel ch("candidate reuse", 1, &pa, &field_trials_);
   PrepareChannel(&ch);
   ch.MaybeStartGathering();
   const std::string host_address = "1.1.1.1";
@@ -4593,11 +4699,11 @@ TEST_F(P2PTransportChannelPingTest, TestAddRemoteCandidateWithAddressReuse) {
 
 // When the current selected connection is strong, lower-priority connections
 // will be pruned. Otherwise, lower-priority connections are kept.
-TEST_F(P2PTransportChannelPingTest, TestDontPruneWhenWeak) {
+TEST_P(P2PTransportChannelPingTest, TestDontPruneWhenWeak) {
   rtc::ScopedFakeClock clock;
   clock.AdvanceTime(webrtc::TimeDelta::Seconds(1));
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
-  P2PTransportChannel ch("test channel", 1, &pa);
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
+  P2PTransportChannel ch("test channel", 1, &pa, &field_trials_);
   PrepareChannel(&ch);
   ch.SetIceRole(ICEROLE_CONTROLLED);
   ch.MaybeStartGathering();
@@ -4630,10 +4736,10 @@ TEST_F(P2PTransportChannelPingTest, TestDontPruneWhenWeak) {
   EXPECT_FALSE(conn3->pruned());
 }
 
-TEST_F(P2PTransportChannelPingTest, TestDontPruneHighPriorityConnections) {
+TEST_P(P2PTransportChannelPingTest, TestDontPruneHighPriorityConnections) {
   rtc::ScopedFakeClock clock;
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
-  P2PTransportChannel ch("test channel", 1, &pa);
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
+  P2PTransportChannel ch("test channel", 1, &pa, &field_trials_);
   PrepareChannel(&ch);
   ch.SetIceRole(ICEROLE_CONTROLLED);
   ch.MaybeStartGathering();
@@ -4653,11 +4759,11 @@ TEST_F(P2PTransportChannelPingTest, TestDontPruneHighPriorityConnections) {
 }
 
 // Test that GetState returns the state correctly.
-TEST_F(P2PTransportChannelPingTest, TestGetState) {
+TEST_P(P2PTransportChannelPingTest, TestGetState) {
   rtc::ScopedFakeClock clock;
   clock.AdvanceTime(webrtc::TimeDelta::Seconds(1));
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
-  P2PTransportChannel ch("test channel", 1, &pa);
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
+  P2PTransportChannel ch("test channel", 1, &pa, &field_trials_);
   EXPECT_EQ(webrtc::IceTransportState::kNew, ch.GetIceTransportState());
   PrepareChannel(&ch);
   ch.MaybeStartGathering();
@@ -4693,12 +4799,12 @@ TEST_F(P2PTransportChannelPingTest, TestGetState) {
 
 // Test that when a low-priority connection is pruned, it is not deleted
 // right away, and it can become active and be pruned again.
-TEST_F(P2PTransportChannelPingTest, TestConnectionPrunedAgain) {
+TEST_P(P2PTransportChannelPingTest, TestConnectionPrunedAgain) {
   rtc::ScopedFakeClock clock;
   clock.AdvanceTime(webrtc::TimeDelta::Seconds(1));
 
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
-  P2PTransportChannel ch("test channel", 1, &pa);
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
+  P2PTransportChannel ch("test channel", 1, &pa, &field_trials_);
   PrepareChannel(&ch);
   IceConfig config = CreateIceConfig(1000, GATHER_ONCE);
   config.receiving_switching_delay = 800;
@@ -4745,10 +4851,10 @@ TEST_F(P2PTransportChannelPingTest, TestConnectionPrunedAgain) {
 
 // Test that if all connections in a channel has timed out on writing, they
 // will all be deleted. We use Prune to simulate write_time_out.
-TEST_F(P2PTransportChannelPingTest, TestDeleteConnectionsIfAllWriteTimedout) {
+TEST_P(P2PTransportChannelPingTest, TestDeleteConnectionsIfAllWriteTimedout) {
   rtc::ScopedFakeClock clock;
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
-  P2PTransportChannel ch("test channel", 1, &pa);
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
+  P2PTransportChannel ch("test channel", 1, &pa, &field_trials_);
   PrepareChannel(&ch);
   ch.MaybeStartGathering();
   // Have one connection only but later becomes write-time-out.
@@ -4778,9 +4884,9 @@ TEST_F(P2PTransportChannelPingTest, TestDeleteConnectionsIfAllWriteTimedout) {
 // when a new connection becomes writable and receiving. Also tests that if a
 // connection belonging to an old session becomes writable, it won't stop
 // the current port allocator session.
-TEST_F(P2PTransportChannelPingTest, TestStopPortAllocatorSessions) {
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
-  P2PTransportChannel ch("test channel", 1, &pa);
+TEST_P(P2PTransportChannelPingTest, TestStopPortAllocatorSessions) {
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
+  P2PTransportChannel ch("test channel", 1, &pa, &field_trials_);
   PrepareChannel(&ch);
   ch.SetIceConfig(CreateIceConfig(2000, GATHER_ONCE));
   ch.MaybeStartGathering();
@@ -4811,9 +4917,10 @@ TEST_F(P2PTransportChannelPingTest, TestStopPortAllocatorSessions) {
 // Test that the ICE role is updated even on ports that has been removed.
 // These ports may still have connections that need a correct role, in case that
 // the connections on it may still receive stun pings.
-TEST_F(P2PTransportChannelPingTest, TestIceRoleUpdatedOnRemovedPort) {
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
-  P2PTransportChannel ch("test channel", ICE_CANDIDATE_COMPONENT_DEFAULT, &pa);
+TEST_P(P2PTransportChannelPingTest, TestIceRoleUpdatedOnRemovedPort) {
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
+  P2PTransportChannel ch("test channel", ICE_CANDIDATE_COMPONENT_DEFAULT, &pa,
+                         &field_trials_);
   // Starts with ICEROLE_CONTROLLING.
   PrepareChannel(&ch);
   IceConfig config = CreateIceConfig(1000, GATHER_CONTINUALLY);
@@ -4836,9 +4943,10 @@ TEST_F(P2PTransportChannelPingTest, TestIceRoleUpdatedOnRemovedPort) {
 // These ports may still have connections that need a correct role, for the
 // pings sent by those connections until they're replaced by newer-generation
 // connections.
-TEST_F(P2PTransportChannelPingTest, TestIceRoleUpdatedOnPortAfterIceRestart) {
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
-  P2PTransportChannel ch("test channel", ICE_CANDIDATE_COMPONENT_DEFAULT, &pa);
+TEST_P(P2PTransportChannelPingTest, TestIceRoleUpdatedOnPortAfterIceRestart) {
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
+  P2PTransportChannel ch("test channel", ICE_CANDIDATE_COMPONENT_DEFAULT, &pa,
+                         &field_trials_);
   // Starts with ICEROLE_CONTROLLING.
   PrepareChannel(&ch);
   ch.MaybeStartGathering();
@@ -4858,11 +4966,12 @@ TEST_F(P2PTransportChannelPingTest, TestIceRoleUpdatedOnPortAfterIceRestart) {
 // Test that after some amount of time without receiving data, the connection
 // will be destroyed. The port will only be destroyed after it is marked as
 // "pruned."
-TEST_F(P2PTransportChannelPingTest, TestPortDestroyedAfterTimeoutAndPruned) {
+TEST_P(P2PTransportChannelPingTest, TestPortDestroyedAfterTimeoutAndPruned) {
   rtc::ScopedFakeClock fake_clock;
 
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
-  P2PTransportChannel ch("test channel", ICE_CANDIDATE_COMPONENT_DEFAULT, &pa);
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
+  P2PTransportChannel ch("test channel", ICE_CANDIDATE_COMPONENT_DEFAULT, &pa,
+                         &field_trials_);
   PrepareChannel(&ch);
   ch.SetIceRole(ICEROLE_CONTROLLED);
   ch.MaybeStartGathering();
@@ -4887,10 +4996,10 @@ TEST_F(P2PTransportChannelPingTest, TestPortDestroyedAfterTimeoutAndPruned) {
   EXPECT_EQ_SIMULATED_WAIT(nullptr, GetPrunedPort(&ch), 1, fake_clock);
 }
 
-TEST_F(P2PTransportChannelPingTest, TestMaxOutstandingPingsFieldTrial) {
+TEST_P(P2PTransportChannelPingTest, TestMaxOutstandingPingsFieldTrial) {
   webrtc::test::ScopedKeyValueConfig field_trials(
-      "WebRTC-IceFieldTrials/max_outstanding_pings:3/");
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
+      field_trials_, "WebRTC-IceFieldTrials/max_outstanding_pings:3/");
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
   P2PTransportChannel ch("max", 1, &pa, &field_trials);
   ch.SetIceConfig(ch.config());
   PrepareChannel(&ch);
@@ -4920,7 +5029,7 @@ class P2PTransportChannelMostLikelyToWorkFirstTest
                      kTurnUdpExtAddr) {
     network_manager_.AddInterface(kPublicAddrs[0]);
     allocator_.reset(
-        CreateBasicPortAllocator(&network_manager_, ServerAddresses(),
+        CreateBasicPortAllocator(&network_manager_, ss(), ServerAddresses(),
                                  kTurnUdpIntAddr, rtc::SocketAddress()));
     allocator_->set_flags(allocator_->flags() | PORTALLOCATOR_DISABLE_STUN |
                           PORTALLOCATOR_DISABLE_TCP);
@@ -4951,9 +5060,9 @@ class P2PTransportChannelMostLikelyToWorkFirstTest
   // types and, for relay local candidate, the expected relay protocol and ping
   // it.
   void VerifyNextPingableConnection(
-      const std::string& local_candidate_type,
-      const std::string& remote_candidate_type,
-      const std::string& relay_protocol_type = UDP_PROTOCOL_NAME) {
+      absl::string_view local_candidate_type,
+      absl::string_view remote_candidate_type,
+      absl::string_view relay_protocol_type = UDP_PROTOCOL_NAME) {
     Connection* conn = FindNextPingableConnectionAndPingIt(channel_.get());
     ASSERT_TRUE(conn != nullptr);
     EXPECT_EQ(conn->local_candidate().type(), local_candidate_type);
@@ -4970,13 +5079,21 @@ class P2PTransportChannelMostLikelyToWorkFirstTest
   std::unique_ptr<P2PTransportChannel> channel_;
 };
 
+INSTANTIATE_TEST_SUITE_P(Legacy,
+                         P2PTransportChannelMostLikelyToWorkFirstTest,
+                         Values(""));
+INSTANTIATE_TEST_SUITE_P(Active,
+                         P2PTransportChannelMostLikelyToWorkFirstTest,
+                         Values("WebRTC-UseActiveIceController/Enabled/"));
+
 // Test that Relay/Relay connections will be pinged first when no other
 // connections have been pinged yet, unless we need to ping a trigger check or
 // we have a selected connection.
-TEST_F(P2PTransportChannelMostLikelyToWorkFirstTest,
+TEST_P(P2PTransportChannelMostLikelyToWorkFirstTest,
        TestRelayRelayFirstWhenNothingPingedYet) {
   const int max_strong_interval = 500;
-  P2PTransportChannel& ch = StartTransportChannel(true, max_strong_interval);
+  P2PTransportChannel& ch =
+      StartTransportChannel(true, max_strong_interval, &field_trials_);
   EXPECT_TRUE_WAIT(ch.ports().size() == 2, kDefaultTimeout);
   EXPECT_EQ(ch.ports()[0]->Type(), LOCAL_PORT_TYPE);
   EXPECT_EQ(ch.ports()[1]->Type(), RELAY_PORT_TYPE);
@@ -5033,9 +5150,9 @@ TEST_F(P2PTransportChannelMostLikelyToWorkFirstTest,
 // Test that Relay/Relay connections will be pinged first when everything has
 // been pinged even if the Relay/Relay connection wasn't the first to be pinged
 // in the first round.
-TEST_F(P2PTransportChannelMostLikelyToWorkFirstTest,
+TEST_P(P2PTransportChannelMostLikelyToWorkFirstTest,
        TestRelayRelayFirstWhenEverythingPinged) {
-  P2PTransportChannel& ch = StartTransportChannel(true, 500);
+  P2PTransportChannel& ch = StartTransportChannel(true, 500, &field_trials_);
   EXPECT_TRUE_WAIT(ch.ports().size() == 2, kDefaultTimeout);
   EXPECT_EQ(ch.ports()[0]->Type(), LOCAL_PORT_TYPE);
   EXPECT_EQ(ch.ports()[1]->Type(), RELAY_PORT_TYPE);
@@ -5064,9 +5181,9 @@ TEST_F(P2PTransportChannelMostLikelyToWorkFirstTest,
 
 // Test that when we receive a new remote candidate, they will be tried first
 // before we re-ping Relay/Relay connections again.
-TEST_F(P2PTransportChannelMostLikelyToWorkFirstTest,
+TEST_P(P2PTransportChannelMostLikelyToWorkFirstTest,
        TestNoStarvationOnNonRelayConnection) {
-  P2PTransportChannel& ch = StartTransportChannel(true, 500);
+  P2PTransportChannel& ch = StartTransportChannel(true, 500, &field_trials_);
   EXPECT_TRUE_WAIT(ch.ports().size() == 2, kDefaultTimeout);
   EXPECT_EQ(ch.ports()[0]->Type(), LOCAL_PORT_TYPE);
   EXPECT_EQ(ch.ports()[1]->Type(), RELAY_PORT_TYPE);
@@ -5097,9 +5214,10 @@ TEST_F(P2PTransportChannelMostLikelyToWorkFirstTest,
 
 // Test skip_relay_to_non_relay_connections field-trial.
 // I.e that we never create connection between relay and non-relay.
-TEST_F(P2PTransportChannelMostLikelyToWorkFirstTest,
+TEST_P(P2PTransportChannelMostLikelyToWorkFirstTest,
        TestSkipRelayToNonRelayConnectionsFieldTrial) {
   webrtc::test::ScopedKeyValueConfig field_trials(
+      field_trials_,
       "WebRTC-IceFieldTrials/skip_relay_to_non_relay_connections:true/");
   P2PTransportChannel& ch = StartTransportChannel(true, 500, &field_trials);
   EXPECT_TRUE_WAIT(ch.ports().size() == 2, kDefaultTimeout);
@@ -5117,7 +5235,7 @@ TEST_F(P2PTransportChannelMostLikelyToWorkFirstTest,
 
 // Test the ping sequence is UDP Relay/Relay followed by TCP Relay/Relay,
 // followed by the rest.
-TEST_F(P2PTransportChannelMostLikelyToWorkFirstTest, TestTcpTurn) {
+TEST_P(P2PTransportChannelMostLikelyToWorkFirstTest, TestTcpTurn) {
   // Add a Tcp Turn server.
   turn_server()->AddInternalSocket(kTurnTcpIntAddr, PROTO_TCP);
   RelayServerConfig config;
@@ -5125,7 +5243,7 @@ TEST_F(P2PTransportChannelMostLikelyToWorkFirstTest, TestTcpTurn) {
   config.ports.push_back(ProtocolAddress(kTurnTcpIntAddr, PROTO_TCP));
   allocator()->AddTurnServer(config);
 
-  P2PTransportChannel& ch = StartTransportChannel(true, 500);
+  P2PTransportChannel& ch = StartTransportChannel(true, 500, &field_trials_);
   EXPECT_TRUE_WAIT(ch.ports().size() == 3, kDefaultTimeout);
   EXPECT_EQ(ch.ports()[0]->Type(), LOCAL_PORT_TYPE);
   EXPECT_EQ(ch.ports()[1]->Type(), RELAY_PORT_TYPE);
@@ -5146,15 +5264,28 @@ TEST_F(P2PTransportChannelMostLikelyToWorkFirstTest, TestTcpTurn) {
   VerifyNextPingableConnection(LOCAL_PORT_TYPE, RELAY_PORT_TYPE);
 }
 
+class P2PTransportChannelResolverTest : public TestWithParam<std::string> {};
+
+INSTANTIATE_TEST_SUITE_P(Legacy, P2PTransportChannelResolverTest, Values(""));
+INSTANTIATE_TEST_SUITE_P(Active,
+                         P2PTransportChannelResolverTest,
+                         Values("WebRTC-UseActiveIceController/Enabled/"));
+
 // Test that a resolver is created, asked for a result, and destroyed
 // when the address is a hostname. The destruction should happen even
 // if the channel is not destroyed.
-TEST(P2PTransportChannelResolverTest, HostnameCandidateIsResolved) {
+TEST_P(P2PTransportChannelResolverTest, HostnameCandidateIsResolved) {
   ResolverFactoryFixture resolver_fixture;
-  FakePortAllocator allocator(rtc::Thread::Current(), nullptr);
+  std::unique_ptr<rtc::SocketServer> socket_server =
+      rtc::CreateDefaultSocketServer();
+  rtc::AutoSocketServerThread main_thread(socket_server.get());
+  rtc::BasicPacketSocketFactory packet_socket_factory(socket_server.get());
+  FakePortAllocator allocator(rtc::Thread::Current(), &packet_socket_factory);
+  webrtc::test::ScopedKeyValueConfig field_trials(GetParam());
   webrtc::IceTransportInit init;
   init.set_port_allocator(&allocator);
   init.set_async_dns_resolver_factory(&resolver_fixture);
+  init.set_field_trials(&field_trials);
   auto channel = P2PTransportChannel::Create("tn", 0, std::move(init));
   Candidate hostname_candidate;
   SocketAddress hostname_address("fake.test", 1000);
@@ -5170,7 +5301,7 @@ TEST(P2PTransportChannelResolverTest, HostnameCandidateIsResolved) {
 // discovers a prflx remote candidate with the same underlying IP address, the
 // prflx candidate is updated to a host candidate after the name resolution is
 // done.
-TEST_F(P2PTransportChannelTest,
+TEST_P(P2PTransportChannelTestWithFieldTrials,
        PeerReflexiveCandidateBeforeSignalingWithMdnsName) {
   // ep1 and ep2 will only gather host candidates with addresses
   // kPublicAddrs[0] and kPublicAddrs[1], respectively.
@@ -5188,9 +5319,7 @@ TEST_F(P2PTransportChannelTest,
   PauseCandidates(0);
   PauseCandidates(1);
   ASSERT_EQ_WAIT(1u, GetEndpoint(0)->saved_candidates_.size(), kMediumTimeout);
-  ASSERT_EQ(1u, GetEndpoint(0)->saved_candidates_[0]->candidates.size());
-  const auto& local_candidate =
-      GetEndpoint(0)->saved_candidates_[0]->candidates[0];
+  const auto& local_candidate = GetEndpoint(0)->saved_candidates_[0].candidate;
   // The IP address of ep1's host candidate should be obfuscated.
   EXPECT_TRUE(local_candidate.address().IsUnresolvedIP());
   // This is the underlying private IP address of the same candidate at ep1.
@@ -5227,7 +5356,7 @@ TEST_F(P2PTransportChannelTest,
 // resolution for a remote hostname candidate, we update the prflx candidate to
 // a host candidate if the hostname candidate turns out to have the same IP
 // address after the resolution completes.
-TEST_F(P2PTransportChannelTest,
+TEST_P(P2PTransportChannelTestWithFieldTrials,
        PeerReflexiveCandidateDuringResolvingHostCandidateWithMdnsName) {
   ResolverFactoryFixture resolver_fixture;
   // Prevent resolution until triggered by FireDelayedResolution.
@@ -5248,9 +5377,7 @@ TEST_F(P2PTransportChannelTest,
   PauseCandidates(1);
 
   ASSERT_EQ_WAIT(1u, GetEndpoint(0)->saved_candidates_.size(), kMediumTimeout);
-  ASSERT_EQ(1u, GetEndpoint(0)->saved_candidates_[0]->candidates.size());
-  const auto& local_candidate =
-      GetEndpoint(0)->saved_candidates_[0]->candidates[0];
+  const auto& local_candidate = GetEndpoint(0)->saved_candidates_[0].candidate;
   // The IP address of ep1's host candidate should be obfuscated.
   ASSERT_TRUE(local_candidate.address().IsUnresolvedIP());
   // This is the underlying private IP address of the same candidate at ep1.
@@ -5290,7 +5417,8 @@ TEST_F(P2PTransportChannelTest,
 // Test that if we only gather and signal a host candidate, the IP address of
 // which is obfuscated by an mDNS name, and if the peer can complete the name
 // resolution with the correct IP address, we can have a p2p connection.
-TEST_F(P2PTransportChannelTest, CanConnectWithHostCandidateWithMdnsName) {
+TEST_P(P2PTransportChannelTestWithFieldTrials,
+       CanConnectWithHostCandidateWithMdnsName) {
   ResolverFactoryFixture resolver_fixture;
 
   // ep1 and ep2 will only gather host candidates with addresses
@@ -5307,9 +5435,8 @@ TEST_F(P2PTransportChannelTest, CanConnectWithHostCandidateWithMdnsName) {
   PauseCandidates(0);
   PauseCandidates(1);
   ASSERT_EQ_WAIT(1u, GetEndpoint(0)->saved_candidates_.size(), kMediumTimeout);
-  ASSERT_EQ(1u, GetEndpoint(0)->saved_candidates_[0]->candidates.size());
   const auto& local_candidate_ep1 =
-      GetEndpoint(0)->saved_candidates_[0]->candidates[0];
+      GetEndpoint(0)->saved_candidates_[0].candidate;
   // The IP address of ep1's host candidate should be obfuscated.
   EXPECT_TRUE(local_candidate_ep1.address().IsUnresolvedIP());
   // This is the underlying private IP address of the same candidate at ep1,
@@ -5339,7 +5466,7 @@ TEST_F(P2PTransportChannelTest, CanConnectWithHostCandidateWithMdnsName) {
 // same endpoint. Also, the remote ICE endpoint that successfully resolves a
 // signaled host candidate with an mDNS name should not reveal the address of
 // this remote host candidate in stats.
-TEST_F(P2PTransportChannelTest,
+TEST_P(P2PTransportChannelTestWithFieldTrials,
        CandidatesSanitizedInStatsWhenMdnsObfuscationEnabled) {
   ResolverFactoryFixture resolver_fixture;
 
@@ -5364,8 +5491,7 @@ TEST_F(P2PTransportChannelTest,
   ASSERT_EQ_WAIT(1u, GetEndpoint(1)->saved_candidates_.size(), kMediumTimeout);
 
   for (const auto& candidates_data : GetEndpoint(0)->saved_candidates_) {
-    ASSERT_EQ(1u, candidates_data->candidates.size());
-    const auto& local_candidate_ep1 = candidates_data->candidates[0];
+    const auto& local_candidate_ep1 = candidates_data.candidate;
     if (local_candidate_ep1.type() == LOCAL_PORT_TYPE) {
       // This is the underlying private IP address of the same candidate at ep1,
       // and let the mock resolver of ep2 receive the correct resolution.
@@ -5426,7 +5552,7 @@ TEST_F(P2PTransportChannelTest,
   DestroyChannels();
 }
 
-TEST_F(P2PTransportChannelTest,
+TEST_P(P2PTransportChannelTestWithFieldTrials,
        ConnectingIncreasesSelectedCandidatePairChanges) {
   rtc::ScopedFakeClock clock;
   ConfigureEndpoints(OPEN, OPEN, kDefaultPortAllocatorFlags,
@@ -5447,7 +5573,7 @@ TEST_F(P2PTransportChannelTest,
   DestroyChannels();
 }
 
-TEST_F(P2PTransportChannelTest,
+TEST_P(P2PTransportChannelTestWithFieldTrials,
        DisconnectedIncreasesSelectedCandidatePairChanges) {
   rtc::ScopedFakeClock clock;
   ConfigureEndpoints(OPEN, OPEN, kDefaultPortAllocatorFlags,
@@ -5478,7 +5604,7 @@ TEST_F(P2PTransportChannelTest,
   DestroyChannels();
 }
 
-TEST_F(P2PTransportChannelTest,
+TEST_P(P2PTransportChannelTestWithFieldTrials,
        NewSelectionIncreasesSelectedCandidatePairChanges) {
   rtc::ScopedFakeClock clock;
   ConfigureEndpoints(OPEN, OPEN, kDefaultPortAllocatorFlags,
@@ -5518,7 +5644,7 @@ TEST_F(P2PTransportChannelTest,
 
 // A similar test as above to check the selected candidate pair is sanitized
 // when it is queried via GetSelectedCandidatePair.
-TEST_F(P2PTransportChannelTest,
+TEST_P(P2PTransportChannelTestWithFieldTrials,
        SelectedCandidatePairSanitizedWhenMdnsObfuscationEnabled) {
   ResolverFactoryFixture resolver_fixture;
 
@@ -5537,8 +5663,7 @@ TEST_F(P2PTransportChannelTest,
   PauseCandidates(1);
   ASSERT_EQ_WAIT(1u, GetEndpoint(0)->saved_candidates_.size(), kMediumTimeout);
   const auto& candidates_data = GetEndpoint(0)->saved_candidates_[0];
-  ASSERT_EQ(1u, candidates_data->candidates.size());
-  const auto& local_candidate_ep1 = candidates_data->candidates[0];
+  const auto& local_candidate_ep1 = candidates_data.candidate;
   ASSERT_TRUE(local_candidate_ep1.type() == LOCAL_PORT_TYPE);
   // This is the underlying private IP address of the same candidate at ep1,
   // and let the mock resolver of ep2 receive the correct resolution.
@@ -5566,7 +5691,7 @@ TEST_F(P2PTransportChannelTest,
   DestroyChannels();
 }
 
-TEST_F(P2PTransportChannelTest,
+TEST_P(P2PTransportChannelTestWithFieldTrials,
        NoPairOfLocalRelayCandidateWithRemoteMdnsCandidate) {
   const int kOnlyRelayPorts = cricket::PORTALLOCATOR_DISABLE_UDP |
                               cricket::PORTALLOCATOR_DISABLE_STUN |
@@ -5632,7 +5757,7 @@ class MockMdnsResponder : public webrtc::MdnsResponderInterface {
               (override));
 };
 
-TEST_F(P2PTransportChannelTest,
+TEST_P(P2PTransportChannelTestWithFieldTrials,
        SrflxCandidateCanBeGatheredBeforeMdnsCandidateToCreateConnection) {
   // ep1 and ep2 will only gather host and srflx candidates with base addresses
   // kPublicAddrs[0] and kPublicAddrs[1], respectively, and we use a shared
@@ -5673,7 +5798,7 @@ TEST_F(P2PTransportChannelTest,
 // restart the other types of candidates that are now enabled and form candidate
 // pairs. Also, we verify that the relay candidates gathered previously are not
 // removed and are still usable for necessary route switching.
-TEST_F(P2PTransportChannelTest,
+TEST_P(P2PTransportChannelTestWithFieldTrials,
        SurfaceHostCandidateOnCandidateFilterChangeFromRelayToAll) {
   rtc::ScopedFakeClock clock;
 
@@ -5739,7 +5864,7 @@ TEST_F(P2PTransportChannelTest,
 // A similar test as SurfaceHostCandidateOnCandidateFilterChangeFromRelayToAll,
 // and we should surface server-reflexive candidates that are enabled after
 // changing the candidate filter.
-TEST_F(P2PTransportChannelTest,
+TEST_P(P2PTransportChannelTestWithFieldTrials,
        SurfaceSrflxCandidateOnCandidateFilterChangeFromRelayToNoHost) {
   rtc::ScopedFakeClock clock;
   // We need an actual NAT so that the host candidate is not equivalent to the
@@ -5808,7 +5933,7 @@ TEST_F(P2PTransportChannelTest,
 // gathering continually we only gather once, which makes the config
 // `surface_ice_candidates_on_ice_transport_type_changed` ineffective after the
 // gathering stopped.
-TEST_F(P2PTransportChannelTest,
+TEST_P(P2PTransportChannelTestWithFieldTrials,
        CannotSurfaceTheNewlyAllowedOnFilterChangeIfNotGatheringContinually) {
   rtc::ScopedFakeClock clock;
 
@@ -5845,7 +5970,7 @@ TEST_F(P2PTransportChannelTest,
 // Test that when the candidate filter is updated to be more restrictive,
 // candidates that 1) have already been gathered and signaled 2) but no longer
 // match the filter, are not removed.
-TEST_F(P2PTransportChannelTest,
+TEST_P(P2PTransportChannelTestWithFieldTrials,
        RestrictingCandidateFilterDoesNotRemoveRegatheredCandidates) {
   rtc::ScopedFakeClock clock;
 
@@ -5916,7 +6041,7 @@ TEST_F(P2PTransportChannelTest,
 //
 // i.e surface_ice_candidates_on_ice_transport_type_changed requires
 // coordination outside of webrtc to function properly.
-TEST_F(P2PTransportChannelTest, SurfaceRequiresCoordination) {
+TEST_P(P2PTransportChannelTestWithFieldTrials, SurfaceRequiresCoordination) {
   webrtc::test::ScopedKeyValueConfig field_trials(
       field_trials_,
       "WebRTC-IceFieldTrials/skip_relay_to_non_relay_connections:true/");
@@ -5981,15 +6106,15 @@ TEST_F(P2PTransportChannelTest, SurfaceRequiresCoordination) {
   DestroyChannels();
 }
 
-TEST_F(P2PTransportChannelPingTest, TestInitialSelectDampening0) {
+TEST_P(P2PTransportChannelPingTest, TestInitialSelectDampening0) {
   webrtc::test::ScopedKeyValueConfig field_trials(
-      "WebRTC-IceFieldTrials/initial_select_dampening:0/");
+      field_trials_, "WebRTC-IceFieldTrials/initial_select_dampening:0/");
 
   constexpr int kMargin = 10;
   rtc::ScopedFakeClock clock;
   clock.AdvanceTime(webrtc::TimeDelta::Seconds(1));
 
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
   P2PTransportChannel ch("test channel", 1, &pa, &field_trials);
   PrepareChannel(&ch);
   ch.SetIceConfig(ch.config());
@@ -6005,15 +6130,15 @@ TEST_F(P2PTransportChannelPingTest, TestInitialSelectDampening0) {
   EXPECT_EQ_SIMULATED_WAIT(conn1, ch.selected_connection(), kMargin, clock);
 }
 
-TEST_F(P2PTransportChannelPingTest, TestInitialSelectDampening) {
+TEST_P(P2PTransportChannelPingTest, TestInitialSelectDampening) {
   webrtc::test::ScopedKeyValueConfig field_trials(
-      "WebRTC-IceFieldTrials/initial_select_dampening:100/");
+      field_trials_, "WebRTC-IceFieldTrials/initial_select_dampening:100/");
 
   constexpr int kMargin = 10;
   rtc::ScopedFakeClock clock;
   clock.AdvanceTime(webrtc::TimeDelta::Seconds(1));
 
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
   P2PTransportChannel ch("test channel", 1, &pa, &field_trials);
   PrepareChannel(&ch);
   ch.SetIceConfig(ch.config());
@@ -6029,15 +6154,16 @@ TEST_F(P2PTransportChannelPingTest, TestInitialSelectDampening) {
   EXPECT_EQ_SIMULATED_WAIT(conn1, ch.selected_connection(), 2 * kMargin, clock);
 }
 
-TEST_F(P2PTransportChannelPingTest, TestInitialSelectDampeningPingReceived) {
+TEST_P(P2PTransportChannelPingTest, TestInitialSelectDampeningPingReceived) {
   webrtc::test::ScopedKeyValueConfig field_trials(
+      field_trials_,
       "WebRTC-IceFieldTrials/initial_select_dampening_ping_received:100/");
 
   constexpr int kMargin = 10;
   rtc::ScopedFakeClock clock;
   clock.AdvanceTime(webrtc::TimeDelta::Seconds(1));
 
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
   P2PTransportChannel ch("test channel", 1, &pa, &field_trials);
   PrepareChannel(&ch);
   ch.SetIceConfig(ch.config());
@@ -6054,8 +6180,9 @@ TEST_F(P2PTransportChannelPingTest, TestInitialSelectDampeningPingReceived) {
   EXPECT_EQ_SIMULATED_WAIT(conn1, ch.selected_connection(), 2 * kMargin, clock);
 }
 
-TEST_F(P2PTransportChannelPingTest, TestInitialSelectDampeningBoth) {
+TEST_P(P2PTransportChannelPingTest, TestInitialSelectDampeningBoth) {
   webrtc::test::ScopedKeyValueConfig field_trials(
+      field_trials_,
       "WebRTC-IceFieldTrials/"
       "initial_select_dampening:100,initial_select_dampening_ping_received:"
       "50/");
@@ -6064,7 +6191,7 @@ TEST_F(P2PTransportChannelPingTest, TestInitialSelectDampeningBoth) {
   rtc::ScopedFakeClock clock;
   clock.AdvanceTime(webrtc::TimeDelta::Seconds(1));
 
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
   P2PTransportChannel ch("test channel", 1, &pa, &field_trials);
   PrepareChannel(&ch);
   ch.SetIceConfig(ch.config());
@@ -6082,13 +6209,48 @@ TEST_F(P2PTransportChannelPingTest, TestInitialSelectDampeningBoth) {
   EXPECT_EQ_SIMULATED_WAIT(conn1, ch.selected_connection(), 2 * kMargin, clock);
 }
 
-TEST(P2PTransportChannel, InjectIceController) {
+class P2PTransportChannelIceControllerTest : public TestWithParam<std::string> {
+};
+
+INSTANTIATE_TEST_SUITE_P(Legacy,
+                         P2PTransportChannelIceControllerTest,
+                         Values(""));
+INSTANTIATE_TEST_SUITE_P(Active,
+                         P2PTransportChannelIceControllerTest,
+                         Values("WebRTC-UseActiveIceController/Enabled/"));
+
+TEST_P(P2PTransportChannelIceControllerTest, InjectIceController) {
+  std::unique_ptr<rtc::SocketServer> socket_server =
+      rtc::CreateDefaultSocketServer();
+  rtc::AutoSocketServerThread main_thread(socket_server.get());
+  rtc::BasicPacketSocketFactory packet_socket_factory(socket_server.get());
   MockIceControllerFactory factory;
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
+  FakePortAllocator pa(rtc::Thread::Current(), &packet_socket_factory);
+  webrtc::test::ScopedKeyValueConfig field_trials(GetParam());
   EXPECT_CALL(factory, RecordIceControllerCreated()).Times(1);
   webrtc::IceTransportInit init;
   init.set_port_allocator(&pa);
   init.set_ice_controller_factory(&factory);
+  init.set_field_trials(&field_trials);
+  auto dummy =
+      P2PTransportChannel::Create("transport_name",
+                                  /* component= */ 77, std::move(init));
+}
+
+TEST(P2PTransportChannel, InjectActiveIceController) {
+  std::unique_ptr<rtc::SocketServer> socket_server =
+      rtc::CreateDefaultSocketServer();
+  rtc::AutoSocketServerThread main_thread(socket_server.get());
+  rtc::BasicPacketSocketFactory packet_socket_factory(socket_server.get());
+  MockActiveIceControllerFactory factory;
+  FakePortAllocator pa(rtc::Thread::Current(), &packet_socket_factory);
+  webrtc::test::ScopedKeyValueConfig field_trials(
+      "WebRTC-UseActiveIceController/Enabled/");
+  EXPECT_CALL(factory, RecordActiveIceControllerCreated()).Times(1);
+  webrtc::IceTransportInit init;
+  init.set_port_allocator(&pa);
+  init.set_active_ice_controller_factory(&factory);
+  init.set_field_trials(&field_trials);
   auto dummy =
       P2PTransportChannel::Create("transport_name",
                                   /* component= */ 77, std::move(init));
@@ -6172,22 +6334,19 @@ TEST_F(P2PTransportChannelPingTest, Forking) {
       gatherer->port_allocator_session());
 }
 
-
 class ForgetLearnedStateController : public cricket::BasicIceController {
  public:
   explicit ForgetLearnedStateController(
       const cricket::IceControllerFactoryArgs& args)
       : cricket::BasicIceController(args) {}
 
-  SwitchResult SortAndSwitchConnection(IceControllerEvent reason) override {
+  SwitchResult SortAndSwitchConnection(IceSwitchReason reason) override {
     auto result = cricket::BasicIceController::SortAndSwitchConnection(reason);
     if (forget_connnection_) {
       result.connections_to_forget_state_on.push_back(forget_connnection_);
       forget_connnection_ = nullptr;
     }
-    result.recheck_event =
-        IceControllerEvent(IceControllerEvent::ICE_CONTROLLER_RECHECK);
-    result.recheck_event->recheck_delay_ms = 100;
+    result.recheck_event.emplace(IceSwitchReason::ICE_CONTROLLER_RECHECK, 100);
     return result;
   }
 
@@ -6216,12 +6375,13 @@ class ForgetLearnedStateControllerFactory
   ForgetLearnedStateController* controller_;
 };
 
-TEST_F(P2PTransportChannelPingTest, TestForgetLearnedState) {
+TEST_P(P2PTransportChannelPingTest, TestForgetLearnedState) {
   ForgetLearnedStateControllerFactory factory;
-  FakePortAllocator pa(rtc::Thread::Current(), nullptr);
+  FakePortAllocator pa(rtc::Thread::Current(), packet_socket_factory());
   webrtc::IceTransportInit init;
   init.set_port_allocator(&pa);
   init.set_ice_controller_factory(&factory);
+  init.set_field_trials(&field_trials_);
   auto ch =
       P2PTransportChannel::Create("ping sufficiently", 1, std::move(init));
 
@@ -6252,7 +6412,8 @@ TEST_F(P2PTransportChannelPingTest, TestForgetLearnedState) {
   EXPECT_EQ_WAIT(false, conn2->writable(), kMediumTimeout);
 }
 
-TEST_F(P2PTransportChannelTest, DisableDnsLookupsWithTransportPolicyRelay) {
+TEST_P(P2PTransportChannelTestWithFieldTrials,
+       DisableDnsLookupsWithTransportPolicyRelay) {
   ConfigureEndpoints(OPEN, OPEN, kDefaultPortAllocatorFlags,
                      kDefaultPortAllocatorFlags);
   auto* ep1 = GetEndpoint(0);
@@ -6278,7 +6439,8 @@ TEST_F(P2PTransportChannelTest, DisableDnsLookupsWithTransportPolicyRelay) {
   DestroyChannels();
 }
 
-TEST_F(P2PTransportChannelTest, DisableDnsLookupsWithTransportPolicyNone) {
+TEST_P(P2PTransportChannelTestWithFieldTrials,
+       DisableDnsLookupsWithTransportPolicyNone) {
   ConfigureEndpoints(OPEN, OPEN, kDefaultPortAllocatorFlags,
                      kDefaultPortAllocatorFlags);
   auto* ep1 = GetEndpoint(0);
@@ -6304,7 +6466,8 @@ TEST_F(P2PTransportChannelTest, DisableDnsLookupsWithTransportPolicyNone) {
   DestroyChannels();
 }
 
-TEST_F(P2PTransportChannelTest, EnableDnsLookupsWithTransportPolicyNoHost) {
+TEST_P(P2PTransportChannelTestWithFieldTrials,
+       EnableDnsLookupsWithTransportPolicyNoHost) {
   ConfigureEndpoints(OPEN, OPEN, kDefaultPortAllocatorFlags,
                      kDefaultPortAllocatorFlags);
   auto* ep1 = GetEndpoint(0);
@@ -6333,11 +6496,16 @@ TEST_F(P2PTransportChannelTest, EnableDnsLookupsWithTransportPolicyNoHost) {
   DestroyChannels();
 }
 
-class GatherAfterConnectedTest : public P2PTransportChannelTest,
-                                 public ::testing::WithParamInterface<bool> {};
+class GatherAfterConnectedTest
+    : public P2PTransportChannelTest,
+      public WithParamInterface<std::tuple<bool, std::string>> {
+ public:
+  GatherAfterConnectedTest()
+      : P2PTransportChannelTest(std::get<1>(GetParam())) {}
+};
 
 TEST_P(GatherAfterConnectedTest, GatherAfterConnected) {
-  const bool stop_gather_on_strongly_connected = GetParam();
+  const bool stop_gather_on_strongly_connected = std::get<0>(GetParam());
   const std::string field_trial =
       std::string("WebRTC-IceFieldTrials/stop_gather_on_strongly_connected:") +
       (stop_gather_on_strongly_connected ? "true/" : "false/");
@@ -6398,7 +6566,7 @@ TEST_P(GatherAfterConnectedTest, GatherAfterConnected) {
 }
 
 TEST_P(GatherAfterConnectedTest, GatherAfterConnectedMultiHomed) {
-  const bool stop_gather_on_strongly_connected = GetParam();
+  const bool stop_gather_on_strongly_connected = std::get<0>(GetParam());
   const std::string field_trial =
       std::string("WebRTC-IceFieldTrials/stop_gather_on_strongly_connected:") +
       (stop_gather_on_strongly_connected ? "true/" : "false/");
@@ -6459,13 +6627,19 @@ TEST_P(GatherAfterConnectedTest, GatherAfterConnectedMultiHomed) {
   }
 }
 
-INSTANTIATE_TEST_SUITE_P(GatherAfterConnectedTest,
+INSTANTIATE_TEST_SUITE_P(Legacy,
                          GatherAfterConnectedTest,
-                         ::testing::Values(true, false));
+                         Combine(Values(true, false), Values("")));
+INSTANTIATE_TEST_SUITE_P(
+    Active,
+    GatherAfterConnectedTest,
+    Combine(Values(true, false),
+            Values("WebRTC-UseActiveIceController/Enabled/")));
 
 // Tests no candidates are generated with old ice ufrag/passwd after an ice
 // restart even if continual gathering is enabled.
-TEST_F(P2PTransportChannelTest, TestIceNoOldCandidatesAfterIceRestart) {
+TEST_P(P2PTransportChannelTestWithFieldTrials,
+       TestIceNoOldCandidatesAfterIceRestart) {
   rtc::ScopedFakeClock clock;
   AddAddress(0, kAlternateAddrs[0]);
   ConfigureEndpoints(OPEN, OPEN, kDefaultPortAllocatorFlags,
@@ -6487,9 +6661,7 @@ TEST_F(P2PTransportChannelTest, TestIceNoOldCandidatesAfterIceRestart) {
                              kDefaultTimeout, clock);
 
   for (const auto& cd : GetEndpoint(0)->saved_candidates_) {
-    for (const auto& c : cd->candidates) {
-      EXPECT_EQ(c.username(), kIceUfrag[3]);
-    }
+    EXPECT_EQ(cd.candidate.username(), kIceUfrag[3]);
   }
 
   DestroyChannels();

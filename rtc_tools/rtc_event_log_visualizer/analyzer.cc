@@ -48,7 +48,6 @@
 #include "modules/rtp_rtcp/source/rtp_header_extensions.h"
 #include "modules/rtp_rtcp/source/rtp_rtcp_interface.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/format_macros.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/numerics/sequence_number_util.h"
 #include "rtc_base/rate_statistics.h"
@@ -151,7 +150,9 @@ absl::optional<uint32_t> EstimateRtpClockFrequency(
   }
   RTC_LOG(LS_WARNING) << "Failed to estimate RTP clock frequency: Estimate "
                       << estimated_frequency
-                      << " not close to any stardard RTP frequency.";
+                      << " not close to any standard RTP frequency."
+                      << " Last timestamp " << last_rtp_timestamp
+                      << " first timestamp " << first_rtp_timestamp;
   return absl::nullopt;
 }
 
@@ -881,9 +882,11 @@ void EventLogAnalyzer::CreateTotalIncomingBitrateGraph(Plot* plot) {
 }
 
 // Plot the total bandwidth used by all RTP streams.
-void EventLogAnalyzer::CreateTotalOutgoingBitrateGraph(Plot* plot,
-                                                       bool show_detector_state,
-                                                       bool show_alr_state) {
+void EventLogAnalyzer::CreateTotalOutgoingBitrateGraph(
+    Plot* plot,
+    bool show_detector_state,
+    bool show_alr_state,
+    bool show_link_capacity) {
   // TODO(terelius): This could be provided by the parser.
   std::multimap<Timestamp, size_t> packets_in_order;
   for (const auto& stream : parsed_log_.outgoing_rtp_packets_by_ssrc()) {
@@ -927,6 +930,24 @@ void EventLogAnalyzer::CreateTotalOutgoingBitrateGraph(Plot* plot,
     float x = config_.GetCallTimeSec(loss_update.log_time());
     float y = static_cast<float>(loss_update.bitrate_bps) / 1000;
     loss_series.points.emplace_back(x, y);
+  }
+
+  TimeSeries link_capacity_lower_series("Link-capacity-lower",
+                                        LineStyle::kStep);
+  TimeSeries link_capacity_upper_series("Link-capacity-upper",
+                                        LineStyle::kStep);
+  for (auto& remote_estimate_event : parsed_log_.remote_estimate_events()) {
+    float x = config_.GetCallTimeSec(remote_estimate_event.log_time());
+    if (remote_estimate_event.link_capacity_lower.has_value()) {
+      float link_capacity_lower = static_cast<float>(
+          remote_estimate_event.link_capacity_lower.value().kbps());
+      link_capacity_lower_series.points.emplace_back(x, link_capacity_lower);
+    }
+    if (remote_estimate_event.link_capacity_upper.has_value()) {
+      float link_capacity_upper = static_cast<float>(
+          remote_estimate_event.link_capacity_upper.value().kbps());
+      link_capacity_upper_series.points.emplace_back(x, link_capacity_upper);
+    }
   }
 
   TimeSeries delay_series("Delay-based estimate", LineStyle::kStep);
@@ -1025,6 +1046,12 @@ void EventLogAnalyzer::CreateTotalOutgoingBitrateGraph(Plot* plot,
   if (show_alr_state) {
     plot->AppendIntervalSeries(std::move(alr_state));
   }
+
+  if (show_link_capacity) {
+    plot->AppendTimeSeriesIfNotEmpty(std::move(link_capacity_lower_series));
+    plot->AppendTimeSeriesIfNotEmpty(std::move(link_capacity_upper_series));
+  }
+
   plot->AppendTimeSeries(std::move(loss_series));
   plot->AppendTimeSeriesIfNotEmpty(std::move(probe_failures_series));
   plot->AppendTimeSeries(std::move(delay_series));
@@ -1243,11 +1270,11 @@ void EventLogAnalyzer::CreateSendSideBweSimulationGraph(Plot* plot) {
     return std::numeric_limits<int64_t>::max();
   };
 
-  RateStatistics acked_bitrate(750, 8000);
+  RateStatistics raw_acked_bitrate(750, 8000);
   test::ExplicitKeyValueConfig throughput_config(
       "WebRTC-Bwe-RobustThroughputEstimatorSettings/"
-      "enabled:true,reduce_bias:true,assume_shared_link:false,initial_packets:"
-      "10,min_packets:25,window_duration:750ms,unacked_weight:0.5/");
+      "enabled:true,required_packets:10,"
+      "window_packets:25,window_duration:1000ms,unacked_weight:1.0/");
   std::unique_ptr<AcknowledgedBitrateEstimatorInterface>
       robust_throughput_estimator(
           AcknowledgedBitrateEstimatorInterface::Create(&throughput_config));
@@ -1306,7 +1333,6 @@ void EventLogAnalyzer::CreateSendSideBweSimulationGraph(Plot* plot) {
       auto feedback_msg = transport_feedback.ProcessTransportFeedback(
           rtcp_iterator->transport_feedback,
           Timestamp::Millis(clock.TimeInMilliseconds()));
-      absl::optional<uint32_t> bitrate_bps;
       if (feedback_msg) {
         observer.Update(goog_cc->OnTransportPacketsFeedback(*feedback_msg));
         std::vector<PacketResult> feedback =
@@ -1316,24 +1342,30 @@ void EventLogAnalyzer::CreateSendSideBweSimulationGraph(Plot* plot) {
               feedback);
           robust_throughput_estimator->IncomingPacketFeedbackVector(feedback);
           for (const PacketResult& packet : feedback) {
-            acked_bitrate.Update(packet.sent_packet.size.bytes(),
-                                 packet.receive_time.ms());
+            raw_acked_bitrate.Update(packet.sent_packet.size.bytes(),
+                                     packet.receive_time.ms());
           }
-          bitrate_bps = acked_bitrate.Rate(feedback.back().receive_time.ms());
+          absl::optional<uint32_t> raw_bitrate_bps =
+              raw_acked_bitrate.Rate(feedback.back().receive_time.ms());
+          float x = config_.GetCallTimeSec(clock.CurrentTime());
+          if (raw_bitrate_bps) {
+            float y = raw_bitrate_bps.value() / 1000;
+            acked_time_series.points.emplace_back(x, y);
+          }
+          absl::optional<DataRate> robust_estimate =
+              robust_throughput_estimator->bitrate();
+          if (robust_estimate) {
+            float y = robust_estimate.value().kbps();
+            robust_time_series.points.emplace_back(x, y);
+          }
+          absl::optional<DataRate> acked_estimate =
+              acknowledged_bitrate_estimator->bitrate();
+          if (acked_estimate) {
+            float y = acked_estimate.value().kbps();
+            acked_estimate_time_series.points.emplace_back(x, y);
+          }
         }
       }
-
-      float x = config_.GetCallTimeSec(clock.CurrentTime());
-      float y = bitrate_bps.value_or(0) / 1000;
-      acked_time_series.points.emplace_back(x, y);
-      y = robust_throughput_estimator->bitrate()
-              .value_or(DataRate::Zero())
-              .kbps();
-      robust_time_series.points.emplace_back(x, y);
-      y = acknowledged_bitrate_estimator->bitrate()
-              .value_or(DataRate::Zero())
-              .kbps();
-      acked_estimate_time_series.points.emplace_back(x, y);
       ++rtcp_iterator;
     }
     if (clock.TimeInMicroseconds() >= NextProcessTime()) {

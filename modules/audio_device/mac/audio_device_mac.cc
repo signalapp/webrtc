@@ -225,7 +225,7 @@ AudioDeviceGeneric::InitStatus AudioDeviceMac::Init() {
 
   if (_paRenderBuffer == NULL) {
     _paRenderBuffer = new PaUtilRingBuffer;
-    PaRingBufferSize bufSize = -1;
+    ring_buffer_size_t bufSize = -1;
     bufSize = PaUtil_InitializeRingBuffer(
         _paRenderBuffer, sizeof(SInt16), _renderBufSizeSamples, _renderBufData);
     if (bufSize == -1) {
@@ -245,7 +245,7 @@ AudioDeviceGeneric::InitStatus AudioDeviceMac::Init() {
 
   if (_paCaptureBuffer == NULL) {
     _paCaptureBuffer = new PaUtilRingBuffer;
-    PaRingBufferSize bufSize = -1;
+    ring_buffer_size_t bufSize = -1;
     bufSize =
         PaUtil_InitializeRingBuffer(_paCaptureBuffer, sizeof(Float32),
                                     _captureBufSizeSamples, _captureBufData);
@@ -818,7 +818,8 @@ int32_t AudioDeviceMac::PlayoutDeviceName(uint16_t index,
     memset(guid, 0, kAdmMaxGuidSize);
   }
 
-  return GetDeviceName(kAudioDevicePropertyScopeOutput, index, name);
+  return GetDeviceName(kAudioDevicePropertyScopeOutput, index,
+                       rtc::ArrayView<char>(name, kAdmMaxDeviceNameSize));
 }
 
 int32_t AudioDeviceMac::RecordingDeviceName(uint16_t index,
@@ -836,7 +837,8 @@ int32_t AudioDeviceMac::RecordingDeviceName(uint16_t index,
     memset(guid, 0, kAdmMaxGuidSize);
   }
 
-  return GetDeviceName(kAudioDevicePropertyScopeInput, index, name);
+  return GetDeviceName(kAudioDevicePropertyScopeInput, index,
+                       rtc::ArrayView<char>(name, kAdmMaxDeviceNameSize));
 }
 
 int16_t AudioDeviceMac::RecordingDevices() {
@@ -1290,7 +1292,7 @@ int32_t AudioDeviceMac::StopRecording() {
       RTC_LOG(LS_WARNING) << "Stopped recording";
       _doStopRec = true;  // Signal to io proc to stop audio device
       mutex_.Unlock();    // Cannot be under lock, risk of deadlock
-      if (!_stopEventRec.Wait(2000)) {
+      if (!_stopEventRec.Wait(TimeDelta::Seconds(2))) {
         MutexLock lockScoped(&mutex_);
         RTC_LOG(LS_WARNING) << "Timed out stopping the capture IOProc."
                                "We may have failed to detect a device removal.";
@@ -1320,7 +1322,7 @@ int32_t AudioDeviceMac::StopRecording() {
       RTC_LOG(LS_WARNING) << "Stopped recording";
       _doStop = true;     // Signal to io proc to stop audio device
       mutex_.Unlock();    // Cannot be under lock, risk of deadlock
-      if (!_stopEvent.Wait(2000)) {
+      if (!_stopEvent.Wait(TimeDelta::Seconds(2))) {
         MutexLock lockScoped(&mutex_);
         RTC_LOG(LS_WARNING) << "Timed out stopping the shared IOProc."
                                "We may have failed to detect a device removal.";
@@ -1432,7 +1434,7 @@ int32_t AudioDeviceMac::StopPlayout() {
     _playing = false;
     _doStop = true;     // Signal to io proc to stop audio device
     mutex_.Unlock();    // Cannot be under lock, risk of deadlock
-    if (!_stopEvent.Wait(2000)) {
+    if (!_stopEvent.Wait(TimeDelta::Seconds(2))) {
       MutexLock lockScoped(&mutex_);
       RTC_LOG(LS_WARNING) << "Timed out stopping the render IOProc."
                              "We may have failed to detect a device removal.";
@@ -1603,9 +1605,8 @@ int32_t AudioDeviceMac::GetNumberDevices(const AudioObjectPropertyScope scope,
 
 int32_t AudioDeviceMac::GetDeviceName(const AudioObjectPropertyScope scope,
                                       const uint16_t index,
-                                      char* name) {
+                                      rtc::ArrayView<char> name) {
   OSStatus err = noErr;
-  UInt32 len = kAdmMaxDeviceNameSize;
   AudioDeviceID deviceIds[MaxNumberDevices];
 
   int numberDevices = GetNumberDevices(scope, deviceIds, MaxNumberDevices);
@@ -1646,21 +1647,24 @@ int32_t AudioDeviceMac::GetDeviceName(const AudioObjectPropertyScope scope,
                                                 scope, 0};
 
   if (isDefaultDevice) {
-    char devName[len];
+    std::array<char, kAdmMaxDeviceNameSize> devName;
+    UInt32 len = devName.size();
 
-    WEBRTC_CA_RETURN_ON_ERR(AudioObjectGetPropertyData(usedID, &propertyAddress,
-                                                       0, NULL, &len, devName));
+    WEBRTC_CA_RETURN_ON_ERR(AudioObjectGetPropertyData(
+        usedID, &propertyAddress, 0, NULL, &len, devName.data()));
 
-    sprintf(name, "default (%s)", devName);
+    rtc::SimpleStringBuilder ss(name);
+    ss.AppendFormat("default (%s)", devName.data());
   } else {
     if (index < numberDevices) {
       usedID = deviceIds[index];
     } else {
       usedID = index;
     }
+    UInt32 len = name.size();
 
-    WEBRTC_CA_RETURN_ON_ERR(AudioObjectGetPropertyData(usedID, &propertyAddress,
-                                                       0, NULL, &len, name));
+    WEBRTC_CA_RETURN_ON_ERR(AudioObjectGetPropertyData(
+        usedID, &propertyAddress, 0, NULL, &len, name.data()));
   }
 
   return 0;
@@ -2151,7 +2155,7 @@ OSStatus AudioDeviceMac::implDeviceIOProc(const AudioBufferList* inputData,
     }
   }
 
-  PaRingBufferSize bufSizeSamples =
+  ring_buffer_size_t bufSizeSamples =
       PaUtil_GetRingBufferReadAvailable(_paRenderBuffer);
 
   int32_t renderDelayUs =
@@ -2169,7 +2173,7 @@ OSStatus AudioDeviceMac::implDeviceIOProc(const AudioBufferList* inputData,
 OSStatus AudioDeviceMac::implOutConverterProc(UInt32* numberDataPackets,
                                               AudioBufferList* data) {
   RTC_DCHECK(data->mNumberBuffers == 1);
-  PaRingBufferSize numSamples =
+  ring_buffer_size_t numSamples =
       *numberDataPackets * _outDesiredFormat.mChannelsPerFrame;
 
   data->mBuffers->mNumberChannels = _outDesiredFormat.mChannelsPerFrame;
@@ -2220,7 +2224,7 @@ OSStatus AudioDeviceMac::implInDeviceIOProc(const AudioBufferList* inputData,
     return 0;
   }
 
-  PaRingBufferSize bufSizeSamples =
+  ring_buffer_size_t bufSizeSamples =
       PaUtil_GetRingBufferReadAvailable(_paCaptureBuffer);
 
   int32_t captureDelayUs =
@@ -2233,9 +2237,9 @@ OSStatus AudioDeviceMac::implInDeviceIOProc(const AudioBufferList* inputData,
   _captureDelayUs = captureDelayUs;
 
   RTC_DCHECK(inputData->mNumberBuffers == 1);
-  PaRingBufferSize numSamples = inputData->mBuffers->mDataByteSize *
-                                _inStreamFormat.mChannelsPerFrame /
-                                _inStreamFormat.mBytesPerPacket;
+  ring_buffer_size_t numSamples = inputData->mBuffers->mDataByteSize *
+                                  _inStreamFormat.mChannelsPerFrame /
+                                  _inStreamFormat.mBytesPerPacket;
   PaUtil_WriteRingBuffer(_paCaptureBuffer, inputData->mBuffers->mData,
                          numSamples);
 
@@ -2250,7 +2254,7 @@ OSStatus AudioDeviceMac::implInDeviceIOProc(const AudioBufferList* inputData,
 OSStatus AudioDeviceMac::implInConverterProc(UInt32* numberDataPackets,
                                              AudioBufferList* data) {
   RTC_DCHECK(data->mNumberBuffers == 1);
-  PaRingBufferSize numSamples =
+  ring_buffer_size_t numSamples =
       *numberDataPackets * _inStreamFormat.mChannelsPerFrame;
 
   while (PaUtil_GetRingBufferReadAvailable(_paCaptureBuffer) < numSamples) {
@@ -2273,7 +2277,7 @@ OSStatus AudioDeviceMac::implInConverterProc(UInt32* numberDataPackets,
 
   // Pass the read pointer directly to the converter to avoid a memcpy.
   void* dummyPtr;
-  PaRingBufferSize dummySize;
+  ring_buffer_size_t dummySize;
   PaUtil_GetRingBufferReadRegions(_paCaptureBuffer, numSamples,
                                   &data->mBuffers->mData, &numSamples,
                                   &dummyPtr, &dummySize);
@@ -2288,7 +2292,7 @@ OSStatus AudioDeviceMac::implInConverterProc(UInt32* numberDataPackets,
 }
 
 bool AudioDeviceMac::RenderWorkerThread() {
-  PaRingBufferSize numSamples =
+  ring_buffer_size_t numSamples =
       ENGINE_PLAY_BUF_SIZE_IN_SAMPLES * _outDesiredFormat.mChannelsPerFrame;
   while (PaUtil_GetRingBufferWriteAvailable(_paRenderBuffer) -
              _renderDelayOffsetSamples <
