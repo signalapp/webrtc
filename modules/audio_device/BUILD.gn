@@ -331,9 +331,6 @@ rtc_library("audio_device_impl") {
         ]
       }
       if (is_mac) {
-        # RingRTC change to avoid unneeded warnings.
-        # Don't warn about deprecated OSAtomicCompareAndSwap32Barrier().
-        cflags += [ "-Wno-deprecated-declarations" ]
         sources += [
           "mac/audio_device_mac.cc",
           "mac/audio_device_mac.h",
