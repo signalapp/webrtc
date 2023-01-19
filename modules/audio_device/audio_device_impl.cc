@@ -664,7 +664,6 @@ int32_t AudioDeviceModuleImpl::MinMicrophoneVolume(uint32_t* minVolume) const {
   return 0;
 }
 
-// RingRTC changes to add some useful logging
 int16_t AudioDeviceModuleImpl::PlayoutDevices() {
   RTC_LOG(LS_INFO) << __FUNCTION__;
   CHECKinitialized_();

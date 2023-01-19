@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "api/make_ref_counted.h"
 #include "p2p/base/basic_packet_socket_factory.h"
 #include "p2p/base/ice_credentials_iterator.h"
 #include "p2p/base/ice_gatherer.h"
@@ -218,7 +219,6 @@ class FakePortAllocatorSession : public PortAllocatorSession {
 
 class FakePortAllocator : public cricket::PortAllocator {
  public:
-  // TODO(bugs.webrtc.org/13145): Require non-null `factory`.
   FakePortAllocator(rtc::Thread* network_thread,
                     rtc::PacketSocketFactory* factory)
       : FakePortAllocator(network_thread, factory, nullptr) {}
@@ -236,7 +236,7 @@ class FakePortAllocator : public cricket::PortAllocator {
       absl::string_view ice_pwd) override {
     return new FakePortAllocatorSession(
         this, network_thread_, factory_.get(), std::string(content_name),
-        component, std::string(ice_ufrag), std::string(ice_pwd, field_trials_);
+        component, std::string(ice_ufrag), std::string(ice_pwd), field_trials_);
   }
 
   rtc::scoped_refptr<webrtc::IceGathererInterface> CreateIceGatherer(
@@ -248,7 +248,7 @@ class FakePortAllocator : public cricket::PortAllocator {
     auto session = new_allocator->CreateSession(
         content_name, 1, parameters.ufrag, parameters.pwd);
     return rtc::make_ref_counted<cricket::BasicIceGatherer>(
-        network_thread_, std::move(new_allocator), std::move(session)), field_trials_);
+        network_thread_, std::move(new_allocator), std::move(session));
   }
 
   bool initialized() const { return initialized_; }

@@ -307,11 +307,6 @@ public class FakeMediaCodecWrapper implements MediaCodecWrapper {
   }
 
   @Override
-  public MediaFormat getInputFormat() {
-    return inputFormat;
-  }
-
-  @Override
   public MediaFormat getOutputFormat() {
     return outputFormat;
   }

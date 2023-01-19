@@ -18,7 +18,6 @@
 #include <utility>
 #include <vector>
 
-#include "absl/base/attributes.h"
 #include "api/function_view.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"

@@ -1282,16 +1282,6 @@ const P2PTransportChannelMatrixTest::Result*
          LTRT},
 };
 
-class P2PTransportChannelTestWithFieldTrials
-    : public P2PTransportChannelTest,
-      public ::testing::WithParamInterface<std::string> {
- public:
-  void Test(const Result& expected) override {
-    webrtc::test::ScopedFieldTrials field_trials(GetParam());
-    P2PTransportChannelTest::Test(expected);
-  }
-};
-
 // The actual tests that exercise all the various configurations.
 // Test names are of the form P2PTransportChannelTest_TestOPENToNAT_FULL_CONE
 #define P2P_TEST_DECLARATION(x, y, z)                            \

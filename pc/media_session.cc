@@ -1657,7 +1657,7 @@ std::unique_ptr<SessionDescription> MediaSessionDescriptionFactory::CreateOffer(
                   session_options.media_description_options.size());
   }
 
-  // RingRTC change to configure OPUS
+  // RingRTC change to add ICE forking
   IceCredentialsIterator ice_credentials(session_options.ice_credentials);
 
   std::vector<const ContentInfo*> current_active_contents;
@@ -1795,7 +1795,7 @@ MediaSessionDescriptionFactory::CreateAnswer(
   RTC_DCHECK_EQ(offer->contents().size(),
                 session_options.media_description_options.size());
 
-  // RingRTC change to configure OPUS
+  // RingRTC change to add ICE forking
   IceCredentialsIterator ice_credentials(session_options.ice_credentials);
 
   std::vector<const ContentInfo*> current_active_contents;

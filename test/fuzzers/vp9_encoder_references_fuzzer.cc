@@ -34,8 +34,6 @@ using test::FuzzDataHelper;
 
 constexpr int kBitrateEnabledBps = 100'000;
 
-constexpr int kBitrateEnabledBps = 100'000;
-
 class FrameValidator : public EncodedImageCallback {
  public:
   ~FrameValidator() override = default;

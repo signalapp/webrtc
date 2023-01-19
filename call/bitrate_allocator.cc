@@ -380,7 +380,6 @@ void BitrateAllocator::OnNetworkEstimateChanged(TargetTransferRate msg) {
   RTC_DCHECK_RUN_ON(&sequenced_checker_);
   last_target_bps_ = msg.target_rate.bps();
   last_stable_target_bps_ = msg.stable_target_rate.bps();
-
   last_non_zero_bitrate_bps_ =
       last_target_bps_ > 0 ? last_target_bps_ : last_non_zero_bitrate_bps_;
 
