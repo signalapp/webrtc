@@ -204,6 +204,7 @@ class EventLogger final {
     RTC_CHECK(g_event_logging_active.compare_exchange_strong(zero, 1));
 
     // Finally start, everything should be set up now.
+    // RingRTC change to keep the tracing thread priority low
     logging_thread_ =
         PlatformThread::SpawnJoinable([this] { Log(); }, "EventTracingThread", 
                         ThreadAttributes().SetPriority(ThreadPriority::kLow));

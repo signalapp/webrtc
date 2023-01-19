@@ -30,11 +30,6 @@ std::unique_ptr<ScalableVideoController> CreateScalabilityStructure(
 absl::optional<ScalableVideoController::StreamLayersConfig>
 ScalabilityStructureConfig(ScalabilityMode name);
 
-// Returns descrption of the scalability structure identified by 'name',
-// Return nullopt for unknown name.
-absl::optional<ScalableVideoController::StreamLayersConfig>
-ScalabilityStructureConfig(absl::string_view name);
-
 }  // namespace webrtc
 
 #endif  // MODULES_VIDEO_CODING_SVC_CREATE_SCALABILITY_STRUCTURE_H_

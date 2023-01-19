@@ -292,8 +292,6 @@ class DcSctpSocket : public DcSctpSocketInterface {
   State state_ = State::kClosed;
   // If the connection is established, contains a transmission control block.
   std::unique_ptr<TransmissionControlBlock> tcb_;
-
-  SctpImplementation peer_implementation_ = SctpImplementation::kUnknown;
 };
 }  // namespace dcsctp
 

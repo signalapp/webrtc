@@ -585,12 +585,10 @@ WebRtcVoiceEngine::GetRtpHeaderExtensions() const {
   std::vector<webrtc::RtpHeaderExtensionCapability> result;
   int id = 1;
   // RingRTC change to disable unused header extensions
-  for (const auto& uri :
-       {// webrtc::RtpExtension::kAudioLevelUri,
-        webrtc::RtpExtension::kAbsSendTimeUri,
-        webrtc::RtpExtension::kTransportSequenceNumberUri,
-        webrtc::RtpExtension::kMidUri,
-        }) {
+  for (const auto& uri : {// webrtc::RtpExtension::kAudioLevelUri,
+                          webrtc::RtpExtension::kAbsSendTimeUri,
+                          webrtc::RtpExtension::kTransportSequenceNumberUri,
+                          webrtc::RtpExtension::kMidUri}) {
     result.emplace_back(uri, id++, webrtc::RtpTransceiverDirection::kSendRecv);
   }
   return result;

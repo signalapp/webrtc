@@ -113,12 +113,11 @@ std::string RtpDemuxer::DescribePacket(const RtpPacketReceived& packet) {
 RtpDemuxer::RtpDemuxer(bool use_mid /* = true*/) : use_mid_(use_mid) {}
 
 RtpDemuxer::~RtpDemuxer() {
-  // RingRTC change to avoid spurious crashes
-  // RTC_DCHECK(sink_by_mid_.empty());
-  // RTC_DCHECK(sink_by_ssrc_.empty());
-  // RTC_DCHECK(sinks_by_pt_.empty());
-  // RTC_DCHECK(sink_by_mid_and_rsid_.empty());
-  // RTC_DCHECK(sink_by_rsid_.empty());
+  RTC_DCHECK(sink_by_mid_.empty());
+  RTC_DCHECK(sink_by_ssrc_.empty());
+  RTC_DCHECK(sinks_by_pt_.empty());
+  RTC_DCHECK(sink_by_mid_and_rsid_.empty());
+  RTC_DCHECK(sink_by_rsid_.empty());
 }
 
 bool RtpDemuxer::AddSink(const RtpDemuxerCriteria& criteria,

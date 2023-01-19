@@ -100,6 +100,9 @@ enum class IceRegatheringReason {
   MAX_VALUE
 };
 
+// RingRTC change to avoid incorrect use of flag (enable for test builds)
+//const uint32_t kDefaultPortAllocatorFlags = 0;
+
 const uint32_t kDefaultStepDelay = 1000;  // 1 sec step delay.
 // As per RFC 5245 Appendix B.1, STUN transactions need to be paced at certain
 // internal. Less than 20ms is not acceptable. We choose 50ms as our default.

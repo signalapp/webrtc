@@ -750,8 +750,6 @@ bool SocketDispatcher::IsDescriptorClosed() {
         return true;
       // The normal blocking error; don't log anything.
       case EWOULDBLOCK:
-      // Interrupted system call.
-      case EINTR:
         return false;
       default:
         // Assume that all other errors are just blocking errors, meaning the

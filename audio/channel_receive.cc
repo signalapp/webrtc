@@ -713,9 +713,8 @@ void ChannelReceive::ReceivePacket(const uint8_t* packet,
     payload = decrypted_audio_payload.data();
     payload_data_length = decrypted_audio_payload.size();
   } else if (crypto_options_.sframe.require_frame_encryption) {
-    // RingRTC change to avoid spurious log.
-    // RTC_DLOG(LS_ERROR)
-    //     << "FrameDecryptor required but not set, dropping packet";
+    RTC_DLOG(LS_ERROR)
+        << "FrameDecryptor required but not set, dropping packet";
     payload_data_length = 0;
   }
 
