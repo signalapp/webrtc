@@ -133,6 +133,19 @@ RUSTEXPORT void Rust_convertVideoFrameBufferToRgba(const VideoFrameBuffer* buffe
       i420->width(), i420->height());
 }
 
+RUSTEXPORT const uint8_t *Rust_getVideoFrameBufferAsI420(const VideoFrameBuffer* buffer_borrowed_rc) {
+  const I420BufferInterface* i420 = buffer_borrowed_rc->GetI420();
+  if (!i420) {
+    return nullptr;
+  }
+  // Returning a single pointer only makes sense if the planes are stored contiguously.
+  const uint8_t *dataY = i420->DataY();
+  const uint8_t *dataY_end = dataY + i420->height() * i420->width();
+  if (dataY_end != i420->DataU()) {
+    return nullptr;
+  }
+  return dataY;
+}
 // Returns an owned RC.
 RUSTEXPORT VideoFrameBuffer* Rust_copyAndRotateVideoFrameBuffer(
     const VideoFrameBuffer* buffer_borrowed_rc, VideoRotation rotation) {
