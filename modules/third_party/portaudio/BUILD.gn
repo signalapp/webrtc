@@ -10,9 +10,6 @@ import("../../../webrtc.gni")
 
 rtc_library("mac_portaudio") {
   visibility = [ "../../audio_device:*" ]
-  # RingRTC change to avoid warnings
-  # Don't warn about deprecated OSMemoryBarrier().
-  cflags = [ "-Wno-deprecated-declarations" ]
   sources = [
     "pa_memorybarrier.h",
     "pa_ringbuffer.c",
