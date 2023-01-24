@@ -213,10 +213,8 @@ public class HardwareVideoEncoderFactory implements VideoEncoderFactory {
     return name.startsWith(QCOM_PREFIX)
         // Exynos VP8 encoder is supported in M or later.
         || (name.startsWith(EXYNOS_PREFIX) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
-        // RingRTC change (or retention?) to keep support for SDK >= 19
-        // Intel Vp8 encoder is supported in LOLLIPOP or later, with the intel encoder enabled.
-        || (name.startsWith(INTEL_PREFIX) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP
-               && enableIntelVp8Encoder);
+        // Intel Vp8 encoder is always supported, with the intel encoder enabled.
+        || (name.startsWith(INTEL_PREFIX) && enableIntelVp8Encoder);
   }
 
   private boolean isHardwareSupportedInCurrentSdkVp9(MediaCodecInfo info) {
@@ -233,12 +231,7 @@ public class HardwareVideoEncoderFactory implements VideoEncoderFactory {
     }
     String name = info.getName();
     // QCOM and Exynos H264 encoders are always supported.
-    // RingRTC change (or retention?) to keep support for SDK >= 19
-    return name.startsWith(QCOM_PREFIX) 
-        // Exynos H264 encoder is supported in LOLLIPOP or later.
-        || (name.startsWith(EXYNOS_PREFIX)
-               && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP);
-
+    return name.startsWith(QCOM_PREFIX) || name.startsWith(EXYNOS_PREFIX);
   }
 
   private boolean isMediaCodecAllowed(MediaCodecInfo info) {
@@ -250,9 +243,7 @@ public class HardwareVideoEncoderFactory implements VideoEncoderFactory {
 
   private int getForcedKeyFrameIntervalMs(VideoCodecMimeType type, String codecName) {
     if (type == VideoCodecMimeType.VP8 && codecName.startsWith(QCOM_PREFIX)) {
-      // RingRTC change (or retention?) to keep support for SDK >= 19
-      if (Build.VERSION.SDK_INT == Build.VERSION_CODES.LOLLIPOP
-          || Build.VERSION.SDK_INT == Build.VERSION_CODES.LOLLIPOP_MR1) {
+      if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
         return QCOM_VP8_KEY_FRAME_INTERVAL_ANDROID_L_MS;
       }
       if (Build.VERSION.SDK_INT == Build.VERSION_CODES.M) {

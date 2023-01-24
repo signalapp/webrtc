@@ -487,8 +487,7 @@ public class NetworkMonitorAutoDetect extends BroadcastReceiver implements Netwo
     }
 
     public boolean supportNetworkCallback() {
-      // RingRTC change to keep support for SDK >= 19
-      return Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && connectivityManager != null;
+      return connectivityManager != null;
     }
   }
 

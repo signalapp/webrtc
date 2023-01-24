@@ -13,8 +13,6 @@ package org.webrtc;
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo.CodecCapabilities;
 import android.media.MediaFormat;
-// RingRTC change (or ... retention?) to keep support for SDK >= 19.
-import android.os.Build;
 import android.os.SystemClock;
 import android.view.Surface;
 import androidx.annotation.Nullable;

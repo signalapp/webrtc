@@ -65,9 +65,8 @@ default_args = {
 
   gtest_enable_absl_printers = true
 
-  # RingRTC change to support SDK >= 19.
-  # Differently from Chromium, WebRTC still support SDK 19.
-  default_min_sdk_version = 19
+  # Differently from Chromium, WebRTC still support SDK 21.
+  default_min_sdk_version = 21
 
   # Prevent jsoncpp to pass -Wno-deprecated-declarations to users
   jsoncpp_no_deprecated_declarations = false

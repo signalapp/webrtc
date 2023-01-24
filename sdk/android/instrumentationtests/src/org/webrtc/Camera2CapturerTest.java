@@ -28,7 +28,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-@TargetApi(21)
 public class Camera2CapturerTest {
   static final String TAG = "Camera2CapturerTest";
 
