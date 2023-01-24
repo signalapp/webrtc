@@ -14,8 +14,6 @@ import android.media.MediaCodec;
 import android.media.MediaCodec.BufferInfo;
 import android.media.MediaCrypto;
 import android.media.MediaFormat;
-// RingRTC change (or ... retention?) to keep support for SDK >= 19.
-import android.os.Build;
 import android.os.Bundle;
 import android.view.Surface;
 import java.io.IOException;
@@ -91,20 +89,12 @@ class MediaCodecWrapperFactoryImpl implements MediaCodecWrapperFactory {
 
     @Override
     public ByteBuffer getInputBuffer(int index) {
-      // RingRTC change (or ... retention?) to keep support for SDK >= 19.
-      return Build.VERSION.SDK_INT >= 21 ? mediaCodec.getInputBuffer(index) : mediaCodec.getInputBuffers()[index];
+      return mediaCodec.getInputBuffer(index);
     }
 
     @Override
     public ByteBuffer getOutputBuffer(int index) {
-      // RingRTC change (or ... retention?) to keep support for SDK >= 19.
-      return Build.VERSION.SDK_INT >= 21 ? mediaCodec.getOutputBuffer(index) : mediaCodec.getOutputBuffers()[index];
-    }
-
-    // RingRTC change (or ... retention?) to keep support for SDK >= 19.
-    @Override
-    public ByteBuffer[] getOutputBuffers() {
-      return mediaCodec.getOutputBuffers();
+      return mediaCodec.getOutputBuffer(index);
     }
 
     @Override

@@ -43,11 +43,9 @@ class EglBase14Impl implements EglBase14 {
       return egl14Context;
     }
 
-    // RingRTC change to keep support for SDK >= 19
     @Override
     public long getNativeEglContext() {
-      return Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP ? egl14Context.getNativeHandle()
-                                                                   : egl14Context.getHandle();
+      return egl14Context.getNativeHandle();
     }
 
     public Context(android.opengl.EGLContext eglContext) {

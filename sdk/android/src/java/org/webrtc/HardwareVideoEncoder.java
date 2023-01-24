@@ -29,7 +29,6 @@ import org.webrtc.ThreadUtils.ThreadChecker;
 /**
  * Android hardware video encoder.
  */
-@SuppressWarnings("deprecation") // Cannot support API level 19 without using deprecated methods.
 class HardwareVideoEncoder implements VideoEncoder {
   private static final String TAG = "HardwareVideoEncoder";
 
@@ -133,8 +132,6 @@ class HardwareVideoEncoder implements VideoEncoder {
 
   // --- Valid and immutable while an encoding session is running.
   @Nullable private MediaCodecWrapper codec;
-  // RingRTC change (or ... retention?) to keep support for SDK >= 19.
-  @Nullable private ByteBuffer[] outputBuffers;
   // Thread that delivers encoded frames to the user callback.
   @Nullable private Thread outputThread;
 
@@ -286,10 +283,6 @@ class HardwareVideoEncoder implements VideoEncoder {
       stride = getStride(inputFormat, width);
       sliceHeight = getSliceHeight(inputFormat, height);
 
-      // RingRTC change (or ... retention?) to keep support for SDK >= 19.
-      if (Build.VERSION.SDK_INT < 21) {
-        outputBuffers = codec.getOutputBuffers();
-      }
       codec.start();
     } catch (IllegalStateException e) {
       Logging.e(TAG, "initEncodeInternal failed", e);
@@ -340,8 +333,6 @@ class HardwareVideoEncoder implements VideoEncoder {
     outputBuilders.clear();
 
     codec = null;
-    // RingRTC change (or ... retention?) to keep support for SDK >= 19.
-    outputBuffers = null;
     outputThread = null;
 
     // Allow changing thread after release.
@@ -588,16 +579,11 @@ class HardwareVideoEncoder implements VideoEncoder {
       if (index < 0) {
         if (index == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
           outputBuffersBusyCount.waitForZero();
-          // RingRTC change (or ... retention?) to keep support for SDK >= 19.
-          if (Build.VERSION.SDK_INT < 21) {
-            outputBuffers = codec.getOutputBuffers();
-          }
         }
         return;
       }
 
-      // RingRTC change (or ... retention?) to keep support for SDK >= 19.
-      ByteBuffer codecOutputBuffer = Build.VERSION.SDK_INT >= 21 ? codec.getOutputBuffer(index) : outputBuffers[index];
+      ByteBuffer codecOutputBuffer = codec.getOutputBuffer(index);
       codecOutputBuffer.position(info.offset);
       codecOutputBuffer.limit(info.offset + info.size);
 
