@@ -39,7 +39,7 @@ typedef struct {
   void (*onIceCandidate)(void* observer_borrowed, const RustIceCandidate* candidate_borrowed);
   void (*onIceCandidatesRemoved)(void* observer_borrowed, const webrtc::rffi::IpPort* addresses_borrowed, size_t);
   void (*onIceConnectionChange)(void* observer_borrowed, webrtc::PeerConnectionInterface::IceConnectionState);
-  void (*onIceNetworkRouteChange)(void* observer_borrowed, webrtc::rffi::NetworkRoute);
+  void (*onIceNetworkRouteChange)(void* observer_borrowed, webrtc::rffi::NetworkRoute, const char* local_description_borrowed, const char* remote_description_borrowed);
 
   // Media events
   void (*onAddStream)(void* observer_borrowed, webrtc::MediaStreamInterface* stream_owned_rc);
