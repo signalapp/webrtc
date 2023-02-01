@@ -216,8 +216,15 @@ PeerConnectionFactory::CreatePeerConnectionOrError(
     dependencies.allocator->SetPortRange(
         configuration.port_allocator_config.min_port,
         configuration.port_allocator_config.max_port);
+
+    // RingRTC change to control whether PORTALLOCATOR_ENABLE_ANY_ADDRESS_PORTS
+    // is enabled.
+    uint32_t port_allocator_flags = configuration.port_allocator_config.flags;
+    if (trials->IsEnabled("RingRTC-AnyAddressPortsKillSwitch")) {
+      port_allocator_flags &= ~cricket::PORTALLOCATOR_ENABLE_ANY_ADDRESS_PORTS;
+    }
     dependencies.allocator->set_flags(
-        configuration.port_allocator_config.flags);
+        port_allocator_flags);
   }
 
   if (!dependencies.async_resolver_factory) {
