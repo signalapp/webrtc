@@ -9,6 +9,8 @@
 #include "rffi/src/peer_connection_observer.h"
 #include "rffi/src/ptr.h"
 
+#include "pc/webrtc_sdp.h"
+
 namespace webrtc {
 namespace rffi {
 
@@ -104,7 +106,8 @@ void PeerConnectionObserverRffi::OnIceSelectedCandidatePairChanged(
   }
   bool remote_relayed = (remote.type() == cricket::RELAY_PORT_TYPE);
   auto network_route = webrtc::rffi::NetworkRoute{ local_adapter_type, local_adapter_type_under_vpn, local_relayed, local_relay_protocol, remote_relayed};
-  callbacks_.onIceNetworkRouteChange(observer_, network_route, local.ToString().c_str(), remote.ToString().c_str());
+
+  callbacks_.onIceNetworkRouteChange(observer_, network_route, SdpSerializeCandidate(local).c_str(), SdpSerializeCandidate(remote).c_str());
 }
 
 void PeerConnectionObserverRffi::OnIceGatheringChange(
