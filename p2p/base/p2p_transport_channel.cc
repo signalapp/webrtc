@@ -2083,6 +2083,16 @@ void P2PTransportChannel::SwitchSelectedConnectionInternal(
     if (old_selected_connection) {
       RTC_LOG(LS_INFO) << ToString() << ": Previous selected connection: "
                        << old_selected_connection->ToString();
+
+      // RingRTC change to see reason for connection switch.
+      RTC_LOG(LS_WARNING) << "Previous selected connection: is_receiving="
+        << old_selected_connection->receiving()
+        << ", write_state=" << old_selected_connection->write_state()
+        << ", rtt=" << old_selected_connection->rtt() << "ms"
+        << ". New selected connection: is_receiving="
+        << selected_connection_->receiving()
+        << ", write_state=" << selected_connection_->write_state()
+        << ", rtt=" << selected_connection_->rtt() << "ms";
     }
     RTC_LOG(LS_INFO) << ToString() << ": New selected connection: "
                      << selected_connection_->ToString();
