@@ -2125,12 +2125,19 @@ PeerConnection::InitializePortAllocator_n(
   for (auto& turn_server : turn_servers_copy) {
     turn_server.tls_cert_verifier = tls_cert_verifier_.get();
   }
+
+  // RingRTC change to control TURN port pruning.
+  auto turn_port_prune_policy = configuration.GetTurnPortPrunePolicy();
+  if (trials().IsEnabled("RingRTC-PruneTurnPorts")) {
+    turn_port_prune_policy = webrtc::KEEP_FIRST_READY;
+  }
+
   // Call this last since it may create pooled allocator sessions using the
   // properties set above.
   port_allocator_->SetConfiguration(
       stun_servers, std::move(turn_servers_copy),
       configuration.ice_candidate_pool_size,
-      configuration.GetTurnPortPrunePolicy(), configuration.turn_customizer,
+      turn_port_prune_policy, configuration.turn_customizer,
       configuration.stun_candidate_keepalive_interval);
 
   InitializePortAllocatorResult res;
