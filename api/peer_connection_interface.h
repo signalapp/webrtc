@@ -95,6 +95,7 @@
 #include "api/ice_gatherer_interface.h"
 #include "api/ice_transport_interface.h"
 #include "api/jsep.h"
+#include "api/legacy_stats_types.h"
 #include "api/media_stream_interface.h"
 #include "api/media_types.h"
 #include "api/metronome/metronome.h"
@@ -113,7 +114,6 @@
 #include "api/set_local_description_observer_interface.h"
 #include "api/set_remote_description_observer_interface.h"
 #include "api/stats/rtc_stats_collector_callback.h"
-#include "api/stats_types.h"
 #include "api/task_queue/task_queue_factory.h"
 #include "api/transport/bitrate_settings.h"
 #include "api/transport/enums.h"
@@ -434,11 +434,6 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
     // default will be used.
     //////////////////////////////////////////////////////////////////////////
 
-    // If set to true, don't gather IPv6 ICE candidates.
-    // TODO(https://crbug.com/1315576): Remove the ability to set it in Chromium
-    // and delete this flag.
-    bool disable_ipv6 = false;
-
     // If set to true, don't gather IPv6 ICE candidates on Wi-Fi.
     // Only intended to be used on specific devices. Certain phones disable IPv6
     // when the screen is turned off and it would be better to just disable the
@@ -702,6 +697,9 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
 
     PortAllocatorConfig port_allocator_config;
 
+    // The burst interval of the pacer, see TaskQueuePacedSender constructor.
+    absl::optional<TimeDelta> pacer_burst_interval;
+
     //
     // Don't forget to update operator== if adding something.
     //
@@ -812,6 +810,16 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
   virtual RTCErrorOr<rtc::scoped_refptr<RtpSenderInterface>> AddTrack(
       rtc::scoped_refptr<MediaStreamTrackInterface> track,
       const std::vector<std::string>& stream_ids) = 0;
+
+  // Add a new MediaStreamTrack as above, but with an additional parameter,
+  // `init_send_encodings` : initial RtpEncodingParameters for RtpSender,
+  // similar to init_send_encodings in RtpTransceiverInit.
+  // Note that a new transceiver will always be created.
+  //
+  virtual RTCErrorOr<rtc::scoped_refptr<RtpSenderInterface>> AddTrack(
+      rtc::scoped_refptr<MediaStreamTrackInterface> track,
+      const std::vector<std::string>& stream_ids,
+      const std::vector<RtpEncodingParameters>& init_send_encodings) = 0;
 
   // Removes the connection between a MediaStreamTrack and the PeerConnection.
   // Stops sending on the RtpSender and marks the

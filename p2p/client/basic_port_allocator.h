@@ -83,7 +83,7 @@ class RTC_EXPORT BasicPortAllocator : public PortAllocator {
       const std::string& content_name) override;
 
   // Convenience method that adds a TURN server to the configuration.
-  void AddTurnServer(const RelayServerConfig& turn_server);
+  void AddTurnServerForTesting(const RelayServerConfig& turn_server);
 
   RelayPortFactoryInterface* relay_port_factory() {
     CheckRunOnValidThreadIfInitialized();
@@ -390,11 +390,9 @@ class AllocationSequence : public sigslot::has_slots<> {
   void Start();
   void Stop();
 
- protected:
-  // For testing.
-  void CreateTurnPort(const RelayServerConfig& config);
-
  private:
+  void CreateTurnPort(const RelayServerConfig& config, int relative_priority);
+
   typedef std::vector<ProtocolType> ProtocolList;
 
   void Process(int epoch);

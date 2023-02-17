@@ -57,16 +57,17 @@ class LossBasedBweV2 {
   bool IsReady() const;
 
   // Returns `DataRate::PlusInfinity` if no BWE can be calculated.
-  Result GetLossBasedResult(DataRate delay_based_limit) const;
+  Result GetLossBasedResult() const;
 
   void SetAcknowledgedBitrate(DataRate acknowledged_bitrate);
   void SetBandwidthEstimate(DataRate bandwidth_estimate);
-  void SetMinBitrate(DataRate min_bitrate);
+  void SetMinMaxBitrate(DataRate min_bitrate, DataRate max_bitrate);
   void UpdateBandwidthEstimate(
       rtc::ArrayView<const PacketResult> packet_results,
       DataRate delay_based_estimate,
       BandwidthUsage delay_detector_state,
-      absl::optional<DataRate> probe_bitrate);
+      absl::optional<DataRate> probe_bitrate,
+      DataRate upper_link_capacity);
 
  private:
   struct ChannelParameters {
@@ -110,6 +111,7 @@ class LossBasedBweV2 {
     DataRate bandwidth_cap_at_high_loss_rate = DataRate::MinusInfinity();
     double slope_of_bwe_high_loss_func = 1000.0;
     bool probe_integration_enabled = false;
+    bool bound_by_upper_link_capacity_when_loss_limited = false;
   };
 
   struct Derivatives {
@@ -139,9 +141,8 @@ class LossBasedBweV2 {
 
   // Returns `0.0` if not enough loss statistics have been received.
   double GetAverageReportedLossRatio() const;
-  std::vector<ChannelParameters> GetCandidates(
-      DataRate delay_based_estimate) const;
-  DataRate GetCandidateBandwidthUpperBound(DataRate delay_based_estimate) const;
+  std::vector<ChannelParameters> GetCandidates() const;
+  DataRate GetCandidateBandwidthUpperBound() const;
   Derivatives GetDerivatives(const ChannelParameters& channel_parameters) const;
   double GetFeasibleInherentLoss(
       const ChannelParameters& channel_parameters) const;
@@ -190,8 +191,11 @@ class LossBasedBweV2 {
   Timestamp recovering_after_loss_timestamp_ = Timestamp::MinusInfinity();
   DataRate bandwidth_limit_in_current_window_ = DataRate::PlusInfinity();
   DataRate min_bitrate_ = DataRate::KilobitsPerSec(1);
+  DataRate max_bitrate_ = DataRate::PlusInfinity();
   LossBasedState current_state_ = LossBasedState::kDelayBasedEstimate;
   DataRate probe_bitrate_ = DataRate::PlusInfinity();
+  DataRate delay_based_estimate_ = DataRate::PlusInfinity();
+  DataRate upper_link_capacity_ = DataRate::PlusInfinity();
 };
 
 }  // namespace webrtc

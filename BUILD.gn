@@ -47,6 +47,7 @@ if (!build_with_chromium) {
     }
     if (rtc_include_tests) {
       deps += [
+        ":fuchsia_perf_tests",
         ":rtc_unittests",
         ":video_engine_tests",
         ":voip_unittests",
@@ -105,6 +106,9 @@ if (!build_with_chromium) {
           "logging:rtc_event_log_rtp_dump",
           "tools_webrtc/perf:webrtc_dashboard_upload",
         ]
+      }
+      if ((is_linux || is_chromeos) && rtc_use_pipewire) {
+        deps += [ "modules/desktop_capture:shared_screencast_stream_test" ]
       }
     }
     if (target_os == "android") {
@@ -268,6 +272,12 @@ config("common_config") {
     defines += [ "WEBRTC_ENABLE_PROTOBUF=1" ]
   } else {
     defines += [ "WEBRTC_ENABLE_PROTOBUF=0" ]
+  }
+
+  if (rtc_strict_field_trials) {
+    defines += [ "WEBRTC_STRICT_FIELD_TRIALS=1" ]
+  } else {
+    defines += [ "WEBRTC_STRICT_FIELD_TRIALS=0" ]
   }
 
   if (rtc_include_internal_audio_device) {
@@ -717,6 +727,22 @@ if (rtc_include_tests && !build_with_chromium) {
     if (is_ios) {
       deps += [ ":webrtc_perf_tests_bundle_data" ]
     }
+  }
+
+  rtc_test("fuchsia_perf_tests") {
+    testonly = true
+    deps = [
+      #TODO(fxbug.dev/115601) - Enable when fixed
+      #"call:call_perf_tests",
+      #"video:video_pc_full_stack_tests",
+      "modules/audio_coding:audio_coding_perf_tests",
+      "modules/audio_processing:audio_processing_perf_tests",
+      "pc:peerconnection_perf_tests",
+      "test:test_main",
+      "video:video_full_stack_tests",
+    ]
+
+    data = webrtc_perf_tests_resources
   }
 
   rtc_test("webrtc_nonparallel_tests") {

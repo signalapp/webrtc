@@ -17,6 +17,7 @@
 #include "common_audio/include/audio_util.h"
 #include "modules/audio_processing/agc/gain_control.h"
 #include "modules/audio_processing/agc2/gain_map_internal.h"
+#include "modules/audio_processing/agc2/input_volume_stats_reporter.h"
 #include "modules/audio_processing/include/audio_frame_view.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
@@ -85,10 +86,6 @@ absl::optional<int> GetMinMicLevelOverride() {
                         << kMinMicLevelFieldTrial << ", ignored.";
     return absl::nullopt;
   }
-}
-
-int ClampLevel(int mic_level, int min_mic_level) {
-  return rtc::SafeClamp(mic_level, min_mic_level, kMaxMicLevel);
 }
 
 int LevelFromGainError(int gain_error, int level, int min_mic_level) {
@@ -164,7 +161,6 @@ int GetSpeechLevelErrorDb(float speech_level_dbfs, float speech_probability) {
 }  // namespace
 
 MonoAgc::MonoAgc(ApmDataDumper* data_dumper,
-                 int startup_min_level,
                  int clipped_level_min,
                  bool disable_digital_adaptive,
                  int min_mic_level)
@@ -176,7 +172,6 @@ MonoAgc::MonoAgc(ApmDataDumper* data_dumper,
       target_compression_(kDefaultCompressionGain),
       compression_(target_compression_),
       compression_accumulator_(compression_),
-      startup_min_level_(ClampLevel(startup_min_level, min_mic_level_)),
       clipped_level_min_(clipped_level_min) {}
 
 MonoAgc::~MonoAgc() = default;
@@ -347,9 +342,8 @@ int MonoAgc::CheckVolumeAndReset() {
   }
   RTC_DLOG(LS_INFO) << "[agc] Initial GetMicVolume()=" << level;
 
-  int minLevel = startup_ ? startup_min_level_ : min_mic_level_;
-  if (level < minLevel) {
-    level = minLevel;
+  if (level < min_mic_level_) {
+    level = min_mic_level_;
     RTC_DLOG(LS_INFO) << "[agc] Initial volume too low, raising to " << level;
     recommended_input_volume_ = level;
   }
@@ -414,22 +408,12 @@ void MonoAgc::UpdateGain(int rms_error_db) {
   int old_level = level_;
   SetLevel(LevelFromGainError(residual_gain, level_, min_mic_level_));
   if (old_level != level_) {
-    // level_ was updated by SetLevel; log the new value.
-    RTC_HISTOGRAM_COUNTS_LINEAR("WebRTC.Audio.AgcSetLevel", level_, 1,
-                                kMaxMicLevel, 50);
     // Reset the AGC since the level has changed.
     agc_->Reset();
   }
 }
 
 void MonoAgc::UpdateCompressor() {
-  calls_since_last_gain_log_++;
-  if (calls_since_last_gain_log_ == 100) {
-    calls_since_last_gain_log_ = 0;
-    RTC_HISTOGRAM_COUNTS_LINEAR("WebRTC.Audio.Agc.DigitalGainApplied",
-                                compression_, 0, kMaxCompressionGain,
-                                kMaxCompressionGain + 1);
-  }
   if (compression_ == target_compression_) {
     return;
   }
@@ -454,9 +438,6 @@ void MonoAgc::UpdateCompressor() {
 
   // Set the new compression gain.
   if (new_compression != compression_) {
-    RTC_HISTOGRAM_COUNTS_LINEAR("WebRTC.Audio.Agc.DigitalGainUpdated",
-                                new_compression, 0, kMaxCompressionGain,
-                                kMaxCompressionGain + 1);
     compression_ = new_compression;
     compression_accumulator_ = new_compression;
     new_compression_to_set_ = compression_;
@@ -504,15 +485,12 @@ AgcManagerDirect::AgcManagerDirect(int num_capture_channels,
                    << " (overridden: "
                    << (min_mic_level_override_.has_value() ? "yes" : "no")
                    << ")";
-  RTC_LOG(LS_INFO) << "[agc] Startup min volume: "
-                   << analog_config.startup_min_volume;
   for (size_t ch = 0; ch < channel_agcs_.size(); ++ch) {
     ApmDataDumper* data_dumper_ch = ch == 0 ? data_dumper_.get() : nullptr;
 
     channel_agcs_[ch] = std::make_unique<MonoAgc>(
-        data_dumper_ch, analog_config.startup_min_volume,
-        analog_config.clipped_level_min, disable_digital_adaptive_,
-        min_mic_level);
+        data_dumper_ch, analog_config.clipped_level_min,
+        disable_digital_adaptive_, min_mic_level);
   }
   RTC_DCHECK(!channel_agcs_.empty());
   RTC_DCHECK_GT(clipped_level_step_, 0);
@@ -647,6 +625,7 @@ void AgcManagerDirect::Process(const AudioBuffer& audio_buffer,
                                absl::optional<float> speech_probability,
                                absl::optional<float> speech_level_dbfs) {
   AggregateChannelLevels();
+  const int volume_after_clipping_handling = recommended_input_volume_;
 
   if (!capture_output_used_) {
     return;
@@ -669,6 +648,12 @@ void AgcManagerDirect::Process(const AudioBuffer& audio_buffer,
   }
 
   AggregateChannelLevels();
+  if (volume_after_clipping_handling != recommended_input_volume_) {
+    // The recommended input volume was adjusted in order to match the target
+    // level.
+    UpdateHistogramOnRecommendedInputVolumeChangeToMatchTarget(
+        recommended_input_volume_);
+  }
 }
 
 absl::optional<int> AgcManagerDirect::GetDigitalComressionGain() {

@@ -112,6 +112,7 @@ class FakePortAllocatorSession : public PortAllocatorSession {
         field_trials_(field_trials) {
     ipv4_network_.AddIP(rtc::IPAddress(INADDR_LOOPBACK));
     ipv6_network_.AddIP(rtc::IPAddress(in6addr_loopback));
+    set_ice_tiebreaker(/*kTiebreakerDefault = */ 44444);
   }
 
   void SetCandidateFilter(uint32_t filter) override {
@@ -128,6 +129,7 @@ class FakePortAllocatorSession : public PortAllocatorSession {
                                       username(), password(), false,
                                       &field_trials_));
       RTC_DCHECK(port_);
+      port_->SetIceTiebreaker(ice_tiebreaker());
       // RingRTC change to support ICE forking
       port_->SignalDestroyed.connect(this, &FakePortAllocatorSession::OnPortDestroyed);
       AddPort(port_.get());

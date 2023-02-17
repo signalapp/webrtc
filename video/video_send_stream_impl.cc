@@ -300,6 +300,11 @@ VideoSendStreamImpl::VideoSendStreamImpl(
 VideoSendStreamImpl::~VideoSendStreamImpl() {
   RTC_DCHECK_RUN_ON(&thread_checker_);
   RTC_LOG(LS_INFO) << "~VideoSendStreamImpl: " << config_->ToString();
+  // TODO(webrtc:14502): Change `transport_queue_safety_` to be of type
+  // ScopedTaskSafety if experiment WebRTC-SendPacketsOnWorkerThread succeed.
+  if (rtp_transport_queue_->IsCurrent()) {
+    transport_queue_safety_->SetNotAlive();
+  }
 }
 
 void VideoSendStreamImpl::DeliverRtcp(const uint8_t* packet, size_t length) {
@@ -307,34 +312,20 @@ void VideoSendStreamImpl::DeliverRtcp(const uint8_t* packet, size_t length) {
   rtp_video_sender_->DeliverRtcp(packet, length);
 }
 
-void VideoSendStreamImpl::UpdateActiveSimulcastLayers(
+void VideoSendStreamImpl::StartPerRtpStream(
     const std::vector<bool> active_layers) {
   RTC_DCHECK_RUN_ON(rtp_transport_queue_);
   bool previously_active = rtp_video_sender_->IsActive();
   rtp_video_sender_->SetActiveModules(active_layers);
   if (!rtp_video_sender_->IsActive() && previously_active) {
-    // Payload router switched from active to inactive.
     StopVideoSendStream();
   } else if (rtp_video_sender_->IsActive() && !previously_active) {
-    // Payload router switched from inactive to active.
     StartupVideoSendStream();
   }
 }
 
-void VideoSendStreamImpl::Start() {
-  RTC_DCHECK_RUN_ON(rtp_transport_queue_);
-  RTC_LOG(LS_INFO) << "VideoSendStream::Start";
-  if (rtp_video_sender_->IsActive())
-    return;
-
-  TRACE_EVENT_INSTANT0("webrtc", "VideoSendStream::Start");
-  rtp_video_sender_->SetActive(true);
-  StartupVideoSendStream();
-}
-
 void VideoSendStreamImpl::StartupVideoSendStream() {
   RTC_DCHECK_RUN_ON(rtp_transport_queue_);
-
   transport_queue_safety_->SetAlive();
 
   bitrate_allocator_->AddObserver(this, GetAllocationConfig());
@@ -374,7 +365,7 @@ void VideoSendStreamImpl::Stop() {
 
   RTC_DCHECK(transport_queue_safety_->alive());
   TRACE_EVENT_INSTANT0("webrtc", "VideoSendStream::Stop");
-  rtp_video_sender_->SetActive(false);
+  rtp_video_sender_->Stop();
   StopVideoSendStream();
 }
 

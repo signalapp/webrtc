@@ -14,6 +14,7 @@
 
 #include "api/test/mock_async_dns_resolver.h"
 #include "p2p/base/basic_packet_socket_factory.h"
+#include "p2p/base/mock_dns_resolving_packet_socket_factory.h"
 #include "p2p/base/test_stun_server.h"
 #include "rtc_base/gunit.h"
 #include "rtc_base/helpers.h"
@@ -33,10 +34,6 @@ using ::testing::InvokeArgument;
 using ::testing::Return;
 using ::testing::ReturnPointee;
 using ::testing::SetArgPointee;
-
-using DnsResolverExpectations =
-    std::function<void(webrtc::MockAsyncDnsResolver*,
-                       webrtc::MockAsyncDnsResolverResult*)>;
 
 static const SocketAddress kLocalAddr("127.0.0.1", 0);
 static const SocketAddress kIPv6LocalAddr("::1", 0);
@@ -59,32 +56,29 @@ static const uint32_t kIPv6StunCandidatePriority =
 static const int kInfiniteLifetime = -1;
 static const int kHighCostPortKeepaliveLifetimeMs = 2 * 60 * 1000;
 
-// A PacketSocketFactory implementation that uses a mock DnsResolver and allows
-// setting expectations on the resolver and results.
-class MockDnsResolverPacketSocketFactory
-    : public rtc::BasicPacketSocketFactory {
- public:
-  explicit MockDnsResolverPacketSocketFactory(
-      rtc::SocketFactory* socket_factory)
-      : rtc::BasicPacketSocketFactory(socket_factory) {}
+constexpr uint64_t kTiebreakerDefault = 44444;
 
-  std::unique_ptr<webrtc::AsyncDnsResolverInterface> CreateAsyncDnsResolver()
-      override {
-    std::unique_ptr<webrtc::MockAsyncDnsResolver> resolver =
-        std::make_unique<webrtc::MockAsyncDnsResolver>();
-    if (expectations_) {
-      expectations_(resolver.get(), &resolver_result_);
-    }
-    return resolver;
+class FakeMdnsResponder : public webrtc::MdnsResponderInterface {
+ public:
+  void CreateNameForAddress(const rtc::IPAddress& addr,
+                            NameCreatedCallback callback) override {
+    callback(addr, std::string("unittest-mdns-host-name.local"));
   }
 
-  void SetExpectations(DnsResolverExpectations expectations) {
-    expectations_ = expectations;
+  void RemoveNameForAddress(const rtc::IPAddress& addr,
+                            NameRemovedCallback callback) override {}
+};
+
+class FakeMdnsResponderProvider : public rtc::MdnsResponderProvider {
+ public:
+  FakeMdnsResponderProvider() : mdns_responder_(new FakeMdnsResponder()) {}
+
+  webrtc::MdnsResponderInterface* GetMdnsResponder() const override {
+    return mdns_responder_.get();
   }
 
  private:
-  webrtc::MockAsyncDnsResolverResult resolver_result_;
-  DnsResolverExpectations expectations_;
+  std::unique_ptr<webrtc::MdnsResponderInterface> mdns_responder_;
 };
 
 // Base class for tests connecting a StunPort to a fake STUN server
@@ -103,6 +97,7 @@ class StunPortTestBase : public ::testing::Test, public sigslot::has_slots<> {
         socket_factory_(ss_.get()),
         stun_server_1_(cricket::TestStunServer::Create(ss_.get(), kStunAddr1)),
         stun_server_2_(cricket::TestStunServer::Create(ss_.get(), kStunAddr2)),
+        mdns_responder_provider_(new FakeMdnsResponderProvider()),
         done_(false),
         error_(false),
         stun_keepalive_delay_(1),
@@ -141,6 +136,7 @@ class StunPortTestBase : public ::testing::Test, public sigslot::has_slots<> {
         rtc::Thread::Current(), socket_factory(), &network_, 0, 0,
         rtc::CreateRandomString(16), rtc::CreateRandomString(22), stun_servers,
         absl::nullopt, field_trials);
+    stun_port_->SetIceTiebreaker(kTiebreakerDefault);
     stun_port_->set_stun_keepalive_delay(stun_keepalive_delay_);
     // If `stun_keepalive_lifetime_` is negative, let the stun port
     // choose its lifetime from the network type.
@@ -171,6 +167,7 @@ class StunPortTestBase : public ::testing::Test, public sigslot::has_slots<> {
         rtc::CreateRandomString(16), rtc::CreateRandomString(22), false,
         absl::nullopt, field_trials);
     ASSERT_TRUE(stun_port_ != NULL);
+    stun_port_->SetIceTiebreaker(kTiebreakerDefault);
     ServerAddresses stun_servers;
     stun_servers.insert(server_addr);
     stun_port_->set_server_addresses(stun_servers);
@@ -194,6 +191,10 @@ class StunPortTestBase : public ::testing::Test, public sigslot::has_slots<> {
     stun_port_->HandleIncomingPacket(socket_.get(), data, len,
                                      rtc::SocketAddress("22.22.22.22", 0),
                                      /* packet_time_us */ -1);
+  }
+
+  void EnableMdnsObfuscation() {
+    network_.set_mdns_responder_provider(mdns_responder_provider_.get());
   }
 
  protected:
@@ -233,6 +234,7 @@ class StunPortTestBase : public ::testing::Test, public sigslot::has_slots<> {
   std::unique_ptr<cricket::TestStunServer> stun_server_1_;
   std::unique_ptr<cricket::TestStunServer> stun_server_2_;
   std::unique_ptr<rtc::AsyncPacketSocket> socket_;
+  std::unique_ptr<rtc::MdnsResponderProvider> mdns_responder_provider_;
   bool done_;
   bool error_;
   int stun_keepalive_delay_;
@@ -301,12 +303,13 @@ class StunPortWithMockDnsResolverTest : public StunPortTest {
     return &socket_factory_;
   }
 
-  void SetDnsResolverExpectations(DnsResolverExpectations expectations) {
+  void SetDnsResolverExpectations(
+      rtc::MockDnsResolvingPacketSocketFactory::Expectations expectations) {
     socket_factory_.SetExpectations(expectations);
   }
 
  private:
-  MockDnsResolverPacketSocketFactory socket_factory_;
+  rtc::MockDnsResolvingPacketSocketFactory socket_factory_;
 };
 
 // Test that we can get an address from a STUN server specified by a hostname.
@@ -380,6 +383,41 @@ TEST_F(StunPortTestWithRealClock,
   std::string data = "some random data, sending to cricket::Port.";
   SendData(data.c_str(), data.length());
   // No crash is success.
+}
+
+// Test that a stun candidate (srflx candidate) is discarded whose address is
+// equal to that of a local candidate if mDNS obfuscation is not enabled.
+TEST_F(StunPortTest, TestStunCandidateDiscardedWithMdnsObfuscationNotEnabled) {
+  CreateSharedUdpPort(kStunAddr1, nullptr);
+  PrepareAddress();
+  EXPECT_TRUE_SIMULATED_WAIT(done(), kTimeoutMs, fake_clock);
+  ASSERT_EQ(1U, port()->Candidates().size());
+  EXPECT_TRUE(kLocalAddr.EqualIPs(port()->Candidates()[0].address()));
+  EXPECT_EQ(port()->Candidates()[0].type(), cricket::LOCAL_PORT_TYPE);
+}
+
+// Test that a stun candidate (srflx candidate) is generated whose address is
+// equal to that of a local candidate if mDNS obfuscation is enabled.
+TEST_F(StunPortTest, TestStunCandidateGeneratedWithMdnsObfuscationEnabled) {
+  EnableMdnsObfuscation();
+  CreateSharedUdpPort(kStunAddr1, nullptr);
+  PrepareAddress();
+  EXPECT_TRUE_SIMULATED_WAIT(done(), kTimeoutMs, fake_clock);
+  ASSERT_EQ(2U, port()->Candidates().size());
+
+  // The addresses of the candidates are both equal to kLocalAddr.
+  EXPECT_TRUE(kLocalAddr.EqualIPs(port()->Candidates()[0].address()));
+  EXPECT_TRUE(kLocalAddr.EqualIPs(port()->Candidates()[1].address()));
+
+  // One of the generated candidates is a local candidate and the other is a
+  // stun candidate.
+  EXPECT_NE(port()->Candidates()[0].type(), port()->Candidates()[1].type());
+  if (port()->Candidates()[0].type() == cricket::LOCAL_PORT_TYPE) {
+    EXPECT_EQ(port()->Candidates()[1].type(), cricket::STUN_PORT_TYPE);
+  } else {
+    EXPECT_EQ(port()->Candidates()[0].type(), cricket::STUN_PORT_TYPE);
+    EXPECT_EQ(port()->Candidates()[1].type(), cricket::LOCAL_PORT_TYPE);
+  }
 }
 
 // Test that the same address is added only once if two STUN servers are in
@@ -614,12 +652,13 @@ class StunIPv6PortTestWithMockDnsResolver : public StunIPv6PortTest {
     return &socket_factory_;
   }
 
-  void SetDnsResolverExpectations(DnsResolverExpectations expectations) {
+  void SetDnsResolverExpectations(
+      rtc::MockDnsResolvingPacketSocketFactory::Expectations expectations) {
     socket_factory_.SetExpectations(expectations);
   }
 
  private:
-  MockDnsResolverPacketSocketFactory socket_factory_;
+  rtc::MockDnsResolvingPacketSocketFactory socket_factory_;
 };
 
 // Test that we can get an address from a STUN server specified by a hostname.
