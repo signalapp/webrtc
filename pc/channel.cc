@@ -938,7 +938,7 @@ bool VoiceChannel::SetRemoteContent_w(const MediaContentDescription* content,
 // RingRTC change to configure OPUS
 void VoiceChannel::ConfigureEncoders(const webrtc::AudioEncoder::Config& config) {
   worker_thread()->BlockingCall([this, &config] {
-    media_channel()->ConfigureEncoders(config);
+    voice_media_send_channel()->ConfigureEncoders(config);
   });
 }
 
@@ -949,7 +949,7 @@ void VoiceChannel::GetAudioLevels(
     size_t received_out_size,
     size_t* received_size_out) {
   worker_thread()->BlockingCall([this, captured_out, received_out, received_out_size, received_size_out] {
-    media_channel()->GetAudioLevels(captured_out, received_out, received_out_size, received_size_out);
+    voice_media_receive_channel()->GetAudioLevels(captured_out, received_out, received_out_size, received_size_out);
   });
 }
 
