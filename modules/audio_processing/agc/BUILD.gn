@@ -36,21 +36,8 @@ rtc_library("agc") {
     "../../../system_wrappers:metrics",
     "../agc2:clipping_predictor",
     "../agc2:gain_map",
+    "../agc2:input_volume_stats_reporter",
     "../vad",
-  ]
-  absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
-}
-
-rtc_library("analog_gain_stats_reporter") {
-  sources = [
-    "analog_gain_stats_reporter.cc",
-    "analog_gain_stats_reporter.h",
-  ]
-  deps = [
-    "../../../rtc_base:gtest_prod",
-    "../../../rtc_base:logging",
-    "../../../rtc_base:safe_minmax",
-    "../../../system_wrappers:metrics",
   ]
   absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
 }
@@ -109,7 +96,6 @@ if (rtc_include_tests) {
     testonly = true
     sources = [
       "agc_manager_direct_unittest.cc",
-      "analog_gain_stats_reporter_unittest.cc",
       "loudness_histogram_unittest.cc",
       "mock_agc.h",
     ]
@@ -117,7 +103,6 @@ if (rtc_include_tests) {
 
     deps = [
       ":agc",
-      ":analog_gain_stats_reporter",
       ":gain_control_interface",
       ":level_estimation",
       "..:mocks",

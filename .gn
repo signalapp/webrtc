@@ -13,7 +13,9 @@ buildconfig = "//build/config/BUILDCONFIG.gn"
 
 # The python interpreter to use by default. On Windows, this will look
 # for python3.exe and python3.bat.
-script_executable = "python3"
+# RingRTC change to use the depot_tools version of python which supports the
+# features required by WebRTC scripts.
+script_executable = "vpython3"
 
 # The secondary source root is a parallel directory tree where
 # GN build files are placed when they can not be placed directly

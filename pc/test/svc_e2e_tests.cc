@@ -13,12 +13,16 @@
 #include <vector>
 
 #include "api/media_stream_interface.h"
+#include "api/stats/rtcstats_objects.h"
 #include "api/test/create_network_emulation_manager.h"
 #include "api/test/create_peer_connection_quality_test_frame_generator.h"
 #include "api/test/create_peerconnection_quality_test_fixture.h"
 #include "api/test/frame_generator_interface.h"
 #include "api/test/metrics/global_metrics_logger_and_exporter.h"
 #include "api/test/network_emulation_manager.h"
+#include "api/test/pclf/media_configuration.h"
+#include "api/test/pclf/media_quality_test_params.h"
+#include "api/test/pclf/peer_configurer.h"
 #include "api/test/peerconnection_quality_test_fixture.h"
 #include "api/test/simulated_network.h"
 #include "api/test/time_controller.h"
@@ -38,26 +42,21 @@
 namespace webrtc {
 namespace {
 
-using PeerConfigurer = ::webrtc::webrtc_pc_e2e::
-    PeerConnectionE2EQualityTestFixture::PeerConfigurer;
-using RunParams =
-    ::webrtc::webrtc_pc_e2e::PeerConnectionE2EQualityTestFixture::RunParams;
-using VideoConfig =
-    ::webrtc::webrtc_pc_e2e::PeerConnectionE2EQualityTestFixture::VideoConfig;
-using ScreenShareConfig = ::webrtc::webrtc_pc_e2e::
-    PeerConnectionE2EQualityTestFixture::ScreenShareConfig;
-using VideoCodecConfig = ::webrtc::webrtc_pc_e2e::
-    PeerConnectionE2EQualityTestFixture::VideoCodecConfig;
-using EmulatedSFUConfig = ::webrtc::webrtc_pc_e2e::
-    PeerConnectionE2EQualityTestFixture::EmulatedSFUConfig;
 using ::cricket::kAv1CodecName;
 using ::cricket::kH264CodecName;
 using ::cricket::kVp8CodecName;
 using ::cricket::kVp9CodecName;
 using ::testing::Combine;
+using ::testing::Optional;
 using ::testing::UnitTest;
 using ::testing::Values;
 using ::testing::ValuesIn;
+using ::webrtc::webrtc_pc_e2e::EmulatedSFUConfig;
+using ::webrtc::webrtc_pc_e2e::PeerConfigurer;
+using ::webrtc::webrtc_pc_e2e::RunParams;
+using ::webrtc::webrtc_pc_e2e::ScreenShareConfig;
+using ::webrtc::webrtc_pc_e2e::VideoCodecConfig;
+using ::webrtc::webrtc_pc_e2e::VideoConfig;
 
 std::unique_ptr<webrtc_pc_e2e::PeerConnectionE2EQualityTestFixture>
 CreateTestFixture(absl::string_view test_case_name,
@@ -71,10 +70,14 @@ CreateTestFixture(absl::string_view test_case_name,
   auto fixture = webrtc_pc_e2e::CreatePeerConnectionE2EQualityTestFixture(
       std::string(test_case_name), time_controller, nullptr,
       std::move(video_quality_analyzer));
-  fixture->AddPeer(network_links.first->network_dependencies(),
-                   alice_configurer);
-  fixture->AddPeer(network_links.second->network_dependencies(),
-                   bob_configurer);
+  auto alice = std::make_unique<PeerConfigurer>(
+      network_links.first->network_dependencies());
+  auto bob = std::make_unique<PeerConfigurer>(
+      network_links.second->network_dependencies());
+  alice_configurer(alice.get());
+  bob_configurer(bob.get());
+  fixture->AddPeer(std::move(alice));
+  fixture->AddPeer(std::move(bob));
   return fixture;
 }
 
@@ -202,16 +205,32 @@ class SvcVideoQualityAnalyzer : public DefaultVideoQualityAnalyzer {
                                                   input_image);
   }
 
+  void OnStatsReports(
+      absl::string_view pc_label,
+      const rtc::scoped_refptr<const RTCStatsReport>& report) override {
+    // Extract the scalability mode reported in the stats.
+    auto outbound_stats = report->GetStatsOfType<RTCOutboundRTPStreamStats>();
+    for (const auto& stat : outbound_stats) {
+      if (stat->scalability_mode.is_defined()) {
+        reported_scalability_mode_ = *stat->scalability_mode;
+      }
+    }
+  }
+
   const SpatialTemporalLayerCounts& encoder_layers_seen() const {
     return encoder_layers_seen_;
   }
   const SpatialTemporalLayerCounts& decoder_layers_seen() const {
     return decoder_layers_seen_;
   }
+  const absl::optional<std::string> reported_scalability_mode() const {
+    return reported_scalability_mode_;
+  }
 
  private:
   SpatialTemporalLayerCounts encoder_layers_seen_;
   SpatialTemporalLayerCounts decoder_layers_seen_;
+  absl::optional<std::string> reported_scalability_mode_;
 };
 
 MATCHER_P2(HasSpatialAndTemporalLayers,
@@ -341,6 +360,8 @@ TEST_P(SvcTest, ScalabilityModeSupported) {
                     SvcTestParameters().expected_spatial_layers,
                     SvcTestParameters().expected_temporal_layers));
   }
+  EXPECT_THAT(analyzer_ptr->reported_scalability_mode(),
+              Optional(SvcTestParameters().scalability_mode));
 
   RTC_LOG(LS_INFO) << "Encoder layers seen: "
                    << analyzer_ptr->encoder_layers_seen().size();

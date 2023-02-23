@@ -985,6 +985,8 @@ void SendStatisticsProxy::OnSendEncodedImage(
   stats->frames_encoded++;
   stats->total_encode_time_ms += encoded_image.timing_.encode_finish_ms -
                                  encoded_image.timing_.encode_start_ms;
+  if (codec_info)
+    stats->scalability_mode = codec_info->scalability_mode;
   // Report resolution of the top spatial layer.
   bool is_top_spatial_layer =
       codec_info == nullptr || codec_info->end_of_picture;
@@ -1053,11 +1055,12 @@ void SendStatisticsProxy::OnSendEncodedImage(
 }
 
 void SendStatisticsProxy::OnEncoderImplementationChanged(
-    const std::string& implementation_name) {
+    EncoderImplementation implementation) {
   MutexLock lock(&mutex_);
   encoder_changed_ = EncoderChangeEvent{stats_.encoder_implementation_name,
-                                        implementation_name};
-  stats_.encoder_implementation_name = implementation_name;
+                                        implementation.name};
+  stats_.encoder_implementation_name = implementation.name;
+  stats_.power_efficient_encoder = implementation.is_hardware_accelerated;
 }
 
 int SendStatisticsProxy::GetInputFrameRate() const {

@@ -14,12 +14,12 @@
 #include "modules/desktop_capture/delegated_source_list_controller.h"
 #include "modules/desktop_capture/desktop_capture_options.h"
 #include "modules/desktop_capture/desktop_capturer.h"
-#include "modules/desktop_capture/linux/wayland/portal_request_response.h"
 #include "modules/desktop_capture/linux/wayland/screen_capture_portal_interface.h"
 #include "modules/desktop_capture/linux/wayland/screencast_portal.h"
 #include "modules/desktop_capture/linux/wayland/shared_screencast_stream.h"
-#include "modules/desktop_capture/linux/wayland/xdg_desktop_portal_utils.h"
-#include "modules/desktop_capture/linux/wayland/xdg_session_details.h"
+#include "modules/portal/portal_request_response.h"
+#include "modules/portal/xdg_desktop_portal_utils.h"
+#include "modules/portal/xdg_session_details.h"
 
 namespace webrtc {
 
@@ -27,6 +27,12 @@ class BaseCapturerPipeWire : public DesktopCapturer,
                              public DelegatedSourceListController,
                              public ScreenCastPortal::PortalNotifier {
  public:
+  // Returns whether or not the current system can support capture via PipeWire.
+  // This will only be true on Wayland systems that also have PipeWire
+  // available, and thus may require dlopening PipeWire to determine if it is
+  // available.
+  static bool IsSupported();
+
   BaseCapturerPipeWire(const DesktopCaptureOptions& options, CaptureType type);
   BaseCapturerPipeWire(
       const DesktopCaptureOptions& options,

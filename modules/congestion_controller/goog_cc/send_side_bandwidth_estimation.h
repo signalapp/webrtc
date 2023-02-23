@@ -86,7 +86,6 @@ class SendSideBandwidthEstimation {
 
   DataRate target_rate() const;
   LossBasedState loss_based_state() const;
-  DataRate delay_based_limit() const;
   uint8_t fraction_loss() const { return last_fraction_loss_; }
   TimeDelta round_trip_time() const { return last_round_trip_time_; }
 
@@ -121,7 +120,8 @@ class SendSideBandwidthEstimation {
                            Timestamp at_time);
   void UpdateLossBasedEstimator(const TransportPacketsFeedback& report,
                                 BandwidthUsage delay_detector_state,
-                                absl::optional<DataRate> probe_bitrate);
+                                absl::optional<DataRate> probe_bitrate,
+                                DataRate upper_link_capacity);
 
  private:
   friend class GoogCcStatePrinter;

@@ -43,8 +43,12 @@ class Clock;
 struct PacedPacketInfo;
 struct RTPVideoHeader;
 
-// DEPRECATED.
-class ModuleRtpRtcpImpl : public RtpRtcp, public RTCPReceiver::ModuleRtpRtcp {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+class ABSL_DEPRECATED("") ModuleRtpRtcpImpl
+    : public RtpRtcp,
+      public RTCPReceiver::ModuleRtpRtcp {
+#pragma clang diagnostic pop
  public:
   explicit ModuleRtpRtcpImpl(
       const RtpRtcpInterface::Configuration& configuration);
@@ -98,8 +102,6 @@ class ModuleRtpRtcpImpl : public RtpRtcp, public RTCPReceiver::ModuleRtpRtcp {
   uint32_t SSRC() const override { return rtcp_sender_.SSRC(); }
 
   void SetMid(absl::string_view mid) override;
-
-  void SetCsrcs(const std::vector<uint32_t>& csrcs) override;
 
   RTCPSender::FeedbackState GetFeedbackState();
 

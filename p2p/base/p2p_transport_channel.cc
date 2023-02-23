@@ -381,7 +381,7 @@ bool P2PTransportChannel::MaybeSwitchSelectedConnection(
 }
 
 void P2PTransportChannel::ForgetLearnedStateForConnections(
-    std::vector<const Connection*> connections) {
+    rtc::ArrayView<const Connection* const> connections) {
   for (const Connection* con : connections) {
     FromIceController(con)->ForgetLearnedState();
   }
@@ -781,9 +781,6 @@ void P2PTransportChannel::ParseFieldTrials(
 
   if (field_trials->IsEnabled("WebRTC-ExtraICEPing")) {
     RTC_LOG(LS_INFO) << "Set WebRTC-ExtraICEPing: Enabled";
-  }
-  if (field_trials->IsEnabled("WebRTC-TurnAddMultiMapping")) {
-    RTC_LOG(LS_INFO) << "Set WebRTC-TurnAddMultiMapping: Enabled";
   }
 
   webrtc::StructParametersParser::Create(
@@ -2026,7 +2023,7 @@ void P2PTransportChannel::PruneConnections() {
 }
 
 bool P2PTransportChannel::PruneConnections(
-    std::vector<const Connection*> connections) {
+    rtc::ArrayView<const Connection* const> connections) {
   RTC_DCHECK_RUN_ON(network_thread_);
   if (!AllowedToPruneConnections()) {
     RTC_LOG(LS_WARNING) << "Not allowed to prune connections";
