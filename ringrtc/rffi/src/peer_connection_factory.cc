@@ -296,7 +296,7 @@ RUSTEXPORT PeerConnectionFactoryOwner* Rust_createPeerConnectionFactoryWrapper(
 RUSTEXPORT PeerConnectionInterface* Rust_createPeerConnection(
     PeerConnectionFactoryOwner* factory_owner_borrowed_rc,
     PeerConnectionObserverRffi* observer_borrowed,
-    bool hide_ip,
+    RffiPeerConnectionKind kind,
     RffiIceServer ice_server,
     webrtc::AudioTrackInterface* outgoing_audio_track_borrowed_rc,
     webrtc::VideoTrackInterface* outgoing_video_track_borrowed_rc) {
@@ -306,7 +306,7 @@ RUSTEXPORT PeerConnectionInterface* Rust_createPeerConnection(
   config.bundle_policy = PeerConnectionInterface::kBundlePolicyMaxBundle;
   config.rtcp_mux_policy = PeerConnectionInterface::kRtcpMuxPolicyRequire;
   config.tcp_candidate_policy = PeerConnectionInterface::kTcpCandidatePolicyDisabled;
-  if (hide_ip) {
+  if (kind == RffiPeerConnectionKind::kRelayed) {
     config.type = PeerConnectionInterface::kRelay;
   }
   config.sdp_semantics = SdpSemantics::kPlanB_DEPRECATED;
@@ -358,7 +358,11 @@ RUSTEXPORT PeerConnectionInterface* Rust_createPeerConnection(
   }
 
   if (outgoing_video_track_borrowed_rc) {
-    auto result = pc->AddTrack(inc_rc(outgoing_video_track_borrowed_rc), stream_ids);
+    std::vector<webrtc::RtpEncodingParameters> rtp_parameters = {{}};
+    if (kind == RffiPeerConnectionKind::kGroupCall) {
+      rtp_parameters[0].max_bitrate_bps = 100000;
+    }
+    auto result = pc->AddTrack(inc_rc(outgoing_video_track_borrowed_rc), stream_ids, rtp_parameters);
     if (result.ok()) {
       if (observer_borrowed->enable_frame_encryption()) {
         auto rtp_sender = result.MoveValue();
