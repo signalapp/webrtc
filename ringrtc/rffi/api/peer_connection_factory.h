@@ -66,6 +66,12 @@ typedef struct {
   size_t urls_size;
 } RffiIceServer;
 
+enum class RffiPeerConnectionKind: uint8_t {
+  kDirect,
+  kRelayed,
+  kGroupCall,
+};
+
 // Returns an owned RC.
 // You can create more than one, but you should probably only have one unless
 // you want to test separate endpoints that are as independent as possible.
@@ -85,7 +91,7 @@ RUSTEXPORT webrtc::rffi::InjectableNetwork* Rust_getInjectableNetwork(
 RUSTEXPORT webrtc::PeerConnectionInterface* Rust_createPeerConnection(
   webrtc::PeerConnectionFactoryOwner* factory_owner_borrowed_rc,
   webrtc::rffi::PeerConnectionObserverRffi* observer_borrowed,
-  bool hide_ip,
+  RffiPeerConnectionKind kind,
   RffiIceServer ice_server,
   webrtc::AudioTrackInterface* outgoing_audio_track_borrowed_rc,
   webrtc::VideoTrackInterface* outgoing_video_track_borrowed_rc);
