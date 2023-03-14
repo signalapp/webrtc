@@ -607,7 +607,8 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
     // The min time period for which a candidate pair must wait for response to
     // connectivity checks it becomes inactive. This parameter overrides the
     // default value in the ICE implementation if set.
-    absl::optional<int> ice_inactive_timeout;
+    // RingRTC change to configure inactive timeout
+    absl::optional<int> ice_inactive_timeout = 30 * 1000; // 30 seconds
 
     // The interval in milliseconds at which STUN candidates will resend STUN
     // binding requests to keep NAT bindings open.
