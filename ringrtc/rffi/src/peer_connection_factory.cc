@@ -308,6 +308,8 @@ RUSTEXPORT PeerConnectionInterface* Rust_createPeerConnection(
   config.tcp_candidate_policy = PeerConnectionInterface::kTcpCandidatePolicyDisabled;
   if (kind == RffiPeerConnectionKind::kRelayed) {
     config.type = PeerConnectionInterface::kRelay;
+  } else if (kind == RffiPeerConnectionKind::kGroupCall) {
+    config.tcp_candidate_policy = PeerConnectionInterface::kTcpCandidatePolicyEnabled;
   }
   config.sdp_semantics = SdpSemantics::kPlanB_DEPRECATED;
   if (ice_server.urls_size > 0) {
