@@ -705,6 +705,9 @@ bool RTPSenderVideo::SendVideo(
 
     packet->set_fec_protect_packet(use_fec);
 
+    // RingRTC change to log more information around video capture
+    auto ssrc = packet->Ssrc();
+
     if (red_enabled()) {
       // TODO(sprang): Consider packetizing directly into packets with the RED
       // header already in place, to avoid this copy.
@@ -724,8 +727,8 @@ bool RTPSenderVideo::SendVideo(
 
     if (first_frame) {
       if (i == 0) {
-        RTC_LOG(LS_INFO)
-            << "Sent first RTP packet of the first video frame (pre-pacer)";
+        RTC_LOG(LS_WARNING)
+            << "Sent first RTP packet of the first video frame for the stream (pre-pacer): ssrc=" << ssrc << ", initial resolution=" << video_header.width << "x" << video_header.height;
       }
       if (i == num_packets - 1) {
         RTC_LOG(LS_INFO)
