@@ -239,7 +239,12 @@ class VideoStreamEncoderResourceManager::InitialFrameDropper {
  private:
   // The maximum number of frames to drop at beginning of stream to try and
   // achieve desired bitrate.
+  // RingRTC change to disable initial frame dropping for desktop.
+#if defined(WEBRTC_MAC) || defined(WEBRTC_WIN) || defined(WEBRTC_LINUX)
+  static const int kMaxInitialFramedrop = 0;
+#else
   static const int kMaxInitialFramedrop = 4;
+#endif
 
   const rtc::scoped_refptr<QualityScalerResource> quality_scaler_resource_;
   const QualityScalerSettings quality_scaler_settings_;
