@@ -337,6 +337,7 @@ RUSTEXPORT PeerConnectionInterface* Rust_createPeerConnection(
     PeerConnectionFactoryOwner* factory_owner_borrowed_rc,
     PeerConnectionObserverRffi* observer_borrowed,
     bool hide_ip,
+    int audio_jitter_buffer_max_packets,
     RffiIceServer ice_server,
     webrtc::AudioTrackInterface* outgoing_audio_track_borrowed_rc,
     webrtc::VideoTrackInterface* outgoing_video_track_borrowed_rc) {
@@ -346,6 +347,7 @@ RUSTEXPORT PeerConnectionInterface* Rust_createPeerConnection(
   config.bundle_policy = PeerConnectionInterface::kBundlePolicyMaxBundle;
   config.rtcp_mux_policy = PeerConnectionInterface::kRtcpMuxPolicyRequire;
   config.tcp_candidate_policy = PeerConnectionInterface::kTcpCandidatePolicyDisabled;
+  config.audio_jitter_buffer_max_packets = audio_jitter_buffer_max_packets;
   if (hide_ip) {
     config.type = PeerConnectionInterface::kRelay;
   }
