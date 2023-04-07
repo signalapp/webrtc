@@ -99,8 +99,40 @@ PacketBuffer::~PacketBuffer() {
 
 // Flush the buffer. All packets in the buffer will be destroyed.
 void PacketBuffer::Flush(StatisticsCalculator* stats) {
+  // RingRTC change to log more information around audio jitter buffer flushes
+  auto prev_recv_ts = Timestamp::Micros(0);
+  auto num_out_of_order = 0;
+  auto num_gaps_below_15ms = 0;
+  auto num_gaps_above_40ms = 0;
+
   for (auto& p : buffer_) {
     LogPacketDiscarded(p.priority.codec_level, stats);
+    if (prev_recv_ts.us() > 0) {
+      auto gap_us = (p.packet_info.receive_time() - prev_recv_ts).us();
+
+      if (gap_us < 0) {
+        num_out_of_order++;
+      } else if (gap_us < 15000) {
+        num_gaps_below_15ms++;
+      } else if (gap_us > 40000) {
+        num_gaps_above_40ms++;
+      }
+    }
+    prev_recv_ts = p.packet_info.receive_time();
+  }
+
+  if (!buffer_.empty()) {
+    auto& first = buffer_.front();
+    auto& last = buffer_.back();
+
+    RTC_LOG(LS_WARNING) << "Flushing packets... seqnum_diff=" << (last.sequence_number - first.sequence_number)
+      << ", rtp_ts_diff=" << (last.timestamp - first.timestamp)
+      << ", recv_time_diff=" << (last.packet_info.receive_time() - first.packet_info.receive_time())
+      << ", ms_since_first_insert=" << first.waiting_time->ElapsedMs()
+      << ", ms_since_last_insert=" << last.waiting_time->ElapsedMs()
+      << ", num_out_of_order=" << num_out_of_order
+      << ", num_gaps_below_15ms=" << num_gaps_below_15ms
+      << ", num_gaps_above_40ms=" << num_gaps_above_40ms;
   }
   buffer_.clear();
   stats->FlushedPacketBuffer();
@@ -174,7 +206,8 @@ int PacketBuffer::InsertPacket(Packet&& packet,
     }
     RTC_LOG(LS_WARNING) << "Packet buffer flushed, "
                         << (buffer_size_before_flush - buffer_.size())
-                        << " packets discarded.";
+                        // RingRTC change to log more information around audio jitter buffer flushes
+                        << " packets discarded. target_level_ms=" << target_level_ms;
   }
 
   // Get an iterator pointing to the place in the buffer where the new packet
