@@ -7,7 +7,6 @@
 #include "api/ice_transport_interface.h"
 #include "api/jsep_session_description.h"
 #include "api/peer_connection_interface.h"
-#include "api/video_codecs/h264_profile_level_id.h"
 #include "api/video_codecs/vp9_profile.h"
 #include "modules/rtp_rtcp/source/rtp_header_extensions.h"
 #include "p2p/base/port.h"
@@ -158,9 +157,7 @@ codecPriority(const RffiVideoCodec c) {
   // Lower values are given higher priority
   switch (c.type) {
     case kRffiVideoCodecVp9: return 0;
-    case kRffiVideoCodecH264ConstrainedHigh: return 1;
-    case kRffiVideoCodecH264ConstrainedBaseline: return 2;
-    case kRffiVideoCodecVp8: return 3;
+    case kRffiVideoCodecVp8: return 1;
     default: return 100;
   }
 }
@@ -190,12 +187,6 @@ Rust_sessionDescriptionToV4(const webrtc::SessionDescriptionInterface* session_d
   // Get video codecs
   auto* video = cricket::GetFirstVideoContentDescription(session);
   if (video) {
-    // We only support 1 CBP and 1 CHP codec.
-    // So only include the first of each.
-    // This should be OK because Android and iOS and native only
-    // add one level per profile.
-    bool has_h264_cbp = false;
-    bool has_h264_chp = false;
     for (const auto& codec : video->codecs()) {
       auto codec_type = webrtc::PayloadStringToCodecType(codec.name);
 
@@ -215,56 +206,11 @@ Rust_sessionDescriptionToV4(const webrtc::SessionDescriptionInterface* session_d
 
         RffiVideoCodec vp9;
         vp9.type = kRffiVideoCodecVp9;
-        vp9.level = 0;
         v4->receive_video_codecs.push_back(vp9);
       } else if (codec_type == webrtc::kVideoCodecVP8) {
         RffiVideoCodec vp8;
         vp8.type = kRffiVideoCodecVp8;
-        vp8.level = 0;
         v4->receive_video_codecs.push_back(vp8);
-      } else if (codec_type == webrtc::kVideoCodecH264) {
-        std::string level_asymmetry_allowed;
-        if (codec.GetParam(cricket::kH264FmtpLevelAsymmetryAllowed, &level_asymmetry_allowed) && level_asymmetry_allowed != "1") {
-          RTC_LOG(LS_WARNING) << "Ignoring H264 codec because level-asymmetry-allowed = " << level_asymmetry_allowed;  
-          continue;
-        }
-
-        std::string packetization_mode;
-        if (codec.GetParam(cricket::kH264FmtpPacketizationMode, &packetization_mode) && packetization_mode != "1") {
-          // Not a warning because WebRTC software H264 encoders say they support mode 0 (even though it's useless).
-          RTC_LOG(LS_INFO) << "Ignoring H264 codec because packetization_mode = " << packetization_mode;  
-          continue;
-        }
-
-        auto profile_level_id = ParseSdpForH264ProfileLevelId(codec.params);
-        if (!profile_level_id) {
-          std::string profile_level_id_string;
-          codec.GetParam("profile-level-id", &profile_level_id_string);
-          RTC_LOG(LS_WARNING) << "Ignoring H264 codec because profile-level-id = " << profile_level_id_string;
-          continue;
-        }
-
-        if (profile_level_id->profile == H264Profile::kProfileConstrainedHigh && !has_h264_chp) {
-          RffiVideoCodec h264_chp;
-          h264_chp.type = kRffiVideoCodecH264ConstrainedHigh;
-          h264_chp.level = static_cast<uint32_t>(profile_level_id->level);
-          v4->receive_video_codecs.push_back(h264_chp);
-          has_h264_chp = true;
-        } else if (profile_level_id->profile != H264Profile::kProfileConstrainedBaseline) {
-          // Not a warning because WebRTC software H264 encoders say they support baseline, even though it's useless.
-          RTC_LOG(LS_INFO) << "Ignoring H264 codec profile = " << profile_level_id->profile;  
-          continue;
-        }
-
-        if (!has_h264_cbp) {
-          // Any time we support anything, we assume we also support CBP
-          // (but don't add it more than once)
-          RffiVideoCodec h264_cbp;
-          h264_cbp.type = kRffiVideoCodecH264ConstrainedBaseline;
-          h264_cbp.level = static_cast<uint32_t>(profile_level_id->level);
-          v4->receive_video_codecs.push_back(h264_cbp);
-          has_h264_cbp = true;
-        }
       }
     }
   }
@@ -296,7 +242,7 @@ Rust_deleteV4(RffiConnectionParametersV4* v4_owned) {
 RUSTEXPORT webrtc::SessionDescriptionInterface*
 Rust_sessionDescriptionFromV4(bool offer, const RffiConnectionParametersV4* v4_borrowed) {
   // Major changes from the default WebRTC behavior:
-  // 1. We remove all codecs except Opus, VP8, VP9, and H264
+  // 1. We remove all codecs except Opus, VP8, and VP9
   // 2. We remove all header extensions except for transport-cc, video orientation,
   //    and abs send time.
   // 3. Opus CBR and DTX is enabled.
@@ -362,19 +308,6 @@ Rust_sessionDescriptionFromV4(bool offer, const RffiConnectionParametersV4* v4_b
     video_codec->AddFeedbackParam(cricket::FeedbackParam(cricket::kRtcpFbParamRemb, cricket::kParamValueEmpty));
   };
 
-  auto add_h264_params = [] (cricket::VideoCodec* h264_codec, H264Profile profile, uint32_t level) {
-    // All of the codec implementations (iOS hardware, Android hardware) are only used by WebRTC
-    // with packetization mode 1.  Software codecs also support mode 0, but who cares.  It's useless.
-    // They also all allow for level asymmetry.
-    h264_codec->SetParam(cricket::kH264FmtpLevelAsymmetryAllowed, "1");
-    h264_codec->SetParam(cricket::kH264FmtpPacketizationMode, "1");
-    // On Android and with software, the level is always 31.  But it could be anything with iOS.
-    auto profile_level_id_string = H264ProfileLevelIdToString(H264ProfileLevelId(profile, H264Level(level)));
-    if (profile_level_id_string) {
-      h264_codec->SetParam("profile-level-id", *profile_level_id_string);
-    }
-  };
-
   std::stable_sort(v4_borrowed->receive_video_codecs_borrowed, v4_borrowed->receive_video_codecs_borrowed + v4_borrowed->receive_video_codecs_size, [](const RffiVideoCodec lhs, const RffiVideoCodec rhs) {
       return codecPriority(lhs) < codecPriority(rhs);
   });
@@ -396,22 +329,6 @@ Rust_sessionDescriptionFromV4(bool offer, const RffiConnectionParametersV4* v4_b
 
       video->AddCodec(vp8);
       video->AddCodec(vp8_rtx);
-    } else if (rffi_codec.type == kRffiVideoCodecH264ConstrainedHigh) {
-      auto h264_chp = cricket::VideoCodec(H264_CHP_PT, cricket::kH264CodecName);
-      auto h264_chp_rtx = cricket::VideoCodec::CreateRtxCodec(H264_CHP_RTX_PT, H264_CHP_PT);
-      add_h264_params(&h264_chp, H264Profile::kProfileConstrainedHigh, rffi_codec.level);
-      add_video_feedback_params(&h264_chp);
-
-      video->AddCodec(h264_chp);
-      video->AddCodec(h264_chp_rtx);
-    } else if (rffi_codec.type == kRffiVideoCodecH264ConstrainedBaseline) {
-      auto h264_cbp = cricket::VideoCodec(H264_CBP_PT, cricket::kH264CodecName);
-      auto h264_cbp_rtx = cricket::VideoCodec::CreateRtxCodec(H264_CBP_RTX_PT, H264_CBP_PT);
-      add_h264_params(&h264_cbp, H264Profile::kProfileConstrainedBaseline, rffi_codec.level);
-      add_video_feedback_params(&h264_cbp);
-
-      video->AddCodec(h264_cbp);
-      video->AddCodec(h264_cbp_rtx);
     }
   }
 
