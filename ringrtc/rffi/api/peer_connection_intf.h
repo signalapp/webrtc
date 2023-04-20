@@ -56,13 +56,10 @@ Rust_disableDtlsAndSetSrtpKey(webrtc::SessionDescriptionInterface* session_descr
 enum RffiVideoCodecType {
     kRffiVideoCodecVp8 = 8,
     kRffiVideoCodecVp9 = 9,
-    kRffiVideoCodecH264ConstrainedHigh = 46,
-    kRffiVideoCodecH264ConstrainedBaseline = 40,
 };
 
 typedef struct {
   RffiVideoCodecType type;
-  uint32_t level;
 } RffiVideoCodec;
 
 class ConnectionParametersV4 {
