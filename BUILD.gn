@@ -500,7 +500,6 @@ if (!build_with_chromium) {
       "pc:libjingle_peerconnection",
       "pc:rtc_pc",
       "ringrtc",
-      "rtc_base",
       "sdk",
       "video",
 

@@ -52,7 +52,8 @@ namespace {
 using ::webrtc::ParseRtpPayloadType;
 using ::webrtc::ParseRtpSsrc;
 
-constexpr int64_t kUnsignaledSsrcCooldownMs = rtc::kNumMillisecsPerSec / 2;
+// RingRTC change to not process unsignaled SSRCs
+// constexpr int64_t kUnsignaledSsrcCooldownMs = rtc::kNumMillisecsPerSec / 2;
 
 // TODO(bugs.webrtc.org/13166): Remove AV1X when backwards compatibility is not
 // needed.
@@ -1789,39 +1790,6 @@ void WebRtcVideoChannel::OnPacketReceived(
       }));
 }
 
-void WebRtcVideoChannel::ReCreateDefaulReceiveStream(
-    uint32_t ssrc,
-    absl::optional<uint32_t> rtx_ssrc) {
-  RTC_DCHECK_RUN_ON(&thread_checker_);
-
-  absl::optional<uint32_t> default_recv_ssrc = GetUnsignaledSsrc();
-  if (default_recv_ssrc) {
-    RTC_LOG(LS_INFO) << "Destroying old default receive stream for SSRC="
-                     << ssrc << ".";
-    RemoveRecvStream(*default_recv_ssrc);
-  }
-
-  StreamParams sp = unsignaled_stream_params();
-  sp.ssrcs.push_back(ssrc);
-  if (rtx_ssrc) {
-    sp.AddFidSsrc(ssrc, *rtx_ssrc);
-  }
-  RTC_LOG(LS_INFO) << "Creating default receive stream for SSRC=" << ssrc
-                   << ".";
-  if (!AddRecvStream(sp, /*default_stream=*/true)) {
-    RTC_LOG(LS_WARNING) << "Could not create default receive stream.";
-  }
-
-  // SSRC 0 returns default_recv_base_minimum_delay_ms.
-  const int unsignaled_ssrc = 0;
-  int default_recv_base_minimum_delay_ms =
-      GetBaseMinimumPlayoutDelayMs(unsignaled_ssrc).value_or(0);
-  // Set base minimum delay if it was set before for the default receive
-  // stream.
-  SetBaseMinimumPlayoutDelayMs(ssrc, default_recv_base_minimum_delay_ms);
-  SetSink(ssrc, default_sink_);
-}
-
 bool WebRtcVideoChannel::MaybeCreateDefaultReceiveStream(
     const webrtc::RtpPacketReceived& packet) {
   if (discard_unknown_ssrc_packets_) {
@@ -1845,20 +1813,20 @@ bool WebRtcVideoChannel::MaybeCreateDefaultReceiveStream(
   // is, and it wasn't handled above by DeliverPacket, that means we don't
   // know what stream it associates with, and we shouldn't ever create an
   // implicit channel for these.
-  bool is_rtx_payload = false;
-  for (auto& codec : recv_codecs_) {
-    if (packet.PayloadType() == codec.ulpfec.red_rtx_payload_type ||
-        packet.PayloadType() == codec.ulpfec.ulpfec_payload_type) {
-      return false;
-    }
-
-    if (packet.PayloadType() == codec.rtx_payload_type) {
-      is_rtx_payload = true;
-      break;
-    }
-  }
-
   // RingRTC change to not process unsignaled SSRCs
+  // bool is_rtx_payload = false;
+  // for (auto& codec : recv_codecs_) {
+  //   if (packet.PayloadType() == codec.ulpfec.red_rtx_payload_type ||
+  //       packet.PayloadType() == codec.ulpfec.ulpfec_payload_type) {
+  //     return false;
+  //   }
+  //
+  //   if (packet.PayloadType() == codec.rtx_payload_type) {
+  //     is_rtx_payload = true;
+  //     break;
+  //   }
+  // }
+  //
   // if (is_rtx_payload) {
   //   // As we don't support receiving simulcast there can only be one RTX
   //   // stream, which will be associated with unsignaled media stream.
