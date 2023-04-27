@@ -23,7 +23,8 @@
 
 namespace webrtc {
 
-class ScreenCastPortal : public xdg_portal::ScreenCapturePortalInterface {
+class RTC_EXPORT ScreenCastPortal
+    : public xdg_portal::ScreenCapturePortalInterface {
  public:
   using ProxyRequestResponseHandler = void (*)(GObject* object,
                                                GAsyncResult* result,
@@ -40,7 +41,7 @@ class ScreenCastPortal : public xdg_portal::ScreenCapturePortalInterface {
 
   // Values are set based on cursor mode property in
   // xdg-desktop-portal/screencast
-  // https://github.com/flatpak/xdg-desktop-portal/blob/master/data/org.freedesktop.portal.ScreenCast.xml
+  // https://github.com/flatpak/xdg-desktop-portal/blob/main/data/org.freedesktop.portal.ScreenCast.xml
   enum class CursorMode : uint32_t {
     // Mouse cursor will not be included in any form
     kHidden = 0b01,
@@ -52,7 +53,7 @@ class ScreenCastPortal : public xdg_portal::ScreenCapturePortalInterface {
 
   // Values are set based on persist mode property in
   // xdg-desktop-portal/screencast
-  // https://github.com/flatpak/xdg-desktop-portal/blob/master/data/org.freedesktop.portal.ScreenCast.xml
+  // https://github.com/flatpak/xdg-desktop-portal/blob/main/data/org.freedesktop.portal.ScreenCast.xml
   enum class PersistMode : uint32_t {
     // Do not allow to restore stream
     kDoNotPersist = 0b00,
@@ -123,7 +124,7 @@ class ScreenCastPortal : public xdg_portal::ScreenCapturePortalInterface {
  private:
   // Values are set based on source type property in
   // xdg-desktop-portal/screencast
-  // https://github.com/flatpak/xdg-desktop-portal/blob/master/data/org.freedesktop.portal.ScreenCast.xml
+  // https://github.com/flatpak/xdg-desktop-portal/blob/main/data/org.freedesktop.portal.ScreenCast.xml
   enum class CaptureSourceType : uint32_t {
     kScreen = 0b01,
     kWindow = 0b10,

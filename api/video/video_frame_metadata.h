@@ -12,18 +12,28 @@
 #define API_VIDEO_VIDEO_FRAME_METADATA_H_
 
 #include <cstdint>
+#include <vector>
 
 #include "absl/container/inlined_vector.h"
 #include "absl/types/optional.h"
+#include "absl/types/variant.h"
 #include "api/array_view.h"
 #include "api/transport/rtp/dependency_descriptor.h"
 #include "api/video/video_codec_type.h"
 #include "api/video/video_content_type.h"
 #include "api/video/video_frame_type.h"
 #include "api/video/video_rotation.h"
+#include "modules/video_coding/codecs/h264/include/h264_globals.h"
+#include "modules/video_coding/codecs/vp8/include/vp8_globals.h"
+#include "modules/video_coding/codecs/vp9/include/vp9_globals.h"
 #include "rtc_base/system/rtc_export.h"
 
 namespace webrtc {
+
+using RTPVideoHeaderCodecSpecifics = absl::variant<absl::monostate,
+                                                   RTPVideoHeaderVP8,
+                                                   RTPVideoHeaderVP9,
+                                                   RTPVideoHeaderH264>;
 
 // A subset of metadata from the RTP video header, exposed in insertable streams
 // API.
@@ -74,6 +84,16 @@ class RTC_EXPORT VideoFrameMetadata {
   VideoCodecType GetCodec() const;
   void SetCodec(VideoCodecType codec);
 
+  // Which varient is used depends on the VideoCodecType from GetCodecs().
+  const RTPVideoHeaderCodecSpecifics& GetRTPVideoHeaderCodecSpecifics() const;
+  void SetRTPVideoHeaderCodecSpecifics(
+      RTPVideoHeaderCodecSpecifics codec_specifics);
+
+  uint32_t GetSsrc() const;
+  void SetSsrc(uint32_t ssrc);
+  std::vector<uint32_t> GetCsrcs() const;
+  void SetCsrcs(std::vector<uint32_t> csrcs);
+
  private:
   VideoFrameType frame_type_ = VideoFrameType::kEmptyFrame;
   int16_t width_ = 0;
@@ -91,6 +111,11 @@ class RTC_EXPORT VideoFrameMetadata {
   bool is_last_frame_in_picture_ = true;
   uint8_t simulcast_idx_ = 0;
   VideoCodecType codec_ = VideoCodecType::kVideoCodecGeneric;
+  RTPVideoHeaderCodecSpecifics codec_specifics_;
+
+  // RTP info.
+  uint32_t ssrc_;
+  std::vector<uint32_t> csrcs_;
 };
 }  // namespace webrtc
 

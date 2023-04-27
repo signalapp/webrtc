@@ -26,6 +26,7 @@
 #include "modules/rtp_rtcp/include/receive_statistics.h"
 #include "modules/rtp_rtcp/include/rtp_cvo.h"
 #include "modules/rtp_rtcp/source/create_video_rtp_depacketizer.h"
+#include "modules/rtp_rtcp/source/frame_object.h"
 #include "modules/rtp_rtcp/source/rtp_dependency_descriptor_extension.h"
 #include "modules/rtp_rtcp/source/rtp_format.h"
 #include "modules/rtp_rtcp/source/rtp_generic_frame_descriptor.h"
@@ -36,7 +37,6 @@
 #include "modules/rtp_rtcp/source/ulpfec_receiver.h"
 #include "modules/rtp_rtcp/source/video_rtp_depacketizer.h"
 #include "modules/rtp_rtcp/source/video_rtp_depacketizer_raw.h"
-#include "modules/video_coding/frame_object.h"
 #include "modules/video_coding/h264_sprop_parameter_sets.h"
 #include "modules/video_coding/h264_sps_pps_tracker.h"
 #include "modules/video_coding/nack_requester.h"
@@ -126,7 +126,6 @@ std::unique_ptr<UlpfecReceiver> MaybeConstructUlpfecReceiver(
     uint32_t remote_ssrc,
     int red_payload_type,
     int ulpfec_payload_type,
-    rtc::ArrayView<const RtpExtension> extensions,
     RecoveredPacketReceiver* callback,
     Clock* clock) {
   RTC_DCHECK_GE(red_payload_type, -1);
@@ -141,7 +140,7 @@ std::unique_ptr<UlpfecReceiver> MaybeConstructUlpfecReceiver(
   //    return nullptr;
 
   return std::make_unique<UlpfecReceiver>(remote_ssrc, ulpfec_payload_type,
-                                          callback, extensions, clock);
+                                          callback, clock);
 }
 
 static const int kPacketLogIntervalMs = 10000;
@@ -254,7 +253,6 @@ RtpVideoStreamReceiver2::RtpVideoStreamReceiver2(
       config_(*config),
       packet_router_(packet_router),
       ntp_estimator_(clock),
-      rtp_header_extensions_(config_.rtp.extensions),
       forced_playout_delay_max_ms_("max_ms", absl::nullopt),
       forced_playout_delay_min_ms_("min_ms", absl::nullopt),
       rtp_receive_statistics_(rtp_receive_statistics),
@@ -262,7 +260,6 @@ RtpVideoStreamReceiver2::RtpVideoStreamReceiver2(
           MaybeConstructUlpfecReceiver(config->rtp.remote_ssrc,
                                        config->rtp.red_payload_type,
                                        config->rtp.ulpfec_payload_type,
-                                       config->rtp.extensions,
                                        this,
                                        clock_)),
       red_payload_type_(config_.rtp.red_payload_type),
@@ -439,8 +436,12 @@ RtpVideoStreamReceiver2::ParseGenericDependenciesExtension(
       // or too new packet (before relevant video_structure_ arrived).
       // Drop such packet to be on the safe side.
       // TODO(bugs.webrtc.org/10342): Stash too new packet.
-      RTC_LOG(LS_WARNING) << "ssrc: " << rtp_packet.Ssrc()
-                          << " Failed to parse dependency descriptor.";
+      Timestamp now = clock_->CurrentTime();
+      if (now - last_logged_failed_to_parse_dd_ > TimeDelta::Seconds(1)) {
+        last_logged_failed_to_parse_dd_ = now;
+        RTC_LOG(LS_WARNING) << "ssrc: " << rtp_packet.Ssrc()
+                            << " Failed to parse dependency descriptor.";
+      }
       return kDropPacket;
     }
     if (dependency_descriptor.attached_structure != nullptr &&
@@ -694,26 +695,13 @@ void RtpVideoStreamReceiver2::OnReceivedPayloadData(
   OnInsertedPacket(packet_buffer_.InsertPacket(std::move(packet)));
 }
 
-void RtpVideoStreamReceiver2::OnRecoveredPacket(const uint8_t* rtp_packet,
-                                                size_t rtp_packet_length) {
+void RtpVideoStreamReceiver2::OnRecoveredPacket(
+    const RtpPacketReceived& packet) {
   RTC_DCHECK_RUN_ON(&packet_sequence_checker_);
-
-  RtpPacketReceived packet;
-  if (!packet.Parse(rtp_packet, rtp_packet_length))
-    return;
   if (packet.PayloadType() == red_payload_type_) {
     RTC_LOG(LS_WARNING) << "Discarding recovered packet with RED encapsulation";
     return;
   }
-
-  packet.IdentifyExtensions(rtp_header_extensions_);
-  packet.set_payload_type_frequency(kVideoPayloadTypeFrequency);
-  // TODO(bugs.webrtc.org/7135): UlpfecReceiverImpl::ProcessReceivedFec passes
-  // both original (decapsulated) media packets and recovered packets to this
-  // callback. We need a way to distinguish, for setting packet.recovered()
-  // correctly. Ideally, move RED decapsulation out of the Ulpfec
-  // implementation.
-
   ReceivePacket(packet);
 }
 
@@ -966,17 +954,6 @@ void RtpVideoStreamReceiver2::SetDepacketizerToDecoderFrameTransformer(
   frame_transformer_delegate_->Init();
 }
 
-void RtpVideoStreamReceiver2::SetRtpExtensions(
-    const std::vector<RtpExtension>& extensions) {
-  RTC_DCHECK_RUN_ON(&packet_sequence_checker_);
-  rtp_header_extensions_.Reset(extensions);
-}
-
-const RtpHeaderExtensionMap& RtpVideoStreamReceiver2::GetRtpExtensions() const {
-  RTC_DCHECK_RUN_ON(&packet_sequence_checker_);
-  return rtp_header_extensions_;
-}
-
 void RtpVideoStreamReceiver2::UpdateRtt(int64_t max_rtt_ms) {
   RTC_DCHECK_RUN_ON(&packet_sequence_checker_);
   if (nack_module_)
@@ -1048,9 +1025,9 @@ void RtpVideoStreamReceiver2::SetProtectionPayloadTypes(
   RTC_DCHECK(red_payload_type >= -1 && red_payload_type < 0x80);
   RTC_DCHECK(ulpfec_payload_type >= -1 && ulpfec_payload_type < 0x80);
   red_payload_type_ = red_payload_type;
-  ulpfec_receiver_ = MaybeConstructUlpfecReceiver(
-      config_.rtp.remote_ssrc, red_payload_type, ulpfec_payload_type,
-      config_.rtp.extensions, this, clock_);
+  ulpfec_receiver_ =
+      MaybeConstructUlpfecReceiver(config_.rtp.remote_ssrc, red_payload_type,
+                                   ulpfec_payload_type, this, clock_);
 }
 
 absl::optional<int64_t> RtpVideoStreamReceiver2::LastReceivedPacketMs() const {
@@ -1154,7 +1131,8 @@ bool RtpVideoStreamReceiver2::DeliverRtcp(const uint8_t* rtcp_packet,
     return false;
   }
 
-  rtp_rtcp_->IncomingRtcpPacket(rtcp_packet, rtcp_packet_length);
+  rtp_rtcp_->IncomingRtcpPacket(
+      rtc::MakeArrayView(rtcp_packet, rtcp_packet_length));
 
   int64_t rtt = 0;
   rtp_rtcp_->RTT(config_.rtp.remote_ssrc, &rtt, nullptr, nullptr, nullptr);

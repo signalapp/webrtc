@@ -18,25 +18,6 @@ DEFAULT_CPU = "x86-64"
 
 # Helpers:
 
-def make_goma_properties(enable_ats = True, jobs = None):
-    """Makes a default goma property with the specified argument.
-
-    Args:
-      enable_ats: True if the ATS should be enabled.
-      jobs: Number of jobs to be used by the builder.
-    Returns:
-      A dictonary with the goma properties.
-    """
-    goma_properties = {
-        "server_host": "goma.chromium.org",
-        "use_luci_auth": True,
-    }
-    if not enable_ats:
-        goma_properties["enable_ats"] = enable_ats
-    if jobs:
-        goma_properties["jobs"] = jobs
-    return {"$build/goma": goma_properties}
-
 def make_reclient_properties(instance, jobs = None):
     """Makes a default reclient property with the specified argument.
 
@@ -58,7 +39,6 @@ def make_reclient_properties(instance, jobs = None):
 # useful when a failure can be safely ignored while fixing it without
 # blocking the LKGR finder on it.
 skipped_lkgr_bots = [
-    "Fuchsia Release",
 ]
 
 # Use LUCI Scheduler BBv2 names and add Scheduler realms configs.
@@ -304,7 +284,7 @@ luci.bucket(
 luci.cq_group(
     name = "cq",
     tree_status_host = "webrtc-status.appspot.com",
-    watch = [cq.refset(repo = WEBRTC_GERRIT, refs = ["refs/heads/master", "refs/heads/main"])],
+    watch = [cq.refset(repo = WEBRTC_GERRIT, refs = ["refs/heads/main"])],
     acls = [
         acl.entry(acl.CQ_COMMITTER, groups = ["project-webrtc-committers"]),
         acl.entry(acl.CQ_DRY_RUNNER, groups = ["project-webrtc-tryjob-access"]),
@@ -425,8 +405,8 @@ recipe("lkgr_finder", pkg = "infra/recipe_bundles/chromium.googlesource.com/chro
 
 # Console definitions:
 
-luci.console_view(name = "ci", title = "Main", repo = WEBRTC_GIT, header = "console-header.textpb", refs = ["refs/heads/master", "refs/heads/main"])
-luci.console_view(name = "perf", title = "Perf", repo = WEBRTC_GIT, header = "console-header.textpb", refs = ["refs/heads/master", "refs/heads/main"])
+luci.console_view(name = "ci", title = "Main", repo = WEBRTC_GIT, header = "console-header.textpb", refs = ["refs/heads/main"])
+luci.console_view(name = "perf", title = "Perf", repo = WEBRTC_GIT, header = "console-header.textpb", refs = ["refs/heads/main"])
 luci.list_view(name = "cron", title = "Cron")
 luci.list_view(name = "try", title = "Tryserver")
 
@@ -551,8 +531,6 @@ def ci_builder(
     properties["builder_group"] = "client.webrtc"
     properties.update(make_reclient_properties("rbe-webrtc-trusted"))
 
-    # TODO(b/245249582): remove goma properties after reclient migration.
-    properties.update(make_goma_properties())
     notifies = ["post_submit_failure_notifier", "infra_failure_notifier"]
     notifies += ["webrtc_tree_closer"] if name not in skipped_lkgr_bots else []
     return webrtc_builder(
@@ -574,8 +552,6 @@ def try_builder(
         try_cat = True,
         cq = {},
         branch_cq = True,
-        goma_enable_ats = True,
-        goma_jobs = None,
         **kwargs):
     """Add a pre-submit builder.
 
@@ -586,8 +562,6 @@ def try_builder(
       try_cat: boolean, whether to include this builder in the /try/ console. See also: `add_milo`.
       cq: None to exclude this from all commit queues, or a dict of kwargs for cq_tryjob_verifier.
       branch_cq: False to exclude this builder just from the release-branch CQ.
-      goma_enable_ats: True if the ATS should be enabled by the builder.
-      goma_jobs: Number of jobs to be used by the builder.
       **kwargs: Pass on to webrtc_builder / luci.builder.
     Returns:
       A luci.builder.
@@ -596,7 +570,6 @@ def try_builder(
     dimensions.update({"pool": "luci.webrtc.try", "cpu": DEFAULT_CPU})
     properties = properties or {}
     properties["builder_group"] = "tryserver.webrtc"
-    properties.update(make_goma_properties(enable_ats = goma_enable_ats, jobs = goma_jobs))
     properties.update(make_reclient_properties("rbe-webrtc-untrusted"))
     if cq != None:
         luci.cq_tryjob_verifier(name, cq_group = "cq", **cq)
@@ -626,8 +599,7 @@ def perf_builder(name, perf_cat, **kwargs):
     Notifications are also disabled.
     """
     add_milo(name, {"perf": perf_cat})
-    properties = make_goma_properties()
-    properties.update(make_reclient_properties("rbe-webrtc-trusted"))
+    properties = make_reclient_properties("rbe-webrtc-trusted")
     properties["builder_group"] = "client.webrtc.perf"
     dimensions = {"pool": "luci.webrtc.perf", "os": "Linux", "cores": "2"}
     if "Android" in name:
@@ -690,7 +662,6 @@ win_builder = normal_builder_factory(
 
 win_try_job = normal_builder_factory(
     dimensions = {"os": "Windows"},
-    goma_enable_ats = False,
 )[1]
 
 mac_builder, mac_try_job = normal_builder_factory(
@@ -713,11 +684,8 @@ android_try_job("android_compile_arm_dbg", cq = {"experiment_percentage": 100})
 android_try_job("android_arm_dbg")
 android_builder("Android32", "Android|arm|rel")
 android_try_job("android_arm_rel")
-android_try_job("android_arm_rel_reclient", cq = {"experiment_percentage": 100})
 android_builder("Android32 Builder arm", "Android|arm|size", perf_cat = "Android|arm|Builder|", prioritized = True)
 android_try_job("android_compile_arm_rel")
-perf_builder("Perf Android32 (M Nexus5)", "Android|arm|Tester|M Nexus5", triggered_by = ["Android32 Builder arm"])
-perf_builder("Perf Android32 (M AOSP Nexus6)", "Android|arm|Tester|M AOSP Nexus6", triggered_by = ["Android32 Builder arm"])
 perf_builder("Perf Android32 (O Pixel2)", "Android|arm|Tester|O Pixel2", triggered_by = ["Android32 Builder arm"])
 perf_builder("Perf Android32 (R Pixel5)", "Android|arm|Tester|R Pixel5", triggered_by = ["Android32 Builder arm"])
 android_try_job("android_compile_arm64_dbg", cq = None)
@@ -725,7 +693,6 @@ android_try_job("android_arm64_dbg", cq = None)
 android_builder("Android64", "Android|arm64|rel")
 android_try_job("android_arm64_rel")
 android_builder("Android64 Builder arm64", "Android|arm64|size", perf_cat = "Android|arm64|Builder|", prioritized = True)
-perf_builder("Perf Android64 (M Nexus5X)", "Android|arm64|Tester|M Nexus5X", triggered_by = ["Android64 Builder arm64"])
 perf_builder("Perf Android64 (O Pixel2)", "Android|arm64|Tester|O Pixel2", triggered_by = ["Android64 Builder arm64"])
 perf_builder("Perf Android64 (R Pixel5)", "Android|arm64|Tester|R Pixel5", triggered_by = ["Android64 Builder arm64"])
 android_try_job("android_compile_arm64_rel")
@@ -744,13 +711,8 @@ ios_builder("iOS64 Debug", "iOS|arm64|dbg")
 ios_try_job("ios_compile_arm64_dbg")
 ios_builder("iOS64 Release", "iOS|arm64|rel")
 ios_try_job("ios_compile_arm64_rel")
-ios_try_job("ios_compile_arm64_rel_reclient", cq = {"experiment_percentage": 100})
-ios_builder("iOS64 Sim Debug (iOS 14)", "iOS|x64|14")
-ios_try_job("ios_sim_x64_dbg_ios14")
-ios_builder("iOS64 Sim Debug (iOS 13)", "iOS|x64|13")
-ios_try_job("ios_sim_x64_dbg_ios13")
-ios_builder("iOS64 Sim Debug (iOS 12)", "iOS|x64|12")
-ios_try_job("ios_sim_x64_dbg_ios12")
+ios_builder("iOS Debug (simulator)", "iOS|x64|sim")
+ios_try_job("ios_dbg_simulator")
 ios_builder("iOS API Framework Builder", "iOS|fat|size", recipe = "ios_api_framework", prioritized = True)
 ios_try_job("ios_api_framework", recipe = "ios_api_framework")
 
@@ -763,7 +725,6 @@ linux_try_job("linux_dbg", cq = None)
 linux_try_job("linux_compile_dbg")
 linux_builder("Linux64 Release", "Linux|x64|rel")
 linux_try_job("linux_rel")
-linux_try_job("linux_rel_reclient", cq = {"experiment_percentage": 100})
 linux_builder("Linux64 Builder", "Linux|x64|size", perf_cat = "Linux|x64|Builder|", prioritized = True)
 linux_try_job("linux_compile_rel")
 perf_builder("Perf Linux Bionic", "Linux|x64|Tester|Bionic", triggered_by = ["Linux64 Builder"])
@@ -791,11 +752,12 @@ linux_builder("Linux (more configs)", "Linux|x64|more")
 linux_try_job("linux_more_configs")
 linux_try_job("linux_chromium_compile", recipe = "chromium_trybot", branch_cq = False)
 linux_try_job("linux_chromium_compile_dbg", recipe = "chromium_trybot", branch_cq = False)
-linux_try_job("linux_coverage", cq = None)
+linux_try_job("linux_coverage")
+linux_try_job("webrtc_linux_chromium", recipe = "chromium_trybot", cq = None, branch_cq = False)
 
 linux_builder("Fuchsia Builder", ci_cat = None, perf_cat = "Fuchsia|x64|Builder|", prioritized = True)
 linux_builder("Fuchsia Release", "Fuchsia|x64|rel")
-linux_try_job("fuchsia_rel", cq = None)
+linux_try_job("fuchsia_rel")
 perf_builder("Perf Fuchsia", "Fuchsia|x64|Tester|", triggered_by = ["Fuchsia Builder"])
 
 mac_builder("Mac64 Debug", "Mac|x64|dbg")
@@ -804,7 +766,6 @@ mac_try_job("mac_compile_dbg")
 mac_builder("Mac64 Release", "Mac|x64|rel")
 
 mac_try_job("mac_rel")
-mac_try_job("mac_rel_reclient", cq = {"experiment_percentage": 100})
 mac_try_job("mac_compile_rel", cq = None)
 mac_builder("Mac64 Builder", ci_cat = None, perf_cat = "Mac|x64|Builder|")
 mac_builder("MacArm64 Builder", ci_cat = None, perf_cat = "Mac|arm64|Builder|")
@@ -832,13 +793,12 @@ win_try_job("win_compile_x64_clang_dbg")
 win_builder("Win64 Release (Clang)", "Win Clang|x64|rel")
 win_try_job("win_x64_clang_rel", cq = None)
 win_try_job("win_compile_x64_clang_rel")
-win_try_job("win_compile_x64_clang_rel_reclient", cq = {"experiment_percentage": 100})
 win_builder("Win64 ASan", "Win Clang|x64|asan")
 win_try_job("win_asan")
 win_builder("Win (more configs)", "Win Clang|x86|more")
 win_try_job("win_x86_more_configs")
-win_try_job("win_chromium_compile", recipe = "chromium_trybot", branch_cq = False, goma_jobs = 150)
-win_try_job("win_chromium_compile_dbg", recipe = "chromium_trybot", branch_cq = False, goma_jobs = 150)
+win_try_job("win_chromium_compile", recipe = "chromium_trybot", branch_cq = False)
+win_try_job("win_chromium_compile_dbg", recipe = "chromium_trybot", branch_cq = False)
 
 linux_try_job(
     "presubmit",
@@ -913,4 +873,6 @@ cron_builder(
         "config": lkgr_config,
     },
     schedule = "*/10 * * * *",  # Every 10 minutes.
+    # TODO(crbug.com/1393420): remove this.
+    experiments = {"luci.buildbucket.omit_python2": 0},
 )

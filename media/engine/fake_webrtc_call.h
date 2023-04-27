@@ -113,10 +113,6 @@ class FakeAudioReceiveStream final
     config_.sync_group = std::string(sync_group);
   }
 
-  bool transport_cc() const override { return config_.rtp.transport_cc; }
-  void SetTransportCc(bool transport_cc) override {
-    config_.rtp.transport_cc = transport_cc;
-  }
   uint32_t remote_ssrc() const override { return config_.rtp.remote_ssrc; }
   void Start() override { started_ = true; }
   void Stop() override { started_ = false; }
@@ -130,9 +126,6 @@ class FakeAudioReceiveStream final
   void SetNonSenderRttMeasurement(bool enabled) override;
   void SetFrameDecryptor(rtc::scoped_refptr<webrtc::FrameDecryptorInterface>
                              frame_decryptor) override;
-  void SetRtpExtensions(std::vector<webrtc::RtpExtension> extensions) override;
-  const std::vector<webrtc::RtpExtension>& GetRtpExtensions() const override;
-  webrtc::RtpHeaderExtensionMap GetRtpExtensionMap() const override;
 
   webrtc::AudioReceiveStreamInterface::Stats GetStats(
       bool get_and_clear_legacy_stats) const override;
@@ -266,6 +259,8 @@ class FakeVideoReceiveStream final
     config_.rtp.local_ssrc = local_ssrc;
   }
 
+  void UpdateRtxSsrc(uint32_t ssrc) { config_.rtp.rtx_ssrc = ssrc; }
+
   void SetFrameDecryptor(rtc::scoped_refptr<webrtc::FrameDecryptorInterface>
                              frame_decryptor) override {}
 
@@ -279,13 +274,6 @@ class FakeVideoReceiveStream final
   }
   void GenerateKeyFrame() override {}
 
-  // webrtc::VideoReceiveStreamInterface implementation.
-  void SetRtpExtensions(std::vector<webrtc::RtpExtension> extensions) override;
-  webrtc::RtpHeaderExtensionMap GetRtpExtensionMap() const override;
-  bool transport_cc() const override { return config_.rtp.transport_cc; }
-  void SetTransportCc(bool transport_cc) override {
-    config_.rtp.transport_cc = transport_cc;
-  }
   void SetRtcpMode(webrtc::RtcpMode mode) override {
     config_.rtp.rtcp_mode = mode;
   }
@@ -349,12 +337,6 @@ class FakeFlexfecReceiveStream final : public webrtc::FlexfecReceiveStream {
     config_.rtp.local_ssrc = local_ssrc;
   }
 
-  void SetRtpExtensions(std::vector<webrtc::RtpExtension> extensions) override;
-  webrtc::RtpHeaderExtensionMap GetRtpExtensionMap() const override;
-  bool transport_cc() const override { return config_.rtp.transport_cc; }
-  void SetTransportCc(bool transport_cc) override {
-    config_.rtp.transport_cc = transport_cc;
-  }
   void SetRtcpMode(webrtc::RtcpMode mode) override { config_.rtcp_mode = mode; }
 
   int payload_type() const override { return config_.payload_type; }
@@ -396,6 +378,9 @@ class FakeCall final : public webrtc::Call, public webrtc::PacketReceiver {
   const std::vector<FakeFlexfecReceiveStream*>& GetFlexfecReceiveStreams();
 
   rtc::SentPacket last_sent_packet() const { return last_sent_packet_; }
+  const webrtc::RtpPacketReceived& last_received_rtp_packet() const {
+    return last_received_rtp_packet_;
+  }
   size_t GetDeliveredPacketsForSsrc(uint32_t ssrc) const {
     auto it = delivered_packets_by_ssrc_.find(ssrc);
     return it != delivered_packets_by_ssrc_.end() ? it->second : 0u;
@@ -452,9 +437,17 @@ class FakeCall final : public webrtc::Call, public webrtc::PacketReceiver {
 
   webrtc::PacketReceiver* Receiver() override;
 
-  DeliveryStatus DeliverPacket(webrtc::MediaType media_type,
-                               rtc::CopyOnWriteBuffer packet,
-                               int64_t packet_time_us) override;
+  void DeliverRtcpPacket(rtc::CopyOnWriteBuffer packet) override {}
+
+  void DeliverRtpPacket(
+      webrtc::MediaType media_type,
+      webrtc::RtpPacketReceived packet,
+      OnUndemuxablePacketHandler un_demuxable_packet_handler) override;
+
+  bool DeliverPacketInternal(webrtc::MediaType media_type,
+                             uint32_t ssrc,
+                             const rtc::CopyOnWriteBuffer& packet,
+                             webrtc::Timestamp arrival_time);
 
   webrtc::RtpTransportControllerSendInterface* GetTransportControllerSend()
       override {
@@ -489,6 +482,7 @@ class FakeCall final : public webrtc::Call, public webrtc::PacketReceiver {
   webrtc::NetworkState audio_network_state_;
   webrtc::NetworkState video_network_state_;
   rtc::SentPacket last_sent_packet_;
+  webrtc::RtpPacketReceived last_received_rtp_packet_;
   int last_sent_nonnegative_packet_id_ = -1;
   int next_stream_id_ = 665;
   webrtc::Call::Stats stats_;

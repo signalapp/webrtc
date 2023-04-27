@@ -35,6 +35,7 @@
 #include "modules/audio_mixer/audio_mixer_impl.h"
 #include "modules/rtp_rtcp/source/rtp_packet.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/logging.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/task_queue_for_test.h"
 #include "rtc_base/thread.h"
@@ -243,23 +244,26 @@ void CallPerfTest::TestAudioVideoSync(FecMode fec,
         test::PacketTransport::kSender, audio_pt_map,
         std::make_unique<FakeNetworkPipe>(
             Clock::GetRealTimeClock(),
-            std::make_unique<SimulatedNetwork>(audio_net_config)));
+            std::make_unique<SimulatedNetwork>(audio_net_config)),
+        GetRegisteredExtensions(), GetRegisteredExtensions());
     audio_send_transport->SetReceiver(receiver_call_->Receiver());
 
     video_send_transport = std::make_unique<test::PacketTransport>(
         task_queue(), sender_call_.get(), observer.get(),
         test::PacketTransport::kSender, video_pt_map,
-        std::make_unique<FakeNetworkPipe>(Clock::GetRealTimeClock(),
-                                          std::make_unique<SimulatedNetwork>(
-                                              BuiltInNetworkBehaviorConfig())));
+        std::make_unique<FakeNetworkPipe>(
+            Clock::GetRealTimeClock(),
+            std::make_unique<SimulatedNetwork>(BuiltInNetworkBehaviorConfig())),
+        GetRegisteredExtensions(), GetRegisteredExtensions());
     video_send_transport->SetReceiver(receiver_call_->Receiver());
 
     receive_transport = std::make_unique<test::PacketTransport>(
         task_queue(), receiver_call_.get(), observer.get(),
         test::PacketTransport::kReceiver, payload_type_map_,
-        std::make_unique<FakeNetworkPipe>(Clock::GetRealTimeClock(),
-                                          std::make_unique<SimulatedNetwork>(
-                                              BuiltInNetworkBehaviorConfig())));
+        std::make_unique<FakeNetworkPipe>(
+            Clock::GetRealTimeClock(),
+            std::make_unique<SimulatedNetwork>(BuiltInNetworkBehaviorConfig())),
+        GetRegisteredExtensions(), GetRegisteredExtensions());
     receive_transport->SetReceiver(sender_call_->Receiver());
 
     CreateSendConfig(1, 0, 0, video_send_transport.get());
@@ -412,25 +416,12 @@ void CallPerfTest::TestCaptureNtpTime(
           rtp_start_timestamp_(0) {}
 
    private:
-    std::unique_ptr<test::PacketTransport> CreateSendTransport(
-        TaskQueueBase* task_queue,
-        Call* sender_call) override {
-      return std::make_unique<test::PacketTransport>(
-          task_queue, sender_call, this, test::PacketTransport::kSender,
-          payload_type_map_,
-          std::make_unique<FakeNetworkPipe>(
-              Clock::GetRealTimeClock(),
-              std::make_unique<SimulatedNetwork>(net_config_)));
+    BuiltInNetworkBehaviorConfig GetSendTransportConfig() const override {
+      return net_config_;
     }
 
-    std::unique_ptr<test::PacketTransport> CreateReceiveTransport(
-        TaskQueueBase* task_queue) override {
-      return std::make_unique<test::PacketTransport>(
-          task_queue, nullptr, this, test::PacketTransport::kReceiver,
-          payload_type_map_,
-          std::make_unique<FakeNetworkPipe>(
-              Clock::GetRealTimeClock(),
-              std::make_unique<SimulatedNetwork>(net_config_)));
+    BuiltInNetworkBehaviorConfig GetReceiveTransportConfig() const override {
+      return net_config_;
     }
 
     void OnFrame(const VideoFrame& video_frame) override {
@@ -920,7 +911,6 @@ void CallPerfTest::TestMinAudioVideoBitrate(int test_bitrate_from,
                                             int start_bwe,
                                             int max_bwe) {
   static const std::string kAudioTrackId = "audio_track_0";
-  static constexpr int kOpusBitrateFbBps = 32000;
   static constexpr int kBitrateStabilizationMs = 10000;
   static constexpr int kBitrateMeasurements = 10;
   static constexpr int kBitrateMeasurementMs = 1000;
@@ -946,35 +936,26 @@ void CallPerfTest::TestMinAudioVideoBitrate(int test_bitrate_from,
           task_queue_(task_queue) {}
 
    protected:
-    BuiltInNetworkBehaviorConfig GetFakeNetworkPipeConfig() {
+    BuiltInNetworkBehaviorConfig GetFakeNetworkPipeConfig() const {
       BuiltInNetworkBehaviorConfig pipe_config;
       pipe_config.link_capacity_kbps = test_bitrate_from_;
       return pipe_config;
     }
 
-    std::unique_ptr<test::PacketTransport> CreateSendTransport(
-        TaskQueueBase* task_queue,
-        Call* sender_call) override {
-      auto network =
-          std::make_unique<SimulatedNetwork>(GetFakeNetworkPipeConfig());
-      send_simulated_network_ = network.get();
-      return std::make_unique<test::PacketTransport>(
-          task_queue, sender_call, this, test::PacketTransport::kSender,
-          test::CallTest::payload_type_map_,
-          std::make_unique<FakeNetworkPipe>(Clock::GetRealTimeClock(),
-                                            std::move(network)));
+    BuiltInNetworkBehaviorConfig GetSendTransportConfig() const override {
+      return GetFakeNetworkPipeConfig();
+    }
+    BuiltInNetworkBehaviorConfig GetReceiveTransportConfig() const override {
+      return GetFakeNetworkPipeConfig();
     }
 
-    std::unique_ptr<test::PacketTransport> CreateReceiveTransport(
-        TaskQueueBase* task_queue) override {
-      auto network =
-          std::make_unique<SimulatedNetwork>(GetFakeNetworkPipeConfig());
-      receive_simulated_network_ = network.get();
-      return std::make_unique<test::PacketTransport>(
-          task_queue, nullptr, this, test::PacketTransport::kReceiver,
-          test::CallTest::payload_type_map_,
-          std::make_unique<FakeNetworkPipe>(Clock::GetRealTimeClock(),
-                                            std::move(network)));
+    void OnTransportCreated(
+        test::PacketTransport* to_receiver,
+        SimulatedNetworkInterface* sender_network,
+        test::PacketTransport* to_sender,
+        SimulatedNetworkInterface* receiver_network) override {
+      send_simulated_network_ = sender_network;
+      receive_simulated_network_ = receiver_network;
     }
 
     void PerformTest() override {
@@ -1008,8 +989,12 @@ void CallPerfTest::TestMinAudioVideoBitrate(int test_bitrate_from,
         }
         avg_rtt = avg_rtt / kBitrateMeasurements;
         if (avg_rtt > kMinGoodRttMs) {
+          RTC_LOG(LS_WARNING)
+              << "Failed test bitrate: " << test_bitrate << " RTT: " << avg_rtt;
           break;
         } else {
+          RTC_LOG(LS_INFO) << "Passed test bitrate: " << test_bitrate
+                           << " RTT: " << avg_rtt;
           last_passed_test_bitrate = test_bitrate;
         }
       }
@@ -1034,13 +1019,6 @@ void CallPerfTest::TestMinAudioVideoBitrate(int test_bitrate_from,
 
     size_t GetNumAudioStreams() const override { return 1; }
 
-    void ModifyAudioConfigs(AudioSendStream::Config* send_config,
-                            std::vector<AudioReceiveStreamInterface::Config>*
-                                receive_configs) override {
-      send_config->send_codec_spec->target_bitrate_bps =
-          absl::optional<int>(kOpusBitrateFbBps);
-    }
-
    private:
     const int test_bitrate_from_;
     const int test_bitrate_to_;
@@ -1048,8 +1026,8 @@ void CallPerfTest::TestMinAudioVideoBitrate(int test_bitrate_from,
     const int min_bwe_;
     const int start_bwe_;
     const int max_bwe_;
-    SimulatedNetwork* send_simulated_network_;
-    SimulatedNetwork* receive_simulated_network_;
+    SimulatedNetworkInterface* send_simulated_network_;
+    SimulatedNetworkInterface* receive_simulated_network_;
     Call* sender_call_;
     TaskQueueBase* const task_queue_;
   } test(test_bitrate_from, test_bitrate_to, test_bitrate_step, min_bwe,
@@ -1058,13 +1036,7 @@ void CallPerfTest::TestMinAudioVideoBitrate(int test_bitrate_from,
   RunBaseTest(&test);
 }
 
-// TODO(bugs.webrtc.org/8878)
-#if defined(WEBRTC_MAC)
-#define MAYBE_Min_Bitrate_VideoAndAudio DISABLED_Min_Bitrate_VideoAndAudio
-#else
-#define MAYBE_Min_Bitrate_VideoAndAudio Min_Bitrate_VideoAndAudio
-#endif
-TEST_F(CallPerfTest, MAYBE_Min_Bitrate_VideoAndAudio) {
+TEST_F(CallPerfTest, Min_Bitrate_VideoAndAudio) {
   TestMinAudioVideoBitrate(110, 40, -10, 10000, 70000, 200000);
 }
 
@@ -1138,6 +1110,8 @@ void CallPerfTest::TestEncodeFramerate(VideoEncoderFactory* encoder_factory,
     }
 
     void VerifyStats() const {
+      const bool quick_perf_test =
+          field_trial::IsEnabled("WebRTC-QuickPerfTest");
       double input_fps = 0.0;
       for (const auto& configured_framerate : configured_framerates_) {
         input_fps = std::max(configured_framerate.second, input_fps);
@@ -1153,7 +1127,7 @@ void CallPerfTest::TestEncodeFramerate(VideoEncoderFactory* encoder_factory,
         double average_fps = values.GetAverage();
         uint32_t ssrc = encode_frame_rate_list.first;
         double expected_fps = configured_framerates_.find(ssrc)->second;
-        if (expected_fps != input_fps)
+        if (quick_perf_test && expected_fps != input_fps)
           EXPECT_NEAR(expected_fps, average_fps, kAllowedFpsDiff);
       }
     }

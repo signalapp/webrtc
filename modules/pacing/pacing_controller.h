@@ -95,8 +95,6 @@ class PacingController {
   // it's time to send.
   void EnqueuePacket(std::unique_ptr<RtpPacketToSend> packet);
 
-  // ABSL_DEPRECATED("Use CreateProbeClusters instead")
-  void CreateProbeCluster(DataRate bitrate, int cluster_id);
   void CreateProbeClusters(
       rtc::ArrayView<const ProbeClusterConfig> probe_cluster_configs);
 
@@ -208,7 +206,6 @@ class PacingController {
   const bool ignore_transport_overhead_;
   const bool fast_retransmissions_;
 
-  TimeDelta min_packet_limit_;
   DataSize transport_overhead_per_packet_;
   TimeDelta send_burst_interval_;
 

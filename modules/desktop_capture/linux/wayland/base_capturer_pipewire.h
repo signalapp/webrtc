@@ -23,9 +23,10 @@
 
 namespace webrtc {
 
-class BaseCapturerPipeWire : public DesktopCapturer,
-                             public DelegatedSourceListController,
-                             public ScreenCastPortal::PortalNotifier {
+class RTC_EXPORT BaseCapturerPipeWire
+    : public DesktopCapturer,
+      public DelegatedSourceListController,
+      public ScreenCastPortal::PortalNotifier {
  public:
   // Returns whether or not the current system can support capture via PipeWire.
   // This will only be true on Wayland systems that also have PipeWire
@@ -48,6 +49,7 @@ class BaseCapturerPipeWire : public DesktopCapturer,
   bool GetSourceList(SourceList* sources) override;
   bool SelectSource(SourceId id) override;
   DelegatedSourceListController* GetDelegatedSourceListController() override;
+  void SetMaxFrameRate(uint32_t max_frame_rate) override;
 
   // DelegatedSourceListController
   void Observe(Observer* observer) override;
@@ -63,11 +65,16 @@ class BaseCapturerPipeWire : public DesktopCapturer,
 
   xdg_portal::SessionDetails GetSessionDetails();
 
+  // Notifies the callback about the available frames as soon as a frame is
+  // received.
+  void SendFramesImmediately(bool send_frames_immediately);
+
  private:
   ScreenCastPortal* GetScreenCastPortal();
 
   DesktopCaptureOptions options_ = {};
   Callback* callback_ = nullptr;
+  bool send_frames_immediately_ = false;
   bool capturer_failed_ = false;
   bool is_screencast_portal_ = false;
   bool is_portal_open_ = false;
