@@ -898,9 +898,7 @@ class VoiceMediaSendChannelInterface : public MediaSendChannelInterface {
   virtual bool InsertDtmf(uint32_t ssrc, int event, int duration) = 0;
 
   // RingRTC change to configure opus
-  virtual void ConfigureEncoders(const webrtc::AudioEncoder::Config& config) {
-    RTC_LOG(LS_WARNING) << "Default VoiceMediaChannel::ConfigureEncoders(...) does nothing!";
-  }
+  virtual void ConfigureEncoders(const webrtc::AudioEncoder::Config& config) = 0;
 
   virtual bool GetStats(VoiceMediaSendInfo* stats) = 0;
   virtual bool SenderNackEnabled() const = 0;

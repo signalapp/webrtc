@@ -421,6 +421,12 @@ class VoiceMediaSendChannel : public VoiceMediaSendChannelInterface {
   bool InsertDtmf(uint32_t ssrc, int event, int duration) override {
     return impl()->InsertDtmf(ssrc, event, duration);
   }
+
+  // RingRTC change to configure opus
+  void ConfigureEncoders(const webrtc::AudioEncoder::Config& config) override {
+    impl()->ConfigureEncoders(config);
+  }
+
   bool GetStats(VoiceMediaSendInfo* info) override {
     return impl_->GetSendStats(info);
   }
