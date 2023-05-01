@@ -253,8 +253,9 @@ class WebRtcVoiceMediaChannel final : public VoiceMediaChannel,
   void ConfigureEncoders(const webrtc::AudioEncoder::Config& config) override;
 
   // RingRTC change to get audio levels
-  void GetAudioLevels(
-      cricket::AudioLevel* captured_out,
+  void GetCapturedAudioLevel(cricket::AudioLevel* captured_out) override;
+
+  void GetReceivedAudioLevels(
       cricket::ReceivedAudioLevel* received_out,
       size_t received_out_size,
       size_t* received_size_out) override;

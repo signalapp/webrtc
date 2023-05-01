@@ -975,7 +975,8 @@ void VoiceChannel::GetAudioLevels(
     size_t received_out_size,
     size_t* received_size_out) {
   worker_thread()->BlockingCall([this, captured_out, received_out, received_out_size, received_size_out] {
-    voice_media_receive_channel()->GetAudioLevels(captured_out, received_out, received_out_size, received_size_out);
+    voice_media_send_channel()->GetCapturedAudioLevel(captured_out);
+    voice_media_receive_channel()->GetReceivedAudioLevels(received_out, received_out_size, received_size_out);
   });
 }
 

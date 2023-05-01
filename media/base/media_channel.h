@@ -900,6 +900,9 @@ class VoiceMediaSendChannelInterface : public MediaSendChannelInterface {
   // RingRTC change to configure opus
   virtual void ConfigureEncoders(const webrtc::AudioEncoder::Config& config) = 0;
 
+  // RingRTC change to get audio levels
+  virtual void GetCapturedAudioLevel(cricket::AudioLevel* captured_out) = 0;
+
   virtual bool GetStats(VoiceMediaSendInfo* stats) = 0;
   virtual bool SenderNackEnabled() const = 0;
   virtual bool SenderNonSenderRttEnabled() const = 0;
@@ -928,15 +931,10 @@ class VoiceMediaReceiveChannelInterface : public MediaReceiveChannelInterface {
       std::unique_ptr<webrtc::AudioSinkInterface> sink) = 0;
 
   // RingRTC change to get audio levels
-  virtual void GetAudioLevels(
-      cricket::AudioLevel* captured_out,
+  virtual void GetReceivedAudioLevels(
       cricket::ReceivedAudioLevel* received_out,
       size_t received_out_size,
-      size_t* received_size_out) {
-    RTC_LOG(LS_WARNING) << "Default VoiceMediaChannel::GetAudioLevels does nothing!";
-    *captured_out = 0;
-    *received_size_out = 0;
-  }
+      size_t* received_size_out) = 0;
 
   virtual bool GetStats(VoiceMediaReceiveInfo* stats, bool reset_legacy) = 0;
   virtual void SetReceiveNackEnabled(bool enabled) = 0;

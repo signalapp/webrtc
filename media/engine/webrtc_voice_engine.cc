@@ -2625,17 +2625,19 @@ void WebRtcVoiceMediaChannel::ConfigureEncoders(const webrtc::AudioEncoder::Conf
   }
 }
 
-void WebRtcVoiceMediaChannel::GetAudioLevels(
-    cricket::AudioLevel* captured_out,
-    cricket::ReceivedAudioLevel* received_out,
-    size_t received_out_size,
-    size_t* received_size_out) {
-
+void WebRtcVoiceMediaChannel::GetCapturedAudioLevel(cricket::AudioLevel* captured_out) {
   cricket::AudioLevel captured = 0;
   for (const auto& kv : send_streams_) {
     captured = kv.second->GetAudioLevel();
   }
 
+  *captured_out = captured;
+}
+
+void WebRtcVoiceMediaChannel::GetReceivedAudioLevels(
+    cricket::ReceivedAudioLevel* received_out,
+    size_t received_out_size,
+    size_t* received_size_out) {
   size_t received_size = 0;
   for (const auto& kv : recv_streams_) {
     if (received_size >= received_out_size) {
@@ -2647,7 +2649,6 @@ void WebRtcVoiceMediaChannel::GetAudioLevels(
     };
   }
 
-  *captured_out = captured;
   *received_size_out = received_size;
 }
 

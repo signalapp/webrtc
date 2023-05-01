@@ -427,6 +427,11 @@ class VoiceMediaSendChannel : public VoiceMediaSendChannelInterface {
     impl()->ConfigureEncoders(config);
   }
 
+  // RingRTC change to get audio levels
+  void GetCapturedAudioLevel(cricket::AudioLevel* captured_out) override {
+    impl()->GetCapturedAudioLevel(captured_out);
+  }
+
   bool GetStats(VoiceMediaSendInfo* info) override {
     return impl_->GetSendStats(info);
   }
@@ -557,6 +562,13 @@ class VoiceMediaReceiveChannel : public VoiceMediaReceiveChannelInterface {
     impl_->SetReceiveNonSenderRttEnabled(enabled);
   }
   MediaChannel* ImplForTesting() override { return impl_; }
+
+  void GetReceivedAudioLevels(
+      cricket::ReceivedAudioLevel* received_out,
+      size_t received_out_size,
+      size_t* received_size_out) override {
+    impl_->GetReceivedAudioLevels(received_out, received_out_size, received_size_out);
+  }
 
  private:
   VoiceMediaReceiveChannelInterface* impl() { return impl_; }
