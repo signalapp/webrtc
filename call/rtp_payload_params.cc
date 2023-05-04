@@ -222,7 +222,7 @@ RTPVideoHeader RtpPayloadParams::GetRtpVideoHeader(
           ? codec_specific_info->codecSpecific.VP9.first_frame_in_picture
           : true;
 
-  SetCodecSpecific(&rtp_video_header, first_frame_in_picture, shared_frame_id);
+  SetCodecSpecific(&rtp_video_header, first_frame_in_picture);
 
   SetGeneric(codec_specific_info, shared_frame_id, is_keyframe,
              &rtp_video_header);
@@ -239,12 +239,10 @@ RtpPayloadState RtpPayloadParams::state() const {
 }
 
 void RtpPayloadParams::SetCodecSpecific(RTPVideoHeader* rtp_video_header,
-                                        bool first_frame_in_picture,
-                                        int64_t shared_frame_id) {
-
+                                        bool first_frame_in_picture) {
   // Always set picture id. Set tl0_pic_idx iff temporal index is set.
   if (first_frame_in_picture) {
-    state_.picture_id = shared_frame_id & 0x7FFF;
+    state_.picture_id = (static_cast<uint16_t>(state_.picture_id) + 1) & 0x7FFF;
   }
   if (rtp_video_header->codec == kVideoCodecVP8) {
     auto& vp8_header =
