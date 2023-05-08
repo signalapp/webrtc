@@ -335,8 +335,9 @@ deps = {
     'url': 'https://chromium.googlesource.com/external/github.com/kennethreitz/requests.git@refs/tags/v2.23.0',
     'condition': 'checkout_android',
   },
+  # RingRTC change to update tools to fix https://bugs.chromium.org/p/chromium/issues/detail?id=1395849
   'src/tools':
-    'https://chromium.googlesource.com/chromium/src/tools@6e72739081a707d893fab3016005273494428319',
+    'https://chromium.googlesource.com/chromium/src/tools@a6b7d5e7a1f60c80a4c62576ebadff507c5c84f8',
 
   'src/third_party/accessibility_test_framework': {
       'packages': [
