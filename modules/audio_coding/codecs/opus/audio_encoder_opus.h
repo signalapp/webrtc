@@ -155,6 +155,9 @@ class AudioEncoderOpusImpl final : public AudioEncoder {
 
   void MaybeUpdateUplinkBandwidth();
 
+  // RingRTC change to detect if an encoded packet contains speech or not
+  bool IsPacketSpeech(int encoded_bytes, const uint8_t* encoded);
+
   AudioEncoderOpusConfig config_;
   const int payload_type_;
   const bool use_stable_target_for_adaptation_;
