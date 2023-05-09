@@ -607,11 +607,6 @@ AudioEncoder::EncodedInfo AudioEncoderOpusImpl::EncodeImpl(
       });
   input_buffer_.clear();
 
-  bool dtx_frame = (info.encoded_bytes <= 2);
-
-  // Will use new packet size for next encoding.
-  config_.frame_size_ms = next_frame_length_ms_;
-
   if (adjust_bandwidth_ && bitrate_changed_) {
     const auto bandwidth = GetNewBandwidth(config_, inst_);
     if (bandwidth) {
@@ -623,16 +618,189 @@ AudioEncoder::EncodedInfo AudioEncoderOpusImpl::EncodeImpl(
   info.encoded_timestamp = first_timestamp_in_buffer_;
   info.payload_type = payload_type_;
   info.send_even_if_empty = true;  // Allows Opus to send empty packets.
+
   // After 20 DTX frames (MAX_CONSECUTIVE_DTX) Opus will send a frame
   // coding the background noise. Avoid flagging this frame as speech
   // (even though there is a probability of the frame being speech).
-  info.speech = !dtx_frame && (consecutive_dtx_frames_ != 20);
+  info.speech = IsPacketSpeech(info.encoded_bytes, encoded->data());
+
   info.encoder_type = CodecType::kOpus;
 
-  // Increase or reset DTX counter.
-  consecutive_dtx_frames_ = (dtx_frame) ? (consecutive_dtx_frames_ + 1) : (0);
+  // Will use new packet size for next encoding.
+  config_.frame_size_ms = next_frame_length_ms_;
 
   return info;
+}
+
+// RingRTC change to detect if an encoded packet contains speech or not.
+// Generally, if the last frame in the packet is audio, it is speech, unless
+// it is a DTX refresh frame. This function follows RFC-6716 to check frames
+// in each encoded packet.
+bool AudioEncoderOpusImpl::IsPacketSpeech(
+    int encoded_bytes,
+    const uint8_t* encoded) {
+  bool speech = false;
+
+  // If the encoder returns 0, 1, or 2 encoded bytes, by definition, the packet
+  // contains only DTX frame(s). 0 is the special case in which
+  // opus_interface.cc detected consecutive DTX packets and is instructing
+  // WebRTC not to send any packet out over the wire.
+  bool dtx_packet = (encoded_bytes <= 2);
+
+  if (config_.frame_size_ms > 20) {
+    // For packet times greater than 20ms, Opus will encode a group of 20ms
+    // frames and combine them into a 'packet' with a TOC.
+    if (dtx_packet) {
+      // The 'packet' contains only DTX frames.
+      consecutive_dtx_frames_ += config_.frame_size_ms / 20;
+    } else {
+      // The 'packet' contains at least one non-DTX frame.
+      if (((encoded[0] & 0x98) == 0x08) ||  // config values of 1, 5, 9, and 13
+          ((encoded[0] & 0x78) == 0x78) ||  // config value of 15
+          ((encoded[0] & 0x98) == 0x98)) {  // config values of 19, 23, 27, and 31
+        // The TOC indicates a packet with 20ms frames.
+        int code = encoded[0] & 0x03;
+        if (code == 0) {
+          // Code 0: 1 frame in the packet
+          // This case is unlikely for DTX.
+          consecutive_dtx_frames_ = 0;
+          speech = true;
+        } else if (code == 1) {
+          // Code 1: 2 frames in the packet, each with equal compressed size
+          // If both frames were DTX, we would not reach here.
+          consecutive_dtx_frames_ = 0;
+          speech = true;
+        } else if (code == 2) {
+          // Code 2: 2 frames in the packet, with different compressed sizes
+          int header_bytes = 2;
+          int size_of_first_frame = encoded[1];
+          if (size_of_first_frame > 251) {
+            size_of_first_frame += encoded[2] * 4;
+            header_bytes = 3;
+          }
+          int size_of_second_frame = encoded_bytes - size_of_first_frame - header_bytes;
+          if (size_of_first_frame > 0 && size_of_second_frame > 0) {
+            // The second frame has to be speech.
+            consecutive_dtx_frames_ = 0;
+            speech = true;
+          } else if (size_of_first_frame == 0 && size_of_second_frame > 0) {
+            // Second frame may or may not be DTX refresh.
+            speech = (consecutive_dtx_frames_ + 1) != 20;
+            consecutive_dtx_frames_ = 0;
+          } else if (size_of_first_frame > 0 && size_of_second_frame == 0) {
+            // First frame may or may not be DTX refresh.
+            consecutive_dtx_frames_ = 1;
+          } else {
+            // Both frames are size 0/DTX, should not reach here.
+            consecutive_dtx_frames_ += 2;
+          }
+        } else if (code == 3) {
+          // Code 3: an arbitrary number of frames in the packet
+          bool variable = (encoded[1] & 0x80) == 0x80;
+          bool padding = (encoded[1] & 0x40) == 0x40;
+          int M = encoded[1] & 0x3f;
+
+          int padding_header_bytes = 0;
+          int padding_size = 0;
+          if (padding) {
+            if (encoded[2] == 0xff) {
+              if (encoded_bytes < 4) {
+                // The packet should be at least 4 bytes, reset.
+                consecutive_dtx_frames_ = 0;
+                return true;
+              }
+              padding_size = 254 + encoded[3];
+              padding_header_bytes = 2;
+            } else {
+              padding_size = encoded[2];
+              padding_header_bytes = 1;
+            }
+          }
+
+          if (variable) {
+            // Frames in the packet have a variable size, a mix of audio and DTX.
+            int offset = 2 + padding_header_bytes;
+            int frame_header_bytes = 0;
+            int total_size_of_frames = 0;
+
+            // Check the worst-case limits to be sure there is enough encoded
+            // data to evaluate.
+            if (encoded_bytes < offset + M * 2) {
+              // Note: This assumes that actual encoded data is larger than
+              // the guess of two bytes for each header... Reset.
+              consecutive_dtx_frames_ = 0;
+              return true;
+            }
+
+            // The only time we walk the packet header to check for dynamic frame
+            // sizes. Only expected for packets with at least one DTX frame and
+            // at least one audio/refresh frame.
+            for (int frame = 0; frame < M - 1; frame++) {
+              int frame_size = encoded[offset];
+              if (frame_size > 251) {
+                frame_size += encoded[++offset] * 4;
+                frame_header_bytes += 2;
+              } else {
+                frame_header_bytes += 1;
+              }
+
+              if (frame_size > 0) {
+                // Could be speech or a DTX refresh frame. In either case,
+                // reset the DTX count.
+                consecutive_dtx_frames_ = 0;
+              } else {
+                // DTX frame.
+                consecutive_dtx_frames_++;
+              }
+
+              total_size_of_frames += frame_size;
+              offset++;
+            }
+
+            // Then, the last frame size should be:
+            int frame_M_size = encoded_bytes - 2
+                               - (padding_header_bytes + padding_size)
+                               - (frame_header_bytes + total_size_of_frames);
+            if (frame_M_size > 0) {
+              // The packet is ending, could be speech or a DTX refresh frame.
+              speech = consecutive_dtx_frames_ != 20;
+              consecutive_dtx_frames_ = 0;
+            } else if (frame_M_size == 0) {
+              // The packet is ending on a DTX frame.
+              consecutive_dtx_frames_++;
+            } else {
+              // Badly formatted packet, reset.
+              consecutive_dtx_frames_ = 0;
+              return true;
+            }
+          } else {
+            // Frames in the packet have a constant size.
+            int R = encoded_bytes - 2 - (padding_header_bytes + padding_size);
+            if (R > 0) {
+              // All frames are the same size and larger than zero, so they must
+              // represent speech.
+              consecutive_dtx_frames_ = 0;
+              speech = true;
+            } else {
+              // All frames are DTX.
+              consecutive_dtx_frames_ += M;
+            }
+          }
+        }
+      } else {
+        // The TOC indicates a packet with something other than 20ms frames.
+        // This does not match the supported frame sizing, reset and consider
+        // the packet to represent speech.
+        consecutive_dtx_frames_ = 0;
+        speech = true;
+      }
+    }
+  } else {
+    speech = !dtx_packet && (consecutive_dtx_frames_ != 20);
+    consecutive_dtx_frames_ = (dtx_packet) ? (consecutive_dtx_frames_ + 1) : (0);
+  }
+
+  return speech;
 }
 
 size_t AudioEncoderOpusImpl::Num10msFramesPerPacket() const {
