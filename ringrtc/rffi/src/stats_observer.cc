@@ -145,7 +145,7 @@ void StatsObserverRffi::OnStatsDelivered(const rtc::scoped_refptr<const RTCStats
   }
 
   MediaStatistics media_statistics;
-  media_statistics.timestamp_us = report->timestamp_us();
+  media_statistics.timestamp_us = report->timestamp().us_or(-1);
   media_statistics.audio_sender_statistics_size = this->audio_sender_statistics_.size();
   media_statistics.audio_sender_statistics = this->audio_sender_statistics_.data();
   media_statistics.video_sender_statistics_size = this->video_sender_statistics_.size();

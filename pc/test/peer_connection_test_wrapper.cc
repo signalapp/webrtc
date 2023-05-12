@@ -104,7 +104,8 @@ bool PeerConnectionTestWrapper::CreatePc(
   std::unique_ptr<cricket::PortAllocator> port_allocator(
       new cricket::FakePortAllocator(
           network_thread_,
-          std::make_unique<rtc::BasicPacketSocketFactory>(socket_server_)));
+          std::make_unique<rtc::BasicPacketSocketFactory>(socket_server_),
+          &field_trials_));
 
   RTC_DCHECK_RUN_ON(&pc_thread_checker_);
 
@@ -317,7 +318,8 @@ rtc::scoped_refptr<webrtc::MediaStreamInterface>
 PeerConnectionTestWrapper::GetUserMedia(
     bool audio,
     const cricket::AudioOptions& audio_options,
-    bool video) {
+    bool video,
+    webrtc::Resolution resolution) {
   std::string stream_id =
       kStreamIdBase + rtc::ToString(num_get_user_media_calls_++);
   rtc::scoped_refptr<webrtc::MediaStreamInterface> stream =
@@ -340,6 +342,8 @@ PeerConnectionTestWrapper::GetUserMedia(
     webrtc::FakePeriodicVideoSource::Config config;
     config.frame_interval_ms = 100;
     config.timestamp_offset_ms = rtc::TimeMillis();
+    config.width = resolution.width;
+    config.height = resolution.height;
 
     auto source = rtc::make_ref_counted<webrtc::FakePeriodicVideoTrackSource>(
         config, /* remote */ false);

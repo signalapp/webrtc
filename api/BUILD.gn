@@ -54,7 +54,6 @@ if (!build_with_chromium) {
       "../modules/audio_processing:api",
       "../pc:peer_connection_factory",
       "../pc:webrtc_sdp",
-      "../rtc_base",
       "../rtc_base:threading",
       "../stats:rtc_stats",
       "audio:audio_mixer_api",
@@ -143,12 +142,12 @@ rtc_library("candidate") {
     "candidate.h",
   ]
   deps = [
-    "../rtc_base",
     "../rtc_base:checks",
     "../rtc_base:ip_address",
     "../rtc_base:logging",
     "../rtc_base:network_constants",
     "../rtc_base:socket_address",
+    "../rtc_base:ssl",
     "../rtc_base:stringutils",
     "../rtc_base/system:rtc_export",
   ]
@@ -186,8 +185,8 @@ rtc_library("dtls_transport_interface") {
     ":ice_transport_interface",
     ":rtc_error",
     ":scoped_refptr",
-    "../rtc_base",
     "../rtc_base:refcount",
+    "../rtc_base:ssl",
     "../rtc_base/system:rtc_export",
   ]
   absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
@@ -296,8 +295,11 @@ rtc_library("libjingle_peerconnection_api") {
     "../p2p:rtc_p2p",
     "../rtc_base:copy_on_write_buffer",
     "../rtc_base:logging",
+    "../rtc_base:network",
     "../rtc_base:network_constants",
     "../rtc_base:refcount",
+    "../rtc_base:rtc_certificate_generator",
+    "../rtc_base:ssl",
     "../rtc_base:stringutils",
     "adaptation:resource_adaptation_api",
     "audio:audio_mixer_api",
@@ -328,7 +330,6 @@ rtc_library("libjingle_peerconnection_api") {
     "../media:rtc_media_base",
     "../media:rtc_media_config",
     "../modules/audio_processing:audio_processing_statistics",
-    "../rtc_base",
     "../rtc_base:checks",
     "../rtc_base:ip_address",
     "../rtc_base:socket_address",
@@ -381,8 +382,9 @@ rtc_source_set("packet_socket_factory") {
   deps = [
     ":async_dns_resolver",
     ":wrapping_async_dns_resolver",
+    "../rtc_base:async_packet_socket",
     "../rtc_base:async_resolver_interface",
-    "../rtc_base:rtc_base",
+    "../rtc_base:proxy_info",
     "../rtc_base:socket_address",
     "../rtc_base/system:rtc_export",
   ]
@@ -544,7 +546,7 @@ rtc_source_set("peer_network_dependencies") {
   sources = [ "test/peer_network_dependencies.h" ]
   deps = [
     ":packet_socket_factory",
-    "../rtc_base",
+    "../rtc_base:network",
     "../rtc_base:threading",
   ]
 }
@@ -571,10 +573,13 @@ rtc_source_set("peer_connection_quality_test_fixture_api") {
     ":stats_observer_interface",
     ":track_id_stream_info_map",
     ":video_quality_analyzer_api",
+    "../media:media_constants",
     "../media:rtc_media_base",
     "../modules/audio_processing:api",
     "../rtc_base:checks",
-    "../rtc_base:rtc_base",
+    "../rtc_base:network",
+    "../rtc_base:rtc_certificate_generator",
+    "../rtc_base:ssl",
     "../rtc_base:stringutils",
     "../rtc_base:threading",
     "../test:fileutils",
@@ -798,7 +803,6 @@ rtc_source_set("simulated_network_api") {
   visibility = [ "*" ]
   sources = [ "test/simulated_network.h" ]
   deps = [
-    "../rtc_base",
     "../rtc_base:macromagic",
     "../rtc_base:random",
   ]
@@ -819,8 +823,8 @@ rtc_source_set("network_emulation_manager_api") {
     ":simulated_network_api",
     ":time_controller",
     "../call:simulated_network",
-    "../rtc_base",
     "../rtc_base:checks",
+    "../rtc_base:network",
     "../rtc_base:network_constants",
     "../rtc_base:threading",
     "test/network_emulation",
@@ -838,7 +842,6 @@ rtc_source_set("time_controller") {
   ]
 
   deps = [
-    "../rtc_base",
     "../rtc_base:threading",
     "../rtc_base/synchronization:yield_policy",
     "../system_wrappers",
@@ -897,7 +900,6 @@ rtc_library("ice_transport_factory") {
     ":packet_socket_factory",
     ":scoped_refptr",
     "../p2p:rtc_p2p",
-    "../rtc_base",
     "../rtc_base:threading",
     "../rtc_base/system:rtc_export",
     "rtc_event_log:rtc_event_log",
@@ -1003,6 +1005,20 @@ if (rtc_include_tests) {
     absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
   }
 
+  rtc_library("video_codec_stats_api") {
+    visibility = [ "*" ]
+    testonly = true
+    sources = [ "test/video_codec_stats.h" ]
+    deps = [
+      "../api/numerics:numerics",
+      "../api/units:data_rate",
+      "../api/units:frequency",
+      "test/metrics:metric",
+      "test/metrics:metrics_logger",
+    ]
+    absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
+  }
+
   rtc_library("videocodec_test_fixture_api") {
     visibility = [ "*" ]
     testonly = true
@@ -1019,7 +1035,7 @@ if (rtc_include_tests) {
     testonly = true
     sources = [ "test/video_codec_tester.h" ]
     deps = [
-      ":videocodec_test_stats_api",
+      ":video_codec_stats_api",
       "../modules/video_coding/svc:scalability_mode_util",
       "video:encoded_image",
       "video:resolution",
@@ -1423,7 +1439,6 @@ if (rtc_include_tests) {
       "units:units_unittests",
       "video:frame_buffer_unittest",
       "video:rtp_video_frame_assembler_unittests",
-      "video:video_unittests",
     ]
     absl_deps = [
       "//third_party/abseil-cpp/absl/strings",

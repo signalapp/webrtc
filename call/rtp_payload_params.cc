@@ -47,7 +47,6 @@ void PopulateRtpWithCodecSpecifics(const CodecSpecificInfo& info,
       vp8_header.temporalIdx = info.codecSpecific.VP8.temporalIdx;
       vp8_header.layerSync = info.codecSpecific.VP8.layerSync;
       vp8_header.keyIdx = info.codecSpecific.VP8.keyIdx;
-      rtp->simulcastIdx = spatial_index.value_or(0);
       return;
     }
     case kVideoCodecVP9: {
@@ -95,13 +94,11 @@ void PopulateRtpWithCodecSpecifics(const CodecSpecificInfo& info,
       auto& h264_header = rtp->video_type_header.emplace<RTPVideoHeaderH264>();
       h264_header.packetization_mode =
           info.codecSpecific.H264.packetization_mode;
-      rtp->simulcastIdx = spatial_index.value_or(0);
       return;
     }
     case kVideoCodecMultiplex:
     case kVideoCodecGeneric:
       rtp->codec = kVideoCodecGeneric;
-      rtp->simulcastIdx = spatial_index.value_or(0);
       return;
     default:
       return;
@@ -206,6 +203,7 @@ RTPVideoHeader RtpPayloadParams::GetRtpVideoHeader(
     PopulateRtpWithCodecSpecifics(*codec_specific_info, image.SpatialIndex(),
                                   &rtp_video_header);
   }
+  rtp_video_header.simulcastIdx = image.SimulcastIndex().value_or(0);
   rtp_video_header.frame_type = image._frameType;
   rtp_video_header.rotation = image.rotation_;
   rtp_video_header.content_type = image.content_type_;
@@ -224,7 +222,7 @@ RTPVideoHeader RtpPayloadParams::GetRtpVideoHeader(
           ? codec_specific_info->codecSpecific.VP9.first_frame_in_picture
           : true;
 
-  SetCodecSpecific(&rtp_video_header, first_frame_in_picture, shared_frame_id);
+  SetCodecSpecific(&rtp_video_header, first_frame_in_picture);
 
   SetGeneric(codec_specific_info, shared_frame_id, is_keyframe,
              &rtp_video_header);
@@ -241,14 +239,9 @@ RtpPayloadState RtpPayloadParams::state() const {
 }
 
 void RtpPayloadParams::SetCodecSpecific(RTPVideoHeader* rtp_video_header,
-                                        bool first_frame_in_picture,
-                                        int64_t shared_frame_id) {
-
+                                        bool first_frame_in_picture) {
   // Always set picture id. Set tl0_pic_idx iff temporal index is set.
   if (first_frame_in_picture) {
-    // Unfortunately, with simulcast, this shares a picture ID space, not
-    // a picture ID, so this isn't what we want.
-    // state_.picture_id = shared_frame_id & 0x7FFF;
     state_.picture_id = (static_cast<uint16_t>(state_.picture_id) + 1) & 0x7FFF;
   }
   if (rtp_video_header->codec == kVideoCodecVP8) {

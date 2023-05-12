@@ -59,7 +59,6 @@ if (is_android) {
       "//api/video_codecs:builtin_video_encoder_factory",
       "//api/video_codecs:builtin_video_decoder_factory",
       "//pc:libjingle_peerconnection",
-      "//rtc_base:rtc_base",
     ]
     output_extension = "so"
   }

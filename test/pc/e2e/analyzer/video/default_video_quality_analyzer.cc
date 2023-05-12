@@ -347,9 +347,15 @@ void DefaultVideoQualityAnalyzer::OnFrameEncoded(
   used_encoder.last_frame_id = frame_id;
   used_encoder.switched_on_at = now;
   used_encoder.switched_from_at = now;
+  // We could either have simulcast layers or spatial layers.
+  // TODO(https://crbug.com/webrtc/14891): If we want to support a mix of
+  // simulcast and SVC we'll also need to consider the case where we have both
+  // simulcast and spatial indices.
+  size_t stream_index = encoded_image.SpatialIndex().value_or(
+      encoded_image.SimulcastIndex().value_or(0));
   frame_in_flight.OnFrameEncoded(
       now, encoded_image._frameType, DataSize::Bytes(encoded_image.size()),
-      stats.target_encode_bitrate, stats.qp, used_encoder);
+      stats.target_encode_bitrate, stream_index, stats.qp, used_encoder);
 
   if (options_.report_infra_metrics) {
     analyzer_stats_.on_frame_encoded_processing_time_ms.AddSample(
@@ -1136,9 +1142,15 @@ void DefaultVideoQualityAnalyzer::ReportResults(
       "target_encode_bitrate", test_case_name,
       stats.target_encode_bitrate / 1000, Unit::kKilobitsPerSecond,
       ImprovementDirection::kNeitherIsBetter, metric_metadata);
-  metrics_logger_->LogMetric("qp", test_case_name, stats.qp, Unit::kUnitless,
-                             ImprovementDirection::kSmallerIsBetter,
-                             metric_metadata);
+  for (const auto& [spatial_layer, qp] : stats.spatial_layers_qp) {
+    std::map<std::string, std::string> qp_metadata = metric_metadata;
+    qp_metadata[MetricMetadataKey::kSpatialLayerMetadataKey] =
+        std::to_string(spatial_layer);
+    metrics_logger_->LogMetric("qp_sl" + std::to_string(spatial_layer),
+                               test_case_name, qp, Unit::kUnitless,
+                               ImprovementDirection::kSmallerIsBetter,
+                               std::move(qp_metadata));
+  }
   metrics_logger_->LogSingleValueMetric(
       "actual_encode_bitrate", test_case_name,
       static_cast<double>(stats.total_encoded_images_payload) /

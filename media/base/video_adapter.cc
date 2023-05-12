@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
 #include <limits>
 #include <utility>
@@ -39,13 +40,8 @@ struct Fraction {
   // Determines number of output pixels if both width and height of an input of
   // `input_pixels` pixels is scaled with the fraction numerator / denominator.
   int scale_pixel_count(int input_pixels) {
-    // input_pixels is always going to fit in an int: it's width * height of a frame.
-    // numerator and denominator are expected to be small as well.
-    // However, numerator * numerator * input_pixels can overflow.
-    // We don't want to reorder the operations because we don't want to truncate
-    // remainders more than necessary.
-    int64_t input_pixels_long = input_pixels;
-    return static_cast<int>((numerator * numerator * input_pixels_long) / (denominator * denominator));
+    return (numerator * numerator * static_cast<int64_t>(input_pixels))
+                                  / (denominator * denominator);
   }
 };
 

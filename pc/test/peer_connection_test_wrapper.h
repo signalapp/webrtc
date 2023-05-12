@@ -26,10 +26,13 @@
 #include "api/rtp_receiver_interface.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
+#include "api/video/resolution.h"
 #include "pc/test/fake_audio_capture_module.h"
+#include "pc/test/fake_periodic_video_source.h"
 #include "pc/test/fake_video_track_renderer.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
+#include "test/scoped_key_value_config.h"
 
 class PeerConnectionTestWrapper
     : public webrtc::PeerConnectionObserver,
@@ -105,17 +108,22 @@ class PeerConnectionTestWrapper
   sigslot::signal1<const std::string&> SignalOnSdpReady;
   sigslot::signal1<webrtc::DataChannelInterface*> SignalOnDataChannel;
 
+  rtc::scoped_refptr<webrtc::MediaStreamInterface> GetUserMedia(
+      bool audio,
+      const cricket::AudioOptions& audio_options,
+      bool video,
+      webrtc::Resolution resolution = {
+          .width = webrtc::FakePeriodicVideoSource::kDefaultWidth,
+          .height = webrtc::FakePeriodicVideoSource::kDefaultHeight});
+
  private:
   void SetLocalDescription(webrtc::SdpType type, const std::string& sdp);
   void SetRemoteDescription(webrtc::SdpType type, const std::string& sdp);
   bool CheckForConnection();
   bool CheckForAudio();
   bool CheckForVideo();
-  rtc::scoped_refptr<webrtc::MediaStreamInterface> GetUserMedia(
-      bool audio,
-      const cricket::AudioOptions& audio_options,
-      bool video);
 
+  webrtc::test::ScopedKeyValueConfig field_trials_;
   std::string name_;
   rtc::SocketServer* const socket_server_;
   rtc::Thread* const network_thread_;

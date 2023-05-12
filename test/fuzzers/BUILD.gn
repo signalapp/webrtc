@@ -191,12 +191,11 @@ webrtc_fuzzer_test("flexfec_receiver_fuzzer") {
   ]
 }
 
-webrtc_fuzzer_test("packet_buffer_fuzzer") {
-  sources = [ "packet_buffer_fuzzer.cc" ]
+webrtc_fuzzer_test("rtp_video_frame_assembler_fuzzer") {
+  sources = [ "rtp_video_frame_assembler_fuzzer.cc" ]
   deps = [
-    "../../modules/video_coding:packet_buffer",
-    "../../modules/video_coding/",
-    "../../system_wrappers",
+    "../../api/video:rtp_video_frame_assembler",
+    "../../modules/rtp_rtcp:rtp_rtcp_format",
   ]
 }
 
@@ -339,6 +338,7 @@ webrtc_fuzzer_test("turn_unwrap_fuzzer") {
   deps = [
     "../../media",
     "../../media:rtc_media_base",
+    "../../media:turn_utils",
   ]
 }
 
@@ -429,7 +429,6 @@ webrtc_fuzzer_test("pseudotcp_parser_fuzzer") {
   sources = [ "pseudotcp_parser_fuzzer.cc" ]
   deps = [
     "../../p2p:rtc_p2p",
-    "../../rtc_base",
     "../../rtc_base:threading",
   ]
 }
@@ -582,19 +581,9 @@ webrtc_fuzzer_test("rtp_frame_reference_finder_fuzzer") {
   deps = [
     "../../api:rtp_packet_info",
     "../../api:scoped_refptr",
-    "../../modules/video_coding/",
+    "../../modules/rtp_rtcp",
+    "../../modules/video_coding:video_coding",
     "../../system_wrappers",
-  ]
-}
-
-webrtc_fuzzer_test("frame_buffer2_fuzzer") {
-  sources = [ "frame_buffer2_fuzzer.cc" ]
-  deps = [
-    "../../api/task_queue",
-    "../../modules/video_coding:frame_buffer2",
-    "../../modules/video_coding/timing:timing_module",
-    "../../test:scoped_key_value_config",
-    "../time_controller:time_controller",
   ]
 }
 
@@ -647,7 +636,7 @@ webrtc_fuzzer_test("ssl_certificate_fuzzer") {
   sources = [ "ssl_certificate_fuzzer.cc" ]
   deps = [
     "../:rtp_test_utils",
-    "../../rtc_base",
+    "../../rtc_base:ssl",
     "../../rtc_base:stringutils",
   ]
 }

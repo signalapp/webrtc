@@ -10,6 +10,8 @@
 
 #include "api/video/video_frame_metadata.h"
 
+#include <utility>
+
 namespace webrtc {
 
 VideoFrameMetadata::VideoFrameMetadata() = default;
@@ -122,6 +124,32 @@ VideoCodecType VideoFrameMetadata::GetCodec() const {
 
 void VideoFrameMetadata::SetCodec(VideoCodecType codec) {
   codec_ = codec;
+}
+
+const RTPVideoHeaderCodecSpecifics&
+VideoFrameMetadata::GetRTPVideoHeaderCodecSpecifics() const {
+  return codec_specifics_;
+}
+
+void VideoFrameMetadata::SetRTPVideoHeaderCodecSpecifics(
+    RTPVideoHeaderCodecSpecifics codec_specifics) {
+  codec_specifics_ = std::move(codec_specifics);
+}
+
+uint32_t VideoFrameMetadata::GetSsrc() const {
+  return ssrc_;
+}
+
+void VideoFrameMetadata::SetSsrc(uint32_t ssrc) {
+  ssrc_ = ssrc;
+}
+
+std::vector<uint32_t> VideoFrameMetadata::GetCsrcs() const {
+  return csrcs_;
+}
+
+void VideoFrameMetadata::SetCsrcs(std::vector<uint32_t> csrcs) {
+  csrcs_ = std::move(csrcs);
 }
 
 }  // namespace webrtc

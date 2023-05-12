@@ -38,6 +38,9 @@ class Call;
 
 namespace cricket {
 
+class VideoMediaChannel;
+class VoiceMediaChannel;
+
 // Checks that the scalability_mode value of each encoding is supported by at
 // least one video codec of the list. If the list is empty, no check is done.
 webrtc::RTCError CheckScalabilityModeValues(
@@ -98,10 +101,27 @@ class VoiceEngineInterface : public RtpHeaderExtensionQueryInterface {
   // MediaChannel creation
   // Creates a voice media channel. Returns NULL on failure.
   virtual VoiceMediaChannel* CreateMediaChannel(
+      MediaChannel::Role role,
       webrtc::Call* call,
       const MediaConfig& config,
       const AudioOptions& options,
-      const webrtc::CryptoOptions& crypto_options) = 0;
+      const webrtc::CryptoOptions& crypto_options,
+      webrtc::AudioCodecPairId codec_pair_id) {
+    // TODO(bugs.webrtc.org/13931): Remove default implementation
+    // when downstream has migrated to new API.
+    RTC_CHECK_NOTREACHED();
+  }
+
+  // Backwards compatible version
+  [[deprecated("Use version with role parameter")]] virtual VoiceMediaChannel*
+  CreateMediaChannel(webrtc::Call* call,
+                     const MediaConfig& config,
+                     const AudioOptions& options,
+                     const webrtc::CryptoOptions& crypto_options) {
+    return CreateMediaChannel(MediaChannel::Role::kBoth, call, config, options,
+                              crypto_options,
+                              webrtc::AudioCodecPairId::Create());
+  }
 
   virtual const std::vector<AudioCodec>& send_codecs() const = 0;
   virtual const std::vector<AudioCodec>& recv_codecs() const = 0;
@@ -114,6 +134,9 @@ class VoiceEngineInterface : public RtpHeaderExtensionQueryInterface {
 
   // Stops recording AEC dump.
   virtual void StopAecDump() = 0;
+
+  virtual absl::optional<webrtc::AudioDeviceModule::Stats>
+  GetAudioDeviceStats() = 0;
 };
 
 class VideoEngineInterface : public RtpHeaderExtensionQueryInterface {
@@ -124,15 +147,34 @@ class VideoEngineInterface : public RtpHeaderExtensionQueryInterface {
   VideoEngineInterface(const VideoEngineInterface&) = delete;
   VideoEngineInterface& operator=(const VideoEngineInterface&) = delete;
 
-  // Creates a video media channel, paired with the specified voice channel.
+  // Creates a video media channel.
   // Returns NULL on failure.
   virtual VideoMediaChannel* CreateMediaChannel(
+      MediaChannel::Role role,
       webrtc::Call* call,
       const MediaConfig& config,
       const VideoOptions& options,
       const webrtc::CryptoOptions& crypto_options,
-      webrtc::VideoBitrateAllocatorFactory*
-          video_bitrate_allocator_factory) = 0;
+      webrtc::VideoBitrateAllocatorFactory* video_bitrate_allocator_factory) {
+    // TODO(bugs.webrtc.org/13931): Remove default implementation
+    // when downstream has migrated.
+    RTC_CHECK_NOTREACHED();
+    return nullptr;
+  }
+
+  // Creates a video media channel.
+  // Returns NULL on failure.
+  // TODO(bugs.webrtc.org/13931): Stop downstream usage of this function.
+  [[deprecated("Please specify the role")]] virtual VideoMediaChannel*
+  CreateMediaChannel(
+      webrtc::Call* call,
+      const MediaConfig& config,
+      const VideoOptions& options,
+      const webrtc::CryptoOptions& crypto_options,
+      webrtc::VideoBitrateAllocatorFactory* video_bitrate_allocator_factory) {
+    return CreateMediaChannel(MediaChannel::Role::kBoth, call, config, options,
+                              crypto_options, video_bitrate_allocator_factory);
+  }
 
   // Retrieve list of supported codecs.
   virtual std::vector<VideoCodec> send_codecs() const = 0;
