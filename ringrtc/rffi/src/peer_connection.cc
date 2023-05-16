@@ -662,7 +662,7 @@ Rust_setRemoteDescription(PeerConnectionInterface*           peer_connection_bor
 }
 
 RUSTEXPORT void
-Rust_deleteSessionDescription(webrtc::SessionDescriptionInterface* description_owned) {
+Rust_deleteSessionDescription(SessionDescriptionInterface* description_owned) {
   delete description_owned;
 }
 

@@ -108,6 +108,9 @@ Rust_setRemoteDescription(webrtc::PeerConnectionInterface*                 peer_
                           webrtc::SessionDescriptionInterface*             remote_description_owned);
 
 RUSTEXPORT void
+Rust_deleteSessionDescription(webrtc::SessionDescriptionInterface* description_owned);
+
+RUSTEXPORT void
 Rust_setOutgoingMediaEnabled(webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
                              bool                             enabled);
 
