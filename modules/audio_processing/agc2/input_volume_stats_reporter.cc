@@ -95,7 +95,7 @@ InputVolumeStatsReporter::InputVolumeStatsReporter(InputVolumeType type)
            .update_average = CreateAverageHistogram(type, "UpdateAverage")}),
       cannot_log_stats_(!histograms_.AllPointersSet()) {
   if (cannot_log_stats_) {
-    RTC_LOG(LS_WARNING) << "Will not log any `" << MetricNamePrefix(type)
+    RTC_LOG(LS_INFO) << "Will not log any `" << MetricNamePrefix(type)
                         << "*` histogram stats.";
   }
 }
