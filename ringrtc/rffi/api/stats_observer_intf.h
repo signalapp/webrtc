@@ -60,6 +60,8 @@ typedef struct {
     uint64_t bytes_received;
     double jitter;
     double total_audio_energy;
+    double jitter_buffer_delay;
+    uint64_t jitter_buffer_emitted_count;
 } AudioReceiverStatistics;
 
 typedef struct {
