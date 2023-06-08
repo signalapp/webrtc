@@ -111,6 +111,8 @@ void StatsObserverRffi::OnStatsDelivered(const rtc::scoped_refptr<const RTCStats
       audio_receiver.bytes_received = stat->bytes_received.ValueOrDefault(0);
       audio_receiver.jitter = stat->jitter.ValueOrDefault(0.0);
       audio_receiver.total_audio_energy = stat->total_audio_energy.ValueOrDefault(0.0);
+      audio_receiver.jitter_buffer_delay = stat->jitter_buffer_delay.ValueOrDefault(0.0);
+      audio_receiver.jitter_buffer_emitted_count = stat->jitter_buffer_emitted_count.ValueOrDefault(0);
 
       this->audio_receiver_statistics_.push_back(audio_receiver);
     } else if (*stat->kind == "video") {
