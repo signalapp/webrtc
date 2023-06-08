@@ -102,8 +102,8 @@ void PacketBuffer::Flush(StatisticsCalculator* stats) {
   // RingRTC change to log more information around audio jitter buffer flushes
   auto prev_recv_ts = Timestamp::Micros(0);
   auto num_out_of_order = 0;
-  auto num_gaps_below_15ms = 0;
-  auto num_gaps_above_40ms = 0;
+  auto num_gaps_below_40ms = 0;
+  auto num_gaps_above_90ms = 0;
 
   for (auto& p : buffer_) {
     LogPacketDiscarded(p.priority.codec_level, stats);
@@ -112,10 +112,10 @@ void PacketBuffer::Flush(StatisticsCalculator* stats) {
 
       if (gap_us < 0) {
         num_out_of_order++;
-      } else if (gap_us < 15000) {
-        num_gaps_below_15ms++;
-      } else if (gap_us > 40000) {
-        num_gaps_above_40ms++;
+      } else if (gap_us < 40000) {
+        num_gaps_below_40ms++;
+      } else if (gap_us > 90000) {
+        num_gaps_above_90ms++;
       }
     }
     prev_recv_ts = p.packet_info.receive_time();
@@ -131,8 +131,8 @@ void PacketBuffer::Flush(StatisticsCalculator* stats) {
       << ", ms_since_first_insert=" << first.waiting_time->ElapsedMs()
       << ", ms_since_last_insert=" << last.waiting_time->ElapsedMs()
       << ", num_out_of_order=" << num_out_of_order
-      << ", num_gaps_below_15ms=" << num_gaps_below_15ms
-      << ", num_gaps_above_40ms=" << num_gaps_above_40ms;
+      << ", num_gaps_below_40ms=" << num_gaps_below_40ms
+      << ", num_gaps_above_90ms=" << num_gaps_above_90ms;
   }
   buffer_.clear();
   stats->FlushedPacketBuffer();
