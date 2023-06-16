@@ -7,7 +7,7 @@
 #define RFFI_API_MEDIA_H__
 
 #include "api/media_stream_interface.h"
-#include "media/base/video_broadcaster.h"
+#include "media/base/adapted_video_track_source.h"
 #include "pc/video_track_source.h"
 #include "rffi/api/rffi_defs.h"
 
@@ -20,22 +20,23 @@ typedef struct {
 namespace webrtc {
 namespace rffi {
 
-// A simple implementation of a VideoTrackSource which can be used for pushing frames into
-// an outgoing video track for encoding by calling Rust_pushVideoFrame.
-class VideoSource : public VideoTrackSource {
+// An implementation of a VideoTrackSource which pushes frames into an outgoing
+// video track for encoding by calling Rust_pushVideoFrame. The resolution of
+// the frames will be adapted based on network conditions.
+class VideoSource : public rtc::AdaptedVideoTrackSource {
  public:
   VideoSource();
   ~VideoSource() override;
 
   void PushVideoFrame(const webrtc::VideoFrame& frame);
 
- protected:
-  rtc::VideoSourceInterface<webrtc::VideoFrame>* source() override {
-    return &broadcaster_;
-  }
+  SourceState state() const override;
 
- private:
-  rtc::VideoBroadcaster broadcaster_;
+  bool remote() const override;
+
+  bool is_screencast() const override;
+
+  absl::optional<bool> needs_denoising() const override;
 };
 
 } // namespace rffi
