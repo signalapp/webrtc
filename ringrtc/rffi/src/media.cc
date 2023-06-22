@@ -16,6 +16,9 @@ namespace webrtc {
 namespace rffi {
 
 VideoSource::VideoSource() : rtc::AdaptedVideoTrackSource() {
+  auto width = 640;
+  auto height = 480;
+  video_adapter()->OnOutputFormatRequest(std::make_pair(width, height), width * height, 30);
 }
 
 VideoSource::~VideoSource() {
