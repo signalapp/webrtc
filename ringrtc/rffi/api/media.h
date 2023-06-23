@@ -80,6 +80,10 @@ RUSTEXPORT webrtc::VideoFrameBuffer* Rust_copyVideoFrameBufferFromRgba(
 RUSTEXPORT void Rust_convertVideoFrameBufferToRgba(
   const webrtc::VideoFrameBuffer* buffer, uint8_t* rgba_out);
 
+// I420 direct access, if possible
+RUSTEXPORT const uint8_t *Rust_getVideoFrameBufferAsI420(
+  const webrtc::VideoFrameBuffer* buffer);
+
 // RGBA => I420
 RUSTEXPORT webrtc::VideoFrameBuffer* Rust_copyAndRotateVideoFrameBuffer(
     const webrtc::VideoFrameBuffer* buffer_borrowed_rc, webrtc::VideoRotation rotation);

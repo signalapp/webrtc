@@ -103,6 +103,8 @@ void StatsObserverRffi::OnStatsDelivered(const rtc::scoped_refptr<const RTCStats
 
   for (const auto& stat : inbound_stream_stats) {
     if (*stat->kind == "audio") {
+      RTC_LOG(LS_WARNING) << " @@@@ " << stat->ToJson();
+
       AudioReceiverStatistics audio_receiver = {0};
 
       audio_receiver.ssrc = stat->ssrc.ValueOrDefault(0);
