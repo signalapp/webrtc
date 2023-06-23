@@ -16,9 +16,6 @@ namespace webrtc {
 namespace rffi {
 
 VideoSource::VideoSource() : rtc::AdaptedVideoTrackSource() {
-  auto width = 640;
-  auto height = 480;
-  video_adapter()->OnOutputFormatRequest(std::make_pair(width, height), width * height, 30);
 }
 
 VideoSource::~VideoSource() {
@@ -54,6 +51,11 @@ void VideoSource::PushVideoFrame(const webrtc::VideoFrame& frame) {
               .set_video_frame_buffer(adapted_buffer)
               .set_timestamp_us(frame.timestamp_us())
               .build());
+}
+
+
+void VideoSource::OnOutputFormatRequest(int width, int height, int fps) {
+  video_adapter()->OnOutputFormatRequest(std::make_pair(width, height), width * height, fps);
 }
 
 MediaSourceInterface::SourceState VideoSource::state() const {
@@ -103,6 +105,12 @@ RUSTEXPORT void Rust_pushVideoFrame(
       .set_timestamp_us(timestamp_us)
       .build();
   source_borrowed_rc->PushVideoFrame(std::move(frame));
+}
+
+RUSTEXPORT void Rust_adaptOutputVideoFormat(
+    webrtc::rffi::VideoSource* source_borrowed_rc,
+    uint16_t width, uint16_t height, uint8_t fps) {
+  source_borrowed_rc->OnOutputFormatRequest(width, height, fps);
 }
 
 // Returns an owned RC.

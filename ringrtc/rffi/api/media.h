@@ -30,6 +30,8 @@ class VideoSource : public rtc::AdaptedVideoTrackSource {
 
   void PushVideoFrame(const webrtc::VideoFrame& frame);
 
+  void OnOutputFormatRequest(int width, int height, int fps);
+
   SourceState state() const override;
 
   bool remote() const override;
@@ -61,6 +63,10 @@ RUSTEXPORT webrtc::VideoTrackInterface* Rust_getFistVideoTrack(
 
 // Same as VideoSource::PushVideoFrame, to get frames from Rust to C++.
 RUSTEXPORT void Rust_pushVideoFrame(webrtc::rffi::VideoSource* source_borrowed_rc, webrtc::VideoFrameBuffer* buffer_borrowed_rc);
+
+// Same as VideoSource::OnOutputFormatRequest, to apply a maximum resolution
+// and framerate to video.
+RUSTEXPORT void Rust_adaptOutputVideoFormat(webrtc::rffi::VideoSource* source_borrowed_rc, uint16_t width, uint16_t height, uint8_t fps);
 
 // I420 => I420
 // Returns an owned RC.
