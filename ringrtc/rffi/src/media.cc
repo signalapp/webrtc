@@ -15,15 +15,63 @@
 namespace webrtc {
 namespace rffi {
 
-VideoSource::VideoSource() : VideoTrackSource(false /* remote */) {
-   SetState(kLive);
+VideoSource::VideoSource() : rtc::AdaptedVideoTrackSource() {
 }
 
 VideoSource::~VideoSource() {
 }
 
 void VideoSource::PushVideoFrame(const webrtc::VideoFrame& frame) {
-  broadcaster_.OnFrame(frame);
+  int adapted_width;
+  int adapted_height;
+  int crop_width;
+  int crop_height;
+  int crop_x;
+  int crop_y;
+  if (!AdaptFrame(frame.width(),
+                  frame.height(),
+                  frame.timestamp_us(),
+                  &adapted_width,
+                  &adapted_height,
+                  &crop_width,
+                  &crop_height,
+                  &crop_x,
+                  &crop_y)) {
+    return;
+  }
+
+  if (adapted_width == frame.width() && adapted_height == frame.height()) {
+    OnFrame(frame);
+    return;
+  }
+
+  rtc::scoped_refptr<VideoFrameBuffer> adapted_buffer = frame.video_frame_buffer()->CropAndScale(crop_x, crop_y, crop_width, crop_height, adapted_width, adapted_height);
+
+  OnFrame(VideoFrame::Builder()
+              .set_video_frame_buffer(adapted_buffer)
+              .set_timestamp_us(frame.timestamp_us())
+              .build());
+}
+
+
+void VideoSource::OnOutputFormatRequest(int width, int height, int fps) {
+  video_adapter()->OnOutputFormatRequest(std::make_pair(width, height), width * height, fps);
+}
+
+MediaSourceInterface::SourceState VideoSource::state() const {
+  return kLive;
+}
+
+bool VideoSource::remote() const {
+  return false;
+}
+
+bool VideoSource::is_screencast() const {
+  return false;
+}
+
+absl::optional<bool> VideoSource::needs_denoising() const {
+  return absl::nullopt;
 }
 
 // Returns 0 upon failure
@@ -57,6 +105,12 @@ RUSTEXPORT void Rust_pushVideoFrame(
       .set_timestamp_us(timestamp_us)
       .build();
   source_borrowed_rc->PushVideoFrame(std::move(frame));
+}
+
+RUSTEXPORT void Rust_adaptOutputVideoFormat(
+    webrtc::rffi::VideoSource* source_borrowed_rc,
+    uint16_t width, uint16_t height, uint8_t fps) {
+  source_borrowed_rc->OnOutputFormatRequest(width, height, fps);
 }
 
 // Returns an owned RC.

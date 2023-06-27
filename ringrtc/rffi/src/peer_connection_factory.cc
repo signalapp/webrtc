@@ -398,7 +398,7 @@ RUSTEXPORT AudioTrackInterface* Rust_createAudioTrack(
 }
 
 // Returns an owned RC.
-RUSTEXPORT VideoTrackSourceInterface* Rust_createVideoSource() {
+RUSTEXPORT webrtc::rffi::VideoSource* Rust_createVideoSource() {
   return take_rc(rtc::make_ref_counted<webrtc::rffi::VideoSource>());
 }
 

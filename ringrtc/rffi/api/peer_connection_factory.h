@@ -102,7 +102,7 @@ RUSTEXPORT webrtc::AudioTrackInterface* Rust_createAudioTrack(
   webrtc::PeerConnectionFactoryOwner* factory_owner_borrowed_rc);
 
 // Returns an owned RC.
-RUSTEXPORT webrtc::VideoTrackSourceInterface* Rust_createVideoSource();
+RUSTEXPORT webrtc::rffi::VideoSource* Rust_createVideoSource();
 
 // Returns an owned RC.
 RUSTEXPORT webrtc::VideoTrackInterface* Rust_createVideoTrack(

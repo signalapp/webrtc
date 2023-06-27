@@ -7,7 +7,7 @@
 #define RFFI_API_MEDIA_H__
 
 #include "api/media_stream_interface.h"
-#include "media/base/video_broadcaster.h"
+#include "media/base/adapted_video_track_source.h"
 #include "pc/video_track_source.h"
 #include "rffi/api/rffi_defs.h"
 
@@ -20,22 +20,25 @@ typedef struct {
 namespace webrtc {
 namespace rffi {
 
-// A simple implementation of a VideoTrackSource which can be used for pushing frames into
-// an outgoing video track for encoding by calling Rust_pushVideoFrame.
-class VideoSource : public VideoTrackSource {
+// An implementation of a VideoTrackSource which pushes frames into an outgoing
+// video track for encoding by calling Rust_pushVideoFrame. The resolution of
+// the frames will be adapted based on network conditions.
+class VideoSource : public rtc::AdaptedVideoTrackSource {
  public:
   VideoSource();
   ~VideoSource() override;
 
   void PushVideoFrame(const webrtc::VideoFrame& frame);
 
- protected:
-  rtc::VideoSourceInterface<webrtc::VideoFrame>* source() override {
-    return &broadcaster_;
-  }
+  void OnOutputFormatRequest(int width, int height, int fps);
 
- private:
-  rtc::VideoBroadcaster broadcaster_;
+  SourceState state() const override;
+
+  bool remote() const override;
+
+  bool is_screencast() const override;
+
+  absl::optional<bool> needs_denoising() const override;
 };
 
 } // namespace rffi
@@ -60,6 +63,10 @@ RUSTEXPORT webrtc::VideoTrackInterface* Rust_getFistVideoTrack(
 
 // Same as VideoSource::PushVideoFrame, to get frames from Rust to C++.
 RUSTEXPORT void Rust_pushVideoFrame(webrtc::rffi::VideoSource* source_borrowed_rc, webrtc::VideoFrameBuffer* buffer_borrowed_rc);
+
+// Same as VideoSource::OnOutputFormatRequest, to apply a maximum resolution
+// and framerate to video.
+RUSTEXPORT void Rust_adaptOutputVideoFormat(webrtc::rffi::VideoSource* source_borrowed_rc, uint16_t width, uint16_t height, uint8_t fps);
 
 // I420 => I420
 // Returns an owned RC.
