@@ -383,22 +383,30 @@ void WebRtcVoiceEngine::Init() {
 
   // Set default engine options.
   {
-    auto config = apm_->GetConfig();
-
     AudioOptions options;
-    options.echo_cancellation = config.echo_canceller.enabled;
-    options.auto_gain_control = config.gain_controller1.enabled;
+    options.echo_cancellation = true;
+    options.auto_gain_control = true;
 #if defined(WEBRTC_IOS)
     // On iOS, VPIO provides built-in NS.
     options.noise_suppression = false;
 #else
-    options.noise_suppression = config.noise_suppression.enabled;
+    options.noise_suppression = true;
 #endif
-    options.highpass_filter = config.high_pass_filter.enabled;
+    options.highpass_filter = true;
     options.stereo_swapping = false;
     options.audio_jitter_buffer_max_packets = 200;
     options.audio_jitter_buffer_fast_accelerate = false;
     options.audio_jitter_buffer_min_delay_ms = 0;
+
+#if !defined(WEBRTC_IOS) && !defined(WEBRTC_ANDROID)
+    // RingRTC changes to override audio options.
+    auto config = apm_->GetConfig();
+    options.echo_cancellation = config.echo_canceller.enabled;
+    options.auto_gain_control = config.gain_controller1.enabled;
+    options.noise_suppression = config.noise_suppression.enabled;
+    options.highpass_filter = config.high_pass_filter.enabled;
+#endif
+
     ApplyOptions(options);
   }
   initialized_ = true;
