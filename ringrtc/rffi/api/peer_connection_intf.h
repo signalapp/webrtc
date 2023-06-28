@@ -90,13 +90,17 @@ typedef struct {
 
 // Returns an owned pointer.
 RUSTEXPORT RffiConnectionParametersV4*
-Rust_sessionDescriptionToV4(const webrtc::SessionDescriptionInterface* session_description_borrowed);
+Rust_sessionDescriptionToV4(const webrtc::SessionDescriptionInterface* session_description_borrowed,
+                            bool enable_vp9);
 
 RUSTEXPORT void
 Rust_deleteV4(RffiConnectionParametersV4* v4_owned);
 
 RUSTEXPORT webrtc::SessionDescriptionInterface*
-Rust_sessionDescriptionFromV4(bool offer, const RffiConnectionParametersV4* v4_borrowed);
+Rust_sessionDescriptionFromV4(bool offer,
+                              const RffiConnectionParametersV4* v4_borrowed,
+                              bool enable_tcc_audio,
+                              bool enable_vp9);
 
 RUSTEXPORT void
 Rust_createAnswer(webrtc::PeerConnectionInterface*                    peer_connection_borrowed_rc,
@@ -106,6 +110,9 @@ RUSTEXPORT void
 Rust_setRemoteDescription(webrtc::PeerConnectionInterface*                 peer_connection_borrowed_rc,
                           webrtc::rffi::SetSessionDescriptionObserverRffi* ssd_observer_borrowed_rc,
                           webrtc::SessionDescriptionInterface*             remote_description_owned);
+
+RUSTEXPORT void
+Rust_deleteSessionDescription(webrtc::SessionDescriptionInterface* description_owned);
 
 RUSTEXPORT void
 Rust_setOutgoingMediaEnabled(webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,

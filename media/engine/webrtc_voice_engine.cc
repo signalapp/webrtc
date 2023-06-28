@@ -397,6 +397,16 @@ void WebRtcVoiceEngine::Init() {
     options.audio_jitter_buffer_max_packets = 200;
     options.audio_jitter_buffer_fast_accelerate = false;
     options.audio_jitter_buffer_min_delay_ms = 0;
+
+#if !defined(WEBRTC_IOS) && !defined(WEBRTC_ANDROID)
+    // RingRTC changes to override audio options.
+    auto config = apm_->GetConfig();
+    options.echo_cancellation = config.echo_canceller.enabled;
+    options.auto_gain_control = config.gain_controller1.enabled;
+    options.noise_suppression = config.noise_suppression.enabled;
+    options.highpass_filter = config.high_pass_filter.enabled;
+#endif
+
     ApplyOptions(options);
   }
   initialized_ = true;
