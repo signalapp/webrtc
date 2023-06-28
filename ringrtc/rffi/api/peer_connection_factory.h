@@ -79,7 +79,7 @@ enum RffiAudioDeviceModuleType {
 };
 
 typedef struct {
-  RffiAudioDeviceModuleType audio_device_module_to_use;
+  RffiAudioDeviceModuleType audio_device_module_type;
   const char* input_file_borrowed;
   const char* output_file_borrowed;
   bool high_pass_filter_enabled;
