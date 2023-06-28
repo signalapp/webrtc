@@ -89,7 +89,7 @@ class PeerConnectionFactoryWithOwnedThreads
     // The audio device module must be created (and destroyed) on the _worker_ thread.
     // It is safe to release the reference on this thread, however, because the PeerConnectionFactory keeps its own reference.
     auto adm = worker_thread->BlockingCall([&]() {
-      switch (audio_config.audio_device_module_to_use) {
+      switch (audio_config.audio_device_module_type) {
       case kRffiAudioDeviceModuleFile:
         FileAudioDeviceFactory::SetFilenamesToUse(audio_config.input_file_borrowed, audio_config.output_file_borrowed);
         return AudioDeviceModule::Create(
@@ -102,6 +102,7 @@ class PeerConnectionFactoryWithOwnedThreads
         } else {
           RTC_LOG(LS_WARNING) << "Failed to initialize ScopedCOMInitializer. Will use the default.";
         }
+        ABSL_FALLTHROUGH_INTENDED;
 #endif
       case kRffiAudioDeviceModuleDefault:
         return AudioDeviceModule::Create(
