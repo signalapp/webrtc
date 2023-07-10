@@ -570,7 +570,8 @@ ChannelReceive::ChannelReceive(
 
   acm_receiver_.ResetInitialDelay();
   acm_receiver_.SetMinimumDelay(0);
-  acm_receiver_.SetMaximumDelay(0);
+  // RingRTC change to limit the jitter buffer's max target delay
+  acm_receiver_.SetMaximumDelay(750);
   acm_receiver_.FlushBuffers();
 
   _outputAudioLevel.ResetLevelFullRange();
