@@ -91,6 +91,10 @@ RUSTEXPORT void Rust_convertVideoFrameBufferToRgba(
 RUSTEXPORT const uint8_t *Rust_getVideoFrameBufferAsI420(
   const webrtc::VideoFrameBuffer* buffer);
 
+// See VideoFrameBuffer::Scale. Output will be in I420.
+RUSTEXPORT webrtc::VideoFrameBuffer* Rust_scaleVideoFrameBuffer(
+  webrtc::VideoFrameBuffer* buffer_borrowed_rc, int width, int height);
+
 // RGBA => I420
 RUSTEXPORT webrtc::VideoFrameBuffer* Rust_copyAndRotateVideoFrameBuffer(
     const webrtc::VideoFrameBuffer* buffer_borrowed_rc, webrtc::VideoRotation rotation);
