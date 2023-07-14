@@ -202,6 +202,12 @@ RUSTEXPORT const uint8_t *Rust_getVideoFrameBufferAsI420(const VideoFrameBuffer*
 }
 
 // Returns an owned RC.
+RUSTEXPORT VideoFrameBuffer* Rust_scaleVideoFrameBuffer(
+    VideoFrameBuffer* buffer_borrowed_rc, int width, int height) {
+  return take_rc(buffer_borrowed_rc->Scale(width, height));
+}
+
+// Returns an owned RC.
 RUSTEXPORT VideoFrameBuffer* Rust_copyAndRotateVideoFrameBuffer(
     const VideoFrameBuffer* buffer_borrowed_rc, VideoRotation rotation) {
   return take_rc(webrtc::I420Buffer::Rotate(*buffer_borrowed_rc->GetI420(), rotation));
