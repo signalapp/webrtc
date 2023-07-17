@@ -55,7 +55,11 @@ void VideoSource::PushVideoFrame(const webrtc::VideoFrame& frame) {
 
 
 void VideoSource::OnOutputFormatRequest(int width, int height, int fps) {
-  video_adapter()->OnOutputFormatRequest(std::make_pair(width, height), width * height, fps);
+  if (width > 0 && height > 0 && fps > 0) {
+    video_adapter()->OnOutputFormatRequest(std::make_pair(width, height), width * height, fps);
+  } else {
+    video_adapter()->OnOutputFormatRequest(absl::nullopt, absl::nullopt, absl::nullopt);
+  }
 }
 
 MediaSourceInterface::SourceState VideoSource::state() const {
