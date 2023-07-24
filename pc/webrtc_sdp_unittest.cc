@@ -1241,9 +1241,9 @@ class WebRtcSdpTest : public ::testing::Test {
         "inline:NzB4d1BINUAvLEw6UzF3WSJ+PSdFcGdUJShpX1Zj|2^20|1:32",
         "dummy_session_params"));
     audio->set_protocol(cricket::kMediaProtocolSavpf);
-    audio->AddCodec(AudioCodec(111, "opus", 48000, 0, 2));
-    audio->AddCodec(AudioCodec(103, "ISAC", 16000, 0, 1));
-    audio->AddCodec(AudioCodec(104, "ISAC", 32000, 0, 1));
+    audio->AddCodec(cricket::CreateAudioCodec(111, "opus", 48000, 2));
+    audio->AddCodec(cricket::CreateAudioCodec(103, "ISAC", 16000, 1));
+    audio->AddCodec(cricket::CreateAudioCodec(104, "ISAC", 32000, 1));
     return audio;
   }
 
@@ -1317,8 +1317,7 @@ class WebRtcSdpTest : public ::testing::Test {
         1, "AES_CM_128_HMAC_SHA1_80",
         "inline:d0RmdmcmVCspeEc3QGZiNWpVLFJhQX1cfHAwJSoj|2^20|1:32", ""));
     video->set_protocol(cricket::kMediaProtocolSavpf);
-    video->AddCodec(
-        VideoCodec(120, JsepSessionDescription::kDefaultVideoCodecName));
+    video->AddCodec(cricket::CreateVideoCodec(120, "VP8"));
     return video;
   }
 
@@ -1969,8 +1968,7 @@ class WebRtcSdpTest : public ::testing::Test {
     ASSERT_TRUE(vcd);
     ASSERT_FALSE(vcd->codecs().empty());
     cricket::VideoCodec vp8 = vcd->codecs()[0];
-    EXPECT_STREQ(webrtc::JsepSessionDescription::kDefaultVideoCodecName,
-                 vp8.name.c_str());
+    EXPECT_EQ(vp8.name, "VP8");
     EXPECT_EQ(101, vp8.id);
     EXPECT_TRUE(vp8.HasFeedbackParam(cricket::FeedbackParam(
         cricket::kRtcpFbParamLntf, cricket::kParamValueEmpty)));
@@ -2346,7 +2344,7 @@ TEST_F(WebRtcSdpTest, ParseSslTcpCandidate) {
 }
 
 TEST_F(WebRtcSdpTest, SerializeSessionDescriptionWithH264) {
-  cricket::VideoCodec h264_codec("H264");
+  cricket::VideoCodec h264_codec = cricket::CreateVideoCodec("H264");
   h264_codec.SetParam("profile-level-id", "42e01f");
   h264_codec.SetParam("level-asymmetry-allowed", "1");
   h264_codec.SetParam("packetization-mode", "1");
@@ -2437,9 +2435,9 @@ TEST_F(WebRtcSdpTest, DeserializeSessionDescriptionWithoutRtpmap) {
   AudioCodecs ref_codecs;
   // The codecs in the AudioContentDescription should be in the same order as
   // the payload types (<fmt>s) on the m= line.
-  ref_codecs.push_back(AudioCodec(0, "PCMU", 8000, 0, 1));
-  ref_codecs.push_back(AudioCodec(18, "G729", 8000, 0, 1));
-  ref_codecs.push_back(AudioCodec(103, "ISAC", 16000, 0, 1));
+  ref_codecs.push_back(cricket::CreateAudioCodec(0, "PCMU", 8000, 1));
+  ref_codecs.push_back(cricket::CreateAudioCodec(18, "G729", 8000, 1));
+  ref_codecs.push_back(cricket::CreateAudioCodec(103, "ISAC", 16000, 1));
   EXPECT_EQ(ref_codecs, audio->codecs());
 }
 
@@ -3485,7 +3483,8 @@ TEST_F(WebRtcSdpTest, SerializeAudioFmtpWithTelephoneEvent) {
   AudioContentDescription* acd = GetFirstAudioContentDescription(&desc_);
 
   cricket::AudioCodecs codecs = acd->codecs();
-  cricket::AudioCodec dtmf(105, "telephone-event", 8000, 0, 1);
+  cricket::AudioCodec dtmf =
+      cricket::CreateAudioCodec(105, "telephone-event", 8000, 1);
   dtmf.params[""] = "0-15";
   codecs.push_back(dtmf);
   acd->set_codecs(codecs);
@@ -5055,6 +5054,32 @@ TEST_F(WebRtcSdpTest, RejectSessionLevelMediaLevelExtmapMixedUsage) {
       "a=sendonly\r\n"
       "a=mid:0\r\n"
       "a=rtpmap:111 opus/48000/2\r\n";
+  JsepSessionDescription jdesc(kDummyType);
+  EXPECT_FALSE(SdpDeserialize(sdp, &jdesc));
+}
+
+TEST_F(WebRtcSdpTest, RejectDuplicateSsrcInSsrcGroup) {
+  std::string sdp =
+      "v=0\r\n"
+      "o=- 0 3 IN IP4 127.0.0.1\r\n"
+      "s=-\r\n"
+      "t=0 0\r\n"
+      "a=group:BUNDLE 0\r\n"
+      "a=fingerprint:sha-1 "
+      "4A:AD:B9:B1:3F:82:18:3B:54:02:12:DF:3E:5D:49:6B:19:E5:7C:AB\r\n"
+      "a=setup:actpass\r\n"
+      "a=ice-ufrag:ETEn\r\n"
+      "a=ice-pwd:OtSK0WpNtpUjkY4+86js7Z/l\r\n"
+      "m=video 9 UDP/TLS/RTP/SAVPF 96 97\r\n"
+      "c=IN IP4 0.0.0.0\r\n"
+      "a=rtcp-mux\r\n"
+      "a=sendonly\r\n"
+      "a=mid:0\r\n"
+      "a=rtpmap:96 VP8/90000\r\n"
+      "a=rtpmap:97 rtx/90000\r\n"
+      "a=fmtp:97 apt=96\r\n"
+      "a=ssrc-group:FID 1234 1234\r\n"
+      "a=ssrc:1234 cname:test\r\n";
   JsepSessionDescription jdesc(kDummyType);
   EXPECT_FALSE(SdpDeserialize(sdp, &jdesc));
 }

@@ -97,7 +97,7 @@ class AudioProcessingImpl : public AudioProcessing {
                     float* const* dest) override;
   bool GetLinearAecOutput(
       rtc::ArrayView<std::array<float, 160>> linear_output) const override;
-  // RingRTC change to RingRTC change to make it possible to share an APM.
+  // RingRTC change to make it possible to share an APM.
   // See set_capture_output_used in audio_processing.h.
   void set_capture_output_used(void* user, bool muted) override;
   void HandleCaptureOutputUsedSetting(bool capture_output_used)
@@ -590,7 +590,7 @@ class AudioProcessingImpl : public AudioProcessing {
   InputVolumeStatsReporter recommended_input_volume_stats_reporter_
       RTC_GUARDED_BY(mutex_capture_);
 
-  // RingRTC change to RingRTC change to make it possible to share an APM.
+  // RingRTC change to make it possible to share an APM.
   // See set_capture_output_used in audio_processing.h.
   // Each "user" (could be anything) has a separate state of whether or not
   // it's using the capture output, and if there are any users capturing,

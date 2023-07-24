@@ -60,9 +60,19 @@
       'dimensions': {
         'os': 'iOS-12.4.1',
         'pool': 'WebRTC',
-        'id': 'build15-a7',
+        'id': 'mac-254-e504',
       },
     },
+  },
+  'ios_runtime_cache_14_5': {
+    '$mixin_append': {
+      'swarming': {
+        'named_caches': [{
+          'name': 'runtime_ios_14_5',
+          'path': 'Runtime-ios-14.5'
+        }]
+      }
+    }
   },
   'limited-capacity': {
     # Sometimes there are multiple tests that can be run only on one machine.
@@ -85,24 +95,6 @@
         'os': 'Mac-11'
       }
     }
-  },
-  'perf-fuchsia-perf-tests': {
-    'merge': {
-      'script': '//tools_webrtc/perf/process_perf_results.py',
-      'args': ['--test-suite', 'fuchsia_perf_tests'],
-    },
-    '$mixin_append': {
-      'args': [
-        '--nologs',
-        '--isolated-script-test-perf-output=${ISOLATED_OUTDIR}/perftest-output.json',
-      ],
-    },
-  },
-  'perf-low-bandwidth-audio-perf-test': {
-    'merge': {
-      'script': '//tools_webrtc/perf/process_perf_results.py',
-      'args': ['--test-suite', 'low_bandwidth_audio_perf_test'],
-    },
   },
   'perf-output': {
     '$mixin_append': {
@@ -140,6 +132,12 @@
     '$mixin_append': {
       'args': ['--nologs']
     }
+  },
+  'perf-video-codec-perf-tests': {
+    'merge': {
+      'script': '//tools_webrtc/perf/process_perf_results.py',
+      'args': ['--test-suite', 'video_codec_perf_tests'],
+    },
   },
   'quick-perf-tests': {
     '$mixin_append': {

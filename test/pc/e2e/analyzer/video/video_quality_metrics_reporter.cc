@@ -68,13 +68,13 @@ void VideoQualityMetricsReporter::OnStatsReports(
   const RTCIceCandidatePairStats ice_candidate_pair_stats =
       report->Get(selected_ice_id)->cast_to<const RTCIceCandidatePairStats>();
 
-  auto outbound_rtp_stats = report->GetStatsOfType<RTCOutboundRTPStreamStats>();
+  auto outbound_rtp_stats = report->GetStatsOfType<RTCOutboundRtpStreamStats>();
   StatsSample sample;
   for (auto& s : outbound_rtp_stats) {
     if (!s->kind.is_defined()) {
       continue;
     }
-    if (!(*s->kind == RTCMediaStreamTrackKind::kVideo)) {
+    if (!(*s->kind == "video")) {
       continue;
     }
     if (s->timestamp() > sample.sample_time) {

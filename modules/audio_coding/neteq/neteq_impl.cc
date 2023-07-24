@@ -506,14 +506,13 @@ int NetEqImpl::InsertPacketInternal(const RTPHeader& rtp_header,
 
   PacketList packet_list;
   // Insert packet in a packet list.
-  packet_list.push_back([&rtp_header, &payload, &receive_time] {
+  packet_list.push_back([&rtp_header, &payload] {
     // Convert to Packet.
     Packet packet;
     packet.payload_type = rtp_header.payloadType;
     packet.sequence_number = rtp_header.sequenceNumber;
     packet.timestamp = rtp_header.timestamp;
     packet.payload.SetData(payload.data(), payload.size());
-    packet.packet_info = RtpPacketInfo(rtp_header, receive_time);
     // Waiting time will be set upon inserting the packet in the buffer.
     RTC_DCHECK(!packet.waiting_time);
     return packet;
@@ -630,10 +629,9 @@ int NetEqImpl::InsertPacketInternal(const RTPHeader& rtp_header,
       parsed_packet_list.splice(parsed_packet_list.end(), packet_list,
                                 packet_list.begin());
     } else {
-      const auto sequence_number = packet.sequence_number;
-      const auto payload_type = packet.payload_type;
+      const uint16_t sequence_number = packet.sequence_number;
+      const uint8_t payload_type = packet.payload_type;
       const Packet::Priority original_priority = packet.priority;
-      const auto& packet_info = packet.packet_info;
       auto packet_from_result = [&](AudioDecoder::ParseResult& result) {
         Packet new_packet;
         new_packet.sequence_number = sequence_number;
@@ -641,7 +639,10 @@ int NetEqImpl::InsertPacketInternal(const RTPHeader& rtp_header,
         new_packet.timestamp = result.timestamp;
         new_packet.priority.codec_level = result.priority;
         new_packet.priority.red_level = original_priority.red_level;
-        new_packet.packet_info = packet_info;
+        // Only associate the header information with the primary packet.
+        if (new_packet.timestamp == rtp_header.timestamp) {
+          new_packet.packet_info = RtpPacketInfo(rtp_header, receive_time);
+        }
         new_packet.frame = std::move(result.frame);
         return new_packet;
       };
@@ -821,6 +822,9 @@ int NetEqImpl::GetAudioInternal(AudioFrame* audio_frame,
   const size_t start_num_packets = packet_list.size();
   int decode_return_value =
       Decode(&packet_list, &operation, &length, &speech_type);
+  if (length > 0) {
+    last_decoded_type_ = speech_type;
+  }
 
   RTC_DCHECK(vad_.get());
   bool sid_frame_available =
@@ -1046,7 +1050,7 @@ int NetEqImpl::GetDecision(Operation* operation,
                                        controller_->noise_fast_forward()
                                  : 0;
 
-  if (controller_->CngRfc3389On() || last_mode_ == Mode::kRfc3389Cng) {
+  if (last_mode_ == Mode::kRfc3389Cng) {
     // Because of timestamp peculiarities, we have to "manually" disallow using
     // a CNG packet with the same timestamp as the one that was last played.
     // This can happen when using redundancy and will cause the timing to shift.
@@ -1100,10 +1104,10 @@ int NetEqImpl::GetDecision(Operation* operation,
   status.packet_buffer_info.num_samples =
       packet_buffer_->NumSamplesInBuffer(decoder_frame_length_);
   status.packet_buffer_info.span_samples = packet_buffer_->GetSpanSamples(
-      decoder_frame_length_, last_output_sample_rate_hz_, true);
-  status.packet_buffer_info.span_samples_no_dtx =
+      decoder_frame_length_, last_output_sample_rate_hz_, false);
+  status.packet_buffer_info.span_samples_wait_time =
       packet_buffer_->GetSpanSamples(decoder_frame_length_,
-                                     last_output_sample_rate_hz_, false);
+                                     last_output_sample_rate_hz_, true);
   status.packet_buffer_info.num_packets = packet_buffer_->NumPacketsInBuffer();
   status.target_timestamp = sync_buffer_->end_timestamp();
   status.expand_mutefactor = expand_->MuteFactor(0);
@@ -1280,12 +1284,6 @@ int NetEqImpl::GetDecision(Operation* operation,
   int extracted_samples = 0;
   if (packet) {
     sync_buffer_->IncreaseEndTimestamp(packet->timestamp - end_timestamp);
-
-    if (*operation != Operation::kRfc3389Cng) {
-      // We are about to decode and use a non-CNG packet.
-      controller_->SetCngOff();
-    }
-
     extracted_samples = ExtractPackets(required_samples, packet_list);
     if (extracted_samples < 0) {
       return kPacketBufferCorruption;
@@ -1477,8 +1475,9 @@ int NetEqImpl::DecodeLoop(PacketList* packet_list,
     auto opt_result = packet_list->front().frame->Decode(
         rtc::ArrayView<int16_t>(&decoded_buffer_[*decoded_length],
                                 decoded_buffer_length_ - *decoded_length));
-    last_decoded_packet_infos_.push_back(
-        std::move(packet_list->front().packet_info));
+    if (packet_list->front().packet_info) {
+      last_decoded_packet_infos_.push_back(*packet_list->front().packet_info);
+    }
     packet_list->pop_front();
     if (opt_result) {
       const auto& result = *opt_result;
@@ -1551,7 +1550,7 @@ void NetEqImpl::DoMerge(int16_t* decoded_buffer,
       rtc::dchecked_cast<int>(decoded_length / algorithm_buffer_->Channels());
 
   // Update in-call and post-call statistics.
-  if (expand_->MuteFactor(0) == 0) {
+  if (expand_->Muted() || last_decoded_type_ == AudioDecoder::kComfortNoise) {
     // Expand generates only noise.
     stats_->ExpandedNoiseSamplesCorrection(expand_length_correction);
   } else {
@@ -1621,7 +1620,7 @@ int NetEqImpl::DoExpand(bool play_dtmf) {
     bool is_new_concealment_event = (last_mode_ != Mode::kExpand);
 
     // Update in-call and post-call statistics.
-    if (expand_->MuteFactor(0) == 0) {
+    if (expand_->Muted() || last_decoded_type_ == AudioDecoder::kComfortNoise) {
       // Expand operation generates only noise.
       stats_->ExpandedNoiseSamples(length, is_new_concealment_event);
     } else {
@@ -1943,9 +1942,6 @@ int NetEqImpl::DtmfOverdub(const DtmfEvent& dtmf_event,
 int NetEqImpl::ExtractPackets(size_t required_samples,
                               PacketList* packet_list) {
   bool first_packet = true;
-  uint8_t prev_payload_type = 0;
-  uint32_t prev_timestamp = 0;
-  uint16_t prev_sequence_number = 0;
   bool next_packet_available = false;
 
   const Packet* next_packet = packet_buffer_->PeekNextPacket();
@@ -1981,9 +1977,6 @@ int NetEqImpl::ExtractPackets(size_t required_samples,
         nack_->UpdateLastDecodedPacket(packet->sequence_number,
                                        packet->timestamp);
       }
-      prev_sequence_number = packet->sequence_number;
-      prev_timestamp = packet->timestamp;
-      prev_payload_type = packet->payload_type;
     }
 
     const bool has_cng_packet =
@@ -2015,25 +2008,15 @@ int NetEqImpl::ExtractPackets(size_t required_samples,
                               controller_->TargetLevelMs(),
                               controller_->UnlimitedTargetLevelMs());
 
-    packet_list->push_back(std::move(*packet));  // Store packet in list.
-    packet = absl::nullopt;  // Ensure it's never used after the move.
-
     // Check what packet is available next.
     next_packet = packet_buffer_->PeekNextPacket();
-    next_packet_available = false;
-    if (next_packet && prev_payload_type == next_packet->payload_type &&
-        !has_cng_packet) {
-      int16_t seq_no_diff = next_packet->sequence_number - prev_sequence_number;
-      size_t ts_diff = next_packet->timestamp - prev_timestamp;
-      if ((seq_no_diff == 1 || seq_no_diff == 0) &&
-          ts_diff <= packet_duration) {
-        // The next sequence number is available, or the next part of a packet
-        // that was split into pieces upon insertion.
-        next_packet_available = true;
-      }
-      prev_sequence_number = next_packet->sequence_number;
-      prev_timestamp = next_packet->timestamp;
-    }
+    next_packet_available =
+        next_packet && next_packet->payload_type == packet->payload_type &&
+        next_packet->timestamp == packet->timestamp + packet_duration &&
+        !has_cng_packet;
+
+    packet_list->push_back(std::move(*packet));  // Store packet in list.
+    packet = absl::nullopt;  // Ensure it's never used after the move.
   } while (extracted_samples < required_samples && next_packet_available);
 
   if (extracted_samples > 0) {

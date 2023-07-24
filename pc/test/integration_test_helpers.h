@@ -173,7 +173,7 @@ void RemoveSsrcsAndKeepMsids(cricket::SessionDescription* desc);
 
 int FindFirstMediaStatsIndexByKind(
     const std::string& kind,
-    const std::vector<const webrtc::RTCInboundRTPStreamStats*>& inbound_rtps);
+    const std::vector<const webrtc::RTCInboundRtpStreamStats*>& inbound_rtps);
 
 class TaskQueueMetronome : public webrtc::Metronome {
  public:
@@ -186,7 +186,7 @@ class TaskQueueMetronome : public webrtc::Metronome {
 
  private:
   const TimeDelta tick_period_;
-  SequenceChecker sequence_checker_;
+  SequenceChecker sequence_checker_{SequenceChecker::kDetached};
   std::vector<absl::AnyInvocable<void() &&>> callbacks_;
   ScopedTaskSafetyDetached safety_;
 };
@@ -648,10 +648,9 @@ class PeerConnectionIntegrationWrapper : public webrtc::PeerConnectionObserver,
     // Get the baseline numbers for audio_packets and audio_delay.
     auto received_stats = NewGetStats();
     auto rtp_stats =
-        received_stats->GetStatsOfType<webrtc::RTCInboundRTPStreamStats>()[0];
+        received_stats->GetStatsOfType<webrtc::RTCInboundRtpStreamStats>()[0];
     ASSERT_TRUE(rtp_stats->relative_packet_arrival_delay.is_defined());
     ASSERT_TRUE(rtp_stats->packets_received.is_defined());
-    ASSERT_TRUE(rtp_stats->track_id.is_defined());
     rtp_stats_id_ = rtp_stats->id();
     audio_packets_stat_ = *rtp_stats->packets_received;
     audio_delay_stat_ = *rtp_stats->relative_packet_arrival_delay;
@@ -662,7 +661,7 @@ class PeerConnectionIntegrationWrapper : public webrtc::PeerConnectionObserver,
   void UpdateDelayStats(std::string tag, int desc_size) {
     auto report = NewGetStats();
     auto rtp_stats =
-        report->GetAs<webrtc::RTCInboundRTPStreamStats>(rtp_stats_id_);
+        report->GetAs<webrtc::RTCInboundRtpStreamStats>(rtp_stats_id_);
     ASSERT_TRUE(rtp_stats);
     auto delta_packets = *rtp_stats->packets_received - audio_packets_stat_;
     auto delta_rpad =
@@ -868,9 +867,9 @@ class PeerConnectionIntegrationWrapper : public webrtc::PeerConnectionObserver,
     video_track_sources_.emplace_back(
         rtc::make_ref_counted<webrtc::FakePeriodicVideoTrackSource>(
             config, false /* remote */));
-    rtc::scoped_refptr<webrtc::VideoTrackInterface> track(
-        peer_connection_factory_->CreateVideoTrack(
-            rtc::CreateRandomUuid(), video_track_sources_.back().get()));
+    rtc::scoped_refptr<webrtc::VideoTrackInterface> track =
+        peer_connection_factory_->CreateVideoTrack(video_track_sources_.back(),
+                                                   rtc::CreateRandomUuid());
     if (!local_video_renderer_) {
       local_video_renderer_.reset(
           new webrtc::FakeVideoTrackRenderer(track.get()));
@@ -1875,10 +1874,6 @@ class PeerConnectionIntegrationBaseTest : public ::testing::Test {
     ASSERT_TRUE_WAIT(DtlsConnected(), kDefaultTimeout);
     EXPECT_EQ_WAIT(rtc::SrtpCryptoSuiteToName(expected_cipher_suite),
                    caller()->OldGetStats()->SrtpCipher(), kDefaultTimeout);
-    // TODO(bugs.webrtc.org/9456): Fix it.
-    EXPECT_METRIC_EQ(1, webrtc::metrics::NumEvents(
-                            "WebRTC.PeerConnection.SrtpCryptoSuite.Audio",
-                            expected_cipher_suite));
   }
 
   void TestGcmNegotiationUsesCipherSuite(bool local_gcm_enabled,

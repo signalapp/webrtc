@@ -52,7 +52,7 @@
 #include "system_wrappers/include/clock.h"
 #include "video/call_stats2.h"
 #include "video/frame_dumping_decoder.h"
-#include "video/receive_statistics_proxy2.h"
+#include "video/receive_statistics_proxy.h"
 #include "video/render/incoming_video_stream.h"
 #include "video/task_queue_frame_decode_scheduler.h"
 
@@ -566,8 +566,13 @@ VideoReceiveStreamInterface::Stats VideoReceiveStream2::GetStats() const {
   if (rtx_ssrc()) {
     StreamStatistician* rtx_statistician =
         rtp_receive_statistics_->GetStatistician(rtx_ssrc());
-    if (rtx_statistician)
+    if (rtx_statistician) {
       stats.total_bitrate_bps += rtx_statistician->BitrateReceived();
+      // TODO(bugs.webrtc.org/15096): remove kill-switch after rollout.
+      if (!call_->trials().IsDisabled("WebRTC-Stats-RtxReceiveStats")) {
+        stats.rtx_rtp_stats = rtx_statistician->GetStats();
+      }
+    }
   }
   return stats;
 }
@@ -759,6 +764,7 @@ void VideoReceiveStream2::OnEncodedFrame(std::unique_ptr<EncodedFrame> frame) {
       frame->FrameType() == VideoFrameType::kVideoFrameKey;
 
   // Current OnPreDecode only cares about QP for VP8.
+  // TODO(brandtr): Move to stats_proxy_.OnDecodableFrame in VSBC, or deprecate.
   int qp = -1;
   if (frame->CodecSpecific()->codecType == kVideoCodecVP8) {
     if (!vp8::GetQp(frame->data(), frame->size(), &qp)) {

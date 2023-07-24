@@ -20,14 +20,13 @@
 #include "absl/types/optional.h"
 #include "api/field_trials_view.h"
 #include "api/sequence_checker.h"
-#include "api/task_queue/task_queue_factory.h"
+#include "api/task_queue/pending_task_safety_flag.h"
 #include "api/units/data_size.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "modules/pacing/pacing_controller.h"
 #include "modules/pacing/rtp_packet_pacer.h"
 #include "modules/rtp_rtcp/source/rtp_packet_to_send.h"
-#include "modules/utility/maybe_worker_thread.h"
 #include "rtc_base/experiments/field_trial_parser.h"
 #include "rtc_base/numerics/exp_filter.h"
 #include "rtc_base/thread_annotations.h"
@@ -50,11 +49,13 @@ class TaskQueuePacedSender : public RtpPacketPacer, public RtpPacketSender {
   // a packet "debt" that correspond to approximately the send rate during the
   // specified interval. This greatly reduced wake ups by not pacing packets
   // within the allowed burst budget.
+  //
+  // The taskqueue used when constructing a TaskQueuePacedSender will also be
+  // used for pacing.
   TaskQueuePacedSender(
       Clock* clock,
       PacingController::PacketSender* packet_sender,
       const FieldTrialsView& field_trials,
-      TaskQueueFactory* task_queue_factory,
       TimeDelta max_hold_back_window,
       int max_hold_back_window_in_packets,
       absl::optional<TimeDelta> burst_interval = absl::nullopt);
@@ -130,9 +131,12 @@ class TaskQueuePacedSender : public RtpPacketPacer, public RtpPacketSender {
   void OnStatsUpdated(const Stats& stats);
 
  private:
+  // Call in response to state updates that could warrant sending out packets.
+  // Protected against re-entry from packet sent receipts.
+  void MaybeScheduleProcessPackets() RTC_RUN_ON(task_queue_);
   // Check if it is time to send packets, or schedule a delayed task if not.
   // Use Timestamp::MinusInfinity() to indicate that this call has _not_
-  // been scheduled by the pacing controller. If this is the case, check if
+  // been scheduled by the pacing controller. If this is the case, check if we
   // can execute immediately otherwise schedule a delay task that calls this
   // method again with desired (finite) scheduled process time.
   void MaybeProcessPackets(Timestamp scheduled_process_time);
@@ -178,13 +182,12 @@ class TaskQueuePacedSender : public RtpPacketPacer, public RtpPacketSender {
   rtc::ExpFilter packet_size_ RTC_GUARDED_BY(task_queue_);
   bool include_overhead_ RTC_GUARDED_BY(task_queue_);
 
-  // TODO(webrtc:14502): Remove stats_mutex_ when pacer runs on the worker
-  // thread.
-  mutable Mutex stats_mutex_;
-  Stats current_stats_ RTC_GUARDED_BY(stats_mutex_);
+  Stats current_stats_ RTC_GUARDED_BY(task_queue_);
+  // Protects against ProcessPackets reentry from packet sent receipts.
+  bool processing_packets_ RTC_GUARDED_BY(task_queue_) = false;
 
   ScopedTaskSafety safety_;
-  MaybeWorkerThread task_queue_;
+  TaskQueueBase* task_queue_;
 };
 }  // namespace webrtc
 #endif  // MODULES_PACING_TASK_QUEUE_PACED_SENDER_H_

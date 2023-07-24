@@ -317,12 +317,11 @@ bool FakeVideoMediaChannel::AddSendStream(const StreamParams& sp) {
 bool FakeVideoMediaChannel::RemoveSendStream(uint32_t ssrc) {
   return RtpHelper<VideoMediaChannel>::RemoveSendStream(ssrc);
 }
-bool FakeVideoMediaChannel::GetSendCodec(VideoCodec* send_codec) {
+absl::optional<VideoCodec> FakeVideoMediaChannel::GetSendCodec() {
   if (send_codecs_.empty()) {
-    return false;
+    return absl::nullopt;
   }
-  *send_codec = send_codecs_[0];
-  return true;
+  return send_codecs_[0];
 }
 bool FakeVideoMediaChannel::SetSink(
     uint32_t ssrc,
@@ -444,7 +443,7 @@ void FakeVideoMediaChannel::GenerateSendKeyFrame(
 FakeVoiceEngine::FakeVoiceEngine() : fail_create_channel_(false) {
   // Add a fake audio codec. Note that the name must not be "" as there are
   // sanity checks against that.
-  SetCodecs({AudioCodec(101, "fake_audio_codec", 0, 0, 1)});
+  SetCodecs({cricket::CreateAudioCodec(101, "fake_audio_codec", 8000, 1)});
 }
 void FakeVoiceEngine::Init() {}
 rtc::scoped_refptr<webrtc::AudioState> FakeVoiceEngine::GetAudioState() const {
@@ -470,8 +469,11 @@ VoiceMediaChannel* FakeVoiceEngine::CreateMediaChannel(
     case MediaChannel::Role::kReceive:
       receive_channels_.push_back(ch);
       break;
+    case MediaChannel::Role::kBoth:
+      send_channels_.push_back(ch);
+      receive_channels_.push_back(ch);
+      break;
     default:
-      // kBoth isn't supported any more.
       RTC_CHECK_NOTREACHED();
   }
   return ch;
@@ -488,6 +490,10 @@ void FakeVoiceEngine::UnregisterChannel(VoiceMediaChannel* channel) {
       send_channels_.erase(absl::c_find(send_channels_, channel));
       break;
     case MediaChannel::Role::kReceive:
+      receive_channels_.erase(absl::c_find(receive_channels_, channel));
+      break;
+    case MediaChannel::Role::kBoth:
+      send_channels_.erase(absl::c_find(send_channels_, channel));
       receive_channels_.erase(absl::c_find(receive_channels_, channel));
       break;
     default:
@@ -537,8 +543,8 @@ FakeVideoEngine::FakeVideoEngine()
     : capture_(false), fail_create_channel_(false) {
   // Add a fake video codec. Note that the name must not be "" as there are
   // sanity checks against that.
-  send_codecs_.push_back(VideoCodec(0, "fake_video_codec"));
-  recv_codecs_.push_back(VideoCodec(0, "fake_video_codec"));
+  send_codecs_.push_back(cricket::CreateVideoCodec(111, "fake_video_codec"));
+  recv_codecs_.push_back(cricket::CreateVideoCodec(111, "fake_video_codec"));
 }
 bool FakeVideoEngine::SetOptions(const VideoOptions& options) {
   options_ = options;
@@ -564,8 +570,11 @@ VideoMediaChannel* FakeVideoEngine::CreateMediaChannel(
     case MediaChannel::Role::kReceive:
       receive_channels_.emplace_back(ch);
       break;
+    case MediaChannel::Role::kBoth:
+      send_channels_.push_back(ch);
+      receive_channels_.push_back(ch);
+      break;
     default:
-      // kBoth isn't supported
       RTC_CHECK_NOTREACHED();
   }
   return ch;
@@ -586,6 +595,14 @@ void FakeVideoEngine::UnregisterChannel(VideoMediaChannel* channel) {
     } break;
     case MediaChannel::Role::kReceive: {
       auto it = absl::c_find(receive_channels_, channel);
+      RTC_DCHECK(it != receive_channels_.end());
+      receive_channels_.erase(it);
+    } break;
+    case MediaChannel::Role::kBoth: {
+      auto it = absl::c_find(send_channels_, channel);
+      RTC_DCHECK(it != send_channels_.end());
+      send_channels_.erase(it);
+      it = absl::c_find(receive_channels_, channel);
       RTC_DCHECK(it != receive_channels_.end());
       receive_channels_.erase(it);
     } break;

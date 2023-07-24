@@ -6,7 +6,6 @@
 # in the file PATENTS.  All contributing project authors may
 # be found in the AUTHORS file in the root of the source tree.
 
-import("//third_party/google_benchmark/buildconfig.gni")
 import("../webrtc.gni")
 
 if (is_android) {
@@ -138,8 +137,14 @@ rtc_library("bit_buffer") {
     "bit_buffer.cc",
     "bit_buffer.h",
   ]
-  deps = [ ":checks" ]
-  absl_deps = [ "//third_party/abseil-cpp/absl/numeric:bits" ]
+  deps = [
+    ":checks",
+    "../api/units:data_size",
+  ]
+  absl_deps = [
+    "//third_party/abseil-cpp/absl/numeric:bits",
+    "//third_party/abseil-cpp/absl/strings:strings",
+  ]
 }
 
 rtc_library("byte_buffer") {
@@ -485,6 +490,7 @@ rtc_library("rate_limiter") {
     ":macromagic",
     ":rate_statistics",
     "../system_wrappers",
+    "../system_wrappers:field_trial",
     "synchronization:mutex",
   ]
   absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
@@ -671,6 +677,7 @@ if (is_mac || is_ios) {
     deps = [
       ":checks",
       ":logging",
+      "../api:location",
       "../api/task_queue",
       "../api/units:time_delta",
       "synchronization:mutex",
@@ -825,10 +832,6 @@ rtc_library("rtc_json") {
     deps += [ "//third_party/jsoncpp" ]
   } else {
     include_dirs = [ "$rtc_jsoncpp_root" ]
-
-    # When defined changes the include path for json.h to where it is
-    # expected to be when building json outside of the standalone build.
-    defines += [ "WEBRTC_EXTERNAL_JSON" ]
   }
   absl_deps = [ "//third_party/abseil-cpp/absl/strings" ]
 }
@@ -976,6 +979,7 @@ rtc_library("threading") {
     ":socket_server",
     ":timeutils",
     "../api:function_view",
+    "../api:location",
     "../api:refcountedbase",
     "../api:scoped_refptr",
     "../api:sequence_checker",
@@ -1061,8 +1065,6 @@ if (is_win) {
     sources = [
       "win32.cc",
       "win32.h",
-      "win32_window.cc",
-      "win32_window.h",
     ]
 
     deps = [
@@ -1453,6 +1455,7 @@ rtc_library("ssl") {
     "../api/task_queue:pending_task_safety_flag",
     "../api/units:time_delta",
     "../system_wrappers:field_trial",
+    "synchronization:mutex",
     "system:rtc_export",
     "task_utils:repeating_task",
     "third_party/base64",
@@ -1864,6 +1867,7 @@ if (rtc_include_tests) {
         "../api/numerics",
         "../api/units:time_delta",
         "../system_wrappers",
+        "../test:field_trial",
         "../test:fileutils",
         "../test:test_main",
         "../test:test_support",
@@ -2033,14 +2037,11 @@ if (rtc_include_tests) {
         "synchronization:mutex",
         "third_party/sigslot",
       ]
-      if (enable_google_benchmarks) {
+      if (rtc_enable_google_benchmarks) {
         deps += [ "synchronization:synchronization_unittests" ]
       }
       if (is_win) {
-        sources += [
-          "win32_unittest.cc",
-          "win32_window_unittest.cc",
-        ]
+        sources += [ "win32_unittest.cc" ]
         deps += [ ":win32" ]
       }
       if (is_posix || is_fuchsia) {

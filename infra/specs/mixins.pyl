@@ -80,7 +80,7 @@
       'dimensions': {
         'os': 'iOS-12.4.1',
         'pool': 'WebRTC',
-        'id': 'build15-a7'
+        'id': 'mac-254-e504'
       }
     }
   },
@@ -174,31 +174,13 @@
         'location':
         '.',
         'revision':
-        'git_revision:723fc1a6c8cdf2631a57851f5610e598db0c1de1'
+        'git_revision:a598cd77abc01089647a79e3cfa3cc8e8ecb5118'
       }]
     }
   },
   'out_dir_arg': {
     '$mixin_append': {
       'args': ['--out-dir', '${ISOLATED_OUTDIR}']
-    }
-  },
-  'perf-fuchsia-perf-tests': {
-    'merge': {
-      'script': '//tools_webrtc/perf/process_perf_results.py',
-      'args': ['--test-suite', 'fuchsia_perf_tests']
-    },
-    '$mixin_append': {
-      'args': [
-        '--nologs',
-        '--isolated-script-test-perf-output=${ISOLATED_OUTDIR}/perftest-output.json'
-      ]
-    }
-  },
-  'perf-low-bandwidth-audio-perf-test': {
-    'merge': {
-      'script': '//tools_webrtc/perf/process_perf_results.py',
-      'args': ['--test-suite', 'low_bandwidth_audio_perf_test']
     }
   },
   'perf-output': {
@@ -224,6 +206,12 @@
         'pool': 'WebRTC-perf',
         'gce': '1'
       }
+    }
+  },
+  'perf-video-codec-perf-tests': {
+    'merge': {
+      'script': '//tools_webrtc/perf/process_perf_results.py',
+      'args': ['--test-suite', 'video_codec_perf_tests']
     }
   },
   'perf-webrtc-perf-tests': {
