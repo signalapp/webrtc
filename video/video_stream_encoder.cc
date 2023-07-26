@@ -77,6 +77,10 @@ const size_t kDefaultPayloadSize = 1440;
 
 const int64_t kParameterUpdateIntervalMs = 1000;
 
+// RingRTC change to ensure encoder stays paused for a minimum duration to
+// prevent flickering.
+const int kMinVideoSuspendedTimeSeconds = 30;
+
 // Animation is capped to 720p.
 constexpr int kMaxAnimationPixels = 1280 * 720;
 
@@ -1816,6 +1820,19 @@ void VideoStreamEncoder::MaybeEncodeVideoFrame(const VideoFrame& video_frame,
   }
   stream_resource_manager_.OnMaybeEncodeFrame();
 
+  // RingRTC change to ensure encoder stays paused for a minimum duration to
+  // prevent flickering.
+  if (EncoderPaused() &&
+      (clock_->CurrentTime() - last_suspended_timestamp_).seconds() > kMinVideoSuspendedTimeSeconds &&
+      last_target_bitrate_ != DataRate::Zero()) {
+    OnBitrateUpdated(last_target_bitrate_,
+                     last_stable_target_bitrate_,
+                     last_link_allocation_,
+                     last_fraction_lost_,
+                     last_round_trip_time_ms_,
+                     last_cwnd_reduce_ratio_);
+  }
+
   if (EncoderPaused()) {
     // Storing references to a native buffer risks blocking frame capture.
     if (video_frame.video_frame_buffer()->type() !=
@@ -2282,8 +2299,27 @@ void VideoStreamEncoder::OnBitrateUpdated(DataRate target_bitrate,
   }
   RTC_DCHECK_RUN_ON(&encoder_queue_);
 
+  // RingRTC change to ensure encoder stays paused for a minimum duration to
+  // prevent flickering.
+  last_target_bitrate_ = target_bitrate;
+  last_stable_target_bitrate_ = stable_target_bitrate;
+  last_link_allocation_ = link_allocation;
+  last_fraction_lost_ = fraction_lost;
+  last_round_trip_time_ms_ = round_trip_time_ms;
+  last_cwnd_reduce_ratio_ = cwnd_reduce_ratio;
+
+  if (EncoderPaused() &&
+      (clock_->CurrentTime() - last_suspended_timestamp_).seconds() < kMinVideoSuspendedTimeSeconds) {
+    target_bitrate = DataRate::Zero();
+  }
+
   const bool video_is_suspended = target_bitrate == DataRate::Zero();
   const bool video_suspension_changed = video_is_suspended != EncoderPaused();
+  if (video_suspension_changed) {
+    if (video_is_suspended) {
+      last_suspended_timestamp_ = clock_->CurrentTime();
+    }
+  }
 
   if (!video_is_suspended && settings_.encoder_switch_request_callback &&
       encoder_selector_) {

@@ -329,6 +329,16 @@ class VideoStreamEncoder : public VideoStreamEncoderInterface,
   bool encoder_failed_ RTC_GUARDED_BY(&encoder_queue_);
   Clock* const clock_;
 
+  // RingRTC change to ensure encoder stays paused for a minimum duration to
+  // prevent flickering.
+  Timestamp last_suspended_timestamp_ RTC_GUARDED_BY(&encoder_queue_) = Timestamp::Zero();
+  DataRate last_target_bitrate_ RTC_GUARDED_BY(&encoder_queue_) = DataRate::Zero();
+  DataRate last_stable_target_bitrate_ RTC_GUARDED_BY(&encoder_queue_) = DataRate::Zero();
+  DataRate last_link_allocation_ RTC_GUARDED_BY(&encoder_queue_) = DataRate::Zero();
+  uint8_t last_fraction_lost_ RTC_GUARDED_BY(&encoder_queue_) = 0;
+  int64_t last_round_trip_time_ms_ RTC_GUARDED_BY(&encoder_queue_) = 0;
+  double last_cwnd_reduce_ratio_ RTC_GUARDED_BY(&encoder_queue_) = 0.0;
+
   // Used to make sure incoming time stamp is increasing for every frame.
   int64_t last_captured_timestamp_ RTC_GUARDED_BY(&encoder_queue_);
   // Delta used for translating between NTP and internal timestamps.
