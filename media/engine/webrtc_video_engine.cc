@@ -1367,7 +1367,10 @@ bool WebRtcVideoChannel::AddSendStream(const StreamParams& sp) {
     config.rtp.rids.push_back(rid.rid);
   }
 
-  config.suspend_below_min_bitrate = video_config_.suspend_below_min_bitrate;
+  // RingRTC change to control whether video can be suspended when bandwidth
+  // estimate is low.
+  config.suspend_below_min_bitrate = IsEnabled(call_->trials(),
+                                               "RingRTC-LowBandwidthVideoSuspension");
   config.periodic_alr_bandwidth_probing =
       video_config_.periodic_alr_bandwidth_probing;
   config.encoder_settings.experiment_cpu_load_estimator =
