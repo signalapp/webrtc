@@ -259,6 +259,9 @@ class WebRtcVideoChannel : public VideoMediaChannel,
     }
     return send_codec_->rtx_time;
   }
+  // RingRTC change to know when video is enabled or disabled based on
+  // available bandwidth.
+  void SetSuspensionCallback(SuspensionCallback callback) override;
   void SetReceiverFeedbackParameters(bool lntf_enabled,
                                      bool nack_enabled,
                                      webrtc::RtcpMode rtcp_mode,
@@ -405,6 +408,9 @@ class WebRtcVideoChannel : public VideoMediaChannel,
         rtc::scoped_refptr<webrtc::FrameTransformerInterface>
             frame_transformer);
     void GenerateKeyFrame(const std::vector<std::string>& rids);
+    // RingRTC change to know when video is enabled or disabled based on
+    // available bandwidth.
+    void SetSuspensionCallback(SuspensionCallback callback);
 
    private:
     // Parameters needed to reconstruct the underlying stream.
@@ -471,6 +477,10 @@ class WebRtcVideoChannel : public VideoMediaChannel,
     // DegrationPreferences::MAINTAIN_RESOLUTION isn't sufficient to disable
     // downscaling everywhere in the pipeline.
     const bool disable_automatic_resize_;
+
+    // RingRTC change to know when video is enabled or disabled based on
+    // available bandwidth.
+    SuspensionCallback suspension_callback_ RTC_GUARDED_BY(&thread_checker_);
   };
 
   // Wrapper for the receiver part, contains configs etc. that are needed to

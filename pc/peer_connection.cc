@@ -1434,6 +1434,25 @@ void PeerConnection::SetLocalDescription(
     SessionDescriptionInterface* desc_ptr) {
   RTC_DCHECK_RUN_ON(signaling_thread());
   sdp_handler_->SetLocalDescription(observer, desc_ptr);
+
+  // RingRTC change to know when video is enabled or disabled based on
+  // available bandwidth.
+  for (const auto& transceiver : rtp_manager()->transceivers()->List()) {
+    if (transceiver->media_type() != cricket::MEDIA_TYPE_VIDEO) {
+      continue;
+    }
+
+    auto* video_channel = transceiver->internal()->channel();
+    if (video_channel) {
+      auto* send_channel = static_cast<cricket::VideoMediaSendChannelInterface*>(video_channel->media_send_channel());
+      if (send_channel) {
+        worker_thread()->BlockingCall(
+            [this, send_channel]() {
+              send_channel->SetSuspensionCallback(std::bind_front(&PeerConnection::OnVideoSuspensionChanged, this));
+            });
+      }
+    }
+  }
 }
 
 void PeerConnection::SetLocalDescription(
@@ -3004,6 +3023,23 @@ void PeerConnection::RequestUsagePatternReportForTesting() {
         ReportUsagePattern();
       },
       /* delay_ms= */ 0);
+}
+
+// RingRTC change to know when video is enabled or disabled based on available
+// bandwidth.
+void PeerConnection::OnVideoSuspensionChanged(bool is_suspended) {
+  // OnVideoSuspensionChanged is called on the video encoder thread. Switch to
+  // the signaling thread.
+  signaling_thread()->PostTask(
+      SafeTask(signaling_thread_safety_.flag(),
+               [this, is_suspended] {
+                 RTC_DCHECK_RUN_ON(signaling_thread());
+
+                 auto observer = Observer();
+                 if (observer != nullptr) {
+                   Observer()->OnVideoSuspensionChanged(is_suspended);
+                 }
+               }));
 }
 
 std::function<void(const rtc::CopyOnWriteBuffer& packet,

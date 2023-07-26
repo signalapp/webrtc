@@ -46,6 +46,7 @@ typedef struct {
   void (*onAddAudioRtpReceiver)(void* observer_borrowed, webrtc::MediaStreamTrackInterface* track_owned_rc);
   void (*onAddVideoRtpReceiver)(void* observer_borrowed, webrtc::MediaStreamTrackInterface* track_owned_rc);
   void (*onVideoFrame)(void* observer_borrowed, uint32_t track_id, RffiVideoFrameMetadata metadata, webrtc::VideoFrameBuffer* frame_buffer_owned_rc);
+  void (*onVideoSuspensionChanged)(void* observer_borrowed, bool is_suspended);
 
   // RTP data events
   // Warning: this runs on the WebRTC network thread, so doing anything that

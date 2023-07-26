@@ -680,6 +680,12 @@ class VideoMediaSendChannel : public VideoMediaSendChannelInterface {
     return impl()->SendCodecRtxTime();
   }
 
+  // RingRTC change to know when video is enabled or disabled based on available
+  // bandwidth.
+  void SetSuspensionCallback(SuspensionCallback callback) override {
+    impl()->SetSuspensionCallback(callback);
+  }
+
   MediaChannel* ImplForTesting() override { return impl_; }
 
  private:

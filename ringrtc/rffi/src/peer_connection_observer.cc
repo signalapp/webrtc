@@ -142,6 +142,10 @@ void PeerConnectionObserverRffi::OnRtpPacket(const RtpPacketReceived& rtp_packet
   callbacks_.onRtpReceived(observer_, pt, seqnum, timestamp, ssrc, payload_data, payload_size);
 }
 
+void PeerConnectionObserverRffi::OnVideoSuspensionChanged(bool is_suspended) {
+  callbacks_.onVideoSuspensionChanged(observer_, is_suspended);
+}
+
 void PeerConnectionObserverRffi::OnRenegotiationNeeded() {
   RTC_LOG(LS_INFO) << "OnRenegotiationNeeded()";
 }

@@ -115,7 +115,10 @@ std::unique_ptr<VideoStreamEncoder> CreateVideoStreamEncoder(
     VideoStreamEncoder::BitrateAllocationCallbackType
         bitrate_allocation_callback_type,
     const FieldTrialsView& field_trials,
-    webrtc::VideoEncoderFactory::EncoderSelectorInterface* encoder_selector) {
+    webrtc::VideoEncoderFactory::EncoderSelectorInterface* encoder_selector,
+    // RingRTC change to know when video is enabled or disabled based on
+    // available bandwidth.
+    SuspensionCallback suspension_callback) {
   std::unique_ptr<TaskQueueBase, TaskQueueDeleter> encoder_queue =
       task_queue_factory->CreateTaskQueue("EncoderQueue",
                                           TaskQueueFactory::Priority::NORMAL);
@@ -126,7 +129,9 @@ std::unique_ptr<VideoStreamEncoder> CreateVideoStreamEncoder(
       FrameCadenceAdapterInterface::Create(clock, encoder_queue_ptr,
                                            field_trials),
       std::move(encoder_queue), bitrate_allocation_callback_type, field_trials,
-      encoder_selector);
+      // RingRTC change to know when video is enabled or disabled based on
+      // available bandwidth.
+      encoder_selector, suspension_callback);
 }
 
 }  // namespace
@@ -148,6 +153,9 @@ VideoSendStream::VideoSendStream(
     const std::map<uint32_t, RtpState>& suspended_ssrcs,
     const std::map<uint32_t, RtpPayloadState>& suspended_payload_states,
     std::unique_ptr<FecController> fec_controller,
+    // RingRTC change to know when video is enabled or disabled based on
+    // available bandwidth.
+    SuspensionCallback suspension_callback,
     const FieldTrialsView& field_trials)
     : rtp_transport_queue_(transport->GetWorkerQueue()),
       transport_(transport),
@@ -162,7 +170,10 @@ VideoSendStream::VideoSendStream(
           config_.encoder_settings,
           GetBitrateAllocationCallbackType(config_, field_trials),
           field_trials,
-          config_.encoder_selector)),
+          config_.encoder_selector,
+          // RingRTC change to know when video is enabled or disabled based on
+          // available bandwidth.
+          suspension_callback)),
       encoder_feedback_(
           clock,
           config_.rtp.ssrcs,

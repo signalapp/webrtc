@@ -47,6 +47,9 @@ namespace webrtc {
 class Call {
  public:
   using Config = CallConfig;
+  // RingRTC change to know when video is enabled or disabled based on
+  // available bandwidth.
+  using SuspensionCallback = std::function<void(bool)>;
 
   struct Stats {
     std::string ToString(int64_t time_ms) const;
@@ -76,11 +79,17 @@ class Call {
 
   virtual VideoSendStream* CreateVideoSendStream(
       VideoSendStream::Config config,
-      VideoEncoderConfig encoder_config) = 0;
+      VideoEncoderConfig encoder_config,
+      // RingRTC change to know when video is enabled or disabled based on
+      // available bandwidth.
+      SuspensionCallback suspension_callback) = 0;
   virtual VideoSendStream* CreateVideoSendStream(
       VideoSendStream::Config config,
       VideoEncoderConfig encoder_config,
-      std::unique_ptr<FecController> fec_controller);
+      std::unique_ptr<FecController> fec_controller,
+      // RingRTC change to know when video is enabled or disabled based on
+      // available bandwidth.
+      SuspensionCallback suspension_callback);
   virtual void DestroyVideoSendStream(VideoSendStream* send_stream) = 0;
 
   virtual VideoReceiveStreamInterface* CreateVideoReceiveStream(

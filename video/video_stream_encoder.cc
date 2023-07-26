@@ -650,7 +650,10 @@ VideoStreamEncoder::VideoStreamEncoder(
         encoder_queue,
     BitrateAllocationCallbackType allocation_cb_type,
     const FieldTrialsView& field_trials,
-    webrtc::VideoEncoderFactory::EncoderSelectorInterface* encoder_selector)
+    webrtc::VideoEncoderFactory::EncoderSelectorInterface* encoder_selector,
+    // RingRTC change to know when video is enabled or disabled based on
+    // available bandwidth.
+    SuspensionCallback suspension_callback)
     : field_trials_(field_trials),
       worker_queue_(TaskQueueBase::Current()),
       number_of_cores_(number_of_cores),
@@ -681,6 +684,9 @@ VideoStreamEncoder::VideoStreamEncoder(
       was_encode_called_since_last_initialization_(false),
       encoder_failed_(false),
       clock_(clock),
+      // RingRTC change to know when video is enabled or disabled based on
+      // available bandwidth.
+      suspension_callback_(suspension_callback),
       last_captured_timestamp_(0),
       delta_ntp_internal_ms_(clock_->CurrentNtpInMilliseconds() -
                              clock_->TimeInMilliseconds()),
@@ -2316,6 +2322,11 @@ void VideoStreamEncoder::OnBitrateUpdated(DataRate target_bitrate,
   const bool video_is_suspended = target_bitrate == DataRate::Zero();
   const bool video_suspension_changed = video_is_suspended != EncoderPaused();
   if (video_suspension_changed) {
+    // RingRTC change to know when video is enabled or disabled based on
+    // available bandwidth.
+    if (suspension_callback_) {
+      suspension_callback_(video_is_suspended);
+    }
     if (video_is_suspended) {
       last_suspended_timestamp_ = clock_->CurrentTime();
     }

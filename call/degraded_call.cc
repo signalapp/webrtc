@@ -215,7 +215,10 @@ void DegradedCall::DestroyAudioReceiveStream(
 
 VideoSendStream* DegradedCall::CreateVideoSendStream(
     VideoSendStream::Config config,
-    VideoEncoderConfig encoder_config) {
+    VideoEncoderConfig encoder_config,
+    // RingRTC change to know when video is enabled or disabled based on
+    // available bandwidth.
+    SuspensionCallback suspension_callback) {
   std::unique_ptr<FakeNetworkPipeTransportAdapter> transport_adapter;
   if (!send_configs_.empty()) {
     transport_adapter = std::make_unique<FakeNetworkPipeTransportAdapter>(
@@ -223,7 +226,9 @@ VideoSendStream* DegradedCall::CreateVideoSendStream(
     config.send_transport = transport_adapter.get();
   }
   VideoSendStream* send_stream = call_->CreateVideoSendStream(
-      std::move(config), std::move(encoder_config));
+      // RingRTC change to know when video is enabled or disabled based on
+      // available bandwidth.
+      std::move(config), std::move(encoder_config), suspension_callback);
   if (send_stream && transport_adapter) {
     video_send_transport_adapters_[send_stream] = std::move(transport_adapter);
   }
@@ -233,7 +238,10 @@ VideoSendStream* DegradedCall::CreateVideoSendStream(
 VideoSendStream* DegradedCall::CreateVideoSendStream(
     VideoSendStream::Config config,
     VideoEncoderConfig encoder_config,
-    std::unique_ptr<FecController> fec_controller) {
+    std::unique_ptr<FecController> fec_controller,
+    // RingRTC change to know when video is enabled or disabled based on
+    // available bandwidth.
+    SuspensionCallback suspension_callback) {
   std::unique_ptr<FakeNetworkPipeTransportAdapter> transport_adapter;
   if (!send_configs_.empty()) {
     transport_adapter = std::make_unique<FakeNetworkPipeTransportAdapter>(
@@ -241,7 +249,9 @@ VideoSendStream* DegradedCall::CreateVideoSendStream(
     config.send_transport = transport_adapter.get();
   }
   VideoSendStream* send_stream = call_->CreateVideoSendStream(
-      std::move(config), std::move(encoder_config), std::move(fec_controller));
+      // RingRTC change to know when video is enabled or disabled based on
+      // available bandwidth.
+      std::move(config), std::move(encoder_config), std::move(fec_controller), suspension_callback);
   if (send_stream && transport_adapter) {
     video_send_transport_adapters_[send_stream] = std::move(transport_adapter);
   }

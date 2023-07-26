@@ -962,6 +962,10 @@ struct VideoSendParameters : RtpSendParameters<VideoCodec> {
 // encapsulate all the parameters needed for a video RtpReceiver.
 struct VideoRecvParameters : RtpParameters<VideoCodec> {};
 
+// RingRTC change to know when video is enabled or disabled based on available
+// bandwidth.
+using SuspensionCallback = std::function<void(bool)>;
+
 class VideoMediaSendChannelInterface : public MediaSendChannelInterface {
  public:
   virtual bool SetSendParameters(const VideoSendParameters& params) = 0;
@@ -987,6 +991,9 @@ class VideoMediaSendChannelInterface : public MediaSendChannelInterface {
   virtual bool SendCodecHasLntf() const = 0;
   virtual bool SendCodecHasNack() const = 0;
   virtual absl::optional<int> SendCodecRtxTime() const = 0;
+  // RingRTC change to know when video is enabled or disabled based on available
+  // bandwidth.
+  virtual void SetSuspensionCallback(SuspensionCallback callback) = 0;
 };
 
 class VideoMediaReceiveChannelInterface : public MediaReceiveChannelInterface {

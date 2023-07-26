@@ -206,11 +206,17 @@ class Call final : public webrtc::Call,
 
   webrtc::VideoSendStream* CreateVideoSendStream(
       webrtc::VideoSendStream::Config config,
-      VideoEncoderConfig encoder_config) override;
+      VideoEncoderConfig encoder_config,
+      // RingRTC change to know when video is enabled or disabled based on
+      // available bandwidth.
+      SuspensionCallback suspension_callback) override;
   webrtc::VideoSendStream* CreateVideoSendStream(
       webrtc::VideoSendStream::Config config,
       VideoEncoderConfig encoder_config,
-      std::unique_ptr<FecController> fec_controller) override;
+      std::unique_ptr<FecController> fec_controller,
+      // RingRTC change to know when video is enabled or disabled based on
+      // available bandwidth.
+      SuspensionCallback suspension_callback) override;
   void DestroyVideoSendStream(webrtc::VideoSendStream* send_stream) override;
 
   webrtc::VideoReceiveStreamInterface* CreateVideoReceiveStream(
@@ -500,7 +506,10 @@ Call* Call::Create(const Call::Config& config,
 VideoSendStream* Call::CreateVideoSendStream(
     VideoSendStream::Config config,
     VideoEncoderConfig encoder_config,
-    std::unique_ptr<FecController> fec_controller) {
+    std::unique_ptr<FecController> fec_controller,
+    // RingRTC change to know when video is enabled or disabled based on
+    // available bandwidth.
+    SuspensionCallback suspension_callback) {
   return nullptr;
 }
 
@@ -896,7 +905,10 @@ void Call::DestroyAudioReceiveStream(
 webrtc::VideoSendStream* Call::CreateVideoSendStream(
     webrtc::VideoSendStream::Config config,
     VideoEncoderConfig encoder_config,
-    std::unique_ptr<FecController> fec_controller) {
+    std::unique_ptr<FecController> fec_controller,
+    // RingRTC change to know when video is enabled or disabled based on
+    // available bandwidth.
+    SuspensionCallback suspension_callback) {
   TRACE_EVENT0("webrtc", "Call::CreateVideoSendStream");
   RTC_DCHECK_RUN_ON(worker_thread_);
 
@@ -919,7 +931,9 @@ webrtc::VideoSendStream* Call::CreateVideoSendStream(
       call_stats_->AsRtcpRttStats(), transport_send_.get(),
       bitrate_allocator_.get(), video_send_delay_stats_.get(), event_log_,
       std::move(config), std::move(encoder_config), suspended_video_send_ssrcs_,
-      suspended_video_payload_states_, std::move(fec_controller),
+      // RingRTC change to know when video is enabled or disabled based on
+      // available bandwidth.
+      suspended_video_payload_states_, std::move(fec_controller), suspension_callback,
       *config_.trials);
 
   for (uint32_t ssrc : ssrcs) {
@@ -941,7 +955,10 @@ webrtc::VideoSendStream* Call::CreateVideoSendStream(
 
 webrtc::VideoSendStream* Call::CreateVideoSendStream(
     webrtc::VideoSendStream::Config config,
-    VideoEncoderConfig encoder_config) {
+    VideoEncoderConfig encoder_config,
+    // RingRTC change to know when video is enabled or disabled based on
+    // available bandwidth.
+    SuspensionCallback suspension_callback) {
   RTC_DCHECK_RUN_ON(worker_thread_);
   if (config_.fec_controller_factory) {
     RTC_LOG(LS_INFO) << "External FEC Controller will be used.";
@@ -951,7 +968,9 @@ webrtc::VideoSendStream* Call::CreateVideoSendStream(
           ? config_.fec_controller_factory->CreateFecController()
           : std::make_unique<FecControllerDefault>(clock_);
   return CreateVideoSendStream(std::move(config), std::move(encoder_config),
-                               std::move(fec_controller));
+                               // RingRTC change to know when video is enabled
+                               // or disabled based on available bandwidth.
+                               std::move(fec_controller), suspension_callback);
 }
 
 void Call::DestroyVideoSendStream(webrtc::VideoSendStream* send_stream) {

@@ -55,6 +55,9 @@ class VideoSendStream : public webrtc::VideoSendStream {
  public:
   using RtpStateMap = std::map<uint32_t, RtpState>;
   using RtpPayloadStateMap = std::map<uint32_t, RtpPayloadState>;
+  // RingRTC change to know when video is enabled or disabled based on
+  // available bandwidth.
+  using SuspensionCallback = std::function<void(bool)>;
 
   VideoSendStream(
       Clock* clock,
@@ -71,6 +74,9 @@ class VideoSendStream : public webrtc::VideoSendStream {
       const std::map<uint32_t, RtpState>& suspended_ssrcs,
       const std::map<uint32_t, RtpPayloadState>& suspended_payload_states,
       std::unique_ptr<FecController> fec_controller,
+      // RingRTC change to know when video is enabled or disabled based on
+      // available bandwidth.
+      SuspensionCallback suspension_callback,
       const FieldTrialsView& field_trials);
 
   ~VideoSendStream() override;

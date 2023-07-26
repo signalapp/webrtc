@@ -68,11 +68,17 @@ class DegradedCall : public Call, private PacketReceiver {
 
   VideoSendStream* CreateVideoSendStream(
       VideoSendStream::Config config,
-      VideoEncoderConfig encoder_config) override;
+      VideoEncoderConfig encoder_config,
+      // RingRTC change to know when video is enabled or disabled based on
+      // available bandwidth.
+      SuspensionCallback suspension_callback) override;
   VideoSendStream* CreateVideoSendStream(
       VideoSendStream::Config config,
       VideoEncoderConfig encoder_config,
-      std::unique_ptr<FecController> fec_controller) override;
+      std::unique_ptr<FecController> fec_controller,
+      // RingRTC change to know when video is enabled or disabled based on
+      // available bandwidth.
+      SuspensionCallback suspension_callback) override;
   void DestroyVideoSendStream(VideoSendStream* send_stream) override;
 
   VideoReceiveStreamInterface* CreateVideoReceiveStream(

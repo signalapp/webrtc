@@ -55,6 +55,10 @@
 
 namespace webrtc {
 
+// RingRTC change to know when video is enabled or disabled based on available
+// bandwidth.
+using SuspensionCallback = std::function<void(bool)>;
+
 // VideoStreamEncoder represent a video encoder that accepts raw video frames as
 // input and produces an encoded bit stream.
 // Usage:
@@ -86,7 +90,10 @@ class VideoStreamEncoder : public VideoStreamEncoderInterface,
       BitrateAllocationCallbackType allocation_cb_type,
       const FieldTrialsView& field_trials,
       webrtc::VideoEncoderFactory::EncoderSelectorInterface* encoder_selector =
-          nullptr);
+          nullptr,
+      // RingRTC change to know when video is enabled or disabled based on
+      // available bandwidth.
+      SuspensionCallback suspension_callback = nullptr);
   ~VideoStreamEncoder() override;
 
   VideoStreamEncoder(const VideoStreamEncoder&) = delete;
@@ -328,6 +335,10 @@ class VideoStreamEncoder : public VideoStreamEncoderInterface,
 
   bool encoder_failed_ RTC_GUARDED_BY(&encoder_queue_);
   Clock* const clock_;
+
+  // RingRTC change to know when video is enabled or disabled based on
+  // available bandwidth.
+  SuspensionCallback suspension_callback_ = nullptr;
 
   // RingRTC change to ensure encoder stays paused for a minimum duration to
   // prevent flickering.

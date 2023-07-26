@@ -1001,6 +1001,15 @@ bool WebRtcVideoChannel::ApplyChangedParams(
   return true;
 }
 
+// RingRTC change to know when video is enabled or disabled based on available
+// bandwidth.
+void WebRtcVideoChannel::SetSuspensionCallback(SuspensionCallback callback) {
+  RTC_DCHECK_RUN_ON(&thread_checker_);
+  for (auto& kv : send_streams_) {
+    kv.second->SetSuspensionCallback(callback);
+  }
+}
+
 void WebRtcVideoChannel::SetReceiverFeedbackParameters(
     bool lntf_enabled,
     bool nack_enabled,
@@ -2885,7 +2894,11 @@ void WebRtcVideoChannel::WebRtcVideoSendStream::RecreateWebRtcStream() {
     }
   }
   stream_ = call_->CreateVideoSendStream(std::move(config),
-                                         parameters_.encoder_config.Copy());
+                                         parameters_.encoder_config.Copy(),
+                                         // RingRTC change to know when video
+                                         // is enabled or disabled based on
+                                         // available bandwidth.
+                                         suspension_callback_);
 
   parameters_.encoder_config.encoder_specific_settings = NULL;
 
@@ -2910,6 +2923,15 @@ void WebRtcVideoChannel::WebRtcVideoSendStream::GenerateKeyFrame(
         << "Absent send stream; ignoring request to generate keyframe.";
   }
 }
+
+// RingRTC change to know when video is enabled or disabled based on available
+// bandwidth.
+void WebRtcVideoChannel::WebRtcVideoSendStream::SetSuspensionCallback(
+    SuspensionCallback callback) {
+  RTC_DCHECK_RUN_ON(&thread_checker_);
+  suspension_callback_ = callback;
+}
+
 
 WebRtcVideoChannel::WebRtcVideoReceiveStream::WebRtcVideoReceiveStream(
     webrtc::Call* call,

@@ -466,9 +466,14 @@ class PeerConnection : public PeerConnectionInternal,
   }
   void RequestUsagePatternReportForTesting();
 
+  // RingRTC change to add ICE forking
   rtc::scoped_refptr<IceGathererInterface> shared_ice_gatherer() override {
       return shared_ice_gatherer_;
   }
+
+  // RingRTC change to know when video is enabled or disabled based on
+  // available bandwidth.
+  void OnVideoSuspensionChanged(bool is_suspended);
 
  protected:
   // Available for rtc::scoped_refptr creation
