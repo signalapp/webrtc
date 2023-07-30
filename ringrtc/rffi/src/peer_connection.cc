@@ -39,6 +39,7 @@ int TX_TIME_OFFSET_EXT_ID = 13;
 // 101 used by connection.rs
 int DATA_PT = 101;
 int OPUS_PT = 102;
+int OPUS_RED_PT = 105;
 int VP8_PT = 108;
 int VP8_RTX_PT = 118;
 int VP9_PT = 109;
@@ -246,12 +247,14 @@ RUSTEXPORT webrtc::SessionDescriptionInterface*
 Rust_sessionDescriptionFromV4(bool offer,
                               const RffiConnectionParametersV4* v4_borrowed,
                               bool enable_tcc_audio,
+                              bool enable_red_audio,
                               bool enable_vp9) {
   // Major changes from the default WebRTC behavior:
   // 1. We remove all codecs except Opus, VP8, and VP9
   // 2. We remove all header extensions except for transport-cc, video orientation,
   //    and abs send time.
   // 3. Opus CBR and DTX is enabled.
+  // 4. RED is enabled for audio.
 
   // For some reason, WebRTC insists that the video SSRCs for one side don't 
   // overlap with SSRCs from the other side.  To avoid potential problems, we'll give the
@@ -289,6 +292,15 @@ Rust_sessionDescriptionFromV4(bool offer,
   auto video = std::make_unique<cricket::VideoContentDescription>();
   set_rtp_params(video.get());
 
+  // Turn on the RED "meta codec" for Opus redundancy.
+  auto opus_red = cricket::CreateAudioCodec(OPUS_RED_PT, cricket::kRedCodecName, 48000, 2);
+  opus_red.SetParam("", std::to_string(OPUS_PT) + "/" + std::to_string(OPUS_PT));
+
+  if (enable_red_audio) {
+    // Add RED before Opus to use it by default when sending.
+    audio->AddCodec(opus_red);
+  }
+
   auto opus = cricket::CreateAudioCodec(OPUS_PT, cricket::kOpusCodecName, 48000, 2);
   // These are the current defaults for WebRTC
   // We set them explicitly to avoid having the defaults change on us.
@@ -305,6 +317,11 @@ Rust_sessionDescriptionFromV4(bool offer,
   opus.SetParam("cbr", "1");
   opus.AddFeedbackParam(cricket::FeedbackParam(cricket::kRtcpFbParamTransportCc, cricket::kParamValueEmpty));
   audio->AddCodec(opus);
+
+  if (!enable_red_audio) {
+    // Add RED after Opus so that RED packets can at least be decoded properly if received.
+    audio->AddCodec(opus_red);
+  }
 
   auto add_video_feedback_params = [] (cricket::VideoCodec* video_codec) {
     video_codec->AddFeedbackParam(cricket::FeedbackParam(cricket::kRtcpFbParamTransportCc, cricket::kParamValueEmpty));

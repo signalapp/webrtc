@@ -100,6 +100,7 @@ RUSTEXPORT webrtc::SessionDescriptionInterface*
 Rust_sessionDescriptionFromV4(bool offer,
                               const RffiConnectionParametersV4* v4_borrowed,
                               bool enable_tcc_audio,
+                              bool enable_red_audio,
                               bool enable_vp9);
 
 RUSTEXPORT void

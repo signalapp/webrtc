@@ -994,15 +994,20 @@ bool AudioEncoderOpusImpl::Configure(const webrtc::AudioEncoder::Config& config)
   // This sets next_frame_length_ms_ until the next time audio is sampled,
   // and then it sets config_.frame_size_ms as well.
   // It needs to be delayed to avoid a CHECK in Encode.
-  SetFrameLength(config.packet_size_ms);
+  SetFrameLength(config.initial_packet_size_ms);
 
   // I don't think any of the below are necessary, but the above is, so we might as well set these.
-  config_.bitrate_bps = config.start_bitrate_bps;
+  config_.bitrate_bps = config.initial_bitrate_bps;
   config_.fec_enabled = config.enable_fec == 1;
   config_.cbr_enabled = config.enable_vbr == 0;
   config_.complexity = config.complexity;
   config_.low_rate_complexity = config_.low_rate_complexity;
   config_.dtx_enabled = config.enable_dtx == 1;
+
+  if (config.adaptation > 0) {
+    RTC_LOG(LS_WARNING) << "ringrtc_adapt!,audio,0," << config.initial_bitrate_bps
+                        << "," << config.initial_packet_size_ms;
+  }
 
   if (WebRtcOpus_SetBandwidth(inst_, config.bandwidth) == -1) {
     RTC_LOG(LS_WARNING) << "Failed to configure OPUS to bandwidth=" << config.bandwidth;
@@ -1010,11 +1015,11 @@ bool AudioEncoderOpusImpl::Configure(const webrtc::AudioEncoder::Config& config)
   }
   RTC_LOG(LS_INFO) << "Successfully configured OPUS to bandwidth=" << config.bandwidth;
 
-  if (WebRtcOpus_SetBitRate(inst_, config.start_bitrate_bps) == -1) {
-    RTC_LOG(LS_WARNING) << "Failed to configure OPUS to bitrate_bps=" << config.start_bitrate_bps;
+  if (WebRtcOpus_SetBitRate(inst_, config.initial_bitrate_bps) == -1) {
+    RTC_LOG(LS_WARNING) << "Failed to configure OPUS to bitrate_bps=" << config.initial_bitrate_bps;
     return false;
   }
-  RTC_LOG(LS_INFO) << "Successfully configured OPUS to bitrate_bps=" << config.start_bitrate_bps;
+  RTC_LOG(LS_INFO) << "Successfully configured OPUS to bitrate_bps=" << config.initial_bitrate_bps;
 
   if (WebRtcOpus_SetComplexity(inst_, config.complexity) == -1) {
     RTC_LOG(LS_WARNING) << "Failed to configure OPUS to complexity=" << config.complexity;
