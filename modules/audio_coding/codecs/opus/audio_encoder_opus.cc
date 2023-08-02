@@ -998,11 +998,11 @@ bool AudioEncoderOpusImpl::Configure(const webrtc::AudioEncoder::Config& config)
 
   // I don't think any of the below are necessary, but the above is, so we might as well set these.
   config_.bitrate_bps = config.initial_bitrate_bps;
-  config_.fec_enabled = config.enable_fec == 1;
-  config_.cbr_enabled = config.enable_vbr == 0;
+  config_.fec_enabled = config.enable_fec;
+  config_.cbr_enabled = config.enable_cbr;
   config_.complexity = config.complexity;
   config_.low_rate_complexity = config_.low_rate_complexity;
-  config_.dtx_enabled = config.enable_dtx == 1;
+  config_.dtx_enabled = config.enable_dtx;
 
   if (config.adaptation > 0) {
     RTC_LOG(LS_WARNING) << "ringrtc_adapt!,audio,0," << config.initial_bitrate_bps
@@ -1027,7 +1027,7 @@ bool AudioEncoderOpusImpl::Configure(const webrtc::AudioEncoder::Config& config)
   }
   RTC_LOG(LS_INFO) << "Successfully configured OPUS to complexity=" << config.complexity;
 
-  if (config.enable_fec == 1) {
+  if (config.enable_fec) {
     if (WebRtcOpus_EnableFec(inst_) == -1) {
       RTC_LOG(LS_WARNING) << "Failed to configure OPUS to enable_fec=" << config.enable_fec;
       return false;
@@ -1040,7 +1040,7 @@ bool AudioEncoderOpusImpl::Configure(const webrtc::AudioEncoder::Config& config)
   }
   RTC_LOG(LS_INFO) << "Successfully configured OPUS to enable_fec=" << config.enable_fec;
 
-  if (config.enable_dtx == 1) {
+  if (config.enable_dtx) {
     if (WebRtcOpus_EnableDtx(inst_) == -1) {
       RTC_LOG(LS_WARNING) << "Failed to configure OPUS to enable_dtx=" << config.enable_dtx;
       return false;
@@ -1053,20 +1053,19 @@ bool AudioEncoderOpusImpl::Configure(const webrtc::AudioEncoder::Config& config)
   }
   RTC_LOG(LS_INFO) << "Successfully configured OPUS to enable_dtx=" << config.enable_dtx;
 
-  if (config.enable_vbr == 0) {
+  if (config.enable_cbr) {
     if (WebRtcOpus_EnableCbr(inst_) == -1) {
-      RTC_LOG(LS_WARNING) << "Failed to configure OPUS to enable_vbr=" << config.enable_vbr;
+      RTC_LOG(LS_WARNING) << "Failed to configure OPUS to enable_cbr=" << config.enable_cbr;
       return false;
     }
   } else {
     if (WebRtcOpus_DisableCbr(inst_) == -1) {
-      RTC_LOG(LS_WARNING) << "Failed to configure OPUS to enable_vbr=" << config.enable_vbr;
+      RTC_LOG(LS_WARNING) << "Failed to configure OPUS to enable_cbr=" << config.enable_cbr;
       return false;
     }
   }
 
   return true;
 }
-
 
 }  // namespace webrtc

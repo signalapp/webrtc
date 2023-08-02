@@ -120,9 +120,9 @@ class AudioEncoder {
   struct Config {
     // AKA ptime or frame size
     // One of 10, 20, 40, 60, 80, 100, 120
-    uint32_t initial_packet_size_ms = 60;
-    uint32_t min_packet_size_ms = 60;
-    uint32_t max_packet_size_ms = 60;
+    int32_t initial_packet_size_ms = 60;
+    int32_t min_packet_size_ms = 60;
+    int32_t max_packet_size_ms = 60;
 
     // 500 to 192000
     // Start at initial_bitrate_bps, and let the BWE and bitrate allocator
@@ -141,17 +141,17 @@ class AudioEncoder {
     // 0 (least complex) to 9 (most complex)
     int32_t complexity = 9;
 
-    // 0 = CBR; 1 = VBR
-    int32_t enable_vbr = 0;
-
-    // 0 = disable; 1 = enable
-    int32_t enable_dtx = 1;
-
-    // 0 = disable; 1 = enable
-    int32_t enable_fec = 1;
-
     // Adaptation method to use, 0 to disable
     int32_t adaptation = 0;
+
+    // CBR is used by default
+    bool enable_cbr = true;
+
+    // DTX is enabled by default
+    bool enable_dtx = true;
+
+    // In-band FEC is enabled by default
+    bool enable_fec = true;
   };
 
   virtual ~AudioEncoder() = default;
