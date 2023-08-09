@@ -104,35 +104,45 @@ void PacketBuffer::Flush(StatisticsCalculator* stats) {
   auto num_out_of_order = 0;
   auto num_gaps_below_40ms = 0;
   auto num_gaps_above_90ms = 0;
+  auto num_no_packet_info = 0;
 
   for (auto& p : buffer_) {
     LogPacketDiscarded(p.priority.codec_level, stats);
-    if (prev_recv_ts.us() > 0) {
-      auto gap_us = (p.packet_info.receive_time() - prev_recv_ts).us();
+    if (p.packet_info.has_value()) {
+      if (prev_recv_ts.us() > 0) {
+        auto gap_us = (p.packet_info->receive_time() - prev_recv_ts).us();
 
-      if (gap_us < 0) {
-        num_out_of_order++;
-      } else if (gap_us < 40000) {
-        num_gaps_below_40ms++;
-      } else if (gap_us > 90000) {
-        num_gaps_above_90ms++;
+        if (gap_us < 0) {
+          num_out_of_order++;
+        } else if (gap_us < 40000) {
+          num_gaps_below_40ms++;
+        } else if (gap_us > 90000) {
+          num_gaps_above_90ms++;
+        }
       }
+      prev_recv_ts = p.packet_info->receive_time();
+    } else {
+      num_no_packet_info++;
     }
-    prev_recv_ts = p.packet_info.receive_time();
   }
 
   if (!buffer_.empty()) {
     auto& first = buffer_.front();
     auto& last = buffer_.back();
 
+    auto recv_time_diff =
+        first.packet_info.has_value() && last.packet_info.has_value() ?
+        (last.packet_info->receive_time() - first.packet_info->receive_time()) : TimeDelta::Micros(0);
+
     RTC_LOG(LS_WARNING) << "Flushing packets... seqnum_diff=" << (last.sequence_number - first.sequence_number)
       << ", rtp_ts_diff=" << (last.timestamp - first.timestamp)
-      << ", recv_time_diff=" << (last.packet_info.receive_time() - first.packet_info.receive_time())
+      << ", recv_time_diff=" << recv_time_diff
       << ", ms_since_first_insert=" << first.waiting_time->ElapsedMs()
       << ", ms_since_last_insert=" << last.waiting_time->ElapsedMs()
       << ", num_out_of_order=" << num_out_of_order
       << ", num_gaps_below_40ms=" << num_gaps_below_40ms
-      << ", num_gaps_above_90ms=" << num_gaps_above_90ms;
+      << ", num_gaps_above_90ms=" << num_gaps_above_90ms
+      << ", num_no_packet_info=" << num_no_packet_info;
   }
   buffer_.clear();
   stats->FlushedPacketBuffer();
@@ -151,7 +161,7 @@ void PacketBuffer::PartialFlush(int target_level_ms,
   // We should avoid flushing to very low levels.
   target_level_samples = std::max(
       target_level_samples, smart_flushing_config_->target_level_threshold_ms);
-  while (GetSpanSamples(last_decoded_length, sample_rate, true) >
+  while (GetSpanSamples(last_decoded_length, sample_rate, false) >
              static_cast<size_t>(target_level_samples) ||
          buffer_.size() > max_number_of_packets_ / 2) {
     LogPacketDiscarded(PeekNextPacket()->priority.codec_level, stats);
@@ -192,7 +202,7 @@ int PacketBuffer::InsertPacket(Packet&& packet,
           : 0;
   const bool smart_flush =
       smart_flushing_config_.has_value() &&
-      GetSpanSamples(last_decoded_length, sample_rate, true) >= span_threshold;
+      GetSpanSamples(last_decoded_length, sample_rate, false) >= span_threshold;
   if (buffer_.size() >= max_number_of_packets_ || smart_flush) {
     size_t buffer_size_before_flush = buffer_.size();
     if (smart_flushing_config_.has_value()) {
@@ -403,17 +413,19 @@ size_t PacketBuffer::NumSamplesInBuffer(size_t last_decoded_length) const {
 
 size_t PacketBuffer::GetSpanSamples(size_t last_decoded_length,
                                     size_t sample_rate,
-                                    bool count_dtx_waiting_time) const {
+                                    bool count_waiting_time) const {
   if (buffer_.size() == 0) {
     return 0;
   }
 
   size_t span = buffer_.back().timestamp - buffer_.front().timestamp;
-  if (buffer_.back().frame && buffer_.back().frame->Duration() > 0) {
+  size_t waiting_time_samples = rtc::dchecked_cast<size_t>(
+      buffer_.back().waiting_time->ElapsedMs() * (sample_rate / 1000));
+  if (count_waiting_time) {
+    span += waiting_time_samples;
+  } else if (buffer_.back().frame && buffer_.back().frame->Duration() > 0) {
     size_t duration = buffer_.back().frame->Duration();
-    if (count_dtx_waiting_time && buffer_.back().frame->IsDtxPacket()) {
-      size_t waiting_time_samples = rtc::dchecked_cast<size_t>(
-          buffer_.back().waiting_time->ElapsedMs() * (sample_rate / 1000));
+    if (buffer_.back().frame->IsDtxPacket()) {
       duration = std::max(duration, waiting_time_samples);
     }
     span += duration;

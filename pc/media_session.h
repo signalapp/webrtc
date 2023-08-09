@@ -286,7 +286,7 @@ class MediaSessionDescriptionFactory {
       const SessionDescription* current_description,
       const TransportInfo* bundle_transport,
       const AudioCodecs& audio_codecs,
-      const RtpHeaderExtensions& default_audio_rtp_header_extensions,
+      const RtpHeaderExtensions& rtp_header_extensions,
       StreamParamsVec* current_streams,
       SessionDescription* answer,
       IceCredentialsIterator* ice_credentials) const;
@@ -300,7 +300,7 @@ class MediaSessionDescriptionFactory {
       const SessionDescription* current_description,
       const TransportInfo* bundle_transport,
       const VideoCodecs& video_codecs,
-      const RtpHeaderExtensions& default_video_rtp_header_extensions,
+      const RtpHeaderExtensions& rtp_header_extensions,
       StreamParamsVec* current_streams,
       SessionDescription* answer,
       IceCredentialsIterator* ice_credentials) const;

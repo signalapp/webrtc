@@ -191,9 +191,10 @@ class VideoCaptureTest : public ::testing::Test {
   unsigned int number_of_devices_;
 };
 
-#ifdef WEBRTC_MAC
-// Currently fails on Mac 64-bit, see
-// https://bugs.chromium.org/p/webrtc/issues/detail?id=5406
+#if defined(WEBRTC_MAC) || defined(WEBRTC_LINUX)
+// Currently fails on Mac 64-bit and Linux rel, see
+// https://bugs.chromium.org/p/webrtc/issues/detail?id=5406 and
+// https://bugs.chromium.org/p/webrtc/issues/detail?id=15229
 #define MAYBE_CreateDelete DISABLED_CreateDelete
 #else
 #define MAYBE_CreateDelete CreateDelete
@@ -233,9 +234,10 @@ TEST_F(VideoCaptureTest, MAYBE_CreateDelete) {
   }
 }
 
-#ifdef WEBRTC_MAC
-// Currently fails on Mac 64-bit, see
-// https://bugs.chromium.org/p/webrtc/issues/detail?id=5406
+#if defined(WEBRTC_MAC) || defined(WEBRTC_LINUX)
+// Currently fails on Mac 64-bit and Linux rel, see
+// https://bugs.chromium.org/p/webrtc/issues/detail?id=5406 and
+// https://bugs.chromium.org/p/webrtc/issues/detail?id=15229
 #define MAYBE_Capabilities DISABLED_Capabilities
 #else
 #define MAYBE_Capabilities Capabilities
@@ -340,4 +342,39 @@ TEST_F(VideoCaptureTest, DISABLED_TestTwoCameras) {
   EXPECT_TRUE_WAIT(capture_observer2.incoming_frames() >= 5, kTimeOut);
   EXPECT_EQ(0, module2->StopCapture());
   EXPECT_EQ(0, module1->StopCapture());
+}
+
+#if defined(WEBRTC_MAC) || defined(WEBRTC_LINUX)
+// No VideoCaptureImpl on Mac.
+// Currently fails on Mac Linux rel, see
+// https://bugs.chromium.org/p/webrtc/issues/detail?id=15229
+#define MAYBE_ConcurrentAccess DISABLED_ConcurrentAccess
+#else
+#define MAYBE_ConcurrentAccess ConcurrentAccess
+#endif
+TEST_F(VideoCaptureTest, MAYBE_ConcurrentAccess) {
+  TestVideoCaptureCallback capture_observer1;
+  rtc::scoped_refptr<VideoCaptureModule> module1(
+      OpenVideoCaptureDevice(0, &capture_observer1));
+  ASSERT_TRUE(module1.get() != NULL);
+  VideoCaptureCapability capability;
+  device_info_->GetCapability(module1->CurrentDeviceName(), 0, capability);
+  capture_observer1.SetExpectedCapability(capability);
+
+  TestVideoCaptureCallback capture_observer2;
+  rtc::scoped_refptr<VideoCaptureModule> module2(
+      OpenVideoCaptureDevice(0, &capture_observer2));
+  ASSERT_TRUE(module2.get() != NULL);
+  capture_observer2.SetExpectedCapability(capability);
+
+  // Starting module1 should work.
+  ASSERT_NO_FATAL_FAILURE(StartCapture(module1.get(), capability));
+  EXPECT_TRUE_WAIT(capture_observer1.incoming_frames() >= 5, kTimeOut);
+
+  // When module1 is stopped, starting module2 for the same device should work.
+  EXPECT_EQ(0, module1->StopCapture());
+  ASSERT_NO_FATAL_FAILURE(StartCapture(module2.get(), capability));
+  EXPECT_TRUE_WAIT(capture_observer2.incoming_frames() >= 5, kTimeOut);
+
+  EXPECT_EQ(0, module2->StopCapture());
 }

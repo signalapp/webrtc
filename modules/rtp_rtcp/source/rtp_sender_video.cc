@@ -46,8 +46,6 @@ namespace webrtc {
 namespace {
 constexpr size_t kRedForFecHeaderLength = 1;
 constexpr int64_t kMaxUnretransmittableFrameIntervalMs = 33 * 4;
-constexpr char kIncludeCaptureClockOffset[] =
-    "WebRTC-IncludeCaptureClockOffset";
 
 void BuildRedPayload(const RtpPacketToSend& media_packet,
                      RtpPacketToSend* red_packet) {
@@ -157,7 +155,7 @@ RTPSenderVideo::RTPSenderVideo(const Config& config)
       red_payload_type_(config.red_payload_type),
       fec_type_(config.fec_type),
       fec_overhead_bytes_(config.fec_overhead_bytes),
-      packetization_overhead_bitrate_(1000, RateStatistics::kBpsScale),
+      post_encode_overhead_bitrate_(1000, RateStatistics::kBpsScale),
       frame_encryptor_(config.frame_encryptor),
       require_frame_encryption_(config.require_frame_encryption),
       generic_descriptor_auth_experiment_(!absl::StartsWith(
@@ -172,10 +170,7 @@ RTPSenderVideo::RTPSenderVideo(const Config& config)
                     rtp_sender_->SSRC(),
                     rtp_sender_->Csrcs(),
                     config.task_queue_factory)
-              : nullptr),
-      include_capture_clock_offset_(!absl::StartsWith(
-          config.field_trials->Lookup(kIncludeCaptureClockOffset),
-          "Disabled")) {
+              : nullptr) {
   if (frame_transformer_delegate_)
     frame_transformer_delegate_->Init();
 }
@@ -187,7 +182,7 @@ RTPSenderVideo::~RTPSenderVideo() {
 
 void RTPSenderVideo::LogAndSendToNetwork(
     std::vector<std::unique_ptr<RtpPacketToSend>> packets,
-    size_t unpacketized_payload_size) {
+    size_t encoder_output_size) {
   {
     MutexLock lock(&stats_mutex_);
     size_t packetized_payload_size = 0;
@@ -198,9 +193,9 @@ void RTPSenderVideo::LogAndSendToNetwork(
     }
     // AV1 and H264 packetizers may produce less packetized bytes than
     // unpacketized.
-    if (packetized_payload_size >= unpacketized_payload_size) {
-      packetization_overhead_bitrate_.Update(
-          packetized_payload_size - unpacketized_payload_size,
+    if (packetized_payload_size >= encoder_output_size) {
+      post_encode_overhead_bitrate_.Update(
+          packetized_payload_size - encoder_output_size,
           clock_->TimeInMilliseconds());
     }
   }
@@ -226,6 +221,11 @@ size_t RTPSenderVideo::FecPacketOverhead() const {
     }
   }
   return overhead;
+}
+
+void RTPSenderVideo::SetRetransmissionSetting(int32_t retransmission_settings) {
+  RTC_DCHECK_RUNS_SERIALIZED(&send_checker_);
+  retransmission_settings_ = retransmission_settings;
 }
 
 void RTPSenderVideo::SetVideoStructure(
@@ -433,8 +433,8 @@ void RTPSenderVideo::AddRtpHeaderExtensions(const RTPVideoHeader& video_header,
               video_header.generic->frame_id - dep);
         }
 
-        uint8_t spatial_bimask = 1 << video_header.generic->spatial_index;
-        generic_descriptor.SetSpatialLayersBitmask(spatial_bimask);
+        uint8_t spatial_bitmask = 1 << video_header.generic->spatial_index;
+        generic_descriptor.SetSpatialLayersBitmask(spatial_bitmask);
 
         generic_descriptor.SetTemporalLayer(
             video_header.generic->temporal_index);
@@ -476,7 +476,8 @@ bool RTPSenderVideo::SendVideo(
     RTPVideoHeader video_header,
     absl::optional<int64_t> expected_retransmission_time_ms) {
   return SendVideo(payload_type, codec_type, rtp_timestamp, capture_time_ms,
-                   payload, video_header, expected_retransmission_time_ms,
+                   payload, payload.size(), video_header,
+                   expected_retransmission_time_ms,
                    /*csrcs=*/{});
 }
 
@@ -486,6 +487,7 @@ bool RTPSenderVideo::SendVideo(
     uint32_t rtp_timestamp,
     int64_t capture_time_ms,
     rtc::ArrayView<const uint8_t> payload,
+    size_t encoder_output_size,
     RTPVideoHeader video_header,
     absl::optional<int64_t> expected_retransmission_time_ms,
     std::vector<uint32_t> csrcs) {
@@ -572,9 +574,7 @@ bool RTPSenderVideo::SendVideo(
     video_header.absolute_capture_time->absolute_capture_timestamp =
         Int64MsToUQ32x32(
             clock_->ConvertTimestampToNtpTime(*capture_time).ToMs());
-    if (include_capture_clock_offset_) {
-      video_header.absolute_capture_time->estimated_capture_clock_offset = 0;
-    }
+    video_header.absolute_capture_time->estimated_capture_clock_offset = 0;
   }
 
   // Let `absolute_capture_time_sender_` decide if the extension should be sent.
@@ -755,7 +755,7 @@ bool RTPSenderVideo::SendVideo(
     }
   }
 
-  LogAndSendToNetwork(std::move(rtp_packets), payload.size());
+  LogAndSendToNetwork(std::move(rtp_packets), encoder_output_size);
 
   // Update details about the last sent frame.
   last_rotation_ = video_header.rotation;
@@ -798,14 +798,16 @@ bool RTPSenderVideo::SendEncodedImage(
         expected_retransmission_time_ms);
   }
   return SendVideo(payload_type, codec_type, rtp_timestamp,
-                   encoded_image.capture_time_ms_, encoded_image, video_header,
+                   encoded_image.capture_time_ms_, encoded_image,
+                   encoded_image.size(), video_header,
                    expected_retransmission_time_ms, rtp_sender_->Csrcs());
 }
 
-uint32_t RTPSenderVideo::PacketizationOverheadBps() const {
+DataRate RTPSenderVideo::PostEncodeOverhead() const {
   MutexLock lock(&stats_mutex_);
-  return packetization_overhead_bitrate_.Rate(clock_->TimeInMilliseconds())
-      .value_or(0);
+  return DataRate::BitsPerSec(
+      post_encode_overhead_bitrate_.Rate(clock_->TimeInMilliseconds())
+          .value_or(0));
 }
 
 bool RTPSenderVideo::AllowRetransmission(

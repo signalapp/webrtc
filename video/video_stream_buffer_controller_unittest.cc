@@ -95,7 +95,8 @@ class VCMTimingTest : public VCMTiming {
               ());
 };
 
-class VCMReceiveStatisticsCallbackMock : public VCMReceiveStatisticsCallback {
+class VideoStreamBufferControllerStatsObserverMock
+    : public VideoStreamBufferControllerStatsObserver {
  public:
   MOCK_METHOD(void,
               OnCompleteFrame,
@@ -105,11 +106,17 @@ class VCMReceiveStatisticsCallbackMock : public VCMReceiveStatisticsCallback {
               (override));
   MOCK_METHOD(void, OnDroppedFrames, (uint32_t num_dropped), (override));
   MOCK_METHOD(void,
+              OnDecodableFrame,
+              (TimeDelta jitter_buffer_delay,
+               TimeDelta target_delay,
+               TimeDelta minimum_delay),
+              (override));
+  MOCK_METHOD(void,
               OnFrameBufferTimingsUpdated,
-              (int max_decode_ms,
+              (int estimated_max_decode_time_ms,
                int current_delay_ms,
                int target_delay_ms,
-               int jitter_buffer_ms,
+               int jitter_delay_ms,
                int min_playout_delay_ms,
                int render_delay_ms),
               (override));
@@ -225,7 +232,8 @@ class VideoStreamBufferControllerFixture
   DecodeSynchronizer decode_sync_;
 
   ::testing::NiceMock<VCMTimingTest> timing_;
-  ::testing::NiceMock<VCMReceiveStatisticsCallbackMock> stats_callback_;
+  ::testing::NiceMock<VideoStreamBufferControllerStatsObserverMock>
+      stats_callback_;
   std::unique_ptr<VideoStreamBufferController> buffer_;
 
  private:
@@ -619,6 +627,7 @@ TEST_P(VideoStreamBufferControllerTest, SameFrameNotScheduledTwice) {
 TEST_P(VideoStreamBufferControllerTest, TestStatsCallback) {
   EXPECT_CALL(stats_callback_,
               OnCompleteFrame(true, kFrameSize, VideoContentType::UNSPECIFIED));
+  EXPECT_CALL(stats_callback_, OnDecodableFrame);
   EXPECT_CALL(stats_callback_, OnFrameBufferTimingsUpdated);
 
   // Fake timing having received decoded frame.

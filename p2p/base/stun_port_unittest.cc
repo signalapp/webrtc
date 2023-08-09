@@ -317,8 +317,8 @@ TEST_F(StunPortWithMockDnsResolverTest, TestPrepareAddressHostname) {
   SetDnsResolverExpectations(
       [](webrtc::MockAsyncDnsResolver* resolver,
          webrtc::MockAsyncDnsResolverResult* resolver_result) {
-        EXPECT_CALL(*resolver, Start(kValidHostnameAddr, _))
-            .WillOnce(InvokeArgument<1>());
+        EXPECT_CALL(*resolver, Start(kValidHostnameAddr, /*family=*/AF_INET, _))
+            .WillOnce(InvokeArgument<2>());
         EXPECT_CALL(*resolver, result)
             .WillRepeatedly(ReturnPointee(resolver_result));
         EXPECT_CALL(*resolver_result, GetError).WillOnce(Return(0));
@@ -332,6 +332,31 @@ TEST_F(StunPortWithMockDnsResolverTest, TestPrepareAddressHostname) {
   ASSERT_EQ(1U, port()->Candidates().size());
   EXPECT_TRUE(kLocalAddr.EqualIPs(port()->Candidates()[0].address()));
   EXPECT_EQ(kStunCandidatePriority, port()->Candidates()[0].priority());
+}
+
+TEST_F(StunPortWithMockDnsResolverTest,
+       TestPrepareAddressHostnameWithPriorityAdjustment) {
+  webrtc::test::ScopedKeyValueConfig field_trials(
+      "WebRTC-IncreaseIceCandidatePriorityHostSrflx/Enabled/");
+  SetDnsResolverExpectations(
+      [](webrtc::MockAsyncDnsResolver* resolver,
+         webrtc::MockAsyncDnsResolverResult* resolver_result) {
+        EXPECT_CALL(*resolver, Start(kValidHostnameAddr, /*family=*/AF_INET, _))
+            .WillOnce(InvokeArgument<2>());
+        EXPECT_CALL(*resolver, result)
+            .WillRepeatedly(ReturnPointee(resolver_result));
+        EXPECT_CALL(*resolver_result, GetError).WillOnce(Return(0));
+        EXPECT_CALL(*resolver_result, GetResolvedAddress(AF_INET, _))
+            .WillOnce(DoAll(SetArgPointee<1>(SocketAddress("127.0.0.1", 5000)),
+                            Return(true)));
+      });
+  CreateStunPort(kValidHostnameAddr);
+  PrepareAddress();
+  EXPECT_TRUE_SIMULATED_WAIT(done(), kTimeoutMs, fake_clock);
+  ASSERT_EQ(1U, port()->Candidates().size());
+  EXPECT_TRUE(kLocalAddr.EqualIPs(port()->Candidates()[0].address()));
+  EXPECT_EQ(kStunCandidatePriority + (cricket::kMaxTurnServers << 8),
+            port()->Candidates()[0].priority());
 }
 
 // Test that we handle hostname lookup failures properly.
@@ -666,9 +691,9 @@ TEST_F(StunIPv6PortTestWithMockDnsResolver, TestPrepareAddressHostname) {
   SetDnsResolverExpectations(
       [](webrtc::MockAsyncDnsResolver* resolver,
          webrtc::MockAsyncDnsResolverResult* resolver_result) {
-        // Expect to call Resolver::Start without family arg.
-        EXPECT_CALL(*resolver, Start(kValidHostnameAddr, _))
-            .WillOnce(InvokeArgument<1>());
+        EXPECT_CALL(*resolver,
+                    Start(kValidHostnameAddr, /*family=*/AF_INET6, _))
+            .WillOnce(InvokeArgument<2>());
         EXPECT_CALL(*resolver, result)
             .WillRepeatedly(ReturnPointee(resolver_result));
         EXPECT_CALL(*resolver_result, GetError).WillOnce(Return(0));
@@ -684,66 +709,14 @@ TEST_F(StunIPv6PortTestWithMockDnsResolver, TestPrepareAddressHostname) {
   EXPECT_EQ(kIPv6StunCandidatePriority, port()->Candidates()[0].priority());
 }
 
+// Same as before but with a field trial that changes the priority.
 TEST_F(StunIPv6PortTestWithMockDnsResolver,
-       TestPrepareAddressHostnameFamilyFieldTrialDisabled) {
+       TestPrepareAddressHostnameWithPriorityAdjustment) {
   webrtc::test::ScopedKeyValueConfig field_trials(
-      "WebRTC-IPv6NetworkResolutionFixes/Disabled/");
+      "WebRTC-IncreaseIceCandidatePriorityHostSrflx/Enabled/");
   SetDnsResolverExpectations(
       [](webrtc::MockAsyncDnsResolver* resolver,
          webrtc::MockAsyncDnsResolverResult* resolver_result) {
-        // Expect to call Resolver::Start without family arg.
-        EXPECT_CALL(*resolver, Start(kValidHostnameAddr, _))
-            .WillOnce(InvokeArgument<1>());
-        EXPECT_CALL(*resolver, result)
-            .WillRepeatedly(ReturnPointee(resolver_result));
-        EXPECT_CALL(*resolver_result, GetError).WillOnce(Return(0));
-        EXPECT_CALL(*resolver_result, GetResolvedAddress(AF_INET6, _))
-            .WillOnce(DoAll(SetArgPointee<1>(SocketAddress("::1", 5000)),
-                            Return(true)));
-      });
-  CreateStunPort(kValidHostnameAddr, &field_trials);
-  PrepareAddress();
-  EXPECT_TRUE_SIMULATED_WAIT(done(), kTimeoutMs, fake_clock);
-  ASSERT_EQ(1U, port()->Candidates().size());
-  EXPECT_TRUE(kIPv6LocalAddr.EqualIPs(port()->Candidates()[0].address()));
-  EXPECT_EQ(kIPv6StunCandidatePriority, port()->Candidates()[0].priority());
-}
-
-TEST_F(StunIPv6PortTestWithMockDnsResolver,
-       TestPrepareAddressHostnameFamilyFieldTrialParamDisabled) {
-  webrtc::test::ScopedKeyValueConfig field_trials(
-      "WebRTC-IPv6NetworkResolutionFixes/"
-      "Enabled,ResolveStunHostnameForFamily:false/");
-  SetDnsResolverExpectations(
-      [](webrtc::MockAsyncDnsResolver* resolver,
-         webrtc::MockAsyncDnsResolverResult* resolver_result) {
-        // Expect to call Resolver::Start without family arg.
-        EXPECT_CALL(*resolver, Start(kValidHostnameAddr, _))
-            .WillOnce(InvokeArgument<1>());
-        EXPECT_CALL(*resolver, result)
-            .WillRepeatedly(ReturnPointee(resolver_result));
-        EXPECT_CALL(*resolver_result, GetError).WillOnce(Return(0));
-        EXPECT_CALL(*resolver_result, GetResolvedAddress(AF_INET6, _))
-            .WillOnce(DoAll(SetArgPointee<1>(SocketAddress("::1", 5000)),
-                            Return(true)));
-      });
-  CreateStunPort(kValidHostnameAddr, &field_trials);
-  PrepareAddress();
-  EXPECT_TRUE_SIMULATED_WAIT(done(), kTimeoutMs, fake_clock);
-  ASSERT_EQ(1U, port()->Candidates().size());
-  EXPECT_TRUE(kIPv6LocalAddr.EqualIPs(port()->Candidates()[0].address()));
-  EXPECT_EQ(kIPv6StunCandidatePriority, port()->Candidates()[0].priority());
-}
-
-TEST_F(StunIPv6PortTestWithMockDnsResolver,
-       TestPrepareAddressHostnameFamilyFieldTrialEnabled) {
-  webrtc::test::ScopedKeyValueConfig field_trials(
-      "WebRTC-IPv6NetworkResolutionFixes/"
-      "Enabled,ResolveStunHostnameForFamily:true/");
-  SetDnsResolverExpectations(
-      [](webrtc::MockAsyncDnsResolver* resolver,
-         webrtc::MockAsyncDnsResolverResult* resolver_result) {
-        // Expect to call Resolver::Start _with_ family arg.
         EXPECT_CALL(*resolver,
                     Start(kValidHostnameAddr, /*family=*/AF_INET6, _))
             .WillOnce(InvokeArgument<2>());
@@ -759,7 +732,8 @@ TEST_F(StunIPv6PortTestWithMockDnsResolver,
   EXPECT_TRUE_SIMULATED_WAIT(done(), kTimeoutMs, fake_clock);
   ASSERT_EQ(1U, port()->Candidates().size());
   EXPECT_TRUE(kIPv6LocalAddr.EqualIPs(port()->Candidates()[0].address()));
-  EXPECT_EQ(kIPv6StunCandidatePriority, port()->Candidates()[0].priority());
+  EXPECT_EQ(kIPv6StunCandidatePriority + (cricket::kMaxTurnServers << 8),
+            port()->Candidates()[0].priority());
 }
 
 }  // namespace

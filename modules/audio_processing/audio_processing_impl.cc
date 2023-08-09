@@ -1043,6 +1043,7 @@ size_t AudioProcessingImpl::num_output_channels() const {
   return formats_.api_format.output_stream().num_channels();
 }
 
+// RingRTC change to make it possible to share an APM.
 void AudioProcessingImpl::set_capture_output_used(void* user, bool used) {
   MutexLock lock(&mutex_capture_);
   if (used) {

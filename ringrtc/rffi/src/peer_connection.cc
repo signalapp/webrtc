@@ -194,15 +194,15 @@ Rust_sessionDescriptionToV4(const webrtc::SessionDescriptionInterface* session_d
       if (codec_type == webrtc::kVideoCodecVP9) {
         if (enable_vp9) {
           auto profile = ParseSdpForVP9Profile(codec.params);
+          std::string profile_id_string;
+          codec.GetParam("profile-id", &profile_id_string);
           if (!profile) {
-            std::string profile_id_string;
-            codec.GetParam("profile-id", &profile_id_string);
             RTC_LOG(LS_WARNING) << "Ignoring VP9 codec because profile-id = " << profile_id_string;
             continue;
           }
 
           if (profile != VP9Profile::kProfile0) {
-            RTC_LOG(LS_WARNING) << "Ignoring VP9 codec with profile-id != 0";
+            RTC_LOG(LS_WARNING) << "Ignoring VP9 codec with non-zero profile-id = " << profile_id_string;
             continue;
           }
 
@@ -289,7 +289,7 @@ Rust_sessionDescriptionFromV4(bool offer,
   auto video = std::make_unique<cricket::VideoContentDescription>();
   set_rtp_params(video.get());
 
-  auto opus = cricket::AudioCodec(OPUS_PT, cricket::kOpusCodecName, 48000, 0, 2);
+  auto opus = cricket::CreateAudioCodec(OPUS_PT, cricket::kOpusCodecName, 48000, 2);
   // These are the current defaults for WebRTC
   // We set them explicitly to avoid having the defaults change on us.
   opus.SetParam("stereo", "0");  // "1" would cause non-VOIP mode to be used
@@ -320,19 +320,20 @@ Rust_sessionDescriptionFromV4(bool offer,
 
   for (size_t i = 0; i < v4_borrowed->receive_video_codecs_size; i++) {
     RffiVideoCodec rffi_codec = v4_borrowed->receive_video_codecs_borrowed[i];
-    cricket::VideoCodec codec;
     if (rffi_codec.type == kRffiVideoCodecVp9) {
       if (enable_vp9) {
-        auto vp9 = cricket::VideoCodec(VP9_PT, cricket::kVp9CodecName);
-        auto vp9_rtx = cricket::VideoCodec::CreateRtxCodec(VP9_RTX_PT, VP9_PT);
+        auto vp9 = cricket::CreateVideoCodec(VP9_PT, cricket::kVp9CodecName);
+        vp9.params[kVP9FmtpProfileId] = VP9ProfileToString(VP9Profile::kProfile0);
+        auto vp9_rtx = cricket::CreateVideoRtxCodec(VP9_RTX_PT, VP9_PT);
+        vp9_rtx.params[kVP9FmtpProfileId] = VP9ProfileToString(VP9Profile::kProfile0);
         add_video_feedback_params(&vp9);
 
         video->AddCodec(vp9);
         video->AddCodec(vp9_rtx);
       }
     } else if (rffi_codec.type == kRffiVideoCodecVp8) {
-      auto vp8 = cricket::VideoCodec(VP8_PT, cricket::kVp8CodecName);
-      auto vp8_rtx = cricket::VideoCodec::CreateRtxCodec(VP8_RTX_PT, VP8_PT);
+      auto vp8 = cricket::CreateVideoCodec(VP8_PT, cricket::kVp8CodecName);
+      auto vp8_rtx = cricket::CreateVideoRtxCodec(VP8_RTX_PT, VP8_PT);
       add_video_feedback_params(&vp8);
 
       video->AddCodec(vp8);
@@ -342,9 +343,9 @@ Rust_sessionDescriptionFromV4(bool offer,
 
   // These are "meta codecs" for redundancy and FEC.
   // They are enabled by default currently with WebRTC.
-  auto red = cricket::VideoCodec(RED_PT, cricket::kRedCodecName);
-  auto red_rtx = cricket::VideoCodec::CreateRtxCodec(RED_RTX_PT, RED_PT);
-  auto ulpfec = cricket::VideoCodec(ULPFEC_PT, cricket::kUlpfecCodecName);
+  auto red = cricket::CreateVideoCodec(RED_PT, cricket::kRedCodecName);
+  auto red_rtx = cricket::CreateVideoRtxCodec(RED_RTX_PT, RED_PT);
+  auto ulpfec = cricket::CreateVideoCodec(ULPFEC_PT, cricket::kUlpfecCodecName);
 
   video->AddCodec(red);
   video->AddCodec(red_rtx);
@@ -472,7 +473,7 @@ CreateSessionDescriptionForGroupCall(bool local,
   auto video = std::make_unique<cricket::VideoContentDescription>();
   set_rtp_params(video.get());
 
-  auto opus = cricket::AudioCodec(OPUS_PT, cricket::kOpusCodecName, 48000, 0, 2);
+  auto opus = cricket::CreateAudioCodec(OPUS_PT, cricket::kOpusCodecName, 48000, 2);
   // These are the current defaults for WebRTC
   // We set them explicitly to avoid having the defaults change on us.
   opus.SetParam("stereo", "0");  // "1" would cause non-VOIP mode to be used
@@ -497,8 +498,8 @@ CreateSessionDescriptionForGroupCall(bool local,
     video_codec->AddFeedbackParam(cricket::FeedbackParam(cricket::kRtcpFbParamRemb, cricket::kParamValueEmpty));
   };
 
-  auto vp8 = cricket::VideoCodec(VP8_PT, cricket::kVp8CodecName);
-  auto vp8_rtx = cricket::VideoCodec::CreateRtxCodec(VP8_RTX_PT, VP8_PT);
+  auto vp8 = cricket::CreateVideoCodec(VP8_PT, cricket::kVp8CodecName);
+  auto vp8_rtx = cricket::CreateVideoRtxCodec(VP8_RTX_PT, VP8_PT);
   add_video_feedback_params(&vp8);
 
   video->AddCodec(vp8);
@@ -506,8 +507,8 @@ CreateSessionDescriptionForGroupCall(bool local,
 
   // These are "meta codecs" for redundancy and FEC.
   // They are enabled by default currently with WebRTC.
-  auto red = cricket::VideoCodec(RED_PT, cricket::kRedCodecName);
-  auto red_rtx = cricket::VideoCodec::CreateRtxCodec(RED_RTX_PT, RED_PT);
+  auto red = cricket::CreateVideoCodec(RED_PT, cricket::kRedCodecName);
+  auto red_rtx = cricket::CreateVideoRtxCodec(RED_RTX_PT, RED_PT);
 
   video->AddCodec(red);
   video->AddCodec(red_rtx);

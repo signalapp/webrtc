@@ -113,20 +113,11 @@ void PrintTo(const RTCPeerConnectionStats& stats, ::std::ostream* os) {
   *os << stats.ToJson();
 }
 
-void PrintTo(const DEPRECATED_RTCMediaStreamStats& stats, ::std::ostream* os) {
+void PrintTo(const RTCInboundRtpStreamStats& stats, ::std::ostream* os) {
   *os << stats.ToJson();
 }
 
-void PrintTo(const DEPRECATED_RTCMediaStreamTrackStats& stats,
-             ::std::ostream* os) {
-  *os << stats.ToJson();
-}
-
-void PrintTo(const RTCInboundRTPStreamStats& stats, ::std::ostream* os) {
-  *os << stats.ToJson();
-}
-
-void PrintTo(const RTCOutboundRTPStreamStats& stats, ::std::ostream* os) {
+void PrintTo(const RTCOutboundRtpStreamStats& stats, ::std::ostream* os) {
   *os << stats.ToJson();
 }
 
@@ -669,7 +660,9 @@ class RTCStatsCollectorTest : public ::testing::Test {
  public:
   RTCStatsCollectorTest()
       : pc_(rtc::make_ref_counted<FakePeerConnectionForStats>()),
-        stats_(new RTCStatsCollectorWrapper(pc_)) {}
+        stats_(new RTCStatsCollectorWrapper(pc_)),
+        data_channel_controller_(
+            new FakeDataChannelController(pc_->network_thread())) {}
 
   void ExpectReportContainsCertificateInfo(
       const rtc::scoped_refptr<const RTCStatsReport>& report,
@@ -714,9 +707,6 @@ class RTCStatsCollectorTest : public ::testing::Test {
     std::string inbound_rtp_id;
     std::string remote_outbound_rtp_id;
     std::string transport_id;
-    std::string sender_track_id;
-    std::string receiver_track_id;
-    std::string remote_stream_id;
     std::string peer_connection_id;
     std::string media_source_id;
   };
@@ -763,17 +753,12 @@ class RTCStatsCollectorTest : public ::testing::Test {
     // transport
     graph.transport_id = "TTransportName1";
     pc_->AddVideoChannel("VideoMid", "TransportName", video_media_info);
-    // track (sender)
+    // outbound-rtp's sender
     graph.sender = stats_->SetupLocalTrackAndSender(
         cricket::MEDIA_TYPE_VIDEO, "LocalVideoTrackID", 3, false, 50);
-    graph.sender_track_id =
-        "DEPRECATED_TO" + rtc::ToString(graph.sender->AttachmentId());
-    // track (receiver) and stream (remote stream)
+    // inbound-rtp's receiver
     graph.receiver = stats_->SetupRemoteTrackAndReceiver(
         cricket::MEDIA_TYPE_VIDEO, "RemoteVideoTrackID", "RemoteStreamId", 4);
-    graph.receiver_track_id =
-        "DEPRECATED_TI" + rtc::ToString(graph.receiver->AttachmentId());
-    graph.remote_stream_id = "DEPRECATED_SRemoteStreamId";
     // peer-connection
     graph.peer_connection_id = "P";
     // media-source (kind: video)
@@ -781,38 +766,28 @@ class RTCStatsCollectorTest : public ::testing::Test {
 
     // Expected stats graph:
     //
-    //  +--- track (sender)      stream (remote stream) ---> track (receiver)
-    //  |             ^                                        ^
-    //  |             |                                        |
-    //  | +--------- outbound-rtp   inbound-rtp ---------------+
-    //  | |           |        |     |       |
-    //  | |           v        v     v       v
-    //  | |  codec (send)     transport     codec (recv)     peer-connection
-    //  v v
-    //  media-source
+    //  media-source                     peer-connection
+    //    ^
+    //    |
+    //    +--------- outbound-rtp   inbound-rtp
+    //                |        |     |       |
+    //                v        v     v       v
+    //       codec (send)     transport     codec (recv)
 
     // Verify the stats graph is set up correctly.
     graph.full_report = stats_->GetStatsReport();
-    EXPECT_EQ(graph.full_report->size(), 10u);
+    EXPECT_EQ(graph.full_report->size(), 7u);
     EXPECT_TRUE(graph.full_report->Get(graph.send_codec_id));
     EXPECT_TRUE(graph.full_report->Get(graph.recv_codec_id));
     EXPECT_TRUE(graph.full_report->Get(graph.outbound_rtp_id));
     EXPECT_TRUE(graph.full_report->Get(graph.inbound_rtp_id));
     EXPECT_TRUE(graph.full_report->Get(graph.transport_id));
-    EXPECT_TRUE(graph.full_report->Get(graph.sender_track_id));
-    EXPECT_TRUE(graph.full_report->Get(graph.receiver_track_id));
-    EXPECT_TRUE(graph.full_report->Get(graph.remote_stream_id));
     EXPECT_TRUE(graph.full_report->Get(graph.peer_connection_id));
     EXPECT_TRUE(graph.full_report->Get(graph.media_source_id));
-    const auto& sender_track =
-        graph.full_report->Get(graph.sender_track_id)
-            ->cast_to<DEPRECATED_RTCMediaStreamTrackStats>();
-    EXPECT_EQ(*sender_track.media_source_id, graph.media_source_id);
     const auto& outbound_rtp = graph.full_report->Get(graph.outbound_rtp_id)
-                                   ->cast_to<RTCOutboundRTPStreamStats>();
+                                   ->cast_to<RTCOutboundRtpStreamStats>();
     EXPECT_EQ(*outbound_rtp.media_source_id, graph.media_source_id);
     EXPECT_EQ(*outbound_rtp.codec_id, graph.send_codec_id);
-    EXPECT_EQ(*outbound_rtp.track_id, graph.sender_track_id);
     EXPECT_EQ(*outbound_rtp.transport_id, graph.transport_id);
     EXPECT_TRUE(graph.full_report->Get(graph.inbound_rtp_id));
     // We can't use an ASSERT in a function returning non-void, so just return.
@@ -820,9 +795,8 @@ class RTCStatsCollectorTest : public ::testing::Test {
       return graph;
     }
     const auto& inbound_rtp = graph.full_report->Get(graph.inbound_rtp_id)
-                                  ->cast_to<RTCInboundRTPStreamStats>();
+                                  ->cast_to<RTCInboundRtpStreamStats>();
     EXPECT_EQ(*inbound_rtp.codec_id, graph.recv_codec_id);
-    EXPECT_EQ(*inbound_rtp.track_id, graph.receiver_track_id);
     EXPECT_EQ(*inbound_rtp.transport_id, graph.transport_id);
 
     return graph;
@@ -877,22 +851,16 @@ class RTCStatsCollectorTest : public ::testing::Test {
       media_info.receivers[0].sender_reports_reports_count =
           kRemoteOutboundStatsReportsCount;
     }
-
     // transport
     graph.transport_id = "TTransportName1";
     pc_->AddVoiceChannel("VoiceMid", "TransportName", media_info);
-    // track (sender)
+    // outbound-rtp's sender
     graph.sender = stats_->SetupLocalTrackAndSender(
         cricket::MEDIA_TYPE_AUDIO, "LocalAudioTrackID", kLocalSsrc, false, 50);
-    graph.sender_track_id =
-        "DEPRECATED_TO" + rtc::ToString(graph.sender->AttachmentId());
-    // track (receiver) and stream (remote stream)
+    // inbound-rtp's receiver
     graph.receiver = stats_->SetupRemoteTrackAndReceiver(
         cricket::MEDIA_TYPE_AUDIO, "RemoteAudioTrackID", "RemoteStreamId",
         kRemoteSsrc);
-    graph.receiver_track_id =
-        "DEPRECATED_TI" + rtc::ToString(graph.receiver->AttachmentId());
-    graph.remote_stream_id = "DEPRECATED_SRemoteStreamId";
     // peer-connection
     graph.peer_connection_id = "P";
     // media-source (kind: video)
@@ -900,41 +868,31 @@ class RTCStatsCollectorTest : public ::testing::Test {
 
     // Expected stats graph:
     //
-    //  +--- track (sender)      stream (remote stream) ---> track (receiver)
-    //  |             ^                                        ^
-    //  |             |                                        |
-    //  | +--------- outbound-rtp   inbound-rtp ---------------+
-    //  | |           |        |     |       |
-    //  | |           v        v     v       v
-    //  | |  codec (send)     transport     codec (recv)     peer-connection
-    //  v v
-    //  media-source
+    //  media-source                     peer-connection
+    //    ^
+    //    |
+    //    +--------- outbound-rtp   inbound-rtp
+    //                |        |     |       |
+    //                v        v     v       v
+    //       codec (send)     transport     codec (recv)
 
     // Verify the stats graph is set up correctly.
     graph.full_report = stats_->GetStatsReport();
-    EXPECT_EQ(graph.full_report->size(), add_remote_outbound_stats ? 11u : 10u);
+    EXPECT_EQ(graph.full_report->size(), add_remote_outbound_stats ? 8u : 7u);
     EXPECT_TRUE(graph.full_report->Get(graph.send_codec_id));
     EXPECT_TRUE(graph.full_report->Get(graph.recv_codec_id));
     EXPECT_TRUE(graph.full_report->Get(graph.outbound_rtp_id));
     EXPECT_TRUE(graph.full_report->Get(graph.inbound_rtp_id));
     EXPECT_TRUE(graph.full_report->Get(graph.transport_id));
-    EXPECT_TRUE(graph.full_report->Get(graph.sender_track_id));
-    EXPECT_TRUE(graph.full_report->Get(graph.receiver_track_id));
-    EXPECT_TRUE(graph.full_report->Get(graph.remote_stream_id));
     EXPECT_TRUE(graph.full_report->Get(graph.peer_connection_id));
     EXPECT_TRUE(graph.full_report->Get(graph.media_source_id));
     // `graph.remote_outbound_rtp_id` is omitted on purpose so that expectations
     // can be added by the caller depending on what value it sets for the
     // `add_remote_outbound_stats` argument.
-    const auto& sender_track =
-        graph.full_report->Get(graph.sender_track_id)
-            ->cast_to<DEPRECATED_RTCMediaStreamTrackStats>();
-    EXPECT_EQ(*sender_track.media_source_id, graph.media_source_id);
     const auto& outbound_rtp = graph.full_report->Get(graph.outbound_rtp_id)
-                                   ->cast_to<RTCOutboundRTPStreamStats>();
+                                   ->cast_to<RTCOutboundRtpStreamStats>();
     EXPECT_EQ(*outbound_rtp.media_source_id, graph.media_source_id);
     EXPECT_EQ(*outbound_rtp.codec_id, graph.send_codec_id);
-    EXPECT_EQ(*outbound_rtp.track_id, graph.sender_track_id);
     EXPECT_EQ(*outbound_rtp.transport_id, graph.transport_id);
     EXPECT_TRUE(graph.full_report->Get(graph.inbound_rtp_id));
     // We can't use ASSERT in a function with a return value.
@@ -942,9 +900,8 @@ class RTCStatsCollectorTest : public ::testing::Test {
       return graph;
     }
     const auto& inbound_rtp = graph.full_report->Get(graph.inbound_rtp_id)
-                                  ->cast_to<RTCInboundRTPStreamStats>();
+                                  ->cast_to<RTCInboundRtpStreamStats>();
     EXPECT_EQ(*inbound_rtp.codec_id, graph.recv_codec_id);
-    EXPECT_EQ(*inbound_rtp.track_id, graph.receiver_track_id);
     EXPECT_EQ(*inbound_rtp.transport_id, graph.transport_id);
 
     return graph;
@@ -955,6 +912,7 @@ class RTCStatsCollectorTest : public ::testing::Test {
   rtc::AutoThread main_thread_;
   rtc::scoped_refptr<FakePeerConnectionForStats> pc_;
   std::unique_ptr<RTCStatsCollectorWrapper> stats_;
+  std::unique_ptr<FakeDataChannelController> data_channel_controller_;
 };
 
 TEST_F(RTCStatsCollectorTest, SingleCallback) {
@@ -1079,8 +1037,8 @@ TEST_F(RTCStatsCollectorTest, ValidSsrcCollisionDoesNotCrash) {
 
   // This should not crash (https://crbug.com/1361612).
   rtc::scoped_refptr<const RTCStatsReport> report = stats_->GetStatsReport();
-  auto inbound_rtps = report->GetStatsOfType<RTCInboundRTPStreamStats>();
-  auto outbound_rtps = report->GetStatsOfType<RTCOutboundRTPStreamStats>();
+  auto inbound_rtps = report->GetStatsOfType<RTCInboundRtpStreamStats>();
+  auto outbound_rtps = report->GetStatsOfType<RTCOutboundRtpStreamStats>();
   EXPECT_EQ(inbound_rtps.size(), 4u);
   EXPECT_EQ(outbound_rtps.size(), 4u);
 }
@@ -1592,9 +1550,11 @@ TEST_F(RTCStatsCollectorTest, CertificateStatsCache) {
 
 TEST_F(RTCStatsCollectorTest, CollectTwoRTCDataChannelStatsWithPendingId) {
   pc_->AddSctpDataChannel(rtc::make_ref_counted<MockSctpDataChannel>(
-      /*id=*/-1, DataChannelInterface::kConnecting));
+      data_channel_controller_->weak_ptr(), /*id=*/-1,
+      DataChannelInterface::kConnecting));
   pc_->AddSctpDataChannel(rtc::make_ref_counted<MockSctpDataChannel>(
-      /*id=*/-1, DataChannelInterface::kConnecting));
+      data_channel_controller_->weak_ptr(), /*id=*/-1,
+      DataChannelInterface::kConnecting));
 
   rtc::scoped_refptr<const RTCStatsReport> report = stats_->GetStatsReport();
 }
@@ -1605,8 +1565,8 @@ TEST_F(RTCStatsCollectorTest, CollectRTCDataChannelStats) {
   // the test, we reset the ID allocator at test start.
   SctpDataChannel::ResetInternalIdAllocatorForTesting(-1);
   pc_->AddSctpDataChannel(rtc::make_ref_counted<MockSctpDataChannel>(
-      0, "MockSctpDataChannel0", DataChannelInterface::kConnecting, "udp", 1, 2,
-      3, 4));
+      data_channel_controller_->weak_ptr(), 0, "MockSctpDataChannel0",
+      DataChannelInterface::kConnecting, "udp", 1, 2, 3, 4));
   RTCDataChannelStats expected_data_channel0("D0", Timestamp::Zero());
   expected_data_channel0.label = "MockSctpDataChannel0";
   expected_data_channel0.protocol = "udp";
@@ -1618,8 +1578,8 @@ TEST_F(RTCStatsCollectorTest, CollectRTCDataChannelStats) {
   expected_data_channel0.bytes_received = 4;
 
   pc_->AddSctpDataChannel(rtc::make_ref_counted<MockSctpDataChannel>(
-      1, "MockSctpDataChannel1", DataChannelInterface::kOpen, "tcp", 5, 6, 7,
-      8));
+      data_channel_controller_->weak_ptr(), 1, "MockSctpDataChannel1",
+      DataChannelInterface::kOpen, "tcp", 5, 6, 7, 8));
   RTCDataChannelStats expected_data_channel1("D1", Timestamp::Zero());
   expected_data_channel1.label = "MockSctpDataChannel1";
   expected_data_channel1.protocol = "tcp";
@@ -1631,8 +1591,8 @@ TEST_F(RTCStatsCollectorTest, CollectRTCDataChannelStats) {
   expected_data_channel1.bytes_received = 8;
 
   pc_->AddSctpDataChannel(rtc::make_ref_counted<MockSctpDataChannel>(
-      2, "MockSctpDataChannel2", DataChannelInterface::kClosing, "udp", 9, 10,
-      11, 12));
+      data_channel_controller_->weak_ptr(), 2, "MockSctpDataChannel2",
+      DataChannelInterface::kClosing, "udp", 9, 10, 11, 12));
   RTCDataChannelStats expected_data_channel2("D2", Timestamp::Zero());
   expected_data_channel2.label = "MockSctpDataChannel2";
   expected_data_channel2.protocol = "udp";
@@ -1644,8 +1604,8 @@ TEST_F(RTCStatsCollectorTest, CollectRTCDataChannelStats) {
   expected_data_channel2.bytes_received = 12;
 
   pc_->AddSctpDataChannel(rtc::make_ref_counted<MockSctpDataChannel>(
-      3, "MockSctpDataChannel3", DataChannelInterface::kClosed, "tcp", 13, 14,
-      15, 16));
+      data_channel_controller_->weak_ptr(), 3, "MockSctpDataChannel3",
+      DataChannelInterface::kClosed, "tcp", 13, 14, 15, 16));
   RTCDataChannelStats expected_data_channel3("D3", Timestamp::Zero());
   expected_data_channel3.label = "MockSctpDataChannel3";
   expected_data_channel3.protocol = "tcp";
@@ -1692,7 +1652,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCIceCandidateStats) {
   expected_a_local_host.candidate_type = "host";
   expected_a_local_host.priority = 0;
   expected_a_local_host.vpn = true;
-  expected_a_local_host.network_adapter_type = RTCNetworkAdapterType::kEthernet;
+  expected_a_local_host.network_adapter_type = "ethernet";
   expected_a_local_host.foundation = "foundationIsAString";
   expected_a_local_host.username_fragment = "iceusernamefragment";
 
@@ -1725,8 +1685,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCIceCandidateStats) {
   expected_a_local_prflx.candidate_type = "prflx";
   expected_a_local_prflx.priority = 2;
   expected_a_local_prflx.vpn = false;
-  expected_a_local_prflx.network_adapter_type =
-      RTCNetworkAdapterType::kCellular2g;
+  expected_a_local_prflx.network_adapter_type = "cellular2g";
   expected_a_local_prflx.foundation = "foundationIsAString";
   expected_a_local_prflx.username_fragment = "iceusernamefragment";
 
@@ -1764,7 +1723,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCIceCandidateStats) {
   expected_a_local_relay.priority = 1;
   expected_a_local_relay.url = "turn:url1";
   expected_a_local_relay.vpn = false;
-  expected_a_local_relay.network_adapter_type = RTCNetworkAdapterType::kUnknown;
+  expected_a_local_relay.network_adapter_type = "unknown";
   expected_a_local_relay.foundation = "foundationIsAString";
   expected_a_local_relay.username_fragment = "iceusernamefragment";
 
@@ -1785,8 +1744,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCIceCandidateStats) {
   expected_a_local_relay_prflx.candidate_type = "prflx";
   expected_a_local_relay_prflx.priority = 1;
   expected_a_local_relay_prflx.vpn = false;
-  expected_a_local_relay_prflx.network_adapter_type =
-      RTCNetworkAdapterType::kUnknown;
+  expected_a_local_relay_prflx.network_adapter_type = "unknown";
   expected_a_local_relay_prflx.foundation = "foundationIsAString";
   expected_a_local_relay_prflx.username_fragment = "iceusernamefragment";
 
@@ -1807,8 +1765,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCIceCandidateStats) {
   expected_a_local_host_not_paired.candidate_type = "host";
   expected_a_local_host_not_paired.priority = 0;
   expected_a_local_host_not_paired.vpn = true;
-  expected_a_local_host_not_paired.network_adapter_type =
-      RTCNetworkAdapterType::kEthernet;
+  expected_a_local_host_not_paired.network_adapter_type = "ethernet";
   expected_a_local_host_not_paired.foundation = "foundationIsAString";
   expected_a_local_host_not_paired.username_fragment = "iceusernamefragment";
 
@@ -1827,7 +1784,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCIceCandidateStats) {
   expected_b_local.candidate_type = "host";
   expected_b_local.priority = 42;
   expected_b_local.vpn = false;
-  expected_b_local.network_adapter_type = RTCNetworkAdapterType::kWifi;
+  expected_b_local.network_adapter_type = "wifi";
   expected_b_local.foundation = "foundationIsAString";
   expected_b_local.username_fragment = "iceusernamefragment";
 
@@ -1984,7 +1941,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCIceCandidatePairStats) {
       "Ttransport" + rtc::ToString(cricket::ICE_CANDIDATE_COMPONENT_RTP);
   expected_pair.local_candidate_id = "I" + local_candidate->id();
   expected_pair.remote_candidate_id = "I" + remote_candidate->id();
-  expected_pair.state = RTCStatsIceCandidatePairState::kInProgress;
+  expected_pair.state = "in-progress";
   expected_pair.priority = 5555;
   expected_pair.nominated = false;
   expected_pair.writable = true;
@@ -2083,7 +2040,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCIceCandidatePairStats) {
   expected_local_candidate.foundation = "foundationIsAString";
   expected_local_candidate.username_fragment = "local_iceusernamefragment";
   expected_local_candidate.vpn = false;
-  expected_local_candidate.network_adapter_type = RTCNetworkAdapterType::kWifi;
+  expected_local_candidate.network_adapter_type = "wifi";
   ASSERT_TRUE(report->Get(expected_local_candidate.id()));
   EXPECT_EQ(expected_local_candidate,
             report->Get(expected_local_candidate.id())
@@ -2118,20 +2075,19 @@ TEST_F(RTCStatsCollectorTest, CollectRTCPeerConnectionStats) {
     EXPECT_EQ(expected, report->Get("P")->cast_to<RTCPeerConnectionStats>());
   }
 
-  // TODO(bugs.webrtc.org/11547): Supply a separate network thread.
-  FakeDataChannelController controller;
+  FakeDataChannelController controller(pc_->network_thread());
   rtc::scoped_refptr<SctpDataChannel> dummy_channel_a = SctpDataChannel::Create(
-      &controller, "DummyChannelA", InternalDataChannelInit(),
+      controller.weak_ptr(), "DummyChannelA", false, InternalDataChannelInit(),
       rtc::Thread::Current(), rtc::Thread::Current());
-  pc_->SignalSctpDataChannelCreated()(dummy_channel_a.get());
   rtc::scoped_refptr<SctpDataChannel> dummy_channel_b = SctpDataChannel::Create(
-      &controller, "DummyChannelB", InternalDataChannelInit(),
+      controller.weak_ptr(), "DummyChannelB", false, InternalDataChannelInit(),
       rtc::Thread::Current(), rtc::Thread::Current());
-  pc_->SignalSctpDataChannelCreated()(dummy_channel_b.get());
 
-  dummy_channel_a->SignalOpened(dummy_channel_a.get());
+  stats_->stats_collector()->OnSctpDataChannelStateChanged(
+      dummy_channel_a->internal_id(), DataChannelInterface::DataState::kOpen);
   // Closing a channel that is not opened should not affect the counts.
-  dummy_channel_b->SignalClosed(dummy_channel_b.get());
+  stats_->stats_collector()->OnSctpDataChannelStateChanged(
+      dummy_channel_b->internal_id(), DataChannelInterface::DataState::kClosed);
 
   {
     rtc::scoped_refptr<const RTCStatsReport> report =
@@ -2143,8 +2099,10 @@ TEST_F(RTCStatsCollectorTest, CollectRTCPeerConnectionStats) {
     EXPECT_EQ(expected, report->Get("P")->cast_to<RTCPeerConnectionStats>());
   }
 
-  dummy_channel_b->SignalOpened(dummy_channel_b.get());
-  dummy_channel_b->SignalClosed(dummy_channel_b.get());
+  stats_->stats_collector()->OnSctpDataChannelStateChanged(
+      dummy_channel_b->internal_id(), DataChannelInterface::DataState::kOpen);
+  stats_->stats_collector()->OnSctpDataChannelStateChanged(
+      dummy_channel_b->internal_id(), DataChannelInterface::DataState::kClosed);
 
   {
     rtc::scoped_refptr<const RTCStatsReport> report =
@@ -2158,7 +2116,8 @@ TEST_F(RTCStatsCollectorTest, CollectRTCPeerConnectionStats) {
 
   // Re-opening a data channel (or opening a new data channel that is re-using
   // the same address in memory) should increase the opened count.
-  dummy_channel_b->SignalOpened(dummy_channel_b.get());
+  stats_->stats_collector()->OnSctpDataChannelStateChanged(
+      dummy_channel_b->internal_id(), DataChannelInterface::DataState::kOpen);
 
   {
     rtc::scoped_refptr<const RTCStatsReport> report =
@@ -2170,8 +2129,10 @@ TEST_F(RTCStatsCollectorTest, CollectRTCPeerConnectionStats) {
     EXPECT_EQ(expected, report->Get("P")->cast_to<RTCPeerConnectionStats>());
   }
 
-  dummy_channel_a->SignalClosed(dummy_channel_a.get());
-  dummy_channel_b->SignalClosed(dummy_channel_b.get());
+  stats_->stats_collector()->OnSctpDataChannelStateChanged(
+      dummy_channel_a->internal_id(), DataChannelInterface::DataState::kClosed);
+  stats_->stats_collector()->OnSctpDataChannelStateChanged(
+      dummy_channel_b->internal_id(), DataChannelInterface::DataState::kClosed);
 
   {
     rtc::scoped_refptr<const RTCStatsReport> report =
@@ -2184,278 +2145,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCPeerConnectionStats) {
   }
 }
 
-TEST_F(RTCStatsCollectorTest,
-       CollectLocalRTCMediaStreamStatsAndRTCMediaStreamTrackStats_Audio) {
-  rtc::scoped_refptr<MediaStream> local_stream =
-      MediaStream::Create("LocalStreamId");
-  pc_->mutable_local_streams()->AddStream(local_stream);
-
-  // Local audio track
-  rtc::scoped_refptr<MediaStreamTrackInterface> local_audio_track =
-      CreateFakeTrack(cricket::MEDIA_TYPE_AUDIO, "LocalAudioTrackID",
-                      MediaStreamTrackInterface::kEnded);
-  local_stream->AddTrack(rtc::scoped_refptr<AudioTrackInterface>(
-      static_cast<AudioTrackInterface*>(local_audio_track.get())));
-
-  cricket::VoiceSenderInfo voice_sender_info_ssrc1;
-  voice_sender_info_ssrc1.local_stats.push_back(cricket::SsrcSenderInfo());
-  voice_sender_info_ssrc1.local_stats[0].ssrc = 1;
-  voice_sender_info_ssrc1.apm_statistics.echo_return_loss = 42.0;
-  voice_sender_info_ssrc1.apm_statistics.echo_return_loss_enhancement = 52.0;
-
-  stats_->CreateMockRtpSendersReceiversAndChannels(
-      {std::make_pair(local_audio_track.get(), voice_sender_info_ssrc1)}, {},
-      {}, {}, {local_stream->id()}, {});
-
-  rtc::scoped_refptr<const RTCStatsReport> report = stats_->GetStatsReport();
-
-  DEPRECATED_RTCMediaStreamStats expected_local_stream(
-      IdForType<DEPRECATED_RTCMediaStreamStats>(report.get()),
-      report->timestamp());
-  expected_local_stream.stream_identifier = local_stream->id();
-  expected_local_stream.track_ids = {
-      IdForType<DEPRECATED_RTCMediaStreamTrackStats>(report.get())};
-  ASSERT_TRUE(report->Get(expected_local_stream.id()))
-      << "Did not find " << expected_local_stream.id() << " in "
-      << report->ToJson();
-  EXPECT_EQ(expected_local_stream,
-            report->Get(expected_local_stream.id())
-                ->cast_to<DEPRECATED_RTCMediaStreamStats>());
-
-  DEPRECATED_RTCMediaStreamTrackStats expected_local_audio_track_ssrc1(
-      IdForType<DEPRECATED_RTCMediaStreamTrackStats>(report.get()),
-      report->timestamp(), RTCMediaStreamTrackKind::kAudio);
-  expected_local_audio_track_ssrc1.track_identifier = local_audio_track->id();
-  expected_local_audio_track_ssrc1.media_source_id =
-      "SA11";  // Attachment ID = SSRC + 10
-  expected_local_audio_track_ssrc1.remote_source = false;
-  expected_local_audio_track_ssrc1.ended = true;
-  expected_local_audio_track_ssrc1.detached = false;
-  expected_local_audio_track_ssrc1.echo_return_loss = 42.0;
-  expected_local_audio_track_ssrc1.echo_return_loss_enhancement = 52.0;
-  ASSERT_TRUE(report->Get(expected_local_audio_track_ssrc1.id()))
-      << "Did not find " << expected_local_audio_track_ssrc1.id() << " in "
-      << report->ToJson();
-  EXPECT_EQ(expected_local_audio_track_ssrc1,
-            report->Get(expected_local_audio_track_ssrc1.id())
-                ->cast_to<DEPRECATED_RTCMediaStreamTrackStats>());
-}
-
-TEST_F(RTCStatsCollectorTest,
-       CollectRemoteRTCMediaStreamStatsAndRTCMediaStreamTrackStats_Audio) {
-  rtc::scoped_refptr<MediaStream> remote_stream =
-      MediaStream::Create("RemoteStreamId");
-  pc_->mutable_remote_streams()->AddStream(remote_stream);
-
-  // Remote audio track
-  rtc::scoped_refptr<MediaStreamTrackInterface> remote_audio_track =
-      CreateFakeTrack(cricket::MEDIA_TYPE_AUDIO, "RemoteAudioTrackID",
-                      MediaStreamTrackInterface::kLive);
-  remote_stream->AddTrack(rtc::scoped_refptr<AudioTrackInterface>(
-      static_cast<AudioTrackInterface*>(remote_audio_track.get())));
-
-  cricket::VoiceReceiverInfo voice_receiver_info;
-  voice_receiver_info.local_stats.push_back(cricket::SsrcReceiverInfo());
-  voice_receiver_info.local_stats[0].ssrc = 3;
-  voice_receiver_info.audio_level = 16383;  // [0,32767]
-  voice_receiver_info.total_output_energy = 0.125;
-  voice_receiver_info.total_samples_received = 4567;
-  voice_receiver_info.total_output_duration = 0.25;
-  voice_receiver_info.concealed_samples = 123;
-  voice_receiver_info.concealment_events = 12;
-  voice_receiver_info.inserted_samples_for_deceleration = 987;
-  voice_receiver_info.removed_samples_for_acceleration = 876;
-  voice_receiver_info.silent_concealed_samples = 765;
-  voice_receiver_info.jitter_buffer_delay_seconds = 3.456;
-  voice_receiver_info.jitter_buffer_emitted_count = 13;
-
-  stats_->CreateMockRtpSendersReceiversAndChannels(
-      {}, {std::make_pair(remote_audio_track.get(), voice_receiver_info)}, {},
-      {}, {}, {remote_stream});
-
-  rtc::scoped_refptr<const RTCStatsReport> report = stats_->GetStatsReport();
-
-  DEPRECATED_RTCMediaStreamStats expected_remote_stream(
-      IdForType<DEPRECATED_RTCMediaStreamStats>(report.get()),
-      report->timestamp());
-  expected_remote_stream.stream_identifier = remote_stream->id();
-  expected_remote_stream.track_ids = std::vector<std::string>(
-      {IdForType<DEPRECATED_RTCMediaStreamTrackStats>(report.get())});
-  ASSERT_TRUE(report->Get(expected_remote_stream.id()))
-      << "Did not find " << expected_remote_stream.id() << " in "
-      << report->ToJson();
-  EXPECT_EQ(expected_remote_stream,
-            report->Get(expected_remote_stream.id())
-                ->cast_to<DEPRECATED_RTCMediaStreamStats>());
-
-  DEPRECATED_RTCMediaStreamTrackStats expected_remote_audio_track(
-      IdForType<DEPRECATED_RTCMediaStreamTrackStats>(report.get()),
-      report->timestamp(), RTCMediaStreamTrackKind::kAudio);
-  expected_remote_audio_track.track_identifier = remote_audio_track->id();
-  // `expected_remote_audio_track.media_source_id` should be undefined
-  // because the track is remote.
-  expected_remote_audio_track.remote_source = true;
-  expected_remote_audio_track.ended = false;
-  expected_remote_audio_track.detached = false;
-  expected_remote_audio_track.audio_level = 16383.0 / 32767.0;  // [0,1]
-  expected_remote_audio_track.total_audio_energy = 0.125;
-  expected_remote_audio_track.total_samples_received = 4567;
-  expected_remote_audio_track.total_samples_duration = 0.25;
-  expected_remote_audio_track.concealed_samples = 123;
-  expected_remote_audio_track.concealment_events = 12;
-  expected_remote_audio_track.inserted_samples_for_deceleration = 987;
-  expected_remote_audio_track.removed_samples_for_acceleration = 876;
-  expected_remote_audio_track.silent_concealed_samples = 765;
-  expected_remote_audio_track.jitter_buffer_delay = 3.456;
-  expected_remote_audio_track.jitter_buffer_emitted_count = 13;
-  ASSERT_TRUE(report->Get(expected_remote_audio_track.id()));
-  EXPECT_EQ(expected_remote_audio_track,
-            report->Get(expected_remote_audio_track.id())
-                ->cast_to<DEPRECATED_RTCMediaStreamTrackStats>());
-}
-
-TEST_F(RTCStatsCollectorTest,
-       CollectLocalRTCMediaStreamStatsAndRTCMediaStreamTrackStats_Video) {
-  rtc::scoped_refptr<MediaStream> local_stream =
-      MediaStream::Create("LocalStreamId");
-  pc_->mutable_local_streams()->AddStream(local_stream);
-
-  // Local video track
-  rtc::scoped_refptr<MediaStreamTrackInterface> local_video_track =
-      CreateFakeTrack(cricket::MEDIA_TYPE_VIDEO, "LocalVideoTrackID",
-                      MediaStreamTrackInterface::kLive);
-  local_stream->AddTrack(rtc::scoped_refptr<VideoTrackInterface>(
-      static_cast<VideoTrackInterface*>(local_video_track.get())));
-
-  cricket::VideoSenderInfo video_sender_info_ssrc1;
-  video_sender_info_ssrc1.local_stats.push_back(cricket::SsrcSenderInfo());
-  video_sender_info_ssrc1.local_stats[0].ssrc = 1;
-  video_sender_info_ssrc1.send_frame_width = 1234;
-  video_sender_info_ssrc1.send_frame_height = 4321;
-  video_sender_info_ssrc1.frames_encoded = 11;
-  video_sender_info_ssrc1.huge_frames_sent = 1;
-
-  stats_->CreateMockRtpSendersReceiversAndChannels(
-      {}, {},
-      {std::make_pair(local_video_track.get(), video_sender_info_ssrc1)}, {},
-      {local_stream->id()}, {});
-
-  rtc::scoped_refptr<const RTCStatsReport> report = stats_->GetStatsReport();
-
-  auto stats_of_my_type =
-      report->GetStatsOfType<DEPRECATED_RTCMediaStreamStats>();
-  ASSERT_EQ(1U, stats_of_my_type.size()) << "No stream in " << report->ToJson();
-  auto stats_of_track_type =
-      report->GetStatsOfType<DEPRECATED_RTCMediaStreamTrackStats>();
-  ASSERT_EQ(1U, stats_of_track_type.size())
-      << "Wrong number of tracks in " << report->ToJson();
-
-  DEPRECATED_RTCMediaStreamStats expected_local_stream(
-      stats_of_my_type[0]->id(), report->timestamp());
-  expected_local_stream.stream_identifier = local_stream->id();
-  expected_local_stream.track_ids =
-      std::vector<std::string>({stats_of_track_type[0]->id()});
-  ASSERT_TRUE(report->Get(expected_local_stream.id()));
-  EXPECT_EQ(expected_local_stream,
-            report->Get(expected_local_stream.id())
-                ->cast_to<DEPRECATED_RTCMediaStreamStats>());
-
-  DEPRECATED_RTCMediaStreamTrackStats expected_local_video_track_ssrc1(
-      stats_of_track_type[0]->id(), report->timestamp(),
-      RTCMediaStreamTrackKind::kVideo);
-  expected_local_video_track_ssrc1.track_identifier = local_video_track->id();
-  expected_local_video_track_ssrc1.media_source_id =
-      "SV11";  // Attachment ID = SSRC + 10
-  expected_local_video_track_ssrc1.remote_source = false;
-  expected_local_video_track_ssrc1.ended = false;
-  expected_local_video_track_ssrc1.detached = false;
-  expected_local_video_track_ssrc1.frame_width = 1234;
-  expected_local_video_track_ssrc1.frame_height = 4321;
-  expected_local_video_track_ssrc1.frames_sent = 11;
-  expected_local_video_track_ssrc1.huge_frames_sent = 1;
-  ASSERT_TRUE(report->Get(expected_local_video_track_ssrc1.id()));
-  EXPECT_EQ(expected_local_video_track_ssrc1,
-            report->Get(expected_local_video_track_ssrc1.id())
-                ->cast_to<DEPRECATED_RTCMediaStreamTrackStats>());
-}
-
-TEST_F(RTCStatsCollectorTest,
-       CollectRemoteRTCMediaStreamStatsAndRTCMediaStreamTrackStats_Video) {
-  rtc::scoped_refptr<MediaStream> remote_stream =
-      MediaStream::Create("RemoteStreamId");
-  pc_->mutable_remote_streams()->AddStream(remote_stream);
-
-  // Remote video track with values
-  rtc::scoped_refptr<MediaStreamTrackInterface> remote_video_track_ssrc3 =
-      CreateFakeTrack(cricket::MEDIA_TYPE_VIDEO, "RemoteVideoTrackID3",
-                      MediaStreamTrackInterface::kEnded);
-  remote_stream->AddTrack(rtc::scoped_refptr<VideoTrackInterface>(
-      static_cast<VideoTrackInterface*>(remote_video_track_ssrc3.get())));
-
-  cricket::VideoReceiverInfo video_receiver_info_ssrc3;
-  video_receiver_info_ssrc3.local_stats.push_back(cricket::SsrcReceiverInfo());
-  video_receiver_info_ssrc3.local_stats[0].ssrc = 3;
-  video_receiver_info_ssrc3.frame_width = 6789;
-  video_receiver_info_ssrc3.frame_height = 9876;
-  video_receiver_info_ssrc3.jitter_buffer_delay_seconds = 2.5;
-  video_receiver_info_ssrc3.jitter_buffer_emitted_count = 25;
-  video_receiver_info_ssrc3.frames_received = 1000;
-  video_receiver_info_ssrc3.frames_decoded = 995;
-  video_receiver_info_ssrc3.frames_dropped = 10;
-  video_receiver_info_ssrc3.frames_rendered = 990;
-
-  stats_->CreateMockRtpSendersReceiversAndChannels(
-      {}, {}, {},
-      {std::make_pair(remote_video_track_ssrc3.get(),
-                      video_receiver_info_ssrc3)},
-      {}, {remote_stream});
-
-  rtc::scoped_refptr<const RTCStatsReport> report = stats_->GetStatsReport();
-
-  auto stats_of_my_type =
-      report->GetStatsOfType<DEPRECATED_RTCMediaStreamStats>();
-  ASSERT_EQ(1U, stats_of_my_type.size()) << "No stream in " << report->ToJson();
-  auto stats_of_track_type =
-      report->GetStatsOfType<DEPRECATED_RTCMediaStreamTrackStats>();
-  ASSERT_EQ(1U, stats_of_track_type.size())
-      << "Wrong number of tracks in " << report->ToJson();
-  ASSERT_TRUE(*(stats_of_track_type[0]->remote_source));
-
-  DEPRECATED_RTCMediaStreamStats expected_remote_stream(
-      stats_of_my_type[0]->id(), report->timestamp());
-  expected_remote_stream.stream_identifier = remote_stream->id();
-  expected_remote_stream.track_ids =
-      std::vector<std::string>({stats_of_track_type[0]->id()});
-  ASSERT_TRUE(report->Get(expected_remote_stream.id()));
-  EXPECT_EQ(expected_remote_stream,
-            report->Get(expected_remote_stream.id())
-                ->cast_to<DEPRECATED_RTCMediaStreamStats>());
-
-  DEPRECATED_RTCMediaStreamTrackStats expected_remote_video_track_ssrc3(
-      stats_of_track_type[0]->id(), report->timestamp(),
-      RTCMediaStreamTrackKind::kVideo);
-  expected_remote_video_track_ssrc3.track_identifier =
-      remote_video_track_ssrc3->id();
-  // `expected_remote_video_track_ssrc3.media_source_id` should be undefined
-  // because the track is remote.
-  expected_remote_video_track_ssrc3.remote_source = true;
-  expected_remote_video_track_ssrc3.ended = true;
-  expected_remote_video_track_ssrc3.detached = false;
-  expected_remote_video_track_ssrc3.frame_width = 6789;
-  expected_remote_video_track_ssrc3.frame_height = 9876;
-  expected_remote_video_track_ssrc3.jitter_buffer_delay = 2.5;
-  expected_remote_video_track_ssrc3.jitter_buffer_emitted_count = 25;
-  expected_remote_video_track_ssrc3.frames_received = 1000;
-  expected_remote_video_track_ssrc3.frames_decoded = 995;
-  expected_remote_video_track_ssrc3.frames_dropped = 10;
-
-  ASSERT_TRUE(report->Get(expected_remote_video_track_ssrc3.id()));
-  EXPECT_EQ(expected_remote_video_track_ssrc3,
-            report->Get(expected_remote_video_track_ssrc3.id())
-                ->cast_to<DEPRECATED_RTCMediaStreamTrackStats>());
-}
-
-TEST_F(RTCStatsCollectorTest, CollectRTCInboundRTPStreamStats_Audio) {
+TEST_F(RTCStatsCollectorTest, CollectRTCInboundRtpStreamStats_Audio) {
   cricket::VoiceMediaInfo voice_media_info;
 
   voice_media_info.receivers.push_back(cricket::VoiceReceiverInfo());
@@ -2464,12 +2154,12 @@ TEST_F(RTCStatsCollectorTest, CollectRTCInboundRTPStreamStats_Audio) {
   voice_media_info.receivers[0].local_stats[0].ssrc = 1;
   voice_media_info.receivers[0].packets_lost = -1;  // Signed per RFC3550
   voice_media_info.receivers[0].packets_discarded = 7788;
-  voice_media_info.receivers[0].packets_rcvd = 2;
+  voice_media_info.receivers[0].packets_received = 2;
   voice_media_info.receivers[0].nacks_sent = 5;
   voice_media_info.receivers[0].fec_packets_discarded = 5566;
   voice_media_info.receivers[0].fec_packets_received = 6677;
-  voice_media_info.receivers[0].payload_bytes_rcvd = 3;
-  voice_media_info.receivers[0].header_and_padding_bytes_rcvd = 4;
+  voice_media_info.receivers[0].payload_bytes_received = 3;
+  voice_media_info.receivers[0].header_and_padding_bytes_received = 4;
   voice_media_info.receivers[0].codec_payload_type = 42;
   voice_media_info.receivers[0].jitter_ms = 4500;
   voice_media_info.receivers[0].jitter_buffer_delay_seconds = 1.0;
@@ -2490,9 +2180,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCInboundRTPStreamStats_Audio) {
   voice_media_info.receivers[0].relative_packet_arrival_delay_seconds = 16;
   voice_media_info.receivers[0].interruption_count = 7788;
   voice_media_info.receivers[0].total_interruption_duration_ms = 778899;
-
-  voice_media_info.receivers[0].last_packet_received_timestamp_ms =
-      absl::nullopt;
+  voice_media_info.receivers[0].last_packet_received = absl::nullopt;
 
   RtpCodecParameters codec_parameters;
   codec_parameters.payload_type = 42;
@@ -2514,18 +2202,12 @@ TEST_F(RTCStatsCollectorTest, CollectRTCInboundRTPStreamStats_Audio) {
 
   rtc::scoped_refptr<const RTCStatsReport> report = stats_->GetStatsReport();
 
-  auto stats_of_track_type =
-      report->GetStatsOfType<DEPRECATED_RTCMediaStreamTrackStats>();
-  ASSERT_EQ(1U, stats_of_track_type.size());
-
-  RTCInboundRTPStreamStats expected_audio("ITTransportName1A1",
+  RTCInboundRtpStreamStats expected_audio("ITTransportName1A1",
                                           report->timestamp());
   expected_audio.ssrc = 1;
-  expected_audio.media_type = "audio";
   expected_audio.kind = "audio";
   expected_audio.track_identifier = "RemoteAudioTrackID";
   expected_audio.mid = "AudioMid";
-  expected_audio.track_id = stats_of_track_type[0]->id();
   expected_audio.transport_id = "TTransportName1";
   expected_audio.codec_id = "CITTransportName1_42";
   expected_audio.packets_received = 2;
@@ -2560,11 +2242,11 @@ TEST_F(RTCStatsCollectorTest, CollectRTCInboundRTPStreamStats_Audio) {
 
   ASSERT_TRUE(report->Get(expected_audio.id()));
   EXPECT_EQ(
-      report->Get(expected_audio.id())->cast_to<RTCInboundRTPStreamStats>(),
+      report->Get(expected_audio.id())->cast_to<RTCInboundRtpStreamStats>(),
       expected_audio);
 
   // Set previously undefined values and "GetStats" again.
-  voice_media_info.receivers[0].last_packet_received_timestamp_ms = 3000;
+  voice_media_info.receivers[0].last_packet_received = Timestamp::Seconds(3);
   expected_audio.last_packet_received_timestamp = 3000.0;
   voice_media_info.receivers[0].estimated_playout_ntp_timestamp_ms = 4567;
   expected_audio.estimated_playout_timestamp = 4567;
@@ -2575,14 +2257,13 @@ TEST_F(RTCStatsCollectorTest, CollectRTCInboundRTPStreamStats_Audio) {
 
   ASSERT_TRUE(report->Get(expected_audio.id()));
   EXPECT_EQ(
-      report->Get(expected_audio.id())->cast_to<RTCInboundRTPStreamStats>(),
+      report->Get(expected_audio.id())->cast_to<RTCInboundRtpStreamStats>(),
       expected_audio);
-  EXPECT_TRUE(report->Get(*expected_audio.track_id));
   EXPECT_TRUE(report->Get(*expected_audio.transport_id));
   EXPECT_TRUE(report->Get(*expected_audio.codec_id));
 }
 
-TEST_F(RTCStatsCollectorTest, CollectRTCInboundRTPStreamStats_Audio_PlayoutId) {
+TEST_F(RTCStatsCollectorTest, CollectRTCInboundRtpStreamStats_Audio_PlayoutId) {
   cricket::VoiceMediaInfo voice_media_info;
 
   voice_media_info.receivers.push_back(cricket::VoiceReceiverInfo());
@@ -2603,7 +2284,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCInboundRTPStreamStats_Audio_PlayoutId) {
     rtc::scoped_refptr<const RTCStatsReport> report = stats_->GetStatsReport();
     ASSERT_TRUE(report->Get("ITTransportName1A1"));
     auto stats =
-        report->Get("ITTransportName1A1")->cast_to<RTCInboundRTPStreamStats>();
+        report->Get("ITTransportName1A1")->cast_to<RTCInboundRtpStreamStats>();
     ASSERT_FALSE(stats.playout_id.is_defined());
   }
   {
@@ -2614,23 +2295,23 @@ TEST_F(RTCStatsCollectorTest, CollectRTCInboundRTPStreamStats_Audio_PlayoutId) {
         stats_->GetFreshStatsReport();
     ASSERT_TRUE(report->Get("ITTransportName1A1"));
     auto stats =
-        report->Get("ITTransportName1A1")->cast_to<RTCInboundRTPStreamStats>();
+        report->Get("ITTransportName1A1")->cast_to<RTCInboundRtpStreamStats>();
     ASSERT_TRUE(stats.playout_id.is_defined());
     EXPECT_EQ(*stats.playout_id, "AP");
   }
 }
 
-TEST_F(RTCStatsCollectorTest, CollectRTCInboundRTPStreamStats_Video) {
+TEST_F(RTCStatsCollectorTest, CollectRTCInboundRtpStreamStats_Video) {
   cricket::VideoMediaInfo video_media_info;
 
   video_media_info.receivers.push_back(cricket::VideoReceiverInfo());
   video_media_info.receivers[0].local_stats.push_back(
       cricket::SsrcReceiverInfo());
   video_media_info.receivers[0].local_stats[0].ssrc = 1;
-  video_media_info.receivers[0].packets_rcvd = 2;
+  video_media_info.receivers[0].packets_received = 2;
   video_media_info.receivers[0].packets_lost = 42;
-  video_media_info.receivers[0].payload_bytes_rcvd = 3;
-  video_media_info.receivers[0].header_and_padding_bytes_rcvd = 12;
+  video_media_info.receivers[0].payload_bytes_received = 3;
+  video_media_info.receivers[0].header_and_padding_bytes_received = 12;
   video_media_info.receivers[0].codec_payload_type = 42;
   video_media_info.receivers[0].firs_sent = 5;
   video_media_info.receivers[0].plis_sent = 6;
@@ -2658,19 +2339,19 @@ TEST_F(RTCStatsCollectorTest, CollectRTCInboundRTPStreamStats_Video) {
   video_media_info.receivers[0].jitter_buffer_target_delay_seconds = 1.1;
   video_media_info.receivers[0].jitter_buffer_minimum_delay_seconds = 0.999;
   video_media_info.receivers[0].jitter_buffer_emitted_count = 13;
-
-  video_media_info.receivers[0].last_packet_received_timestamp_ms =
-      absl::nullopt;
+  video_media_info.receivers[0].last_packet_received = absl::nullopt;
   video_media_info.receivers[0].content_type = VideoContentType::UNSPECIFIED;
   video_media_info.receivers[0].estimated_playout_ntp_timestamp_ms =
       absl::nullopt;
   video_media_info.receivers[0].decoder_implementation_name = "";
   video_media_info.receivers[0].min_playout_delay_ms = 50;
   video_media_info.receivers[0].power_efficient_decoder = false;
+  video_media_info.receivers[0].retransmitted_packets_received = 17;
+  video_media_info.receivers[0].retransmitted_bytes_received = 62;
 
   // Note: these two values intentionally differ,
   // only the decoded one should show up.
-  video_media_info.receivers[0].framerate_rcvd = 15;
+  video_media_info.receivers[0].framerate_received = 15;
   video_media_info.receivers[0].framerate_decoded = 5;
 
   RtpCodecParameters codec_parameters;
@@ -2688,15 +2369,12 @@ TEST_F(RTCStatsCollectorTest, CollectRTCInboundRTPStreamStats_Video) {
 
   rtc::scoped_refptr<const RTCStatsReport> report = stats_->GetStatsReport();
 
-  RTCInboundRTPStreamStats expected_video("ITTransportName1V1",
+  RTCInboundRtpStreamStats expected_video("ITTransportName1V1",
                                           report->timestamp());
   expected_video.ssrc = 1;
-  expected_video.media_type = "video";
   expected_video.kind = "video";
   expected_video.track_identifier = "RemoteVideoTrackID";
   expected_video.mid = "VideoMid";
-  expected_video.track_id =
-      IdForType<DEPRECATED_RTCMediaStreamTrackStats>(report.get());
   expected_video.transport_id = "TTransportName1";
   expected_video.codec_id = "CITTransportName1_42";
   expected_video.fir_count = 5;
@@ -2732,16 +2410,18 @@ TEST_F(RTCStatsCollectorTest, CollectRTCInboundRTPStreamStats_Video) {
   expected_video.min_playout_delay = 0.05;
   expected_video.frames_per_second = 5;
   expected_video.power_efficient_decoder = false;
+  expected_video.retransmitted_packets_received = 17;
+  expected_video.retransmitted_bytes_received = 62;
 
   ASSERT_TRUE(report->Get(expected_video.id()));
   EXPECT_EQ(
-      report->Get(expected_video.id())->cast_to<RTCInboundRTPStreamStats>(),
+      report->Get(expected_video.id())->cast_to<RTCInboundRtpStreamStats>(),
       expected_video);
 
   // Set previously undefined values and "GetStats" again.
   video_media_info.receivers[0].qp_sum = 9;
   expected_video.qp_sum = 9;
-  video_media_info.receivers[0].last_packet_received_timestamp_ms = 1000;
+  video_media_info.receivers[0].last_packet_received = Timestamp::Seconds(1);
   expected_video.last_packet_received_timestamp = 1000.0;
   video_media_info.receivers[0].content_type = VideoContentType::SCREENSHARE;
   expected_video.content_type = "screenshare";
@@ -2758,9 +2438,8 @@ TEST_F(RTCStatsCollectorTest, CollectRTCInboundRTPStreamStats_Video) {
 
   ASSERT_TRUE(report->Get(expected_video.id()));
   EXPECT_EQ(
-      report->Get(expected_video.id())->cast_to<RTCInboundRTPStreamStats>(),
+      report->Get(expected_video.id())->cast_to<RTCInboundRtpStreamStats>(),
       expected_video);
-  EXPECT_TRUE(report->Get(*expected_video.track_id));
   EXPECT_TRUE(report->Get(*expected_video.transport_id));
   EXPECT_TRUE(report->Get(*expected_video.codec_id));
 }
@@ -2820,14 +2499,14 @@ TEST_F(RTCStatsCollectorTest, CollectGoogTimingFrameInfo) {
       cricket::MEDIA_TYPE_VIDEO, "RemoteVideoTrackID", "RemoteStreamId", 1);
 
   rtc::scoped_refptr<const RTCStatsReport> report = stats_->GetStatsReport();
-  auto inbound_rtps = report->GetStatsOfType<RTCInboundRTPStreamStats>();
+  auto inbound_rtps = report->GetStatsOfType<RTCInboundRtpStreamStats>();
   ASSERT_EQ(inbound_rtps.size(), 1u);
   ASSERT_TRUE(inbound_rtps[0]->goog_timing_frame_info.is_defined());
   EXPECT_EQ(*inbound_rtps[0]->goog_timing_frame_info,
             "1,2,3,4,5,6,7,8,9,10,11,12,13,1,0");
 }
 
-TEST_F(RTCStatsCollectorTest, CollectRTCOutboundRTPStreamStats_Audio) {
+TEST_F(RTCStatsCollectorTest, CollectRTCOutboundRtpStreamStats_Audio) {
   cricket::VoiceMediaInfo voice_media_info;
 
   voice_media_info.senders.push_back(cricket::VoiceSenderInfo());
@@ -2839,7 +2518,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCOutboundRTPStreamStats_Audio) {
   voice_media_info.senders[0].payload_bytes_sent = 3;
   voice_media_info.senders[0].header_and_padding_bytes_sent = 12;
   voice_media_info.senders[0].retransmitted_bytes_sent = 30;
-  voice_media_info.senders[0].nacks_rcvd = 31;
+  voice_media_info.senders[0].nacks_received = 31;
   voice_media_info.senders[0].target_bitrate = 32000;
   voice_media_info.senders[0].codec_payload_type = 42;
   voice_media_info.senders[0].active = true;
@@ -2859,16 +2538,13 @@ TEST_F(RTCStatsCollectorTest, CollectRTCOutboundRTPStreamStats_Audio) {
 
   rtc::scoped_refptr<const RTCStatsReport> report = stats_->GetStatsReport();
 
-  RTCOutboundRTPStreamStats expected_audio("OTTransportName1A1",
+  RTCOutboundRtpStreamStats expected_audio("OTTransportName1A1",
                                            report->timestamp());
   expected_audio.media_source_id = "SA50";
   // `expected_audio.remote_id` should be undefined.
   expected_audio.mid = "AudioMid";
   expected_audio.ssrc = 1;
-  expected_audio.media_type = "audio";
   expected_audio.kind = "audio";
-  expected_audio.track_id =
-      IdForType<DEPRECATED_RTCMediaStreamTrackStats>(report.get());
   expected_audio.transport_id = "TTransportName1";
   expected_audio.codec_id = "COTTransportName1_42";
   expected_audio.packets_sent = 2;
@@ -2883,27 +2559,26 @@ TEST_F(RTCStatsCollectorTest, CollectRTCOutboundRTPStreamStats_Audio) {
 
   ASSERT_TRUE(report->Get(expected_audio.id()));
   EXPECT_EQ(
-      report->Get(expected_audio.id())->cast_to<RTCOutboundRTPStreamStats>(),
+      report->Get(expected_audio.id())->cast_to<RTCOutboundRtpStreamStats>(),
       expected_audio);
 
   ASSERT_TRUE(report->Get(expected_audio.id()));
   EXPECT_EQ(
-      report->Get(expected_audio.id())->cast_to<RTCOutboundRTPStreamStats>(),
+      report->Get(expected_audio.id())->cast_to<RTCOutboundRtpStreamStats>(),
       expected_audio);
-  EXPECT_TRUE(report->Get(*expected_audio.track_id));
   EXPECT_TRUE(report->Get(*expected_audio.transport_id));
   EXPECT_TRUE(report->Get(*expected_audio.codec_id));
 }
 
-TEST_F(RTCStatsCollectorTest, CollectRTCOutboundRTPStreamStats_Video) {
+TEST_F(RTCStatsCollectorTest, CollectRTCOutboundRtpStreamStats_Video) {
   cricket::VideoMediaInfo video_media_info;
 
   video_media_info.senders.push_back(cricket::VideoSenderInfo());
   video_media_info.senders[0].local_stats.push_back(cricket::SsrcSenderInfo());
   video_media_info.senders[0].local_stats[0].ssrc = 1;
-  video_media_info.senders[0].firs_rcvd = 2;
-  video_media_info.senders[0].plis_rcvd = 3;
-  video_media_info.senders[0].nacks_rcvd = 4;
+  video_media_info.senders[0].firs_received = 2;
+  video_media_info.senders[0].plis_received = 3;
+  video_media_info.senders[0].nacks_received = 4;
   video_media_info.senders[0].packets_sent = 5;
   video_media_info.senders[0].retransmitted_packets_sent = 50;
   video_media_info.senders[0].payload_bytes_sent = 6;
@@ -2949,21 +2624,16 @@ TEST_F(RTCStatsCollectorTest, CollectRTCOutboundRTPStreamStats_Video) {
 
   rtc::scoped_refptr<const RTCStatsReport> report = stats_->GetStatsReport();
 
-  auto stats_of_my_type = report->GetStatsOfType<RTCOutboundRTPStreamStats>();
+  auto stats_of_my_type = report->GetStatsOfType<RTCOutboundRtpStreamStats>();
   ASSERT_EQ(1U, stats_of_my_type.size());
-  auto stats_of_track_type =
-      report->GetStatsOfType<DEPRECATED_RTCMediaStreamTrackStats>();
-  ASSERT_EQ(1U, stats_of_track_type.size());
 
-  RTCOutboundRTPStreamStats expected_video(stats_of_my_type[0]->id(),
+  RTCOutboundRtpStreamStats expected_video(stats_of_my_type[0]->id(),
                                            report->timestamp());
   expected_video.media_source_id = "SV50";
   // `expected_video.remote_id` should be undefined.
   expected_video.mid = "VideoMid";
   expected_video.ssrc = 1;
-  expected_video.media_type = "video";
   expected_video.kind = "video";
-  expected_video.track_id = stats_of_track_type[0]->id();
   expected_video.transport_id = "TTransportName1";
   expected_video.codec_id = "COTTransportName1_42";
   expected_video.fir_count = 2;
@@ -2998,7 +2668,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCOutboundRTPStreamStats_Video) {
   ASSERT_TRUE(report->Get(expected_video.id()));
 
   EXPECT_EQ(
-      report->Get(expected_video.id())->cast_to<RTCOutboundRTPStreamStats>(),
+      report->Get(expected_video.id())->cast_to<RTCOutboundRtpStreamStats>(),
       expected_video);
 
   // Set previously undefined values and "GetStats" again.
@@ -3018,9 +2688,8 @@ TEST_F(RTCStatsCollectorTest, CollectRTCOutboundRTPStreamStats_Video) {
 
   ASSERT_TRUE(report->Get(expected_video.id()));
   EXPECT_EQ(
-      report->Get(expected_video.id())->cast_to<RTCOutboundRTPStreamStats>(),
+      report->Get(expected_video.id())->cast_to<RTCOutboundRtpStreamStats>(),
       expected_video);
-  EXPECT_TRUE(report->Get(*expected_video.track_id));
   EXPECT_TRUE(report->Get(*expected_video.transport_id));
   EXPECT_TRUE(report->Get(*expected_video.codec_id));
 }
@@ -3079,12 +2748,12 @@ TEST_F(RTCStatsCollectorTest, CollectRTCTransportStats) {
   expected_rtp_transport.packets_sent = 1;
   expected_rtp_transport.bytes_received = 1337;
   expected_rtp_transport.packets_received = 4;
-  expected_rtp_transport.dtls_state = RTCDtlsTransportState::kNew;
-  expected_rtp_transport.dtls_role = RTCDtlsRole::kUnknown;
+  expected_rtp_transport.dtls_state = "new";
+  expected_rtp_transport.dtls_role = "unknown";
   expected_rtp_transport.selected_candidate_pair_changes = 1;
-  expected_rtp_transport.ice_role = RTCIceRole::kUnknown;
+  expected_rtp_transport.ice_role = "unknown";
   expected_rtp_transport.ice_local_username_fragment = "thelocalufrag";
-  expected_rtp_transport.ice_state = RTCIceTransportState::kNew;
+  expected_rtp_transport.ice_state = "new";
 
   ASSERT_TRUE(report->Get(expected_rtp_transport.id()));
   EXPECT_EQ(
@@ -3127,12 +2796,12 @@ TEST_F(RTCStatsCollectorTest, CollectRTCTransportStats) {
   expected_rtcp_transport.packets_sent = 1;
   expected_rtcp_transport.bytes_received = 42;
   expected_rtcp_transport.packets_received = 4;
-  expected_rtcp_transport.dtls_state = RTCDtlsTransportState::kConnecting;
-  expected_rtcp_transport.dtls_role = RTCDtlsRole::kUnknown;
+  expected_rtcp_transport.dtls_state = "connecting";
+  expected_rtcp_transport.dtls_role = "unknown";
   expected_rtcp_transport.selected_candidate_pair_changes = 0;
-  expected_rtcp_transport.ice_role = RTCIceRole::kUnknown;
+  expected_rtcp_transport.ice_role = "unknown";
   expected_rtcp_transport.ice_local_username_fragment = "thelocalufrag";
-  expected_rtcp_transport.ice_state = RTCIceTransportState::kChecking;
+  expected_rtcp_transport.ice_state = "checking";
 
   expected_rtp_transport.rtcp_transport_stats_id = expected_rtcp_transport.id();
   ASSERT_TRUE(report->Get(expected_rtp_transport.id()));
@@ -3248,19 +2917,19 @@ TEST_F(RTCStatsCollectorTest, CollectRTCTransportStatsWithCrypto) {
   RTCTransportStats expected_rtp_transport(
       "Ttransport" + rtc::ToString(cricket::ICE_CANDIDATE_COMPONENT_RTP),
       report->timestamp());
-  expected_rtp_transport.dtls_state = RTCDtlsTransportState::kConnected;
+  expected_rtp_transport.dtls_state = "connected";
   expected_rtp_transport.selected_candidate_pair_changes = 1;
-  expected_rtp_transport.ice_role = RTCIceRole::kUnknown;
+  expected_rtp_transport.ice_role = "unknown";
   expected_rtp_transport.bytes_sent = 0;
   expected_rtp_transport.bytes_received = 0;
   expected_rtp_transport.packets_sent = 0;
   expected_rtp_transport.packets_received = 0;
-  expected_rtp_transport.ice_role = RTCIceRole::kControlling;
+  expected_rtp_transport.ice_role = "controlling";
   expected_rtp_transport.ice_local_username_fragment = "thelocalufrag";
   expected_rtp_transport.ice_state = "connected";
   // Crypto parameters
   expected_rtp_transport.tls_version = "0203";
-  expected_rtp_transport.dtls_role = RTCDtlsRole::kClient;
+  expected_rtp_transport.dtls_role = "client";
   expected_rtp_transport.dtls_cipher = "TLS_RSA_WITH_AES_128_CBC_SHA";
   expected_rtp_transport.srtp_cipher = "AES_CM_128_HMAC_SHA1_80";
 
@@ -3270,7 +2939,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCTransportStatsWithCrypto) {
       report->Get(expected_rtp_transport.id())->cast_to<RTCTransportStats>());
 }
 
-TEST_F(RTCStatsCollectorTest, CollectNoStreamRTCOutboundRTPStreamStats_Audio) {
+TEST_F(RTCStatsCollectorTest, CollectNoStreamRTCOutboundRtpStreamStats_Audio) {
   cricket::VoiceMediaInfo voice_media_info;
 
   voice_media_info.senders.push_back(cricket::VoiceSenderInfo());
@@ -3282,7 +2951,7 @@ TEST_F(RTCStatsCollectorTest, CollectNoStreamRTCOutboundRTPStreamStats_Audio) {
   voice_media_info.senders[0].payload_bytes_sent = 3;
   voice_media_info.senders[0].header_and_padding_bytes_sent = 4;
   voice_media_info.senders[0].retransmitted_bytes_sent = 30;
-  voice_media_info.senders[0].nacks_rcvd = 31;
+  voice_media_info.senders[0].nacks_received = 31;
   voice_media_info.senders[0].codec_payload_type = 42;
   voice_media_info.senders[0].active = true;
 
@@ -3302,15 +2971,12 @@ TEST_F(RTCStatsCollectorTest, CollectNoStreamRTCOutboundRTPStreamStats_Audio) {
 
   rtc::scoped_refptr<const RTCStatsReport> report = stats_->GetStatsReport();
 
-  RTCOutboundRTPStreamStats expected_audio("OTTransportName1A1",
+  RTCOutboundRtpStreamStats expected_audio("OTTransportName1A1",
                                            report->timestamp());
   expected_audio.media_source_id = "SA50";
   expected_audio.mid = "AudioMid";
   expected_audio.ssrc = 1;
-  expected_audio.media_type = "audio";
   expected_audio.kind = "audio";
-  expected_audio.track_id =
-      IdForType<DEPRECATED_RTCMediaStreamTrackStats>(report.get());
   expected_audio.transport_id = "TTransportName1";
   expected_audio.codec_id = "COTTransportName1_42";
   expected_audio.packets_sent = 2;
@@ -3324,9 +2990,8 @@ TEST_F(RTCStatsCollectorTest, CollectNoStreamRTCOutboundRTPStreamStats_Audio) {
 
   ASSERT_TRUE(report->Get(expected_audio.id()));
   EXPECT_EQ(
-      report->Get(expected_audio.id())->cast_to<RTCOutboundRTPStreamStats>(),
+      report->Get(expected_audio.id())->cast_to<RTCOutboundRtpStreamStats>(),
       expected_audio);
-  EXPECT_TRUE(report->Get(*expected_audio.track_id));
   EXPECT_TRUE(report->Get(*expected_audio.transport_id));
   EXPECT_TRUE(report->Get(*expected_audio.codec_id));
 }
@@ -3544,8 +3209,7 @@ class RTCStatsCollectorTestWithParamKind
         for (const auto& report_block_data : report_block_datas) {
           cricket::VoiceSenderInfo sender;
           sender.local_stats.push_back(cricket::SsrcSenderInfo());
-          sender.local_stats[0].ssrc =
-              report_block_data.report_block().source_ssrc;
+          sender.local_stats[0].ssrc = report_block_data.source_ssrc();
           if (codec.has_value()) {
             sender.codec_payload_type = codec->payload_type;
             voice_media_info.send_codecs.insert(
@@ -3562,8 +3226,7 @@ class RTCStatsCollectorTestWithParamKind
         for (const auto& report_block_data : report_block_datas) {
           cricket::VideoSenderInfo sender;
           sender.local_stats.push_back(cricket::SsrcSenderInfo());
-          sender.local_stats[0].ssrc =
-              report_block_data.report_block().source_ssrc;
+          sender.local_stats[0].ssrc = report_block_data.source_ssrc();
           if (codec.has_value()) {
             sender.codec_payload_type = codec->payload_type;
             video_media_info.send_codecs.insert(
@@ -3590,31 +3253,29 @@ class RTCStatsCollectorTestWithParamKind
 // RTCCodecStats (codecId, jitter) and without setting up an RTCP transport.
 TEST_P(RTCStatsCollectorTestWithParamKind,
        RTCRemoteInboundRtpStreamStatsCollectedFromReportBlock) {
-  const int64_t kReportBlockTimestampUtcUs = 123456789;
+  const Timestamp kReportBlockTimestampUtc = Timestamp::Micros(123456789);
   const uint8_t kFractionLost = 12;
-  const int64_t kRoundTripTimeSample1Ms = 1234;
-  const double kRoundTripTimeSample1Seconds = 1.234;
-  const int64_t kRoundTripTimeSample2Ms = 13000;
-  const double kRoundTripTimeSample2Seconds = 13;
+  const TimeDelta kRoundTripTimeSample1 = TimeDelta::Millis(1'234);
+  const TimeDelta kRoundTripTimeSample2 = TimeDelta::Seconds(13);
 
   // The report block's timestamp cannot be from the future, set the fake clock
   // to match.
-  fake_clock_.SetTime(Timestamp::Micros(kReportBlockTimestampUtcUs));
+  fake_clock_.SetTime(kReportBlockTimestampUtc);
   auto ssrcs = {12, 13};
   std::vector<ReportBlockData> report_block_datas;
   for (auto ssrc : ssrcs) {
-    RTCPReportBlock report_block;
+    rtcp::ReportBlock report_block;
     // The remote-inbound-rtp SSRC and the outbound-rtp SSRC is the same as the
     // `source_ssrc`, "SSRC of the RTP packet sender".
-    report_block.source_ssrc = ssrc;
-    report_block.packets_lost = 7;
-    report_block.fraction_lost = kFractionLost;
+    report_block.SetMediaSsrc(ssrc);
+    report_block.SetCumulativeLost(7);
+    report_block.SetFractionLost(kFractionLost);
     ReportBlockData report_block_data;
-    report_block_data.SetReportBlock(report_block, kReportBlockTimestampUtcUs);
-    report_block_data.AddRoundTripTimeSample(kRoundTripTimeSample1Ms);
+    report_block_data.SetReportBlock(0, report_block, kReportBlockTimestampUtc);
+    report_block_data.AddRoundTripTimeSample(kRoundTripTimeSample1);
     // Only the last sample should be exposed as the
     // `RTCRemoteInboundRtpStreamStats::round_trip_time`.
-    report_block_data.AddRoundTripTimeSample(kRoundTripTimeSample2Ms);
+    report_block_data.AddRoundTripTimeSample(kRoundTripTimeSample2);
     report_block_datas.push_back(report_block_data);
   }
   AddSenderInfoAndMediaChannel("TransportName", report_block_datas,
@@ -3624,8 +3285,7 @@ TEST_P(RTCStatsCollectorTestWithParamKind,
   for (auto ssrc : ssrcs) {
     std::string stream_id = "" + std::to_string(ssrc);
     RTCRemoteInboundRtpStreamStats expected_remote_inbound_rtp(
-        "RI" + MediaTypeCharStr() + stream_id,
-        Timestamp::Micros(kReportBlockTimestampUtcUs));
+        "RI" + MediaTypeCharStr() + stream_id, kReportBlockTimestampUtc);
     expected_remote_inbound_rtp.ssrc = ssrc;
     expected_remote_inbound_rtp.fraction_lost =
         static_cast<double>(kFractionLost) / (1 << 8);
@@ -3636,9 +3296,10 @@ TEST_P(RTCStatsCollectorTestWithParamKind,
     expected_remote_inbound_rtp.packets_lost = 7;
     expected_remote_inbound_rtp.local_id =
         "OTTransportName1" + MediaTypeCharStr() + stream_id;
-    expected_remote_inbound_rtp.round_trip_time = kRoundTripTimeSample2Seconds;
+    expected_remote_inbound_rtp.round_trip_time =
+        kRoundTripTimeSample2.seconds<double>();
     expected_remote_inbound_rtp.total_round_trip_time =
-        kRoundTripTimeSample1Seconds + kRoundTripTimeSample2Seconds;
+        (kRoundTripTimeSample1 + kRoundTripTimeSample2).seconds<double>();
     expected_remote_inbound_rtp.round_trip_time_measurements = 2;
     // This test does not set up RTCCodecStats, so `codec_id` and `jitter` are
     // expected to be missing. These are tested separately.
@@ -3651,7 +3312,7 @@ TEST_P(RTCStatsCollectorTestWithParamKind,
     ASSERT_TRUE(report->Get(*expected_remote_inbound_rtp.local_id));
     // Lookup works in both directions.
     EXPECT_EQ(*report->Get(*expected_remote_inbound_rtp.local_id)
-                   ->cast_to<RTCOutboundRTPStreamStats>()
+                   ->cast_to<RTCOutboundRtpStreamStats>()
                    .remote_id,
               expected_remote_inbound_rtp.id());
   }
@@ -3659,14 +3320,14 @@ TEST_P(RTCStatsCollectorTestWithParamKind,
 
 TEST_P(RTCStatsCollectorTestWithParamKind,
        RTCRemoteInboundRtpStreamStatsRttMissingBeforeMeasurement) {
-  constexpr int64_t kReportBlockTimestampUtcUs = 123456789;
+  constexpr Timestamp kReportBlockTimestampUtc = Timestamp::Micros(123456789);
 
-  RTCPReportBlock report_block;
+  rtcp::ReportBlock report_block;
   // The remote-inbound-rtp SSRC and the outbound-rtp SSRC is the same as the
   // `source_ssrc`, "SSRC of the RTP packet sender".
-  report_block.source_ssrc = 12;
+  report_block.SetMediaSsrc(12);
   ReportBlockData report_block_data;  // AddRoundTripTimeSample() not called.
-  report_block_data.SetReportBlock(report_block, kReportBlockTimestampUtcUs);
+  report_block_data.SetReportBlock(0, report_block, kReportBlockTimestampUtc);
 
   AddSenderInfoAndMediaChannel("TransportName", {report_block_data},
                                absl::nullopt);
@@ -3685,15 +3346,15 @@ TEST_P(RTCStatsCollectorTestWithParamKind,
 
 TEST_P(RTCStatsCollectorTestWithParamKind,
        RTCRemoteInboundRtpStreamStatsWithTimestampFromReportBlock) {
-  const int64_t kReportBlockTimestampUtcUs = 123456789;
-  fake_clock_.SetTime(Timestamp::Micros(kReportBlockTimestampUtcUs));
+  const Timestamp kReportBlockTimestampUtc = Timestamp::Micros(123456789);
+  fake_clock_.SetTime(kReportBlockTimestampUtc);
 
-  RTCPReportBlock report_block;
+  rtcp::ReportBlock report_block;
   // The remote-inbound-rtp SSRC and the outbound-rtp SSRC is the same as the
   // `source_ssrc`, "SSRC of the RTP packet sender".
-  report_block.source_ssrc = 12;
+  report_block.SetMediaSsrc(12);
   ReportBlockData report_block_data;
-  report_block_data.SetReportBlock(report_block, kReportBlockTimestampUtcUs);
+  report_block_data.SetReportBlock(0, report_block, kReportBlockTimestampUtc);
 
   AddSenderInfoAndMediaChannel("TransportName", {report_block_data},
                                absl::nullopt);
@@ -3710,24 +3371,23 @@ TEST_P(RTCStatsCollectorTestWithParamKind,
 
   // Even though the report time is different, the remote-inbound-rtp timestamp
   // is of the time that the report block was received.
-  EXPECT_EQ(Timestamp::Micros(kReportBlockTimestampUtcUs + 1234),
-            report->timestamp());
-  EXPECT_EQ(Timestamp::Micros(kReportBlockTimestampUtcUs),
-            remote_inbound_rtp.timestamp());
+  EXPECT_EQ(report->timestamp(),
+            kReportBlockTimestampUtc + TimeDelta::Micros(1234));
+  EXPECT_EQ(remote_inbound_rtp.timestamp(), kReportBlockTimestampUtc);
 }
 
 TEST_P(RTCStatsCollectorTestWithParamKind,
        RTCRemoteInboundRtpStreamStatsWithCodecBasedMembers) {
-  const int64_t kReportBlockTimestampUtcUs = 123456789;
-  fake_clock_.SetTime(Timestamp::Micros(kReportBlockTimestampUtcUs));
+  const Timestamp kReportBlockTimestampUtc = Timestamp::Micros(123456789);
+  fake_clock_.SetTime(kReportBlockTimestampUtc);
 
-  RTCPReportBlock report_block;
+  rtcp::ReportBlock report_block;
   // The remote-inbound-rtp SSRC and the outbound-rtp SSRC is the same as the
   // `source_ssrc`, "SSRC of the RTP packet sender".
-  report_block.source_ssrc = 12;
-  report_block.jitter = 5000;
+  report_block.SetMediaSsrc(12);
+  report_block.SetJitter(5000);
   ReportBlockData report_block_data;
-  report_block_data.SetReportBlock(report_block, kReportBlockTimestampUtcUs);
+  report_block_data.SetReportBlock(0, report_block, kReportBlockTimestampUtc);
 
   RtpCodecParameters codec;
   codec.payload_type = 3;
@@ -3754,15 +3414,15 @@ TEST_P(RTCStatsCollectorTestWithParamKind,
 
 TEST_P(RTCStatsCollectorTestWithParamKind,
        RTCRemoteInboundRtpStreamStatsWithRtcpTransport) {
-  const int64_t kReportBlockTimestampUtcUs = 123456789;
-  fake_clock_.SetTime(Timestamp::Micros(kReportBlockTimestampUtcUs));
+  const Timestamp kReportBlockTimestampUtc = Timestamp::Micros(123456789);
+  fake_clock_.SetTime(kReportBlockTimestampUtc);
 
-  RTCPReportBlock report_block;
+  rtcp::ReportBlock report_block;
   // The remote-inbound-rtp SSRC and the outbound-rtp SSRC is the same as the
   // `source_ssrc`, "SSRC of the RTP packet sender".
-  report_block.source_ssrc = 12;
+  report_block.SetMediaSsrc(12);
   ReportBlockData report_block_data;
-  report_block_data.SetReportBlock(report_block, kReportBlockTimestampUtcUs);
+  report_block_data.SetReportBlock(0, report_block, kReportBlockTimestampUtc);
 
   cricket::TransportChannelStats rtp_transport_channel_stats;
   rtp_transport_channel_stats.component = cricket::ICE_CANDIDATE_COMPONENT_RTP;
@@ -3878,24 +3538,6 @@ TEST_F(RTCStatsCollectorTest, CollectEchoReturnLossFromTrackAudioProcessor) {
 
   rtc::scoped_refptr<const RTCStatsReport> report = stats_->GetStatsReport();
 
-  DEPRECATED_RTCMediaStreamTrackStats expected_local_audio_track_ssrc1(
-      IdForType<DEPRECATED_RTCMediaStreamTrackStats>(report.get()),
-      report->timestamp(), RTCMediaStreamTrackKind::kAudio);
-  expected_local_audio_track_ssrc1.track_identifier = local_audio_track->id();
-  expected_local_audio_track_ssrc1.media_source_id =
-      "SA11";  // Attachment ID = SSRC + 10
-  expected_local_audio_track_ssrc1.remote_source = false;
-  expected_local_audio_track_ssrc1.ended = true;
-  expected_local_audio_track_ssrc1.detached = false;
-  expected_local_audio_track_ssrc1.echo_return_loss = 2.0;
-  expected_local_audio_track_ssrc1.echo_return_loss_enhancement = 3.0;
-  ASSERT_TRUE(report->Get(expected_local_audio_track_ssrc1.id()))
-      << "Did not find " << expected_local_audio_track_ssrc1.id() << " in "
-      << report->ToJson();
-  EXPECT_EQ(expected_local_audio_track_ssrc1,
-            report->Get(expected_local_audio_track_ssrc1.id())
-                ->cast_to<DEPRECATED_RTCMediaStreamTrackStats>());
-
   RTCAudioSourceStats expected_audio("SA11", report->timestamp());
   expected_audio.track_identifier = "LocalAudioTrackID";
   expected_audio.kind = "audio";
@@ -3914,28 +3556,23 @@ TEST_F(RTCStatsCollectorTest, GetStatsWithSenderSelector) {
   ExampleStatsGraph graph = SetupExampleStatsGraphForSelectorTests();
   // Expected stats graph when filtered by sender:
   //
-  //  +--- track (sender)
-  //  |             ^
-  //  |             |
-  //  | +--------- outbound-rtp
-  //  | |           |        |
-  //  | |           v        v
-  //  | |  codec (send)     transport
-  //  v v
   //  media-source
+  //    ^
+  //    |
+  //    +--------- outbound-rtp
+  //                |        |
+  //                v        v
+  //       codec (send)     transport
   rtc::scoped_refptr<const RTCStatsReport> sender_report =
       stats_->GetStatsReportWithSenderSelector(graph.sender);
   EXPECT_TRUE(sender_report);
   EXPECT_EQ(sender_report->timestamp(), graph.full_report->timestamp());
-  EXPECT_EQ(sender_report->size(), 5u);
+  EXPECT_EQ(sender_report->size(), 4u);
   EXPECT_TRUE(sender_report->Get(graph.send_codec_id));
   EXPECT_FALSE(sender_report->Get(graph.recv_codec_id));
   EXPECT_TRUE(sender_report->Get(graph.outbound_rtp_id));
   EXPECT_FALSE(sender_report->Get(graph.inbound_rtp_id));
   EXPECT_TRUE(sender_report->Get(graph.transport_id));
-  EXPECT_TRUE(sender_report->Get(graph.sender_track_id));
-  EXPECT_FALSE(sender_report->Get(graph.receiver_track_id));
-  EXPECT_FALSE(sender_report->Get(graph.remote_stream_id));
   EXPECT_FALSE(sender_report->Get(graph.peer_connection_id));
   EXPECT_TRUE(sender_report->Get(graph.media_source_id));
 }
@@ -3944,26 +3581,22 @@ TEST_F(RTCStatsCollectorTest, GetStatsWithReceiverSelector) {
   ExampleStatsGraph graph = SetupExampleStatsGraphForSelectorTests();
   // Expected stats graph when filtered by receiver:
   //
-  //                                                       track (receiver)
-  //                                                         ^
-  //                                                         |
-  //                              inbound-rtp ---------------+
+  //
+  //
+  //                              inbound-rtp
   //                               |       |
   //                               v       v
   //                        transport     codec (recv)
   rtc::scoped_refptr<const RTCStatsReport> receiver_report =
       stats_->GetStatsReportWithReceiverSelector(graph.receiver);
   EXPECT_TRUE(receiver_report);
-  EXPECT_EQ(receiver_report->size(), 4u);
+  EXPECT_EQ(receiver_report->size(), 3u);
   EXPECT_EQ(receiver_report->timestamp(), graph.full_report->timestamp());
   EXPECT_FALSE(receiver_report->Get(graph.send_codec_id));
   EXPECT_TRUE(receiver_report->Get(graph.recv_codec_id));
   EXPECT_FALSE(receiver_report->Get(graph.outbound_rtp_id));
   EXPECT_TRUE(receiver_report->Get(graph.inbound_rtp_id));
   EXPECT_TRUE(receiver_report->Get(graph.transport_id));
-  EXPECT_FALSE(receiver_report->Get(graph.sender_track_id));
-  EXPECT_TRUE(receiver_report->Get(graph.receiver_track_id));
-  EXPECT_FALSE(receiver_report->Get(graph.remote_stream_id));
   EXPECT_FALSE(receiver_report->Get(graph.peer_connection_id));
   EXPECT_FALSE(receiver_report->Get(graph.media_source_id));
 }
@@ -3999,9 +3632,7 @@ TEST_F(RTCStatsCollectorTest, RtpIsMissingWhileSsrcIsZero) {
 
   rtc::scoped_refptr<const RTCStatsReport> report = stats_->GetStatsReport();
 
-  auto tracks = report->GetStatsOfType<DEPRECATED_RTCMediaStreamTrackStats>();
-  EXPECT_EQ(1U, tracks.size());
-  auto outbound_rtps = report->GetStatsOfType<RTCOutboundRTPStreamStats>();
+  auto outbound_rtps = report->GetStatsOfType<RTCOutboundRtpStreamStats>();
   EXPECT_TRUE(outbound_rtps.empty());
 }
 
@@ -4019,10 +3650,7 @@ TEST_F(RTCStatsCollectorTest, DoNotCrashIfSsrcIsKnownButInfosAreStillMissing) {
   // We do not generate any matching voice_sender_info stats.
   rtc::scoped_refptr<const RTCStatsReport> report = stats_->GetStatsReport();
 
-  std::vector<const DEPRECATED_RTCMediaStreamTrackStats*> track_stats =
-      report->GetStatsOfType<DEPRECATED_RTCMediaStreamTrackStats>();
-  EXPECT_EQ(1U, track_stats.size());
-  auto outbound_rtps = report->GetStatsOfType<RTCOutboundRTPStreamStats>();
+  auto outbound_rtps = report->GetStatsOfType<RTCOutboundRtpStreamStats>();
   EXPECT_TRUE(outbound_rtps.empty());
 }
 

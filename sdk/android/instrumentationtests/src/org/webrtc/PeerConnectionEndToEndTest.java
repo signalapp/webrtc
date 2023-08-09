@@ -17,8 +17,8 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import android.support.test.InstrumentationRegistry;
 import androidx.annotation.Nullable;
+import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.MediumTest;
 import androidx.test.filters.SmallTest;
 import java.lang.ref.WeakReference;
@@ -582,7 +582,7 @@ public class PeerConnectionEndToEndTest {
     }
   }
 
-  private static class SdpObserverLatch implements SdpObserver {
+  static class SdpObserverLatch implements SdpObserver {
     private boolean success;
     private @Nullable SessionDescription sdp;
     private @Nullable String error;

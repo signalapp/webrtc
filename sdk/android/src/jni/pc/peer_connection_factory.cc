@@ -40,8 +40,10 @@
 #include "sdk/android/src/jni/pc/android_network_monitor.h"
 #include "sdk/android/src/jni/pc/audio.h"
 #include "sdk/android/src/jni/pc/ice_candidate.h"
+#include "sdk/android/src/jni/pc/media_stream_track.h"
 #include "sdk/android/src/jni/pc/owned_factory_and_threads.h"
 #include "sdk/android/src/jni/pc/peer_connection.h"
+#include "sdk/android/src/jni/pc/rtp_capabilities.h"
 #include "sdk/android/src/jni/pc/ssl_certificate_verifier_wrapper.h"
 #include "sdk/android/src/jni/pc/video.h"
 #include "system_wrappers/include/field_trial.h"
@@ -350,8 +352,7 @@ JNI_PeerConnectionFactory_CreatePeerConnectionFactory(
       TakeOwnershipOfUniquePtr<NetEqFactory>(native_neteq_factory));
 }
 
-static void JNI_PeerConnectionFactory_FreeFactory(JNIEnv*,
-                                                  jlong j_p) {
+static void JNI_PeerConnectionFactory_FreeFactory(JNIEnv*, jlong j_p) {
   delete reinterpret_cast<OwnedFactoryAndThreads*>(j_p);
   // RingRTC change to allow field trials to be initialized once.
   // field_trial::InitFieldTrialsFromString(nullptr);
@@ -393,6 +394,27 @@ jlong JNI_PeerConnectionFactory_CreateAudioTrack(
               JavaToStdString(jni, id),
               reinterpret_cast<AudioSourceInterface*>(native_source)));
   return jlongFromPointer(track.release());
+}
+
+ScopedJavaLocalRef<jobject> JNI_PeerConnectionFactory_GetRtpSenderCapabilities(
+    JNIEnv* jni,
+    jlong native_factory,
+    const JavaParamRef<jobject>& media_type) {
+  auto factory = PeerConnectionFactoryFromJava(native_factory);
+  return NativeToJavaRtpCapabilities(
+      jni, factory->GetRtpSenderCapabilities(
+               JavaToNativeMediaType(jni, media_type)));
+}
+
+ScopedJavaLocalRef<jobject>
+JNI_PeerConnectionFactory_GetRtpReceiverCapabilities(
+    JNIEnv* jni,
+    jlong native_factory,
+    const JavaParamRef<jobject>& media_type) {
+  auto factory = PeerConnectionFactoryFromJava(native_factory);
+  return NativeToJavaRtpCapabilities(
+      jni, factory->GetRtpReceiverCapabilities(
+               JavaToNativeMediaType(jni, media_type)));
 }
 
 static jboolean JNI_PeerConnectionFactory_StartAecDump(
@@ -488,8 +510,9 @@ static jlong JNI_PeerConnectionFactory_CreateVideoTrack(
   rtc::scoped_refptr<VideoTrackInterface> track =
       PeerConnectionFactoryFromJava(native_factory)
           ->CreateVideoTrack(
-              JavaToStdString(jni, id),
-              reinterpret_cast<VideoTrackSourceInterface*>(native_source));
+              rtc::scoped_refptr<VideoTrackSourceInterface>(
+                  reinterpret_cast<VideoTrackSourceInterface*>(native_source)),
+              JavaToStdString(jni, id));
   return jlongFromPointer(track.release());
 }
 

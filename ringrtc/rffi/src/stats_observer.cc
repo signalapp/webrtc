@@ -30,8 +30,8 @@ void StatsObserverRffi::OnStatsDelivered(const rtc::scoped_refptr<const RTCStats
   this->audio_receiver_statistics_.clear();
   this->video_receiver_statistics_.clear();
 
-  auto outbound_stream_stats = report->GetStatsOfType<RTCOutboundRTPStreamStats>();
-  auto inbound_stream_stats = report->GetStatsOfType<RTCInboundRTPStreamStats>();
+  auto outbound_stream_stats = report->GetStatsOfType<RTCOutboundRtpStreamStats>();
+  auto inbound_stream_stats = report->GetStatsOfType<RTCInboundRtpStreamStats>();
   auto candidate_pair_stats = report->GetStatsOfType<RTCIceCandidatePairStats>();
 
   for (const auto& stat : outbound_stream_stats) {
