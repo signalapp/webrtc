@@ -90,6 +90,7 @@ if (is_linux || is_mac || is_win) {
 
     deps = [
       "//sdk:media_constraints",
+      "//media:rtc_simulcast_encoder_adapter",
     ]
   }
 }
