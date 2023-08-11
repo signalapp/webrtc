@@ -20,6 +20,7 @@
 #include <utility>
 
 #include "absl/algorithm/container.h"
+#include "absl/functional/bind_front.h" // RingRTC change to get current bandwidth estimate
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
@@ -676,6 +677,13 @@ RTCError PeerConnection::Initialize(
   // Record the number of configured ICE servers for all connections.
   RTC_HISTOGRAM_COUNTS_LINEAR("WebRTC.PeerConnection.IceServers.Configured",
                               configuration_.servers.size(), 0, 31, 32);
+
+  // RingRTC change to get current bandwidth estimate
+  worker_thread()->BlockingCall(
+      [this]() {
+        RTC_DCHECK_RUN_ON(worker_thread());
+        call_->SetOnBandwidthEstimateChangedCallback(absl::bind_front(&PeerConnection::OnBandwidthEstimateChanged, this));
+      });
 
   return RTCError::OK();
 }
@@ -2966,6 +2974,20 @@ void PeerConnection::RequestUsagePatternReportForTesting() {
         ReportUsagePattern();
       },
       /* delay_ms= */ 0);
+}
+
+// RingRTC change to get current bandwidth estimate
+void PeerConnection::OnBandwidthEstimateChanged(uint32_t bitrate_bps) {
+  signaling_thread()->PostTask(
+      SafeTask(signaling_thread_safety_.flag(),
+               [this, bitrate_bps] {
+                 RTC_DCHECK_RUN_ON(signaling_thread());
+
+                 auto observer = Observer();
+                 if (observer != nullptr) {
+                   Observer()->OnBandwidthEstimateChanged(bitrate_bps);
+                 }
+               }));
 }
 
 std::function<void(const rtc::CopyOnWriteBuffer& packet,

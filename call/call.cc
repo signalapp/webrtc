@@ -267,6 +267,9 @@ class Call final : public webrtc::Call,
 
   void SetClientBitratePreferences(const BitrateSettings& preferences) override;
 
+  // RingRTC change to get current bandwidth estimate
+  void SetOnBandwidthEstimateChangedCallback(OnBandwidthEstimateChangedCallback callback) override;
+
  private:
   // Thread-compatible class that collects received packet stats and exposes
   // them as UMA histograms on destruction.
@@ -428,6 +431,9 @@ class Call final : public webrtc::Call,
   // atomic avoids a PostTask. The variables are used for stats gathering.
   std::atomic<uint32_t> last_bandwidth_bps_{0};
   std::atomic<uint32_t> configured_max_padding_bitrate_bps_{0};
+
+  // RingRTC change to get current bandwidth estimate
+  OnBandwidthEstimateChangedCallback on_bandwidth_estimate_changed_callback;
 
   ReceiveSideCongestionController receive_side_cc_;
   RepeatingTaskHandle receive_side_cc_periodic_task_;
@@ -754,6 +760,11 @@ void Call::EnsureStarted() {
 void Call::SetClientBitratePreferences(const BitrateSettings& preferences) {
   RTC_DCHECK_RUN_ON(worker_thread_);
   GetTransportControllerSend()->SetClientBitratePreferences(preferences);
+}
+
+// RingRTC change to get current bandwidth estimate
+void Call::SetOnBandwidthEstimateChangedCallback(OnBandwidthEstimateChangedCallback callback) {
+  on_bandwidth_estimate_changed_callback = callback;
 }
 
 PacketReceiver* Call::Receiver() {
@@ -1303,6 +1314,11 @@ void Call::OnTargetTransferRate(TargetTransferRate msg) {
   bitrate_allocator_->OnNetworkEstimateChanged(msg);
 
   last_bandwidth_bps_.store(target_bitrate_bps, std::memory_order_relaxed);
+
+  // RingRTC change to get current bandwidth estimate
+  if (on_bandwidth_estimate_changed_callback) {
+    on_bandwidth_estimate_changed_callback(target_bitrate_bps);
+  }
 
   // Ignore updates if bitrate is zero (the aggregate network state is
   // down) or if we're not sending video.

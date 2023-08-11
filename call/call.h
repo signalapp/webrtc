@@ -47,6 +47,8 @@ namespace webrtc {
 class Call {
  public:
   using Config = CallConfig;
+  // RingRTC change to get current bandwidth estimate
+  using OnBandwidthEstimateChangedCallback = std::function<void(uint32_t)>;
 
   struct Stats {
     std::string ToString(int64_t time_ms) const;
@@ -142,6 +144,9 @@ class Call {
 
   virtual void SetClientBitratePreferences(
       const BitrateSettings& preferences) = 0;
+
+  // RingRTC change to get current bandwidth estimate
+  virtual void SetOnBandwidthEstimateChangedCallback(OnBandwidthEstimateChangedCallback callback) {}
 
   virtual const FieldTrialsView& trials() const = 0;
 

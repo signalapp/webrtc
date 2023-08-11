@@ -1408,7 +1408,11 @@ class PeerConnectionObserver : public RtpPacketSinkInterface {
   // implementation-defined.
   virtual void OnInterestingUsage(int usage_pattern) {}
 
+  // RingRTC change to allow sending / receiving RTP through PeerConnection
   void OnRtpPacket(const RtpPacketReceived& rtp_packet) override {}
+
+  // RingRTC change to get current bandwidth estimate
+  virtual void OnBandwidthEstimateChanged(uint32_t bitrate_bps) {}
 };
 
 // PeerConnectionDependencies holds all of PeerConnections dependencies.

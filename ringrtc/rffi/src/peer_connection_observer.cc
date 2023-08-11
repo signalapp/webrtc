@@ -142,6 +142,10 @@ void PeerConnectionObserverRffi::OnRtpPacket(const RtpPacketReceived& rtp_packet
   callbacks_.onRtpReceived(observer_, pt, seqnum, timestamp, ssrc, payload_data, payload_size);
 }
 
+void PeerConnectionObserverRffi::OnBandwidthEstimateChanged(uint32_t bitrate_bps) {
+  callbacks_.onBandwidthEstimateChanged(observer_, bitrate_bps);
+}
+
 void PeerConnectionObserverRffi::OnRenegotiationNeeded() {
   RTC_LOG(LS_INFO) << "OnRenegotiationNeeded()";
 }

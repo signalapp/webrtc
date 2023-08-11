@@ -58,6 +58,9 @@ typedef struct {
   bool (*encryptMedia)(void* observer_borrowed, bool, const uint8_t* plaintext_borrowed, size_t, uint8_t* ciphertext_out, size_t, size_t* ciphertext_size_out);
   size_t (*getMediaPlaintextBufferSize)(void* observer_borrowed, uint32_t, bool, size_t);
   bool (*decryptMedia)(void* observer_borrowed, uint32_t, bool, const uint8_t* ciphertext_borrowed, size_t, uint8_t* plaintext_out, size_t, size_t* plaintext_size_out);
+
+  // Network events
+  void (*onBandwidthEstimateChanged)(void* observer_borrowed, uint32_t bitrate_bps);
 } PeerConnectionObserverCallbacks;
 
 // Passed-in observer must live at least as long as the PeerConnectionObserverRffi,
