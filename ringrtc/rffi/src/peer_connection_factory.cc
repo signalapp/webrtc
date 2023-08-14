@@ -9,12 +9,8 @@
 #include "api/rtc_event_log/rtc_event_log_factory.h"
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
-#include "api/video_codecs/video_decoder_factory_template.h"
-#include "api/video_codecs/video_decoder_factory_template_libvpx_vp8_adapter.h"
-#include "api/video_codecs/video_decoder_factory_template_libvpx_vp9_adapter.h"
-#include "api/video_codecs/video_encoder_factory_template.h"
-#include "api/video_codecs/video_encoder_factory_template_libvpx_vp8_adapter.h"
-#include "api/video_codecs/video_encoder_factory_template_libvpx_vp9_adapter.h"
+#include "api/video_codecs/builtin_video_decoder_factory.h"
+#include "api/video_codecs/builtin_video_encoder_factory.h"
 #include "media/engine/webrtc_media_engine.h"
 #include "modules/audio_mixer/audio_mixer_impl.h"
 #include "modules/audio_device/dummy/file_audio_device_factory.h"
@@ -128,12 +124,8 @@ class PeerConnectionFactoryWithOwnedThreads
       .Create();
 
     media_dependencies.audio_mixer = AudioMixerImpl::Create();
-    media_dependencies.video_encoder_factory =
-        std::make_unique<VideoEncoderFactoryTemplate<
-            LibvpxVp8EncoderTemplateAdapter, LibvpxVp9EncoderTemplateAdapter>>();
-    media_dependencies.video_decoder_factory =
-        std::make_unique<VideoDecoderFactoryTemplate<
-            LibvpxVp8DecoderTemplateAdapter, LibvpxVp9DecoderTemplateAdapter>>();
+    media_dependencies.video_encoder_factory = CreateBuiltinVideoEncoderFactory();
+    media_dependencies.video_decoder_factory = CreateBuiltinVideoDecoderFactory();
     dependencies.media_engine = cricket::CreateMediaEngine(std::move(media_dependencies));
 
     auto factory = CreateModularPeerConnectionFactory(std::move(dependencies));

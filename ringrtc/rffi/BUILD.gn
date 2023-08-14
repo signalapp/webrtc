@@ -88,8 +88,12 @@ if (is_linux || is_mac || is_win) {
 
     configs += [ ":ringrtc_rffi_config" ]
 
+    allow_poison = [ "software_video_codecs" ]
+
     deps = [
       "//sdk:media_constraints",
+      "//api/video_codecs:builtin_video_decoder_factory",
+      "//api/video_codecs:builtin_video_encoder_factory",
     ]
   }
 }

@@ -323,9 +323,7 @@ Rust_sessionDescriptionFromV4(bool offer,
     if (rffi_codec.type == kRffiVideoCodecVp9) {
       if (enable_vp9) {
         auto vp9 = cricket::CreateVideoCodec(VP9_PT, cricket::kVp9CodecName);
-        vp9.params[kVP9FmtpProfileId] = VP9ProfileToString(VP9Profile::kProfile0);
         auto vp9_rtx = cricket::CreateVideoRtxCodec(VP9_RTX_PT, VP9_PT);
-        vp9_rtx.params[kVP9FmtpProfileId] = VP9ProfileToString(VP9Profile::kProfile0);
         add_video_feedback_params(&vp9);
 
         video->AddCodec(vp9);
