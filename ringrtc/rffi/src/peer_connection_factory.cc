@@ -15,6 +15,7 @@
 #include "api/video_codecs/video_encoder_factory_template.h"
 #include "api/video_codecs/video_encoder_factory_template_libvpx_vp8_adapter.h"
 #include "api/video_codecs/video_encoder_factory_template_libvpx_vp9_adapter.h"
+#include "media/engine/simulcast_encoder_adapter.h"
 #include "media/engine/webrtc_media_engine.h"
 #include "modules/audio_mixer/audio_mixer_impl.h"
 #include "modules/audio_device/dummy/file_audio_device_factory.h"
@@ -30,10 +31,6 @@
 #include "rtc_base/log_sinks.h"
 #include "rtc_base/message_digest.h"
 
-#if defined(WEBRTC_ANDROID)
-#include "sdk/android/src/jni/pc/android_network_monitor.h"
-#endif
-
 #if defined(WEBRTC_WIN)
 #include "modules/audio_device/win/core_audio_utility_win.h"
 #include "modules/audio_device/include/audio_device_factory.h"
@@ -42,6 +39,49 @@
 
 namespace webrtc {
 namespace rffi {
+
+#if !defined(WEBRTC_IOS) && !defined(WEBRTC_ANDROID)
+// This class adds simulcast support to the base factory and is modeled using
+// the same business logic found in BuiltinVideoEncoderFactory and
+// InternalEncoderFactory.
+class RingRTCVideoEncoderFactory : public VideoEncoderFactory {
+ public:
+  std::vector<SdpVideoFormat> GetSupportedFormats() const override {
+    return factory_.GetSupportedFormats();
+  }
+
+  std::unique_ptr<VideoEncoder> CreateVideoEncoder(
+      const SdpVideoFormat& format) override {
+    if (format.IsCodecInList(
+        factory_.GetSupportedFormats())) {
+      if (absl::optional<SdpVideoFormat> original_format =
+              FuzzyMatchSdpVideoFormat(factory_.GetSupportedFormats(),
+                                       format)) {
+        // Create a simulcast enabled encoder
+        // The adapter has a passthrough mode for the case that simulcast is not
+        // used, so all responsibility can be delegated to it.
+        return std::make_unique<SimulcastEncoderAdapter>(
+            &factory_, *original_format);
+      }
+    }
+    return nullptr;
+  }
+
+  CodecSupport QueryCodecSupport(
+      const SdpVideoFormat& format,
+      absl::optional<std::string> scalability_mode) const override {
+    auto original_format =
+        FuzzyMatchSdpVideoFormat(factory_.GetSupportedFormats(), format);
+    return original_format
+           ? factory_.QueryCodecSupport(*original_format, scalability_mode)
+           : VideoEncoderFactory::CodecSupport{.is_supported = false};
+  }
+
+ private:
+  VideoEncoderFactoryTemplate<LibvpxVp8EncoderTemplateAdapter,
+  LibvpxVp9EncoderTemplateAdapter>
+      factory_;
+};
 
 class PeerConnectionFactoryWithOwnedThreads
     : public PeerConnectionFactoryOwner {
@@ -80,9 +120,6 @@ class PeerConnectionFactoryWithOwnedThreads
     dependencies.task_queue_factory = CreateDefaultTaskQueueFactory();
     dependencies.call_factory = CreateCallFactory();
     dependencies.event_log_factory = std::make_unique<RtcEventLogFactory>(dependencies.task_queue_factory.get());
-#if defined(WEBRTC_ANDROID)
-    dependencies.network_monitor_factory = std::make_unique<jni::AndroidNetworkMonitorFactory>();
-#endif
     cricket::MediaEngineDependencies media_dependencies;
     media_dependencies.task_queue_factory = dependencies.task_queue_factory.get();
 
@@ -129,8 +166,7 @@ class PeerConnectionFactoryWithOwnedThreads
 
     media_dependencies.audio_mixer = AudioMixerImpl::Create();
     media_dependencies.video_encoder_factory =
-        std::make_unique<VideoEncoderFactoryTemplate<
-            LibvpxVp8EncoderTemplateAdapter, LibvpxVp9EncoderTemplateAdapter>>();
+        std::make_unique<RingRTCVideoEncoderFactory>();
     media_dependencies.video_decoder_factory =
         std::make_unique<VideoDecoderFactoryTemplate<
             LibvpxVp8DecoderTemplateAdapter, LibvpxVp9DecoderTemplateAdapter>>();
@@ -286,15 +322,20 @@ class PeerConnectionFactoryWithOwnedThreads
   webrtc::AudioDeviceModule* audio_device_module_;
   const rtc::scoped_refptr<PeerConnectionFactoryInterface> factory_;
 };
+#endif // !defined(WEBRTC_IOS) && !defined(WEBRTC_ANDROID)
 
 // Returns an owned RC.
 RUSTEXPORT PeerConnectionFactoryOwner* Rust_createPeerConnectionFactory(
     RffiAudioConfig audio_config,
     bool use_injectable_network) {
+#if !defined(WEBRTC_IOS) && !defined(WEBRTC_ANDROID)
   auto factory_owner = PeerConnectionFactoryWithOwnedThreads::Create(
     audio_config,
     use_injectable_network);
   return take_rc(std::move(factory_owner));
+#else
+  return nullptr;
+#endif
 }
 
 // Returns an owned RC.
