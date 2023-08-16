@@ -76,6 +76,7 @@ if (is_ios) {
 
     deps = [
       "//third_party/libyuv",
+      "//media:rtc_simulcast_encoder_adapter",
     ]
   }
 }
