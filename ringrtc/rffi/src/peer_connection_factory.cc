@@ -47,7 +47,7 @@ namespace rffi {
 // This class adds simulcast support to the base factory and is modeled using
 // the same business logic found in BuiltinVideoEncoderFactory and
 // InternalEncoderFactory.
-class SimulcastVideoEncoderFactory : public VideoEncoderFactory {
+class RingRTCVideoEncoderFactory : public VideoEncoderFactory {
  public:
   std::vector<SdpVideoFormat> GetSupportedFormats() const override {
     return factory_.GetSupportedFormats();
@@ -60,7 +60,9 @@ class SimulcastVideoEncoderFactory : public VideoEncoderFactory {
       if (absl::optional<SdpVideoFormat> original_format =
               FuzzyMatchSdpVideoFormat(factory_.GetSupportedFormats(),
                                        format)) {
-        // Create simulcast encoder
+        // Create a simulcast enabled encoder
+        // The adapter has a passthrough mode for the case that simulcast is not
+        // used, so all responsibility can be delegated to it.
         return std::make_unique<SimulcastEncoderAdapter>(
             &factory_, *original_format);
       }
@@ -170,7 +172,7 @@ class PeerConnectionFactoryWithOwnedThreads
 
     media_dependencies.audio_mixer = AudioMixerImpl::Create();
     media_dependencies.video_encoder_factory =
-        std::make_unique<SimulcastVideoEncoderFactory>();
+        std::make_unique<RingRTCVideoEncoderFactory>();
     media_dependencies.video_decoder_factory =
         std::make_unique<VideoDecoderFactoryTemplate<
             LibvpxVp8DecoderTemplateAdapter, LibvpxVp9DecoderTemplateAdapter>>();
