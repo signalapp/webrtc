@@ -31,10 +31,6 @@
 #include "rtc_base/log_sinks.h"
 #include "rtc_base/message_digest.h"
 
-#if defined(WEBRTC_ANDROID)
-#include "sdk/android/src/jni/pc/android_network_monitor.h"
-#endif
-
 #if defined(WEBRTC_WIN)
 #include "modules/audio_device/win/core_audio_utility_win.h"
 #include "modules/audio_device/include/audio_device_factory.h"
@@ -44,6 +40,7 @@
 namespace webrtc {
 namespace rffi {
 
+#if !defined(WEBRTC_IOS) && !defined(WEBRTC_ANDROID)
 // This class adds simulcast support to the base factory and is modeled using
 // the same business logic found in BuiltinVideoEncoderFactory and
 // InternalEncoderFactory.
@@ -123,9 +120,6 @@ class PeerConnectionFactoryWithOwnedThreads
     dependencies.task_queue_factory = CreateDefaultTaskQueueFactory();
     dependencies.call_factory = CreateCallFactory();
     dependencies.event_log_factory = std::make_unique<RtcEventLogFactory>(dependencies.task_queue_factory.get());
-#if defined(WEBRTC_ANDROID)
-    dependencies.network_monitor_factory = std::make_unique<jni::AndroidNetworkMonitorFactory>();
-#endif
     cricket::MediaEngineDependencies media_dependencies;
     media_dependencies.task_queue_factory = dependencies.task_queue_factory.get();
 
@@ -328,15 +322,20 @@ class PeerConnectionFactoryWithOwnedThreads
   webrtc::AudioDeviceModule* audio_device_module_;
   const rtc::scoped_refptr<PeerConnectionFactoryInterface> factory_;
 };
+#endif // !defined(WEBRTC_IOS) && !defined(WEBRTC_ANDROID)
 
 // Returns an owned RC.
 RUSTEXPORT PeerConnectionFactoryOwner* Rust_createPeerConnectionFactory(
     RffiAudioConfig audio_config,
     bool use_injectable_network) {
+#if !defined(WEBRTC_IOS) && !defined(WEBRTC_ANDROID)
   auto factory_owner = PeerConnectionFactoryWithOwnedThreads::Create(
     audio_config,
     use_injectable_network);
   return take_rc(std::move(factory_owner));
+#else
+  return nullptr;
+#endif
 }
 
 // Returns an owned RC.
