@@ -229,6 +229,9 @@ class Call final : public webrtc::Call,
 
   Stats GetStats() const override;
 
+  // RingRTC change to get upload bandwidth estimate
+  uint32_t GetLastBandwidthEstimateBps() const override;
+
   const FieldTrialsView& trials() const override;
 
   TaskQueueBase* network_thread() const override;
@@ -1142,6 +1145,11 @@ Call::Stats Call::GetStats() const {
       configured_max_padding_bitrate_bps_.load(std::memory_order_relaxed);
 
   return stats;
+}
+
+// RingRTC change to get upload bandwidth estimate
+uint32_t Call::GetLastBandwidthEstimateBps() const {
+  return last_bandwidth_bps_.load(std::memory_order_relaxed);
 }
 
 const FieldTrialsView& Call::trials() const {

@@ -1185,6 +1185,9 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
       size_t received_out_size,
       size_t* received_size_out);
 
+  // RingRTC change to get upload bandwidth estimate
+  virtual uint32_t GetLastBandwidthEstimateBps() = 0;
+
   // SetBitrate limits the bandwidth allocated for all RTP streams sent by
   // this PeerConnection. Other limitations might affect these limits and
   // are respected (for example "b=AS" in SDP).

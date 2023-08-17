@@ -252,6 +252,9 @@ class PeerConnection : public PeerConnectionInternal,
       size_t received_out_size,
       size_t* received_size_out) override;
 
+  // RingRTC change to get upload bandwidth estimate
+  uint32_t GetLastBandwidthEstimateBps() override;
+
   RTCError SetBitrate(const BitrateSettings& bitrate) override;
 
   void SetAudioPlayout(bool playout) override;

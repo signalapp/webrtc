@@ -879,6 +879,12 @@ Rust_getAudioLevels(webrtc::PeerConnectionInterface* peer_connection_borrowed_rc
   peer_connection_borrowed_rc->GetAudioLevels(captured_out, received_out, received_out_size, received_size_out);
 }
 
+RUSTEXPORT uint32_t
+Rust_getLastBandwidthEstimateBps(webrtc::PeerConnectionInterface* peer_connection_borrowed_rc) {
+  RTC_LOG(LS_VERBOSE) << "Rust_getLastBandwidthEstimateBps(...)";
+  return peer_connection_borrowed_rc->GetLastBandwidthEstimateBps();
+}
+
 RUSTEXPORT void
 Rust_closePeerConnection(PeerConnectionInterface* peer_connection_borrowed_rc) {
     peer_connection_borrowed_rc->Close();
