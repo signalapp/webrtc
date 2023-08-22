@@ -494,9 +494,9 @@ CreateSessionDescriptionForGroupCall(bool local,
   // These are the current defaults for WebRTC
   // We set them explicitly to avoid having the defaults change on us.
   opus.SetParam("stereo", "0");  // "1" would cause non-VOIP mode to be used
-  opus.SetParam("ptime", "20");
-  opus.SetParam("minptime", "10");
-  opus.SetParam("maxptime", "120");
+  opus.SetParam("ptime", "60");
+  opus.SetParam("minptime", "60");
+  opus.SetParam("maxptime", "60");
   opus.SetParam("useinbandfec", "1");
   // This is not a default. We enable this to help reduce bandwidth because we
   // are using CBR.
