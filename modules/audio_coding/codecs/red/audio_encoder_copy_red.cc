@@ -269,4 +269,9 @@ AudioEncoderCopyRed::ReclaimContainedEncoders() {
   return rtc::ArrayView<std::unique_ptr<AudioEncoder>>(&speech_encoder_, 1);
 }
 
+// RingRTC change to configure opus (the only codec we use RED with)
+bool AudioEncoderCopyRed::Configure(const webrtc::AudioEncoder::Config& config) {
+  return speech_encoder_->Configure(config);
+}
+
 }  // namespace webrtc

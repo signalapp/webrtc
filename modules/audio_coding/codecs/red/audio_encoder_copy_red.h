@@ -84,6 +84,9 @@ class AudioEncoderCopyRed final : public AudioEncoder {
   rtc::ArrayView<std::unique_ptr<AudioEncoder>> ReclaimContainedEncoders()
       override;
 
+  // RingRTC change to configure opus (the only codec we use RED with)
+  bool Configure(const webrtc::AudioEncoder::Config& config) override;
+
  protected:
   EncodedInfo EncodeImpl(uint32_t rtp_timestamp,
                          rtc::ArrayView<const int16_t> audio,

@@ -130,6 +130,9 @@ class AudioReceiveStreamInterface : public MediaReceiveStreamInterface {
     bool jitter_buffer_fast_accelerate = false;
     int jitter_buffer_min_delay_ms = 0;
 
+    // RingRTC change to configure the RTCP report interval.
+    int rtcp_report_interval_ms = 5000;
+
     // Identifier for an A/V synchronization group. Empty string to disable.
     // TODO(pbos): Synchronize streams in a sync group, not just one video
     // stream to one audio stream. Tracked by issue webrtc:4762.

@@ -279,6 +279,8 @@ webrtc::AudioReceiveStreamInterface::Config BuildReceiveStreamConfig(
     size_t jitter_buffer_max_packets,
     bool jitter_buffer_fast_accelerate,
     int jitter_buffer_min_delay_ms,
+    // RingRTC change to configure the RTCP report interval.
+    int rtcp_report_interval_ms,
     rtc::scoped_refptr<webrtc::FrameDecryptorInterface> frame_decryptor,
     const webrtc::CryptoOptions& crypto_options,
     rtc::scoped_refptr<webrtc::FrameTransformerInterface> frame_transformer) {
@@ -297,6 +299,8 @@ webrtc::AudioReceiveStreamInterface::Config BuildReceiveStreamConfig(
   config.jitter_buffer_max_packets = jitter_buffer_max_packets;
   config.jitter_buffer_fast_accelerate = jitter_buffer_fast_accelerate;
   config.jitter_buffer_min_delay_ms = jitter_buffer_min_delay_ms;
+  // RingRTC change to configure the RTCP report interval.
+  config.rtcp_report_interval_ms = rtcp_report_interval_ms;
   config.frame_decryptor = std::move(frame_decryptor);
   config.crypto_options = crypto_options;
   config.frame_transformer = std::move(frame_transformer);
@@ -2307,7 +2311,9 @@ bool WebRtcVoiceReceiveChannel::AddRecvStream(const StreamParams& sp) {
       sp.stream_ids(), recv_rtp_extensions_, this, engine()->decoder_factory_,
       decoder_map_, codec_pair_id_, engine()->audio_jitter_buffer_max_packets_,
       engine()->audio_jitter_buffer_fast_accelerate_,
-      engine()->audio_jitter_buffer_min_delay_ms_, unsignaled_frame_decryptor_,
+      engine()->audio_jitter_buffer_min_delay_ms_,
+      // RingRTC change to configure the RTCP report interval.
+      audio_config_.rtcp_report_interval_ms, unsignaled_frame_decryptor_,
       crypto_options_, unsignaled_frame_transformer_);
 
   recv_streams_.insert(std::make_pair(

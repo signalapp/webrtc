@@ -97,6 +97,8 @@ class ChannelReceive : public ChannelReceiveInterface,
       size_t jitter_buffer_max_packets,
       bool jitter_buffer_fast_playout,
       int jitter_buffer_min_delay_ms,
+      // RingRTC change to configure the RTCP report interval.
+      int rtcp_report_interval_ms,
       bool enable_non_sender_rtt,
       rtc::scoped_refptr<AudioDecoderFactory> decoder_factory,
       absl::optional<AudioCodecPairId> codec_pair_id,
@@ -535,6 +537,8 @@ ChannelReceive::ChannelReceive(
     size_t jitter_buffer_max_packets,
     bool jitter_buffer_fast_playout,
     int jitter_buffer_min_delay_ms,
+    // RingRTC change to configure the RTCP report interval.
+    int rtcp_report_interval_ms,
     bool enable_non_sender_rtt,
     rtc::scoped_refptr<AudioDecoderFactory> decoder_factory,
     absl::optional<AudioCodecPairId> codec_pair_id,
@@ -586,6 +590,8 @@ ChannelReceive::ChannelReceive(
   configuration.local_media_ssrc = local_ssrc;
   configuration.rtcp_packet_type_counter_observer = this;
   configuration.non_sender_rtt_measurement = enable_non_sender_rtt;
+  // RingRTC change to configure the RTCP report interval.
+  configuration.rtcp_report_interval_ms = rtcp_report_interval_ms;
 
   if (frame_transformer)
     InitFrameTransformerDelegate(std::move(frame_transformer));
@@ -1108,6 +1114,8 @@ std::unique_ptr<ChannelReceiveInterface> CreateChannelReceive(
     size_t jitter_buffer_max_packets,
     bool jitter_buffer_fast_playout,
     int jitter_buffer_min_delay_ms,
+    // RingRTC change to configure the RTCP report interval.
+    int rtcp_report_interval_ms,
     bool enable_non_sender_rtt,
     rtc::scoped_refptr<AudioDecoderFactory> decoder_factory,
     absl::optional<AudioCodecPairId> codec_pair_id,
@@ -1118,6 +1126,8 @@ std::unique_ptr<ChannelReceiveInterface> CreateChannelReceive(
       clock, neteq_factory, audio_device_module, rtcp_send_transport,
       rtc_event_log, local_ssrc, remote_ssrc, jitter_buffer_max_packets,
       jitter_buffer_fast_playout, jitter_buffer_min_delay_ms,
+      // RingRTC change to configure the RTCP report interval.
+      rtcp_report_interval_ms,
       enable_non_sender_rtt, decoder_factory, codec_pair_id,
       std::move(frame_decryptor), crypto_options, std::move(frame_transformer));
 }

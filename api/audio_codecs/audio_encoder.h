@@ -119,8 +119,17 @@ class AudioEncoder {
   // Very OPUS-specific
   struct Config {
     // AKA ptime or frame size
-    // One of 10, 20, 40, 60, 120
-    uint32_t packet_size_ms = 20;
+    // One of 10, 20, 40, 60, 80, 100, 120
+    int32_t initial_packet_size_ms = 60;
+    int32_t min_packet_size_ms = 60;
+    int32_t max_packet_size_ms = 60;
+
+    // 500 to 192000
+    // Start at initial_bitrate_bps, and let the BWE and bitrate allocator
+    // move up to max_bitrate_bps or down to min_bitrate_bps.
+    int32_t initial_bitrate_bps = 32000;
+    int32_t min_bitrate_bps = 32000;
+    int32_t max_bitrate_bps = 32000;
 
     // 1101 = OPUS_BANDWIDTH_NARROWBAND
     // 1102 = OPUS_BADWIDTH_MEDIUMBAND
@@ -128,20 +137,21 @@ class AudioEncoder {
     // 1104 = OPUS_BANDWIDTH_SUPERWIDEBAND
     // 1105 = OPUS_BANDWIDTH_FULLBAND
     int32_t bandwidth = -1000;  // OPUS_AUTO
-    // 500 to 192000
-    // Start at start_bitrate_bps, and let the BWE and bitrate allocator
-    // move up to max_bitrate_bps or down to min_bitrate_bps.
-    int32_t start_bitrate_bps = 40000;
-    int32_t min_bitrate_bps = 16000;
-    int32_t max_bitrate_bps = 40000;
+
     // 0 (least complex) to 9 (most complex)
     int32_t complexity = 9;
-    // 0 = CBR; 1 = VBR
-    int32_t enable_vbr = 0;
-    // 0 = disable; 1 = enable
-    int32_t enable_dtx = 0;
-    // 0 = disable; 1 = enable
-    int32_t enable_fec = 1;
+
+    // Adaptation method to use, 0 to disable
+    int32_t adaptation = 0;
+
+    // CBR is used by default
+    bool enable_cbr = true;
+
+    // DTX is enabled by default
+    bool enable_dtx = true;
+
+    // In-band FEC is enabled by default
+    bool enable_fec = true;
   };
 
   virtual ~AudioEncoder() = default;
