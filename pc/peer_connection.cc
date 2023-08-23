@@ -3088,4 +3088,12 @@ void PeerConnection::GetAudioLevels(cricket::AudioLevel* captured_out,
   }
 }
 
+// RingRTC change to get upload bandwidth estimate
+uint32_t PeerConnection::GetLastBandwidthEstimateBps() {
+  return worker_thread()->BlockingCall([this] {
+    RTC_DCHECK_RUN_ON(worker_thread());
+    return this->call_->GetLastBandwidthEstimateBps();
+  });
+}
+
 }  // namespace webrtc

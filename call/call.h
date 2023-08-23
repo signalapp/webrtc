@@ -117,6 +117,9 @@ class Call {
   // pacing delay, etc.
   virtual Stats GetStats() const = 0;
 
+  // RingRTC change to get upload bandwidth estimate
+  virtual uint32_t GetLastBandwidthEstimateBps() const { return 0; }
+
   // TODO(skvlad): When the unbundled case with multiple streams for the same
   // media type going over different networks is supported, track the state
   // for each stream separately. Right now it's global per media type.

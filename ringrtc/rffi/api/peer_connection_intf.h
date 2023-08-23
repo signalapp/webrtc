@@ -184,4 +184,7 @@ Rust_getAudioLevels(webrtc::PeerConnectionInterface* peer_connection_borrowed_rc
                     size_t received_out_size,
                     size_t* received_size_out);
 
+RUSTEXPORT uint32_t
+Rust_getLastBandwidthEstimateBps(webrtc::PeerConnectionInterface* peer_connection_borrowed_rc);
+
 #endif /* RFFI_API_PEER_CONNECTION_INTF_H__ */
