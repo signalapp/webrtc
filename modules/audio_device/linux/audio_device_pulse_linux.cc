@@ -1585,7 +1585,8 @@ int32_t AudioDeviceLinuxPulse::InitPulseAudio() {
     PaUnLock();
     return -1;
   }
-  _paContext = LATE(pa_context_new)(_paMainloopApi, "WEBRTC VoiceEngine");
+  // RingRTC change to the name of the context.
+  _paContext = LATE(pa_context_new)(_paMainloopApi, "Signal Calling");
 
   if (!_paContext) {
     RTC_LOG(LS_ERROR) << "could not create context";
