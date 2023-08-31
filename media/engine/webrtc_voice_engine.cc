@@ -1500,6 +1500,8 @@ void WebRtcVoiceSendChannel::SetSend(bool send) {
   if (send) {
     engine()->ApplyOptions(options_);
 
+    // RingRTC change to not do early InitRecording()
+#if false
     // Initialize the ADM for recording (this may take time on some platforms,
     // e.g. Android).
     if (options_.init_recording_on_send.value_or(true) &&
@@ -1510,6 +1512,7 @@ void WebRtcVoiceSendChannel::SetSend(bool send) {
         RTC_LOG(LS_WARNING) << "Failed to initialize recording";
       }
     }
+#endif
   }
 
   // Change the settings on each send channel.
