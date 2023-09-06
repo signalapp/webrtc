@@ -148,7 +148,7 @@ class PeerConnectionWrapper {
   bool SetIncomingRtpEnabled(bool enabled);
 
   bool SendRtp(std::unique_ptr<RtpPacket> rtp_packet);
-  bool ReceiveRtp(uint8_t pt);
+  bool ReceiveRtp(uint8_t pt, bool enable_incoming);
 
   void GetAudioLevels(
       cricket::AudioLevel* captured_out,

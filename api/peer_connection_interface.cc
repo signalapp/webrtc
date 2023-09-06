@@ -68,7 +68,7 @@ bool PeerConnectionInterface::SendRtp(std::unique_ptr<RtpPacket> rtp_packet) {
 }
 
 // RingRTC change to receive RTP data
-bool PeerConnectionInterface::ReceiveRtp(uint8_t pt) {
+bool PeerConnectionInterface::ReceiveRtp(uint8_t pt, bool enable_incoming) {
   RTC_LOG(LS_ERROR) << "No SendRtp in dummy implementation";
   return false;
 }

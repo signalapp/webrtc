@@ -144,9 +144,10 @@ PROXY_METHOD1(bool,
 PROXY_METHOD1(bool,
               SendRtp,
               std::unique_ptr<RtpPacket>)
-PROXY_METHOD1(bool,
+PROXY_METHOD2(bool,
               ReceiveRtp,
-              uint8_t)
+              uint8_t,
+              bool)
 PROXY_METHOD1(void,
               ConfigureAudioEncoders,
               const webrtc::AudioEncoder::Config&)

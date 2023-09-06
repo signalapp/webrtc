@@ -310,6 +310,9 @@ bool JsepTransportController::SetIncomingRtpEnabled(bool enabled) {
   RTC_DCHECK_RUN_ON(network_thread_);
 
   for (const auto& transport : transports_.Transports()) {
+    // RingRTC change to log when the RTP transport gets enabled (or not)
+    RTC_LOG(LS_WARNING) << "JsepTransportController::SetIncomingRtpEnabled(" << enabled << ") "
+                        << transport->rtp_transport()->transport_name();
     if (!transport->rtp_transport()->SetIncomingRtpEnabled(enabled)) {
       return false;
     }

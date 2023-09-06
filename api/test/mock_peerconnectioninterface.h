@@ -211,7 +211,8 @@ class MockPeerConnectionInterface : public webrtc::PeerConnectionInterface {
   MOCK_METHOD1(SendRtp,
                bool(std::unique_ptr<RtpPacket>));
   MOCK_METHOD1(ReceiveRtp,
-               bool(uint8_t));
+               bool(uint8_t),
+               bool(bool));
   MOCK_METHOD1(SetIncomingRtpEnabled,
                bool(bool));
 };

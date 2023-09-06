@@ -1173,7 +1173,7 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
 
   // RingRTC change to receive RTP data
   // Packets will go to the PeerConnectionObserver
-  virtual bool ReceiveRtp(uint8_t pt);
+  virtual bool ReceiveRtp(uint8_t pt, bool enable_incoming);
 
   virtual void ConfigureAudioEncoders(const webrtc::AudioEncoder::Config& config) {
     RTC_LOG(LS_WARNING) << "Default PeerConnectionInterface::ConfigureAudioEncoders(...) does nothing!";
