@@ -286,6 +286,7 @@ bool PeerConnectionWrapper::UseSharedIceGatherer(
   return pc()->UseSharedIceGatherer(shared_ice_gatherer);
 }
 
+// RingRTC change to receive RTP data
 bool PeerConnectionWrapper::SetIncomingRtpEnabled(bool enabled) {
   return pc()->SetIncomingRtpEnabled(enabled);
 }

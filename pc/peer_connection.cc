@@ -3015,6 +3015,7 @@ bool PeerConnection::UseSharedIceGatherer(
   return true;
 }
 
+// RingRTC change to explicitly control when incoming packets can be processed
 bool PeerConnection::SetIncomingRtpEnabled(bool enabled) {
   return network_thread()->BlockingCall([this, enabled] {
     JsepTransportController* transport_controller = this->transport_controller_n();
@@ -3045,6 +3046,7 @@ bool PeerConnection::SendRtp(std::unique_ptr<RtpPacket> rtp_packet) {
   });
 }
 
+// RingRTC change to receive RTP data
 bool PeerConnection::ReceiveRtp(uint8_t pt, bool enable_incoming) {
   RtpDemuxerCriteria demux_criteria;
   demux_criteria.payload_types().insert(pt);

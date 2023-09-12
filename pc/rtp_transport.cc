@@ -282,7 +282,7 @@ void RtpTransport::OnReadPacket(rtc::PacketTransportInternal* transport,
   }
 }
 
-// RingRTC change to drop all incoming packets until explicitly allowed
+// RingRTC change to explicitly control when incoming packets can be processed
 bool RtpTransport::SetIncomingRtpEnabled(bool enabled) {
   RTC_LOG(LS_WARNING) << "RtpTransport::SetIncomingRtpEnabled(" << enabled << ") was " << incoming_rtp_enabled_;
   incoming_rtp_enabled_ = enabled;

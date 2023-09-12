@@ -251,6 +251,7 @@ class JsepTransportController : public sigslot::has_slots<> {
 
   RTCError RollbackTransports();
 
+  // RingRTC change to explicitly control when incoming packets can be processed
   bool SetIncomingRtpEnabled(bool enabled);
 
   // F: void(const std::string&, const std::vector<cricket::Candidate>&)

@@ -204,6 +204,7 @@ class FakePeerConnectionBase : public PeerConnectionInternal {
     return false;
   }
 
+  // RingRTC change to receive RTP data
   bool SetIncomingRtpEnabled(bool enabled) override {
     return false;
   }
