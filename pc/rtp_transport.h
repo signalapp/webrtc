@@ -87,8 +87,7 @@ class RtpTransport : public RtpTransportInternal {
 
   bool UnregisterRtpDemuxerSink(RtpPacketSinkInterface* sink) override;
 
-  // RingRTC change to avoid processing RTP packets too soon
-  // If false, drop all RTP and RTCP packets before processing them.
+  // RingRTC change to explicitly control when incoming packets can be processed
   bool SetIncomingRtpEnabled(bool enabled) override;
 
  protected:
@@ -143,7 +142,8 @@ class RtpTransport : public RtpTransportInternal {
   RtpHeaderExtensionMap header_extension_map_;
 
   // If false, drop all RTP and RTCP packets before processing them.
-  bool incoming_rtp_enabled_ = true;
+  // RingRTC change to drop all incoming packets until explicitly allowed
+  bool incoming_rtp_enabled_ = false;
 };
 
 }  // namespace webrtc

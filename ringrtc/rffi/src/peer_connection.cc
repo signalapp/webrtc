@@ -706,12 +706,12 @@ Rust_deleteSessionDescription(SessionDescriptionInterface* description_owned) {
 RUSTEXPORT void
 Rust_setOutgoingMediaEnabled(PeerConnectionInterface* peer_connection_borrowed_rc,
                              bool                     enabled) {
-  // Note: calling SetAudioRecording(enabled) is deprecated and it's not clear
-  // that it even does anything any more.
+  RTC_LOG(LS_INFO) << "Rust_setOutgoingMediaEnabled(" << enabled << ")";
   int encodings_changed = 0;
   for (auto& sender : peer_connection_borrowed_rc->GetSenders()) {
     RtpParameters parameters = sender->GetParameters();
     for (auto& encoding: parameters.encodings) {
+      RTC_LOG(LS_INFO) << "Rust_setOutgoingMediaEnabled() encoding.active was: " << encoding.active;
       encoding.active = enabled;
       encodings_changed++;
     }
@@ -883,8 +883,8 @@ Rust_sendRtp(webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
 // while holding a lock, especially a lock also taken in a callback
 // from the network thread.
 RUSTEXPORT bool
-Rust_receiveRtp(webrtc::PeerConnectionInterface* peer_connection_borrowed_rc, uint8_t pt) {
-  return peer_connection_borrowed_rc->ReceiveRtp(pt);
+Rust_receiveRtp(webrtc::PeerConnectionInterface* peer_connection_borrowed_rc, uint8_t pt, bool enable_incoming) {
+  return peer_connection_borrowed_rc->ReceiveRtp(pt, enable_incoming);
 }
 
 RUSTEXPORT void

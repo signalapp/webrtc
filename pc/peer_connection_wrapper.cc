@@ -294,8 +294,8 @@ bool PeerConnectionWrapper::SendRtp(std::unique_ptr<RtpPacket> rtp_packet) {
   return pc()->SendRtp(std::move(rtp_packet));
 }
 
-bool PeerConnectionWrapper::ReceiveRtp(uint8_t pt) {
-  return pc()->ReceiveRtp(pt);
+bool PeerConnectionWrapper::ReceiveRtp(uint8_t pt, bool enable_incoming) {
+  return pc()->ReceiveRtp(pt, enable_incoming);
 }
 
 void PeerConnectionWrapper::GetAudioLevels(

@@ -212,7 +212,7 @@ class FakePeerConnectionBase : public PeerConnectionInternal {
     return false;
   }
 
-  bool ReceiveRtp(uint8_t pt) override {
+  bool ReceiveRtp(uint8_t pt, bool enable_incoming) override {
     return false;
   }
 

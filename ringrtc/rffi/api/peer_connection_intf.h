@@ -173,7 +173,7 @@ Rust_sendRtp(webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
              size_t payload_size);
 
 RUSTEXPORT bool
-Rust_receiveRtp(webrtc::PeerConnectionInterface* peer_connection_borrowed_rc, uint8_t pt);
+Rust_receiveRtp(webrtc::PeerConnectionInterface* peer_connection_borrowed_rc, uint8_t pt, bool enable_incoming);
 
 RUSTEXPORT void
 Rust_configureAudioEncoders(webrtc::PeerConnectionInterface* peer_connection_borrowed_rc, const webrtc::AudioEncoder::Config* config_borrowed);

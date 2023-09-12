@@ -1162,8 +1162,7 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
   virtual bool UseSharedIceGatherer(
       rtc::scoped_refptr<webrtc::IceGathererInterface> shared_ice_gatherer);
 
-  // RingRTC change to RTP from being processed before the call is accepted
-  // If false, all RTP and RTCP packets will be dropped before being processed.
+  // RingRTC change to explicitly control when incoming packets can be processed
   virtual bool SetIncomingRtpEnabled(bool enabled);
 
   // RingRTC change to send RTP data
@@ -1173,7 +1172,7 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
 
   // RingRTC change to receive RTP data
   // Packets will go to the PeerConnectionObserver
-  virtual bool ReceiveRtp(uint8_t pt);
+  virtual bool ReceiveRtp(uint8_t pt, bool enable_incoming);
 
   virtual void ConfigureAudioEncoders(const webrtc::AudioEncoder::Config& config) {
     RTC_LOG(LS_WARNING) << "Default PeerConnectionInterface::ConfigureAudioEncoders(...) does nothing!";

@@ -55,7 +55,7 @@ bool PeerConnectionInterface::UseSharedIceGatherer(
   return false;
 }
 
-// RingRTC change to RTP from being processed before the call is accepted
+// RingRTC change to explicitly control when incoming packets can be processed
 bool PeerConnectionInterface::SetIncomingRtpEnabled(bool enabled) {
   RTC_LOG(LS_ERROR) << "No enabling of incoming RTP in dummy implementation";
   return false;
@@ -68,7 +68,7 @@ bool PeerConnectionInterface::SendRtp(std::unique_ptr<RtpPacket> rtp_packet) {
 }
 
 // RingRTC change to receive RTP data
-bool PeerConnectionInterface::ReceiveRtp(uint8_t pt) {
+bool PeerConnectionInterface::ReceiveRtp(uint8_t pt, bool enable_incoming) {
   RTC_LOG(LS_ERROR) << "No SendRtp in dummy implementation";
   return false;
 }

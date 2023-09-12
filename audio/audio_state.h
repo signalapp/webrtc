@@ -67,8 +67,9 @@ class AudioState : public webrtc::AudioState {
   SequenceChecker thread_checker_;
   SequenceChecker process_thread_checker_{SequenceChecker::kDetached};
   const webrtc::AudioState::Config config_;
-  bool recording_enabled_ = true;
-  bool playout_enabled_ = true;
+  // RingRTC change to make the audio state disabled by default
+  bool recording_enabled_ = false;
+  bool playout_enabled_ = false;
 
   // Transports mixed audio from the mixer to the audio device and
   // recorded audio to the sending streams.
