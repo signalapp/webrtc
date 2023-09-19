@@ -36,6 +36,8 @@
 @synthesize maxIPv6Networks = _maxIPv6Networks;
 @synthesize disableLinkLocalNetworks = _disableLinkLocalNetworks;
 @synthesize audioJitterBufferMaxPackets = _audioJitterBufferMaxPackets;
+// RingRTC change to configure the jitter buffer's max target delay.
+@synthesize audioJitterBufferMaxTargetDelayMs = _audioJitterBufferMaxTargetDelayMs;
 @synthesize audioJitterBufferFastAccelerate = _audioJitterBufferFastAccelerate;
 @synthesize iceConnectionReceivingTimeout = _iceConnectionReceivingTimeout;
 @synthesize iceBackupCandidatePairPingInterval =
@@ -108,6 +110,8 @@
     _maxIPv6Networks = config.max_ipv6_networks;
     _disableLinkLocalNetworks = config.disable_link_local_networks;
     _audioJitterBufferMaxPackets = config.audio_jitter_buffer_max_packets;
+    // RingRTC change to configure the jitter buffer's max target delay.
+    _audioJitterBufferMaxTargetDelayMs = config.audio_jitter_buffer_max_target_delay_ms();
     _audioJitterBufferFastAccelerate = config.audio_jitter_buffer_fast_accelerate;
     _iceConnectionReceivingTimeout = config.ice_connection_receiving_timeout;
     _iceBackupCandidatePairPingInterval =
@@ -223,6 +227,8 @@
   nativeConfig->max_ipv6_networks = _maxIPv6Networks;
   nativeConfig->disable_link_local_networks = _disableLinkLocalNetworks;
   nativeConfig->audio_jitter_buffer_max_packets = _audioJitterBufferMaxPackets;
+  // RingRTC change to configure the jitter buffer's max target delay.
+  nativeConfig->set_audio_jitter_buffer_max_target_delay_ms(_audioJitterBufferMaxTargetDelayMs);
   nativeConfig->audio_jitter_buffer_fast_accelerate =
       _audioJitterBufferFastAccelerate  ? true : false;
   nativeConfig->ice_connection_receiving_timeout =
