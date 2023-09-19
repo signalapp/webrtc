@@ -384,6 +384,12 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
           audio_rtcp_report_interval_ms;
     }
 
+    // RingRTC change to configure the audio jitter buffer's max target delay.
+    void set_audio_jitter_buffer_max_target_delay_ms(int jitter_buffer_max_target_delay_ms) {
+      media_config.audio.jitter_buffer_max_target_delay_ms =
+          jitter_buffer_max_target_delay_ms;
+    }
+
     int video_rtcp_report_interval_ms() const {
       return media_config.video.rtcp_report_interval_ms;
     }

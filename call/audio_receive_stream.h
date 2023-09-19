@@ -129,6 +129,8 @@ class AudioReceiveStreamInterface : public MediaReceiveStreamInterface {
     size_t jitter_buffer_max_packets = 200;
     bool jitter_buffer_fast_accelerate = false;
     int jitter_buffer_min_delay_ms = 0;
+    // RingRTC change to configure the jitter buffer's max target delay.
+    int jitter_buffer_max_target_delay_ms = 500;
 
     // RingRTC change to configure the RTCP report interval.
     int rtcp_report_interval_ms = 5000;

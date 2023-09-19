@@ -97,6 +97,8 @@ class ChannelReceive : public ChannelReceiveInterface,
       size_t jitter_buffer_max_packets,
       bool jitter_buffer_fast_playout,
       int jitter_buffer_min_delay_ms,
+      // RingRTC change to configure the jitter buffer's max target delay.
+      int jitter_buffer_max_target_delay_ms,
       // RingRTC change to configure the RTCP report interval.
       int rtcp_report_interval_ms,
       bool enable_non_sender_rtt,
@@ -537,6 +539,8 @@ ChannelReceive::ChannelReceive(
     size_t jitter_buffer_max_packets,
     bool jitter_buffer_fast_playout,
     int jitter_buffer_min_delay_ms,
+    // RingRTC change to configure the jitter buffer's max target delay.
+    int jitter_buffer_max_target_delay_ms,
     // RingRTC change to configure the RTCP report interval.
     int rtcp_report_interval_ms,
     bool enable_non_sender_rtt,
@@ -573,8 +577,8 @@ ChannelReceive::ChannelReceive(
 
   acm_receiver_.ResetInitialDelay();
   acm_receiver_.SetMinimumDelay(0);
-  // RingRTC change to limit the jitter buffer's max target delay
-  acm_receiver_.SetMaximumDelay(500);
+  // RingRTC change to configure the jitter buffer's max target delay.
+  acm_receiver_.SetMaximumDelay(jitter_buffer_max_target_delay_ms);
   acm_receiver_.FlushBuffers();
 
   _outputAudioLevel.ResetLevelFullRange();
@@ -1114,6 +1118,8 @@ std::unique_ptr<ChannelReceiveInterface> CreateChannelReceive(
     size_t jitter_buffer_max_packets,
     bool jitter_buffer_fast_playout,
     int jitter_buffer_min_delay_ms,
+    // RingRTC change to configure the jitter buffer's max target delay.
+    int jitter_buffer_max_target_delay_ms,
     // RingRTC change to configure the RTCP report interval.
     int rtcp_report_interval_ms,
     bool enable_non_sender_rtt,
@@ -1126,6 +1132,8 @@ std::unique_ptr<ChannelReceiveInterface> CreateChannelReceive(
       clock, neteq_factory, audio_device_module, rtcp_send_transport,
       rtc_event_log, local_ssrc, remote_ssrc, jitter_buffer_max_packets,
       jitter_buffer_fast_playout, jitter_buffer_min_delay_ms,
+      // RingRTC change to configure the jitter buffer's max target delay.
+      jitter_buffer_max_target_delay_ms,
       // RingRTC change to configure the RTCP report interval.
       rtcp_report_interval_ms,
       enable_non_sender_rtt, decoder_factory, codec_pair_id,
