@@ -467,6 +467,8 @@ public class PeerConnection {
     public TcpCandidatePolicy tcpCandidatePolicy;
     public CandidateNetworkPolicy candidateNetworkPolicy;
     public int audioJitterBufferMaxPackets;
+    // RingRTC change to configure the jitter buffer's max target delay.
+    public int audioJitterBufferMaxTargetDelayMs;
     public boolean audioJitterBufferFastAccelerate;
     public int iceConnectionReceivingTimeout;
     public int iceBackupCandidatePairPingInterval;
@@ -583,6 +585,8 @@ public class PeerConnection {
       candidateNetworkPolicy = CandidateNetworkPolicy.ALL;
       this.iceServers = iceServers;
       audioJitterBufferMaxPackets = 50;
+      // RingRTC change to configure the jitter buffer's max target delay.
+      audioJitterBufferMaxTargetDelayMs = 500;
       audioJitterBufferFastAccelerate = false;
       iceConnectionReceivingTimeout = -1;
       iceBackupCandidatePairPingInterval = -1;
@@ -660,6 +664,12 @@ public class PeerConnection {
     @CalledByNative("RTCConfiguration")
     int getAudioJitterBufferMaxPackets() {
       return audioJitterBufferMaxPackets;
+    }
+
+    // RingRTC change to configure the jitter buffer's max target delay.
+    @CalledByNative("RTCConfiguration")
+    int getAudioJitterBufferMaxTargetDelayMs() {
+      return audioJitterBufferMaxTargetDelayMs;
     }
 
     @CalledByNative("RTCConfiguration")
