@@ -120,6 +120,8 @@ RTC_OBJC_EXPORT
 @property(nonatomic, assign) BOOL disableLinkLocalNetworks;
 
 @property(nonatomic, assign) int audioJitterBufferMaxPackets;
+// RingRTC change to configure the jitter buffer's max target delay.
+@property(nonatomic, assign) int audioJitterBufferMaxTargetDelayMs;
 @property(nonatomic, assign) BOOL audioJitterBufferFastAccelerate;
 @property(nonatomic, assign) int iceConnectionReceivingTimeout;
 @property(nonatomic, assign) int iceBackupCandidatePairPingInterval;

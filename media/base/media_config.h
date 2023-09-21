@@ -71,6 +71,8 @@ struct MediaConfig {
   struct Audio {
     // Time interval between RTCP report for audio
     int rtcp_report_interval_ms = 5000;
+    // RingRTC change to configure the jitter buffer's max target delay.
+    int jitter_buffer_max_target_delay_ms = 500;
   } audio;
 
   bool operator==(const MediaConfig& o) const {

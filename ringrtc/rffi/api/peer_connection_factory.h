@@ -109,6 +109,7 @@ RUSTEXPORT webrtc::PeerConnectionInterface* Rust_createPeerConnection(
   webrtc::rffi::PeerConnectionObserverRffi* observer_borrowed,
   RffiPeerConnectionKind kind,
   int audio_jitter_buffer_max_packets,
+  int audio_jitter_buffer_max_target_delay_ms,
   int audio_rtcp_report_interval_ms,
   RffiIceServer ice_server,
   webrtc::AudioTrackInterface* outgoing_audio_track_borrowed_rc,

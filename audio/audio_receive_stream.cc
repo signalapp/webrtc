@@ -71,6 +71,8 @@ std::unique_ptr<voe::ChannelReceiveInterface> CreateChannelReceive(
       config.rtcp_send_transport, event_log, config.rtp.local_ssrc,
       config.rtp.remote_ssrc, config.jitter_buffer_max_packets,
       config.jitter_buffer_fast_accelerate, config.jitter_buffer_min_delay_ms,
+      // RingRTC change to configure the jitter buffer's max target delay.
+      config.jitter_buffer_max_target_delay_ms,
       // RingRTC change to configure the RTCP report interval.
       config.rtcp_report_interval_ms,
       config.enable_non_sender_rtt, config.decoder_factory,
