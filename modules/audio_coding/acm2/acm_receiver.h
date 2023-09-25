@@ -187,6 +187,9 @@ class AcmReceiver {
   //
   absl::optional<std::pair<int, SdpAudioFormat>> LastDecoder() const;
 
+  // RingRTC change to disable CNG for muted incoming streams.
+  void SetIncomingAudioMuted(bool muted);
+
   //
   // Enable NACK and set the maximum size of the NACK list. If NACK is already
   // enabled then the maximum NACK list size is modified accordingly.

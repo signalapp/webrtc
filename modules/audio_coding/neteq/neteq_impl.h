@@ -188,6 +188,9 @@ class NetEqImpl : public webrtc::NetEq {
   // Flushes both the packet buffer and the sync buffer.
   void FlushBuffers() override;
 
+  // RingRTC change to disable CNG for muted incoming streams.
+  void SetIncomingAudioMuted(bool muted) override;
+
   void EnableNack(size_t max_nack_list_size) override;
 
   void DisableNack() override;
@@ -376,6 +379,8 @@ class NetEqImpl : public webrtc::NetEq {
   size_t decoder_frame_length_ RTC_GUARDED_BY(mutex_);
   Mode last_mode_ RTC_GUARDED_BY(mutex_);
   Operation last_operation_ RTC_GUARDED_BY(mutex_);
+  // RingRTC change to disable CNG for muted incoming streams.
+  bool muted_ RTC_GUARDED_BY(mutex_);
   absl::optional<AudioDecoder::SpeechType> last_decoded_type_
       RTC_GUARDED_BY(mutex_);
   size_t decoded_buffer_length_ RTC_GUARDED_BY(mutex_);

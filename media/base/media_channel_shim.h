@@ -273,6 +273,11 @@ class VoiceMediaShimChannel : public VoiceMediaChannel {
     return receive_impl()->GetStats(info, reset_legacy);
   }
 
+  // RingRTC change to disable CNG for muted incoming streams.
+  void SetIncomingAudioMuted(uint32_t ssrc, bool muted) override {
+    return receive_impl()->SetIncomingAudioMuted(ssrc, muted);
+  }
+
   // RingRTC change to get audio levels
   void GetReceivedAudioLevels(
     cricket::ReceivedAudioLevel* received_out,

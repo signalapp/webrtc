@@ -182,6 +182,11 @@ void AudioReceiveStreamImpl::ReconfigureForTesting(
   config_ = config;
 }
 
+// RingRTC change to disable CNG for muted incoming streams.
+void AudioReceiveStreamImpl::SetIncomingAudioMuted(bool muted) {
+  channel_receive_->SetIncomingAudioMuted(muted);
+}
+
 // RingRTC change to get recv audio levels
 uint16_t AudioReceiveStreamImpl::GetAudioLevel() {
   return channel_receive_->GetSpeechOutputLevelFullRange();

@@ -164,6 +164,8 @@ PROXY_METHOD1(bool, SetIncomingRtpEnabled, bool)
 PROXY_METHOD1(RTCError, SetBitrate, const BitrateSettings&)
 PROXY_METHOD1(void, SetAudioPlayout, bool)
 PROXY_METHOD1(void, SetAudioRecording, bool)
+// RingRTC change to disable CNG for muted incoming streams.
+PROXY_METHOD2(void, SetIncomingAudioMuted, uint32_t, bool)
 // This method will be invoked on the network thread. See
 // PeerConnectionFactory::CreatePeerConnectionOrError for more details.
 PROXY_SECONDARY_METHOD1(rtc::scoped_refptr<DtlsTransportInterface>,
