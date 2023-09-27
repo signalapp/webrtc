@@ -1031,6 +1031,13 @@ void VoiceChannel::GetAudioLevels(
   });
 }
 
+// RingRTC change to disable CNG for muted incoming streams.
+void VoiceChannel::SetIncomingAudioMuted(uint32_t ssrc, bool muted) {
+  worker_thread()->BlockingCall([this, ssrc, muted] {
+    voice_media_receive_channel()->SetIncomingAudioMuted(ssrc, muted);
+  });
+}
+
 VideoChannel::VideoChannel(
     rtc::Thread* worker_thread,
     rtc::Thread* network_thread,

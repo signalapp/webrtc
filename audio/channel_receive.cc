@@ -129,6 +129,8 @@ class ChannelReceive : public ChannelReceiveInterface,
 
   // Muting, Volume and Level.
   void SetChannelOutputVolumeScaling(float scaling) override;
+  // RingRTC change to disable CNG for muted incoming streams.
+  void SetIncomingAudioMuted(bool muted) override;
   int GetSpeechOutputLevelFullRange() const override;
   // See description of "totalAudioEnergy" in the WebRTC stats spec:
   // https://w3c.github.io/webrtc-stats/#dom-rtcmediastreamtrackstats-totalaudioenergy
@@ -775,6 +777,11 @@ void ChannelReceive::ReceivedRTCPPacket(const uint8_t* data, size_t length) {
           *remote_to_local_clock_offset);
     }
   }
+}
+
+// RingRTC change to disable CNG for muted incoming streams.
+void ChannelReceive::SetIncomingAudioMuted(bool muted) {
+  acm_receiver_.SetIncomingAudioMuted(muted);
 }
 
 int ChannelReceive::GetSpeechOutputLevelFullRange() const {

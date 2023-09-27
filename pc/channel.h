@@ -452,6 +452,9 @@ class VoiceChannel : public BaseChannel {
   // RingRTC change to configure OPUS
   void ConfigureEncoders(const webrtc::AudioEncoder::Config& config);
 
+  // RingRTC change to disable CNG for muted incoming streams.
+  void SetIncomingAudioMuted(uint32_t ssrc, bool muted);
+
   // RingRTC change to get audio levels
   void GetAudioLevels(
     cricket::AudioLevel* captured_out,

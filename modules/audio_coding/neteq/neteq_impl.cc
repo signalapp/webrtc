@@ -119,6 +119,8 @@ NetEqImpl::NetEqImpl(const NetEq::Config& config,
       stats_(std::move(deps.stats)),
       controller_(std::move(deps.neteq_controller)),
       last_mode_(Mode::kNormal),
+      // RingRTC change to disable CNG for muted incoming streams.
+      muted_(false),
       decoded_buffer_length_(kMaxFrameSize),
       decoded_buffer_(new int16_t[decoded_buffer_length_]),
       playout_timestamp_(0),
@@ -449,6 +451,12 @@ void NetEqImpl::FlushBuffers() {
                                expand_->overlap_length());
   // Set to wait for new codec.
   first_packet_ = true;
+}
+
+// RingRTC change to disable CNG for muted incoming streams.
+void NetEqImpl::SetIncomingAudioMuted(bool muted) {
+  MutexLock lock(&mutex_);
+  muted_ = muted;
 }
 
 void NetEqImpl::EnableNack(size_t max_nack_list_size) {
@@ -815,6 +823,11 @@ int NetEqImpl::GetAudioInternal(AudioFrame* audio_frame,
   if (return_value != 0) {
     last_mode_ = Mode::kError;
     return return_value;
+  }
+
+  // RingRTC change to disable CNG for muted incoming streams.
+  if (operation == Operation::kCodecInternalCng && muted_) {
+    operation = Operation::kExpand;
   }
 
   AudioDecoder::SpeechType speech_type;

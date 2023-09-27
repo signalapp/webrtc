@@ -302,6 +302,9 @@ class NetEq {
   // Flushes both the packet buffer and the sync buffer.
   virtual void FlushBuffers() = 0;
 
+  // RingRTC change to disable CNG for muted incoming streams.
+  virtual void SetIncomingAudioMuted(bool muted) = 0;
+
   // Enables NACK and sets the maximum size of the NACK list, which should be
   // positive and no larger than Nack::kNackListSizeLimit. If NACK is already
   // enabled then the maximum NACK list size is modified accordingly.

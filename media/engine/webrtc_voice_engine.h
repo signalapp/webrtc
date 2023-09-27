@@ -460,6 +460,9 @@ class WebRtcVoiceReceiveChannel final
   void SetReceiveNackEnabled(bool enabled) override;
   void SetReceiveNonSenderRttEnabled(bool enabled) override;
 
+  // RingRTC change to disable CNG for muted incoming streams.
+  void SetIncomingAudioMuted(uint32_t ssrc, bool muted) override;
+
   // RingRTC change to get audio levels
   void GetReceivedAudioLevels(
       cricket::ReceivedAudioLevel* received_out,

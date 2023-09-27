@@ -322,6 +322,11 @@ void AcmReceiver::GetNetworkStatistics(
       neteq_operations_and_state.packet_buffer_flushes;
 }
 
+// RingRTC change to disable CNG for muted incoming streams.
+void AcmReceiver::SetIncomingAudioMuted(bool muted) {
+  neteq_->SetIncomingAudioMuted(muted);
+}
+
 int AcmReceiver::EnableNack(size_t max_nack_list_size) {
   neteq_->EnableNack(max_nack_list_size);
   return 0;
