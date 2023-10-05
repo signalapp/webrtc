@@ -67,7 +67,8 @@ constexpr int kOpusSupportedFrameLengths[] = {10, 20, 40, 60};
 // PacketLossFractionSmoother uses an exponential filter with a time constant
 // of -1.0 / ln(0.9999) = 10000 ms.
 constexpr float kAlphaForPacketLossFractionSmoother = 0.9999f;
-constexpr float kMaxPacketLossFraction = 0.2f;
+// RingRTC change to allow loss rates up to 50% to be reported to opus
+constexpr float kMaxPacketLossFraction = 0.5f;
 
 int CalculateDefaultBitrate(int max_playback_rate, size_t num_channels) {
   const int bitrate = [&] {
@@ -1001,7 +1002,7 @@ bool AudioEncoderOpusImpl::Configure(const webrtc::AudioEncoder::Config& config)
   config_.fec_enabled = config.enable_fec;
   config_.cbr_enabled = config.enable_cbr;
   config_.complexity = config.complexity;
-  config_.low_rate_complexity = config_.low_rate_complexity;
+  config_.low_rate_complexity = config.complexity;
   config_.dtx_enabled = config.enable_dtx;
 
   if (config.adaptation > 0) {

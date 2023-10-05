@@ -106,6 +106,9 @@ class AudioEncoderOpusImpl final : public AudioEncoder {
   // RingRTC change to configure opus
   bool Configure(const webrtc::AudioEncoder::Config& config) override;
 
+  // RingRTC change to add low bitrate redundancy
+  void Clear() { input_buffer_.clear(); }
+
   // Getters for testing.
   float packet_loss_rate() const { return packet_loss_rate_; }
   AudioEncoderOpusConfig::ApplicationMode application() const {
