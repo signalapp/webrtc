@@ -84,7 +84,7 @@ AudioEncoderCopyRed::~AudioEncoderCopyRed() = default;
 
 // RingRTC change to add low bitrate redundancy
 void AudioEncoderCopyRed::ConfigureLBRedExperiment() {
-  constexpr char kFieldTrialName[] = "WebRTC-Audio-LBRed-For-Opus";
+  constexpr char kFieldTrialName[] = "RingRTC-Audio-LBRed-For-Opus";
 
   if (field_trial::IsEnabled(kFieldTrialName)) {
     FieldTrialFlag enabled("Enabled", false);
@@ -98,25 +98,28 @@ void AudioEncoderCopyRed::ConfigureLBRedExperiment() {
     FieldTrialConstrained<int> ptime("ptime", 60, 20, 120);
     FieldTrialParameter<bool> loss_pri("loss_pri", true);
     FieldTrialParameter<bool> loss_sec("loss_sec", true);
+    FieldTrialConstrained<int> bitrate_pri("bitrate_pri", 22000, 6000, 40000);
 
     ParseFieldTrial(
         {&enabled,&cbr,&dtx,&complexity,&bandwidth,
-         &bitrate,&ptime,&loss_pri,&loss_sec},
+         &bitrate,&ptime,&loss_pri,&loss_sec,&bitrate_pri},
         field_trial::FindFullName(kFieldTrialName));
 
-    RTC_LOG(LS_INFO) << "ConfigureLBRedExperiment"
-                     << ", cbr: " << cbr.Get()
+    RTC_LOG(LS_INFO) << "ConfigureLBRedExperiment:"
+                     << " cbr: " << cbr.Get()
                      << ", dtx: " << dtx.Get()
                      << ", complexity: " << complexity.Get()
                      << ", bandwidth: " << bandwidth.Get()
                      << ", bitrate: " << bitrate.Get()
                      << ", ptime: " << ptime.Get()
                      << ", loss_pri: " << loss_pri.Get()
-                     << ", loss_sec: " << loss_sec.Get();
+                     << ", loss_sec: " << loss_sec.Get()
+                     << ", bitrate_pri: " << bitrate_pri.Get();
 
     use_lbred_ = true;
     use_loss_primary_ = loss_pri.Get();
     use_loss_secondary_ = loss_sec.Get();
+    bitrate_primary_ = bitrate_pri.Get();
 
     AudioEncoderOpusConfig config;
     constexpr int opus_payload_type = 102;
@@ -420,7 +423,19 @@ AudioEncoderCopyRed::ReclaimContainedEncoders() {
 
 // RingRTC change to configure opus (the only codec we use RED with)
 bool AudioEncoderCopyRed::Configure(const webrtc::AudioEncoder::Config& config) {
-  return speech_encoder_->Configure(config);
+  if (use_lbred_) {
+    webrtc::AudioEncoder::Config new_config = config;
+
+    // Override some configuration parameters if using LBRED.
+    new_config.initial_bitrate_bps = bitrate_primary_;
+    new_config.min_bitrate_bps = bitrate_primary_;
+    new_config.max_bitrate_bps = bitrate_primary_;
+    new_config.enable_fec = false;
+
+    return speech_encoder_->Configure(new_config);
+  } else {
+    return speech_encoder_->Configure(config);
+  }
 }
 
 }  // namespace webrtc

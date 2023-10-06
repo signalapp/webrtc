@@ -21,6 +21,7 @@
 #include "rtc_base/message_digest.h"
 #include "rtc_base/string_encode.h"
 #include "rtc_base/third_party/base64/base64.h"
+#include "system_wrappers/include/field_trial.h"
 
 #include <algorithm>
 #include <string>
@@ -295,6 +296,12 @@ Rust_sessionDescriptionFromV4(bool offer,
   // Turn on the RED "meta codec" for Opus redundancy.
   auto opus_red = cricket::CreateAudioCodec(OPUS_RED_PT, cricket::kRedCodecName, 48000, 2);
   opus_red.SetParam("", std::to_string(OPUS_PT) + "/" + std::to_string(OPUS_PT));
+
+  // If the LBRED field trial is enabled, force RED.
+  constexpr char kFieldTrialName[] = "RingRTC-Audio-LBRed-For-Opus";
+  if (field_trial::IsEnabled(kFieldTrialName)) {
+    enable_red_audio = true;
+  }
 
   if (enable_red_audio) {
     // Add RED before Opus to use it by default when sending.

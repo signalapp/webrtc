@@ -107,6 +107,7 @@ class AudioEncoderCopyRed final : public AudioEncoder {
   bool use_lbred_;
   bool use_loss_primary_;
   bool use_loss_secondary_;
+  int bitrate_primary_;
   std::unique_ptr<AudioEncoderOpusImpl> speech_encoder_secondary_;
   rtc::Buffer secondary_encoded_;
 };
