@@ -389,6 +389,7 @@ RUSTEXPORT PeerConnectionInterface* Rust_createPeerConnection(
     webrtc::PeerConnectionInterface::IceServer rtc_ice_server;
     rtc_ice_server.username = std::string(ice_server.username_borrowed);
     rtc_ice_server.password = std::string(ice_server.password_borrowed);
+    rtc_ice_server.hostname = std::string(ice_server.hostname_borrowed);
     for (size_t i = 0; i < ice_server.urls_size; i++) {
       rtc_ice_server.urls.push_back(std::string(ice_server.urls_borrowed[i]));
     }
