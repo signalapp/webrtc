@@ -62,6 +62,7 @@ namespace webrtc {
 typedef struct {
   const char* username_borrowed;
   const char* password_borrowed;
+  const char* hostname_borrowed;
   const char** urls_borrowed;
   size_t urls_size;
 } RffiIceServer;
