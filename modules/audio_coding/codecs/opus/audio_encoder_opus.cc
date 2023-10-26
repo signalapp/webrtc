@@ -67,8 +67,7 @@ constexpr int kOpusSupportedFrameLengths[] = {10, 20, 40, 60};
 // PacketLossFractionSmoother uses an exponential filter with a time constant
 // of -1.0 / ln(0.9999) = 10000 ms.
 constexpr float kAlphaForPacketLossFractionSmoother = 0.9999f;
-// RingRTC change to allow loss rates up to 50% to be reported to opus
-constexpr float kMaxPacketLossFraction = 0.5f;
+constexpr float kMaxPacketLossFraction = 0.2f;
 
 int CalculateDefaultBitrate(int max_playback_rate, size_t num_channels) {
   const int bitrate = [&] {

@@ -91,13 +91,13 @@ void AudioEncoderCopyRed::ConfigureLBRedExperiment() {
 
     // Default values are from the best results during testing.
     FieldTrialParameter<bool> cbr("cbr", true);
-    FieldTrialParameter<bool> dtx("dtx", true);
+    FieldTrialParameter<bool> dtx("dtx", false);
     FieldTrialConstrained<int> complexity("complexity", 4, 0, 10);
     FieldTrialConstrained<int> bandwidth("bandwidth", 1103, -1000, 1105);
     FieldTrialConstrained<int> bitrate("bitrate", 10000, 6000, 40000);
     FieldTrialConstrained<int> ptime("ptime", 60, 20, 120);
     FieldTrialParameter<bool> loss_pri("loss_pri", true);
-    FieldTrialParameter<bool> loss_sec("loss_sec", true);
+    FieldTrialParameter<bool> loss_sec("loss_sec", false);
     FieldTrialConstrained<int> bitrate_pri("bitrate_pri", 22000, 6000, 40000);
 
     ParseFieldTrial(
@@ -143,6 +143,8 @@ void AudioEncoderCopyRed::ConfigureLBRedExperiment() {
     config_secondary.adaptation = 0;
 
     speech_encoder_secondary_->Configure(config_secondary);
+
+    last_packet_speech_ = false;
   }
 }
 
@@ -191,9 +193,11 @@ AudioEncoder::EncodedInfo AudioEncoderCopyRed::EncodeImpl(
 //                     << ", encoder_type: " << info.encoder_type;
 //  }
 
-  // We will pre-fill the buffers to the secondary encoder every time.
-  // But if the primary isn't actually speech, we will throw that pre-fill away
-  // by calling speech_encoder_secondary_->SetTargetBitrate(0) to clear it.
+  // We will pre-fill the buffers of the secondary encoder every time. This
+  // function is called every 10ms, so the encoder needs to be ready for the
+  // actual encoding when a complete packet is collected. If it turns out
+  // that the primary did not encode speech, the secondary encoder will be
+  // cleared.
 
   EncodedInfo info_secondary;
 
@@ -204,8 +208,10 @@ AudioEncoder::EncodedInfo AudioEncoderCopyRed::EncodeImpl(
     if (info.send_even_if_empty) {
       // The primary encoder has completed an encoding (N * 10ms).
 
-      // We only want to encode when the primary detects speech.
-      if (info.speech) {
+      // We only want to encode with the secondary when the primary encoder
+      // detects speech OR the last packet was speech and the current primary
+      // encoding includes at least _some_ speech.
+      if (info.speech || (last_packet_speech_ && info.encoded_bytes > 2)) {
         // We have the final primary encoding AND it is speech.
         info_secondary = speech_encoder_secondary_->Encode(rtp_timestamp, audio, &secondary_encoded_);
         if (info.send_even_if_empty != info_secondary.send_even_if_empty) {
@@ -226,6 +232,8 @@ AudioEncoder::EncodedInfo AudioEncoderCopyRed::EncodeImpl(
         // secondary encoder to and be ready for the next packet.
         speech_encoder_secondary_->Clear();
       }
+
+      last_packet_speech_ = info.speech;
     } else {
       // Pre-fill the secondary encoder's buffer to be ready for encoding.
       info_secondary = speech_encoder_secondary_->Encode(rtp_timestamp, audio, &secondary_encoded_);

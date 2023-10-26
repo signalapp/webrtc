@@ -110,6 +110,7 @@ class AudioEncoderCopyRed final : public AudioEncoder {
   int bitrate_primary_;
   std::unique_ptr<AudioEncoderOpusImpl> speech_encoder_secondary_;
   rtc::Buffer secondary_encoded_;
+  bool last_packet_speech_;
 };
 
 }  // namespace webrtc
