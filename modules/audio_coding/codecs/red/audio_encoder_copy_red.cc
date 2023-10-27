@@ -105,16 +105,16 @@ void AudioEncoderCopyRed::ConfigureLBRedExperiment() {
          &bitrate,&ptime,&loss_pri,&loss_sec,&bitrate_pri},
         field_trial::FindFullName(kFieldTrialName));
 
-    RTC_LOG(LS_INFO) << "ConfigureLBRedExperiment:"
-                     << " cbr: " << cbr.Get()
-                     << ", dtx: " << dtx.Get()
-                     << ", complexity: " << complexity.Get()
-                     << ", bandwidth: " << bandwidth.Get()
-                     << ", bitrate: " << bitrate.Get()
-                     << ", ptime: " << ptime.Get()
-                     << ", loss_pri: " << loss_pri.Get()
-                     << ", loss_sec: " << loss_sec.Get()
-                     << ", bitrate_pri: " << bitrate_pri.Get();
+    RTC_LOG(LS_WARNING) << "ConfigureLBRedExperiment:"
+                        << " cbr: " << cbr.Get()
+                        << ", dtx: " << dtx.Get()
+                        << ", complexity: " << complexity.Get()
+                        << ", bandwidth: " << bandwidth.Get()
+                        << ", bitrate: " << bitrate.Get()
+                        << ", ptime: " << ptime.Get()
+                        << ", loss_pri: " << loss_pri.Get()
+                        << ", loss_sec: " << loss_sec.Get()
+                        << ", bitrate_pri: " << bitrate_pri.Get();
 
     use_lbred_ = true;
     use_loss_primary_ = loss_pri.Get();
