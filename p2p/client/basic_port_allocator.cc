@@ -1164,10 +1164,15 @@ bool BasicPortAllocatorSession::PruneNewlyPairableTurnPort(
     if (data.port()->Network()->name() == network_name &&
         data.port()->Type() == RELAY_PORT_TYPE && data.ready() &&
         &data != newly_pairable_port_data) {
-      RTC_LOG(LS_INFO) << "Port pruned: "
-                       << newly_pairable_port_data->port()->ToString();
-      newly_pairable_port_data->Prune();
-      return true;
+      // RingRTC change to prune ports on a per-server basis
+      auto existing_addr = static_cast<TurnPort*>(data.port())->server_address().address.ipaddr();
+      auto newly_pairable_addr = static_cast<TurnPort*>(newly_pairable_port_data->port())->server_address().address.ipaddr();
+      if (existing_addr.family() == newly_pairable_addr.family() && existing_addr != newly_pairable_addr) {
+        RTC_LOG(LS_INFO) << "Port pruned: "
+                         << newly_pairable_port_data->port()->ToString();
+        newly_pairable_port_data->Prune();
+        return true;
+      }
     }
   }
   return false;
