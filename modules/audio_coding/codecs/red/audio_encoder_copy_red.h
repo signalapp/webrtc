@@ -25,6 +25,9 @@
 #include "api/units/time_delta.h"
 #include "rtc_base/buffer.h"
 
+// RingRTC change to add low bitrate redundancy
+#include "modules/audio_coding/codecs/opus/audio_encoder_opus.h"
+
 namespace webrtc {
 
 // This class implements redundant audio coding as described in
@@ -98,6 +101,16 @@ class AudioEncoderCopyRed final : public AudioEncoder {
   size_t max_packet_length_;
   int red_payload_type_;
   std::list<std::pair<EncodedInfo, rtc::Buffer>> redundant_encodings_;
+
+  // RingRTC change to add low bitrate redundancy
+  void ConfigureLBRedExperiment();
+  bool use_lbred_;
+  bool use_loss_primary_;
+  bool use_loss_secondary_;
+  int bitrate_primary_;
+  std::unique_ptr<AudioEncoderOpusImpl> speech_encoder_secondary_;
+  rtc::Buffer secondary_encoded_;
+  bool last_packet_speech_;
 };
 
 }  // namespace webrtc

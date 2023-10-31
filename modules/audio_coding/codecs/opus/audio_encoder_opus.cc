@@ -1001,7 +1001,7 @@ bool AudioEncoderOpusImpl::Configure(const webrtc::AudioEncoder::Config& config)
   config_.fec_enabled = config.enable_fec;
   config_.cbr_enabled = config.enable_cbr;
   config_.complexity = config.complexity;
-  config_.low_rate_complexity = config_.low_rate_complexity;
+  config_.low_rate_complexity = config.complexity;
   config_.dtx_enabled = config.enable_dtx;
 
   if (config.adaptation > 0) {

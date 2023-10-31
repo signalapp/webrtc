@@ -15,6 +15,8 @@
 
 #include "api/array_view.h"
 #include "rtc_base/checks.h"
+// RingRTC change to log opus setters
+#include "rtc_base/logging.h"
 #include "system_wrappers/include/field_trial.h"
 
 enum {
@@ -269,6 +271,8 @@ int WebRtcOpus_Encode(OpusEncInst* inst,
        : opus_multistream_encoder_ctl(inst->multistream_encoder, vargs))
 
 int16_t WebRtcOpus_SetBitRate(OpusEncInst* inst, int32_t rate) {
+  // RingRTC change to log opus setters
+  RTC_LOG(LS_INFO) << "WebRtcOpus_SetBitRate " << rate;
   if (inst) {
     return ENCODER_CTL(inst, OPUS_SET_BITRATE(rate));
   } else {
@@ -277,6 +281,8 @@ int16_t WebRtcOpus_SetBitRate(OpusEncInst* inst, int32_t rate) {
 }
 
 int16_t WebRtcOpus_SetPacketLossRate(OpusEncInst* inst, int32_t loss_rate) {
+  // RingRTC change to log opus setters
+  RTC_LOG(LS_WARNING) << "WebRtcOpus_SetPacketLossRate " << loss_rate;
   if (inst) {
     return ENCODER_CTL(inst, OPUS_SET_PACKET_LOSS_PERC(loss_rate));
   } else {
@@ -286,6 +292,9 @@ int16_t WebRtcOpus_SetPacketLossRate(OpusEncInst* inst, int32_t loss_rate) {
 
 int16_t WebRtcOpus_SetMaxPlaybackRate(OpusEncInst* inst, int32_t frequency_hz) {
   opus_int32 set_bandwidth;
+
+  // RingRTC change to log opus setters
+  RTC_LOG(LS_INFO) << "WebRtcOpus_SetMaxPlaybackRate " << frequency_hz;
 
   if (!inst)
     return -1;
@@ -344,6 +353,8 @@ int16_t WebRtcOpus_GetMaxPlaybackRate(OpusEncInst* const inst,
 }
 
 int16_t WebRtcOpus_EnableFec(OpusEncInst* inst) {
+  // RingRTC change to log opus setters
+  RTC_LOG(LS_INFO) << "WebRtcOpus_EnableFec";
   if (inst) {
     return ENCODER_CTL(inst, OPUS_SET_INBAND_FEC(1));
   } else {
@@ -352,6 +363,8 @@ int16_t WebRtcOpus_EnableFec(OpusEncInst* inst) {
 }
 
 int16_t WebRtcOpus_DisableFec(OpusEncInst* inst) {
+  // RingRTC change to log opus setters
+  RTC_LOG(LS_INFO) << "WebRtcOpus_DisableFec";
   if (inst) {
     return ENCODER_CTL(inst, OPUS_SET_INBAND_FEC(0));
   } else {
@@ -360,6 +373,8 @@ int16_t WebRtcOpus_DisableFec(OpusEncInst* inst) {
 }
 
 int16_t WebRtcOpus_EnableDtx(OpusEncInst* inst) {
+  // RingRTC change to log opus setters
+  RTC_LOG(LS_INFO) << "WebRtcOpus_EnableDtx";
   if (inst) {
     if (webrtc::field_trial::IsEnabled(kSetSignalVoiceWithDtxFieldTrial)) {
       int ret = ENCODER_CTL(inst, OPUS_SET_SIGNAL(OPUS_SIGNAL_VOICE));
@@ -374,6 +389,8 @@ int16_t WebRtcOpus_EnableDtx(OpusEncInst* inst) {
 }
 
 int16_t WebRtcOpus_DisableDtx(OpusEncInst* inst) {
+  // RingRTC change to log opus setters
+  RTC_LOG(LS_INFO) << "WebRtcOpus_DisableDtx";
   if (inst) {
     if (webrtc::field_trial::IsEnabled(kSetSignalVoiceWithDtxFieldTrial)) {
       int ret = ENCODER_CTL(inst, OPUS_SET_SIGNAL(OPUS_AUTO));
@@ -398,6 +415,8 @@ int16_t WebRtcOpus_GetUseDtx(OpusEncInst* inst) {
 }
 
 int16_t WebRtcOpus_EnableCbr(OpusEncInst* inst) {
+  // RingRTC change to log opus setters
+  RTC_LOG(LS_INFO) << "WebRtcOpus_EnableCbr";
   if (inst) {
     return ENCODER_CTL(inst, OPUS_SET_VBR(0));
   } else {
@@ -406,6 +425,8 @@ int16_t WebRtcOpus_EnableCbr(OpusEncInst* inst) {
 }
 
 int16_t WebRtcOpus_DisableCbr(OpusEncInst* inst) {
+  // RingRTC change to log opus setters
+  RTC_LOG(LS_INFO) << "WebRtcOpus_DisableCbr";
   if (inst) {
     return ENCODER_CTL(inst, OPUS_SET_VBR(1));
   } else {
@@ -414,6 +435,8 @@ int16_t WebRtcOpus_DisableCbr(OpusEncInst* inst) {
 }
 
 int16_t WebRtcOpus_SetComplexity(OpusEncInst* inst, int32_t complexity) {
+  // RingRTC change to log opus setters
+  RTC_LOG(LS_INFO) << "WebRtcOpus_SetComplexity " << complexity;
   if (inst) {
     return ENCODER_CTL(inst, OPUS_SET_COMPLEXITY(complexity));
   } else {
@@ -434,6 +457,8 @@ int32_t WebRtcOpus_GetBandwidth(OpusEncInst* inst) {
 }
 
 int16_t WebRtcOpus_SetBandwidth(OpusEncInst* inst, int32_t bandwidth) {
+  // RingRTC change to log opus setters
+  RTC_LOG(LS_INFO) << "WebRtcOpus_SetBandwidth " << bandwidth;
   if (inst) {
     return ENCODER_CTL(inst, OPUS_SET_BANDWIDTH(bandwidth));
   } else {
