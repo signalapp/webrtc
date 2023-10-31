@@ -2172,8 +2172,8 @@ PeerConnection::InitializePortAllocator_n(
   }
 
   port_allocator_->set_flags(port_allocator_flags);
-  // No step delay is used while allocating ports.
-  port_allocator_->set_step_delay(cricket::kMinimumStepDelay);
+  // RingRTC change to use no step delay while allocating ports.
+  port_allocator_->set_step_delay(0);
   port_allocator_->SetCandidateFilter(
       ConvertIceTransportTypeToCandidateFilter(configuration.type));
   port_allocator_->set_max_ipv6_networks(configuration.max_ipv6_networks);
