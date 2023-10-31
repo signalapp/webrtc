@@ -185,13 +185,13 @@ AudioEncoder::EncodedInfo AudioEncoderCopyRed::EncodeImpl(
   // RingRTC change to add low bitrate redundancy
   bool use_secondary = false;
 
-//  if (info.send_even_if_empty) {
-//    RTC_LOG(LS_INFO) << "info encoded_bytes: " << info.encoded_bytes
-//                     << ", encoded_timestamp: " << info.encoded_timestamp
-//                     << ", payload_type: " << info.payload_type
-//                     << ", speech: " << info.speech
-//                     << ", encoder_type: " << info.encoder_type;
-//  }
+  if (info.send_even_if_empty) {
+    RTC_LOG(LS_VERBOSE) << "info encoded_bytes: " << info.encoded_bytes
+                        << ", encoded_timestamp: " << info.encoded_timestamp
+                        << ", payload_type: " << info.payload_type
+                        << ", speech: " << info.speech
+                        << ", encoder_type: " << info.encoder_type;
+  }
 
   // We will pre-fill the buffers of the secondary encoder every time. This
   // function is called every 10ms, so the encoder needs to be ready for the
@@ -220,12 +220,11 @@ AudioEncoder::EncodedInfo AudioEncoderCopyRed::EncodeImpl(
         } else {
           use_secondary = true;
 
-//          RTC_LOG(LS_INFO) << "info_secondary encoded_bytes: " << info_secondary.encoded_bytes
-//                           << ", encoded_timestamp: " << info_secondary.encoded_timestamp
-//                           << ", payload_type: " << info_secondary.payload_type
-//                           << ", send_even_if_empty: " << info_secondary.send_even_if_empty
-//                           << ", speech: " << info_secondary.speech
-//                           << ", encoder_type: " << info_secondary.encoder_type;
+          RTC_LOG(LS_VERBOSE) << "info_secondary encoded_bytes: " << info_secondary.encoded_bytes
+                              << ", encoded_timestamp: " << info_secondary.encoded_timestamp
+                              << ", payload_type: " << info_secondary.payload_type
+                              << ", speech: " << info_secondary.speech
+                              << ", encoder_type: " << info_secondary.encoder_type;
         }
       } else {
         // We have the final primary encoding AND it is NOT speech. Clear the
