@@ -743,11 +743,14 @@ class PeerConnection : public PeerConnectionInternal,
   // Used to gather metrics only the first such state change.
   bool was_ever_connected_ RTC_GUARDED_BY(signaling_thread()) = false;
 
-  // This variable needs to be the last one in the class.
-  rtc::WeakPtrFactory<PeerConnection> weak_factory_;
-
   // RingRTC change to add ICE forking
   rtc::scoped_refptr<webrtc::IceGathererInterface> shared_ice_gatherer_;
+
+  // RingRTC change to receive RTP data
+  bool rtp_demuxer_sink_registered_ = false;
+
+  // This variable needs to be the last one in the class.
+  rtc::WeakPtrFactory<PeerConnection> weak_factory_;
 };
 
 }  // namespace webrtc
