@@ -1917,9 +1917,11 @@ void PeerConnection::Close() {
     RTC_DCHECK_RUN_ON(network_thread());
 
     // RingRTC change to receive RTP data
-    JsepTransportController* transport_controller = this->transport_controller_n();
-    RtpTransportInternal* rtp_transport = transport_controller->GetBundledRtpTransport();
-    rtp_transport->UnregisterRtpDemuxerSink(sink);
+    if (rtp_demuxer_sink_registered_) {
+      JsepTransportController *transport_controller = this->transport_controller_n();
+      RtpTransportInternal *rtp_transport = transport_controller->GetBundledRtpTransport();
+      rtp_transport->UnregisterRtpDemuxerSink(sink);
+    }
 
     transport_controller_.reset();
     port_allocator_->DiscardCandidatePool();
@@ -3077,7 +3079,8 @@ bool PeerConnection::ReceiveRtp(uint8_t pt, bool enable_incoming) {
     if (enable_incoming) {
       rtp_transport->SetIncomingRtpEnabled(true);
     }
-    return rtp_transport->RegisterRtpDemuxerSink(demux_criteria, sink);
+    rtp_demuxer_sink_registered_ = rtp_transport->RegisterRtpDemuxerSink(demux_criteria, sink);
+    return rtp_demuxer_sink_registered_;
   });
 }
 

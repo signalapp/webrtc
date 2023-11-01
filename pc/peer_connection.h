@@ -748,6 +748,9 @@ class PeerConnection : public PeerConnectionInternal,
 
   // RingRTC change to add ICE forking
   rtc::scoped_refptr<webrtc::IceGathererInterface> shared_ice_gatherer_;
+
+  // RingRTC change to receive RTP data
+  bool rtp_demuxer_sink_registered_ = false;
 };
 
 }  // namespace webrtc
