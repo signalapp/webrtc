@@ -125,7 +125,7 @@ rtc::scoped_refptr<AudioDeviceModule> CreateJavaAudioDeviceModule(
       AudioDeviceModule::kAndroidJavaAudio, false /* use_stereo_input */,
       false /* use_stereo_output */,
       jni::kHighLatencyModeDelayEstimateInMilliseconds, std::move(audio_input),
-      std::move(audio_output)
+      std::move(audio_output),
       false /* use_aecm */);
 }
 
