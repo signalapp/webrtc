@@ -139,7 +139,6 @@ rtc_source_set("dtls_srtp_transport") {
     "../rtc_base:checks",
     "../rtc_base:logging",
     "../rtc_base:ssl",
-    "../rtc_base/third_party/sigslot",
   ]
   absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
 }
@@ -444,6 +443,7 @@ rtc_source_set("rtp_transport") {
     ":rtp_transport_internal",
     ":session_description",
     "../api:array_view",
+    "../api/task_queue:pending_task_safety_flag",
     "../api/units:timestamp",
     "../call:rtp_receiver",
     "../call:video_stream_api",
@@ -476,9 +476,9 @@ rtc_source_set("rtp_transport_internal") {
     ":session_description",
     "../call:rtp_receiver",
     "../p2p:rtc_p2p",
+    "../rtc_base:callback_list",
     "../rtc_base:network_route",
     "../rtc_base:ssl",
-    "../rtc_base/third_party/sigslot",
   ]
 }
 
@@ -1250,7 +1250,6 @@ rtc_source_set("peer_connection") {
     "../rtc_base:threading",
     "../rtc_base:unique_id_generator",
     "../rtc_base:weak_ptr",
-    "../rtc_base/third_party/sigslot",
     "../system_wrappers:metrics",
   ]
   absl_deps = [
@@ -1661,7 +1660,6 @@ rtc_library("rtp_transmission_manager") {
     "../rtc_base:ssl",
     "../rtc_base:threading",
     "../rtc_base:weak_ptr",
-    "../rtc_base/third_party/sigslot",
   ]
   absl_deps = [
     "//third_party/abseil-cpp/absl/algorithm:container",
@@ -2413,6 +2411,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../api:libjingle_peerconnection_api",
       "../api:make_ref_counted",
       "../api:media_stream_interface",
+      "../api:mock_async_dns_resolver",
       "../api:mock_encoder_selector",
       "../api:mock_packet_socket_factory",
       "../api:mock_video_track",
@@ -2450,7 +2449,6 @@ if (rtc_include_tests && !build_with_chromium) {
       "../common_video",
       "../logging:fake_rtc_event_log",
       "../media:codec",
-      "../media:delayable",
       "../media:media_channel",
       "../media:media_constants",
       "../media:rid_description",
@@ -2559,27 +2557,6 @@ if (rtc_include_tests && !build_with_chromium) {
     ]
   }
 
-  rtc_test("peer_connection_mediachannel_split_unittests") {
-    testonly = true
-    sources = [ "peer_connection_mediachannel_split_unittest.cc" ]
-    deps = [
-      ":integration_test_helpers",
-      ":session_description",
-      "../api:libjingle_peerconnection_api",
-      "../api:media_stream_interface",
-      "../api:rtc_error",
-      "../api:rtc_stats_api",
-      "../api:scoped_refptr",
-      "../media:codec",
-      "../media:media_constants",
-      "../rtc_base:gunit_helpers",
-      "../rtc_base:rtc_base_tests_utils",
-      "../test:test_main",
-      "../test:test_support",
-    ]
-    absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
-  }
-
   rtc_library("data_channel_controller_unittest") {
     testonly = true
     sources = [ "data_channel_controller_unittest.cc" ]
@@ -2658,6 +2635,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../api:libjingle_logging_api",
       "../api:libjingle_peerconnection_api",
       "../api:media_stream_interface",
+      "../api:mock_async_dns_resolver",
       "../api:mock_rtp",
       "../api:packet_socket_factory",
       "../api:rtc_error",
@@ -2758,7 +2736,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "test/mock_peer_connection_observers.h",
       "test/mock_rtp_receiver_internal.h",
       "test/mock_rtp_sender_internal.h",
-      "test/mock_voice_media_channel.h",
+      "test/mock_voice_media_receive_channel_interface.h",
       "test/peer_connection_test_wrapper.cc",
       "test/peer_connection_test_wrapper.h",
       "test/rtc_stats_obtainer.h",
@@ -2792,6 +2770,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../api:media_stream_interface",
       "../api:rtc_error",
       "../api:rtc_stats_api",
+      "../api:rtp_parameters",
       "../api:scoped_refptr",
       "../api:sequence_checker",
       "../api/audio:audio_mixer_api",
@@ -2849,6 +2828,7 @@ if (rtc_include_tests && !build_with_chromium) {
     ]
     absl_deps = [
       "//third_party/abseil-cpp/absl/algorithm:container",
+      "//third_party/abseil-cpp/absl/strings",
       "//third_party/abseil-cpp/absl/types:optional",
     ]
   }

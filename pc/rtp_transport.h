@@ -17,6 +17,7 @@
 #include <string>
 
 #include "absl/types/optional.h"
+#include "api/task_queue/pending_task_safety_flag.h"
 #include "call/rtp_demuxer.h"
 #include "call/video_receive_stream.h"
 #include "modules/rtp_rtcp/include/rtp_header_extension_map.h"
@@ -140,6 +141,9 @@ class RtpTransport : public RtpTransportInternal {
 
   // Used for identifying the MID for RtpDemuxer.
   RtpHeaderExtensionMap header_extension_map_;
+  // Guard against recursive "ready to send" signals
+  bool processing_ready_to_send_ = false;
+  ScopedTaskSafety safety_;
 
   // If false, drop all RTP and RTCP packets before processing them.
   // RingRTC change to drop all incoming packets until explicitly allowed

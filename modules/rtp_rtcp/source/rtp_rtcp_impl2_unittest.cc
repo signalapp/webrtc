@@ -102,21 +102,20 @@ class SendTransport : public Transport,
 
   void SetRtpRtcpModule(ModuleRtpRtcpImpl2* receiver) { receiver_ = receiver; }
   void SimulateNetworkDelay(TimeDelta delay) { delay_ = delay; }
-  bool SendRtp(const uint8_t* data,
-               size_t len,
+  bool SendRtp(rtc::ArrayView<const uint8_t> data,
                const PacketOptions& options) override {
-    EXPECT_TRUE(last_packet_.Parse(data, len));
+    EXPECT_TRUE(last_packet_.Parse(data));
     ++rtp_packets_sent_;
     return true;
   }
-  bool SendRtcp(const uint8_t* data, size_t len) override {
+  bool SendRtcp(rtc::ArrayView<const uint8_t> data) override {
     test::RtcpPacketParser parser;
-    parser.Parse(data, len);
+    parser.Parse(data);
     last_nack_list_ = parser.nack()->packet_ids();
     Timestamp current_time = time_controller_->GetClock()->CurrentTime();
     Timestamp delivery_time = current_time + delay_;
     rtcp_packets_.push_back(
-        Packet{delivery_time, std::vector<uint8_t>(data, data + len)});
+        Packet{delivery_time, std::vector<uint8_t>(data.begin(), data.end())});
     ++rtcp_packets_sent_;
     RunReady(current_time);
     return true;
@@ -162,10 +161,10 @@ class RtpRtcpModule : public RtcpPacketTypeCounterObserver,
                       public SendPacketObserver {
  public:
   struct SentPacket {
-    SentPacket(uint16_t packet_id, int64_t capture_time_ms, uint32_t ssrc)
-        : packet_id(packet_id), capture_time_ms(capture_time_ms), ssrc(ssrc) {}
+    SentPacket(uint16_t packet_id, Timestamp capture_time, uint32_t ssrc)
+        : packet_id(packet_id), capture_time(capture_time), ssrc(ssrc) {}
     uint16_t packet_id;
-    int64_t capture_time_ms;
+    Timestamp capture_time;
     uint32_t ssrc;
   };
 
@@ -198,9 +197,9 @@ class RtpRtcpModule : public RtcpPacketTypeCounterObserver,
   }
 
   void OnSendPacket(uint16_t packet_id,
-                    int64_t capture_time_ms,
+                    Timestamp capture_time,
                     uint32_t ssrc) override {
-    last_sent_packet_.emplace(packet_id, capture_time_ms, ssrc);
+    last_sent_packet_.emplace(packet_id, capture_time, ssrc);
   }
 
   absl::optional<SentPacket> last_sent_packet() const {
@@ -350,7 +349,6 @@ class RtpRtcpImpl2Test : public ::testing::Test {
     rtp_video_header.height = kHeight;
     rtp_video_header.rotation = kVideoRotation_0;
     rtp_video_header.content_type = VideoContentType::UNSPECIFIED;
-    rtp_video_header.playout_delay = {-1, -1};
     rtp_video_header.is_first_packet_in_frame = true;
     rtp_video_header.simulcastIdx = 0;
     rtp_video_header.codec = kVideoCodecVP8;
@@ -360,9 +358,10 @@ class RtpRtcpImpl2Test : public ::testing::Test {
     const uint8_t payload[100] = {0};
     bool success = module->impl_->OnSendingRtpFrame(0, 0, kPayloadType, true);
 
-    success &= sender->SendVideo(kPayloadType, VideoCodecType::kVideoCodecVP8,
-                                 rtp_timestamp, capture_time_ms, payload,
-                                 sizeof(payload), rtp_video_header, 0, {});
+    success &= sender->SendVideo(
+        kPayloadType, VideoCodecType::kVideoCodecVP8, rtp_timestamp,
+        Timestamp::Millis(capture_time_ms), payload, sizeof(payload),
+        rtp_video_header, TimeDelta::Zero(), {});
     return success;
   }
 
@@ -983,16 +982,15 @@ TEST_F(RtpRtcpImpl2Test, AssignsTransmissionTimeOffset) {
 TEST_F(RtpRtcpImpl2Test, PropagatesSentPacketInfo) {
   sender_.RegisterHeaderExtension(TransportSequenceNumber::Uri(),
                                   kTransportSequenceNumberExtensionId);
-  int64_t now_ms = time_controller_.GetClock()->TimeInMilliseconds();
+  Timestamp now = time_controller_.GetClock()->CurrentTime();
   EXPECT_TRUE(SendFrame(&sender_, sender_video_.get(), kBaseLayerTid));
-  EXPECT_THAT(
-      sender_.last_sent_packet(),
-      Optional(
-          AllOf(Field(&RtpRtcpModule::SentPacket::packet_id,
-                      Eq(sender_.last_packet()
-                             .GetExtension<TransportSequenceNumber>())),
-                Field(&RtpRtcpModule::SentPacket::capture_time_ms, Eq(now_ms)),
-                Field(&RtpRtcpModule::SentPacket::ssrc, Eq(kSenderSsrc)))));
+  EXPECT_THAT(sender_.last_sent_packet(),
+              Optional(AllOf(
+                  Field(&RtpRtcpModule::SentPacket::packet_id,
+                        Eq(sender_.last_packet()
+                               .GetExtension<TransportSequenceNumber>())),
+                  Field(&RtpRtcpModule::SentPacket::capture_time, Eq(now)),
+                  Field(&RtpRtcpModule::SentPacket::ssrc, Eq(kSenderSsrc)))));
 }
 
 TEST_F(RtpRtcpImpl2Test, GeneratesFlexfec) {

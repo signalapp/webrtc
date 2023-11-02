@@ -24,6 +24,7 @@ class MockTransformableVideoFrame
   MOCK_METHOD(rtc::ArrayView<const uint8_t>, GetData, (), (const, override));
   MOCK_METHOD(void, SetData, (rtc::ArrayView<const uint8_t> data), (override));
   MOCK_METHOD(uint32_t, GetTimestamp, (), (const, override));
+  MOCK_METHOD(void, SetRTPTimestamp, (uint32_t), (override));
   MOCK_METHOD(uint32_t, GetSsrc, (), (const, override));
   MOCK_METHOD(bool, IsKeyFrame, (), (const, override));
   MOCK_METHOD(void,
@@ -36,6 +37,10 @@ class MockTransformableVideoFrame
               (),
               (const, override));
   MOCK_METHOD(VideoFrameMetadata, Metadata, (), (const, override));
+  MOCK_METHOD(absl::optional<Timestamp>,
+              GetCaptureTimeIdentifier,
+              (),
+              (const, override));
 };
 
 static_assert(!std::is_abstract_v<MockTransformableVideoFrame>, "");
