@@ -282,7 +282,7 @@ int16_t WebRtcOpus_SetBitRate(OpusEncInst* inst, int32_t rate) {
 
 int16_t WebRtcOpus_SetPacketLossRate(OpusEncInst* inst, int32_t loss_rate) {
   // RingRTC change to log opus setters
-  RTC_LOG(LS_WARNING) << "WebRtcOpus_SetPacketLossRate " << loss_rate;
+  RTC_LOG(LS_INFO) << "WebRtcOpus_SetPacketLossRate " << loss_rate;
   if (inst) {
     return ENCODER_CTL(inst, OPUS_SET_PACKET_LOSS_PERC(loss_rate));
   } else {

@@ -134,7 +134,7 @@ RtpCapabilities PeerConnectionFactory::GetRtpSenderCapabilities(
     }
     case cricket::MEDIA_TYPE_VIDEO: {
       cricket::VideoCodecs cricket_codecs;
-      cricket_codecs = media_engine()->video().send_codecs();
+      cricket_codecs = media_engine()->video().send_codecs(context_->use_rtx());
       auto extensions =
           GetDefaultEnabledRtpHeaderExtensions(media_engine()->video());
       return ToRtpCapabilities(cricket_codecs, extensions);
@@ -231,11 +231,6 @@ PeerConnectionFactory::CreatePeerConnectionOrError(
         port_allocator_flags);
   }
 
-  if (!dependencies.async_resolver_factory) {
-    dependencies.async_resolver_factory =
-        std::make_unique<webrtc::BasicAsyncResolverFactory>();
-  }
-
   if (!dependencies.ice_transport_factory) {
     dependencies.ice_transport_factory =
         std::make_unique<DefaultIceTransportFactory>();
@@ -300,9 +295,9 @@ rtc::scoped_refptr<AudioTrackInterface> PeerConnectionFactory::CreateAudioTrack(
 std::unique_ptr<RtcEventLog> PeerConnectionFactory::CreateRtcEventLog_w() {
   RTC_DCHECK_RUN_ON(worker_thread());
 
-  auto encoding_type = RtcEventLog::EncodingType::Legacy;
-  if (IsTrialEnabled("WebRTC-RtcEventLogNewFormat"))
-    encoding_type = RtcEventLog::EncodingType::NewFormat;
+  auto encoding_type = RtcEventLog::EncodingType::NewFormat;
+  if (field_trials().IsDisabled("WebRTC-RtcEventLogNewFormat"))
+    encoding_type = RtcEventLog::EncodingType::Legacy;
   return event_log_factory_ ? event_log_factory_->Create(encoding_type)
                             : std::make_unique<RtcEventLogNull>();
 }

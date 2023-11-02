@@ -128,7 +128,7 @@ Rust_disableDtlsAndSetSrtpKey(webrtc::SessionDescriptionInterface* session_descr
   }
 
   cricket::CryptoParams crypto_params;
-  crypto_params.cipher_suite = rtc::SrtpCryptoSuiteToName(crypto_suite);
+  crypto_params.crypto_suite = rtc::SrtpCryptoSuiteToName(crypto_suite);
 
   std::string key(key_borrowed, key_len);
   std::string salt(salt_borrowed, salt_len);
@@ -477,7 +477,7 @@ CreateSessionDescriptionForGroupCall(bool local,
 
   // Use SRTP master key material instead
   cricket::CryptoParams crypto_params;
-  crypto_params.cipher_suite = rtc::SrtpCryptoSuiteToName(srtp_key.suite);
+  crypto_params.crypto_suite = rtc::SrtpCryptoSuiteToName(srtp_key.suite);
   std::string key(srtp_key.key_borrowed, srtp_key.key_len);
   std::string salt(srtp_key.salt_borrowed, srtp_key.salt_len);
   crypto_params.key_params = "inline:" + rtc::Base64::Encode(key + salt);

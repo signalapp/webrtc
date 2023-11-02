@@ -64,12 +64,12 @@ if (!build_with_chromium) {
         "modules/video_capture:video_capture_internal_impl",
         "modules/video_coding:video_codec_perf_tests",
         "net/dcsctp:dcsctp_unittests",
-        "pc:peer_connection_mediachannel_split_unittests",
         "pc:peerconnection_unittests",
         "pc:rtc_pc_unittests",
         "pc:slow_peer_connection_unittests",
         "pc:svc_tests",
         "rtc_tools:rtp_generator",
+        "rtc_tools:video_encoder",
         "rtc_tools:video_replay",
         "stats:rtc_stats_unittests",
         "system_wrappers:system_wrappers_unittests",
@@ -137,6 +137,14 @@ config("common_inherited_config") {
   defines = []
   cflags = []
   ldflags = []
+
+  if (rtc_jni_generator_legacy_symbols) {
+    defines += [ "RTC_JNI_GENERATOR_LEGACY_SYMBOLS" ]
+  }
+
+  if (rtc_objc_prefix != "") {
+    defines += [ "RTC_OBJC_TYPE_PREFIX=${rtc_objc_prefix}" ]
+  }
 
   if (rtc_dlog_always_on) {
     defines += [ "DLOG_ALWAYS_ON" ]
@@ -311,6 +319,10 @@ config("common_config") {
 
   if (rtc_use_absl_mutex) {
     defines += [ "WEBRTC_ABSL_MUTEX" ]
+  }
+
+  if (rtc_enable_libevent) {
+    defines += [ "WEBRTC_ENABLE_LIBEVENT" ]
   }
 
   if (rtc_disable_logging) {
@@ -596,6 +608,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "call:fake_network_pipe_unittests",
       "p2p:libstunprober_unittests",
       "p2p:rtc_p2p_unittests",
+      "rtc_base:async_dns_resolver_unittests",
       "rtc_base:callback_list_unittests",
       "rtc_base:rtc_base_approved_unittests",
       "rtc_base:rtc_base_unittests",
