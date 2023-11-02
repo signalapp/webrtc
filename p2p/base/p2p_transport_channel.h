@@ -61,6 +61,7 @@
 #include "p2p/base/port_allocator.h"
 #include "p2p/base/port_interface.h"
 #include "p2p/base/regathering_controller.h"
+#include "p2p/base/stun_dictionary.h"
 #include "p2p/base/transport_description.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/checks.h"
@@ -71,7 +72,6 @@
 #include "rtc_base/socket_address.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/system/rtc_export.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
 
@@ -223,7 +223,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
   int check_receiving_interval() const;
   absl::optional<rtc::NetworkRoute> network_route() const override;
 
-  void RemoveConnection(const Connection* connection);
+  void RemoveConnection(Connection* connection);
 
   // Helper method used only in unittest.
   rtc::DiffServCodePoint DefaultDscpValue() const;
@@ -265,6 +265,11 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
     ss << "Channel[" << transport_name_ << "|" << component_ << "|"
        << RECEIVING_ABBREV[receiving_] << WRITABLE_ABBREV[writable_] << "]";
     return ss.Release();
+  }
+
+  absl::optional<std::reference_wrapper<StunDictionaryWriter>>
+  GetDictionaryWriter() override {
+    return stun_dict_writer_;
   }
 
  private:
@@ -530,6 +535,10 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
       Candidate candidate,
       const webrtc::AsyncDnsResolverResult& result);
 
+  std::unique_ptr<StunAttribute> GoogDeltaReceived(
+      const StunByteStringAttribute*);
+  void GoogDeltaAckReceived(webrtc::RTCErrorOr<const StunUInt64Attribute*>);
+
   // Bytes/packets sent/received on this channel.
   uint64_t bytes_sent_ = 0;
   uint64_t bytes_received_ = 0;
@@ -545,6 +554,12 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
 
   // Parsed field trials.
   IceFieldTrials ice_field_trials_;
+
+  // A dictionary of attributes that will be reflected to peer.
+  StunDictionaryWriter stun_dict_writer_;
+
+  // A dictionary that tracks attributes from peer.
+  StunDictionaryView stun_dict_view_;
 };
 
 }  // namespace cricket

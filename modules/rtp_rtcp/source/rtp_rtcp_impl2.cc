@@ -40,8 +40,7 @@
 
 namespace webrtc {
 namespace {
-const int64_t kDefaultExpectedRetransmissionTimeMs = 125;
-
+constexpr TimeDelta kDefaultExpectedRetransmissionTime = TimeDelta::Millis(125);
 constexpr TimeDelta kRttUpdateInterval = TimeDelta::Millis(1000);
 
 RTCPSender::Configuration AddRtcpSendEvaluationCallback(
@@ -261,9 +260,7 @@ RTCPSender::FeedbackState ModuleRtpRtcpImpl2::GetFeedbackState() {
     state.media_bytes_sent = rtp_stats.transmitted.payload_bytes +
                              rtx_stats.transmitted.payload_bytes;
     state.send_bitrate =
-        rtp_sender_->packet_sender.GetSendRates(clock_->CurrentTime())
-            .Sum()
-            .bps<uint32_t>();
+        rtp_sender_->packet_sender.GetSendRates(clock_->CurrentTime()).Sum();
   }
   state.receiver = &rtcp_receiver_;
 
@@ -480,17 +477,17 @@ absl::optional<TimeDelta> ModuleRtpRtcpImpl2::LastRtt() const {
   return rtt;
 }
 
-int64_t ModuleRtpRtcpImpl2::ExpectedRetransmissionTimeMs() const {
+TimeDelta ModuleRtpRtcpImpl2::ExpectedRetransmissionTime() const {
   int64_t expected_retransmission_time_ms = rtt_ms();
   if (expected_retransmission_time_ms > 0) {
-    return expected_retransmission_time_ms;
+    return TimeDelta::Millis(expected_retransmission_time_ms);
   }
   // No rtt available (`kRttUpdateInterval` not yet passed?), so try to
   // poll avg_rtt_ms directly from rtcp receiver.
   if (absl::optional<TimeDelta> rtt = rtcp_receiver_.AverageRtt()) {
-    return rtt->ms();
+    return *rtt;
   }
-  return kDefaultExpectedRetransmissionTimeMs;
+  return kDefaultExpectedRetransmissionTime;
 }
 
 // Force a send of an RTCP packet.

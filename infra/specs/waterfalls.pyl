@@ -245,30 +245,10 @@
     'name': 'client.webrtc.perf',
     'mixins': ['limited-capacity'],
     'machines': {
-      'Perf Android32 (O Pixel2)': {
-        'mixins': [
-          'walleye', 'android-devices', 'perf-pool', 'timeout-3h',
-          'perf-output', 'has_native_resultdb_integration',
-          'chromium-tester-service-account'
-        ],
-        'test_suites': {
-          'gtest_tests': 'perf_tests',
-        },
-      },
       'Perf Android32 (R Pixel5)': {
         'mixins': [
           'redfin', 'android-devices', 'perf-pool', 'timeout-3h', 'perf-output',
           'has_native_resultdb_integration', 'chromium-tester-service-account'
-        ],
-        'test_suites': {
-          'gtest_tests': 'perf_tests',
-        },
-      },
-      'Perf Android64 (O Pixel2)': {
-        'mixins': [
-          'walleye', 'android-devices', 'perf-pool', 'timeout-3h',
-          'perf-output', 'has_native_resultdb_integration',
-          'chromium-tester-service-account'
         ],
         'test_suites': {
           'gtest_tests': 'perf_tests',
@@ -344,8 +324,8 @@
     'machines': {
       'iOS64 Debug': {
         'mixins': [
-          'ios-device-15.7', 'webrtc-xctest', 'chrome-tester-service-account',
-          'xcode_13_main', 'mac_toolchain', 'has_native_resultdb_integration',
+          'ios-device-16.6', 'webrtc-xctest', 'chrome-tester-service-account',
+          'xcode_15_main', 'mac_toolchain', 'has_native_resultdb_integration',
           'out_dir_arg'
         ],
         'test_suites': {
@@ -367,8 +347,8 @@
       },
       'iOS64 Release': {
         'mixins': [
-          'ios-device-15.7', 'webrtc-xctest', 'chrome-tester-service-account',
-          'xcode_13_main', 'mac_toolchain', 'has_native_resultdb_integration',
+          'ios-device-16.6', 'webrtc-xctest', 'chrome-tester-service-account',
+          'xcode_15_main', 'mac_toolchain', 'has_native_resultdb_integration',
           'out_dir_arg'
         ],
         'test_suites': {

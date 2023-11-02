@@ -57,7 +57,7 @@ enum : int {
 
 class MockSendPacketObserver : public SendPacketObserver {
  public:
-  MOCK_METHOD(void, OnSendPacket, (uint16_t, int64_t, uint32_t), (override));
+  MOCK_METHOD(void, OnSendPacket, (uint16_t, Timestamp, uint32_t), (override));
 };
 
 class MockTransportFeedbackObserver : public TransportFeedbackObserver {
@@ -94,17 +94,17 @@ class TestTransport : public Transport {
   explicit TestTransport(RtpHeaderExtensionMap* extensions)
       : total_data_sent_(DataSize::Zero()), extensions_(extensions) {}
   MOCK_METHOD(void, SentRtp, (const PacketOptions& options), ());
-  bool SendRtp(const uint8_t* packet,
-               size_t length,
+  bool SendRtp(rtc::ArrayView<const uint8_t> packet,
                const PacketOptions& options) override {
-    total_data_sent_ += DataSize::Bytes(length);
-    last_packet_.emplace(rtc::MakeArrayView(packet, length), options,
-                         extensions_);
+    total_data_sent_ += DataSize::Bytes(packet.size());
+    last_packet_.emplace(packet, options, extensions_);
     SentRtp(options);
     return true;
   }
 
-  bool SendRtcp(const uint8_t*, size_t) override { RTC_CHECK_NOTREACHED(); }
+  bool SendRtcp(rtc::ArrayView<const uint8_t>) override {
+    RTC_CHECK_NOTREACHED();
+  }
 
   absl::optional<TransmittedPacket> last_packet() { return last_packet_; }
 
@@ -419,9 +419,9 @@ TEST_F(RtpSenderEgressTest, OnSendPacketUpdated) {
                                    TransportSequenceNumber::Uri());
 
   const uint16_t kTransportSequenceNumber = 1;
-  EXPECT_CALL(send_packet_observer_,
-              OnSendPacket(kTransportSequenceNumber,
-                           clock_->TimeInMilliseconds(), kSsrc));
+  EXPECT_CALL(
+      send_packet_observer_,
+      OnSendPacket(kTransportSequenceNumber, clock_->CurrentTime(), kSsrc));
   std::unique_ptr<RtpPacketToSend> packet = BuildRtpPacket();
   packet->SetExtension<TransportSequenceNumber>(kTransportSequenceNumber);
   sender->SendPacket(std::move(packet), PacedPacketInfo());
@@ -854,7 +854,7 @@ TEST_F(RtpSenderEgressTest, SendPacketUpdatesStats) {
   header_extensions_.RegisterByUri(kTransportSequenceNumberExtensionId,
                                    TransportSequenceNumber::Uri());
 
-  const int64_t capture_time_ms = clock_->TimeInMilliseconds();
+  const Timestamp capture_time = clock_->CurrentTime();
 
   std::unique_ptr<RtpPacketToSend> video_packet = BuildRtpPacket();
   video_packet->set_packet_type(RtpPacketMediaType::kVideo);
@@ -882,7 +882,7 @@ TEST_F(RtpSenderEgressTest, SendPacketUpdatesStats) {
   EXPECT_CALL(send_side_delay_observer,
               SendSideDelayUpdated(kDiffMs, kDiffMs, kFlexFecSsrc));
 
-  EXPECT_CALL(send_packet_observer_, OnSendPacket(1, capture_time_ms, kSsrc));
+  EXPECT_CALL(send_packet_observer_, OnSendPacket(1, capture_time, kSsrc));
 
   sender->SendPacket(std::move(video_packet), PacedPacketInfo());
 
@@ -891,7 +891,7 @@ TEST_F(RtpSenderEgressTest, SendPacketUpdatesStats) {
   sender->SendPacket(std::move(rtx_packet), PacedPacketInfo());
 
   EXPECT_CALL(send_packet_observer_,
-              OnSendPacket(3, capture_time_ms, kFlexFecSsrc));
+              OnSendPacket(3, capture_time, kFlexFecSsrc));
   sender->SendPacket(std::move(fec_packet), PacedPacketInfo());
 
   time_controller_.AdvanceTime(TimeDelta::Zero());
