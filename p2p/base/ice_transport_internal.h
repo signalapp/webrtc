@@ -12,32 +12,30 @@
 #define P2P_BASE_ICE_TRANSPORT_INTERNAL_H_
 
 #include <stdint.h>
-
-// RingRTC change to add ICE forking
-#include <memory>
 #include <string>
-// RingRTC change to add ICE forking
-#include <utility>
 #include <vector>
 
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "api/candidate.h"
-// RingRTC change to add ICE forking
-#include "api/ice_gatherer_interface.h"
 #include "api/rtc_error.h"
 #include "api/transport/enums.h"
 #include "p2p/base/connection.h"
 #include "p2p/base/packet_transport_internal.h"
 #include "p2p/base/port.h"
-// RingRTC change to add ICE forking
-#include "p2p/base/port_allocator.h"
 #include "p2p/base/stun_dictionary.h"
 #include "p2p/base/transport_description.h"
 #include "rtc_base/network_constants.h"
 #include "rtc_base/system/rtc_export.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/time_utils.h"
+
+// RingRTC change to add ICE forking
+#include <memory>
+#include <utility>
+
+#include "api/ice_gatherer_interface.h"
+#include "p2p/base/port_allocator.h"
 
 namespace cricket {
 
