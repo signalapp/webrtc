@@ -374,9 +374,10 @@ void Port::OnReadPacket(const char* data,
   std::unique_ptr<IceMessage> msg;
   std::string remote_username;
   if (!GetStunMessage(data, size, addr, &msg, &remote_username)) {
-    RTC_LOG(LS_ERROR) << ToString()
-                      << ": Received non-STUN packet from unknown address: "
-                      << addr.ToSensitiveString();
+    // RingRTC change to reduce logging IP addresses
+    RTC_LOG(LS_INFO) << ToString()
+                     << ": Received non-STUN packet from unknown address: "
+                     << addr.ToSensitiveString();
   } else if (!msg) {
     // STUN message handled already
   } else if (msg->type() == STUN_BINDING_REQUEST) {

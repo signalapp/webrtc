@@ -607,8 +607,9 @@ void TCPConnection::CreateOutgoingTcpSocket() {
     connection_pending_ = true;
     ConnectSocketSignals(socket_.get());
   } else {
-    RTC_LOG(LS_WARNING) << ToString() << ": Failed to create connection to "
-                        << remote_candidate().address().ToSensitiveString();
+    // RingRTC change to reduce logging IP addresses
+    RTC_LOG(LS_INFO) << ToString() << ": Failed to create connection to "
+                     << remote_candidate().address().ToSensitiveString();
     set_state(IceCandidatePairState::FAILED);
     // We can't FailAndPrune directly here. FailAndPrune and deletes all
     // the StunRequests from the request_map_. And if this is in the stack
