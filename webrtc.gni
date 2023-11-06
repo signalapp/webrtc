@@ -148,7 +148,6 @@ declare_args() {
   # only when using the sysroot as PipeWire is not available in older and
   # supported Ubuntu and Debian distributions.
   # RingRTC change to disable pipewire
-  # rtc_use_pipewire = is_linux && use_sysroot
   rtc_use_pipewire = false
 
   # Set this to link PipeWire and required libraries directly instead of using the dlopen.
