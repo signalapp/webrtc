@@ -45,7 +45,6 @@
 #include "rtc_base/network/sent_packet.h"
 #include "rtc_base/network_route.h"
 #include "rtc_base/socket.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
 #include "rtc_base/unique_id_generator.h"
@@ -69,8 +68,6 @@ class VideoChannel;
 class VoiceChannel;
 
 class BaseChannel : public ChannelInterface,
-                    // TODO(tommi): Remove has_slots inheritance.
-                    public sigslot::has_slots<>,
                     // TODO(tommi): Consider implementing these interfaces
                     // via composition.
                     public MediaChannelNetworkInterface,
@@ -94,16 +91,6 @@ class BaseChannel : public ChannelInterface,
       bool srtp_required,
       webrtc::CryptoOptions crypto_options,
       rtc::UniqueRandomIdGenerator* ssrc_generator);
-  // Constructor for use when the MediaChannel is not split
-  // TODO(bugs.webrtc.org/13931): Delete when split channel project is complete.
-  BaseChannel(rtc::Thread* worker_thread,
-              rtc::Thread* network_thread,
-              rtc::Thread* signaling_thread,
-              std::unique_ptr<MediaChannel> media_channel_impl,
-              absl::string_view mid,
-              bool srtp_required,
-              webrtc::CryptoOptions crypto_options,
-              rtc::UniqueRandomIdGenerator* ssrc_generator);
   virtual ~BaseChannel();
 
   rtc::Thread* worker_thread() const { return worker_thread_; }
@@ -316,13 +303,6 @@ class BaseChannel : public ChannelInterface,
   // Return description of media channel to facilitate logging
   std::string ToString() const;
 
-  // MediaChannel implementation pointers.
-  // Either the `media_channel_` is set, or the `media_send_channel_`
-  // and the `media_receive_channel_` is set.
-  // TODO(bugs.webrtc.org/13931): Delete `media_channel_` when split channel
-  // project is complete.
-  const std::unique_ptr<MediaChannel> media_channel_;
-
   const std::unique_ptr<MediaSendChannelInterface> media_send_channel_;
   const std::unique_ptr<MediaReceiveChannelInterface> media_receive_channel_;
 
@@ -396,16 +376,6 @@ class VoiceChannel : public BaseChannel {
       bool srtp_required,
       webrtc::CryptoOptions crypto_options,
       rtc::UniqueRandomIdGenerator* ssrc_generator);
-  // Constructor for use when the MediaChannel is not split
-  // TODO(bugs.webrtc.org/13931): Delete when split channel project is complete.
-  VoiceChannel(rtc::Thread* worker_thread,
-               rtc::Thread* network_thread,
-               rtc::Thread* signaling_thread,
-               std::unique_ptr<VoiceMediaChannel> media_channel_impl,
-               absl::string_view mid,
-               bool srtp_required,
-               webrtc::CryptoOptions crypto_options,
-               rtc::UniqueRandomIdGenerator* ssrc_generator);
 
   ~VoiceChannel();
 
@@ -416,17 +386,11 @@ class VoiceChannel : public BaseChannel {
   VoiceChannel* AsVoiceChannel() override { return this; }
 
   VoiceMediaSendChannelInterface* send_channel() {
-    if (media_send_channel_) {
-      return media_send_channel_->AsVoiceSendChannel();
-    }
-    return media_channel_->AsVoiceSendChannel();
+    return media_send_channel_->AsVoiceSendChannel();
   }
 
   VoiceMediaReceiveChannelInterface* receive_channel() {
-    if (media_receive_channel_) {
-      return media_receive_channel_->AsVoiceReceiveChannel();
-    }
-    return media_channel_->AsVoiceReceiveChannel();
+    return media_receive_channel_->AsVoiceReceiveChannel();
   }
 
   VoiceMediaSendChannelInterface* media_send_channel() override {
@@ -475,12 +439,12 @@ class VoiceChannel : public BaseChannel {
                           std::string& error_desc)
       RTC_RUN_ON(worker_thread()) override;
 
-  // Last AudioSendParameters sent down to the media_channel() via
-  // SetSendParameters.
-  AudioSendParameters last_send_params_ RTC_GUARDED_BY(worker_thread());
-  // Last AudioRecvParameters sent down to the media_channel() via
-  // SetRecvParameters.
-  AudioRecvParameters last_recv_params_ RTC_GUARDED_BY(worker_thread());
+  // Last AudioSenderParameter sent down to the media_channel() via
+  // SetSenderParameters.
+  AudioSenderParameter last_send_params_ RTC_GUARDED_BY(worker_thread());
+  // Last AudioReceiverParameters sent down to the media_channel() via
+  // SetReceiverParameters.
+  AudioReceiverParameters last_recv_params_ RTC_GUARDED_BY(worker_thread());
 };
 
 // VideoChannel is a specialization for video.
@@ -496,16 +460,6 @@ class VideoChannel : public BaseChannel {
       bool srtp_required,
       webrtc::CryptoOptions crypto_options,
       rtc::UniqueRandomIdGenerator* ssrc_generator);
-  // Constructor for use when the MediaChannel is not split
-  // TODO(bugs.webrtc.org/13931): Delete when split channel project is complete.
-  VideoChannel(rtc::Thread* worker_thread,
-               rtc::Thread* network_thread,
-               rtc::Thread* signaling_thread,
-               std::unique_ptr<VideoMediaChannel> media_channel_impl,
-               absl::string_view mid,
-               bool srtp_required,
-               webrtc::CryptoOptions crypto_options,
-               rtc::UniqueRandomIdGenerator* ssrc_generator);
   ~VideoChannel();
 
   VideoChannel* AsVideoChannel() override { return this; }
@@ -515,17 +469,11 @@ class VideoChannel : public BaseChannel {
   }
 
   VideoMediaSendChannelInterface* send_channel() {
-    if (media_send_channel_) {
-      return media_send_channel_->AsVideoSendChannel();
-    }
-    return media_channel_->AsVideoSendChannel();
+    return media_send_channel_->AsVideoSendChannel();
   }
 
   VideoMediaReceiveChannelInterface* receive_channel() {
-    if (media_receive_channel_) {
-      return media_receive_channel_->AsVideoReceiveChannel();
-    }
-    return media_channel_->AsVideoReceiveChannel();
+    return media_receive_channel_->AsVideoReceiveChannel();
   }
 
   VideoMediaSendChannelInterface* media_send_channel() override {
@@ -560,12 +508,12 @@ class VideoChannel : public BaseChannel {
                           std::string& error_desc)
       RTC_RUN_ON(worker_thread()) override;
 
-  // Last VideoSendParameters sent down to the media_channel() via
-  // SetSendParameters.
-  VideoSendParameters last_send_params_ RTC_GUARDED_BY(worker_thread());
-  // Last VideoRecvParameters sent down to the media_channel() via
-  // SetRecvParameters.
-  VideoRecvParameters last_recv_params_ RTC_GUARDED_BY(worker_thread());
+  // Last VideoSenderParameters sent down to the media_channel() via
+  // SetSenderParameters.
+  VideoSenderParameters last_send_params_ RTC_GUARDED_BY(worker_thread());
+  // Last VideoReceiverParameters sent down to the media_channel() via
+  // SetReceiverParameters.
+  VideoReceiverParameters last_recv_params_ RTC_GUARDED_BY(worker_thread());
 };
 
 }  // namespace cricket

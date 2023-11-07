@@ -239,7 +239,14 @@ AudioEncoder::EncodedInfo AudioEncoderCopyRed::EncodeImpl(
     }
   }
 
-  if (info.encoded_bytes == 0 || info.encoded_bytes >= kRedMaxPacketSize) {
+  if (info.encoded_bytes == 0) {
+    return info;
+  }
+  if (info.encoded_bytes >= kRedMaxPacketSize) {
+    // Fallback to the primary encoding if the encoded size is more than
+    // what RED can encode as redundancy (1024 bytes). This can happen with
+    // Opus stereo at the highest bitrate which consumes up to 1276 bytes.
+    encoded->AppendData(primary_encoded_);
     return info;
   }
   RTC_DCHECK_GT(max_packet_length_, info.encoded_bytes);
