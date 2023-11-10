@@ -384,7 +384,11 @@ RUSTEXPORT PeerConnectionInterface* Rust_createPeerConnection(
   config.audio_jitter_buffer_max_packets = audio_jitter_buffer_max_packets;
   config.set_audio_jitter_buffer_max_target_delay_ms(audio_jitter_buffer_max_target_delay_ms);
   config.set_audio_rtcp_report_interval_ms(audio_rtcp_report_interval_ms);
-  config.sdp_semantics = SdpSemantics::kPlanB_DEPRECATED;
+  if (kind == RffiPeerConnectionKind::kGroupCall) {
+    config.sdp_semantics = SdpSemantics::kPlanB_DEPRECATED;
+  } else {
+    config.sdp_semantics = SdpSemantics::kUnifiedPlan;
+  }
   if (ice_server.urls_size > 0) {
     webrtc::PeerConnectionInterface::IceServer rtc_ice_server;
     rtc_ice_server.username = std::string(ice_server.username_borrowed);
@@ -422,14 +426,28 @@ RUSTEXPORT PeerConnectionInterface* Rust_createPeerConnection(
   stream_ids.push_back(stream_id);
 
   if (outgoing_audio_track_borrowed_rc) {
-    auto result = pc->AddTrack(inc_rc(outgoing_audio_track_borrowed_rc), stream_ids);
-    if (result.ok()) {
-      if (observer_borrowed->enable_frame_encryption()) {
-        auto rtp_sender = result.MoveValue();
-        rtp_sender->SetFrameEncryptor(observer_borrowed->CreateEncryptor());
+    if (kind == RffiPeerConnectionKind::kGroupCall) {
+      auto result = pc->AddTrack(inc_rc(outgoing_audio_track_borrowed_rc), stream_ids);
+      if (result.ok()) {
+        if (observer_borrowed->enable_frame_encryption()) {
+          auto rtp_sender = result.MoveValue();
+          rtp_sender->SetFrameEncryptor(observer_borrowed->CreateEncryptor());
+        }
+      } else {
+        RTC_LOG(LS_ERROR) << "Failed to PeerConnection::AddTrack(audio)";
       }
     } else {
-      RTC_LOG(LS_ERROR) << "Failed to PeerConnection::AddTrack(audio)";
+      RtpTransceiverInit init;
+      init.stream_ids = stream_ids;
+      auto result = pc->AddTransceiver(inc_rc(outgoing_audio_track_borrowed_rc), init);
+      if (result.ok()) {
+        if (observer_borrowed->enable_frame_encryption()) {
+          auto rtp_sender = result.MoveValue()->sender();
+          rtp_sender->SetFrameEncryptor(observer_borrowed->CreateEncryptor());
+        }
+      } else {
+        RTC_LOG(LS_ERROR) << "Failed to PeerConnection::AddTrack(audio)";
+      }
     }
   }
 
@@ -438,14 +456,31 @@ RUSTEXPORT PeerConnectionInterface* Rust_createPeerConnection(
     if (kind == RffiPeerConnectionKind::kGroupCall) {
       rtp_parameters[0].max_bitrate_bps = 100000;
     }
-    auto result = pc->AddTrack(inc_rc(outgoing_video_track_borrowed_rc), stream_ids, rtp_parameters);
-    if (result.ok()) {
-      if (observer_borrowed->enable_frame_encryption()) {
-        auto rtp_sender = result.MoveValue();
-        rtp_sender->SetFrameEncryptor(observer_borrowed->CreateEncryptor());
+
+    if (kind == RffiPeerConnectionKind::kGroupCall) {
+      auto result = pc->AddTrack(inc_rc(outgoing_video_track_borrowed_rc), stream_ids, rtp_parameters);
+      if (result.ok()) {
+        if (observer_borrowed->enable_frame_encryption()) {
+          auto rtp_sender = result.MoveValue();
+          rtp_sender->SetFrameEncryptor(observer_borrowed->CreateEncryptor());
+        }
+      } else {
+        RTC_LOG(LS_ERROR) << "Failed to PeerConnection::AddTrack(video)";
       }
     } else {
-      RTC_LOG(LS_ERROR) << "Failed to PeerConnection::AddTrack(video)";
+      RtpTransceiverInit init;
+      init.stream_ids = stream_ids;
+      init.send_encodings = rtp_parameters;
+
+      auto result = pc->AddTransceiver(inc_rc(outgoing_video_track_borrowed_rc), init);
+      if (result.ok()) {
+        if (observer_borrowed->enable_frame_encryption()) {
+          auto rtp_sender = result.MoveValue()->sender();
+          rtp_sender->SetFrameEncryptor(observer_borrowed->CreateEncryptor());
+        }
+      } else {
+        RTC_LOG(LS_ERROR) << "Failed to PeerConnection::AddTrack(video)";
+      }
     }
   }
 

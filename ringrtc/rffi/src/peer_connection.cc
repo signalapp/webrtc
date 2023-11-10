@@ -414,6 +414,8 @@ Rust_sessionDescriptionFromV4(bool offer,
     // We'll set it around just in case.
     // But everything seems to work fine without it.
     stream->cname = "CNAMECNAMECNAME!";
+
+    stream->set_stream_ids({"s"});
   }
 
   audio->AddStream(audio_stream);
@@ -439,8 +441,8 @@ Rust_sessionDescriptionFromV4(bool offer,
   bundle.AddContentName(video_content_name);
   session->AddGroup(bundle);
 
-  // This is the default and used for "Plan B" SDP, which is what we use in V1, V2, and V3.
-  session->set_msid_signaling(cricket::kMsidSignalingSsrcAttribute);
+  session->set_msid_signaling(cricket::kMsidSignalingMediaSection |
+                              cricket::kMsidSignalingSsrcAttribute);
 
   auto typ = offer ? SdpType::kOffer : SdpType::kAnswer;
   return new webrtc::JsepSessionDescription(typ, std::move(session), "1", "1");

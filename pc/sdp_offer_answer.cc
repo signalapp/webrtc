@@ -4048,7 +4048,8 @@ SdpOfferAnswerHandler::FindAvailableTransceiverToReceive(
   // RtpTransceiver.
   for (auto transceiver : transceivers()->List()) {
     if (transceiver->media_type() == media_type &&
-        transceiver->internal()->created_by_addtrack() && !transceiver->mid() &&
+        // RingRTC change to reuse transceivers created by AddTransceiver
+        !transceiver->mid() &&
         !transceiver->stopped()) {
       return transceiver;
     }
