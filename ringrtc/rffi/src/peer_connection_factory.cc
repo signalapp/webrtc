@@ -446,7 +446,7 @@ RUSTEXPORT PeerConnectionInterface* Rust_createPeerConnection(
           rtp_sender->SetFrameEncryptor(observer_borrowed->CreateEncryptor());
         }
       } else {
-        RTC_LOG(LS_ERROR) << "Failed to PeerConnection::AddTrack(audio)";
+        RTC_LOG(LS_ERROR) << "Failed to PeerConnection::AddTransceiver(audio)";
       }
     }
   }
@@ -479,7 +479,7 @@ RUSTEXPORT PeerConnectionInterface* Rust_createPeerConnection(
           rtp_sender->SetFrameEncryptor(observer_borrowed->CreateEncryptor());
         }
       } else {
-        RTC_LOG(LS_ERROR) << "Failed to PeerConnection::AddTrack(video)";
+        RTC_LOG(LS_ERROR) << "Failed to PeerConnection::AddTransceiver(video)";
       }
     }
   }

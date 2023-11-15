@@ -1136,13 +1136,6 @@ PeerConnection::AddTransceiver(
       rtp_manager()->CreateReceiver(media_type, rtc::CreateRandomUuid());
   auto transceiver = rtp_manager()->CreateAndAddTransceiver(sender, receiver);
   transceiver->internal()->set_direction(init.direction);
-  // RingRTC change to force the correct mline index, instead of relying on
-  // CreateOffer.
-  if (media_type == cricket::MEDIA_TYPE_VIDEO) {
-    transceiver->internal()->set_mline_index(1);
-  } else {
-    transceiver->internal()->set_mline_index(0);
-  }
 
   if (update_negotiation_needed) {
     sdp_handler_->UpdateNegotiationNeeded();

@@ -441,8 +441,7 @@ Rust_sessionDescriptionFromV4(bool offer,
   bundle.AddContentName(video_content_name);
   session->AddGroup(bundle);
 
-  session->set_msid_signaling(cricket::kMsidSignalingMediaSection |
-                              cricket::kMsidSignalingSsrcAttribute);
+  session->set_msid_signaling(cricket::kMsidSignalingMediaSection);
 
   auto typ = offer ? SdpType::kOffer : SdpType::kAnswer;
   return new webrtc::JsepSessionDescription(typ, std::move(session), "1", "1");
