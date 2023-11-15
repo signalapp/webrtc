@@ -384,7 +384,11 @@ RUSTEXPORT PeerConnectionInterface* Rust_createPeerConnection(
   config.audio_jitter_buffer_max_packets = audio_jitter_buffer_max_packets;
   config.set_audio_jitter_buffer_max_target_delay_ms(audio_jitter_buffer_max_target_delay_ms);
   config.set_audio_rtcp_report_interval_ms(audio_rtcp_report_interval_ms);
-  config.sdp_semantics = SdpSemantics::kPlanB_DEPRECATED;
+  if (kind == RffiPeerConnectionKind::kGroupCall) {
+    config.sdp_semantics = SdpSemantics::kPlanB_DEPRECATED;
+  } else {
+    config.sdp_semantics = SdpSemantics::kUnifiedPlan;
+  }
   if (ice_server.urls_size > 0) {
     webrtc::PeerConnectionInterface::IceServer rtc_ice_server;
     rtc_ice_server.username = std::string(ice_server.username_borrowed);

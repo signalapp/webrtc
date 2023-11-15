@@ -69,8 +69,7 @@
 - (instancetype)init {
   // Copy defaults.
   webrtc::PeerConnectionInterface::RTCConfiguration config;
-  // RingRTC Change to use "Plan B"
-  config.sdp_semantics = webrtc::SdpSemantics::kPlanB_DEPRECATED;
+  config.sdp_semantics = webrtc::SdpSemantics::kUnifiedPlan;
   return [self initWithNativeConfiguration:config];
 }
 
