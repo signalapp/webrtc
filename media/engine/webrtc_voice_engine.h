@@ -442,10 +442,7 @@ class WebRtcVoiceReceiveChannel final
   void SetIncomingAudioMuted(uint32_t ssrc, bool muted) override;
 
   // RingRTC change to get audio levels
-  void GetReceivedAudioLevels(
-      cricket::ReceivedAudioLevel* received_out,
-      size_t received_out_size,
-      size_t* received_size_out) override;
+  absl::optional<cricket::ReceivedAudioLevel> GetReceivedAudioLevel() override;
 
  private:
   bool SetOptions(const AudioOptions& options);

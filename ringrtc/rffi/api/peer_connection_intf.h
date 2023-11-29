@@ -14,6 +14,13 @@
 // TODO: Consider removing all these duplicative declarations.
 // It compiles without it.
 
+RUSTEXPORT void
+Rust_createTransceivers(webrtc::PeerConnectionInterface*                    peer_connection_borrowed_rc,
+                        webrtc::rffi::CreateSessionDescriptionObserverRffi* csd_observer_borrowed_rc,
+                        uint32_t*                                           remote_demux_ids_data_borrowed,
+                        size_t                                              length);
+
+
 /**
  * Rust friendly wrapper around some webrtc::PeerConnectionInterface
  * methods

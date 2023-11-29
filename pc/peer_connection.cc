@@ -1758,9 +1758,16 @@ void PeerConnection::SetAudioRecording(bool recording) {
 
 // RingRTC change to disable CNG for muted incoming streams.
 void PeerConnection::SetIncomingAudioMuted(uint32_t ssrc, bool muted) {
-  auto* voice_channel = static_cast<cricket::VoiceChannel*>(rtp_manager()->GetAudioTransceiver()->internal()->channel());
-  if (voice_channel) {
-    voice_channel->SetIncomingAudioMuted(ssrc, muted);
+  auto ssrc_str = rtc::ToString(ssrc);
+  for (auto transceiver : rtp_manager()->transceivers()->List()) {
+    if (transceiver->media_type() != cricket::MEDIA_TYPE_AUDIO || transceiver->direction() != RtpTransceiverDirection::kRecvOnly) {
+      continue;
+    }
+
+    auto* voice_channel = static_cast<cricket::VoiceChannel*>(transceiver->internal()->channel());
+    if (voice_channel && transceiver->receiver()->stream_ids()[0] == ssrc_str) {
+      voice_channel->SetIncomingAudioMuted(ssrc, muted);
+    }
   }
 }
 
@@ -3096,7 +3103,12 @@ bool PeerConnection::ReceiveRtp(uint8_t pt, bool enable_incoming) {
 void PeerConnection::ConfigureAudioEncoders(const webrtc::AudioEncoder::Config& config) {
   int count = 0;
   for (const auto& transceiver : rtp_manager()->transceivers()->List()) {
-    if (transceiver->media_type() == cricket::MEDIA_TYPE_AUDIO) {
+    if (transceiver->media_type() != cricket::MEDIA_TYPE_AUDIO) {
+      continue;
+    }
+
+    if (transceiver->direction() == webrtc::RtpTransceiverDirection::kSendRecv ||
+        transceiver->direction() == webrtc::RtpTransceiverDirection::kSendOnly) {
       cricket::VoiceChannel* voice_channel = static_cast<cricket::VoiceChannel*>(transceiver->internal()->channel());
       voice_channel->ConfigureEncoders(config);
       count++;
@@ -3113,13 +3125,34 @@ void PeerConnection::GetAudioLevels(cricket::AudioLevel* captured_out,
                                     cricket::ReceivedAudioLevel* received_out,
                                     size_t received_out_size,
                                     size_t* received_size_out) {
-  auto* voice_channel = static_cast<cricket::VoiceChannel*>(rtp_manager()->GetAudioTransceiver()->internal()->channel());
-  if (voice_channel) {
-    voice_channel->GetAudioLevels(captured_out, received_out, received_out_size, received_size_out);
-  } else {
-    *captured_out = 0;
-    *received_size_out = 0;
+  *captured_out = 0;
+  *received_size_out = 0;
+
+  size_t received_size = 0;
+  for (auto transceiver : rtp_manager()->transceivers()->List()) {
+    if (transceiver->media_type() != cricket::MEDIA_TYPE_AUDIO) {
+      continue;
+    }
+
+    auto is_send_recv = transceiver->direction() == RtpTransceiverDirection::kSendRecv;
+    if (is_send_recv || transceiver->direction() == RtpTransceiverDirection::kSendOnly) {
+      auto* voice_channel = static_cast<cricket::VoiceChannel*>(transceiver->internal()->channel());
+      if (voice_channel) {
+        voice_channel->GetCapturedAudioLevel(captured_out);
+      }
+    }
+    if (is_send_recv || transceiver->direction() == RtpTransceiverDirection::kRecvOnly) {
+      auto* voice_channel = static_cast<cricket::VoiceChannel*>(transceiver->internal()->channel());
+      if (voice_channel) {
+        auto audio_level = voice_channel->GetReceivedAudioLevel();
+        if (audio_level) {
+          received_out[received_size++] = *audio_level;
+        }
+      }
+    }
   }
+
+  *received_size_out = received_size;
 }
 
 // RingRTC change to get upload bandwidth estimate

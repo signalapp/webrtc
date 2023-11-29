@@ -78,13 +78,6 @@ absl::optional<bool> VideoSource::needs_denoising() const {
   return absl::nullopt;
 }
 
-// Returns 0 upon failure
-RUSTEXPORT uint32_t Rust_getTrackIdAsUint32(webrtc::MediaStreamTrackInterface* track_borrowed_rc) {
-  uint32_t id = 0;
-  rtc::FromString(track_borrowed_rc->id(), &id);
-  return id;
-}
-
 RUSTEXPORT void Rust_setAudioTrackEnabled(
     webrtc::AudioTrackInterface* track_borrowed_rc, bool enabled) {
   track_borrowed_rc->set_enabled(enabled);

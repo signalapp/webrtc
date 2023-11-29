@@ -75,12 +75,12 @@ class PeerConnectionObserverRffi : public PeerConnectionObserver {
       rtc::scoped_refptr<RtpTransceiverInterface> transceiver) override;
 
   // Called by the VideoSinks in video_sinks_.
-  void OnVideoFrame(uint32_t track_id, const webrtc::VideoFrame& frame);
+  void OnVideoFrame(uint32_t demux_id, const webrtc::VideoFrame& frame);
 
  private:
   // Add a VideoSink to the video_sinks_ for ownership and pass
   // a borrowed pointer to the track.
-  void AddVideoSink(VideoTrackInterface* track);
+  void AddVideoSink(VideoTrackInterface* track, uint32_t demux_id);
 
   void* observer_;
   PeerConnectionObserverCallbacks callbacks_;
@@ -91,16 +91,16 @@ class PeerConnectionObserverRffi : public PeerConnectionObserver {
 };
 
 // A simple implementation of a VideoSinkInterface which passes video frames
-// back to the PeerConnectionObserver with a track_id.
+// back to the PeerConnectionObserver with a demux_id.
 class VideoSink : public rtc::VideoSinkInterface<webrtc::VideoFrame> {
  public:
-  VideoSink(uint32_t track_id, PeerConnectionObserverRffi*);
+  VideoSink(uint32_t demux_id, PeerConnectionObserverRffi*);
   ~VideoSink() override = default;
 
   void OnFrame(const webrtc::VideoFrame& frame) override;
 
  private:
-  uint32_t track_id_;
+  uint32_t demux_id_;
   PeerConnectionObserverRffi* pc_observer_;
 };
 
