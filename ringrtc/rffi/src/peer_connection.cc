@@ -828,23 +828,23 @@ CreateSessionDescriptionForGroupCall(bool local,
   // We expect that will be done later by Rust_disableDtlsAndSetSrtpKey.
 
   // Keep the order as the WebRTC default: (audio, video).
-  auto audio_content_name = "audio";
-  auto video_content_name = "video";
+  auto local_audio_content_name = "local-audio0";
+  auto local_video_content_name = "local-video0";
 
   auto remote_audio_content_name = "remote-audio";
   auto remote_video_content_name = "remote-video";
 
   auto bundle = cricket::ContentGroup(cricket::GROUP_TYPE_BUNDLE);
-  bundle.AddContentName(audio_content_name);
-  bundle.AddContentName(video_content_name);
+  bundle.AddContentName(local_audio_content_name);
+  bundle.AddContentName(local_video_content_name);
 
   auto session = std::make_unique<cricket::SessionDescription>();
-  session->AddTransportInfo(cricket::TransportInfo(audio_content_name, transport));
-  session->AddTransportInfo(cricket::TransportInfo(video_content_name, transport));
+  session->AddTransportInfo(cricket::TransportInfo(local_audio_content_name, transport));
+  session->AddTransportInfo(cricket::TransportInfo(local_video_content_name, transport));
 
   bool stopped = false;
-  session->AddContent(audio_content_name, cricket::MediaProtocolType::kRtp, stopped, std::move(local_audio));
-  session->AddContent(video_content_name, cricket::MediaProtocolType::kRtp, stopped, std::move(local_video));
+  session->AddContent(local_audio_content_name, cricket::MediaProtocolType::kRtp, stopped, std::move(local_audio));
+  session->AddContent(local_video_content_name, cricket::MediaProtocolType::kRtp, stopped, std::move(local_video));
 
   auto audioIt = remote_audios.begin();
   auto videoIt = remote_videos.begin();

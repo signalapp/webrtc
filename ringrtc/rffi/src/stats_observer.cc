@@ -35,7 +35,7 @@ void StatsObserverRffi::OnStatsDelivered(const rtc::scoped_refptr<const RTCStats
   auto candidate_pair_stats = report->GetStatsOfType<RTCIceCandidatePairStats>();
 
   for (const auto& stat : outbound_stream_stats) {
-    if (*stat->kind == "audio" && *stat->mid == "audio") {
+    if (*stat->kind == "audio" && (*stat->mid == "audio" || absl::StartsWith(*stat->mid, "local-audio"))) {
       AudioSenderStatistics audio_sender = {0};
 
       audio_sender.ssrc = stat->ssrc.ValueOrDefault(0);
@@ -59,7 +59,7 @@ void StatsObserverRffi::OnStatsDelivered(const rtc::scoped_refptr<const RTCStats
       }
 
       this->audio_sender_statistics_.push_back(audio_sender);
-    } else if (*stat->kind == "video" && *stat->mid == "video") {
+    } else if (*stat->kind == "video" && (*stat->mid == "video" || absl::StartsWith(*stat->mid, "local-video"))) {
       VideoSenderStatistics video_sender = {0};
 
       video_sender.ssrc = stat->ssrc.ValueOrDefault(0);
