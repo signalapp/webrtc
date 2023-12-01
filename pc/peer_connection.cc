@@ -3128,8 +3128,9 @@ void PeerConnection::GetAudioLevels(cricket::AudioLevel* captured_out,
   *captured_out = 0;
   *received_size_out = 0;
 
-  size_t received_size = 0;
-  for (auto transceiver : rtp_manager()->transceivers()->List()) {
+  std::vector<cricket::VoiceChannel*> receiving_voice_channels;
+  auto transceivers = rtp_manager()->transceivers()->List();
+  for (auto transceiver : transceivers) {
     if (transceiver->media_type() != cricket::MEDIA_TYPE_AUDIO) {
       continue;
     }
@@ -3144,15 +3145,27 @@ void PeerConnection::GetAudioLevels(cricket::AudioLevel* captured_out,
     if (is_send_recv || transceiver->direction() == RtpTransceiverDirection::kRecvOnly) {
       auto* voice_channel = static_cast<cricket::VoiceChannel*>(transceiver->internal()->channel());
       if (voice_channel) {
-        auto audio_level = voice_channel->GetReceivedAudioLevel();
-        if (audio_level) {
-          received_out[received_size++] = *audio_level;
-        }
+        receiving_voice_channels.push_back(voice_channel);
       }
     }
   }
 
-  *received_size_out = received_size;
+  *received_size_out = worker_thread()->BlockingCall([received_out, received_out_size, receiving_voice_channels] {
+    size_t received_size = 0;
+
+    for (auto voice_channel : receiving_voice_channels) {
+      if (received_size >= received_out_size) {
+        continue;
+      }
+
+      auto audio_level = voice_channel->GetReceivedAudioLevel();
+      if (audio_level) {
+        received_out[received_size++] = *audio_level;
+      }
+    }
+
+    return received_size;
+  });
 }
 
 // RingRTC change to get upload bandwidth estimate

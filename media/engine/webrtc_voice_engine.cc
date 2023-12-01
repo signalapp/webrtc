@@ -2791,6 +2791,7 @@ void WebRtcVoiceReceiveChannel::SetIncomingAudioMuted(uint32_t ssrc, bool muted)
 
 // RingRTC change to get audio levels
 absl::optional<cricket::ReceivedAudioLevel> WebRtcVoiceReceiveChannel::GetReceivedAudioLevel() {
+  RTC_DCHECK_RUN_ON(worker_thread_);
   if (recv_streams_.empty()) {
     RTC_LOG(LS_WARNING)
         << "Attempting to GetReceivedAudioLevel for channel with no receiving streams."

@@ -979,9 +979,7 @@ void VoiceChannel::GetCapturedAudioLevel(cricket::AudioLevel* captured_out) {
 
 // RingRTC change to get audio levels
 absl::optional<cricket::ReceivedAudioLevel> VoiceChannel::GetReceivedAudioLevel() {
-  return worker_thread()->BlockingCall([this] {
-    return voice_media_receive_channel()->GetReceivedAudioLevel();
-  });
+  return voice_media_receive_channel()->GetReceivedAudioLevel();
 }
 
 // RingRTC change to disable CNG for muted incoming streams.
