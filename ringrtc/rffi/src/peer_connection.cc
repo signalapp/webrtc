@@ -55,9 +55,8 @@ int ULPFEC_PT = 122;
 
 const uint32_t DISABLED_DEMUX_ID = 0;
 
-RUSTEXPORT void
-Rust_createTransceivers(webrtc::PeerConnectionInterface*      peer_connection_borrowed_rc,
-                        CreateSessionDescriptionObserverRffi* csd_observer_borrowed_rc,
+RUSTEXPORT bool
+Rust_updateTransceivers(webrtc::PeerConnectionInterface*      peer_connection_borrowed_rc,
                         uint32_t*                             remote_demux_ids_data_borrowed,
                         size_t                                length) {
   std::vector<uint32_t> remote_demux_ids;
@@ -109,13 +108,21 @@ Rust_createTransceivers(webrtc::PeerConnectionInterface*      peer_connection_bo
     init.direction = RtpTransceiverDirection::kRecvOnly;
     init.stream_ids = {rtc::ToString(remote_demux_id)};
 
-    peer_connection_borrowed_rc->AddTransceiver(cricket::MEDIA_TYPE_AUDIO, init);
-    peer_connection_borrowed_rc->AddTransceiver(cricket::MEDIA_TYPE_VIDEO, init);
+    auto result = peer_connection_borrowed_rc->AddTransceiver(cricket::MEDIA_TYPE_AUDIO, init);
+    if (!result.ok()) {
+      RTC_LOG(LS_ERROR) << "Failed to PeerConnection::AddTransceiver(audio)";
+      return false;
+    }
+
+    result = peer_connection_borrowed_rc->AddTransceiver(cricket::MEDIA_TYPE_VIDEO, init);
+    if (!result.ok()) {
+      RTC_LOG(LS_ERROR) << "Failed to PeerConnection::AddTransceiver(video)";
+      return false;
+    }
   }
 
-  Rust_createOffer(peer_connection_borrowed_rc, csd_observer_borrowed_rc);
+  return true;
 }
-
 
 // Borrows the observer until the result is given to the observer,
 // so the observer must stay alive until it's given a result.
