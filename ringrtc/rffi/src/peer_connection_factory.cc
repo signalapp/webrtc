@@ -135,17 +135,16 @@ class PeerConnectionFactoryWithOwnedThreads
         FileAudioDeviceFactory::SetFilenamesToUse(audio_config.input_file_borrowed, audio_config.output_file_borrowed);
         return AudioDeviceModule::Create(
           AudioDeviceModule::kDummyAudio, dependencies.task_queue_factory.get());
-      case kRffiAudioDeviceModuleNew:
+      case kRffiAudioDeviceModuleDefault:
 #if defined(WEBRTC_WIN)
+        // Attempt to use the Windows ADM2.
         com_initializer = std::make_unique<ScopedCOMInitializer>(ScopedCOMInitializer::kMTA);
         if (com_initializer->Succeeded()) {
           return CreateWindowsCoreAudioAudioDeviceModule(dependencies.task_queue_factory.get());
         } else {
-          RTC_LOG(LS_WARNING) << "Failed to initialize ScopedCOMInitializer. Will use the default.";
+          RTC_LOG(LS_WARNING) << "Failed to initialize ScopedCOMInitializer. Will use the default ADM.";
         }
-        ABSL_FALLTHROUGH_INTENDED;
 #endif
-      case kRffiAudioDeviceModuleDefault:
         return AudioDeviceModule::Create(
           AudioDeviceModule::kPlatformDefaultAudio, dependencies.task_queue_factory.get());
       }

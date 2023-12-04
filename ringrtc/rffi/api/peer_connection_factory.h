@@ -75,8 +75,7 @@ enum class RffiPeerConnectionKind: uint8_t {
 
 enum RffiAudioDeviceModuleType {
   kRffiAudioDeviceModuleDefault = 0,
-  kRffiAudioDeviceModuleNew = 1,
-  kRffiAudioDeviceModuleFile = 2,
+  kRffiAudioDeviceModuleFile = 1,
 };
 
 typedef struct {
