@@ -55,7 +55,6 @@ void StatsObserverRffi::OnStatsDelivered(const rtc::scoped_refptr<const RTCStats
         auto audio_source_stat = report->GetAs<RTCAudioSourceStats>(*stat->media_source_id);
         if (audio_source_stat) {
           audio_sender.total_audio_energy = audio_source_stat->total_audio_energy.ValueOrDefault(0.0);
-          audio_sender.echo_likelihood = audio_source_stat->echo_likelihood.ValueOrDefault(0.0);
         }
       }
 

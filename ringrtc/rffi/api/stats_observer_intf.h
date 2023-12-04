@@ -29,7 +29,6 @@ typedef struct {
   double remote_jitter;
   double remote_round_trip_time;
   double total_audio_energy;
-  double echo_likelihood;
 } AudioSenderStatistics;
 
 typedef struct {
