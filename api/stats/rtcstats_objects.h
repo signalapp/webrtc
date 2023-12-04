@@ -441,7 +441,6 @@ class RTC_EXPORT RTCAudioSourceStats final : public RTCMediaSourceStats {
   RTCStatsMember<double> total_samples_duration;
   RTCStatsMember<double> echo_return_loss;
   RTCStatsMember<double> echo_return_loss_enhancement;
-  RTCStatsMember<double> echo_likelihood; // RingRTC change to enable echo detection
 };
 
 // https://w3c.github.io/webrtc-stats/#dom-rtcvideosourcestats

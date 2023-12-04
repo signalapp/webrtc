@@ -587,8 +587,7 @@ WEBRTC_RTCSTATS_IMPL(RTCAudioSourceStats, RTCMediaSourceStats, "media-source",
     &total_audio_energy,
     &total_samples_duration,
     &echo_return_loss,
-    &echo_return_loss_enhancement,
-    &echo_likelihood) // RingRTC change to enable echo detection
+    &echo_return_loss_enhancement)
 // clang-format on
 
 RTCAudioSourceStats::RTCAudioSourceStats(std::string id, Timestamp timestamp)
@@ -597,8 +596,7 @@ RTCAudioSourceStats::RTCAudioSourceStats(std::string id, Timestamp timestamp)
       total_audio_energy("totalAudioEnergy"),
       total_samples_duration("totalSamplesDuration"),
       echo_return_loss("echoReturnLoss"),
-      echo_return_loss_enhancement("echoReturnLossEnhancement"),
-      echo_likelihood("echoLikelihood") {} // RingRTC change to enable echo detection
+      echo_return_loss_enhancement("echoReturnLossEnhancement") {}
 
 RTCAudioSourceStats::RTCAudioSourceStats(const RTCAudioSourceStats& other) =
     default;
