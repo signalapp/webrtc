@@ -615,18 +615,16 @@ CreateSessionDescriptionForGroupCall(bool local,
   // This is not a default. We enable this for privacy.
   opus.SetParam("cbr", "1");
   opus.AddFeedbackParam(cricket::FeedbackParam(cricket::kRtcpFbParamTransportCc, cricket::kParamValueEmpty));
-  local_audio->AddCodec(opus);
-  for (auto& remote_audio : remote_audios) {
-    remote_audio->AddCodec(opus);
-  }
 
   // Turn on the RED "meta codec" for Opus redundancy.
   auto opus_red = cricket::CreateAudioCodec(OPUS_RED_PT, cricket::kRedCodecName, 48000, 2);
   opus_red.SetParam("", std::to_string(OPUS_PT) + "/" + std::to_string(OPUS_PT));
 
   // Add RED after Opus so that RED packets can at least be decoded properly if received.
+  local_audio->AddCodec(opus);
   local_audio->AddCodec(opus_red);
   for (auto& remote_audio : remote_audios) {
+    remote_audio->AddCodec(opus);
     remote_audio->AddCodec(opus_red);
   }
 
@@ -642,23 +640,21 @@ CreateSessionDescriptionForGroupCall(bool local,
   auto vp8_rtx = cricket::CreateVideoRtxCodec(VP8_RTX_PT, VP8_PT);
   add_video_feedback_params(&vp8);
 
-  local_video->AddCodec(vp8);
-  local_video->AddCodec(vp8_rtx);
-
-  for (auto& remote_video : remote_videos) {
-    remote_video->AddCodec(vp8);
-    remote_video->AddCodec(vp8_rtx);
-  }
-
   // These are "meta codecs" for redundancy and FEC.
   // They are enabled by default currently with WebRTC.
   auto red = cricket::CreateVideoCodec(RED_PT, cricket::kRedCodecName);
   auto red_rtx = cricket::CreateVideoRtxCodec(RED_RTX_PT, RED_PT);
 
+  local_video->AddCodec(vp8);
+  local_video->AddCodec(vp8_rtx);
+
   local_video->AddCodec(red);
   local_video->AddCodec(red_rtx);
 
   for (auto& remote_video : remote_videos) {
+    remote_video->AddCodec(vp8);
+    remote_video->AddCodec(vp8_rtx);
+
     remote_video->AddCodec(red);
     remote_video->AddCodec(red_rtx);
   }
@@ -690,32 +686,33 @@ CreateSessionDescriptionForGroupCall(bool local,
     remote_video->AddRtpHeaderExtension(video_orientation);
   }
 
-  // Set up local_demux_id
-  {
-    uint32_t audio_ssrc = local_demux_id + 0;
+  auto setup_streams = [local, &LOCAL_AUDIO_TRACK_ID, &LOCAL_VIDEO_TRACK_ID] (cricket::MediaContentDescription* audio,
+                                                                              cricket::MediaContentDescription* video,
+                                                                              uint32_t demux_id) {
+    uint32_t audio_ssrc = demux_id + 0;
     // Leave room for audio RTX
-    uint32_t video1_ssrc = local_demux_id + 2;
-    uint32_t video1_rtx_ssrc = local_demux_id + 3;
-    uint32_t video2_ssrc = local_demux_id + 4;
-    uint32_t video2_rtx_ssrc = local_demux_id + 5;
-    uint32_t video3_ssrc = local_demux_id + 6;
-    uint32_t video3_rtx_ssrc = local_demux_id + 7;
+    uint32_t video1_ssrc = demux_id + 2;
+    uint32_t video1_rtx_ssrc = demux_id + 3;
+    uint32_t video2_ssrc = demux_id + 4;
+    uint32_t video2_rtx_ssrc = demux_id + 5;
+    uint32_t video3_ssrc = demux_id + 6;
+    uint32_t video3_rtx_ssrc = demux_id + 7;
     // Leave room for some more video layers or FEC
-    // uint32_t data_ssrc = local_demux_id + 0xD;  Used by group_call.rs
+    // uint32_t data_ssrc = demux_id + 0xD;  Used by group_call.rs
 
     auto audio_stream = cricket::StreamParams();
 
     // We will use the string version of the demux ID to know which
     // transceiver is for which remote device.
-    std::string local_demux_id_str = rtc::ToString(local_demux_id);
+    std::string demux_id_str = rtc::ToString(demux_id);
 
     // For local, this should stay in sync with PeerConnectionFactory.createAudioTrack
-    audio_stream.id = local ? LOCAL_AUDIO_TRACK_ID : local_demux_id_str;
+    audio_stream.id = local ? LOCAL_AUDIO_TRACK_ID : demux_id_str;
     audio_stream.add_ssrc(audio_ssrc);
 
     auto video_stream = cricket::StreamParams();
     // For local, this should stay in sync with PeerConnectionFactory.createVideoSource
-    video_stream.id = local ? LOCAL_VIDEO_TRACK_ID : local_demux_id_str;
+    video_stream.id = local ? LOCAL_VIDEO_TRACK_ID : demux_id_str;
     video_stream.add_ssrc(video1_ssrc);
     if (local) {
       // Don't add simulcast for remote descriptions
@@ -732,7 +729,7 @@ CreateSessionDescriptionForGroupCall(bool local,
     // This makes screen share use 2 layers of the highest resolution
     // (but different quality/framerate) rather than 3 layers of
     // differing resolution.
-    local_video->set_conference_mode(true);
+    video->set_conference_mode(true);
 
     // Things that are the same for all of them
     for (auto* stream : {&audio_stream, &video_stream}) {
@@ -741,14 +738,17 @@ CreateSessionDescriptionForGroupCall(bool local,
       // The value doesn't seem to be used for anything else.
       // We'll set it around just in case.
       // But everything seems to work fine without it.
-      stream->cname = local_demux_id_str;
+      stream->cname = demux_id_str;
 
-      stream->set_stream_ids({local_demux_id_str});
+      stream->set_stream_ids({demux_id_str});
     }
 
-    local_audio->AddStream(audio_stream);
-    local_video->AddStream(video_stream);
-  }
+    audio->AddStream(audio_stream);
+    video->AddStream(video_stream);
+  };
+
+  // Set up local_demux_id
+  setup_streams(local_audio.get(), local_video.get(), local_demux_id);
 
   // Set up remote_demux_ids
   for (size_t i = 0; i < remote_demux_ids.size(); i++) {
@@ -760,62 +760,7 @@ CreateSessionDescriptionForGroupCall(bool local,
       continue;
     }
 
-    uint32_t audio_ssrc = rtp_demux_id + 0;
-    // Leave room for audio RTX
-    uint32_t video1_ssrc = rtp_demux_id + 2;
-    uint32_t video1_rtx_ssrc = rtp_demux_id + 3;
-    uint32_t video2_ssrc = rtp_demux_id + 4;
-    uint32_t video2_rtx_ssrc = rtp_demux_id + 5;
-    uint32_t video3_ssrc = rtp_demux_id + 6;
-    uint32_t video3_rtx_ssrc = rtp_demux_id + 7;
-    // Leave room for some more video layers or FEC
-    // uint32_t data_ssrc = rtp_demux_id + 0xD;  Used by group_call.rs
-
-    auto audio_stream = cricket::StreamParams();
-
-    // We will use the string version of the demux ID to know which
-    // transceiver is for which remote device.
-    std::string rtp_demux_id_str = rtc::ToString(rtp_demux_id);
-
-    // For local, this should stay in sync with PeerConnectionFactory.createAudioTrack
-    audio_stream.id = local ? LOCAL_AUDIO_TRACK_ID : rtp_demux_id_str;
-    audio_stream.add_ssrc(audio_ssrc);
-
-    auto video_stream = cricket::StreamParams();
-    // For local, this should stay in sync with PeerConnectionFactory.createVideoSource
-    video_stream.id = local ? LOCAL_VIDEO_TRACK_ID : rtp_demux_id_str;
-    video_stream.add_ssrc(video1_ssrc);
-    if (local) {
-      // Don't add simulcast for remote descriptions
-      video_stream.add_ssrc(video2_ssrc);
-      video_stream.add_ssrc(video3_ssrc);
-      video_stream.ssrc_groups.push_back(cricket::SsrcGroup(cricket::kSimSsrcGroupSemantics, video_stream.ssrcs));
-    }
-    video_stream.AddFidSsrc(video1_ssrc, video1_rtx_ssrc);  // AKA RTX
-    if (local) {
-      // Don't add simulcast for remote descriptions
-      video_stream.AddFidSsrc(video2_ssrc, video2_rtx_ssrc);  // AKA RTX
-      video_stream.AddFidSsrc(video3_ssrc, video3_rtx_ssrc);  // AKA RTX
-    }
-    // This makes screen share use 2 layers of the highest resolution
-    // (but different quality/framerate) rather than 3 layers of
-    // differing resolution.
-    remote_video->get()->set_conference_mode(true);
-
-    // Things that are the same for all of them
-    for (auto* stream : {&audio_stream, &video_stream}) {
-      // WebRTC just generates a random 16-byte string for the entire PeerConnection.
-      // It's used to send an SDES RTCP message.
-      // The value doesn't seem to be used for anything else.
-      // We'll set it around just in case.
-      // But everything seems to work fine without it.
-      stream->cname = rtp_demux_id_str;
-
-      stream->set_stream_ids({rtp_demux_id_str});
-    }
-
-    remote_audio->get()->AddStream(audio_stream);
-    remote_video->get()->AddStream(video_stream);
+    setup_streams(remote_audio->get(), remote_video->get(), rtp_demux_id);
   }
 
   // TODO: Why is this only for video by default in WebRTC? Should we enable it for all of them?
