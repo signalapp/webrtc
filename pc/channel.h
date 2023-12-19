@@ -420,11 +420,8 @@ class VoiceChannel : public BaseChannel {
   void SetIncomingAudioMuted(uint32_t ssrc, bool muted);
 
   // RingRTC change to get audio levels
-  void GetAudioLevels(
-    cricket::AudioLevel* captured_out,
-    cricket::ReceivedAudioLevel* received_out,
-    size_t received_out_size,
-    size_t* received_size_out);
+  void GetCapturedAudioLevel(cricket::AudioLevel* captured_out);
+  absl::optional<cricket::ReceivedAudioLevel> GetReceivedAudioLevel();
 
  private:
   void InitCallback();

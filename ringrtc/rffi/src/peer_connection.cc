@@ -53,6 +53,77 @@ int RED_PT = 120;
 int RED_RTX_PT = 121;
 int ULPFEC_PT = 122;
 
+const uint32_t DISABLED_DEMUX_ID = 0;
+
+RUSTEXPORT bool
+Rust_updateTransceivers(webrtc::PeerConnectionInterface*      peer_connection_borrowed_rc,
+                        uint32_t*                             remote_demux_ids_data_borrowed,
+                        size_t                                length) {
+  std::vector<uint32_t> remote_demux_ids;
+  remote_demux_ids.assign(remote_demux_ids_data_borrowed, remote_demux_ids_data_borrowed + length);
+
+  auto transceivers = peer_connection_borrowed_rc->GetTransceivers();
+  // There should be at most 2 transceivers for each remote demux ID (there can
+  // be fewer if new transceivers are about to be created), excluding the 2
+  // transceivers for the local device's audio and video.
+  if (remote_demux_ids.size() * 2 < transceivers.size() - 2) {
+    RTC_LOG(LS_WARNING) << "Mismatched remote_demux_ids and transceivers count:"
+      << " remote_demux_ids.size()=" << remote_demux_ids.size()
+      << ", transceivers.size()=" << transceivers.size();
+  }
+
+  size_t remote_demux_ids_i = 0;
+  for (auto transceiver : transceivers) {
+    auto direction = transceiver->direction();
+    if (direction != RtpTransceiverDirection::kInactive && direction != RtpTransceiverDirection::kRecvOnly) {
+      // This is a transceiver used by the local device to send media.
+      continue;
+    }
+
+    auto ids = transceiver->receiver()->stream_ids();
+
+    if (remote_demux_ids_i < remote_demux_ids.size()) {
+      auto desired_demux_id = remote_demux_ids[remote_demux_ids_i];
+      if (desired_demux_id == DISABLED_DEMUX_ID) {
+        transceiver->SetDirectionWithError(RtpTransceiverDirection::kInactive);
+      } else if (ids.empty() || ids[0] != rtc::ToString(desired_demux_id)) {
+        // This transceiver is being reused
+        transceiver->SetDirectionWithError(RtpTransceiverDirection::kRecvOnly);
+      }
+    }
+
+    // The same demux ID is used for both the audio and video transceiver, and
+    // audio is added first. So only advance to the next demux ID after seeing
+    // a video transceiver.
+    if (transceiver->media_type() == cricket::MEDIA_TYPE_VIDEO) {
+      remote_demux_ids_i++;
+    }
+  }
+
+  // Create transceivers for the remaining remote_demux_ids.
+  for (auto i = remote_demux_ids_i; i < remote_demux_ids.size(); i++) {
+    auto remote_demux_id = remote_demux_ids[i];
+
+    RtpTransceiverInit init;
+    init.direction = RtpTransceiverDirection::kRecvOnly;
+    init.stream_ids = {rtc::ToString(remote_demux_id)};
+
+    auto result = peer_connection_borrowed_rc->AddTransceiver(cricket::MEDIA_TYPE_AUDIO, init);
+    if (!result.ok()) {
+      RTC_LOG(LS_ERROR) << "Failed to PeerConnection::AddTransceiver(audio)";
+      return false;
+    }
+
+    result = peer_connection_borrowed_rc->AddTransceiver(cricket::MEDIA_TYPE_VIDEO, init);
+    if (!result.ok()) {
+      RTC_LOG(LS_ERROR) << "Failed to PeerConnection::AddTransceiver(video)";
+      return false;
+    }
+  }
+
+  return true;
+}
+
 // Borrows the observer until the result is given to the observer,
 // so the observer must stay alive until it's given a result.
 RUSTEXPORT void
@@ -447,14 +518,13 @@ Rust_sessionDescriptionFromV4(bool offer,
   return new webrtc::JsepSessionDescription(typ, std::move(session), "1", "1");
 }
 
-const uint32_t INVALID_DEMUX_ID = 0;
-
 webrtc::JsepSessionDescription*
 CreateSessionDescriptionForGroupCall(bool local, 
                                      const std::string& ice_ufrag,
                                      const std::string& ice_pwd,
                                      RffiSrtpKey srtp_key,
-                                     std::vector<uint32_t> rtp_demux_ids) {
+                                     uint32_t local_demux_id,
+                                     std::vector<uint32_t> remote_demux_ids) {
   // Major changes from the default WebRTC behavior:
   // 1. We remove all codecs except Opus and VP8.
   // 2. We remove all header extensions except for transport-cc, video orientation,
@@ -486,17 +556,49 @@ CreateSessionDescriptionForGroupCall(bool local,
   auto set_rtp_params = [crypto_params] (cricket::MediaContentDescription* media) {
     media->set_protocol(cricket::kMediaProtocolSavpf);
     media->set_rtcp_mux(true);
-    media->set_direction(webrtc::RtpTransceiverDirection::kSendRecv);
 
     std::vector<cricket::CryptoParams> cryptos;
     cryptos.push_back(crypto_params);
     media->set_cryptos(cryptos);
   };
 
-  auto audio = std::make_unique<cricket::AudioContentDescription>();
-  set_rtp_params(audio.get());
-  auto video = std::make_unique<cricket::VideoContentDescription>();
-  set_rtp_params(video.get());
+  auto local_direction = local ? RtpTransceiverDirection::kSendOnly : RtpTransceiverDirection::kRecvOnly;
+
+  auto local_audio = std::make_unique<cricket::AudioContentDescription>();
+  set_rtp_params(local_audio.get());
+  local_audio.get()->set_direction(local_direction);
+
+  auto local_video = std::make_unique<cricket::VideoContentDescription>();
+  set_rtp_params(local_video.get());
+  local_video.get()->set_direction(local_direction);
+
+  auto remote_direction = local ? RtpTransceiverDirection::kRecvOnly : RtpTransceiverDirection::kSendOnly;
+
+  std::vector<std::unique_ptr<cricket::AudioContentDescription>> remote_audios;
+  for (auto demux_id : remote_demux_ids) {
+    auto remote_audio = std::make_unique<cricket::AudioContentDescription>();
+    set_rtp_params(remote_audio.get());
+    if (demux_id == DISABLED_DEMUX_ID) {
+      remote_audio.get()->set_direction(RtpTransceiverDirection::kInactive);
+    } else {
+      remote_audio.get()->set_direction(remote_direction);
+    }
+
+    remote_audios.push_back(std::move(remote_audio));
+  }
+
+  std::vector<std::unique_ptr<cricket::VideoContentDescription>> remote_videos;
+  for (auto demux_id : remote_demux_ids) {
+    auto remote_video = std::make_unique<cricket::VideoContentDescription>();
+    set_rtp_params(remote_video.get());
+    if (demux_id == DISABLED_DEMUX_ID) {
+      remote_video.get()->set_direction(RtpTransceiverDirection::kInactive);
+    } else {
+      remote_video.get()->set_direction(remote_direction);
+    }
+
+    remote_videos.push_back(std::move(remote_video));
+  }
 
   auto opus = cricket::CreateAudioCodec(OPUS_PT, cricket::kOpusCodecName, 48000, 2);
   // These are the current defaults for WebRTC
@@ -513,14 +615,18 @@ CreateSessionDescriptionForGroupCall(bool local,
   // This is not a default. We enable this for privacy.
   opus.SetParam("cbr", "1");
   opus.AddFeedbackParam(cricket::FeedbackParam(cricket::kRtcpFbParamTransportCc, cricket::kParamValueEmpty));
-  audio->AddCodec(opus);
 
   // Turn on the RED "meta codec" for Opus redundancy.
   auto opus_red = cricket::CreateAudioCodec(OPUS_RED_PT, cricket::kRedCodecName, 48000, 2);
   opus_red.SetParam("", std::to_string(OPUS_PT) + "/" + std::to_string(OPUS_PT));
 
   // Add RED after Opus so that RED packets can at least be decoded properly if received.
-  audio->AddCodec(opus_red);
+  local_audio->AddCodec(opus);
+  local_audio->AddCodec(opus_red);
+  for (auto& remote_audio : remote_audios) {
+    remote_audio->AddCodec(opus);
+    remote_audio->AddCodec(opus_red);
+  }
 
   auto add_video_feedback_params = [] (cricket::VideoCodec* video_codec) {
     video_codec->AddFeedbackParam(cricket::FeedbackParam(cricket::kRtcpFbParamTransportCc, cricket::kParamValueEmpty));
@@ -534,16 +640,32 @@ CreateSessionDescriptionForGroupCall(bool local,
   auto vp8_rtx = cricket::CreateVideoRtxCodec(VP8_RTX_PT, VP8_PT);
   add_video_feedback_params(&vp8);
 
-  video->AddCodec(vp8);
-  video->AddCodec(vp8_rtx);
-
   // These are "meta codecs" for redundancy and FEC.
   // They are enabled by default currently with WebRTC.
   auto red = cricket::CreateVideoCodec(RED_PT, cricket::kRedCodecName);
   auto red_rtx = cricket::CreateVideoRtxCodec(RED_RTX_PT, RED_PT);
 
-  video->AddCodec(red);
-  video->AddCodec(red_rtx);
+  local_video->AddCodec(vp8);
+  local_video->AddCodec(vp8_rtx);
+
+  local_video->AddCodec(red);
+  local_video->AddCodec(red_rtx);
+
+  for (auto& remote_video : remote_videos) {
+    remote_video->AddCodec(vp8);
+    remote_video->AddCodec(vp8_rtx);
+
+    remote_video->AddCodec(red);
+    remote_video->AddCodec(red_rtx);
+  }
+
+  auto audio_level = webrtc::RtpExtension(webrtc::AudioLevel::Uri(), AUDIO_LEVEL_EXT_ID);
+  // Note: Do not add transport-cc for audio.  Using transport-cc with audio is still experimental in WebRTC.
+  // And don't add abs_send_time because it's only used for video.
+  local_audio->AddRtpHeaderExtension(audio_level);
+  for (auto& remote_audio : remote_audios) {
+    remote_audio->AddRtpHeaderExtension(audio_level);
+  }
 
   auto transport_cc1 = webrtc::RtpExtension(webrtc::TransportSequenceNumber::Uri(), TRANSPORT_CC1_EXT_ID);
   // TransportCC V2 is now enabled by default, but the difference is that V2 doesn't send periodic updates
@@ -551,51 +673,45 @@ CreateSessionDescriptionForGroupCall(bool local,
   // we can't enable V2.  We'd have to add it to the SFU to move from V1 to V2.
   // auto transport_cc2 = webrtc::RtpExtension(webrtc::TransportSequenceNumberV2::Uri(), TRANSPORT_CC2_EXT_ID);
   auto video_orientation = webrtc::RtpExtension(webrtc::VideoOrientation::Uri(), VIDEO_ORIENTATION_EXT_ID);
-  auto audio_level = webrtc::RtpExtension(webrtc::AudioLevel::Uri(), AUDIO_LEVEL_EXT_ID);
   // abs_send_time and tx_time_offset are used for more accurate REMB messages from the receiver,
   // but the SFU doesn't process REMB messages anyway, nor does it send or receive these header extensions.
   // So, don't waste bytes on them.
   // auto abs_send_time = webrtc::RtpExtension(webrtc::AbsoluteSendTime::Uri(), ABS_SEND_TIME_EXT_ID);
   // auto tx_time_offset = webrtc::RtpExtension(webrtc::TransmissionOffset::Uri(), TX_TIME_OFFSET_EXT_ID);
+  local_video->AddRtpHeaderExtension(transport_cc1);
+  local_video->AddRtpHeaderExtension(video_orientation);
+  for (auto& remote_video : remote_videos) {
+    remote_video->AddRtpHeaderExtension(transport_cc1);
+    remote_video->AddRtpHeaderExtension(video_orientation);
+  }
 
-  // Note: Do not add transport-cc for audio.  Using transport-cc with audio is still experimental in WebRTC.
-  // And don't add abs_send_time because it's only used for video.
-  audio->AddRtpHeaderExtension(audio_level);
-  video->AddRtpHeaderExtension(transport_cc1);
-  video->AddRtpHeaderExtension(video_orientation);
-
-  for (uint32_t rtp_demux_id : rtp_demux_ids) {
-    if (rtp_demux_id == INVALID_DEMUX_ID) {
-      RTC_LOG(LS_WARNING) << "Ignoring demux ID of 0";
-      continue;
-    }
-
-    uint32_t audio_ssrc = rtp_demux_id + 0;
+  auto setup_streams = [local, &LOCAL_AUDIO_TRACK_ID, &LOCAL_VIDEO_TRACK_ID] (cricket::MediaContentDescription* audio,
+                                                                              cricket::MediaContentDescription* video,
+                                                                              uint32_t demux_id) {
+    uint32_t audio_ssrc = demux_id + 0;
     // Leave room for audio RTX
-    uint32_t video1_ssrc = rtp_demux_id + 2;
-    uint32_t video1_rtx_ssrc = rtp_demux_id + 3;
-    uint32_t video2_ssrc = rtp_demux_id + 4;
-    uint32_t video2_rtx_ssrc = rtp_demux_id + 5;
-    uint32_t video3_ssrc = rtp_demux_id + 6;
-    uint32_t video3_rtx_ssrc = rtp_demux_id + 7;
+    uint32_t video1_ssrc = demux_id + 2;
+    uint32_t video1_rtx_ssrc = demux_id + 3;
+    uint32_t video2_ssrc = demux_id + 4;
+    uint32_t video2_rtx_ssrc = demux_id + 5;
+    uint32_t video3_ssrc = demux_id + 6;
+    uint32_t video3_rtx_ssrc = demux_id + 7;
     // Leave room for some more video layers or FEC
-    // uint32_t data_ssrc = rtp_demux_id + 0xD;  Used by group_call.rs
+    // uint32_t data_ssrc = demux_id + 0xD;  Used by group_call.rs
 
     auto audio_stream = cricket::StreamParams();
 
     // We will use the string version of the demux ID to know which
-    // track is for which remote device.
-    std::string rtp_demux_id_str = rtc::ToString(rtp_demux_id);
+    // transceiver is for which remote device.
+    std::string demux_id_str = rtc::ToString(demux_id);
 
     // For local, this should stay in sync with PeerConnectionFactory.createAudioTrack
-    // For remote, this will result in the remote audio track/receiver's ID,
-    audio_stream.id = local ? LOCAL_AUDIO_TRACK_ID : rtp_demux_id_str;
+    audio_stream.id = local ? LOCAL_AUDIO_TRACK_ID : demux_id_str;
     audio_stream.add_ssrc(audio_ssrc);
 
     auto video_stream = cricket::StreamParams();
     // For local, this should stay in sync with PeerConnectionFactory.createVideoSource
-    // For remote, this will result in the remote video track/receiver's ID,
-    video_stream.id = local ? LOCAL_VIDEO_TRACK_ID : rtp_demux_id_str;
+    video_stream.id = local ? LOCAL_VIDEO_TRACK_ID : demux_id_str;
     video_stream.add_ssrc(video1_ssrc);
     if (local) {
       // Don't add simulcast for remote descriptions
@@ -621,38 +737,84 @@ CreateSessionDescriptionForGroupCall(bool local,
       // The value doesn't seem to be used for anything else.
       // We'll set it around just in case.
       // But everything seems to work fine without it.
-      stream->cname = rtp_demux_id_str;
+      stream->cname = demux_id_str;
+
+      stream->set_stream_ids({demux_id_str});
     }
 
     audio->AddStream(audio_stream);
     video->AddStream(video_stream);
+  };
+
+  // Set up local_demux_id
+  setup_streams(local_audio.get(), local_video.get(), local_demux_id);
+
+  // Set up remote_demux_ids
+  for (size_t i = 0; i < remote_demux_ids.size(); i++) {
+    auto remote_audio = &remote_audios[i];
+    auto remote_video = &remote_videos[i];
+    uint32_t rtp_demux_id = remote_demux_ids[i];
+
+    if (rtp_demux_id == DISABLED_DEMUX_ID) {
+      continue;
+    }
+
+    setup_streams(remote_audio->get(), remote_video->get(), rtp_demux_id);
   }
 
   // TODO: Why is this only for video by default in WebRTC? Should we enable it for all of them?
-  video->set_rtcp_reduced_size(true);
+  local_video->set_rtcp_reduced_size(true);
+  for (auto& remote_video : remote_videos) {
+    remote_video->set_rtcp_reduced_size(true);
+  }
 
   // We don't set the crypto keys here.
   // We expect that will be done later by Rust_disableDtlsAndSetSrtpKey.
 
   // Keep the order as the WebRTC default: (audio, video).
-  auto audio_content_name = "audio";
-  auto video_content_name = "video";
+  auto local_audio_content_name = "local-audio0";
+  auto local_video_content_name = "local-video0";
 
-  auto session = std::make_unique<cricket::SessionDescription>();
-  session->AddTransportInfo(cricket::TransportInfo(audio_content_name, transport));
-  session->AddTransportInfo(cricket::TransportInfo(video_content_name, transport));
-
-  bool stopped = false;
-  session->AddContent(audio_content_name, cricket::MediaProtocolType::kRtp, stopped, std::move(audio));
-  session->AddContent(video_content_name, cricket::MediaProtocolType::kRtp, stopped, std::move(video));
+  auto remote_audio_content_name = "remote-audio";
+  auto remote_video_content_name = "remote-video";
 
   auto bundle = cricket::ContentGroup(cricket::GROUP_TYPE_BUNDLE);
-  bundle.AddContentName(audio_content_name);
-  bundle.AddContentName(video_content_name);
+  bundle.AddContentName(local_audio_content_name);
+  bundle.AddContentName(local_video_content_name);
+
+  auto session = std::make_unique<cricket::SessionDescription>();
+  session->AddTransportInfo(cricket::TransportInfo(local_audio_content_name, transport));
+  session->AddTransportInfo(cricket::TransportInfo(local_video_content_name, transport));
+
+  bool stopped = false;
+  session->AddContent(local_audio_content_name, cricket::MediaProtocolType::kRtp, stopped, std::move(local_audio));
+  session->AddContent(local_video_content_name, cricket::MediaProtocolType::kRtp, stopped, std::move(local_video));
+
+  auto audio_it = remote_audios.begin();
+  auto video_it = remote_videos.begin();
+  for (auto i = 0; audio_it != remote_audios.end() && video_it != remote_videos.end(); i++) {
+    auto remote_audio = std::move(*audio_it);
+    audio_it = remote_audios.erase(audio_it);
+
+    std::string audio_name = remote_audio_content_name;
+    audio_name += std::to_string(i);
+    session->AddTransportInfo(cricket::TransportInfo(audio_name, transport));
+    session->AddContent(audio_name, cricket::MediaProtocolType::kRtp, stopped, std::move(remote_audio));
+    bundle.AddContentName(audio_name);
+
+    auto remote_video = std::move(*video_it);
+    video_it = remote_videos.erase(video_it);
+
+    std::string video_name = remote_video_content_name;
+    video_name += std::to_string(i);
+    session->AddTransportInfo(cricket::TransportInfo(video_name, transport));
+    session->AddContent(video_name, cricket::MediaProtocolType::kRtp, stopped, std::move(remote_video));
+    bundle.AddContentName(video_name);
+  }
+
   session->AddGroup(bundle);
 
-  // This is the default and used for "Plan B" SDP, which is what we use in V1, V2, and V3.
-  session->set_msid_signaling(cricket::kMsidSignalingSsrcAttribute);
+  session->set_msid_signaling(cricket::kMsidSignalingMediaSection);
 
   auto typ = local ? SdpType::kOffer : SdpType::kAnswer;
   // The session ID and session version (both "1" here) go into SDP, but are not used at all.
@@ -664,14 +826,13 @@ RUSTEXPORT webrtc::SessionDescriptionInterface*
 Rust_localDescriptionForGroupCall(const char* ice_ufrag_borrowed,
                                   const char* ice_pwd_borrowed,
                                   RffiSrtpKey client_srtp_key,
-                                  uint32_t rtp_demux_id) {
-  std::vector<uint32_t> rtp_demux_ids;
-  // A 0 demux_id means we don't know the demux ID yet and shouldn't include one.
-  if (rtp_demux_id > 0) {
-    rtp_demux_ids.push_back(rtp_demux_id);
-  }
+                                  uint32_t local_demux_id,
+                                  uint32_t* remote_demux_ids_borrowed,
+                                  size_t remote_demux_ids_len) {
+  std::vector<uint32_t> remote_demux_ids;
+  remote_demux_ids.assign(remote_demux_ids_borrowed, remote_demux_ids_borrowed + remote_demux_ids_len);
   return CreateSessionDescriptionForGroupCall(
-    true /* local */, std::string(ice_ufrag_borrowed), std::string(ice_pwd_borrowed), client_srtp_key, rtp_demux_ids);
+    true /* local */, std::string(ice_ufrag_borrowed), std::string(ice_pwd_borrowed), client_srtp_key, local_demux_id, remote_demux_ids);
 }
 
 // Returns an owned pointer.
@@ -679,12 +840,13 @@ RUSTEXPORT webrtc::SessionDescriptionInterface*
 Rust_remoteDescriptionForGroupCall(const char* ice_ufrag_borrowed,
                                    const char* ice_pwd_borrowed,
                                    RffiSrtpKey server_srtp_key,
-                                   uint32_t* rtp_demux_ids_borrowed,
-                                   size_t rtp_demux_ids_len) {
-  std::vector<uint32_t> rtp_demux_ids;
-  rtp_demux_ids.assign(rtp_demux_ids_borrowed, rtp_demux_ids_borrowed + rtp_demux_ids_len);
+                                   uint32_t local_demux_id,
+                                   uint32_t* remote_demux_ids_borrowed,
+                                   size_t remote_demux_ids_len) {
+  std::vector<uint32_t> remote_demux_ids;
+  remote_demux_ids.assign(remote_demux_ids_borrowed, remote_demux_ids_borrowed + remote_demux_ids_len);
   return CreateSessionDescriptionForGroupCall(
-    false /* local */, std::string(ice_ufrag_borrowed), std::string(ice_pwd_borrowed), server_srtp_key, rtp_demux_ids);
+    false /* local */, std::string(ice_ufrag_borrowed), std::string(ice_pwd_borrowed), server_srtp_key, local_demux_id, remote_demux_ids);
 }
 
 RUSTEXPORT void

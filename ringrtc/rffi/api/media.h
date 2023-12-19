@@ -44,10 +44,6 @@ class VideoSource : public rtc::AdaptedVideoTrackSource {
 } // namespace rffi
 } // namespace webrtc
 
-// Parses track->id()
-// Returns 0 upon failure
-RUSTEXPORT uint32_t Rust_getTrackIdAsUint32(webrtc::MediaStreamTrackInterface* track_borrowed_rc);
-
 // Same as AudioTrack::set_enabled
 RUSTEXPORT void Rust_setAudioTrackEnabled(webrtc::AudioTrackInterface* track_borrowed_rc, bool);
 

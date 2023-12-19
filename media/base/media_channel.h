@@ -934,10 +934,7 @@ class VoiceMediaReceiveChannelInterface : public MediaReceiveChannelInterface {
   virtual void SetIncomingAudioMuted(uint32_t ssrc, bool muted) = 0;
 
   // RingRTC change to get audio levels
-  virtual void GetReceivedAudioLevels(
-      cricket::ReceivedAudioLevel* received_out,
-      size_t received_out_size,
-      size_t* received_size_out) = 0;
+  virtual absl::optional<cricket::ReceivedAudioLevel> GetReceivedAudioLevel() = 0;
 
   virtual bool GetStats(VoiceMediaReceiveInfo* stats, bool reset_legacy) = 0;
   virtual void SetReceiveNackEnabled(bool enabled) = 0;

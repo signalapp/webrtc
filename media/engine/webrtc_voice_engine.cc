@@ -2790,22 +2790,20 @@ void WebRtcVoiceReceiveChannel::SetIncomingAudioMuted(uint32_t ssrc, bool muted)
 }
 
 // RingRTC change to get audio levels
-void WebRtcVoiceReceiveChannel::GetReceivedAudioLevels(
-    cricket::ReceivedAudioLevel* received_out,
-    size_t received_out_size,
-    size_t* received_size_out) {
-  size_t received_size = 0;
-  for (const auto& kv : recv_streams_) {
-    if (received_size >= received_out_size) {
-      break;
-    }
-    received_out[received_size++] = cricket::ReceivedAudioLevel {
-        kv.first,
-        kv.second->GetAudioLevel()
-    };
+absl::optional<cricket::ReceivedAudioLevel> WebRtcVoiceReceiveChannel::GetReceivedAudioLevel() {
+  RTC_DCHECK_RUN_ON(worker_thread_);
+  if (recv_streams_.empty()) {
+    RTC_LOG(LS_WARNING)
+        << "Attempting to GetReceivedAudioLevel for channel with no receiving streams."
+        << " mid_=" << mid_;
+    return absl::nullopt;
   }
 
-  *received_size_out = received_size;
+  auto kv = recv_streams_.begin();
+  return cricket::ReceivedAudioLevel {
+      kv->first,
+      kv->second->GetAudioLevel()
+  };
 }
 
 }  // namespace cricket

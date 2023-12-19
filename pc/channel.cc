@@ -971,15 +971,15 @@ void VoiceChannel::ConfigureEncoders(const webrtc::AudioEncoder::Config& config)
 }
 
 // RingRTC change to get audio levels
-void VoiceChannel::GetAudioLevels(
-    cricket::AudioLevel* captured_out,
-    cricket::ReceivedAudioLevel* received_out,
-    size_t received_out_size,
-    size_t* received_size_out) {
-  worker_thread()->BlockingCall([this, captured_out, received_out, received_out_size, received_size_out] {
+void VoiceChannel::GetCapturedAudioLevel(cricket::AudioLevel* captured_out) {
+  worker_thread()->BlockingCall([this, captured_out] {
     voice_media_send_channel()->GetCapturedAudioLevel(captured_out);
-    voice_media_receive_channel()->GetReceivedAudioLevels(received_out, received_out_size, received_size_out);
   });
+}
+
+// RingRTC change to get audio levels
+absl::optional<cricket::ReceivedAudioLevel> VoiceChannel::GetReceivedAudioLevel() {
+  return voice_media_receive_channel()->GetReceivedAudioLevel();
 }
 
 // RingRTC change to disable CNG for muted incoming streams.
