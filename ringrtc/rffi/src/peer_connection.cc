@@ -790,26 +790,26 @@ CreateSessionDescriptionForGroupCall(bool local,
   session->AddContent(local_audio_content_name, cricket::MediaProtocolType::kRtp, stopped, std::move(local_audio));
   session->AddContent(local_video_content_name, cricket::MediaProtocolType::kRtp, stopped, std::move(local_video));
 
-  auto audioIt = remote_audios.begin();
-  auto videoIt = remote_videos.begin();
-  for (auto i = 0; audioIt != remote_audios.end() && videoIt != remote_videos.end(); i++) {
-    auto remote_audio = std::move(*audioIt);
-    audioIt = remote_audios.erase(audioIt);
+  auto audio_it = remote_audios.begin();
+  auto video_it = remote_videos.begin();
+  for (auto i = 0; audio_it != remote_audios.end() && video_it != remote_videos.end(); i++) {
+    auto remote_audio = std::move(*audio_it);
+    audio_it = remote_audios.erase(audio_it);
 
-    std::string audioName = remote_audio_content_name;
-    audioName += std::to_string(i);
-    session->AddTransportInfo(cricket::TransportInfo(audioName, transport));
-    session->AddContent(audioName, cricket::MediaProtocolType::kRtp, stopped, std::move(remote_audio));
-    bundle.AddContentName(audioName);
+    std::string audio_name = remote_audio_content_name;
+    audio_name += std::to_string(i);
+    session->AddTransportInfo(cricket::TransportInfo(audio_name, transport));
+    session->AddContent(audio_name, cricket::MediaProtocolType::kRtp, stopped, std::move(remote_audio));
+    bundle.AddContentName(audio_name);
 
-    auto remote_video = std::move(*videoIt);
-    videoIt = remote_videos.erase(videoIt);
+    auto remote_video = std::move(*video_it);
+    video_it = remote_videos.erase(video_it);
 
-    std::string videoName = remote_video_content_name;
-    videoName += std::to_string(i);
-    session->AddTransportInfo(cricket::TransportInfo(videoName, transport));
-    session->AddContent(videoName, cricket::MediaProtocolType::kRtp, stopped, std::move(remote_video));
-    bundle.AddContentName(videoName);
+    std::string video_name = remote_video_content_name;
+    video_name += std::to_string(i);
+    session->AddTransportInfo(cricket::TransportInfo(video_name, transport));
+    session->AddContent(video_name, cricket::MediaProtocolType::kRtp, stopped, std::move(remote_video));
+    bundle.AddContentName(video_name);
   }
 
   session->AddGroup(bundle);
