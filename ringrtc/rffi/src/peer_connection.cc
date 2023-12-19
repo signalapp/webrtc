@@ -659,28 +659,27 @@ CreateSessionDescriptionForGroupCall(bool local,
     remote_video->AddCodec(red_rtx);
   }
 
+  auto audio_level = webrtc::RtpExtension(webrtc::AudioLevel::Uri(), AUDIO_LEVEL_EXT_ID);
+  // Note: Do not add transport-cc for audio.  Using transport-cc with audio is still experimental in WebRTC.
+  // And don't add abs_send_time because it's only used for video.
+  local_audio->AddRtpHeaderExtension(audio_level);
+  for (auto& remote_audio : remote_audios) {
+    remote_audio->AddRtpHeaderExtension(audio_level);
+  }
+
   auto transport_cc1 = webrtc::RtpExtension(webrtc::TransportSequenceNumber::Uri(), TRANSPORT_CC1_EXT_ID);
   // TransportCC V2 is now enabled by default, but the difference is that V2 doesn't send periodic updates
   // and instead waits for feedback requests.  Since the SFU doesn't currently send feedback requests,
   // we can't enable V2.  We'd have to add it to the SFU to move from V1 to V2.
   // auto transport_cc2 = webrtc::RtpExtension(webrtc::TransportSequenceNumberV2::Uri(), TRANSPORT_CC2_EXT_ID);
   auto video_orientation = webrtc::RtpExtension(webrtc::VideoOrientation::Uri(), VIDEO_ORIENTATION_EXT_ID);
-  auto audio_level = webrtc::RtpExtension(webrtc::AudioLevel::Uri(), AUDIO_LEVEL_EXT_ID);
   // abs_send_time and tx_time_offset are used for more accurate REMB messages from the receiver,
   // but the SFU doesn't process REMB messages anyway, nor does it send or receive these header extensions.
   // So, don't waste bytes on them.
   // auto abs_send_time = webrtc::RtpExtension(webrtc::AbsoluteSendTime::Uri(), ABS_SEND_TIME_EXT_ID);
   // auto tx_time_offset = webrtc::RtpExtension(webrtc::TransmissionOffset::Uri(), TX_TIME_OFFSET_EXT_ID);
-
-  // Note: Do not add transport-cc for audio.  Using transport-cc with audio is still experimental in WebRTC.
-  // And don't add abs_send_time because it's only used for video.
-  local_audio->AddRtpHeaderExtension(audio_level);
   local_video->AddRtpHeaderExtension(transport_cc1);
   local_video->AddRtpHeaderExtension(video_orientation);
-
-  for (auto& remote_audio : remote_audios) {
-    remote_audio->AddRtpHeaderExtension(audio_level);
-  }
   for (auto& remote_video : remote_videos) {
     remote_video->AddRtpHeaderExtension(transport_cc1);
     remote_video->AddRtpHeaderExtension(video_orientation);

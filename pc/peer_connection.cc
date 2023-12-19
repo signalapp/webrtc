@@ -3154,8 +3154,8 @@ void PeerConnection::GetAudioLevels(cricket::AudioLevel* captured_out,
     size_t received_size = 0;
 
     for (auto voice_channel : receiving_voice_channels) {
-      if (received_size >= received_out_size) {
-        continue;
+      if (received_size == received_out_size) {
+        break;
       }
 
       auto audio_level = voice_channel->GetReceivedAudioLevel();
