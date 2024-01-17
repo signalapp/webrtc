@@ -651,8 +651,7 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
     // will also cause PeerConnection to ignore all but the first m= section of
     // the same media type (if the PeerConnection is given Unified Plan SDP to
     // process).
-    // RingRTC Change to use "Plan B"
-    SdpSemantics sdp_semantics = SdpSemantics::kPlanB_DEPRECATED;
+    SdpSemantics sdp_semantics = SdpSemantics::kUnifiedPlan;
 
     // TODO(bugs.webrtc.org/9891) - Move to crypto_options or remove.
     // Actively reset the SRTP parameters whenever the DTLS transports
@@ -679,9 +678,6 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
 
     // Added to be able to control rollout of this feature.
     bool enable_implicit_rollback = false;
-
-    // Whether network condition based codec switching is allowed.
-    absl::optional<bool> allow_codec_switching;
 
     // The delay before doing a usage histogram report for long-lived
     // PeerConnections. Used for testing only.
@@ -1453,10 +1449,12 @@ struct RTC_EXPORT PeerConnectionDependencies final {
   std::unique_ptr<webrtc::AsyncDnsResolverFactoryInterface>
       async_dns_resolver_factory;
   // Deprecated - use async_dns_resolver_factory
-  // Deprecation is in abeyance until Chromium is updated.
-  // TODO(crbug.com/1475925): Deprecate once Chromium is updated
-  // [[deprecated("Use async_dns_resolver_factory")]]
-  std::unique_ptr<webrtc::AsyncResolverFactory> async_resolver_factory;
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+  [[deprecated("Use async_dns_resolver_factory")]] std::unique_ptr<
+      webrtc::AsyncResolverFactory>
+      async_resolver_factory;
+#pragma clang diagnostic pop
   std::unique_ptr<webrtc::IceTransportFactory> ice_transport_factory;
   std::unique_ptr<rtc::RTCCertificateGeneratorInterface> cert_generator;
   std::unique_ptr<rtc::SSLCertificateVerifier> tls_cert_verifier;
@@ -1560,7 +1558,7 @@ class RTC_EXPORT PeerConnectionFactoryInterface
     rtc::SSLProtocolVersion ssl_max_version = rtc::SSL_PROTOCOL_DTLS_12;
 
     // Sets crypto related options, e.g. enabled cipher suites.
-    CryptoOptions crypto_options = CryptoOptions::Default();
+    CryptoOptions crypto_options = {};
   };
 
   // Set the options to be used for subsequently created PeerConnections.

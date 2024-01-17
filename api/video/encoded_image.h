@@ -79,17 +79,16 @@ class RTC_EXPORT EncodedImage {
   EncodedImage& operator=(EncodedImage&&);
   EncodedImage& operator=(const EncodedImage&);
 
-  // TODO(bugs.webrtc.org/9378): Change style to timestamp(), set_timestamp(),
-  // for consistency with the VideoFrame class. Set frame timestamp (90kHz).
-  void SetTimestamp(uint32_t timestamp) { timestamp_rtp_ = timestamp; }
-
-  // Get frame timestamp (90kHz).
-  uint32_t Timestamp() const { return timestamp_rtp_; }
+  // Frame capture time in RTP timestamp representation (90kHz).
+  void SetRtpTimestamp(uint32_t timestamp) { timestamp_rtp_ = timestamp; }
+  uint32_t RtpTimestamp() const { return timestamp_rtp_; }
 
   void SetEncodeTime(int64_t encode_start_ms, int64_t encode_finish_ms);
 
-  webrtc::Timestamp CaptureTime() const;
+  // Frame capture time in local time.
+  Timestamp CaptureTime() const;
 
+  // Frame capture time in ntp epoch time, i.e. time since 1st Jan 1900
   int64_t NtpTimeMs() const { return ntp_time_ms_; }
 
   // Every simulcast layer (= encoding) has its own encoder and RTP stream.
@@ -101,11 +100,11 @@ class RTC_EXPORT EncodedImage {
     simulcast_index_ = simulcast_index;
   }
 
-  const absl::optional<webrtc::Timestamp>& CaptureTimeIdentifier() const {
+  const absl::optional<Timestamp>& CaptureTimeIdentifier() const {
     return capture_time_identifier_;
   }
   void SetCaptureTimeIdentifier(
-      const absl::optional<webrtc::Timestamp>& capture_time_identifier) {
+      const absl::optional<Timestamp>& capture_time_identifier) {
     capture_time_identifier_ = capture_time_identifier;
   }
 
@@ -245,7 +244,7 @@ class RTC_EXPORT EncodedImage {
   size_t size_ = 0;  // Size of encoded frame data.
   uint32_t timestamp_rtp_ = 0;
   absl::optional<int> simulcast_index_;
-  absl::optional<webrtc::Timestamp> capture_time_identifier_;
+  absl::optional<Timestamp> capture_time_identifier_;
   absl::optional<int> spatial_index_;
   absl::optional<int> temporal_index_;
   std::map<int, size_t> spatial_layer_frame_size_bytes_;

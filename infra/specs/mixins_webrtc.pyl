@@ -35,6 +35,14 @@
       }
     }
   },
+  'crosshatch': {
+    'swarming': {
+      'dimensions': {
+        'device_type': 'crosshatch',
+        'os': 'Android',
+      },
+    },
+  },
   # Hack to use the test-launcher-summary-output flag + emulator folders for gtest-output
   # but it's currently the only way to get the file out of the emulator.
   'fuchsia-gtest-output': {
@@ -48,7 +56,8 @@
     'swarming': {
       'dimensions': {
         'os': 'iOS-16.6',
-        'pool': 'chrome.tests'
+        'pool': 'chrome.tests',
+        'device_status': 'available'
       }
     }
   },
@@ -56,9 +65,10 @@
     'swarming': {
       'idempotent': False,
       'dimensions': {
-        'os': 'iOS-12.4.1',
+        'os': 'iOS-15.7.8',
         'pool': 'WebRTC',
         'id': 'mac-254-e504',
+        'device_status': 'available'
       },
     },
   },
@@ -148,7 +158,7 @@
   },
   'quick-perf-tests': {
     'args': [
-      '--force_fieldtrials=WebRTC-QuickPerfTest/Enabled/',
+      '--webrtc_quick_perf_test',
       '--nologs',
     ],
   },
@@ -187,6 +197,11 @@
   'shards-6': {
     'swarming': {
       'shards': 6,
+    },
+  },
+  'shards-8': {
+    'swarming': {
+      'shards': 8,
     },
   },
   'timeout-2h': {

@@ -525,7 +525,6 @@ rtc_library("rate_limiter") {
     ":macromagic",
     ":rate_statistics",
     "../system_wrappers",
-    "../system_wrappers:field_trial",
     "synchronization:mutex",
   ]
   absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
@@ -856,8 +855,8 @@ config("rtc_json_suppressions") {
 }
 
 rtc_library("rtc_json") {
+  testonly = true
   public_configs = [ ":rtc_json_suppressions" ]
-  poisonous = [ "rtc_json" ]
   defines = []
   sources = [
     "strings/json.cc",
@@ -940,6 +939,7 @@ rtc_library("async_dns_resolver") {
     "../api:make_ref_counted",
     "../api:sequence_checker",
     "../api/task_queue:pending_task_safety_flag",
+    "system:rtc_export",
   ]
 }
 
@@ -1045,6 +1045,7 @@ rtc_library("threading") {
     "//third_party/abseil-cpp/absl/strings",
   ]
   deps = [
+    ":async_dns_resolver",
     ":async_resolver_interface",
     ":byte_order",
     ":checks",
@@ -1060,9 +1061,11 @@ rtc_library("threading") {
     ":refcount",
     ":rtc_event",
     ":rtc_task_queue",
+    ":socket",
     ":socket_address",
     ":socket_server",
     ":timeutils",
+    "../api:async_dns_resolver",
     "../api:function_view",
     "../api:location",
     "../api:refcountedbase",
@@ -1960,7 +1963,6 @@ if (rtc_include_tests) {
         "../api/units:time_delta",
         "../api/units:timestamp",
         "../system_wrappers",
-        "../test:field_trial",
         "../test:fileutils",
         "../test:test_main",
         "../test:test_support",
@@ -2138,7 +2140,7 @@ if (rtc_include_tests) {
         sources += [ "win32_unittest.cc" ]
         deps += [ ":win32" ]
       }
-      if (is_posix || is_fuchsia) {
+      if (is_posix || is_fuchsia || is_win) {
         sources += [
           "openssl_adapter_unittest.cc",
           "openssl_session_cache_unittest.cc",

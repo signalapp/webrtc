@@ -92,6 +92,10 @@ bool IsBaseLayer(const RTPVideoHeader& video_header) {
       // TODO(kron): Implement logic for H264 once WebRTC supports temporal
       // layers for H264.
       break;
+    case kVideoCodecH265:
+      // TODO(bugs.webrtc.org/13485): Implement logic for H265 once WebRTC
+      // supports temporal layers for H265.
+      break;
     default:
       break;
   }
@@ -114,7 +118,7 @@ absl::optional<VideoPlayoutDelay> LoadVideoPlayoutDelayOverride(
 
 // Some packets can be skipped and the stream can still be decoded. Those
 // packets are less likely to be retransmitted if they are lost.
-bool PacketWillLikelyBeRequestedForRestransmitionIfLost(
+bool PacketWillLikelyBeRequestedForRestransmissionIfLost(
     const RTPVideoHeader& video_header) {
   return IsBaseLayer(video_header) &&
          !(video_header.generic.has_value()
@@ -438,7 +442,7 @@ void RTPSenderVideo::AddRtpHeaderExtensions(const RTPVideoHeader& video_header,
       first_packet &&
       send_allocation_ != SendVideoLayersAllocation::kDontSend &&
       (video_header.frame_type == VideoFrameType::kVideoFrameKey ||
-       PacketWillLikelyBeRequestedForRestransmitionIfLost(video_header))) {
+       PacketWillLikelyBeRequestedForRestransmissionIfLost(video_header))) {
     VideoLayersAllocation allocation = allocation_.value();
     allocation.resolution_and_frame_rate_is_valid =
         send_allocation_ == SendVideoLayersAllocation::kSendWithResolution;
@@ -544,10 +548,10 @@ bool RTPSenderVideo::SendVideo(int payload_type,
   if (video_header.absolute_capture_time.has_value()) {
     video_header.absolute_capture_time =
         absolute_capture_time_sender_.OnSendPacket(
-            AbsoluteCaptureTimeSender::GetSource(single_packet->Ssrc(),
-                                                 single_packet->Csrcs()),
+            AbsoluteCaptureTimeSender::GetSource(single_packet->Ssrc(), csrcs),
             single_packet->Timestamp(), kVideoPayloadTypeFrequency,
-            video_header.absolute_capture_time->absolute_capture_timestamp,
+            NtpTime(
+                video_header.absolute_capture_time->absolute_capture_timestamp),
             video_header.absolute_capture_time->estimated_capture_clock_offset);
   }
 
@@ -732,7 +736,7 @@ bool RTPSenderVideo::SendVideo(int payload_type,
   }
 
   if (video_header.frame_type == VideoFrameType::kVideoFrameKey ||
-      PacketWillLikelyBeRequestedForRestransmitionIfLost(video_header)) {
+      PacketWillLikelyBeRequestedForRestransmissionIfLost(video_header)) {
     // This frame will likely be delivered, no need to populate playout
     // delay extensions until it changes again.
     playout_delay_pending_ = false;

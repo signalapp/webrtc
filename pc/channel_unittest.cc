@@ -48,25 +48,28 @@
 #include "test/gtest.h"
 #include "test/scoped_key_value_config.h"
 
-using cricket::DtlsTransportInternal;
-using cricket::FakeVoiceMediaReceiveChannel;
-using cricket::FakeVoiceMediaSendChannel;
-using cricket::RidDescription;
-using cricket::RidDirection;
-using cricket::StreamParams;
-using webrtc::RtpTransceiverDirection;
-using webrtc::SdpType;
-
 namespace {
-const cricket::AudioCodec kPcmuCodec =
+
+using ::cricket::DtlsTransportInternal;
+using ::cricket::FakeVoiceMediaReceiveChannel;
+using ::cricket::FakeVoiceMediaSendChannel;
+using ::cricket::RidDescription;
+using ::cricket::RidDirection;
+using ::cricket::StreamParams;
+using ::testing::AllOf;
+using ::testing::ElementsAre;
+using ::testing::Field;
+using ::webrtc::RtpTransceiverDirection;
+using ::webrtc::SdpType;
+
+const cricket::Codec kPcmuCodec =
     cricket::CreateAudioCodec(0, "PCMU", 64000, 1);
-const cricket::AudioCodec kPcmaCodec =
+const cricket::Codec kPcmaCodec =
     cricket::CreateAudioCodec(8, "PCMA", 64000, 1);
-const cricket::AudioCodec kIsacCodec =
+const cricket::Codec kIsacCodec =
     cricket::CreateAudioCodec(103, "ISAC", 40000, 1);
-const cricket::VideoCodec kH264Codec = cricket::CreateVideoCodec(97, "H264");
-const cricket::VideoCodec kH264SvcCodec =
-    cricket::CreateVideoCodec(99, "H264-SVC");
+const cricket::Codec kH264Codec = cricket::CreateVideoCodec(97, "H264");
+const cricket::Codec kH264SvcCodec = cricket::CreateVideoCodec(99, "H264-SVC");
 const uint32_t kSsrc1 = 0x1111;
 const uint32_t kSsrc2 = 0x2222;
 const uint32_t kSsrc3 = 0x3333;
@@ -75,7 +78,6 @@ const int kAudioPts[] = {0, 8};
 const int kVideoPts[] = {97, 99};
 enum class NetworkIsWorker { Yes, No };
 
-}  // namespace
 
 template <class ChannelT,
           class MediaSendChannelT,
@@ -83,7 +85,6 @@ template <class ChannelT,
           class MediaSendChannelInterfaceT,
           class MediaReceiveChannelInterfaceT,
           class ContentT,
-          class CodecT,
           class MediaInfoT,
           class OptionsT>
 class Traits {
@@ -94,7 +95,6 @@ class Traits {
   typedef MediaSendChannelInterfaceT MediaSendChannelInterface;
   typedef MediaReceiveChannelInterfaceT MediaReceiveChannelInterface;
   typedef ContentT Content;
-  typedef CodecT Codec;
   typedef MediaInfoT MediaInfo;
   typedef OptionsT Options;
 };
@@ -105,7 +105,6 @@ class VoiceTraits : public Traits<cricket::VoiceChannel,
                                   cricket::VoiceMediaSendChannelInterface,
                                   cricket::VoiceMediaReceiveChannelInterface,
                                   cricket::AudioContentDescription,
-                                  cricket::AudioCodec,
                                   cricket::VoiceMediaInfo,
                                   cricket::AudioOptions> {};
 
@@ -115,7 +114,6 @@ class VideoTraits : public Traits<cricket::VideoChannel,
                                   cricket::VideoMediaSendChannelInterface,
                                   cricket::VideoMediaReceiveChannelInterface,
                                   cricket::VideoContentDescription,
-                                  cricket::VideoCodec,
                                   cricket::VideoMediaInfo,
                                   cricket::VideoOptions> {};
 
@@ -504,8 +502,8 @@ class ChannelTest : public ::testing::Test, public sigslot::has_slots<> {
   bool CheckNoRtp2() { return media_send_channel2_impl()->CheckNoRtp(); }
 
   void CreateContent(int flags,
-                     const cricket::AudioCodec& audio_codec,
-                     const cricket::VideoCodec& video_codec,
+                     const cricket::Codec& audio_codec,
+                     const cricket::Codec& video_codec,
                      typename T::Content* content) {
     // overridden in specialized classes
   }
@@ -540,10 +538,6 @@ class ChannelTest : public ::testing::Test, public sigslot::has_slots<> {
    private:
     std::unique_ptr<rtc::Thread> thread_;
   };
-
-  bool CodecMatches(const typename T::Codec& c1, const typename T::Codec& c2) {
-    return false;  // overridden in specialized classes
-  }
 
   cricket::CandidatePairInterface* last_selected_candidate_pair() {
     return last_selected_candidate_pair_;
@@ -610,8 +604,8 @@ class ChannelTest : public ::testing::Test, public sigslot::has_slots<> {
     EXPECT_EQ(0U, media_send_channel1_impl()->send_codecs().size());
     EXPECT_TRUE(channel1_->SetRemoteContent(&content, SdpType::kAnswer, err));
     ASSERT_EQ(1U, media_send_channel1_impl()->send_codecs().size());
-    EXPECT_TRUE(CodecMatches(content.codecs()[0],
-                             media_send_channel1_impl()->send_codecs()[0]));
+    EXPECT_EQ(content.codecs()[0],
+              media_send_channel1_impl()->send_codecs()[0]);
   }
 
   // Test that SetLocalContent and SetRemoteContent properly configure
@@ -658,8 +652,8 @@ class ChannelTest : public ::testing::Test, public sigslot::has_slots<> {
     EXPECT_EQ(0U, media_send_channel1_impl()->send_codecs().size());
     EXPECT_TRUE(channel1_->SetRemoteContent(&content, SdpType::kAnswer, err));
     ASSERT_EQ(1U, media_send_channel1_impl()->send_codecs().size());
-    EXPECT_TRUE(CodecMatches(content.codecs()[0],
-                             media_send_channel1_impl()->send_codecs()[0]));
+    EXPECT_EQ(content.codecs()[0],
+              media_send_channel1_impl()->send_codecs()[0]);
   }
 
   // Test that SetLocalContent and SetRemoteContent properly set RTCP
@@ -1559,8 +1553,8 @@ std::unique_ptr<cricket::VoiceChannel> ChannelTest<VoiceTraits>::CreateChannel(
 template <>
 void ChannelTest<VoiceTraits>::CreateContent(
     int flags,
-    const cricket::AudioCodec& audio_codec,
-    const cricket::VideoCodec& video_codec,
+    const cricket::Codec& audio_codec,
+    const cricket::Codec& video_codec,
     cricket::AudioContentDescription* audio) {
   audio->AddCodec(audio_codec);
   audio->set_rtcp_mux((flags & RTCP_MUX) != 0);
@@ -1571,13 +1565,6 @@ void ChannelTest<VoiceTraits>::CopyContent(
     const cricket::AudioContentDescription& source,
     cricket::AudioContentDescription* audio) {
   *audio = source;
-}
-
-template <>
-bool ChannelTest<VoiceTraits>::CodecMatches(const cricket::AudioCodec& c1,
-                                            const cricket::AudioCodec& c2) {
-  return c1.name == c2.name && c1.clockrate == c2.clockrate &&
-         c1.bitrate == c2.bitrate && c1.channels == c2.channels;
 }
 
 template <>
@@ -1646,8 +1633,8 @@ std::unique_ptr<cricket::VideoChannel> ChannelTest<VideoTraits>::CreateChannel(
 template <>
 void ChannelTest<VideoTraits>::CreateContent(
     int flags,
-    const cricket::AudioCodec& audio_codec,
-    const cricket::VideoCodec& video_codec,
+    const cricket::Codec& audio_codec,
+    const cricket::Codec& video_codec,
     cricket::VideoContentDescription* video) {
   video->AddCodec(video_codec);
   video->set_rtcp_mux((flags & RTCP_MUX) != 0);
@@ -1658,12 +1645,6 @@ void ChannelTest<VideoTraits>::CopyContent(
     const cricket::VideoContentDescription& source,
     cricket::VideoContentDescription* video) {
   *video = source;
-}
-
-template <>
-bool ChannelTest<VideoTraits>::CodecMatches(const cricket::VideoCodec& c1,
-                                            const cricket::VideoCodec& c2) {
-  return c1.name == c2.name;
 }
 
 template <>
@@ -2274,6 +2255,142 @@ TEST_F(VideoChannelSingleThreadTest,
             absl::nullopt);
 }
 
+TEST_F(VideoChannelSingleThreadTest,
+       StopsPacketizationVerificationWhenMatchIsFoundInRemoteAnswer) {
+  cricket::VideoCodec vp8_foo = cricket::CreateVideoCodec(96, "VP8");
+  vp8_foo.packetization = "foo";
+  cricket::VideoCodec vp8_bar = cricket::CreateVideoCodec(97, "VP8");
+  vp8_bar.packetization = "bar";
+  cricket::VideoCodec vp9 = cricket::CreateVideoCodec(98, "VP9");
+  cricket::VideoCodec vp9_foo = cricket::CreateVideoCodec(99, "VP9");
+  vp9_foo.packetization = "bar";
+  cricket::VideoContentDescription local;
+  local.set_codecs({vp8_foo, vp8_bar, vp9_foo});
+  cricket::VideoContentDescription remote;
+  remote.set_codecs({vp8_foo, vp9});
+
+  CreateChannels(0, 0);
+  std::string err;
+  ASSERT_TRUE(channel1_->SetLocalContent(&local, SdpType::kOffer, err)) << err;
+  ASSERT_TRUE(channel1_->SetRemoteContent(&remote, SdpType::kAnswer, err))
+      << err;
+
+  EXPECT_THAT(
+      media_receive_channel1_impl()->recv_codecs(),
+      ElementsAre(AllOf(Field(&cricket::Codec::id, 96),
+                        Field(&cricket::Codec::packetization, "foo")),
+                  AllOf(Field(&cricket::Codec::id, 97),
+                        Field(&cricket::Codec::packetization, "bar")),
+                  AllOf(Field(&cricket::Codec::id, 99),
+                        Field(&cricket::Codec::packetization, absl::nullopt))));
+  EXPECT_THAT(
+      media_send_channel1_impl()->send_codecs(),
+      ElementsAre(AllOf(Field(&cricket::Codec::id, 96),
+                        Field(&cricket::Codec::packetization, "foo")),
+                  AllOf(Field(&cricket::Codec::id, 98),
+                        Field(&cricket::Codec::packetization, absl::nullopt))));
+}
+
+TEST_F(VideoChannelSingleThreadTest,
+       StopsPacketizationVerificationWhenMatchIsFoundInLocalAnswer) {
+  cricket::VideoCodec vp8_foo = cricket::CreateVideoCodec(96, "VP8");
+  vp8_foo.packetization = "foo";
+  cricket::VideoCodec vp8_bar = cricket::CreateVideoCodec(97, "VP8");
+  vp8_bar.packetization = "bar";
+  cricket::VideoCodec vp9 = cricket::CreateVideoCodec(98, "VP9");
+  cricket::VideoCodec vp9_foo = cricket::CreateVideoCodec(99, "VP9");
+  vp9_foo.packetization = "bar";
+  cricket::VideoContentDescription local;
+  local.set_codecs({vp8_foo, vp9});
+  cricket::VideoContentDescription remote;
+  remote.set_codecs({vp8_foo, vp8_bar, vp9_foo});
+
+  CreateChannels(0, 0);
+  std::string err;
+  ASSERT_TRUE(channel1_->SetRemoteContent(&remote, SdpType::kOffer, err))
+      << err;
+  ASSERT_TRUE(channel1_->SetLocalContent(&local, SdpType::kAnswer, err)) << err;
+
+  EXPECT_THAT(
+      media_receive_channel1_impl()->recv_codecs(),
+      ElementsAre(AllOf(Field(&cricket::Codec::id, 96),
+                        Field(&cricket::Codec::packetization, "foo")),
+                  AllOf(Field(&cricket::Codec::id, 98),
+                        Field(&cricket::Codec::packetization, absl::nullopt))));
+  EXPECT_THAT(
+      media_send_channel1_impl()->send_codecs(),
+      ElementsAre(AllOf(Field(&cricket::Codec::id, 96),
+                        Field(&cricket::Codec::packetization, "foo")),
+                  AllOf(Field(&cricket::Codec::id, 97),
+                        Field(&cricket::Codec::packetization, "bar")),
+                  AllOf(Field(&cricket::Codec::id, 99),
+                        Field(&cricket::Codec::packetization, absl::nullopt))));
+}
+
+TEST_F(VideoChannelSingleThreadTest,
+       ConsidersAllCodecsWithDiffrentPacketizationsInRemoteAnswer) {
+  cricket::VideoCodec vp8 = cricket::CreateVideoCodec(96, "VP8");
+  cricket::VideoCodec vp8_raw = cricket::CreateVideoCodec(97, "VP8");
+  vp8_raw.packetization = cricket::kPacketizationParamRaw;
+  cricket::VideoContentDescription local;
+  local.set_codecs({vp8, vp8_raw});
+  cricket::VideoContentDescription remote;
+  remote.set_codecs({vp8_raw, vp8});
+
+  CreateChannels(0, 0);
+  std::string err;
+  ASSERT_TRUE(channel1_->SetLocalContent(&local, SdpType::kOffer, err)) << err;
+  ASSERT_TRUE(channel1_->SetRemoteContent(&remote, SdpType::kAnswer, err))
+      << err;
+
+  EXPECT_THAT(
+      media_receive_channel1_impl()->recv_codecs(),
+      ElementsAre(AllOf(Field(&cricket::Codec::id, 96),
+                        Field(&cricket::Codec::packetization, absl::nullopt)),
+                  AllOf(Field(&cricket::Codec::id, 97),
+                        Field(&cricket::Codec::packetization,
+                              cricket::kPacketizationParamRaw))));
+  EXPECT_THAT(
+      media_send_channel1_impl()->send_codecs(),
+      ElementsAre(AllOf(Field(&cricket::Codec::id, 97),
+                        Field(&cricket::Codec::packetization,
+                              cricket::kPacketizationParamRaw)),
+                  AllOf(Field(&cricket::Codec::id, 96),
+                        Field(&cricket::Codec::packetization, absl::nullopt))));
+}
+
+TEST_F(VideoChannelSingleThreadTest,
+       ConsidersAllCodecsWithDiffrentPacketizationsInLocalAnswer) {
+  cricket::VideoCodec vp8 = cricket::CreateVideoCodec(96, "VP8");
+  cricket::VideoCodec vp8_raw = cricket::CreateVideoCodec(97, "VP8");
+  vp8_raw.packetization = cricket::kPacketizationParamRaw;
+  cricket::VideoContentDescription local;
+  local.set_codecs({vp8_raw, vp8});
+  cricket::VideoContentDescription remote;
+  remote.set_codecs({vp8, vp8_raw});
+
+  CreateChannels(0, 0);
+  std::string err;
+  ASSERT_TRUE(channel1_->SetRemoteContent(&remote, SdpType::kOffer, err))
+      << err;
+  ASSERT_TRUE(channel1_->SetLocalContent(&local, SdpType::kAnswer, err)) << err;
+
+  EXPECT_THAT(
+      media_receive_channel1_impl()->recv_codecs(),
+      ElementsAre(AllOf(Field(&cricket::Codec::id, 97),
+                        Field(&cricket::Codec::packetization,
+                              cricket::kPacketizationParamRaw)),
+                  AllOf(Field(&cricket::Codec::id, 96),
+                        Field(&cricket::Codec::packetization, absl::nullopt))));
+  EXPECT_THAT(
+      media_send_channel1_impl()->send_codecs(),
+      ElementsAre(AllOf(Field(&cricket::Codec::id, 96),
+                        Field(&cricket::Codec::packetization, absl::nullopt)),
+                  AllOf(Field(&cricket::Codec::id, 97),
+                        Field(&cricket::Codec::packetization,
+                              cricket::kPacketizationParamRaw))));
+}
+
 // VideoChannelDoubleThreadTest
 TEST_F(VideoChannelDoubleThreadTest, TestInit) {
   Base::TestInit();
@@ -2409,4 +2526,4 @@ TEST_F(VideoChannelDoubleThreadTest, SocketOptionsMergedOnSetTransport) {
   Base::SocketOptionsMergedOnSetTransport();
 }
 
-// TODO(pthatcher): TestSetReceiver?
+}  // namespace
