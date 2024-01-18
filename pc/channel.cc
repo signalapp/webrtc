@@ -953,28 +953,26 @@ bool VoiceChannel::SetRemoteContent_w(const MediaContentDescription* content,
 
 // RingRTC change to configure OPUS
 void VoiceChannel::ConfigureEncoders(const webrtc::AudioEncoder::Config& config) {
-  worker_thread()->BlockingCall([this, &config] {
-    voice_media_send_channel()->ConfigureEncoders(config);
-  });
+  RTC_DCHECK_RUN_ON(worker_thread());
+  voice_media_send_channel()->ConfigureEncoders(config);
 }
 
 // RingRTC change to get audio levels
 void VoiceChannel::GetCapturedAudioLevel(cricket::AudioLevel* captured_out) {
-  worker_thread()->BlockingCall([this, captured_out] {
-    voice_media_send_channel()->GetCapturedAudioLevel(captured_out);
-  });
+  RTC_DCHECK_RUN_ON(worker_thread());
+  voice_media_send_channel()->GetCapturedAudioLevel(captured_out);
 }
 
 // RingRTC change to get audio levels
 absl::optional<cricket::ReceivedAudioLevel> VoiceChannel::GetReceivedAudioLevel() {
+  RTC_DCHECK_RUN_ON(worker_thread());
   return voice_media_receive_channel()->GetReceivedAudioLevel();
 }
 
 // RingRTC change to disable CNG for muted incoming streams.
 void VoiceChannel::SetIncomingAudioMuted(uint32_t ssrc, bool muted) {
-  worker_thread()->BlockingCall([this, ssrc, muted] {
-    voice_media_receive_channel()->SetIncomingAudioMuted(ssrc, muted);
-  });
+  RTC_DCHECK_RUN_ON(worker_thread());
+  voice_media_receive_channel()->SetIncomingAudioMuted(ssrc, muted);
 }
 
 VideoChannel::VideoChannel(

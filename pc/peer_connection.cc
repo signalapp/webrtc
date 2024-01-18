@@ -1753,16 +1753,24 @@ void PeerConnection::SetAudioRecording(bool recording) {
 // RingRTC change to disable CNG for muted incoming streams.
 void PeerConnection::SetIncomingAudioMuted(uint32_t ssrc, bool muted) {
   auto ssrc_str = rtc::ToString(ssrc);
+  std::vector<cricket::VoiceChannel*> voice_channels;
   for (auto transceiver : rtp_manager()->transceivers()->List()) {
-    if (transceiver->media_type() != cricket::MEDIA_TYPE_AUDIO || transceiver->direction() != RtpTransceiverDirection::kRecvOnly) {
+    if (transceiver->media_type() != cricket::MEDIA_TYPE_AUDIO ||
+        transceiver->direction() != RtpTransceiverDirection::kRecvOnly) {
       continue;
     }
 
     auto* voice_channel = static_cast<cricket::VoiceChannel*>(transceiver->internal()->channel());
     if (voice_channel && transceiver->receiver()->stream_ids()[0] == ssrc_str) {
-      voice_channel->SetIncomingAudioMuted(ssrc, muted);
+      voice_channels.push_back(voice_channel);
     }
   }
+
+  worker_thread()->BlockingCall([ssrc, muted, voice_channels] {
+    for (auto voice_channel : voice_channels) {
+      voice_channel->SetIncomingAudioMuted(ssrc, muted);
+    }
+  });
 }
 
 void PeerConnection::AddAdaptationResource(
@@ -3134,7 +3142,7 @@ bool PeerConnection::ReceiveRtp(uint8_t pt, bool enable_incoming) {
 }
 
 void PeerConnection::ConfigureAudioEncoders(const webrtc::AudioEncoder::Config& config) {
-  int count = 0;
+  std::vector<cricket::VoiceChannel*> sending_voice_channels;
   for (const auto& transceiver : rtp_manager()->transceivers()->List()) {
     if (transceiver->media_type() != cricket::MEDIA_TYPE_AUDIO) {
       continue;
@@ -3142,16 +3150,25 @@ void PeerConnection::ConfigureAudioEncoders(const webrtc::AudioEncoder::Config& 
 
     if (transceiver->direction() == webrtc::RtpTransceiverDirection::kSendRecv ||
         transceiver->direction() == webrtc::RtpTransceiverDirection::kSendOnly) {
-      cricket::VoiceChannel* voice_channel = static_cast<cricket::VoiceChannel*>(transceiver->internal()->channel());
-      voice_channel->ConfigureEncoders(config);
-      count++;
+      auto* voice_channel = static_cast<cricket::VoiceChannel*>(transceiver->internal()->channel());
+      if (voice_channel) {
+        sending_voice_channels.push_back(voice_channel);
+      }
     }
   }
-  if (count == 0) {
-    RTC_LOG(LS_WARNING) << "PeerConnection::ConfigureAudioEncoders(...) changed no transceivers!";
-  } else {
-    RTC_LOG(LS_INFO) << "PeerConnection::ConfigureAudioEncoders(...) changed " << count << " transceivers.";
-  }
+
+  worker_thread()->BlockingCall([&config, sending_voice_channels] {
+    for (auto voice_channel : sending_voice_channels) {
+      voice_channel->ConfigureEncoders(config);
+    }
+
+    if (sending_voice_channels.size() == 0) {
+      RTC_LOG(LS_WARNING) << "PeerConnection::ConfigureAudioEncoders(...) changed no transceivers!";
+    } else {
+      RTC_LOG(LS_INFO) << "PeerConnection::ConfigureAudioEncoders(...) changed "
+                       << sending_voice_channels.size() << " transceivers.";
+    }
+  });
 }
 
 void PeerConnection::GetAudioLevels(cricket::AudioLevel* captured_out,
@@ -3161,6 +3178,7 @@ void PeerConnection::GetAudioLevels(cricket::AudioLevel* captured_out,
   *captured_out = 0;
   *received_size_out = 0;
 
+  std::vector<cricket::VoiceChannel*> sending_voice_channels;
   std::vector<cricket::VoiceChannel*> receiving_voice_channels;
   auto transceivers = rtp_manager()->transceivers()->List();
   for (auto transceiver : transceivers) {
@@ -3172,7 +3190,7 @@ void PeerConnection::GetAudioLevels(cricket::AudioLevel* captured_out,
     if (is_send_recv || transceiver->direction() == RtpTransceiverDirection::kSendOnly) {
       auto* voice_channel = static_cast<cricket::VoiceChannel*>(transceiver->internal()->channel());
       if (voice_channel) {
-        voice_channel->GetCapturedAudioLevel(captured_out);
+        sending_voice_channels.push_back(voice_channel);
       }
     }
     if (is_send_recv || transceiver->direction() == RtpTransceiverDirection::kRecvOnly) {
@@ -3182,6 +3200,12 @@ void PeerConnection::GetAudioLevels(cricket::AudioLevel* captured_out,
       }
     }
   }
+
+  worker_thread()->BlockingCall([captured_out, sending_voice_channels] {
+    for (auto voice_channel : sending_voice_channels) {
+      voice_channel->GetCapturedAudioLevel(captured_out);
+    }
+  });
 
   *received_size_out = worker_thread()->BlockingCall([received_out, received_out_size, receiving_voice_channels] {
     size_t received_size = 0;

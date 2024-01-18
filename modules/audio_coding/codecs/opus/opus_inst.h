@@ -16,8 +16,9 @@
 #include "rtc_base/ignore_wundef.h"
 
 RTC_PUSH_IGNORING_WUNDEF()
-#include "third_party/opus/src/include/opus.h"
-#include "third_party/opus/src/include/opus_multistream.h"
+// RingRTC change to use a fork of opus
+#include "ringrtc/opus/src/include/opus.h"
+#include "ringrtc/opus/src/include/opus_multistream.h"
 RTC_POP_IGNORING_WUNDEF()
 
 struct WebRtcOpusEncInst {

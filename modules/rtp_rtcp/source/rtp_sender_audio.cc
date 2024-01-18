@@ -259,10 +259,16 @@ bool RTPSenderAudio::SendAudio(const RtpAudioFrame& frame) {
   packet->SetPayloadType(frame.payload_id);
   packet->SetTimestamp(frame.rtp_timestamp);
   packet->set_capture_time(clock_->CurrentTime());
+
+  // RingRTC change to reduce unneeded information on the wire
+  // Make the audio level less precise (0, 10, 20, 30, ...).
+  uint8_t audio_level_dbov = frame.audio_level_dbov.value_or(127);
+  audio_level_dbov -= (audio_level_dbov % 10);
+
   // Set audio level extension, if included.
   packet->SetExtension<AudioLevel>(
       frame.type == AudioFrameType::kAudioFrameSpeech,
-      frame.audio_level_dbov.value_or(127));
+      audio_level_dbov);
 
   if (absolute_capture_time.has_value()) {
     // It also checks that extension was registered during SDP negotiation. If

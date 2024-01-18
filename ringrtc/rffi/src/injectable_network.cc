@@ -325,7 +325,7 @@ class InjectableNetworkImpl : public InjectableNetwork, public rtc::NetworkManag
   }
 
   // As PacketSocketFactory
-  rtc::AsyncResolverInterface* CreateAsyncResolver() override {
+  std::unique_ptr<webrtc::AsyncDnsResolverInterface> CreateAsyncDnsResolver() override {
     // TODO: Add support for DNS-based STUN/TURN servers.
     // For now, just use IP addresses
     return nullptr;
