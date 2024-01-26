@@ -10,6 +10,7 @@
 
 #include "modules/rtp_rtcp/source/rtp_video_stream_receiver_frame_transformer_delegate.h"
 
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -47,9 +48,9 @@ class TransformableVideoReceiverFrame
 
   uint8_t GetPayloadType() const override { return frame_->PayloadType(); }
   uint32_t GetSsrc() const override { return Metadata().GetSsrc(); }
-  uint32_t GetTimestamp() const override { return frame_->Timestamp(); }
+  uint32_t GetTimestamp() const override { return frame_->RtpTimestamp(); }
   void SetRTPTimestamp(uint32_t timestamp) override {
-    frame_->SetTimestamp(timestamp);
+    frame_->SetRtpTimestamp(timestamp);
   }
 
   bool IsKeyFrame() const override {
@@ -75,6 +76,10 @@ class TransformableVideoReceiverFrame
   }
 
   Direction GetDirection() const override { return Direction::kReceiver; }
+  std::string GetMimeType() const override {
+    std::string mime_type = "video/";
+    return mime_type + CodecTypeToPayloadString(frame_->codec_type());
+  }
 
   const RtpVideoFrameReceiver* Receiver() { return receiver_; }
 

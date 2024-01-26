@@ -43,10 +43,8 @@
 
 namespace cricket {
 
-typedef std::vector<AudioCodec> AudioCodecs;
-typedef std::vector<VideoCodec> VideoCodecs;
-typedef std::vector<CryptoParams> CryptoParamsVec;
-typedef std::vector<webrtc::RtpExtension> RtpHeaderExtensions;
+using CryptoParamsVec = std::vector<CryptoParams>;
+using RtpHeaderExtensions = std::vector<webrtc::RtpExtension>;
 
 // Options to control how session descriptions are generated.
 const int kAutoBandwidth = -1;
@@ -82,8 +80,6 @@ class MediaContentDescription {
   virtual const UnsupportedContentDescription* as_unsupported() const {
     return nullptr;
   }
-
-  virtual bool has_codecs() const = 0;
 
   // Copy operator that returns an unique_ptr.
   // Not a virtual function.
@@ -234,54 +230,14 @@ class MediaContentDescription {
     receive_rids_ = rids;
   }
 
- protected:
-  bool rtcp_mux_ = false;
-  bool rtcp_reduced_size_ = false;
-  bool remote_estimate_ = false;
-  int bandwidth_ = kAutoBandwidth;
-  std::string bandwidth_type_ = kApplicationSpecificBandwidth;
-  std::string protocol_;
-  std::vector<CryptoParams> cryptos_;
-  std::vector<webrtc::RtpExtension> rtp_header_extensions_;
-  bool rtp_header_extensions_set_ = false;
-  StreamParamsVec send_streams_;
-  bool conference_mode_ = false;
-  webrtc::RtpTransceiverDirection direction_ =
-      webrtc::RtpTransceiverDirection::kSendRecv;
-  rtc::SocketAddress connection_address_;
-  ExtmapAllowMixed extmap_allow_mixed_enum_ = kMedia;
-
-  SimulcastDescription simulcast_;
-  std::vector<RidDescription> receive_rids_;
-
- private:
-  // Copy function that returns a raw pointer. Caller will assert ownership.
-  // Should only be called by the Clone() function. Must be implemented
-  // by each final subclass.
-  virtual MediaContentDescription* CloneInternal() const = 0;
-};
-
-template <class C>
-class MediaContentDescriptionImpl : public MediaContentDescription {
- public:
-  void set_protocol(absl::string_view protocol) override {
-    RTC_DCHECK(IsRtpProtocol(protocol));
-    protocol_ = std::string(protocol);
-  }
-
   // Codecs should be in preference order (most preferred codec first).
   const std::vector<Codec>& codecs() const { return codecs_; }
   void set_codecs(const std::vector<Codec>& codecs) { codecs_ = codecs; }
-  bool has_codecs() const override { return !codecs_.empty(); }
+  virtual bool has_codecs() const { return !codecs_.empty(); }
   bool HasCodec(int id) {
-    bool found = false;
-    for (auto it = codecs_.begin(); it != codecs_.end(); ++it) {
-      if (it->id == id) {
-        found = true;
-        break;
-      }
-    }
-    return found;
+    return absl::c_find_if(codecs_, [id](const cricket::Codec codec) {
+             return codec.id == id;
+           }) != codecs_.end();
   }
   void AddCodec(const Codec& codec) { codecs_.push_back(codec); }
   void AddOrReplaceCodec(const Codec& codec) {
@@ -299,32 +255,70 @@ class MediaContentDescriptionImpl : public MediaContentDescription {
     }
   }
 
+ protected:
+  // TODO(bugs.webrtc.org/15214): move all RTP related things to
+  // RtpMediaDescription that the SCTP content description does
+  // not inherit from.
+  std::string protocol_;
+
  private:
+  bool rtcp_mux_ = false;
+  bool rtcp_reduced_size_ = false;
+  bool remote_estimate_ = false;
+  int bandwidth_ = kAutoBandwidth;
+  std::string bandwidth_type_ = kApplicationSpecificBandwidth;
+
+  std::vector<CryptoParams> cryptos_;
+  std::vector<webrtc::RtpExtension> rtp_header_extensions_;
+  bool rtp_header_extensions_set_ = false;
+  StreamParamsVec send_streams_;
+  bool conference_mode_ = false;
+  webrtc::RtpTransceiverDirection direction_ =
+      webrtc::RtpTransceiverDirection::kSendRecv;
+  rtc::SocketAddress connection_address_;
+  ExtmapAllowMixed extmap_allow_mixed_enum_ = kMedia;
+
+  SimulcastDescription simulcast_;
+  std::vector<RidDescription> receive_rids_;
+
+  // Copy function that returns a raw pointer. Caller will assert ownership.
+  // Should only be called by the Clone() function. Must be implemented
+  // by each final subclass.
+  virtual MediaContentDescription* CloneInternal() const = 0;
+
   std::vector<Codec> codecs_;
 };
 
-class AudioContentDescription : public MediaContentDescriptionImpl<Codec> {
- public:
-  AudioContentDescription() {}
+class RtpMediaContentDescription : public MediaContentDescription {};
 
-  virtual MediaType type() const { return MEDIA_TYPE_AUDIO; }
-  virtual AudioContentDescription* as_audio() { return this; }
-  virtual const AudioContentDescription* as_audio() const { return this; }
+class AudioContentDescription : public RtpMediaContentDescription {
+ public:
+  void set_protocol(absl::string_view protocol) override {
+    RTC_DCHECK(IsRtpProtocol(protocol));
+    protocol_ = std::string(protocol);
+  }
+  MediaType type() const override { return MEDIA_TYPE_AUDIO; }
+  AudioContentDescription* as_audio() override { return this; }
+  const AudioContentDescription* as_audio() const override { return this; }
 
  private:
-  virtual AudioContentDescription* CloneInternal() const {
+  AudioContentDescription* CloneInternal() const override {
     return new AudioContentDescription(*this);
   }
 };
 
-class VideoContentDescription : public MediaContentDescriptionImpl<Codec> {
+class VideoContentDescription : public RtpMediaContentDescription {
  public:
-  virtual MediaType type() const { return MEDIA_TYPE_VIDEO; }
-  virtual VideoContentDescription* as_video() { return this; }
-  virtual const VideoContentDescription* as_video() const { return this; }
+  void set_protocol(absl::string_view protocol) override {
+    RTC_DCHECK(IsRtpProtocol(protocol));
+    protocol_ = std::string(protocol);
+  }
+  MediaType type() const override { return MEDIA_TYPE_VIDEO; }
+  VideoContentDescription* as_video() override { return this; }
+  const VideoContentDescription* as_video() const override { return this; }
 
  private:
-  virtual VideoContentDescription* CloneInternal() const {
+  VideoContentDescription* CloneInternal() const override {
     return new VideoContentDescription(*this);
   }
 };

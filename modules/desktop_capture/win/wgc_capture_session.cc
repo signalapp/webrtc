@@ -75,7 +75,8 @@ enum class GetFrameResult {
   kGetContentSizeFailed = 9,
   kResizeMappedTextureFailed = 10,
   kRecreateFramePoolFailed = 11,
-  kMaxValue = kRecreateFramePoolFailed
+  kFramePoolEmpty = 12,
+  kMaxValue = kFramePoolEmpty
 };
 
 void RecordStartCaptureResult(StartCaptureResult error) {
@@ -187,6 +188,18 @@ HRESULT WgcCaptureSession::StartCapture(const DesktopCaptureOptions& options) {
     }
   }
 
+  // By default, the WGC capture API adds a yellow border around the captured
+  // window or display to indicate that a capture is in progress. The section
+  // below is an attempt to remove this yellow border to make the capture
+  // experience more inline with the DXGI capture path.
+  // This requires 10.0.20348.0 or later, which practically means Windows 11.
+  ComPtr<ABI::Windows::Graphics::Capture::IGraphicsCaptureSession3> session3;
+  if (SUCCEEDED(session_->QueryInterface(
+          ABI::Windows::Graphics::Capture::IID_IGraphicsCaptureSession3,
+          &session3))) {
+    session3->put_IsBorderRequired(false);
+  }
+
   allow_zero_hertz_ = options.allow_wgc_zero_hertz();
 
   hr = session_->StartCapture();
@@ -244,10 +257,16 @@ void WgcCaptureSession::EnsureFrame() {
       << "Unable to process a valid frame even after trying 10 times.";
 }
 
-bool WgcCaptureSession::GetFrame(std::unique_ptr<DesktopFrame>* output_frame) {
+bool WgcCaptureSession::GetFrame(std::unique_ptr<DesktopFrame>* output_frame,
+                                 bool source_should_be_capturable) {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
 
-  EnsureFrame();
+  // Try to process the captured frame and wait some if needed. Avoid trying
+  // if we know that the source will not be capturable. This can happen e.g.
+  // when captured window is minimized and if EnsureFrame() was called in this
+  // state a large amount of kFrameDropped errors would be logged.
+  if (source_should_be_capturable)
+    EnsureFrame();
 
   // Return a NULL frame and false as `result` if we still don't have a valid
   // frame. This will lead to a DesktopCapturer::Result::ERROR_PERMANENT being
@@ -314,10 +333,15 @@ HRESULT WgcCaptureSession::ProcessFrame() {
   }
 
   if (!capture_frame) {
-    // Avoid logging errors until at least one valid frame has been captured.
-    if (queue_.current_frame()) {
-      RTC_DLOG(LS_WARNING) << "Frame pool was empty => kFrameDropped.";
+    if (!queue_.current_frame()) {
+      // The frame pool was empty and so is the external queue.
+      RTC_DLOG(LS_ERROR) << "Frame pool was empty => kFrameDropped.";
       RecordGetFrameResult(GetFrameResult::kFrameDropped);
+    } else {
+      // The frame pool was empty but there is still one old frame available in
+      // external the queue.
+      RTC_DLOG(LS_WARNING) << "Frame pool was empty => kFramePoolEmpty.";
+      RecordGetFrameResult(GetFrameResult::kFramePoolEmpty);
     }
     return E_FAIL;
   }

@@ -145,8 +145,8 @@ class RtpTransport : public RtpTransportInternal {
   bool processing_ready_to_send_ = false;
   ScopedTaskSafety safety_;
 
-  // If false, drop all RTP and RTCP packets before processing them.
   // RingRTC change to drop all incoming packets until explicitly allowed
+  // If false, drop all RTP and RTCP packets before processing them.
   bool incoming_rtp_enabled_ = false;
 };
 

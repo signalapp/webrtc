@@ -28,7 +28,7 @@
 
 namespace cricket {
 
-typedef std::map<std::string, std::string> CodecParameterMap;
+using CodecParameterMap = std::map<std::string, std::string>;
 
 class FeedbackParam {
  public:
@@ -187,6 +187,9 @@ struct RTC_EXPORT Codec {
 using VideoCodec = Codec;
 using AudioCodec = Codec;
 
+using VideoCodecs = std::vector<Codec>;
+using AudioCodecs = std::vector<Codec>;
+
 Codec CreateAudioCodec(int id,
                        const std::string& name,
                        int clockrate,
@@ -200,25 +203,23 @@ Codec CreateVideoRtxCodec(int rtx_payload_type, int associated_payload_type);
 
 // Get the codec setting associated with `payload_type`. If there
 // is no codec associated with that payload type it returns nullptr.
-template <class Codec>
-const Codec* FindCodecById(const std::vector<Codec>& codecs, int payload_type) {
-  for (const auto& codec : codecs) {
-    if (codec.id == payload_type)
-      return &codec;
-  }
-  return nullptr;
-}
+const Codec* FindCodecById(const std::vector<Codec>& codecs, int payload_type);
 
 bool HasLntf(const Codec& codec);
 bool HasNack(const Codec& codec);
 bool HasRemb(const Codec& codec);
 bool HasRrtr(const Codec& codec);
 bool HasTransportCc(const Codec& codec);
+
 // Returns the first codec in `supported_codecs` that matches `codec`, or
 // nullptr if no codec matches.
-const VideoCodec* FindMatchingCodec(
-    const std::vector<VideoCodec>& supported_codecs,
-    const VideoCodec& codec);
+const Codec* FindMatchingVideoCodec(const std::vector<Codec>& supported_codecs,
+                                    const Codec& codec);
+
+// Returns all codecs in `supported_codecs` that matches `codec`.
+std::vector<const Codec*> FindAllMatchingCodecs(
+    const std::vector<Codec>& supported_codecs,
+    const Codec& codec);
 
 RTC_EXPORT void AddH264ConstrainedBaselineProfileToSupportedFormats(
     std::vector<webrtc::SdpVideoFormat>* supported_formats);

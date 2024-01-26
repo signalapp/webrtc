@@ -25,11 +25,10 @@ struct RTC_EXPORT CryptoOptions {
   CryptoOptions(const CryptoOptions& other);
   ~CryptoOptions();
 
-  // RingRTC change to use GCM by default
   // Helper method to return an instance of the CryptoOptions with GCM crypto
   // suites disabled. This method should be used instead of depending on current
   // default values set by the constructor.
-  static CryptoOptions Default();
+  static CryptoOptions NoGcm();
 
   // Returns a list of the supported DTLS-SRTP Crypto suites based on this set
   // of crypto options.
@@ -42,7 +41,7 @@ struct RTC_EXPORT CryptoOptions {
   struct Srtp {
     // Enable GCM crypto suites from RFC 7714 for SRTP. GCM will only be used
     // if both sides enable it.
-    bool enable_gcm_crypto_suites = false;
+    bool enable_gcm_crypto_suites = true;
 
     // If set to true, the (potentially insecure) crypto cipher
     // kSrtpAes128CmSha1_32 will be included in the list of supported ciphers
@@ -52,7 +51,8 @@ struct RTC_EXPORT CryptoOptions {
 
     // The most commonly used cipher. Can be disabled, mostly for testing
     // purposes.
-    bool enable_aes128_sha1_80_crypto_cipher = true;
+    // RingRTC change to use GCM by default
+    bool enable_aes128_sha1_80_crypto_cipher = false;
 
     // If set to true, encrypted RTP header extensions as defined in RFC 6904
     // will be negotiated. They will only be used if both peers support them.

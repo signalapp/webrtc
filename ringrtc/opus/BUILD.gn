@@ -162,8 +162,8 @@ if (use_opus_arm_rtcd) {
     script = "convert_rtcd_assembler.py"
     outputs = [ "$target_gen_dir/celt_pitch_xcorr_arm_gnu.S" ]
     args = [
-      rebase_path("//third_party/opus/src/celt/arm/arm2gnu.pl", root_build_dir),
-      rebase_path("//third_party/opus/src/celt/arm/celt_pitch_xcorr_arm.s",
+      rebase_path("//ringrtc/opus/src/celt/arm/arm2gnu.pl", root_build_dir),
+      rebase_path("//ringrtc/opus/src/celt/arm/celt_pitch_xcorr_arm.s",
                   root_build_dir),
       rebase_path("$target_gen_dir/celt_pitch_xcorr_arm_gnu.S", root_build_dir),
     ]

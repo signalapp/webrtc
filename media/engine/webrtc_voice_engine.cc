@@ -1130,9 +1130,10 @@ class WebRtcVoiceSendChannel::WebRtcAudioSendStream : public AudioSource::Sink {
     RTC_DCHECK_RUN_ON(&worker_thread_checker_);
     RTC_DCHECK(stream_);
     RTC_DCHECK_EQ(1UL, rtp_parameters_.encodings.size());
-    if (send_ && source_ != nullptr && rtp_parameters_.encodings[0].active) {
+    // Stream can be started without |source_| being set.
+    if (send_ && rtp_parameters_.encodings[0].active) {
       stream_->Start();
-    } else {  // !send || source_ = nullptr
+    } else {
       stream_->Stop();
     }
   }
@@ -1900,17 +1901,25 @@ webrtc::RTCError WebRtcVoiceSendChannel::SetRtpSendParameters(
     SetPreferredDscp(new_dscp);
 
     absl::optional<cricket::Codec> send_codec = GetSendCodec();
+    // Since we validate that all layers have the same value, we can just check
+    // the first layer.
     // TODO(orphis): Support mixed-codec simulcast
     if (parameters.encodings[0].codec && send_codec &&
         !send_codec->MatchesRtpCodec(*parameters.encodings[0].codec)) {
-      RTC_LOG(LS_ERROR) << "Trying to change codec to "
+      RTC_LOG(LS_VERBOSE) << "Trying to change codec to "
                         << parameters.encodings[0].codec->name;
       auto matched_codec =
           absl::c_find_if(send_codecs_, [&](auto negotiated_codec) {
             return negotiated_codec.MatchesRtpCodec(
                 *parameters.encodings[0].codec);
           });
-      RTC_DCHECK(matched_codec != send_codecs_.end());
+
+      if (matched_codec == send_codecs_.end()) {
+        return webrtc::InvokeSetParametersCallback(
+            callback, webrtc::RTCError(
+                          webrtc::RTCErrorType::INVALID_MODIFICATION,
+                          "Attempted to use an unsupported codec for layer 0"));
+      }
 
       SetSendCodecs(send_codecs_, *matched_codec);
     }

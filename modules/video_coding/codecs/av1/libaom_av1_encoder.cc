@@ -41,6 +41,11 @@
 #include "third_party/libaom/source/libaom/aom/aom_encoder.h"
 #include "third_party/libaom/source/libaom/aom/aomcx.h"
 
+#if (defined(WEBRTC_ARCH_ARM) || defined(WEBRTC_ARCH_ARM64)) && \
+    (defined(WEBRTC_ANDROID) || defined(WEBRTC_IOS))
+#define MOBILE_ARM
+#endif
+
 #define SET_ENCODER_PARAM_OR_RETURN_ERROR(param_id, param_value) \
   do {                                                           \
     if (!SetEncoderControlParameters(param_id, param_value)) {   \
@@ -413,8 +418,7 @@ int LibaomAv1Encoder::NumberOfThreads(int width,
     return 2;
   } else {
 // Use 2 threads for low res on ARM.
-#if defined(WEBRTC_ARCH_ARM) || defined(WEBRTC_ARCH_ARM64) || \
-    defined(WEBRTC_ANDROID)
+#ifdef MOBILE_ARM
     if (width * height >= 320 * 180 && number_of_cores > 2) {
       return 2;
     }
@@ -704,7 +708,7 @@ int32_t LibaomAv1Encoder::Encode(
         encoded_image._frameType = layer_frame->IsKeyframe()
                                        ? VideoFrameType::kVideoFrameKey
                                        : VideoFrameType::kVideoFrameDelta;
-        encoded_image.SetTimestamp(frame.timestamp());
+        encoded_image.SetRtpTimestamp(frame.timestamp());
         encoded_image.SetCaptureTimeIdentifier(frame.capture_time_identifier());
         encoded_image.capture_time_ms_ = frame.render_time_ms();
         encoded_image.rotation_ = frame.rotation();
@@ -824,7 +828,10 @@ VideoEncoder::EncoderInfo LibaomAv1Encoder::GetEncoderInfo() const {
   info.implementation_name = "libaom";
   info.has_trusted_rate_controller = true;
   info.is_hardware_accelerated = false;
-  info.scaling_settings = VideoEncoder::ScalingSettings(kMinQindex, kMaxQindex);
+  info.scaling_settings =
+      (inited_ && !encoder_settings_.AV1().automatic_resize_on)
+          ? VideoEncoder::ScalingSettings::kOff
+          : VideoEncoder::ScalingSettings(kMinQindex, kMaxQindex);
   info.preferred_pixel_formats = {VideoFrameBuffer::Type::kI420,
                                   VideoFrameBuffer::Type::kNV12};
   if (SvcEnabled()) {
