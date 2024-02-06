@@ -366,7 +366,7 @@ RUSTEXPORT PeerConnectionInterface* Rust_createPeerConnection(
     int audio_jitter_buffer_max_packets,
     int audio_jitter_buffer_max_target_delay_ms,
     int audio_rtcp_report_interval_ms,
-    RffiIceServer ice_server,
+    RffiIceServers ice_servers,
     webrtc::AudioTrackInterface* outgoing_audio_track_borrowed_rc,
     webrtc::VideoTrackInterface* outgoing_video_track_borrowed_rc) {
   auto factory = factory_owner_borrowed_rc->peer_connection_factory();
@@ -384,15 +384,18 @@ RUSTEXPORT PeerConnectionInterface* Rust_createPeerConnection(
   config.set_audio_jitter_buffer_max_target_delay_ms(audio_jitter_buffer_max_target_delay_ms);
   config.set_audio_rtcp_report_interval_ms(audio_rtcp_report_interval_ms);
   config.sdp_semantics = SdpSemantics::kUnifiedPlan;
-  if (ice_server.urls_size > 0) {
-    webrtc::PeerConnectionInterface::IceServer rtc_ice_server;
-    rtc_ice_server.username = std::string(ice_server.username_borrowed);
-    rtc_ice_server.password = std::string(ice_server.password_borrowed);
-    rtc_ice_server.hostname = std::string(ice_server.hostname_borrowed);
-    for (size_t i = 0; i < ice_server.urls_size; i++) {
-      rtc_ice_server.urls.push_back(std::string(ice_server.urls_borrowed[i]));
+  for (size_t i = 0; i < ice_servers.servers_size; i++) {
+    RffiIceServer ice_server = ice_servers.servers[i];
+    if (ice_server.urls_size > 0) {
+      webrtc::PeerConnectionInterface::IceServer rtc_ice_server;
+      rtc_ice_server.username = std::string(ice_server.username_borrowed);
+      rtc_ice_server.password = std::string(ice_server.password_borrowed);
+      rtc_ice_server.hostname = std::string(ice_server.hostname_borrowed);
+      for (size_t i = 0; i < ice_server.urls_size; i++) {
+        rtc_ice_server.urls.push_back(std::string(ice_server.urls_borrowed[i]));
+      }
+      config.servers.push_back(rtc_ice_server);
     }
-    config.servers.push_back(rtc_ice_server);
   }
 
   config.crypto_options = webrtc::CryptoOptions{};
