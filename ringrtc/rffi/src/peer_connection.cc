@@ -8,6 +8,7 @@
 #include "api/jsep_session_description.h"
 #include "api/peer_connection_interface.h"
 #include "api/video_codecs/vp9_profile.h"
+#include "modules/rtp_rtcp/source/rtp_dependency_descriptor_extension.h"
 #include "modules/rtp_rtcp/source/rtp_header_extensions.h"
 #include "p2p/base/port.h"
 #include "pc/media_session.h"
@@ -32,6 +33,7 @@ namespace rffi {
 int TRANSPORT_CC1_EXT_ID = 1;
 int VIDEO_ORIENTATION_EXT_ID = 4;
 int AUDIO_LEVEL_EXT_ID = 5;
+int DEPENDENCY_DESCRIPTOR_EXT_ID = 6;
 int ABS_SEND_TIME_EXT_ID = 12;
 // Old clients used this value, so don't use it until they are all gone.
 int TX_TIME_OFFSET_EXT_ID = 13;
@@ -528,7 +530,7 @@ CreateSessionDescriptionForGroupCall(bool local,
   // Major changes from the default WebRTC behavior:
   // 1. We remove all codecs except Opus and VP8.
   // 2. We remove all header extensions except for transport-cc, video orientation,
-  //    abs send time, and audio level.
+  //    abs send time, audio level, and dependency descriptor.
   // 3. Opus CBR and DTX is enabled.
 
   // This must stay in sync with PeerConnectionFactory.createAudioTrack
@@ -673,6 +675,7 @@ CreateSessionDescriptionForGroupCall(bool local,
   // we can't enable V2.  We'd have to add it to the SFU to move from V1 to V2.
   // auto transport_cc2 = webrtc::RtpExtension(webrtc::TransportSequenceNumberV2::Uri(), TRANSPORT_CC2_EXT_ID);
   auto video_orientation = webrtc::RtpExtension(webrtc::VideoOrientation::Uri(), VIDEO_ORIENTATION_EXT_ID);
+  auto dependency_descriptor = webrtc::RtpExtension(webrtc::RtpDependencyDescriptorExtension::Uri(), DEPENDENCY_DESCRIPTOR_EXT_ID);
   // abs_send_time and tx_time_offset are used for more accurate REMB messages from the receiver,
   // but the SFU doesn't process REMB messages anyway, nor does it send or receive these header extensions.
   // So, don't waste bytes on them.
@@ -683,6 +686,7 @@ CreateSessionDescriptionForGroupCall(bool local,
   for (auto& remote_video : remote_videos) {
     remote_video->AddRtpHeaderExtension(transport_cc1);
     remote_video->AddRtpHeaderExtension(video_orientation);
+    remote_video->AddRtpHeaderExtension(dependency_descriptor);
   }
 
   auto setup_streams = [local, &LOCAL_AUDIO_TRACK_ID, &LOCAL_VIDEO_TRACK_ID] (cricket::MediaContentDescription* audio,

@@ -718,7 +718,9 @@ void ChannelReceive::ReceivePacket(const uint8_t* packet,
             cricket::MEDIA_TYPE_AUDIO, csrcs,
             /*additional_data=*/nullptr,
             rtc::ArrayView<const uint8_t>(payload, payload_data_length),
-            decrypted_audio_payload);
+            decrypted_audio_payload,
+            // RingRTC change to detect received dependency descriptor
+            /*has_dependency_descriptor=*/false);
 
     if (decrypt_result.IsOk()) {
       decrypted_audio_payload.SetSize(decrypt_result.bytes_written);

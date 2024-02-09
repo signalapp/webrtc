@@ -315,7 +315,8 @@ class Decryptor : public webrtc::FrameDecryptorInterface {
                                           // This is not supported by our SFU currently, so don't bother trying to use it.
                                           rtc::ArrayView<const uint8_t> _generic_video_header,
                                           rtc::ArrayView<const uint8_t> ciphertext,
-                                          rtc::ArrayView<uint8_t> plaintext_buffer) override {
+                                          rtc::ArrayView<uint8_t> plaintext_buffer,
+                                          bool has_dependency_descriptor) override {
     bool is_audio = (media_type == cricket::MEDIA_TYPE_AUDIO);
     bool is_video = (media_type == cricket::MEDIA_TYPE_VIDEO);
     if (!is_audio && !is_video) {
@@ -323,7 +324,7 @@ class Decryptor : public webrtc::FrameDecryptorInterface {
       return FrameDecryptorInterface::Result(FrameDecryptorInterface::Status::kUnknown, 0);
     }
     size_t plaintext_size = 0;
-    if (!callbacks_->decryptMedia(observer_, track_id_, is_audio, ciphertext.data(), ciphertext.size(), plaintext_buffer.data(), plaintext_buffer.size(), &plaintext_size)) {
+    if (!callbacks_->decryptMedia(observer_, track_id_, is_audio, ciphertext.data(), ciphertext.size(), plaintext_buffer.data(), plaintext_buffer.size(), &plaintext_size, has_dependency_descriptor)) {
       return FrameDecryptorInterface::Result(FrameDecryptorInterface::Status::kFailedToDecrypt, 0);
     }
     return FrameDecryptorInterface::Result(FrameDecryptorInterface::Status::kOk, plaintext_size);
