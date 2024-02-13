@@ -67,6 +67,11 @@ typedef struct {
   size_t urls_size;
 } RffiIceServer;
 
+typedef struct {
+  const RffiIceServer* servers;
+  size_t servers_size;
+} RffiIceServers;
+
 enum class RffiPeerConnectionKind: uint8_t {
   kDirect,
   kRelayed,
@@ -111,7 +116,7 @@ RUSTEXPORT webrtc::PeerConnectionInterface* Rust_createPeerConnection(
   int audio_jitter_buffer_max_packets,
   int audio_jitter_buffer_max_target_delay_ms,
   int audio_rtcp_report_interval_ms,
-  RffiIceServer ice_server,
+  RffiIceServers ice_servers,
   webrtc::AudioTrackInterface* outgoing_audio_track_borrowed_rc,
   webrtc::VideoTrackInterface* outgoing_video_track_borrowed_rc);
 
