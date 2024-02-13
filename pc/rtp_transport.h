@@ -99,6 +99,7 @@ class RtpTransport : public RtpTransportInternal {
                   rtc::CopyOnWriteBuffer* packet,
                   const rtc::PacketOptions& options,
                   int flags);
+  flat_set<uint32_t> GetSsrcsForSink(RtpPacketSinkInterface* sink);
 
   // Overridden by SrtpTransport.
   virtual void OnNetworkRouteChanged(
@@ -143,6 +144,7 @@ class RtpTransport : public RtpTransportInternal {
   RtpHeaderExtensionMap header_extension_map_;
   // Guard against recursive "ready to send" signals
   bool processing_ready_to_send_ = false;
+  bool processing_sent_packet_ = false;
   ScopedTaskSafety safety_;
 
   // RingRTC change to drop all incoming packets until explicitly allowed
