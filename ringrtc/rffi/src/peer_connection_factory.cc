@@ -4,7 +4,7 @@
  */
 
 #include "api/create_peerconnection_factory.h"
-#include "api/call/call_factory_interface.h"
+#include "api/enable_media.h"
 #include "api/task_queue/default_task_queue_factory.h"
 #include "api/rtc_event_log/rtc_event_log_factory.h"
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
@@ -16,7 +16,6 @@
 #include "api/video_codecs/video_encoder_factory_template_libvpx_vp8_adapter.h"
 #include "api/video_codecs/video_encoder_factory_template_libvpx_vp9_adapter.h"
 #include "media/engine/simulcast_encoder_adapter.h"
-#include "media/engine/webrtc_media_engine.h"
 #include "modules/audio_mixer/audio_mixer_impl.h"
 #include "modules/audio_device/dummy/file_audio_device_factory.h"
 #include "modules/audio_processing/include/audio_processing.h"
@@ -118,10 +117,7 @@ class PeerConnectionFactoryWithOwnedThreads
     dependencies.worker_thread = worker_thread.get();
     dependencies.signaling_thread = signaling_thread.get();
     dependencies.task_queue_factory = CreateDefaultTaskQueueFactory();
-    dependencies.call_factory = CreateCallFactory();
-    dependencies.event_log_factory = std::make_unique<RtcEventLogFactory>(dependencies.task_queue_factory.get());
-    cricket::MediaEngineDependencies media_dependencies;
-    media_dependencies.task_queue_factory = dependencies.task_queue_factory.get();
+    dependencies.event_log_factory = std::make_unique<RtcEventLogFactory>();
 
 #if defined(WEBRTC_WIN)
     std::unique_ptr<ScopedCOMInitializer> com_initializer;
@@ -149,9 +145,10 @@ class PeerConnectionFactoryWithOwnedThreads
           AudioDeviceModule::kPlatformDefaultAudio, dependencies.task_queue_factory.get());
       }
     });
-    media_dependencies.adm = adm;
-    media_dependencies.audio_encoder_factory = CreateBuiltinAudioEncoderFactory();
-    media_dependencies.audio_decoder_factory = CreateBuiltinAudioDecoderFactory();
+
+    dependencies.adm = adm;
+    dependencies.audio_encoder_factory = CreateBuiltinAudioEncoderFactory();
+    dependencies.audio_decoder_factory = CreateBuiltinAudioDecoderFactory();
 
     AudioProcessing::Config config;
     config.high_pass_filter.enabled = audio_config.high_pass_filter_enabled;
@@ -159,17 +156,18 @@ class PeerConnectionFactoryWithOwnedThreads
     config.noise_suppression.enabled = audio_config.ns_enabled;
     config.gain_controller1.enabled = audio_config.agc_enabled;
 
-    media_dependencies.audio_processing = AudioProcessingBuilder()
+    dependencies.audio_processing = AudioProcessingBuilder()
       .SetConfig(config)
       .Create();
+    dependencies.audio_mixer = AudioMixerImpl::Create();
 
-    media_dependencies.audio_mixer = AudioMixerImpl::Create();
-    media_dependencies.video_encoder_factory =
+    dependencies.video_encoder_factory =
         std::make_unique<RingRTCVideoEncoderFactory>();
-    media_dependencies.video_decoder_factory =
+    dependencies.video_decoder_factory =
         std::make_unique<VideoDecoderFactoryTemplate<
             LibvpxVp8DecoderTemplateAdapter, LibvpxVp9DecoderTemplateAdapter>>();
-    dependencies.media_engine = cricket::CreateMediaEngine(std::move(media_dependencies));
+
+    EnableMedia(dependencies);
 
     auto factory = CreateModularPeerConnectionFactory(std::move(dependencies));
     return rtc::make_ref_counted<PeerConnectionFactoryWithOwnedThreads>(

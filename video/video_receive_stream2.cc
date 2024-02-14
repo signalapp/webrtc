@@ -905,7 +905,7 @@ int VideoReceiveStream2::DecodeAndMaybeDispatchEncodedFrame(
   if (decode_result < WEBRTC_VIDEO_CODEC_OK) {
     // Asynchronous decoders may delay error reporting, potentially resulting in
     // error reports reflecting issues that occurred several frames back.
-    RTC_LOG(LS_WARNING)
+    RTC_LOG(LS_INFO)
         << "Failed to decode frame. Return code: " << decode_result
         << ", SSRC: " << remote_ssrc()
         << ", frame RTP timestamp: " << frame_ptr->RtpTimestamp()

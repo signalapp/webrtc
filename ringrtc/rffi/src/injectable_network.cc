@@ -9,6 +9,7 @@
 #include "p2p/client/basic_port_allocator.h"
 #include "rffi/api/network.h"
 #include "rtc_base/ip_address.h"
+#include "rtc_base/network/received_packet.h"
 
 namespace webrtc {
 
@@ -67,8 +68,10 @@ class InjectableUdpSocket : public rtc::AsyncPacketSocket {
     RTC_LOG(LS_VERBOSE) << "InjectableUdpSocket::ReceiveFrom()"
                         << " from " << remote_address.ToString()
                         << " to " << local_address_.ToString();
-    auto now = rtc::TimeMicros();
-    SignalReadPacket(this, reinterpret_cast<const char*>(data), data_size, remote_address, now);
+    NotifyPacketReceived(rtc::ReceivedPacket::CreateFromLegacy(reinterpret_cast<const char*>(data),
+                                                               data_size,
+                                                               rtc::TimeMicros(),
+                                                               remote_address));
   }
 
   // As rtc::AsyncPacketSocket
@@ -191,10 +194,10 @@ class InjectableNetworkImpl : public InjectableNetwork, public rtc::NetworkManag
         [this, source, dest, data{std::vector<uint8_t>(data, data+size)}, size] { 
       auto local_address = IpPortToRtcSocketAddress(dest);
       auto remote_address = IpPortToRtcSocketAddress(source);
-     RTC_LOG(LS_VERBOSE) << "InjectableNetworkImpl::ReceiveUdp()"
-                         << " from " << remote_address.ToString()
-                         << " to " << local_address.ToString()
-                         << " size: " << size;
+      RTC_LOG(LS_VERBOSE) << "InjectableNetworkImpl::ReceiveUdp()"
+                          << " from " << remote_address.ToString()
+                          << " to " << local_address.ToString()
+                          << " size: " << size;
       auto udp_socket = udp_socket_by_local_address_.find(local_address);
       if (udp_socket == udp_socket_by_local_address_.end()) {
         RTC_LOG(LS_WARNING) << "Received packet for unknown local address.";
@@ -380,6 +383,3 @@ RUSTEXPORT void Rust_InjectableNetwork_ReceiveUdp(
 }  // namespace rffi
 
 }  // namespace webrtc
-
-
-

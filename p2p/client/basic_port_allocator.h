@@ -332,7 +332,8 @@ class TurnPort;
 // Performs the allocation of ports, in a sequenced (timed) manner, for a given
 // network and IP address.
 // This class is thread-compatible.
-class AllocationSequence {
+// RingRTC change to support ICE forking
+class AllocationSequence : public sigslot::has_slots<> {
  public:
   enum State {
     kInit,       // Initial state.

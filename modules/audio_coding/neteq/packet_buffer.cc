@@ -104,7 +104,6 @@ void PacketBuffer::Flush() {
       << ", num_gaps_below_40ms=" << num_gaps_below_40ms
       << ", num_gaps_above_90ms=" << num_gaps_above_90ms
       << ", num_no_packet_info=" << num_no_packet_info;
-
   }
   buffer_.clear();
   stats_->FlushedPacketBuffer();
@@ -129,9 +128,12 @@ int PacketBuffer::InsertPacket(Packet&& packet) {
 
   if (buffer_.size() >= max_number_of_packets_) {
     // Buffer is full.
+    // RingRTC change to log more information around audio jitter buffer flushes
+    size_t buffer_size_before_flush = buffer_.size();
     Flush();
     return_val = kFlushed;
-    RTC_LOG(LS_WARNING) << "Packet buffer flushed.";
+    RTC_LOG(LS_WARNING) << "Packet buffer flushed"
+                        << ", packets discarded=" << buffer_size_before_flush;
   }
 
   // Get an iterator pointing to the place in the buffer where the new packet
