@@ -42,7 +42,7 @@ void StatsObserverRffi::OnStatsDelivered(const rtc::scoped_refptr<const RTCStats
       audio_sender.packets_sent = stat->packets_sent.ValueOrDefault(0);
       audio_sender.bytes_sent = stat->bytes_sent.ValueOrDefault(0);
 
-      if (stat->remote_id.is_defined()) {
+      if (stat->remote_id.has_value()) {
         auto remote_stat = report->GetAs<RTCRemoteInboundRtpStreamStats>(*stat->remote_id);
         if (remote_stat) {
           audio_sender.remote_packets_lost = remote_stat->packets_lost.ValueOrDefault(0);
@@ -51,7 +51,7 @@ void StatsObserverRffi::OnStatsDelivered(const rtc::scoped_refptr<const RTCStats
         }
       }
 
-      if (stat->media_source_id.is_defined()) {
+      if (stat->media_source_id.has_value()) {
         auto audio_source_stat = report->GetAs<RTCAudioSourceStats>(*stat->media_source_id);
         if (audio_source_stat) {
           audio_sender.total_audio_energy = audio_source_stat->total_audio_energy.ValueOrDefault(0.0);
@@ -75,7 +75,7 @@ void StatsObserverRffi::OnStatsDelivered(const rtc::scoped_refptr<const RTCStats
       video_sender.total_packet_send_delay = stat->total_packet_send_delay.ValueOrDefault(0.0);
       video_sender.nack_count = stat->nack_count.ValueOrDefault(0);
       video_sender.pli_count = stat->pli_count.ValueOrDefault(0);
-      if (stat->quality_limitation_reason.is_defined()) {
+      if (stat->quality_limitation_reason.has_value()) {
         // "none" = 0 (the default)
         if (*stat->quality_limitation_reason == "cpu") {
           video_sender.quality_limitation_reason = 1;
@@ -87,7 +87,7 @@ void StatsObserverRffi::OnStatsDelivered(const rtc::scoped_refptr<const RTCStats
       }
       video_sender.quality_limitation_resolution_changes = stat->quality_limitation_resolution_changes.ValueOrDefault(0);
 
-      if (stat->remote_id.is_defined()) {
+      if (stat->remote_id.has_value()) {
         auto remote_stat = report->GetAs<RTCRemoteInboundRtpStreamStats>(*stat->remote_id);
         if (remote_stat) {
           video_sender.remote_packets_lost = remote_stat->packets_lost.ValueOrDefault(0);
