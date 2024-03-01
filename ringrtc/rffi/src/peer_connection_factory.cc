@@ -361,8 +361,7 @@ RUSTEXPORT PeerConnectionInterface* Rust_createPeerConnection(
     PeerConnectionFactoryOwner* factory_owner_borrowed_rc,
     PeerConnectionObserverRffi* observer_borrowed,
     RffiPeerConnectionKind kind,
-    int audio_jitter_buffer_max_packets,
-    int audio_jitter_buffer_max_target_delay_ms,
+    RffiAudioJitterBufferConfig audio_jitter_buffer_config,
     int audio_rtcp_report_interval_ms,
     RffiIceServers ice_servers,
     webrtc::AudioTrackInterface* outgoing_audio_track_borrowed_rc,
@@ -378,8 +377,10 @@ RUSTEXPORT PeerConnectionInterface* Rust_createPeerConnection(
   } else if (kind == RffiPeerConnectionKind::kGroupCall) {
     config.tcp_candidate_policy = PeerConnectionInterface::kTcpCandidatePolicyEnabled;
   }
-  config.audio_jitter_buffer_max_packets = audio_jitter_buffer_max_packets;
-  config.set_audio_jitter_buffer_max_target_delay_ms(audio_jitter_buffer_max_target_delay_ms);
+  config.audio_jitter_buffer_max_packets = audio_jitter_buffer_config.max_packets;
+  config.audio_jitter_buffer_fast_accelerate = audio_jitter_buffer_config.fast_accelerate;
+  config.audio_jitter_buffer_min_delay_ms = audio_jitter_buffer_config.min_delay_ms;
+  config.set_audio_jitter_buffer_max_target_delay_ms(audio_jitter_buffer_config.max_target_delay_ms);
   config.set_audio_rtcp_report_interval_ms(audio_rtcp_report_interval_ms);
   config.sdp_semantics = SdpSemantics::kUnifiedPlan;
   for (size_t i = 0; i < ice_servers.servers_size; i++) {

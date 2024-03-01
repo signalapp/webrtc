@@ -93,6 +93,13 @@ typedef struct {
   bool agc_enabled;
 } RffiAudioConfig;
 
+typedef struct {
+  int max_packets;
+  int min_delay_ms;
+  int max_target_delay_ms;
+  bool fast_accelerate;
+} RffiAudioJitterBufferConfig;
+
 // Returns an owned RC.
 // You can create more than one, but you should probably only have one unless
 // you want to test separate endpoints that are as independent as possible.
@@ -113,8 +120,7 @@ RUSTEXPORT webrtc::PeerConnectionInterface* Rust_createPeerConnection(
   webrtc::PeerConnectionFactoryOwner* factory_owner_borrowed_rc,
   webrtc::rffi::PeerConnectionObserverRffi* observer_borrowed,
   RffiPeerConnectionKind kind,
-  int audio_jitter_buffer_max_packets,
-  int audio_jitter_buffer_max_target_delay_ms,
+  RffiAudioJitterBufferConfig audio_jitter_buffer_config,
   int audio_rtcp_report_interval_ms,
   RffiIceServers ice_servers,
   webrtc::AudioTrackInterface* outgoing_audio_track_borrowed_rc,
