@@ -120,7 +120,7 @@ RUSTEXPORT webrtc::PeerConnectionInterface* Rust_createPeerConnection(
   webrtc::PeerConnectionFactoryOwner* factory_owner_borrowed_rc,
   webrtc::rffi::PeerConnectionObserverRffi* observer_borrowed,
   RffiPeerConnectionKind kind,
-  RffiAudioJitterBufferConfig audio_jitter_buffer_config,
+  const RffiAudioJitterBufferConfig* audio_jitter_buffer_config,
   int audio_rtcp_report_interval_ms,
   RffiIceServers ice_servers,
   webrtc::AudioTrackInterface* outgoing_audio_track_borrowed_rc,
