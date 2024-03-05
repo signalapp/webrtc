@@ -104,7 +104,7 @@ typedef struct {
 // You can create more than one, but you should probably only have one unless
 // you want to test separate endpoints that are as independent as possible.
 RUSTEXPORT webrtc::PeerConnectionFactoryOwner* Rust_createPeerConnectionFactory(
-  const RffiAudioConfig* audio_config,
+  const RffiAudioConfig* audio_config_borrowed,
   bool use_injectable_network);
 
 // Returns an owned RC.
@@ -120,7 +120,7 @@ RUSTEXPORT webrtc::PeerConnectionInterface* Rust_createPeerConnection(
   webrtc::PeerConnectionFactoryOwner* factory_owner_borrowed_rc,
   webrtc::rffi::PeerConnectionObserverRffi* observer_borrowed,
   RffiPeerConnectionKind kind,
-  const RffiAudioJitterBufferConfig* audio_jitter_buffer_config,
+  const RffiAudioJitterBufferConfig* audio_jitter_buffer_config_borrowed,
   int32_t audio_rtcp_report_interval_ms,
   RffiIceServers ice_servers,
   webrtc::AudioTrackInterface* outgoing_audio_track_borrowed_rc,
