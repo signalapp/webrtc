@@ -364,7 +364,7 @@ RUSTEXPORT PeerConnectionInterface* Rust_createPeerConnection(
     RffiPeerConnectionKind kind,
     const RffiAudioJitterBufferConfig* audio_jitter_buffer_config_borrowed,
     int32_t audio_rtcp_report_interval_ms,
-    RffiIceServers ice_servers,
+    const RffiIceServers* ice_servers_borrowed,
     webrtc::AudioTrackInterface* outgoing_audio_track_borrowed_rc,
     webrtc::VideoTrackInterface* outgoing_video_track_borrowed_rc) {
   auto factory = factory_owner_borrowed_rc->peer_connection_factory();
@@ -384,8 +384,8 @@ RUSTEXPORT PeerConnectionInterface* Rust_createPeerConnection(
   config.set_audio_jitter_buffer_max_target_delay_ms(audio_jitter_buffer_config_borrowed->max_target_delay_ms);
   config.set_audio_rtcp_report_interval_ms(audio_rtcp_report_interval_ms);
   config.sdp_semantics = SdpSemantics::kUnifiedPlan;
-  for (size_t i = 0; i < ice_servers.servers_size; i++) {
-    RffiIceServer ice_server = ice_servers.servers[i];
+  for (size_t i = 0; i < ice_servers_borrowed->servers_size; i++) {
+    RffiIceServer ice_server = ice_servers_borrowed->servers[i];
     if (ice_server.urls_size > 0) {
       webrtc::PeerConnectionInterface::IceServer rtc_ice_server;
       rtc_ice_server.username = std::string(ice_server.username_borrowed);
@@ -413,7 +413,7 @@ RUSTEXPORT PeerConnectionInterface* Rust_createPeerConnection(
   }
   auto result = factory->CreatePeerConnectionOrError(config, std::move(deps));
   if (!result.ok()) {
-    RTC_LOG(LS_INFO) << "Failed to CreatePeerConnecton: " << result.error().message();
+    RTC_LOG(LS_INFO) << "Failed to CreatePeerConnection: " << result.error().message();
     return nullptr;
   }
   rtc::scoped_refptr<PeerConnectionInterface> pc = result.MoveValue();
