@@ -94,9 +94,9 @@ typedef struct {
 } RffiAudioConfig;
 
 typedef struct {
-  int max_packets;
-  int min_delay_ms;
-  int max_target_delay_ms;
+  int32_t max_packets;
+  int32_t min_delay_ms;
+  int32_t max_target_delay_ms;
   bool fast_accelerate;
 } RffiAudioJitterBufferConfig;
 
@@ -104,7 +104,7 @@ typedef struct {
 // You can create more than one, but you should probably only have one unless
 // you want to test separate endpoints that are as independent as possible.
 RUSTEXPORT webrtc::PeerConnectionFactoryOwner* Rust_createPeerConnectionFactory(
-  RffiAudioConfig audio_config,
+  const RffiAudioConfig* audio_config,
   bool use_injectable_network);
 
 // Returns an owned RC.
@@ -121,7 +121,7 @@ RUSTEXPORT webrtc::PeerConnectionInterface* Rust_createPeerConnection(
   webrtc::rffi::PeerConnectionObserverRffi* observer_borrowed,
   RffiPeerConnectionKind kind,
   const RffiAudioJitterBufferConfig* audio_jitter_buffer_config,
-  int audio_rtcp_report_interval_ms,
+  int32_t audio_rtcp_report_interval_ms,
   RffiIceServers ice_servers,
   webrtc::AudioTrackInterface* outgoing_audio_track_borrowed_rc,
   webrtc::VideoTrackInterface* outgoing_video_track_borrowed_rc);
