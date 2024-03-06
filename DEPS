@@ -48,7 +48,7 @@ vars = {
 }
 
 deps = {
-  # RingRTC change to use a the upstream xiph opus directly
+  # RingRTC change to use a the upstream xiph opus
   'src/ringrtc/opus/src':
     'https://github.com/xiph/opus.git@23d4b31de15a723716f9fde5ec736773f2e1aa2e',
 
