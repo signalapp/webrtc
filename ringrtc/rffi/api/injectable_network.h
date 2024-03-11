@@ -62,7 +62,7 @@ RUSTEXPORT void Rust_InjectableNetwork_AddInterface(
   const char* name_borrowed,
   rtc::AdapterType type,
   Ip ip,
-  int preference);
+  uint16_t preference);
 
 RUSTEXPORT void Rust_InjectableNetwork_RemoveInterface(
   InjectableNetwork* network_borrowed, 

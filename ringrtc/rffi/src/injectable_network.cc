@@ -158,7 +158,7 @@ class InjectableNetworkImpl : public InjectableNetwork, public rtc::NetworkManag
   // type Affects Candidate network cost and other ICE behavior
   // preference affects ICE candidate priorities higher is more preferred
   void AddInterface(
-    const char* name, rtc::AdapterType type, Ip ip, int preference) override {
+    const char* name, rtc::AdapterType type, Ip ip, uint16_t preference) override {
     RTC_LOG(LS_INFO) << "InjectableNetworkImpl::AddInterface() name: " << name;
     // We need to access interface_by_name_ and SignalNetworksChanged on the network_thread_.
     // Make sure to copy the name first!
@@ -360,8 +360,8 @@ RUSTEXPORT void Rust_InjectableNetwork_AddInterface(
     InjectableNetwork* network_borrowed,
     const char* name_borrowed,
     rtc::AdapterType type,
-    Ip ip, 
-    int preference) {
+    Ip ip,
+    uint16_t preference) {
   network_borrowed->AddInterface(name_borrowed, type, ip, preference);
 }
 
