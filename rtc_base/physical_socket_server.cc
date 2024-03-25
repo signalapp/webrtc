@@ -1448,6 +1448,8 @@ bool PhysicalSocketServer::WaitSelect(int cmsWait, bool process_io) {
     if (n < 0) {
       if (errno != EINTR) {
         RTC_LOG_E(LS_ERROR, EN, errno) << "select";
+        // RingRTC change to log more information around select failures.
+        RTC_LOG(LS_ERROR) << "select failed: fdmax=" << fdmax << ", cmsWait=" << cmsWait;
         return false;
       }
       // Else ignore the error and keep going. If this EINTR was for one of the

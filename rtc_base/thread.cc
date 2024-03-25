@@ -846,8 +846,14 @@ bool Thread::ProcessMessages(int cmsLoop) {
     ScopedAutoReleasePool pool;
 #endif
     absl::AnyInvocable<void()&&> task = Get(cmsNext);
-    if (!task)
-      return !IsQuitting();
+    // RingRTC change to log more information around select failures.
+    if (!task) {
+      bool isQuitting = IsQuitting();
+      if (!isQuitting) {
+        RTC_LOG(LS_ERROR) << name_ << " will stop processing messages. cmsNext=" << cmsNext;
+      }
+      return !isQuitting;
+    }
     Dispatch(std::move(task));
 
     if (cmsLoop != kForever) {
