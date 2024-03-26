@@ -63,8 +63,8 @@ class FrameDecryptorInterface : public rtc::RefCountInterface {
                          rtc::ArrayView<const uint8_t> additional_data,
                          rtc::ArrayView<const uint8_t> encrypted_frame,
                          rtc::ArrayView<uint8_t> frame,
-                         // RingRTC change to detect received dependency descriptor
-                         bool has_dependency_descriptor) = 0;
+                         // RingRTC change to encrypt media header
+                         bool has_encrypted_media_header) = 0;
 
   // Returns the total required length in bytes for the output of the
   // decryption. This can be larger than the actual number of bytes you need but
