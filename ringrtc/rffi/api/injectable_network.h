@@ -36,7 +36,7 @@ class InjectableNetwork {
   // network interfaces, etc.
   virtual void SetSender(const InjectableNetworkSender* sender) = 0;
   virtual void AddInterface(
-    const char* name, rtc::AdapterType type, Ip ip, int preference) = 0;
+    const char* name, rtc::AdapterType type, Ip ip, uint16_t preference) = 0;
   virtual void RemoveInterface(const char* name) = 0;
   virtual void ReceiveUdp(
     IpPort source, IpPort dest, const uint8_t* data, size_t size) = 0;
