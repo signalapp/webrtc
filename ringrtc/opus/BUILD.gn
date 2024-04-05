@@ -8,7 +8,7 @@ import("//testing/test.gni")
 # If ARM optimizations shall be used to accelerate performance.
 use_opus_arm_optimization =
     current_cpu == "arm" ||
-    (current_cpu == "arm64" && (is_fuchsia || is_ios || is_win))
+    (current_cpu == "arm64" && (is_fuchsia || is_ios || is_win || is_mac))
 
 # NaCl, unlike Chrome, doesn't target SSE2 minimum, so skip optimizations for
 # the sake of simplicity.
@@ -30,6 +30,7 @@ config("opus_private_config") {
     "OPUS_BUILD",
     "OPUS_EXPORT=",
     "ENABLE_HARDENING",
+    "DISABLE_DEBUG_FLOAT",
 
     # Prefer alloca() over variable length arrays which are often inefficient;
     # the opus code will automatically handle this correctly per-platform.
@@ -76,6 +77,7 @@ config("opus_private_config") {
       # Run Time CPU Detections (RTCD) is always enabled for x86.
       "OPUS_HAVE_RTCD",
       "CPU_INFO_BY_ASM",
+      "FLOAT_APPROX",
 
       # Chrome always targets SSE2+.
       "OPUS_X86_MAY_HAVE_SSE",
@@ -88,7 +90,7 @@ config("opus_private_config") {
 
       # At present libopus has no AVX functions so no sources are add for this,
       # if you see linker errors on AVX code the this flag is why.
-      "OPUS_X86_MAY_HAVE_AVX",
+      "OPUS_X86_MAY_HAVE_AVX2",
     ]
   }
 
@@ -187,11 +189,39 @@ if (use_opus_x86_optimization) {
       ":opus_config",
     ]
 
+    if (!is_debug) {
+      configs -= [ "//build/config/compiler:default_optimization" ]
+      configs += [ "//build/config/compiler:optimize_speed" ]
+    }
+
     if (!is_win || is_clang) {
       cflags = [ "-msse4.1" ]
     }
   }
-  # TODO(dalecurtis): If libopus ever adds AVX support, add an opus_avx block.
+
+  source_set("opus_avx2") {
+    sources = [
+      "src/celt/x86/pitch_avx.c",
+      "src/silk/x86/NSQ_del_dec_avx2.c",
+      "src/silk/float/x86/inner_product_FLP_avx2.c",
+    ]
+
+    configs -= [ "//build/config/compiler:chromium_code" ]
+    configs += [ "//build/config/compiler:no_chromium_code" ]
+    configs += [
+      ":opus_private_config",
+      ":opus_config",
+    ]
+
+    if (!is_debug) {
+      configs -= [ "//build/config/compiler:default_optimization" ]
+      configs += [ "//build/config/compiler:optimize_speed" ]
+    }
+
+    if (!is_win || is_clang) {
+      cflags = [ "-mavx", "-mfma", "-mavx2" ]
+    }
+  }
 }
 
 # Note: Do not add any defines or include_dirs to this target, those should all
@@ -350,6 +380,7 @@ static_library("opus") {
     "src/silk/typedef.h",
     "src/src/analysis.c",
     "src/src/analysis.h",
+    "src/src/extensions.c",
     "src/src/mapping_matrix.c",
     "src/src/mapping_matrix.h",
     "src/src/mlp.c",
@@ -437,6 +468,7 @@ static_library("opus") {
       "src/silk/x86/x86_silk_map.c",
     ]
     deps += [ ":opus_sse41" ]
+    deps += [ ":opus_avx2" ]
   }
 
   if (use_opus_arm_optimization) {

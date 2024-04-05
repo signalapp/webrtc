@@ -48,9 +48,9 @@ vars = {
 }
 
 deps = {
-  # RingRTC change to use a fork of opus
+  # RingRTC change to use a the upstream xiph opus
   'src/ringrtc/opus/src':
-    'https://github.com/signalapp/opus.git@593419e833acab4d15b4901fe156177fb7315468',
+    'https://github.com/xiph/opus.git@0e30966b198ad28943799eaf5b3b08100b6f70c3',
 
   # TODO(kjellander): Move this to be Android-only.
   'src/base':
