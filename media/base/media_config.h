@@ -48,7 +48,8 @@ struct MediaConfig {
     // Note that even if this flag is set to false, dropping of frames can
     // still happen pre-decode, e.g., dropping of higher temporal layers.
     // This flag comes from the PeerConnection RtcConfiguration.
-    bool enable_prerenderer_smoothing = true;
+    // RingRTC change to disable prerenderer smoothing
+    bool enable_prerenderer_smoothing = false;
 
     // Enables periodic bandwidth probing in application-limited region.
     bool periodic_alr_bandwidth_probing = false;
@@ -58,7 +59,8 @@ struct MediaConfig {
     // Chrome origin-trial.
     // TODO(bugs.webrtc.org/8504): If all goes well, the flag will be removed
     // together with the old method of estimation.
-    bool experiment_cpu_load_estimator = false;
+    // RingRTC change to use the new CPU load estimator
+    bool experiment_cpu_load_estimator = true;
 
     // Time interval between RTCP report for video
     int rtcp_report_interval_ms = 1000;
