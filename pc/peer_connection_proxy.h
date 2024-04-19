@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "api/peer_connection_interface.h"
+#include "api/transport/bandwidth_estimation_settings.h"
 #include "pc/proxy.h"
 
 namespace webrtc {
@@ -162,6 +163,9 @@ PROXY_METHOD0(uint32_t,
               GetLastBandwidthEstimateBps)
 PROXY_METHOD1(bool, SetIncomingRtpEnabled, bool)
 PROXY_METHOD1(RTCError, SetBitrate, const BitrateSettings&)
+PROXY_METHOD1(void,
+              ReconfigureBandwidthEstimation,
+              const BandwidthEstimationSettings&)
 PROXY_METHOD1(void, SetAudioPlayout, bool)
 PROXY_METHOD1(void, SetAudioRecording, bool)
 // RingRTC change to disable CNG for muted incoming streams.
