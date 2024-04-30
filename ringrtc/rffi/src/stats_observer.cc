@@ -23,8 +23,6 @@ StatsObserverRffi::~StatsObserverRffi() {
 }
 
 void StatsObserverRffi::OnStatsDelivered(const rtc::scoped_refptr<const RTCStatsReport>& report) {
-//  RTC_LOG(LS_INFO) << report->ToJson();
-
   this->audio_sender_statistics_.clear();
   this->video_sender_statistics_.clear();
   this->audio_receiver_statistics_.clear();
@@ -157,8 +155,9 @@ void StatsObserverRffi::OnStatsDelivered(const rtc::scoped_refptr<const RTCStats
   media_statistics.video_receiver_statistics = this->video_receiver_statistics_.data();
   media_statistics.connection_statistics = connection_statistics;
 
+  std::string report_json = report->ToJson();
   // Pass media_statistics up to Rust, which will consume the data before returning.
-  this->stats_observer_cbs_.OnStatsComplete(this->stats_observer_, &media_statistics);
+  this->stats_observer_cbs_.OnStatsComplete(this->stats_observer_, &media_statistics, report_json.c_str());
 }
 
 // Returns an owned RC.

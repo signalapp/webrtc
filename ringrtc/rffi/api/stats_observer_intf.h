@@ -95,7 +95,7 @@ typedef struct {
 
 /* Stats Observer Callback callback function pointers */
 typedef struct {
-  void (*OnStatsComplete)(void* stats_observer_borrowed, const MediaStatistics* media_statistics_borrowed);
+  void (*OnStatsComplete)(void* stats_observer_borrowed, const MediaStatistics* media_statistics_borrowed, const char* report_json_borrowed);
 } StatsObserverCallbacks;
 
 RUSTEXPORT webrtc::rffi::StatsObserverRffi*
