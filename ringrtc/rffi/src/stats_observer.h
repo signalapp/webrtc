@@ -24,12 +24,15 @@ public:
                     const StatsObserverCallbacks* stats_observer_cbs_borrowed);
   ~StatsObserverRffi() override;
 
+void SetCollectRawStatsReport(bool collect_raw_stats_report);
+
 protected:
   void OnStatsDelivered(const rtc::scoped_refptr<const RTCStatsReport>& report) override;
 
 private:
   void* stats_observer_;
   StatsObserverCallbacks stats_observer_cbs_;
+  bool collect_raw_stats_report_ = false;
 
   std::vector<AudioSenderStatistics> audio_sender_statistics_;
   std::vector<VideoSenderStatistics> video_sender_statistics_;
