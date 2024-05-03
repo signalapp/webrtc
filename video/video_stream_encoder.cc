@@ -2055,7 +2055,8 @@ void VideoStreamEncoder::SendKeyFrame(
   }
 
   if (!layers.empty()) {
-    RTC_DCHECK_EQ(layers.size(), next_frame_types_.size());
+    // RingRTC change to enable per-layer PLI for screen sharing
+    // RTC_DCHECK_EQ(layers.size(), next_frame_types_.size());
     for (size_t i = 0; i < layers.size() && i < next_frame_types_.size(); i++) {
       next_frame_types_[i] = layers[i];
     }

@@ -549,6 +549,8 @@ void VideoSendStreamImpl::ReconfigureVideoEncoder(
   RTC_DCHECK_EQ(content_type_, config.content_type);
   RTC_LOG(LS_VERBOSE) << "Encoder config: " << config.ToString()
                       << " VideoSendStream config: " << config_.ToString();
+  // RingRTC change to enable per-layer PLI for screen sharing
+  encoder_feedback_.SetPerLayerKeyframes(config.content_type == VideoEncoderConfig::ContentType::kScreen);
   video_stream_encoder_->ConfigureEncoder(
       std::move(config),
       config_.rtp.max_packet_size - CalculateMaxHeaderSize(config_.rtp),

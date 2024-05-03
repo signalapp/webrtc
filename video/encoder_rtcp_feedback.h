@@ -49,10 +49,16 @@ class EncoderRtcpFeedback : public RtcpIntraFrameObserver,
                                   uint16_t seq_num_of_last_received,
                                   bool decodability_flag) override;
 
+  // RingRTC change to enable per-layer PLI for screen sharing
+  void SetPerLayerKeyframes(bool per_layer_keyframes) {
+    per_layer_keyframes_.store(per_layer_keyframes);
+  }
+
  private:
   Clock* const clock_;
   const std::vector<uint32_t> ssrcs_;
-  const bool per_layer_keyframes_;
+  // RingRTC change to enable per-layer PLI for screen sharing
+  std::atomic<bool> per_layer_keyframes_;
   const std::function<std::vector<RtpSequenceNumberMap::Info>(
       uint32_t ssrc,
       const std::vector<uint16_t>& seq_nums)>

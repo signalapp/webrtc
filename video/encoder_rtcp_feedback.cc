@@ -37,7 +37,8 @@ EncoderRtcpFeedback::EncoderRtcpFeedback(
       per_layer_keyframes_(per_layer_keyframes),
       get_packet_infos_(std::move(get_packet_infos)),
       video_stream_encoder_(encoder),
-      time_last_packet_delivery_queue_(per_layer_keyframes ? ssrcs.size() : 1,
+      // RingRTC change to enable per-layer PLI for screen sharing
+      time_last_packet_delivery_queue_(ssrcs.size(),
                                        Timestamp::Zero()),
       min_keyframe_send_interval_(
           TimeDelta::Millis(KeyframeIntervalSettings::ParseFromFieldTrials()
@@ -57,8 +58,9 @@ void EncoderRtcpFeedback::OnReceivedIntraFrameRequest(uint32_t ssrc) {
     RTC_LOG(LS_WARNING) << "SSRC " << ssrc << " not found.";
     return;
   }
+  bool per_layer_keyframes = per_layer_keyframes_.load();
   size_t ssrc_index =
-      per_layer_keyframes_ ? std::distance(ssrcs_.begin(), it) : 0;
+      per_layer_keyframes ? std::distance(ssrcs_.begin(), it) : 0;
   RTC_CHECK_LE(ssrc_index, time_last_packet_delivery_queue_.size());
   const Timestamp now = clock_->CurrentTime();
   if (time_last_packet_delivery_queue_[ssrc_index] +
@@ -70,7 +72,7 @@ void EncoderRtcpFeedback::OnReceivedIntraFrameRequest(uint32_t ssrc) {
 
   std::vector<VideoFrameType> layers(ssrcs_.size(),
                                      VideoFrameType::kVideoFrameDelta);
-  if (!per_layer_keyframes_) {
+  if (!per_layer_keyframes) {
     // Always produce key frame for all streams.
     video_stream_encoder_->SendKeyFrame();
   } else {

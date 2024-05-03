@@ -363,7 +363,9 @@ int SimulcastEncoderAdapter::InitEncode(
   // handling of PLIs.
   bool separate_encoders_needed =
       !encoder_context->encoder().GetEncoderInfo().supports_simulcast ||
-      active_streams_count == 1 || per_layer_pli_;
+      active_streams_count == 1 || per_layer_pli_ ||
+      // RingRTC change to enable per-layer PLI for screen sharing
+      codec_.mode == VideoCodecMode::kScreensharing;
   // Singlecast or simulcast with simulcast-capable underlaying encoder.
   if (total_streams_count_ == 1 || !separate_encoders_needed) {
     int ret = encoder_context->encoder().InitEncode(&codec_, settings);
