@@ -7,6 +7,7 @@
 #define RFFI_STATS_OBSERVER_H__
 
 #include "api/peer_connection_interface.h"
+#include <atomic>
 
 namespace webrtc {
 namespace rffi {
@@ -32,7 +33,7 @@ protected:
 private:
   void* stats_observer_;
   StatsObserverCallbacks stats_observer_cbs_;
-  bool collect_raw_stats_report_ = false;
+  std::atomic<bool> collect_raw_stats_report_{false};
 
   std::vector<AudioSenderStatistics> audio_sender_statistics_;
   std::vector<VideoSenderStatistics> video_sender_statistics_;
