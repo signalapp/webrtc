@@ -22,9 +22,11 @@ StatsObserverRffi::~StatsObserverRffi() {
   RTC_LOG(LS_INFO) << "StatsObserverRffi:dtor(): " << this->stats_observer_;
 }
 
-void StatsObserverRffi::OnStatsDelivered(const rtc::scoped_refptr<const RTCStatsReport>& report) {
-//  RTC_LOG(LS_INFO) << report->ToJson();
+void StatsObserverRffi::SetCollectRawStatsReport(bool collect_raw_stats_report) {
+  this->collect_raw_stats_report_.store(collect_raw_stats_report);
+}
 
+void StatsObserverRffi::OnStatsDelivered(const rtc::scoped_refptr<const RTCStatsReport>& report) {
   this->audio_sender_statistics_.clear();
   this->video_sender_statistics_.clear();
   this->audio_receiver_statistics_.clear();
@@ -157,8 +159,9 @@ void StatsObserverRffi::OnStatsDelivered(const rtc::scoped_refptr<const RTCStats
   media_statistics.video_receiver_statistics = this->video_receiver_statistics_.data();
   media_statistics.connection_statistics = connection_statistics;
 
+  std::string report_json = this->collect_raw_stats_report_.load() ? report->ToJson() : "";
   // Pass media_statistics up to Rust, which will consume the data before returning.
-  this->stats_observer_cbs_.OnStatsComplete(this->stats_observer_, &media_statistics);
+  this->stats_observer_cbs_.OnStatsComplete(this->stats_observer_, &media_statistics, report_json.c_str());
 }
 
 // Returns an owned RC.
@@ -167,6 +170,12 @@ RUSTEXPORT StatsObserverRffi*
 Rust_createStatsObserver(void*                         stats_observer_borrowed,
                          const StatsObserverCallbacks* stats_observer_cbs_borrowed) {
   return take_rc(rtc::make_ref_counted<StatsObserverRffi>(stats_observer_borrowed, stats_observer_cbs_borrowed));
+}
+
+RUSTEXPORT void
+Rust_setCollectRawStatsReport(webrtc::rffi::StatsObserverRffi* stats_observer_borrowed,
+                              bool                             collect_raw_stats_report) {
+  stats_observer_borrowed->SetCollectRawStatsReport(collect_raw_stats_report);
 }
 
 } // namespace rffi

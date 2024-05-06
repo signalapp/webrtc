@@ -95,11 +95,15 @@ typedef struct {
 
 /* Stats Observer Callback callback function pointers */
 typedef struct {
-  void (*OnStatsComplete)(void* stats_observer_borrowed, const MediaStatistics* media_statistics_borrowed);
+  void (*OnStatsComplete)(void* stats_observer_borrowed, const MediaStatistics* media_statistics_borrowed, const char* report_json_borrowed);
 } StatsObserverCallbacks;
 
 RUSTEXPORT webrtc::rffi::StatsObserverRffi*
 Rust_createStatsObserver(void*                         stats_observer_borrowed,
                          const StatsObserverCallbacks* stats_observer_cbs_borrowed);
+
+RUSTEXPORT void 
+Rust_setCollectRawStatsReport(webrtc::rffi::StatsObserverRffi* stats_observer_borrowed,
+                              bool                             collect_raw_stats_report);
 
 #endif /* RFFI_API_STATS_OBSERVER_INTF_H__ */
