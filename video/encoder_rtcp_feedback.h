@@ -33,6 +33,7 @@ class EncoderRtcpFeedback : public RtcpIntraFrameObserver,
  public:
   EncoderRtcpFeedback(
       Clock* clock,
+      bool per_layer_keyframes,
       const std::vector<uint32_t>& ssrcs,
       VideoStreamEncoderInterface* encoder,
       std::function<std::vector<RtpSequenceNumberMap::Info>(
@@ -48,9 +49,16 @@ class EncoderRtcpFeedback : public RtcpIntraFrameObserver,
                                   uint16_t seq_num_of_last_received,
                                   bool decodability_flag) override;
 
+  // RingRTC change to enable per-layer PLI for screen sharing
+  void SetPerLayerKeyframes(bool per_layer_keyframes) {
+    per_layer_keyframes_.store(per_layer_keyframes);
+  }
+
  private:
   Clock* const clock_;
   const std::vector<uint32_t> ssrcs_;
+  // RingRTC change to enable per-layer PLI for screen sharing
+  std::atomic<bool> per_layer_keyframes_;
   const std::function<std::vector<RtpSequenceNumberMap::Info>(
       uint32_t ssrc,
       const std::vector<uint16_t>& seq_nums)>
@@ -58,7 +66,7 @@ class EncoderRtcpFeedback : public RtcpIntraFrameObserver,
   VideoStreamEncoderInterface* const video_stream_encoder_;
 
   RTC_NO_UNIQUE_ADDRESS SequenceChecker packet_delivery_queue_;
-  Timestamp time_last_packet_delivery_queue_
+  std::vector<Timestamp> time_last_packet_delivery_queue_
       RTC_GUARDED_BY(packet_delivery_queue_);
 
   const TimeDelta min_keyframe_send_interval_;

@@ -52,6 +52,8 @@
 #include "call/rtp_config.h"
 #include "call/rtp_transport_controller_send_interface.h"
 #include "call/video_send_stream.h"
+#include "media/base/media_constants.h"
+#include "media/base/sdp_video_format_utils.h"
 #include "modules/pacing/pacing_controller.h"
 #include "modules/rtp_rtcp/include/rtp_header_extension_map.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
@@ -410,6 +412,8 @@ VideoSendStreamImpl::VideoSendStreamImpl(
                     config_.encoder_selector)),
       encoder_feedback_(
           clock,
+          SupportsPerLayerPictureLossIndication(
+              encoder_config.video_format.parameters),
           config_.rtp.ssrcs,
           video_stream_encoder_.get(),
           [this](uint32_t ssrc, const std::vector<uint16_t>& seq_nums) {
@@ -545,6 +549,8 @@ void VideoSendStreamImpl::ReconfigureVideoEncoder(
   RTC_DCHECK_EQ(content_type_, config.content_type);
   RTC_LOG(LS_VERBOSE) << "Encoder config: " << config.ToString()
                       << " VideoSendStream config: " << config_.ToString();
+  // RingRTC change to enable per-layer PLI for screen sharing
+  encoder_feedback_.SetPerLayerKeyframes(config.content_type == VideoEncoderConfig::ContentType::kScreen);
   video_stream_encoder_->ConfigureEncoder(
       std::move(config),
       config_.rtp.max_packet_size - CalculateMaxHeaderSize(config_.rtp),
