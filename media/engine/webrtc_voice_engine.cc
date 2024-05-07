@@ -612,8 +612,8 @@ void WebRtcVoiceEngine::ApplyOptions(const AudioOptions& options_in) {
 
   if (options.echo_cancellation) {
     apm_config.echo_canceller.enabled = *options.echo_cancellation;
-    // RingRTC change to allow control of AEC3 vs AECM
-    apm_config.echo_canceller.mobile_mode = adm()->UseAecm();
+    // RingRTC change to disable AECM
+    apm_config.echo_canceller.mobile_mode = false;
   }
 
   if (options.auto_gain_control) {

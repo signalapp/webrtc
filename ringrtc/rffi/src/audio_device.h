@@ -150,8 +150,6 @@ class RingRTCAudioDeviceModule : public AudioDeviceModule {
   bool BuiltInAECIsAvailable() const override { return false; }
   bool BuiltInAGCIsAvailable() const override { return false; }
   bool BuiltInNSIsAvailable() const override { return false; }
-  // When using software AEC, use AECM instead of AEC3.
-  bool UseAecm() const override { return false; }
 
   // Enables the built-in audio effects. Only supported on Android.
   int32_t EnableBuiltInAEC(bool enable) override { return -1; }
