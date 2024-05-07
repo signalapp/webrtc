@@ -27,9 +27,7 @@ static jlong JNI_JavaAudioDeviceModule_CreateAudioDeviceModule(
     int input_sample_rate,
     int output_sample_rate,
     jboolean j_use_stereo_input,
-    jboolean j_use_stereo_output,
-    // RingRTC change to allow control of AEC3 vs AECM
-    jboolean j_use_aecm) {
+    jboolean j_use_stereo_output) {
   AudioParameters input_parameters;
   AudioParameters output_parameters;
   GetAudioParameters(env, j_context, j_audio_manager, input_sample_rate,
@@ -45,8 +43,7 @@ static jlong JNI_JavaAudioDeviceModule_CreateAudioDeviceModule(
                               AudioDeviceModule::kAndroidJavaAudio,
                               j_use_stereo_input, j_use_stereo_output,
                               kHighLatencyModeDelayEstimateInMilliseconds,
-                              std::move(audio_input), std::move(audio_output),
-                              j_use_aecm)
+                              std::move(audio_input), std::move(audio_output))
                               .release());
 }
 

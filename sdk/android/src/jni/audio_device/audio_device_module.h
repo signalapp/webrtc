@@ -100,9 +100,7 @@ rtc::scoped_refptr<AudioDeviceModule> CreateAudioDeviceModuleFromInputAndOutput(
     bool is_stereo_record_supported,
     uint16_t playout_delay_ms,
     std::unique_ptr<AudioInput> audio_input,
-    std::unique_ptr<AudioOutput> audio_output,
-    // RingRTC change to allow control of AEC3 vs AECM
-    bool use_aecm);
+    std::unique_ptr<AudioOutput> audio_output);
 
 }  // namespace jni
 

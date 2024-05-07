@@ -50,8 +50,6 @@ public class JavaAudioDeviceModule implements AudioDeviceModule {
     private boolean useStereoOutput;
     private AudioAttributes audioAttributes;
     private boolean useLowLatency;
-    // RingRTC change to allow control of AEC3 vs AECM
-    private boolean useAecm;
     private boolean enableVolumeLogger;
 
     private Builder(Context context) {
@@ -60,7 +58,6 @@ public class JavaAudioDeviceModule implements AudioDeviceModule {
       this.inputSampleRate = WebRtcAudioManager.getSampleRate(audioManager);
       this.outputSampleRate = WebRtcAudioManager.getSampleRate(audioManager);
       this.useLowLatency = false;
-      this.useAecm = false;
       this.enableVolumeLogger = true;
     }
 
@@ -218,15 +215,6 @@ public class JavaAudioDeviceModule implements AudioDeviceModule {
       return this;
     }
 
-    // RingRTC change to allow control of AEC3 vs AECM
-    /**
-     * Control if AECM is used or AEC3.  The default is AEC3.
-     */
-    public Builder setUseAecm(boolean useAecm) {
-      this.useAecm = useAecm;
-      return this;
-    }
-
     /** Disables the volume logger on the audio output track. */
     public Builder setEnableVolumeLogger(boolean enableVolumeLogger) {
       this.enableVolumeLogger = enableVolumeLogger;
@@ -272,7 +260,7 @@ public class JavaAudioDeviceModule implements AudioDeviceModule {
           new WebRtcAudioTrack(context, audioManager, audioAttributes, audioTrackErrorCallback,
               audioTrackStateCallback, useLowLatency, enableVolumeLogger);
       return new JavaAudioDeviceModule(context, audioManager, audioInput, audioOutput,
-          inputSampleRate, outputSampleRate, useStereoInput, useStereoOutput, useAecm);
+          inputSampleRate, outputSampleRate, useStereoInput, useStereoOutput);
     }
   }
 
@@ -380,15 +368,13 @@ public class JavaAudioDeviceModule implements AudioDeviceModule {
   private final int outputSampleRate;
   private final boolean useStereoInput;
   private final boolean useStereoOutput;
-  private final boolean useAecm;
 
   private final Object nativeLock = new Object();
   private long nativeAudioDeviceModule;
 
   private JavaAudioDeviceModule(Context context, AudioManager audioManager,
       WebRtcAudioRecord audioInput, WebRtcAudioTrack audioOutput, int inputSampleRate,
-      int outputSampleRate, boolean useStereoInput, boolean useStereoOutput,
-      boolean useAecm) {
+      int outputSampleRate, boolean useStereoInput, boolean useStereoOutput) {
     this.context = context;
     this.audioManager = audioManager;
     this.audioInput = audioInput;
@@ -397,7 +383,6 @@ public class JavaAudioDeviceModule implements AudioDeviceModule {
     this.outputSampleRate = outputSampleRate;
     this.useStereoInput = useStereoInput;
     this.useStereoOutput = useStereoOutput;
-    this.useAecm = useAecm;
   }
 
   @Override
@@ -405,8 +390,7 @@ public class JavaAudioDeviceModule implements AudioDeviceModule {
     synchronized (nativeLock) {
       if (nativeAudioDeviceModule == 0) {
         nativeAudioDeviceModule = nativeCreateAudioDeviceModule(context, audioManager, audioInput,
-            audioOutput, inputSampleRate, outputSampleRate, useStereoInput, useStereoOutput,
-            useAecm);
+            audioOutput, inputSampleRate, outputSampleRate, useStereoInput, useStereoOutput);
       }
       return nativeAudioDeviceModule;
     }
@@ -454,6 +438,5 @@ public class JavaAudioDeviceModule implements AudioDeviceModule {
 
   private static native long nativeCreateAudioDeviceModule(Context context,
       AudioManager audioManager, WebRtcAudioRecord audioInput, WebRtcAudioTrack audioOutput,
-      int inputSampleRate, int outputSampleRate, boolean useStereoInput, boolean useStereoOutput,
-      boolean useAecm);
+      int inputSampleRate, int outputSampleRate, boolean useStereoInput, boolean useStereoOutput);
 }
