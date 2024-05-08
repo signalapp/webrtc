@@ -424,6 +424,7 @@ if (is_android) {
     visibility = [ "*" ]
     sources = [
       "api/org/webrtc/audio/JavaAudioDeviceModule.java",
+      "api/org/webrtc/audio/OboeAudioDeviceModule.java",
       "src/java/org/webrtc/audio/LowLatencyAudioBufferManager.java",
       "src/java/org/webrtc/audio/VolumeLogger.java",
       "src/java/org/webrtc/audio/WebRtcAudioEffects.java",
@@ -814,7 +815,10 @@ if (current_os == "linux" || is_android) {
   # JNI target for java_audio_device_module_java
   rtc_library("java_audio_device_module_jni") {
     visibility = [ "*" ]
-    sources = [ "src/jni/audio_device/java_audio_device_module.cc" ]
+    sources = [
+      "src/jni/audio_device/java_audio_device_module.cc",
+      "src/jni/audio_device/oboe_audio_device_module.cc",
+    ]
 
     deps = [
       ":base_jni",
@@ -1154,11 +1158,19 @@ if (current_os == "linux" || is_android) {
   rtc_library("audio_device_module_base") {
     visibility = [ "*" ]
 
+    include_dirs = [
+      "../../ringrtc/oboe/src/include"
+    ]
+
     sources = [
       "src/jni/audio_device/audio_common.h",
       "src/jni/audio_device/audio_device_module.cc",
       "src/jni/audio_device/audio_device_module.h",
+      "src/jni/audio_device/audio_device_module_oboe.cc",
+      "src/jni/audio_device/audio_device_module_oboe.h",
     ]
+
+    ldflags = [ "-laaudio" ]
 
     deps = [
       ":base_jni",
@@ -1173,6 +1185,7 @@ if (current_os == "linux" || is_android) {
       "../../rtc_base:checks",
       "../../rtc_base:logging",
       "../../system_wrappers:metrics",
+      "//ringrtc/oboe:oboe",
     ]
     absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
   }
@@ -1424,7 +1437,10 @@ if (current_os == "linux" || is_android) {
   }
 
   generate_jni("generated_java_audio_jni") {
-    sources = [ "api/org/webrtc/audio/JavaAudioDeviceModule.java" ]
+    sources = [
+      "api/org/webrtc/audio/JavaAudioDeviceModule.java",
+      "api/org/webrtc/audio/OboeAudioDeviceModule.java"
+    ]
     namespace = "webrtc::jni"
     jni_generator_include = "//sdk/android/src/jni/jni_generator_helper.h"
   }
