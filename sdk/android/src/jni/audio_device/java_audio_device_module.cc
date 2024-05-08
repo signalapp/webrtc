@@ -15,6 +15,8 @@
 #include "sdk/android/src/jni/audio_device/audio_track_jni.h"
 #include "sdk/android/src/jni/jni_helpers.h"
 
+#include "rtc_base/logging.h"
+
 namespace webrtc {
 namespace jni {
 
@@ -28,6 +30,8 @@ static jlong JNI_JavaAudioDeviceModule_CreateAudioDeviceModule(
     int output_sample_rate,
     jboolean j_use_stereo_input,
     jboolean j_use_stereo_output) {
+  RTC_LOG(LS_WARNING) << "JimX: JNI_JavaAudioDeviceModule_CreateAudioDeviceModule";
+
   AudioParameters input_parameters;
   AudioParameters output_parameters;
   GetAudioParameters(env, j_context, j_audio_manager, input_sample_rate,

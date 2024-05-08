@@ -58,7 +58,7 @@ void GetDefaultAudioParameters(JNIEnv* env,
 rtc::scoped_refptr<AudioDeviceModule> CreateAAudioAudioDeviceModule(
     JNIEnv* env,
     jobject application_context) {
-  RTC_DLOG(LS_INFO) << __FUNCTION__;
+  RTC_LOG(LS_WARNING) << "JimX: Is this being called? A";
   // Get default audio input/output parameters.
   AudioParameters input_parameters;
   AudioParameters output_parameters;
@@ -76,7 +76,7 @@ rtc::scoped_refptr<AudioDeviceModule> CreateAAudioAudioDeviceModule(
 rtc::scoped_refptr<AudioDeviceModule>
 CreateJavaInputAndAAudioOutputAudioDeviceModule(JNIEnv* env,
                                                 jobject application_context) {
-  RTC_DLOG(LS_INFO) << __FUNCTION__;
+  RTC_LOG(LS_WARNING) << "JimX: Is this being called? B";
   // Get default audio input/output parameters.
   const JavaParamRef<jobject> j_context(application_context);
   const ScopedJavaLocalRef<jobject> j_audio_manager =
@@ -102,7 +102,7 @@ CreateJavaInputAndAAudioOutputAudioDeviceModule(JNIEnv* env,
 rtc::scoped_refptr<AudioDeviceModule> CreateJavaAudioDeviceModule(
     JNIEnv* env,
     jobject application_context) {
-  RTC_DLOG(LS_INFO) << __FUNCTION__;
+  RTC_LOG(LS_WARNING) << "JimX: Is this being called? C";
   // Get default audio input/output parameters.
   const JavaParamRef<jobject> j_context(application_context);
   const ScopedJavaLocalRef<jobject> j_audio_manager =
@@ -130,7 +130,7 @@ rtc::scoped_refptr<AudioDeviceModule> CreateJavaAudioDeviceModule(
 rtc::scoped_refptr<AudioDeviceModule> CreateOpenSLESAudioDeviceModule(
     JNIEnv* env,
     jobject application_context) {
-  RTC_DLOG(LS_INFO) << __FUNCTION__;
+  RTC_LOG(LS_WARNING) << "JimX: Is this being called? D";
   // Get default audio input/output parameters.
   AudioParameters input_parameters;
   AudioParameters output_parameters;
@@ -153,7 +153,7 @@ rtc::scoped_refptr<AudioDeviceModule> CreateOpenSLESAudioDeviceModule(
 rtc::scoped_refptr<AudioDeviceModule>
 CreateJavaInputAndOpenSLESOutputAudioDeviceModule(JNIEnv* env,
                                                   jobject application_context) {
-  RTC_DLOG(LS_INFO) << __FUNCTION__;
+  RTC_LOG(LS_WARNING) << "JimX: Is this being called? E";
   // Get default audio input/output parameters.
   const JavaParamRef<jobject> j_context(application_context);
   const ScopedJavaLocalRef<jobject> j_audio_manager =
@@ -181,6 +181,7 @@ CreateJavaInputAndOpenSLESOutputAudioDeviceModule(JNIEnv* env,
 
 rtc::scoped_refptr<AudioDeviceModule> CreateAndroidAudioDeviceModule(
     AudioDeviceModule::AudioLayer audio_layer) {
+  RTC_LOG(LS_WARNING) << "JimX: Is this being called? F";
   auto env = AttachCurrentThreadIfNeeded();
   auto j_context = webrtc::GetAppContext(env);
   // Select best possible combination of audio layers.
