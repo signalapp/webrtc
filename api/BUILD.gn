@@ -274,6 +274,8 @@ rtc_library("libjingle_peerconnection_api") {
   visibility = [ "*" ]
   cflags = []
   sources = [
+    # RingRTC change: Propagate externally-negotiated keys.
+    "crypto_params.h",
     "data_channel_interface.cc",
     "data_channel_interface.h",
     # RingRTC change to add ICE forking

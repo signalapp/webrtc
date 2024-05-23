@@ -129,9 +129,14 @@ WebRtcSessionDescriptionFactory::WebRtcSessionDescriptionFactory(
 
   if (!dtls_enabled) {
     RTC_LOG(LS_INFO) << "DTLS-SRTP disabled";
-    transport_desc_factory_.SetInsecureForTesting();
+    // RingRTC: Allow out-of-band / "manual" key negotiation.
+    SetManuallySpecifyKeys(true);
     return;
   }
+
+  // RingRTC: Allow out-of-band / "manual" key negotiation.
+  // Manual keys are disabled if DTLS is on.
+  SetManuallySpecifyKeys(false);
   if (certificate) {
     // Use `certificate`.
     certificate_request_state_ = CERTIFICATE_WAITING;
@@ -254,6 +259,16 @@ void WebRtcSessionDescriptionFactory::CreateAnswer(
                certificate_request_state_ == CERTIFICATE_NOT_NEEDED);
     InternalCreateAnswer(request);
   }
+}
+
+// RingRTC: Allow out-of-band / "manual" key negotiation.
+void WebRtcSessionDescriptionFactory::SetManuallySpecifyKeys(bool b) {
+  transport_desc_factory_.set_manually_specify_keys(b);
+  session_desc_factory_.set_manually_specify_keys(b);
+}
+
+bool WebRtcSessionDescriptionFactory::ManuallySpecifyKeys() const {
+  return session_desc_factory_.manually_specify_keys();
 }
 
 void WebRtcSessionDescriptionFactory::InternalCreateOffer(

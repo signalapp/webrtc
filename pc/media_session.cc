@@ -1161,8 +1161,12 @@ bool IsMediaProtocolSupported(MediaType type,
   }
 }
 
-void SetMediaProtocol(bool secure_transport, MediaContentDescription* desc) {
-  if (secure_transport)
+// RingRTC: Allow out-of-band / "manual" key negotiation.
+void SetMediaProtocol(bool secure_transport, bool manually_specify_keys,
+                      MediaContentDescription* desc) {
+  if (desc->crypto().has_value() || manually_specify_keys)
+    desc->set_protocol(kMediaProtocolSavpf);
+  else if (secure_transport)
     desc->set_protocol(kMediaProtocolDtlsSavpf);
   else
     desc->set_protocol(kMediaProtocolAvpf);
@@ -2090,7 +2094,9 @@ RTCError MediaSessionDescriptionFactory::AddRtpContentForOffer(
 
   // Insecure transport should only occur in testing.
   bool secure_transport = !(transport_desc_factory_->insecure());
-  SetMediaProtocol(secure_transport, content_description.get());
+  // RingRTC: Allow out-of-band / "manual" key negotiation.
+  SetMediaProtocol(secure_transport, manually_specify_keys(),
+                   content_description.get());
 
   content_description->set_direction(media_description_options.direction);
 

@@ -450,7 +450,8 @@ class JsepTransportController : public sigslot::has_slots<> {
       const std::string& transport_name,
       rtc::PacketTransportInternal* rtp_packet_transport,
       rtc::PacketTransportInternal* rtcp_packet_transport);
-  std::unique_ptr<SrtpTransport> CreateSdesTransport(
+  // RingRTC: Allow out-of-band / "manual" key negotiation.
+  std::unique_ptr<SrtpTransport> CreateSrtpTransport(
       const std::string& transport_name,
       cricket::DtlsTransportInternal* rtp_dtls_transport,
       cricket::DtlsTransportInternal* rtcp_dtls_transport);

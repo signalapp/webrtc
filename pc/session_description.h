@@ -23,6 +23,8 @@
 
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
+// RingRTC: Allow out-of-band / "manual" key negotiation.
+#include "api/crypto_params.h"
 #include "api/media_types.h"
 #include "api/rtp_parameters.h"
 #include "api/rtp_transceiver_direction.h"
@@ -119,6 +121,12 @@ class MediaContentDescription {
   std::string bandwidth_type() const { return bandwidth_type_; }
   void set_bandwidth_type(std::string bandwidth_type) {
     bandwidth_type_ = bandwidth_type;
+  }
+
+  // RingRTC: Allow out-of-band / "manual" key negotiation.
+  const absl::optional<CryptoParams>& crypto() const { return crypto_; }
+  void set_crypto(const absl::optional<CryptoParams>& crypto) {
+    crypto_ = crypto;
   }
 
   // List of RTP header extensions. URIs are **NOT** guaranteed to be unique
@@ -260,6 +268,8 @@ class MediaContentDescription {
   int bandwidth_ = kAutoBandwidth;
   std::string bandwidth_type_ = kApplicationSpecificBandwidth;
 
+  // RingRTC: Allow out-of-band / "manual" key negotiation.
+  absl::optional<CryptoParams> crypto_;
   std::vector<webrtc::RtpExtension> rtp_header_extensions_;
   bool rtp_header_extensions_set_ = false;
   StreamParamsVec send_streams_;

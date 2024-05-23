@@ -73,6 +73,10 @@ class WebRtcSessionDescriptionFactory {
   void CreateAnswer(CreateSessionDescriptionObserver* observer,
                     const cricket::MediaSessionOptions& session_options);
 
+  // RingRTC: Allow out-of-band / "manual" key negotiation.
+  void SetManuallySpecifyKeys(bool b);
+  bool ManuallySpecifyKeys() const;
+
   void set_enable_encrypted_rtp_header_extensions(bool enable) {
     session_desc_factory_.set_enable_encrypted_rtp_header_extensions(enable);
   }

@@ -43,12 +43,17 @@ class TransportDescriptionFactory {
       const webrtc::FieldTrialsView& field_trials);
   ~TransportDescriptionFactory();
 
+  // RingRTC: Allow out-of-band / "manual" key negotiation.
+  bool manually_specify_keys() const { return manually_specify_keys_; }
   // The certificate to use when setting up DTLS.
   const rtc::scoped_refptr<rtc::RTCCertificate>& certificate() const {
     return certificate_;
   }
 
-  // Specifies the certificate to use
+  // RingRTC: Allow out-of-band / "manual" key negotiation.
+  // Specifies that keys should be manually specified.
+  void set_manually_specify_keys(bool b) { manually_specify_keys_ = b; }
+  // Specifies the certificate to use (only used when !manually_specify_keys).
   void set_certificate(rtc::scoped_refptr<rtc::RTCCertificate> certificate) {
     certificate_ = std::move(certificate);
   }
@@ -85,6 +90,11 @@ class TransportDescriptionFactory {
   bool SetSecurityInfo(TransportDescription* description,
                        ConnectionRole role) const;
   bool insecure_ = false;
+
+  // RingRTC: Allow out-of-band / "manual" key negotiation.
+  // True iff keys should be manually specified (e.g. negotiated out of band,
+  // and not via DTLS).
+  bool manually_specify_keys_ = false;
   rtc::scoped_refptr<rtc::RTCCertificate> certificate_;
   const webrtc::FieldTrialsView& field_trials_;
 };
