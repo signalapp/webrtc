@@ -286,8 +286,7 @@ RTCError VerifyCrypto(const SessionDescription* desc,
       continue;
     }
 #if !defined(WEBRTC_FUCHSIA)
-    // RingRTC change to always disable DTLS.
-    // RTC_CHECK(dtls_enabled) << "SDES protocol is only allowed in Fuchsia";
+    RTC_CHECK(dtls_enabled) << "SDES protocol is only allowed in Fuchsia";
 #endif
     const std::string& mid = content_info.name;
     auto it = bundle_groups_by_mid.find(mid);
@@ -1397,6 +1396,8 @@ void SdpOfferAnswerHandler::Initialize(
     RTC_LOG(LS_INFO)
         << "Disabling encryption. This should only be done in tests.";
     webrtc_session_desc_factory_->SetInsecureForTesting();
+    // RingRTC: Allow out-of-band / "manual" key negotiation.
+    webrtc_session_desc_factory_->SetManuallySpecifyKeys(false);
   }
 
   webrtc_session_desc_factory_->set_enable_encrypted_rtp_header_extensions(
@@ -3559,7 +3560,11 @@ RTCError SdpOfferAnswerHandler::ValidateSessionDescription(
 
   // Verify crypto settings.
   std::string crypto_error;
-  if (pc_->dtls_enabled()) {
+  // RingRTC: Allow out-of-band / "manual" key negotiation.
+  // Do not verify if "ManuallySpecifyKeys" is set; `VerifyCrypto` only makes
+  // sense for DTLS.
+  if (!webrtc_session_desc_factory_->ManuallySpecifyKeys() &&
+      pc_->dtls_enabled()) {
     RTCError crypto_error = VerifyCrypto(
         sdesc->description(), pc_->dtls_enabled(), bundle_groups_by_mid);
     if (!crypto_error.ok()) {

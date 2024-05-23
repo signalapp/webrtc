@@ -213,6 +213,8 @@ rtc_source_set("jsep_transport") {
     ":rtp_transport_internal",
     ":sctp_transport",
     ":session_description",
+    # RingRTC: Allow out-of-band / "manual" key negotiation.
+    ":srtp_key_carrier",
     ":srtp_transport",
     ":transport_stats",
     "../api:array_view",
@@ -538,6 +540,21 @@ rtc_source_set("sctp_utils") {
   ]
   absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
 }
+# RingRTC: Allow out-of-band / "manual" key negotiation.
+rtc_source_set("srtp_key_carrier") {
+  visibility = [ ":*" ]
+  sources = [
+    "srtp_key_carrier.cc",
+    "srtp_key_carrier.h",
+  ]
+  deps = [
+    ":session_description",
+    "../api:libjingle_peerconnection_api",
+    "../rtc_base:logging",
+    "../rtc_base:ssl",
+  ]
+}
+
 rtc_source_set("srtp_session") {
   visibility = [ ":*" ]
   sources = [

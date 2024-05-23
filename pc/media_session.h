@@ -161,6 +161,9 @@ class MediaSessionDescriptionFactory {
                         const VideoCodecs& recv_codecs);
   RtpHeaderExtensions filtered_rtp_header_extensions(
       RtpHeaderExtensions extensions) const;
+  // RingRTC: Allow out-of-band / "manual" key negotiation.
+  bool manually_specify_keys() const { return manually_specify_keys_; }
+  void set_manually_specify_keys(bool b) { manually_specify_keys_ = b; }
 
   void set_enable_encrypted_rtp_header_extensions(bool enable) {
     enable_encrypted_rtp_header_extensions_ = enable;
@@ -319,6 +322,8 @@ class MediaSessionDescriptionFactory {
   webrtc::AlwaysValidPointer<rtc::UniqueRandomIdGenerator> const
       ssrc_generator_;
   bool enable_encrypted_rtp_header_extensions_ = false;
+  // RingRTC: Allow out-of-band / "manual" key negotiation.
+  bool manually_specify_keys_ = false;
   const TransportDescriptionFactory* transport_desc_factory_;
 };
 

@@ -21,7 +21,6 @@
 #include "rffi/src/stats_observer.h"
 #include "rtc_base/message_digest.h"
 #include "rtc_base/string_encode.h"
-#include "rtc_base/third_party/base64/base64.h"
 #include "system_wrappers/include/field_trial.h"
 
 #include <algorithm>
@@ -201,11 +200,10 @@ Rust_disableDtlsAndSetSrtpKey(webrtc::SessionDescriptionInterface* session_descr
   }
 
   cricket::CryptoParams crypto_params;
-  crypto_params.crypto_suite = rtc::SrtpCryptoSuiteToName(crypto_suite);
+  crypto_params.crypto_suite = crypto_suite;
 
-  std::string key(key_borrowed, key_len);
-  std::string salt(salt_borrowed, salt_len);
-  crypto_params.key_params = "inline:" + rtc::Base64::Encode(key + salt);
+  crypto_params.key_params.SetData(key_borrowed, key_len);
+  crypto_params.key_params.AppendData(salt_borrowed, salt_len);
 
   // Disable DTLS
   for (cricket::TransportInfo& transport : session->transport_infos()) {
@@ -218,9 +216,7 @@ Rust_disableDtlsAndSetSrtpKey(webrtc::SessionDescriptionInterface* session_descr
     cricket::MediaContentDescription* media = content.media_description();
     if (media) {
       media->set_protocol(cricket::kMediaProtocolSavpf);
-      std::vector<cricket::CryptoParams> cryptos;
-      cryptos.push_back(crypto_params);
-      media->set_cryptos(cryptos);
+      media->set_crypto(crypto_params);
     }
   }
 
@@ -550,18 +546,15 @@ CreateSessionDescriptionForGroupCall(bool local,
 
   // Use SRTP master key material instead
   cricket::CryptoParams crypto_params;
-  crypto_params.crypto_suite = rtc::SrtpCryptoSuiteToName(srtp_key.suite);
-  std::string key(srtp_key.key_borrowed, srtp_key.key_len);
-  std::string salt(srtp_key.salt_borrowed, srtp_key.salt_len);
-  crypto_params.key_params = "inline:" + rtc::Base64::Encode(key + salt);
+  crypto_params.crypto_suite = srtp_key.suite;
+  crypto_params.key_params.SetData(srtp_key.key_borrowed, srtp_key.key_len);
+  crypto_params.key_params.AppendData(srtp_key.salt_borrowed, srtp_key.salt_len);
 
   auto set_rtp_params = [crypto_params] (cricket::MediaContentDescription* media) {
     media->set_protocol(cricket::kMediaProtocolSavpf);
     media->set_rtcp_mux(true);
 
-    std::vector<cricket::CryptoParams> cryptos;
-    cryptos.push_back(crypto_params);
-    media->set_cryptos(cryptos);
+    media->set_crypto(crypto_params);
   };
 
   auto local_direction = local ? RtpTransceiverDirection::kSendOnly : RtpTransceiverDirection::kRecvOnly;

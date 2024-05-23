@@ -36,10 +36,14 @@ JsepTransportDescription::JsepTransportDescription() {}
 
 JsepTransportDescription::JsepTransportDescription(
     bool rtcp_mux_enabled,
+    // RingRTC: Allow out-of-band / "manual" key negotiation.
+    const std::optional<CryptoParams>& crypto,
     const std::vector<int>& encrypted_header_extension_ids,
     int rtp_abs_sendtime_extn_id,
     const TransportDescription& transport_desc)
     : rtcp_mux_enabled(rtcp_mux_enabled),
+      // RingRTC: Allow out-of-band / "manual" key negotiation.
+      crypto(crypto),
       encrypted_header_extension_ids(encrypted_header_extension_ids),
       rtp_abs_sendtime_extn_id(rtp_abs_sendtime_extn_id),
       transport_desc(transport_desc) {}
@@ -47,6 +51,8 @@ JsepTransportDescription::JsepTransportDescription(
 JsepTransportDescription::JsepTransportDescription(
     const JsepTransportDescription& from)
     : rtcp_mux_enabled(from.rtcp_mux_enabled),
+      // RingRTC: Allow out-of-band / "manual" key negotiation.
+      crypto(from.crypto),
       encrypted_header_extension_ids(from.encrypted_header_extension_ids),
       rtp_abs_sendtime_extn_id(from.rtp_abs_sendtime_extn_id),
       transport_desc(from.transport_desc) {}
@@ -59,6 +65,8 @@ JsepTransportDescription& JsepTransportDescription::operator=(
     return *this;
   }
   rtcp_mux_enabled = from.rtcp_mux_enabled;
+  // RingRTC: Allow out-of-band / "manual" key negotiation.
+  crypto = from.crypto;
   encrypted_header_extension_ids = from.encrypted_header_extension_ids;
   rtp_abs_sendtime_extn_id = from.rtp_abs_sendtime_extn_id;
   transport_desc = from.transport_desc;
@@ -72,7 +80,8 @@ JsepTransport::JsepTransport(
     rtc::scoped_refptr<webrtc::IceTransportInterface> ice_transport,
     rtc::scoped_refptr<webrtc::IceTransportInterface> rtcp_ice_transport,
     std::unique_ptr<webrtc::RtpTransport> unencrypted_rtp_transport,
-    std::unique_ptr<webrtc::SrtpTransport> sdes_transport,
+    // RingRTC: Allow out-of-band / "manual" key negotiation.
+    std::unique_ptr<webrtc::SrtpTransport> srtp_transport,
     std::unique_ptr<webrtc::DtlsSrtpTransport> dtls_srtp_transport,
     std::unique_ptr<DtlsTransportInternal> rtp_dtls_transport,
     std::unique_ptr<DtlsTransportInternal> rtcp_dtls_transport,
@@ -84,7 +93,8 @@ JsepTransport::JsepTransport(
       ice_transport_(std::move(ice_transport)),
       rtcp_ice_transport_(std::move(rtcp_ice_transport)),
       unencrypted_rtp_transport_(std::move(unencrypted_rtp_transport)),
-      sdes_transport_(std::move(sdes_transport)),
+      // RingRTC: Allow out-of-band / "manual" key negotiation.
+      srtp_transport_(std::move(srtp_transport)),
       dtls_srtp_transport_(std::move(dtls_srtp_transport)),
       rtp_dtls_transport_(rtp_dtls_transport
                               ? rtc::make_ref_counted<webrtc::DtlsTransport>(
@@ -108,15 +118,18 @@ JsepTransport::JsepTransport(
                 (rtcp_dtls_transport_ != nullptr));
   // Verify the "only one out of these three can be set" invariant.
   if (unencrypted_rtp_transport_) {
-    RTC_DCHECK(!sdes_transport);
+    // RingRTC: Allow out-of-band / "manual" key negotiation.
+    RTC_DCHECK(!srtp_transport);
     RTC_DCHECK(!dtls_srtp_transport);
-  } else if (sdes_transport_) {
+  } else if (srtp_transport_) {
+    // RingRTC: Allow out-of-band / "manual" key negotiation.
     RTC_DCHECK(!unencrypted_rtp_transport);
     RTC_DCHECK(!dtls_srtp_transport);
   } else {
     RTC_DCHECK(dtls_srtp_transport_);
     RTC_DCHECK(!unencrypted_rtp_transport);
-    RTC_DCHECK(!sdes_transport);
+    // RingRTC: Allow out-of-band / "manual" key negotiation.
+    RTC_DCHECK(!srtp_transport);
   }
 
   if (sctp_transport_) {
@@ -163,9 +176,21 @@ webrtc::RTCError JsepTransport::SetLocalJsepTransportDescription(
                             "Failed to setup RTCP mux.");
   }
 
-  if (dtls_srtp_transport_) {
+  // RingRTC: Allow out-of-band / "manual" key negotiation.
+  // If doing SRTP with manual keys, setup the crypto parameters.
+  if (srtp_transport_) {
     RTC_DCHECK(!unencrypted_rtp_transport_);
-    RTC_DCHECK(!sdes_transport_);
+    RTC_DCHECK(!dtls_srtp_transport_);
+    if (!SetSrtpCrypto(jsep_description.crypto,
+                       jsep_description.encrypted_header_extension_ids, type,
+                       ContentSource::CS_LOCAL)) {
+      return webrtc::RTCError(webrtc::RTCErrorType::INVALID_PARAMETER,
+                              "Failed to setup SRTP crypto parameters.");
+    }
+  } else if (dtls_srtp_transport_) {
+    RTC_DCHECK(!unencrypted_rtp_transport_);
+    // RingRTC: Allow out-of-band / "manual" key negotiation.
+    RTC_DCHECK(!srtp_transport_);
     dtls_srtp_transport_->UpdateRecvEncryptedHeaderExtensionIds(
         jsep_description.encrypted_header_extension_ids);
   }
@@ -240,9 +265,22 @@ webrtc::RTCError JsepTransport::SetRemoteJsepTransportDescription(
                             "Failed to setup RTCP mux.");
   }
 
-  if (dtls_srtp_transport_) {
+  // RingRTC: Allow out-of-band / "manual" key negotiation.
+  // If doing SRTP, setup the SRTP crypto parameters.
+  if (srtp_transport_) {
     RTC_DCHECK(!unencrypted_rtp_transport_);
-    RTC_DCHECK(!sdes_transport_);
+    RTC_DCHECK(!dtls_srtp_transport_);
+    if (!SetSrtpCrypto(jsep_description.crypto,
+                       jsep_description.encrypted_header_extension_ids, type,
+                       ContentSource::CS_REMOTE)) {
+      return webrtc::RTCError(webrtc::RTCErrorType::INVALID_PARAMETER,
+                              "Failed to setup SRTP crypto parameters.");
+    }
+    srtp_transport_->CacheRtpAbsSendTimeHeaderExtension(
+        jsep_description.rtp_abs_sendtime_extn_id);
+  } else if (dtls_srtp_transport_) {
+    RTC_DCHECK(!unencrypted_rtp_transport_);
+    RTC_DCHECK(!srtp_transport_);
     dtls_srtp_transport_->UpdateSendEncryptedHeaderExtensionIds(
         jsep_description.encrypted_header_extension_ids);
     dtls_srtp_transport_->CacheRtpAbsSendTimeHeaderExtension(
@@ -429,23 +467,66 @@ bool JsepTransport::SetRtcpMux(bool enable,
 
 void JsepTransport::ActivateRtcpMux() {
   if (unencrypted_rtp_transport_) {
-    RTC_DCHECK(!sdes_transport_);
+    // RingRTC: Allow out-of-band / "manual" key negotiation.
+    RTC_DCHECK(!srtp_transport_);
     RTC_DCHECK(!dtls_srtp_transport_);
     unencrypted_rtp_transport_->SetRtcpPacketTransport(nullptr);
-  } else if (sdes_transport_) {
+  } else if (srtp_transport_) {
+    // RingRTC: Allow out-of-band / "manual" key negotiation.
     RTC_DCHECK(!unencrypted_rtp_transport_);
     RTC_DCHECK(!dtls_srtp_transport_);
-    sdes_transport_->SetRtcpPacketTransport(nullptr);
+    srtp_transport_->SetRtcpPacketTransport(nullptr);
   } else if (dtls_srtp_transport_) {
     RTC_DCHECK(dtls_srtp_transport_);
     RTC_DCHECK(!unencrypted_rtp_transport_);
-    RTC_DCHECK(!sdes_transport_);
+    // RingRTC: Allow out-of-band / "manual" key negotiation.
+    RTC_DCHECK(!srtp_transport_);
     dtls_srtp_transport_->SetDtlsTransports(rtp_dtls_transport(),
                                             /*rtcp_dtls_transport=*/nullptr);
   }
   rtcp_dtls_transport_ = nullptr;  // Destroy this reference.
   // Notify the JsepTransportController to update the aggregate states.
   rtcp_mux_active_callback_();
+}
+
+// RingRTC: Allow out-of-band / "manual" key negotiation.
+bool JsepTransport::SetSrtpCrypto(
+    const std::optional<CryptoParams>& crypto,
+    const std::vector<int>& encrypted_extension_ids,
+    webrtc::SdpType type,
+    ContentSource source) {
+  RTC_DCHECK_RUN_ON(network_thread_);
+  if (!crypto.has_value()) {
+    RTC_LOG(LS_ERROR) << "Setting manually-specified SRTP without any keys";
+    return false;
+  }
+  if (!srtp_key_carrier_.ApplyParams(crypto.value(), type, source)) {
+    return false;
+  }
+
+  if (source == ContentSource::CS_LOCAL) {
+    recv_extension_ids_ = encrypted_extension_ids;
+  } else {
+    send_extension_ids_ = encrypted_extension_ids;
+  }
+
+  // If appropriate, apply the negotiated parameters
+  // to the SRTP transport.
+  if (type == SdpType::kPrAnswer || type == SdpType::kAnswer) {
+    const CryptoParams& send = srtp_key_carrier_.send_params();
+    const CryptoParams& recv = srtp_key_carrier_.recv_params();
+    RTC_DCHECK(send_extension_ids_);
+    RTC_DCHECK(recv_extension_ids_);
+    return srtp_transport_->SetRtpParams(
+        send.crypto_suite,
+        send.key_params.data(),
+        static_cast<int>(send.key_params.size()),
+        *(send_extension_ids_), recv.crypto_suite,
+        recv.key_params.data(),
+        static_cast<int>(recv.key_params.size()),
+        *(recv_extension_ids_));
+  }
+  return true;
 }
 
 webrtc::RTCError JsepTransport::NegotiateAndSetDtlsParameters(

@@ -527,7 +527,8 @@ JsepTransportController::CreateUnencryptedRtpTransport(
   return unencrypted_rtp_transport;
 }
 
-std::unique_ptr<SrtpTransport> JsepTransportController::CreateSdesTransport(
+// RingRTC: Allow out-of-band / "manual" key negotiation.
+std::unique_ptr<SrtpTransport> JsepTransportController::CreateSrtpTransport(
     const std::string& transport_name,
     cricket::DtlsTransportInternal* rtp_dtls_transport,
     cricket::DtlsTransportInternal* rtcp_dtls_transport) {
@@ -987,9 +988,10 @@ JsepTransportController::CreateJsepTransportDescription(
                               ? true
                               : content_desc->rtcp_mux();
 
+  // RingRTC: Allow out-of-band / "manual" key negotiation.
   return cricket::JsepTransportDescription(
-      rtcp_mux_enabled, encrypted_extension_ids, rtp_abs_sendtime_extn_id,
-      transport_info.description);
+      rtcp_mux_enabled, content_desc->crypto(), encrypted_extension_ids,
+      rtp_abs_sendtime_extn_id, transport_info.description);
 }
 
 std::vector<int> JsepTransportController::GetEncryptedHeaderExtensionIds(
@@ -1095,6 +1097,13 @@ RTCError JsepTransportController::MaybeCreateJsepTransport(
   if (transport) {
     return RTCError::OK();
   }
+  // RingRTC: Allow out-of-band / "manual" key negotiation.
+  const cricket::MediaContentDescription* content_desc =
+      content_info.media_description();
+  if (certificate_ && content_desc->crypto().has_value()) {
+    return RTCError(RTCErrorType::INVALID_PARAMETER,
+                    "Manual keys and DTLS-SRTP cannot be enabled at the same time.");
+  }
 
   rtc::scoped_refptr<IceTransportInterface> ice =
       CreateIceTransport(content_info.name, /*rtcp=*/false);
@@ -1104,7 +1113,8 @@ RTCError JsepTransportController::MaybeCreateJsepTransport(
 
   std::unique_ptr<cricket::DtlsTransportInternal> rtcp_dtls_transport;
   std::unique_ptr<RtpTransport> unencrypted_rtp_transport;
-  std::unique_ptr<SrtpTransport> sdes_transport;
+  // RingRTC: Allow out-of-band / "manual" key negotiation.
+  std::unique_ptr<SrtpTransport> srtp_transport;
   std::unique_ptr<DtlsSrtpTransport> dtls_srtp_transport;
 
   rtc::scoped_refptr<IceTransportInterface> rtcp_ice;
@@ -1121,6 +1131,11 @@ RTCError JsepTransportController::MaybeCreateJsepTransport(
         << "Creating UnencryptedRtpTransport, becayse encryption is disabled.";
     unencrypted_rtp_transport = CreateUnencryptedRtpTransport(
         content_info.name, rtp_dtls_transport.get(), rtcp_dtls_transport.get());
+  } else if (content_desc->crypto().has_value()) {
+    // RingRTC: Allow out-of-band / "manual" key negotiation.
+    srtp_transport = CreateSrtpTransport(
+        content_info.name, rtp_dtls_transport.get(), rtcp_dtls_transport.get());
+    RTC_LOG(LS_INFO) << "Creating SrtpTransport.";
   } else {
     RTC_LOG(LS_INFO) << "Creating DtlsSrtpTransport.";
     dtls_srtp_transport = CreateDtlsSrtpTransport(
@@ -1136,7 +1151,8 @@ RTCError JsepTransportController::MaybeCreateJsepTransport(
   std::unique_ptr<cricket::JsepTransport> jsep_transport =
       std::make_unique<cricket::JsepTransport>(
           content_info.name, certificate_, std::move(ice), std::move(rtcp_ice),
-          std::move(unencrypted_rtp_transport), std::move(sdes_transport),
+          // RingRTC: Allow out-of-band / "manual" key negotiation.
+          std::move(unencrypted_rtp_transport), std::move(srtp_transport),
           std::move(dtls_srtp_transport), std::move(rtp_dtls_transport),
           std::move(rtcp_dtls_transport), std::move(sctp_transport), [&]() {
             RTC_DCHECK_RUN_ON(network_thread_);

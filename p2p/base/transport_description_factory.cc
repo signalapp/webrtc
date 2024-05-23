@@ -23,7 +23,8 @@ namespace cricket {
 
 TransportDescriptionFactory::TransportDescriptionFactory(
     const webrtc::FieldTrialsView& field_trials)
-    : field_trials_(field_trials) {}
+    // RingRTC: Allow out-of-band / "manual" key negotiation.
+    : manually_specify_keys_(false), field_trials_(field_trials) {}
 
 TransportDescriptionFactory::~TransportDescriptionFactory() = default;
 
@@ -50,6 +51,12 @@ std::unique_ptr<TransportDescription> TransportDescriptionFactory::CreateOffer(
   // If we are not trying to establish a secure transport, don't add a
   // fingerprint.
   if (insecure_ && !certificate_) {
+    return desc;
+  }
+
+  // RingRTC: Allow out-of-band / "manual" key negotiation.
+  if (manually_specify_keys_) {
+    RTC_LOG(LS_INFO) << "Skipping SetSecurityInfo because expect manual keys";
     return desc;
   }
   // Fail if we can't create the fingerprint.
@@ -95,6 +102,12 @@ std::unique_ptr<TransportDescription> TransportDescriptionFactory::CreateAnswer(
   if ((!certificate_ || !offer->identity_fingerprint.get()) && insecure()) {
     return desc;
   }
+  // RingRTC: Allow out-of-band / "manual" key negotiation.
+  if (manually_specify_keys_) {
+    RTC_LOG(LS_INFO) << "Skipping SetSecurityInfo because expect manual keys";
+    return desc;
+  }
+
   if (!offer->identity_fingerprint.get()) {
     if (require_transport_attributes) {
       // We require DTLS, but the other side didn't offer it. Fail.
