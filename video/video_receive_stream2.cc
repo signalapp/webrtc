@@ -1000,7 +1000,8 @@ void VideoReceiveStream2::UpdatePlayoutDelays() const {
   absl::optional<TimeDelta> minimum_delay = std::max(min_delays);
   if (minimum_delay) {
     auto num_playout_delays_set =
-        absl::c_count_if(min_delays, [](auto opt) { return opt.has_value(); });
+        // RingRTC change to reduce max playout delay
+        absl::c_count_if(min_delays, [](auto opt) { return opt.has_value() && *opt > TimeDelta::Zero(); });
     if (num_playout_delays_set > 1 &&
         timing_->min_playout_delay() != minimum_delay) {
       RTC_LOG(LS_WARNING)
