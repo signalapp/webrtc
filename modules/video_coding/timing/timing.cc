@@ -92,6 +92,10 @@ TimeDelta VCMTiming::min_playout_delay() const {
 void VCMTiming::set_min_playout_delay(TimeDelta min_playout_delay) {
   MutexLock lock(&mutex_);
   if (min_playout_delay_ != min_playout_delay) {
+    // RingRTC change to reduce max playout delay
+    if (min_playout_delay > TimeDelta::Zero() && max_playout_delay_ == TimeDelta::Zero()) {
+      max_playout_delay_ = TimeDelta::Millis(501);
+    }
     CheckDelaysValid(min_playout_delay, max_playout_delay_);
     min_playout_delay_ = min_playout_delay;
   }
