@@ -169,6 +169,7 @@ class MockPeerConnectionInternal : public PeerConnectionInternal {
               RemoveIceCandidates,
               (const std::vector<cricket::Candidate>&),
               (override));
+  MOCK_METHOD(uint32_t, GetLastBandwidthEstimateBps, (), (override));
   MOCK_METHOD(RTCError, SetBitrate, (const BitrateSettings&), (override));
   MOCK_METHOD(void, SetAudioPlayout, (bool), (override));
   MOCK_METHOD(void, SetAudioRecording, (bool), (override));

@@ -26,7 +26,8 @@ class MockFrameDecryptor : public FrameDecryptorInterface {
                const std::vector<uint32_t>&,
                rtc::ArrayView<const uint8_t>,
                rtc::ArrayView<const uint8_t>,
-               rtc::ArrayView<uint8_t>),
+               rtc::ArrayView<uint8_t>,
+               bool),
               (override));
 
   MOCK_METHOD(size_t,

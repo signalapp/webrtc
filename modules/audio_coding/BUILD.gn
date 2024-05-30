@@ -123,6 +123,9 @@ rtc_library("red") {
     "../../api:array_view",
     "../../api:field_trials_view",
     "../../api/audio_codecs:audio_codecs_api",
+    # RingRTC: This creates an Opus Config. Ideally we would also depend on audio_encoder_opus, but that's poisoned.
+    # It's likely a bug that this target directly uses Opus.
+    "../../api/audio_codecs/opus:audio_encoder_opus_config",
     "../../api/units:time_delta",
     "../../common_audio",
     "../../rtc_base:buffer",
@@ -992,6 +995,11 @@ if (rtc_include_tests) {
   }
   if (!build_with_mozilla && !build_with_chromium) {
     audio_coding_deps += [ ":red" ]
+    # RingRTC: Red depends on this but cannot directly depend.
+    audio_coding_deps += [
+      "../../api/audio_codecs/opus:audio_decoder_opus",
+      "../../api/audio_codecs/opus:audio_encoder_opus",
+    ]
   }
 
   rtc_source_set("mocks") {

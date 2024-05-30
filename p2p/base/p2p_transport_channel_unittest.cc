@@ -4540,6 +4540,7 @@ TEST_F(P2PTransportChannelPingTest,
   ch.MaybeStartGathering();
   Connection* conn =
       CreateConnectionWithCandidate(&ch, &clock, "1.1.1.1", 1, 10, false);
+  ASSERT_NE(conn, nullptr);
   ReceivePingOnConnection(conn, kIceUfrag[1], 1, 2U);
   EXPECT_EQ(2U, conn->remote_nomination());
   // Smaller nomination is ignored.
@@ -6183,18 +6184,21 @@ TEST(P2PTransportChannel, InjectActiveIceController) {
 TEST_F(P2PTransportChannelPingTest, Forking) {
   // Prepare two transports with a shared gatherer
   rtc::ScopedFakeClock clock;
-  FakePortAllocator fake_port_allocator1(rtc::Thread::Current(), nullptr);
+  FakePortAllocator fake_port_allocator1(rtc::Thread::Current(), nullptr,
+                                         &field_trials_);
   auto transport1 = std::make_unique<P2PTransportChannel>(
       "transport1", 1, &fake_port_allocator1);
   PrepareChannel(transport1.get());
 
-  FakePortAllocator fake_port_allocator2(rtc::Thread::Current(), nullptr);
+  FakePortAllocator fake_port_allocator2(rtc::Thread::Current(), nullptr,
+                                         &field_trials_);
   auto transport2 = std::make_unique<P2PTransportChannel>(
       "transport2", 1, &fake_port_allocator2);
   PrepareChannel(transport2.get());
 
   auto shared_pa =
-      std::make_unique<FakePortAllocator>(rtc::Thread::Current(), nullptr);
+      std::make_unique<FakePortAllocator>(rtc::Thread::Current(), nullptr,
+                                          &field_trials_);
   auto gatherer = shared_pa->CreateIceGatherer("test");
 
   EXPECT_EQ(IceGatheringState::kIceGatheringNew, transport1->gathering_state());

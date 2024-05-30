@@ -45,6 +45,8 @@ class MockChannelReceive : public voe::ChannelReceiveInterface {
               GetDecodingCallStatistics,
               (),
               (const, override));
+
+  MOCK_METHOD(void, SetIncomingAudioMuted, (bool), (override));
   MOCK_METHOD(int, GetSpeechOutputLevelFullRange, (), (const, override));
   MOCK_METHOD(double, GetTotalOutputEnergy, (), (const, override));
   MOCK_METHOD(double, GetTotalOutputDuration, (), (const, override));
