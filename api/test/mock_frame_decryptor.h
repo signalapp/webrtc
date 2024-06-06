@@ -27,6 +27,7 @@ class MockFrameDecryptor : public FrameDecryptorInterface {
                rtc::ArrayView<const uint8_t>,
                rtc::ArrayView<const uint8_t>,
                rtc::ArrayView<uint8_t>,
+               // RingRTC change to encrypt media header
                bool),
               (override));
 

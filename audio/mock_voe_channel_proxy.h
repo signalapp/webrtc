@@ -46,6 +46,7 @@ class MockChannelReceive : public voe::ChannelReceiveInterface {
               (),
               (const, override));
 
+  // RingRTC change to get tests building again.
   MOCK_METHOD(void, SetIncomingAudioMuted, (bool), (override));
   MOCK_METHOD(int, GetSpeechOutputLevelFullRange, (), (const, override));
   MOCK_METHOD(double, GetTotalOutputEnergy, (), (const, override));

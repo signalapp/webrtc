@@ -83,6 +83,9 @@ static const int kDefaultTimeout = 10000;
 static const int kMediumTimeout = 3000;
 static const int kShortTimeout = 1000;
 
+// RingRTC change to avoid incorrect use of flag (only used for tests).
+const uint32_t kDefaultPortAllocatorFlags = 0;
+
 static const int kOnlyLocalPorts = cricket::PORTALLOCATOR_DISABLE_STUN |
                                    cricket::PORTALLOCATOR_DISABLE_RELAY |
                                    cricket::PORTALLOCATOR_DISABLE_TCP;
@@ -4540,6 +4543,7 @@ TEST_F(P2PTransportChannelPingTest,
   ch.MaybeStartGathering();
   Connection* conn =
       CreateConnectionWithCandidate(&ch, &clock, "1.1.1.1", 1, 10, false);
+  // RingRTC change to prevent segfault.
   ASSERT_NE(conn, nullptr);
   ReceivePingOnConnection(conn, kIceUfrag[1], 1, 2U);
   EXPECT_EQ(2U, conn->remote_nomination());
@@ -6184,18 +6188,21 @@ TEST(P2PTransportChannel, InjectActiveIceController) {
 TEST_F(P2PTransportChannelPingTest, Forking) {
   // Prepare two transports with a shared gatherer
   rtc::ScopedFakeClock clock;
+  // RingRTC change to get unit tests to build.
   FakePortAllocator fake_port_allocator1(rtc::Thread::Current(), nullptr,
                                          &field_trials_);
   auto transport1 = std::make_unique<P2PTransportChannel>(
       "transport1", 1, &fake_port_allocator1);
   PrepareChannel(transport1.get());
 
+  // RingRTC change to get unit tests to build.
   FakePortAllocator fake_port_allocator2(rtc::Thread::Current(), nullptr,
                                          &field_trials_);
   auto transport2 = std::make_unique<P2PTransportChannel>(
       "transport2", 1, &fake_port_allocator2);
   PrepareChannel(transport2.get());
 
+  // RingRTC change to get unit tests to build.
   auto shared_pa =
       std::make_unique<FakePortAllocator>(rtc::Thread::Current(), nullptr,
                                           &field_trials_);

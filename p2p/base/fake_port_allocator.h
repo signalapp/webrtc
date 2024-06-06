@@ -224,11 +224,13 @@ class FakePortAllocator : public cricket::PortAllocator {
  public:
   FakePortAllocator(rtc::Thread* network_thread,
                     rtc::PacketSocketFactory* factory,
+                    // RingRTC change to get tests to build.
                     const webrtc::FieldTrialsView* field_trials)
       : FakePortAllocator(network_thread, factory, nullptr, field_trials) {}
 
   FakePortAllocator(rtc::Thread* network_thread,
                     std::unique_ptr<rtc::PacketSocketFactory> factory,
+                    // RingRTC change to get tests to build.
                     const webrtc::FieldTrialsView* field_trials)
       : FakePortAllocator(network_thread,
                           nullptr,
@@ -247,10 +249,10 @@ class FakePortAllocator : public cricket::PortAllocator {
         component, std::string(ice_ufrag), std::string(ice_pwd), field_trials_);
   }
 
-  // RingRTC
   rtc::scoped_refptr<webrtc::IceGathererInterface> CreateIceGatherer(
       const std::string& content_name) override {
     auto new_allocator = std::make_unique<FakePortAllocator>(
+        // RingRTC change to get tests to build.
         network_thread_, nullptr /* factory */, field_trials_);
     IceParameters parameters =
         cricket::IceCredentialsIterator::CreateRandomIceCredentials();
@@ -274,6 +276,7 @@ class FakePortAllocator : public cricket::PortAllocator {
   FakePortAllocator(rtc::Thread* network_thread,
                     rtc::PacketSocketFactory* factory,
                     std::unique_ptr<rtc::PacketSocketFactory> owned_factory,
+                    // RingRTC change to get tests building.
                     const webrtc::FieldTrialsView* field_trials)
       : network_thread_(network_thread),
         factory_(std::move(owned_factory), factory),
