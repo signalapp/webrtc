@@ -118,7 +118,8 @@ struct Params {
   absl::optional<AudioConfig> audio_config;
   // Flags to set on `cricket::PortAllocator`. These flags will be added
   // to the default ones that are presented on the port allocator.
-  uint32_t port_allocator_extra_flags = cricket::kDefaultPortAllocatorFlags;
+  // RingRTC change to avoid incorrect use of flag in non-test code.
+  uint32_t port_allocator_extra_flags = 0;
   // If `rtc_event_log_path` is set, an RTCEventLog will be saved in that
   // location and it will be available for further analysis.
   absl::optional<std::string> rtc_event_log_path;
