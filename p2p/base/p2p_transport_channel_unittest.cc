@@ -6185,26 +6185,24 @@ TEST(P2PTransportChannel, InjectActiveIceController) {
                                   /* component= */ 77, std::move(init));
 }
 
+// RingRTC change to enable ICE forking.
 TEST_F(P2PTransportChannelPingTest, Forking) {
   // Prepare two transports with a shared gatherer
   rtc::ScopedFakeClock clock;
-  // RingRTC change to get unit tests to build.
-  FakePortAllocator fake_port_allocator1(rtc::Thread::Current(), nullptr,
+  FakePortAllocator fake_port_allocator1(rtc::Thread::Current(), packet_socket_factory(),
                                          &field_trials_);
   auto transport1 = std::make_unique<P2PTransportChannel>(
       "transport1", 1, &fake_port_allocator1);
   PrepareChannel(transport1.get());
 
-  // RingRTC change to get unit tests to build.
-  FakePortAllocator fake_port_allocator2(rtc::Thread::Current(), nullptr,
+  FakePortAllocator fake_port_allocator2(rtc::Thread::Current(), packet_socket_factory(),
                                          &field_trials_);
   auto transport2 = std::make_unique<P2PTransportChannel>(
       "transport2", 1, &fake_port_allocator2);
   PrepareChannel(transport2.get());
 
-  // RingRTC change to get unit tests to build.
   auto shared_pa =
-      std::make_unique<FakePortAllocator>(rtc::Thread::Current(), nullptr,
+      std::make_unique<FakePortAllocator>(rtc::Thread::Current(), packet_socket_factory(),
                                           &field_trials_);
   auto gatherer = shared_pa->CreateIceGatherer("test");
 

@@ -249,11 +249,11 @@ class FakePortAllocator : public cricket::PortAllocator {
         component, std::string(ice_ufrag), std::string(ice_pwd), field_trials_);
   }
 
+  // RingRTC change to enable ICE forking.
   rtc::scoped_refptr<webrtc::IceGathererInterface> CreateIceGatherer(
       const std::string& content_name) override {
     auto new_allocator = std::make_unique<FakePortAllocator>(
-        // RingRTC change to get tests to build.
-        network_thread_, nullptr /* factory */, field_trials_);
+        network_thread_, factory_.get(), field_trials_);
     IceParameters parameters =
         cricket::IceCredentialsIterator::CreateRandomIceCredentials();
     auto session = new_allocator->CreateSession(
