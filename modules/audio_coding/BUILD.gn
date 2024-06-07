@@ -1029,8 +1029,6 @@ if (rtc_include_tests) {
         ":audio_decoder_unittests",
         ":g711_test",
         ":g722_test",
-        ":ilbc_test",
-        ":neteq_ilbc_quality_test",
         ":neteq_opus_quality_test",
         ":neteq_pcm16b_quality_test",
         ":neteq_pcmu_quality_test",
@@ -1041,6 +1039,13 @@ if (rtc_include_tests) {
         ":rtpcat",
         ":webrtc_opus_fec_test",
       ]
+      # RingRTC change: Skip ilbc tests if ilbc isn't included; they won't pass.
+      if (rtc_include_ilbc) {
+        public_deps += [
+          ":ilbc_test",
+          ":neteq_ilbc_quality_test",
+        ]
+      }
       if (rtc_enable_protobuf) {
         public_deps +=  # no-presubmit-check TODO(webrtc:8603)
             [ ":neteq_rtpplay" ]
