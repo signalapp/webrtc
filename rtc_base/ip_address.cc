@@ -583,15 +583,18 @@ bool IPIsNotGloballyUnique(const IPAddress& ip) {
   if (ip.family() == AF_INET) {
     if (IPIsPrivateNetworkV4(ip) || IPIsSharedNetworkV4(ip) || IPIsLoopbackV4(ip) || IPIsLinkLocalV4(ip)) {
       return true;
-      }
+    }
     uint32_t ip_in_host_order = ip.v4AddressAsHostOrderInteger();
-    if ((ip_in_host_order >> 8) == ((192 << 16) | (0 << 8) | 2)) { // 192.0.2.0/24 DS-Lite
+    if ((ip_in_host_order >> 8) == ((192 << 16) | (0 << 8) | 0)) { // 192.0.0.0/24 IETF Protocol Assignments including DS-Lite (192.0.0.0/29)
       return true;
     }
     if ((ip_in_host_order >> 8) == ((192 << 16) | (88 << 8) | 99)) { // 192.88.99.0/24 6to4
       return true;
     }
-    if ((ip_in_host_order >> 24) >= 240) { // 240.0.0.0/24 Multicast
+    if ((ip_in_host_order >> 24) & 0xF0 == 0xE0) { // 224.0.0.0/4 Multicast
+      return true;
+    }
+    if ((ip_in_host_order >> 24) >= 240) { // 240.0.0.0/4 currently reserved "Class E"
       return true;
     }
   } else if (ip.family() == AF_INET6) {
