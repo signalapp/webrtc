@@ -974,4 +974,169 @@ TEST(IPAddressTest, TestInterfaceAddress) {
   EXPECT_NE(addr1, addr5);
 }
 
+// RingRTC change to prevent attempting relay connections to addresses that are not globally unique
+TEST(IPAddressTest, TestIsNotGloballyUnique) {
+  EXPECT_TRUE(IPIsNotGloballyUnique(IPAddress(INADDR_ANY)));
+  EXPECT_FALSE(IPIsNotGloballyUnique(IPAddress(kIPv4PublicAddr)));
+  EXPECT_TRUE(IPIsNotGloballyUnique(IPAddress(in6addr_any)));
+  EXPECT_FALSE(IPIsNotGloballyUnique(IPAddress(kIPv6PublicAddr)));
+  EXPECT_TRUE(IPIsNotGloballyUnique(IPAddress(kIPv4MappedAnyAddr)));
+  EXPECT_TRUE(IPIsNotGloballyUnique(IPAddress(kIPv4MappedPublicAddr)));
+
+  EXPECT_TRUE(IPIsNotGloballyUnique(IPAddress(kIPv4RFC1918Addr)));
+  EXPECT_TRUE(IPIsNotGloballyUnique(IPAddress(kIPv4RFC6598Addr)));
+  EXPECT_TRUE(IPIsNotGloballyUnique(IPAddress(INADDR_LOOPBACK)));
+  EXPECT_TRUE(IPIsNotGloballyUnique(IPAddress(in6addr_loopback)));
+  EXPECT_TRUE(IPIsNotGloballyUnique(IPAddress(kIPv6LinkLocalAddr)));
+
+
+  // IPv4 compatibility address (::123.123.123.123)
+  IPAddress v4compat_addr;
+  IPFromString("::192.168.7.1", &v4compat_addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(v4compat_addr));
+  // 6Bone address (3FFE::/16)
+  IPAddress sixbone_addr;
+  IPFromString("3FFE:123:456::789:123", &sixbone_addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(sixbone_addr));
+  // Unique Local Address (FC::/7)
+  IPAddress ula_addr;
+  IPFromString("FC00:123:456::789:123", &ula_addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(ula_addr));
+  // 6To4 Address (2002::/16)
+  IPAddress sixtofour_addr;
+  IPFromString("2002:123:456::789:123", &sixtofour_addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(sixtofour_addr));
+  // Site Local address (FEC0::/10)
+  IPAddress sitelocal_addr;
+  IPFromString("FEC0:123:456::789:123", &sitelocal_addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(sitelocal_addr));
+  // Teredo Address (2001:0000::/32)
+  IPAddress teredo_addr;
+  IPFromString("2001:0000:123:456::789:123", &teredo_addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(teredo_addr));
+
+  IPAddress addr;
+  // 10.0.0.0/8 Private Use RFC 1918
+  IPFromString("9.255.255.255", &addr);
+  EXPECT_FALSE(IPIsNotGloballyUnique(addr));
+  IPFromString("10.0.0.0", &addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(addr));
+  IPFromString("10.255.255.255", &addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(addr));
+  IPFromString("11.0.0.0", &addr);
+  EXPECT_FALSE(IPIsNotGloballyUnique(addr));
+  // 100.64.0.0/10 Shared address space RFC 6598
+  IPFromString("100.63.255.255", &addr);
+  EXPECT_FALSE(IPIsNotGloballyUnique(addr));
+  IPFromString("100.64.0.0", &addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(addr));
+  IPFromString("100.127.255.255", &addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(addr));
+  IPFromString("100.128.0.0", &addr);
+  EXPECT_FALSE(IPIsNotGloballyUnique(addr));
+  // 127.0.0.0/8 loopback RFC 1122
+  IPFromString("126.255.255.255", &addr);
+  EXPECT_FALSE(IPIsNotGloballyUnique(addr));
+  IPFromString("127.0.0.0", &addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(addr));
+  IPFromString("127.255.255.255", &addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(addr));
+  IPFromString("128.0.0.0", &addr);
+  EXPECT_FALSE(IPIsNotGloballyUnique(addr));
+  // 169.254.0.0/16 Link Local RFC 3927
+  IPFromString("169.253.255.255", &addr);
+  EXPECT_FALSE(IPIsNotGloballyUnique(addr));
+  IPFromString("169.254.0.0", &addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(addr));
+  IPFromString("169.254.255.255", &addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(addr));
+  IPFromString("169.255.0.0", &addr);
+  EXPECT_FALSE(IPIsNotGloballyUnique(addr));
+  // 172.16.0.0/12 Private Use RFC 1918
+  IPFromString("172.15.255.255", &addr);
+  EXPECT_FALSE(IPIsNotGloballyUnique(addr));
+  IPFromString("172.16.0.0", &addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(addr));
+  IPFromString("172.31.255.255", &addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(addr));
+  IPFromString("172.32.0.0", &addr);
+  EXPECT_FALSE(IPIsNotGloballyUnique(addr));
+  // 192.0.0.0/24 IETF Protocol Assignments including DS-Lite (192.0.0.0/29)
+  IPFromString("191.255.255.255", &addr);
+  EXPECT_FALSE(IPIsNotGloballyUnique(addr));
+  IPFromString("192.0.0.0", &addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(addr));
+  IPFromString("192.0.0.255", &addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(addr));
+  IPFromString("192.0.1.0", &addr);
+  EXPECT_FALSE(IPIsNotGloballyUnique(addr));
+  // 192.88.99.0/24 6to4
+  IPFromString("192.88.98.255", &addr);
+  EXPECT_FALSE(IPIsNotGloballyUnique(addr));
+  IPFromString("192.88.99.0", &addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(addr));
+  IPFromString("192.88.99.255", &addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(addr));
+  IPFromString("192.88.100.0", &addr);
+  EXPECT_FALSE(IPIsNotGloballyUnique(addr));
+  // 192.168.0.0/16 Private Use RFC 1918
+  IPFromString("192.167.255.255", &addr);
+  EXPECT_FALSE(IPIsNotGloballyUnique(addr));
+  IPFromString("192.168.0.0", &addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(addr));
+  IPFromString("192.168.255.255", &addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(addr));
+  IPFromString("192.169.0.0", &addr);
+  EXPECT_FALSE(IPIsNotGloballyUnique(addr));
+  // 224.0.0.0/4 Multicast
+  IPFromString("223.255.255.255", &addr);
+  EXPECT_FALSE(IPIsNotGloballyUnique(addr));
+  IPFromString("224.0.0.0", &addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(addr));
+  IPFromString("239.255.255.255", &addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(addr));
+  // 240.0.0.0/4 currently reserved "Class E"
+  IPFromString("240.0.0.0", &addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(addr));
+  IPFromString("255.255.255.255", &addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(addr));
+
+  // 64:ff9b::/96 NAT64
+  IPFromString("64:ff9b::", &addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(addr));
+  IPFromString("64:ff9b::ffff:ffff", &addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(addr));
+  // ietf assignments 2001::/23
+  IPFromString("2001::", &addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(addr));
+  IPFromString("2001:1ff:ffff:ffff:ffff:ffff:ffff:ffff", &addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(addr));
+  IPFromString("2001:200::", &addr);
+  EXPECT_FALSE(IPIsNotGloballyUnique(addr));
+  // 2002::/16 6to4 RFC 3056
+  IPFromString("2001:ffff:ffff:ffff:ffff:ffff:ffff:ffff", &addr);
+  EXPECT_FALSE(IPIsNotGloballyUnique(addr));
+  IPFromString("2002::", &addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(addr));
+  IPFromString("2002:ffff:ffff:ffff:ffff:ffff:ffff:ffff", &addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(addr));
+  IPFromString("2003::", &addr);
+  EXPECT_FALSE(IPIsNotGloballyUnique(addr));
+  // fc00::/7 Unique-Local RFC 8190
+  IPFromString("fc00::", &addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(addr));
+  IPFromString("fdff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", &addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(addr));
+  // fe80::/10 Link-Local Unicast RFC 4291
+  IPFromString("fe80::", &addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(addr));
+  IPFromString("febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff", &addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(addr));
+  // ff00::/8 multicast
+  IPFromString("ff00::", &addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(addr));
+  IPFromString("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", &addr);
+  EXPECT_TRUE(IPIsNotGloballyUnique(addr));
+}
+
 }  // namespace rtc
