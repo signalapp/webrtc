@@ -577,34 +577,51 @@ IPAddress GetAnyIP(int family) {
 
 // RingRTC change to prevent attempting relay connections to addresses that are not globally unique
 static const in6_addr ipv4ipv6TranslationPrefix = {{{0, 0x64, 0xFF, 0x9B}}}; // 64:ff9b::/96
+// ietf assignments 2001:/23; IPIsHelper only does byte level prefixes
+static const in6_addr ietfAssignmentsPrefix1 = {{{0x20, 0x01, 0}}}; // 2001::/24
+static const in6_addr ietfAssignmentsPrefix2 = {{{0x20, 0x01, 0x10}}}; // 2001:0100:/24
+
 static const in6_addr multicastPrefix = {{{0xFF}}}; // ff00::/8
 
 bool IPIsNotGloballyUnique(const IPAddress& ip) {
   if (ip.family() == AF_INET) {
-    if (IPIsPrivateNetworkV4(ip) || IPIsSharedNetworkV4(ip) || IPIsLoopbackV4(ip) || IPIsLinkLocalV4(ip)) {
+    if (IPIsPrivateNetworkV4(ip) || IPIsSharedNetworkV4(ip) || IPIsLoopbackV4(ip) ||
+        IPIsLinkLocalV4(ip)) {
       return true;
     }
     uint32_t ip_in_host_order = ip.v4AddressAsHostOrderInteger();
-    if ((ip_in_host_order >> 8) == ((192 << 16) | (0 << 8) | 0)) { // 192.0.0.0/24 IETF Protocol Assignments including DS-Lite (192.0.0.0/29)
+    // 192.0.0.0/24 IETF Protocol Assignments including DS-Lite (192.0.0.0/29)
+    if ((ip_in_host_order >> 8) == ((192 << 16) | (0 << 8) | 0)) {
       return true;
     }
-    if ((ip_in_host_order >> 8) == ((192 << 16) | (88 << 8) | 99)) { // 192.88.99.0/24 6to4
+    // 192.88.99.0/24 6to4
+    if ((ip_in_host_order >> 8) == ((192 << 16) | (88 << 8) | 99)) {
       return true;
     }
-    if ((ip_in_host_order >> 24) & 0xF0 == 0xE0) { // 224.0.0.0/4 Multicast
+    // 224.0.0.0/4 Multicast
+    if ((ip_in_host_order >> 24) & 0xF0 == 0xE0) {
       return true;
     }
-    if ((ip_in_host_order >> 24) >= 240) { // 240.0.0.0/4 currently reserved "Class E"
+    // 240.0.0.0/4 currently reserved "Class E"
+    if ((ip_in_host_order >> 24) >= 240) {
       return true;
     }
   } else if (ip.family() == AF_INET6) {
-    if (IPIsLoopbackV6(ip) || IPIsV4Mapped(ip) || IPIsV4Compatibility(ip) || IPIs6To4(ip) || IPIsLinkLocalV6(ip) || IPIsSiteLocal(ip) || IPIsULA(ip)) {
+    if (IPIsLoopbackV6(ip) || IPIsV4Mapped(ip) || IPIsV4Compatibility(ip) ||
+        IPIs6To4(ip) || IPIsLinkLocalV6(ip) || IPIsSiteLocal(ip) ||
+        IPIsULA(ip) || IPIs6Bone(ip)) {
       return true;
     }
     if (IPIsHelper(ip, ipv4ipv6TranslationPrefix, 96)) {
       return true;
     }
     if (IPIsHelper(ip, multicastPrefix, 8)) {
+      return true;
+    }
+    if (IPIsHelper(ip, ietfAssignmentsPrefix1, 24)) {
+      return true;
+    }
+    if (IPIsHelper(ip, ietfAssignmentsPrefix2, 24)) {
       return true;
     }
   } else {
