@@ -599,7 +599,7 @@ bool IPIsNotGloballyUnique(const IPAddress& ip) {
       return true;
     }
     // 224.0.0.0/4 Multicast
-    if ((ip_in_host_order >> 24) & 0xF0 == 0xE0) {
+    if (((ip_in_host_order >> 24) & 0xF0) == 0xE0) {
       return true;
     }
     // 240.0.0.0/4 currently reserved "Class E"
