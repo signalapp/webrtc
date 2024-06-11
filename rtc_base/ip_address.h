@@ -190,9 +190,6 @@ bool IPIsV4Mapped(const IPAddress& ip);
 // Returns the precedence value for this IP as given in RFC3484.
 int IPAddressPrecedence(const IPAddress& ip);
 
-// RingRTC change to prevent attempting relay connections to addresses that are not globally unique
-RTC_EXPORT bool IPIsNotGloballyUnique(const IPAddress& ip);
-
 // Returns 'ip' truncated to be 'length' bits long.
 RTC_EXPORT IPAddress TruncateIP(const IPAddress& ip, int length);
 
