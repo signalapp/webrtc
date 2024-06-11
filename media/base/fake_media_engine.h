@@ -484,6 +484,14 @@ class FakeVoiceMediaReceiveChannel
   absl::optional<int> GetBaseMinimumPlayoutDelayMs(
       uint32_t ssrc) const override;
 
+  // RingRTC change to disable CNG for muted incoming streams.
+  void SetIncomingAudioMuted(uint32_t ssrc, bool muted) override {}
+
+  // RingRTC change to get audio levels
+  absl::optional<cricket::ReceivedAudioLevel> GetReceivedAudioLevel() override {
+    return absl::nullopt;
+  }
+
   bool GetStats(VoiceMediaReceiveInfo* info,
                 bool get_and_clear_legacy_stats) override;
 
@@ -577,6 +585,12 @@ class FakeVoiceMediaSendChannel
   void SetSendCodecChangedCallback(
       absl::AnyInvocable<void()> callback) override {}
   absl::optional<Codec> GetSendCodec() const override;
+
+  // RingRTC change to configure opus
+  void ConfigureEncoders(const webrtc::AudioEncoder::Config& config) override {}
+
+  // RingRTC change to get audio levels
+  void GetCapturedAudioLevel(cricket::AudioLevel* captured_out) override {}
 
   bool GetStats(VoiceMediaSendInfo* stats) override;
 

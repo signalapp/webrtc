@@ -63,6 +63,13 @@ class MockVoiceMediaReceiveChannelInterface
               SetDefaultRawAudioSink,
               (std::unique_ptr<webrtc::AudioSinkInterface> sink),
               (override));
+  // RingRTC change to disable CNG for muted incoming streams.
+  MOCK_METHOD(void, SetIncomingAudioMuted, (uint32_t, bool), (override));
+  // RingRTC change to get audio levels
+  MOCK_METHOD(absl::optional<cricket::ReceivedAudioLevel>,
+              GetReceivedAudioLevel,
+              (),
+              (override));
   MOCK_METHOD(bool,
               GetStats,
               (VoiceMediaReceiveInfo * stats, bool reset_legacy),

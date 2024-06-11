@@ -19,15 +19,19 @@
 #include "api/stats/rtcstats_objects.h"
 #include "api/task_queue/default_task_queue_factory.h"
 #include "api/video_codecs/video_decoder_factory_template.h"
-#include "api/video_codecs/video_decoder_factory_template_dav1d_adapter.h"
+// RingRTC change to exclude av1 and h264 factories
+// #include "api/video_codecs/video_decoder_factory_template_dav1d_adapter.h"
 #include "api/video_codecs/video_decoder_factory_template_libvpx_vp8_adapter.h"
 #include "api/video_codecs/video_decoder_factory_template_libvpx_vp9_adapter.h"
-#include "api/video_codecs/video_decoder_factory_template_open_h264_adapter.h"
+// RingRTC change to exclude av1 and h264 factories
+// #include "api/video_codecs/video_decoder_factory_template_open_h264_adapter.h"
 #include "api/video_codecs/video_encoder_factory_template.h"
-#include "api/video_codecs/video_encoder_factory_template_libaom_av1_adapter.h"
+// RingRTC change to exclude av1 and h264 factories
+// #include "api/video_codecs/video_encoder_factory_template_libaom_av1_adapter.h"
 #include "api/video_codecs/video_encoder_factory_template_libvpx_vp8_adapter.h"
 #include "api/video_codecs/video_encoder_factory_template_libvpx_vp9_adapter.h"
-#include "api/video_codecs/video_encoder_factory_template_open_h264_adapter.h"
+// RingRTC change to exclude av1 and h264 factories
+// #include "api/video_codecs/video_encoder_factory_template_open_h264_adapter.h"
 #include "modules/audio_device/include/audio_device.h"
 #include "modules/audio_processing/include/audio_processing.h"
 
@@ -40,14 +44,28 @@ void CreateSomeMediaDeps(PeerConnectionFactoryDependencies& media_deps) {
       webrtc::CreateAudioEncoderFactory<webrtc::AudioEncoderOpus>();
   media_deps.audio_decoder_factory =
       webrtc::CreateAudioDecoderFactory<webrtc::AudioDecoderOpus>();
+  // RingRTC change to exclude av1 and h264 factories
   media_deps.video_encoder_factory =
       std::make_unique<VideoEncoderFactoryTemplate<
-          LibvpxVp8EncoderTemplateAdapter, LibvpxVp9EncoderTemplateAdapter,
-          OpenH264EncoderTemplateAdapter, LibaomAv1EncoderTemplateAdapter>>();
+          LibvpxVp8EncoderTemplateAdapter,
+#if defined(WEBRTC_USE_H264)
+          webrtc::OpenH264EncoderTemplateAdapter,
+#endif
+#if defined(RTC_USE_LIBAOM_AV1_ENCODER)
+          webrtc::LibaomAv1EncoderTemplateAdapter,
+#endif
+          webrtc::LibvpxVp9EncoderTemplateAdapter>>();
+  // RingRTC change to exclude av1 and h264 factories
   media_deps.video_decoder_factory =
       std::make_unique<VideoDecoderFactoryTemplate<
-          LibvpxVp8DecoderTemplateAdapter, LibvpxVp9DecoderTemplateAdapter,
-          OpenH264DecoderTemplateAdapter, Dav1dDecoderTemplateAdapter>>();
+          LibvpxVp8DecoderTemplateAdapter,
+#if defined(WEBRTC_USE_H264)
+          OpenH264DecoderTemplateAdapter,
+#endif
+#if defined(RTC_DAV1D_IN_INTERNAL_DECODER_FACTORY)
+          Dav1dDecoderTemplateAdapter,
+#endif
+          LibvpxVp9DecoderTemplateAdapter>>();
   media_deps.audio_processing = webrtc::AudioProcessingBuilder().Create();
 }
 

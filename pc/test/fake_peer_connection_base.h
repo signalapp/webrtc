@@ -216,6 +216,9 @@ class FakePeerConnectionBase : public PeerConnectionInternal {
     return false;
   }
 
+  // RingRTC change to get upload bandwidth estimate
+  uint32_t GetLastBandwidthEstimateBps() { return 0; }
+
   RTCError SetBitrate(const BitrateSettings& bitrate) override {
     return RTCError(RTCErrorType::UNSUPPORTED_OPERATION, "Not implemented");
   }

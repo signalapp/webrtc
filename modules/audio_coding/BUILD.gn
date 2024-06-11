@@ -123,6 +123,10 @@ rtc_library("red") {
     "../../api:array_view",
     "../../api:field_trials_view",
     "../../api/audio_codecs:audio_codecs_api",
+    # RingRTC: This creates an Opus Config.
+    # TODO: Remove libred dependency on opus: This target uses audio_encoder_opus,
+    # but that is "poisoned" to prevent dependencies in audio_coding.
+    "../../api/audio_codecs/opus:audio_encoder_opus_config",
     "../../api/units:time_delta",
     "../../common_audio",
     "../../rtc_base:buffer",
@@ -992,6 +996,11 @@ if (rtc_include_tests) {
   }
   if (!build_with_mozilla && !build_with_chromium) {
     audio_coding_deps += [ ":red" ]
+    # RingRTC: `:red` depends on this but cannot directly declare that.
+    audio_coding_deps += [
+      "../../api/audio_codecs/opus:audio_decoder_opus",
+      "../../api/audio_codecs/opus:audio_encoder_opus",
+    ]
   }
 
   rtc_source_set("mocks") {
