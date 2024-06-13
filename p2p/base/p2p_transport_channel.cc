@@ -1277,6 +1277,7 @@ void P2PTransportChannel::OnRoleConflict(PortInterface* port) {
                              // from Transport.
 }
 
+// RingRTC change to add ICE forking
 void P2PTransportChannel::OnRoleConflictIgnored(PortInterface* port) {
   RTC_LOG(LS_ERROR) << "Ignored conflict. This is bad.";
 }

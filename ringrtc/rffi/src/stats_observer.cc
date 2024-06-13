@@ -40,23 +40,23 @@ void StatsObserverRffi::OnStatsDelivered(const rtc::scoped_refptr<const RTCStats
     if (*stat->kind == "audio" && (*stat->mid == "audio" || absl::StartsWith(*stat->mid, "local-audio"))) {
       AudioSenderStatistics audio_sender = {0};
 
-      audio_sender.ssrc = stat->ssrc.ValueOrDefault(0);
-      audio_sender.packets_sent = stat->packets_sent.ValueOrDefault(0);
-      audio_sender.bytes_sent = stat->bytes_sent.ValueOrDefault(0);
+      audio_sender.ssrc = stat->ssrc.value_or(0);
+      audio_sender.packets_sent = stat->packets_sent.value_or(0);
+      audio_sender.bytes_sent = stat->bytes_sent.value_or(0);
 
       if (stat->remote_id.has_value()) {
         auto remote_stat = report->GetAs<RTCRemoteInboundRtpStreamStats>(*stat->remote_id);
         if (remote_stat) {
-          audio_sender.remote_packets_lost = remote_stat->packets_lost.ValueOrDefault(0);
-          audio_sender.remote_jitter = remote_stat->jitter.ValueOrDefault(0.0);
-          audio_sender.remote_round_trip_time = remote_stat->round_trip_time.ValueOrDefault(0.0);
+          audio_sender.remote_packets_lost = remote_stat->packets_lost.value_or(0);
+          audio_sender.remote_jitter = remote_stat->jitter.value_or(0.0);
+          audio_sender.remote_round_trip_time = remote_stat->round_trip_time.value_or(0.0);
         }
       }
 
       if (stat->media_source_id.has_value()) {
         auto audio_source_stat = report->GetAs<RTCAudioSourceStats>(*stat->media_source_id);
         if (audio_source_stat) {
-          audio_sender.total_audio_energy = audio_source_stat->total_audio_energy.ValueOrDefault(0.0);
+          audio_sender.total_audio_energy = audio_source_stat->total_audio_energy.value_or(0.0);
         }
       }
 
@@ -64,19 +64,19 @@ void StatsObserverRffi::OnStatsDelivered(const rtc::scoped_refptr<const RTCStats
     } else if (*stat->kind == "video" && (*stat->mid == "video" || absl::StartsWith(*stat->mid, "local-video"))) {
       VideoSenderStatistics video_sender = {0};
 
-      video_sender.ssrc = stat->ssrc.ValueOrDefault(0);
-      video_sender.packets_sent = stat->packets_sent.ValueOrDefault(0);
-      video_sender.bytes_sent = stat->bytes_sent.ValueOrDefault(0);
-      video_sender.frames_encoded = stat->frames_encoded.ValueOrDefault(0);
-      video_sender.key_frames_encoded = stat->key_frames_encoded.ValueOrDefault(0);
-      video_sender.total_encode_time = stat->total_encode_time.ValueOrDefault(0.0);
-      video_sender.frame_width = stat->frame_width.ValueOrDefault(0);
-      video_sender.frame_height = stat->frame_height.ValueOrDefault(0);
-      video_sender.retransmitted_packets_sent = stat->retransmitted_packets_sent.ValueOrDefault(0);
-      video_sender.retransmitted_bytes_sent = stat->retransmitted_bytes_sent.ValueOrDefault(0);
-      video_sender.total_packet_send_delay = stat->total_packet_send_delay.ValueOrDefault(0.0);
-      video_sender.nack_count = stat->nack_count.ValueOrDefault(0);
-      video_sender.pli_count = stat->pli_count.ValueOrDefault(0);
+      video_sender.ssrc = stat->ssrc.value_or(0);
+      video_sender.packets_sent = stat->packets_sent.value_or(0);
+      video_sender.bytes_sent = stat->bytes_sent.value_or(0);
+      video_sender.frames_encoded = stat->frames_encoded.value_or(0);
+      video_sender.key_frames_encoded = stat->key_frames_encoded.value_or(0);
+      video_sender.total_encode_time = stat->total_encode_time.value_or(0.0);
+      video_sender.frame_width = stat->frame_width.value_or(0);
+      video_sender.frame_height = stat->frame_height.value_or(0);
+      video_sender.retransmitted_packets_sent = stat->retransmitted_packets_sent.value_or(0);
+      video_sender.retransmitted_bytes_sent = stat->retransmitted_bytes_sent.value_or(0);
+      video_sender.total_packet_send_delay = stat->total_packet_send_delay.value_or(0.0);
+      video_sender.nack_count = stat->nack_count.value_or(0);
+      video_sender.pli_count = stat->pli_count.value_or(0);
       if (stat->quality_limitation_reason.has_value()) {
         // "none" = 0 (the default)
         if (*stat->quality_limitation_reason == "cpu") {
@@ -87,14 +87,14 @@ void StatsObserverRffi::OnStatsDelivered(const rtc::scoped_refptr<const RTCStats
           video_sender.quality_limitation_reason = 3;
         }
       }
-      video_sender.quality_limitation_resolution_changes = stat->quality_limitation_resolution_changes.ValueOrDefault(0);
+      video_sender.quality_limitation_resolution_changes = stat->quality_limitation_resolution_changes.value_or(0);
 
       if (stat->remote_id.has_value()) {
         auto remote_stat = report->GetAs<RTCRemoteInboundRtpStreamStats>(*stat->remote_id);
         if (remote_stat) {
-          video_sender.remote_packets_lost = remote_stat->packets_lost.ValueOrDefault(0);
-          video_sender.remote_jitter = remote_stat->jitter.ValueOrDefault(0.0);
-          video_sender.remote_round_trip_time = remote_stat->round_trip_time.ValueOrDefault(0.0);
+          video_sender.remote_packets_lost = remote_stat->packets_lost.value_or(0);
+          video_sender.remote_jitter = remote_stat->jitter.value_or(0.0);
+          video_sender.remote_round_trip_time = remote_stat->round_trip_time.value_or(0.0);
         }
       }
 
@@ -106,28 +106,28 @@ void StatsObserverRffi::OnStatsDelivered(const rtc::scoped_refptr<const RTCStats
     if (*stat->kind == "audio" && (*stat->mid == "audio" || absl::StartsWith(*stat->mid, "remote-audio"))) {
       AudioReceiverStatistics audio_receiver = {0};
 
-      audio_receiver.ssrc = stat->ssrc.ValueOrDefault(0);
-      audio_receiver.packets_received = stat->packets_received.ValueOrDefault(0);
-      audio_receiver.packets_lost = stat->packets_lost.ValueOrDefault(0);
-      audio_receiver.bytes_received = stat->bytes_received.ValueOrDefault(0);
-      audio_receiver.jitter = stat->jitter.ValueOrDefault(0.0);
-      audio_receiver.total_audio_energy = stat->total_audio_energy.ValueOrDefault(0.0);
-      audio_receiver.jitter_buffer_delay = stat->jitter_buffer_delay.ValueOrDefault(0.0);
-      audio_receiver.jitter_buffer_emitted_count = stat->jitter_buffer_emitted_count.ValueOrDefault(0);
+      audio_receiver.ssrc = stat->ssrc.value_or(0);
+      audio_receiver.packets_received = stat->packets_received.value_or(0);
+      audio_receiver.packets_lost = stat->packets_lost.value_or(0);
+      audio_receiver.bytes_received = stat->bytes_received.value_or(0);
+      audio_receiver.jitter = stat->jitter.value_or(0.0);
+      audio_receiver.total_audio_energy = stat->total_audio_energy.value_or(0.0);
+      audio_receiver.jitter_buffer_delay = stat->jitter_buffer_delay.value_or(0.0);
+      audio_receiver.jitter_buffer_emitted_count = stat->jitter_buffer_emitted_count.value_or(0);
 
       this->audio_receiver_statistics_.push_back(audio_receiver);
     } else if (*stat->kind == "video" && (*stat->mid == "video" || absl::StartsWith(*stat->mid, "remote-video"))) {
       VideoReceiverStatistics video_receiver = {0};
 
-      video_receiver.ssrc = stat->ssrc.ValueOrDefault(0);
-      video_receiver.packets_received = stat->packets_received.ValueOrDefault(0);
-      video_receiver.packets_lost = stat->packets_lost.ValueOrDefault(0);
-      video_receiver.bytes_received = stat->bytes_received.ValueOrDefault(0);
-      video_receiver.frames_decoded = stat->frames_decoded.ValueOrDefault(0);
-      video_receiver.key_frames_decoded = stat->key_frames_decoded.ValueOrDefault(0);
-      video_receiver.total_decode_time = stat->total_decode_time.ValueOrDefault(0.0);
-      video_receiver.frame_width = stat->frame_width.ValueOrDefault(0);
-      video_receiver.frame_height = stat->frame_height.ValueOrDefault(0);
+      video_receiver.ssrc = stat->ssrc.value_or(0);
+      video_receiver.packets_received = stat->packets_received.value_or(0);
+      video_receiver.packets_lost = stat->packets_lost.value_or(0);
+      video_receiver.bytes_received = stat->bytes_received.value_or(0);
+      video_receiver.frames_decoded = stat->frames_decoded.value_or(0);
+      video_receiver.key_frames_decoded = stat->key_frames_decoded.value_or(0);
+      video_receiver.total_decode_time = stat->total_decode_time.value_or(0.0);
+      video_receiver.frame_width = stat->frame_width.value_or(0);
+      video_receiver.frame_height = stat->frame_height.value_or(0);
 
       this->video_receiver_statistics_.push_back(video_receiver);
     }
@@ -139,11 +139,11 @@ void StatsObserverRffi::OnStatsDelivered(const rtc::scoped_refptr<const RTCStats
   for (const auto& stat : candidate_pair_stats) {
     // We'll only look at the pair that is nominated with the highest priority, usually
     // that has useful values (there does not seem to be a 'in_use' type of flag).
-    uint64_t current_priority = stat->priority.ValueOrDefault(0);
-    if (*stat->nominated && stat->priority.ValueOrDefault(0) > highest_priority) {
+    uint64_t current_priority = stat->priority.value_or(0);
+    if (*stat->nominated && stat->priority.value_or(0) > highest_priority) {
       highest_priority = current_priority;
-      connection_statistics.current_round_trip_time = stat->current_round_trip_time.ValueOrDefault(0.0);
-      connection_statistics.available_outgoing_bitrate = stat->available_outgoing_bitrate.ValueOrDefault(0.0);
+      connection_statistics.current_round_trip_time = stat->current_round_trip_time.value_or(0.0);
+      connection_statistics.available_outgoing_bitrate = stat->available_outgoing_bitrate.value_or(0.0);
     }
   }
 

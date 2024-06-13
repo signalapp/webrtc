@@ -67,6 +67,8 @@ rtc_library("rtc_p2p") {
     ":ice_controller_factory_interface",
     ":ice_controller_interface",
     ":ice_credentials_iterator",
+    # RingRTC change to add ICE forking
+    ":ice_gatherer",
     ":ice_switch_reason",
     ":ice_transport_internal",
     ":p2p_constants",
@@ -502,6 +504,14 @@ rtc_library("ice_credentials_iterator") {
     ":p2p_constants",
     ":transport_description",
     "../rtc_base:ssl",
+  ]
+}
+
+# RingRTC change to add ICE forking
+rtc_library("ice_gatherer") {
+  sources = [
+    "base/ice_gatherer.cc",
+    "base/ice_gatherer.h",
   ]
 }
 

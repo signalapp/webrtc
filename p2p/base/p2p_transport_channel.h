@@ -359,6 +359,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
   // Returns true if the port is found and removed from `ports_`.
   bool PrunePort(PortInterface* port);
   void OnRoleConflict(PortInterface* port);
+  // RingRTC change to add ICE forking
   void OnRoleConflictIgnored(PortInterface* port);
 
   void OnConnectionStateChange(Connection* connection);
