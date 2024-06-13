@@ -971,17 +971,6 @@ void NegotiateRtpHeaderExtensions(const RtpHeaderExtensions& local_extensions,
                                   const RtpHeaderExtensions& offered_extensions,
                                   webrtc::RtpExtension::Filter filter,
                                   RtpHeaderExtensions* negotiated_extensions) {
-  // TransportSequenceNumberV2 is not offered by default. The special logic for
-  // the TransportSequenceNumber extensions works as follows:
-  // Offer       Answer
-  // V1          V1 if in local_extensions.
-  // V1 and V2   V2 regardless of local_extensions.
-  // V2          V2 regardless of local_extensions.
-  const webrtc::RtpExtension* transport_sequence_number_v2_offer =
-      FindHeaderExtensionByUriDiscardUnsupported(
-          offered_extensions,
-          webrtc::RtpExtension::kTransportSequenceNumberV2Uri, filter);
-
   bool frame_descriptor_in_local = false;
   bool dependency_descriptor_in_local = false;
   bool abs_capture_time_in_local = false;
@@ -993,27 +982,14 @@ void NegotiateRtpHeaderExtensions(const RtpHeaderExtensions& local_extensions,
       dependency_descriptor_in_local = true;
     else if (ours.uri == webrtc::RtpExtension::kAbsoluteCaptureTimeUri)
       abs_capture_time_in_local = true;
+
     const webrtc::RtpExtension* theirs =
         FindHeaderExtensionByUriDiscardUnsupported(offered_extensions, ours.uri,
                                                    filter);
     if (theirs) {
-      if (transport_sequence_number_v2_offer &&
-          ours.uri == webrtc::RtpExtension::kTransportSequenceNumberUri) {
-        // Don't respond to
-        // http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01
-        // if we get an offer including
-        // http://www.webrtc.org/experiments/rtp-hdrext/transport-wide-cc-02
-        continue;
-      } else {
-        // We respond with their RTP header extension id.
-        negotiated_extensions->push_back(*theirs);
-      }
+      // We respond with their RTP header extension id.
+      negotiated_extensions->push_back(*theirs);
     }
-  }
-
-  if (transport_sequence_number_v2_offer) {
-    // Respond that we support kTransportSequenceNumberV2Uri.
-    negotiated_extensions->push_back(*transport_sequence_number_v2_offer);
   }
 
   // Frame descriptors support. If the extension is not present locally, but is
@@ -2302,7 +2278,7 @@ RTCError MediaSessionDescriptionFactory::AddDataContentForAnswer(
   std::unique_ptr<TransportDescription> data_transport = CreateTransportAnswer(
       media_description_options.mid, offer_description,
       media_description_options.transport_options, current_description,
-      bundle_transport != nullptr, ice_credentials);
+      !offer_content->rejected && bundle_transport == nullptr, ice_credentials);
   if (!data_transport) {
     LOG_AND_RETURN_ERROR(
         RTCErrorType::INTERNAL_ERROR,
@@ -2374,10 +2350,11 @@ RTCError MediaSessionDescriptionFactory::AddUnsupportedContentForAnswer(
     SessionDescription* answer,
     IceCredentialsIterator* ice_credentials) const {
   std::unique_ptr<TransportDescription> unsupported_transport =
-      CreateTransportAnswer(media_description_options.mid, offer_description,
-                            media_description_options.transport_options,
-                            current_description, bundle_transport != nullptr,
-                            ice_credentials);
+      CreateTransportAnswer(
+          media_description_options.mid, offer_description,
+          media_description_options.transport_options, current_description,
+          !offer_content->rejected && bundle_transport == nullptr,
+          ice_credentials);
   if (!unsupported_transport) {
     LOG_AND_RETURN_ERROR(
         RTCErrorType::INTERNAL_ERROR,

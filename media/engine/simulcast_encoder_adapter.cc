@@ -32,6 +32,8 @@
 #include "media/base/media_constants.h"
 #include "media/base/sdp_video_format_utils.h"
 #include "media/base/video_common.h"
+#include "modules/video_coding/include/video_error_codes.h"
+#include "modules/video_coding/include/video_error_codes_utils.h"
 #include "modules/video_coding/utility/simulcast_rate_allocator.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/experiments/rate_control_settings.h"
@@ -366,8 +368,14 @@ int SimulcastEncoderAdapter::InitEncode(
       active_streams_count == 1 || per_layer_pli_ ||
       // RingRTC change to enable per-layer PLI for screen sharing
       codec_.mode == VideoCodecMode::kScreensharing;
+  RTC_LOG(LS_INFO) << "[SEA] InitEncode: total_streams_count: "
+                   << total_streams_count_
+                   << ", active_streams_count: " << active_streams_count
+                   << ", separate_encoders_needed: "
+                   << (separate_encoders_needed ? "true" : "false");
   // Singlecast or simulcast with simulcast-capable underlaying encoder.
   if (total_streams_count_ == 1 || !separate_encoders_needed) {
+    RTC_LOG(LS_INFO) << "[SEA] InitEncode: Single-encoder mode";
     int ret = encoder_context->encoder().InitEncode(&codec_, settings);
     if (ret >= 0) {
       stream_contexts_.emplace_back(
@@ -383,7 +391,8 @@ int SimulcastEncoderAdapter::InitEncode(
 
     encoder_context->Release();
     if (total_streams_count_ == 1) {
-      // Failed to initialize singlecast encoder.
+      RTC_LOG(LS_ERROR) << "[SEA] InitEncode: failed with error code: "
+                        << WebRtcVideoCodecErrorToString(ret);
       return ret;
     }
   }
@@ -411,10 +420,16 @@ int SimulcastEncoderAdapter::InitEncode(
         /*is_lowest_quality_stream=*/stream_idx == lowest_quality_stream_idx,
         /*is_highest_quality_stream=*/stream_idx == highest_quality_stream_idx);
 
+    RTC_LOG(LS_INFO) << "[SEA] Multi-encoder mode: initializing stream: "
+                     << stream_idx << ", active: "
+                     << (codec_.simulcastStream[stream_idx].active ? "true"
+                                                                   : "false");
     int ret = encoder_context->encoder().InitEncode(&stream_codec, settings);
     if (ret < 0) {
       encoder_context.reset();
       Release();
+      RTC_LOG(LS_ERROR) << "[SEA] InitEncode: failed with error code: "
+                        << WebRtcVideoCodecErrorToString(ret);
       return ret;
     }
 

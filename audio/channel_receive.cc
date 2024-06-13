@@ -579,13 +579,8 @@ ChannelReceive::ChannelReceive(
 
   network_thread_checker_.Detach();
 
-  acm_receiver_.ResetInitialDelay();
-  acm_receiver_.SetMinimumDelay(0);
   // RingRTC change to configure the jitter buffer's max target delay.
   acm_receiver_.SetMaximumDelay(jitter_buffer_max_target_delay_ms);
-  acm_receiver_.FlushBuffers();
-
-  _outputAudioLevel.ResetLevelFullRange();
 
   rtp_receive_statistics_->EnableRetransmitDetection(remote_ssrc_, true);
   RtpRtcpInterface::Configuration configuration;
