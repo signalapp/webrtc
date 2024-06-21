@@ -1120,7 +1120,7 @@ bool ParseCandidate(absl::string_view message,
       return ParseFailed(first_line, "Unsupported transport type.", error);
   }
 
-  std::string candidate_type;
+  absl::string_view candidate_type;
   const absl::string_view type = fields[7];
   if (type == kCandidateHost) {
     candidate_type = cricket::LOCAL_PORT_TYPE;
@@ -2341,6 +2341,7 @@ static bool ParseMsidAttribute(absl::string_view line,
   // Note that JSEP stipulates not sending msid-appdata so
   // a=msid:<stream id> <track id>
   // is supported for backward compability reasons only.
+  // RFC 8830 section 2 states that duplicate a=msid:stream track is illegal.
   std::vector<std::string> fields;
   size_t num_fields = rtc::tokenize(line.substr(kLinePrefixLength),
                                     kSdpDelimiterSpaceChar, &fields);
@@ -2597,6 +2598,25 @@ static void BackfillCodecParameters(std::vector<cricket::Codec>& codecs) {
       if (!codec.GetParam(cricket::kH264FmtpPacketizationMode, &unused_value)) {
         codec.SetParam(cricket::kH264FmtpPacketizationMode, "0");
       }
+    } else if (absl::EqualsIgnoreCase(cricket::kAv1CodecName, codec.name)) {
+      // https://aomediacodec.github.io/av1-rtp-spec/#72-sdp-parameters
+      if (!codec.GetParam(cricket::kAv1FmtpProfile, &unused_value)) {
+        codec.SetParam(cricket::kAv1FmtpProfile, "0");
+      }
+      if (!codec.GetParam(cricket::kAv1FmtpLevelIdx, &unused_value)) {
+        codec.SetParam(cricket::kAv1FmtpLevelIdx, "5");
+      }
+      if (!codec.GetParam(cricket::kAv1FmtpTier, &unused_value)) {
+        codec.SetParam(cricket::kAv1FmtpTier, "0");
+      }
+    } else if (absl::EqualsIgnoreCase(cricket::kH265CodecName, codec.name)) {
+      // https://datatracker.ietf.org/doc/html/draft-aboba-avtcore-hevc-webrtc
+      if (!codec.GetParam(cricket::kH265FmtpLevelId, &unused_value)) {
+        codec.SetParam(cricket::kH265FmtpLevelId, "93");
+      }
+      if (!codec.GetParam(cricket::kH265FmtpTxMode, &unused_value)) {
+        codec.SetParam(cricket::kH265FmtpTxMode, "SRST");
+      }
     }
   }
 }
@@ -2649,6 +2669,21 @@ static std::unique_ptr<MediaContentDescription> ParseContentDescription(
 
   media_desc->set_codecs(codecs);
   return media_desc;
+}
+
+bool HasDuplicateMsidLines(cricket::SessionDescription* desc) {
+  std::set<std::pair<std::string, std::string>> seen_msids;
+  for (const cricket::ContentInfo& content : desc->contents()) {
+    for (const cricket::StreamParams& stream :
+         content.media_description()->streams()) {
+      auto msid = std::pair(stream.first_stream_id(), stream.id);
+      if (seen_msids.find(msid) != seen_msids.end()) {
+        return true;
+      }
+      seen_msids.insert(std::move(msid));
+    }
+  }
+  return false;
 }
 
 bool ParseMediaDescription(
@@ -2832,6 +2867,11 @@ bool ParseMediaDescription(
                      content_rejected, bundle_only, std::move(content));
     // Create TransportInfo with the media level "ice-pwd" and "ice-ufrag".
     desc->AddTransportInfo(TransportInfo(content_name, transport));
+  }
+  // Apply whole-description sanity checks
+  if (HasDuplicateMsidLines(desc)) {
+    ParseFailed(message, *pos, "Duplicate a=msid lines detected", error);
+    return false;
   }
 
   desc->set_msid_signaling(msid_signaling);

@@ -79,8 +79,6 @@ class RtcEventLog;
 
 namespace cricket {
 
-static const int MIN_PINGS_AT_WEAK_PING_INTERVAL = 3;
-
 bool IceCredentialsChanged(absl::string_view old_ufrag,
                            absl::string_view old_pwd,
                            absl::string_view new_ufrag,
@@ -361,6 +359,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
   // Returns true if the port is found and removed from `ports_`.
   bool PrunePort(PortInterface* port);
   void OnRoleConflict(PortInterface* port);
+  // RingRTC change to add ICE forking
   void OnRoleConflictIgnored(PortInterface* port);
 
   void OnConnectionStateChange(Connection* connection);
@@ -406,7 +405,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
   }
 
   // Indicates if the given local port has been pruned.
-  bool IsPortPruned(const Port* port) const;
+  bool IsPortPruned(const PortInterface* port) const;
 
   // Indicates if the given remote candidate has been pruned.
   bool IsRemoteCandidatePruned(const Candidate& cand) const;
@@ -477,7 +476,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
       RTC_GUARDED_BY(network_thread_);
   IceMode remote_ice_mode_ RTC_GUARDED_BY(network_thread_);
   IceRole ice_role_ RTC_GUARDED_BY(network_thread_);
-  uint64_t tiebreaker_ RTC_GUARDED_BY(network_thread_);
+  uint64_t ice_tiebreaker_ RTC_GUARDED_BY(network_thread_);
   IceGatheringState gathering_state_ RTC_GUARDED_BY(network_thread_);
   std::unique_ptr<webrtc::BasicRegatheringController> regathering_controller_
       RTC_GUARDED_BY(network_thread_);

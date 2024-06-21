@@ -72,7 +72,9 @@ acm2::AcmReceiver::Config AcmConfig(
     absl::optional<AudioCodecPairId> codec_pair_id,
     size_t jitter_buffer_max_packets,
     bool jitter_buffer_fast_playout,
-    int jitter_buffer_min_delay_ms) {
+    int jitter_buffer_min_delay_ms,
+    // RingRTC change to configure the jitter buffer's max target delay.
+    int jitter_buffer_max_target_delay_ms) {
   acm2::AcmReceiver::Config acm_config;
   acm_config.neteq_factory = neteq_factory;
   acm_config.decoder_factory = decoder_factory;
@@ -81,6 +83,8 @@ acm2::AcmReceiver::Config AcmConfig(
   acm_config.neteq_config.enable_fast_accelerate = jitter_buffer_fast_playout;
   acm_config.neteq_config.enable_muted_state = true;
   acm_config.neteq_config.min_delay_ms = jitter_buffer_min_delay_ms;
+  // RingRTC change to configure the jitter buffer's max target delay.
+  acm_config.neteq_config.max_delay_ms = jitter_buffer_max_target_delay_ms;
 
   return acm_config;
 }
@@ -561,7 +565,9 @@ ChannelReceive::ChannelReceive(
                               codec_pair_id,
                               jitter_buffer_max_packets,
                               jitter_buffer_fast_playout,
-                              jitter_buffer_min_delay_ms)),
+                              jitter_buffer_min_delay_ms,
+                              // RingRTC change to configure the jitter buffer's max target delay.
+                              jitter_buffer_max_target_delay_ms)),
       _outputAudioLevel(),
       clock_(clock),
       ntp_estimator_(clock),
@@ -578,14 +584,6 @@ ChannelReceive::ChannelReceive(
   RTC_DCHECK(audio_device_module);
 
   network_thread_checker_.Detach();
-
-  acm_receiver_.ResetInitialDelay();
-  acm_receiver_.SetMinimumDelay(0);
-  // RingRTC change to configure the jitter buffer's max target delay.
-  acm_receiver_.SetMaximumDelay(jitter_buffer_max_target_delay_ms);
-  acm_receiver_.FlushBuffers();
-
-  _outputAudioLevel.ResetLevelFullRange();
 
   rtp_receive_statistics_->EnableRetransmitDetection(remote_ssrc_, true);
   RtpRtcpInterface::Configuration configuration;

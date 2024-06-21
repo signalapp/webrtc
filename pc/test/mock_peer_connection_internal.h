@@ -172,6 +172,10 @@ class MockPeerConnectionInternal : public PeerConnectionInternal {
   // RingRTC change to get unit tests building.
   MOCK_METHOD(uint32_t, GetLastBandwidthEstimateBps, (), (override));
   MOCK_METHOD(RTCError, SetBitrate, (const BitrateSettings&), (override));
+  MOCK_METHOD(void,
+              ReconfigureBandwidthEstimation,
+              (const BandwidthEstimationSettings&),
+              (override));
   MOCK_METHOD(void, SetAudioPlayout, (bool), (override));
   MOCK_METHOD(void, SetAudioRecording, (bool), (override));
   MOCK_METHOD(rtc::scoped_refptr<DtlsTransportInterface>,

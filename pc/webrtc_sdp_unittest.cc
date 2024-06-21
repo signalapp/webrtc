@@ -4271,6 +4271,27 @@ TEST_F(WebRtcSdpTest, DeserializeMsidAttributeWithMissingStreamId) {
   EXPECT_FALSE(SdpDeserialize(sdp, &jdesc_output));
 }
 
+TEST_F(WebRtcSdpTest, DeserializeMsidAttributeWithDuplicateStreamIdAndTrackId) {
+  std::string sdp =
+      "v=0\r\n"
+      "o=- 18446744069414584320 18446462598732840960 IN IP4 127.0.0.1\r\n"
+      "s=-\r\n"
+      "t=0 0\r\n"
+      "m=audio 9 RTP/SAVPF 111\r\n"
+      "a=mid:0\r\n"
+      "c=IN IP4 0.0.0.0\r\n"
+      "a=rtpmap:111 opus/48000/2\r\n"
+      "a=msid:stream_id track_id\r\n"
+      "m=audio 9 RTP/SAVPF 111\r\n"
+      "a=mid:1\r\n"
+      "c=IN IP4 0.0.0.0\r\n"
+      "a=rtpmap:111 opus/48000/2\r\n"
+      "a=msid:stream_id track_id\r\n";
+
+  JsepSessionDescription jdesc_output(kDummyType);
+  EXPECT_FALSE(SdpDeserialize(sdp, &jdesc_output));
+}
+
 // Tests that if both session-level address and media-level address exist, use
 // the media-level address.
 TEST_F(WebRtcSdpTest, ParseConnectionData) {
@@ -5061,13 +5082,15 @@ TEST_F(WebRtcSdpTest, BackfillsDefaultFmtpValues) {
       "a=setup:actpass\r\n"
       "a=ice-ufrag:ETEn\r\n"
       "a=ice-pwd:OtSK0WpNtpUjkY4+86js7Z/l\r\n"
-      "m=video 9 UDP/TLS/RTP/SAVPF 96 97\r\n"
+      "m=video 9 UDP/TLS/RTP/SAVPF 96 97 98 99\r\n"
       "c=IN IP4 0.0.0.0\r\n"
       "a=rtcp-mux\r\n"
       "a=sendonly\r\n"
       "a=mid:0\r\n"
       "a=rtpmap:96 H264/90000\r\n"
       "a=rtpmap:97 VP9/90000\r\n"
+      "a=rtpmap:98 AV1/90000\r\n"
+      "a=rtpmap:99 H265/90000\r\n"
       "a=ssrc:1234 cname:test\r\n";
   JsepSessionDescription jdesc(kDummyType);
   EXPECT_TRUE(SdpDeserialize(sdp, &jdesc));
@@ -5076,7 +5099,7 @@ TEST_F(WebRtcSdpTest, BackfillsDefaultFmtpValues) {
   const auto* description = content.media_description();
   ASSERT_NE(description, nullptr);
   const std::vector<cricket::Codec> codecs = description->codecs();
-  ASSERT_EQ(codecs.size(), 2u);
+  ASSERT_EQ(codecs.size(), 4u);
   std::string value;
 
   EXPECT_EQ(codecs[0].name, "H264");
@@ -5086,4 +5109,18 @@ TEST_F(WebRtcSdpTest, BackfillsDefaultFmtpValues) {
   EXPECT_EQ(codecs[1].name, "VP9");
   EXPECT_TRUE(codecs[1].GetParam("profile-id", &value));
   EXPECT_EQ(value, "0");
+
+  EXPECT_EQ(codecs[2].name, "AV1");
+  EXPECT_TRUE(codecs[2].GetParam("profile", &value));
+  EXPECT_EQ(value, "0");
+  EXPECT_TRUE(codecs[2].GetParam("level-idx", &value));
+  EXPECT_EQ(value, "5");
+  EXPECT_TRUE(codecs[2].GetParam("tier", &value));
+  EXPECT_EQ(value, "0");
+
+  EXPECT_EQ(codecs[3].name, "H265");
+  EXPECT_TRUE(codecs[3].GetParam("level-id", &value));
+  EXPECT_EQ(value, "93");
+  EXPECT_TRUE(codecs[3].GetParam("tx-mode", &value));
+  EXPECT_EQ(value, "SRST");
 }
