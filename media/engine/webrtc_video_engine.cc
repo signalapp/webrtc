@@ -809,7 +809,6 @@ std::vector<VideoCodec> WebRtcVideoEngine::recv_codecs(bool include_rtx) const {
                                          include_rtx, trials_);
 }
 
-// RingRTC change to disable unused header extensions
 std::vector<webrtc::RtpHeaderExtensionCapability>
 WebRtcVideoEngine::GetRtpHeaderExtensions() const {
   std::vector<webrtc::RtpHeaderExtensionCapability> result;
@@ -821,6 +820,7 @@ WebRtcVideoEngine::GetRtpHeaderExtensions() const {
         webrtc::RtpExtension::kAbsSendTimeUri,
         webrtc::RtpExtension::kVideoRotationUri,
         webrtc::RtpExtension::kTransportSequenceNumberUri,
+        // RingRTC change to disable unused header extensions
         // webrtc::RtpExtension::kPlayoutDelayUri,
         // webrtc::RtpExtension::kVideoContentTypeUri,
         // webrtc::RtpExtension::kVideoTimingUri,
@@ -831,29 +831,32 @@ WebRtcVideoEngine::GetRtpHeaderExtensions() const {
         }) {
     result.emplace_back(uri, id++, webrtc::RtpTransceiverDirection::kSendRecv);
   }
-  // for (const auto& uri : {webrtc::RtpExtension::kAbsoluteCaptureTimeUri}) {
-  //   result.emplace_back(uri, id, webrtc::RtpTransceiverDirection::kStopped);
-  // }
-  // result.emplace_back(webrtc::RtpExtension::kGenericFrameDescriptorUri00, id,
-  //                     IsEnabled(trials_, "WebRTC-GenericDescriptorAdvertised")
-  //                         ? webrtc::RtpTransceiverDirection::kSendRecv
-  //                         : webrtc::RtpTransceiverDirection::kStopped);
-  // result.emplace_back(
-  //     webrtc::RtpExtension::kDependencyDescriptorUri, id,
-  //     IsEnabled(trials_, "WebRTC-DependencyDescriptorAdvertised")
-  //         ? webrtc::RtpTransceiverDirection::kSendRecv
-  //         : webrtc::RtpTransceiverDirection::kStopped);
-  // result.emplace_back(
-  //     webrtc::RtpExtension::kVideoLayersAllocationUri, id,
-  //     IsEnabled(trials_, "WebRTC-VideoLayersAllocationAdvertised")
-  //         ? webrtc::RtpTransceiverDirection::kSendRecv
-  //         : webrtc::RtpTransceiverDirection::kStopped);
-  //
-  // // VideoFrameTrackingId is a test-only extension.
-  // if (IsEnabled(trials_, "WebRTC-VideoFrameTrackingIdAdvertised")) {
-  //   result.emplace_back(webrtc::RtpExtension::kVideoFrameTrackingIdUri, id,
-  //                       webrtc::RtpTransceiverDirection::kSendRecv);
-  // }
+  // RingRTC change to disable unused header extensions
+#if 0
+  for (const auto& uri : {webrtc::RtpExtension::kAbsoluteCaptureTimeUri}) {
+    result.emplace_back(uri, id, webrtc::RtpTransceiverDirection::kStopped);
+  }
+  result.emplace_back(webrtc::RtpExtension::kGenericFrameDescriptorUri00, id,
+                      IsEnabled(trials_, "WebRTC-GenericDescriptorAdvertised")
+                          ? webrtc::RtpTransceiverDirection::kSendRecv
+                          : webrtc::RtpTransceiverDirection::kStopped);
+  result.emplace_back(
+      webrtc::RtpExtension::kDependencyDescriptorUri, id,
+      IsEnabled(trials_, "WebRTC-DependencyDescriptorAdvertised")
+          ? webrtc::RtpTransceiverDirection::kSendRecv
+          : webrtc::RtpTransceiverDirection::kStopped);
+  result.emplace_back(
+      webrtc::RtpExtension::kVideoLayersAllocationUri, id,
+      IsEnabled(trials_, "WebRTC-VideoLayersAllocationAdvertised")
+          ? webrtc::RtpTransceiverDirection::kSendRecv
+          : webrtc::RtpTransceiverDirection::kStopped);
+
+  // VideoFrameTrackingId is a test-only extension.
+  if (IsEnabled(trials_, "WebRTC-VideoFrameTrackingIdAdvertised")) {
+    result.emplace_back(webrtc::RtpExtension::kVideoFrameTrackingIdUri, id,
+                        webrtc::RtpTransceiverDirection::kSendRecv);
+  }
+#endif // RingRTC change to disable unused header extensions
   return result;
 }
 
@@ -3104,54 +3107,56 @@ bool WebRtcVideoReceiveChannel::MaybeCreateDefaultReceiveStream(
   // know what stream it associates with, and we shouldn't ever create an
   // implicit channel for these.
   // RingRTC change to not process unsignaled SSRCs
-  // bool is_rtx_payload = false;
-  // for (auto& codec : recv_codecs_) {
-  //   if (packet.PayloadType() == codec.ulpfec.red_rtx_payload_type ||
-  //       packet.PayloadType() == codec.ulpfec.ulpfec_payload_type) {
-  //     return false;
-  //   }
-  //
-  //   if (packet.PayloadType() == codec.rtx_payload_type) {
-  //     is_rtx_payload = true;
-  //     break;
-  //   }
-  // }
-  //
-  // if (is_rtx_payload) {
-  //   // As we don't support receiving simulcast there can only be one RTX
-  //   // stream, which will be associated with unsignaled media stream.
-  //   absl::optional<uint32_t> current_default_ssrc = GetUnsignaledSsrc();
-  //   if (current_default_ssrc) {
-  //     FindReceiveStream(*current_default_ssrc)->UpdateRtxSsrc(packet.Ssrc());
-  //   } else {
-  //     // Received unsignaled RTX packet before a media packet. Create a default
-  //     // stream with a "random" SSRC and the RTX SSRC from the packet.  The
-  //     // stream will be recreated on the first media packet, unless we are
-  //     // extremely lucky and used the right media SSRC.
-  //     ReCreateDefaultReceiveStream(/*ssrc =*/14795, /*rtx_ssrc=*/packet.Ssrc());
-  //   }
-  //   return true;
-  // } else {
-  //   // Ignore unknown ssrcs if we recently created an unsignalled receive
-  //   // stream since this shouldn't happen frequently. Getting into a state
-  //   // of creating decoders on every packet eats up processing time (e.g.
-  //   // https://crbug.com/1069603) and this cooldown prevents that.
-  //   if (last_unsignalled_ssrc_creation_time_ms_.has_value()) {
-  //     int64_t now_ms = rtc::TimeMillis();
-  //     if (now_ms - last_unsignalled_ssrc_creation_time_ms_.value() <
-  //         kUnsignaledSsrcCooldownMs) {
-  //       // We've already created an unsignalled ssrc stream within the last
-  //       // 0.5 s, ignore with a warning.
-  //       RTC_LOG(LS_WARNING)
-  //           << "Another unsignalled ssrc packet arrived shortly after the "
-  //           << "creation of an unsignalled ssrc stream. Dropping packet.";
-  //       return false;
-  //     }
-  //   }
-  // }
-  // // RTX SSRC not yet known.
-  // ReCreateDefaultReceiveStream(packet.Ssrc(), absl::nullopt);
-  // last_unsignalled_ssrc_creation_time_ms_ = rtc::TimeMillis();
+#if 0
+  bool is_rtx_payload = false;
+  for (auto& codec : recv_codecs_) {
+    if (packet.PayloadType() == codec.ulpfec.red_rtx_payload_type ||
+        packet.PayloadType() == codec.ulpfec.ulpfec_payload_type) {
+      return false;
+    }
+
+    if (packet.PayloadType() == codec.rtx_payload_type) {
+      is_rtx_payload = true;
+      break;
+    }
+  }
+
+  if (is_rtx_payload) {
+    // As we don't support receiving simulcast there can only be one RTX
+    // stream, which will be associated with unsignaled media stream.
+    absl::optional<uint32_t> current_default_ssrc = GetUnsignaledSsrc();
+    if (current_default_ssrc) {
+      FindReceiveStream(*current_default_ssrc)->UpdateRtxSsrc(packet.Ssrc());
+    } else {
+      // Received unsignaled RTX packet before a media packet. Create a default
+      // stream with a "random" SSRC and the RTX SSRC from the packet.  The
+      // stream will be recreated on the first media packet, unless we are
+      // extremely lucky and used the right media SSRC.
+      ReCreateDefaultReceiveStream(/*ssrc =*/14795, /*rtx_ssrc=*/packet.Ssrc());
+    }
+    return true;
+  } else {
+    // Ignore unknown ssrcs if we recently created an unsignalled receive
+    // stream since this shouldn't happen frequently. Getting into a state
+    // of creating decoders on every packet eats up processing time (e.g.
+    // https://crbug.com/1069603) and this cooldown prevents that.
+    if (last_unsignalled_ssrc_creation_time_ms_.has_value()) {
+      int64_t now_ms = rtc::TimeMillis();
+      if (now_ms - last_unsignalled_ssrc_creation_time_ms_.value() <
+          kUnsignaledSsrcCooldownMs) {
+        // We've already created an unsignalled ssrc stream within the last
+        // 0.5 s, ignore with a warning.
+        RTC_LOG(LS_WARNING)
+            << "Another unsignalled ssrc packet arrived shortly after the "
+            << "creation of an unsignalled ssrc stream. Dropping packet.";
+        return false;
+      }
+    }
+  }
+  // RTX SSRC not yet known.
+  ReCreateDefaultReceiveStream(packet.Ssrc(), absl::nullopt);
+  last_unsignalled_ssrc_creation_time_ms_ = rtc::TimeMillis();
+#endif // RingRTC change to not process unsignaled SSRCs
   return false;
 }
 

@@ -443,19 +443,23 @@ TEST_F(WebRtcVideoEngineTest, SupportsVideoRotationHeaderExtension) {
   ExpectRtpCapabilitySupport(RtpExtension::kVideoRotationUri, true);
 }
 
-TEST_F(WebRtcVideoEngineTest, SupportsPlayoutDelayHeaderExtension) {
+// RingRTC change to disable unused header extensions
+TEST_F(WebRtcVideoEngineTest, DISABLED_SupportsPlayoutDelayHeaderExtension) {
   ExpectRtpCapabilitySupport(RtpExtension::kPlayoutDelayUri, true);
 }
 
-TEST_F(WebRtcVideoEngineTest, SupportsVideoContentTypeHeaderExtension) {
+// RingRTC change to disable unused header extensions
+TEST_F(WebRtcVideoEngineTest, DISABLED_SupportsVideoContentTypeHeaderExtension) {
   ExpectRtpCapabilitySupport(RtpExtension::kVideoContentTypeUri, true);
 }
 
-TEST_F(WebRtcVideoEngineTest, SupportsVideoTimingHeaderExtension) {
+// RingRTC change to disable unused header extensions
+TEST_F(WebRtcVideoEngineTest, DISABLED_SupportsVideoTimingHeaderExtension) {
   ExpectRtpCapabilitySupport(RtpExtension::kVideoTimingUri, true);
 }
 
-TEST_F(WebRtcVideoEngineTest, SupportsColorSpaceHeaderExtension) {
+// RingRTC change to disable unused header extensions
+TEST_F(WebRtcVideoEngineTest, DISABLED_SupportsColorSpaceHeaderExtension) {
   ExpectRtpCapabilitySupport(RtpExtension::kColorSpaceUri, true);
 }
 
@@ -922,7 +926,8 @@ void WebRtcVideoEngineTest::ExpectRtpCapabilitySupport(const char* uri,
   }
 }
 
-TEST_F(WebRtcVideoEngineTest, SendsFeedbackAfterUnsignaledRtxPacket) {
+// RingRTC change to not process unsignaled SSRCs
+TEST_F(WebRtcVideoEngineTest, DISABLED_SendsFeedbackAfterUnsignaledRtxPacket) {
   // Setup a channel with VP8, RTX and transport sequence number header
   // extension. Receive stream is not explicitly configured.
   AddSupportedVideoCodecType("VP8");
@@ -1014,7 +1019,8 @@ TEST_F(WebRtcVideoEngineTest, TooHighReceiveBufferSizeViaFieldTrial) {
   receive_channel->SetInterface(nullptr);
 }
 
-TEST_F(WebRtcVideoEngineTest, UpdatesUnsignaledRtxSsrcAndRecoversPayload) {
+// RingRTC change to not process unsignaled SSRCs
+TEST_F(WebRtcVideoEngineTest, DISABLED_UpdatesUnsignaledRtxSsrcAndRecoversPayload) {
   // Setup a channel with VP8, RTX and transport sequence number header
   // extension. Receive stream is not explicitly configured.
   AddSupportedVideoCodecType("VP8");
