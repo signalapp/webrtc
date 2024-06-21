@@ -23,7 +23,6 @@
 #include "p2p/base/transport_description.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/callback_list.h"
-#include "rtc_base/proxy_info.h"
 #include "rtc_base/socket_address.h"
 
 namespace rtc {
@@ -52,7 +51,7 @@ class PortInterface {
  public:
   virtual ~PortInterface();
 
-  virtual const absl::string_view Type() const = 0;
+  virtual webrtc::IceCandidateType Type() const = 0;
   virtual const rtc::Network* Network() const = 0;
 
   // Methods to set/get ICE role and tiebreaker values.
@@ -152,8 +151,6 @@ class PortInterface {
 
   // The factory used to create the sockets of this port.
   virtual rtc::PacketSocketFactory* socket_factory() const = 0;
-  virtual const std::string& user_agent() = 0;
-  virtual const rtc::ProxyInfo& proxy() = 0;
 
   // Identifies the generation that this port was created in.
   virtual uint32_t generation() const = 0;
@@ -164,18 +161,6 @@ class PortInterface {
 
   // Called when the Connection discovers a local peer reflexive candidate.
   virtual void AddPrflxCandidate(const Candidate& local) = 0;
-
-  // Foundation:  An arbitrary string that is the same for two candidates
-  //   that have the same type, base IP address, protocol (UDP, TCP,
-  //   etc.), and STUN or TURN server.  If any of these are different,
-  //   then the foundation will be different.  Two candidate pairs with
-  //   the same foundation pairs are likely to have similar network
-  //   characteristics. Foundations are used in the frozen algorithm.
-  virtual std::string ComputeFoundation(
-      absl::string_view type,
-      absl::string_view protocol,
-      absl::string_view relay_protocol,
-      const rtc::SocketAddress& base_address) = 0;
 
  protected:
   PortInterface();

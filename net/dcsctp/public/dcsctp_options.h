@@ -85,9 +85,13 @@ struct DcSctpOptions {
   // buffer is fully utilized.
   size_t max_receiver_window_buffer_size = 5 * 1024 * 1024;
 
-  // Maximum send buffer size. It will not be possible to queue more data than
-  // this before sending it.
+  // Send queue total size limit. It will not be possible to queue more data if
+  // the queue size is larger than this number.
   size_t max_send_buffer_size = 2'000'000;
+
+  // Per stream send queue size limit. Similar to `max_send_buffer_size`, but
+  // limiting the size of individual streams.
+  size_t per_stream_send_queue_limit = 2'000'000;
 
   // A threshold that, when the amount of data in the send buffer goes below
   // this value, will trigger `DcSctpCallbacks::OnTotalBufferedAmountLow`.
@@ -144,8 +148,11 @@ struct DcSctpOptions {
   // processing time of received packets and the clock granularity when setting
   // the delayed ack timer on the peer.
   //
-  // This is described for TCP in
+  // This is defined as "G" in the algorithm for TCP in
   // https://datatracker.ietf.org/doc/html/rfc6298#section-4.
+  //
+  // Note that this value will be further adjusted by scaling factors, so if you
+  // intend to change this, do it incrementally and measure the results.
   DurationMs min_rtt_variance = DurationMs(220);
 
   // The initial congestion window size, in number of MTUs.

@@ -8,6 +8,7 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#include "api/environment/environment.h"
 #include "api/video_codecs/builtin_video_encoder_factory.h"
 #include "api/video_codecs/video_encoder.h"
 #include "sdk/android/generated_swcodecs_jni/SoftwareVideoEncoderFactory_jni.h"
@@ -23,20 +24,25 @@ static jlong JNI_SoftwareVideoEncoderFactory_CreateFactory(JNIEnv* env) {
       CreateBuiltinVideoEncoderFactory().release());
 }
 
-static jlong JNI_SoftwareVideoEncoderFactory_CreateEncoder(
+jboolean JNI_SoftwareVideoEncoderFactory_IsSupported(
     JNIEnv* env,
     jlong j_factory,
-    const webrtc::JavaParamRef<jobject>& j_video_codec_info) {
-  auto* const native_factory =
-      reinterpret_cast<webrtc::VideoEncoderFactory*>(j_factory);
-  const auto video_format =
-      webrtc::jni::VideoCodecInfoToSdpVideoFormat(env, j_video_codec_info);
+    const JavaParamRef<jobject>& j_info) {
+  return VideoCodecInfoToSdpVideoFormat(env, j_info)
+      .IsCodecInList(reinterpret_cast<VideoEncoderFactory*>(j_factory)
+                         ->GetSupportedFormats());
+}
 
-  auto encoder = native_factory->CreateVideoEncoder(video_format);
-  if (encoder == nullptr) {
-    return 0;
-  }
-  return webrtc::NativeToJavaPointer(encoder.release());
+jlong JNI_SoftwareVideoEncoderFactory_Create(
+    JNIEnv* env,
+    jlong j_factory,
+    jlong j_webrtc_env_ref,
+    const JavaParamRef<jobject>& j_info) {
+  return NativeToJavaPointer(
+      reinterpret_cast<VideoEncoderFactory*>(j_factory)
+          ->Create(*reinterpret_cast<const Environment*>(j_webrtc_env_ref),
+                   VideoCodecInfoToSdpVideoFormat(env, j_info))
+          .release());
 }
 
 static webrtc::ScopedJavaLocalRef<jobject>

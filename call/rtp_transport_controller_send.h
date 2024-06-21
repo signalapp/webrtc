@@ -12,6 +12,7 @@
 #define CALL_RTP_TRANSPORT_CONTROLLER_SEND_H_
 
 #include <atomic>
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <string>
@@ -38,17 +39,14 @@
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "rtc_base/network_route.h"
 #include "rtc_base/race_checker.h"
-#include "rtc_base/task_queue.h"
 #include "rtc_base/task_utils/repeating_task.h"
 
 namespace webrtc {
 class FrameEncryptorInterface;
-class RtcEventLog;
 
 class RtpTransportControllerSend final
     : public RtpTransportControllerSendInterface,
       public NetworkLinkRtcpObserver,
-      public TransportFeedbackObserver,
       public NetworkStateEstimateObserver {
  public:
   explicit RtpTransportControllerSend(const RtpTransportConfig& config);
@@ -67,7 +65,6 @@ class RtpTransportControllerSend final
       int rtcp_report_interval_ms,
       Transport* send_transport,
       const RtpSenderObservers& observers,
-      RtcEventLog* event_log,
       std::unique_ptr<FecController> fec_controller,
       const RtpSenderFrameEncryptionConfig& frame_encryption_config,
       rtc::scoped_refptr<FrameTransformerInterface> frame_transformer) override;
@@ -80,7 +77,6 @@ class RtpTransportControllerSend final
   PacketRouter* packet_router() override;
 
   NetworkStateEstimateObserver* network_state_estimate_observer() override;
-  TransportFeedbackObserver* transport_feedback_observer() override;
   RtpPacketSender* packet_sender() override;
 
   void SetAllocatedSendBitrateLimits(BitrateAllocationLimits limits) override;
@@ -121,9 +117,6 @@ class RtpTransportControllerSend final
   void OnTransportFeedback(Timestamp receive_time,
                            const rtcp::TransportFeedback& feedback) override;
 
-  // Implements TransportFeedbackObserver interface
-  void OnAddPacket(const RtpPacketSendInfo& packet_info) override;
-
   // Implements NetworkStateEstimateObserver interface
   void OnRemoteNetworkEstimate(NetworkStateEstimate estimate) override;
 
@@ -146,6 +139,10 @@ class RtpTransportControllerSend final
   void UpdateCongestedState() RTC_RUN_ON(sequence_checker_);
   absl::optional<bool> GetCongestedStateUpdate() const
       RTC_RUN_ON(sequence_checker_);
+
+  // Called by packet router just before packet is sent to the RTP modules.
+  void NotifyBweOfPacedSentPacket(const RtpPacketToSend& packet,
+                                  const PacedPacketInfo& pacing_info);
   void ProcessSentPacket(const rtc::SentPacket& sent_packet)
       RTC_RUN_ON(sequence_checker_);
   void ProcessSentPacketUpdates(NetworkControlUpdate updates)

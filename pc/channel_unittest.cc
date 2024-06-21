@@ -152,6 +152,19 @@ class ChannelTest : public ::testing::Test, public sigslot::has_slots<> {
       SendTask(network_thread_, [this]() {
         network_thread_safety_->SetNotAlive();
         DeinitChannels();
+
+        // Transports must be created and destroyed on the network thread.
+        fake_rtp_dtls_transport1_ = nullptr;
+        fake_rtcp_dtls_transport1_ = nullptr;
+        fake_rtp_dtls_transport2_ = nullptr;
+        fake_rtcp_dtls_transport2_ = nullptr;
+        fake_rtp_packet_transport1_ = nullptr;
+        fake_rtcp_packet_transport1_ = nullptr;
+        fake_rtp_packet_transport2_ = nullptr;
+        fake_rtcp_packet_transport2_ = nullptr;
+        rtp_transport1_ = nullptr;
+        rtp_transport2_ = nullptr;
+        new_rtp_transport_ = nullptr;
       });
     }
   }
@@ -187,66 +200,70 @@ class ChannelTest : public ::testing::Test, public sigslot::has_slots<> {
     // channels.
     RTC_DCHECK_EQ(flags1 & RAW_PACKET_TRANSPORT, flags2 & RAW_PACKET_TRANSPORT);
     rtc::Thread* worker_thread = rtc::Thread::Current();
-    // Based on flags, create fake DTLS or raw packet transports.
-    if (flags1 & RAW_PACKET_TRANSPORT) {
-      fake_rtp_packet_transport1_.reset(
-          new rtc::FakePacketTransport("channel1_rtp"));
-      if (!(flags1 & RTCP_MUX)) {
-        fake_rtcp_packet_transport1_.reset(
-            new rtc::FakePacketTransport("channel1_rtcp"));
-      }
-    } else {
-      // Confirmed to work with KT_RSA and KT_ECDSA.
-      fake_rtp_dtls_transport1_.reset(new cricket::FakeDtlsTransport(
-          "channel1", cricket::ICE_CANDIDATE_COMPONENT_RTP, network_thread_));
-      if (!(flags1 & RTCP_MUX)) {
-        fake_rtcp_dtls_transport1_.reset(new cricket::FakeDtlsTransport(
-            "channel1", cricket::ICE_CANDIDATE_COMPONENT_RTCP,
-            network_thread_));
-      }
-      if (flags1 & DTLS) {
-        auto cert1 = rtc::RTCCertificate::Create(
-            rtc::SSLIdentity::Create("session1", rtc::KT_DEFAULT));
-        fake_rtp_dtls_transport1_->SetLocalCertificate(cert1);
-        if (fake_rtcp_dtls_transport1_) {
-          fake_rtcp_dtls_transport1_->SetLocalCertificate(cert1);
+
+    network_thread_->BlockingCall([&] {
+      // Based on flags, create fake DTLS or raw packet transports.
+
+      if (flags1 & RAW_PACKET_TRANSPORT) {
+        fake_rtp_packet_transport1_.reset(
+            new rtc::FakePacketTransport("channel1_rtp"));
+        if (!(flags1 & RTCP_MUX)) {
+          fake_rtcp_packet_transport1_.reset(
+              new rtc::FakePacketTransport("channel1_rtcp"));
+        }
+      } else {
+        // Confirmed to work with KT_RSA and KT_ECDSA.
+        fake_rtp_dtls_transport1_.reset(new cricket::FakeDtlsTransport(
+            "channel1", cricket::ICE_CANDIDATE_COMPONENT_RTP, network_thread_));
+        if (!(flags1 & RTCP_MUX)) {
+          fake_rtcp_dtls_transport1_.reset(new cricket::FakeDtlsTransport(
+              "channel1", cricket::ICE_CANDIDATE_COMPONENT_RTCP,
+              network_thread_));
+        }
+        if (flags1 & DTLS) {
+          auto cert1 = rtc::RTCCertificate::Create(
+              rtc::SSLIdentity::Create("session1", rtc::KT_DEFAULT));
+          fake_rtp_dtls_transport1_->SetLocalCertificate(cert1);
+          if (fake_rtcp_dtls_transport1_) {
+            fake_rtcp_dtls_transport1_->SetLocalCertificate(cert1);
+          }
         }
       }
-    }
-    // Based on flags, create fake DTLS or raw packet transports.
-    if (flags2 & RAW_PACKET_TRANSPORT) {
-      fake_rtp_packet_transport2_.reset(
-          new rtc::FakePacketTransport("channel2_rtp"));
-      if (!(flags2 & RTCP_MUX)) {
-        fake_rtcp_packet_transport2_.reset(
-            new rtc::FakePacketTransport("channel2_rtcp"));
-      }
-    } else {
-      // Confirmed to work with KT_RSA and KT_ECDSA.
-      fake_rtp_dtls_transport2_.reset(new cricket::FakeDtlsTransport(
-          "channel2", cricket::ICE_CANDIDATE_COMPONENT_RTP, network_thread_));
-      if (!(flags2 & RTCP_MUX)) {
-        fake_rtcp_dtls_transport2_.reset(new cricket::FakeDtlsTransport(
-            "channel2", cricket::ICE_CANDIDATE_COMPONENT_RTCP,
-            network_thread_));
-      }
-      if (flags2 & DTLS) {
-        auto cert2 = rtc::RTCCertificate::Create(
-            rtc::SSLIdentity::Create("session2", rtc::KT_DEFAULT));
-        fake_rtp_dtls_transport2_->SetLocalCertificate(cert2);
-        if (fake_rtcp_dtls_transport2_) {
-          fake_rtcp_dtls_transport2_->SetLocalCertificate(cert2);
+      // Based on flags, create fake DTLS or raw packet transports.
+      if (flags2 & RAW_PACKET_TRANSPORT) {
+        fake_rtp_packet_transport2_.reset(
+            new rtc::FakePacketTransport("channel2_rtp"));
+        if (!(flags2 & RTCP_MUX)) {
+          fake_rtcp_packet_transport2_.reset(
+              new rtc::FakePacketTransport("channel2_rtcp"));
+        }
+      } else {
+        // Confirmed to work with KT_RSA and KT_ECDSA.
+        fake_rtp_dtls_transport2_.reset(new cricket::FakeDtlsTransport(
+            "channel2", cricket::ICE_CANDIDATE_COMPONENT_RTP, network_thread_));
+        if (!(flags2 & RTCP_MUX)) {
+          fake_rtcp_dtls_transport2_.reset(new cricket::FakeDtlsTransport(
+              "channel2", cricket::ICE_CANDIDATE_COMPONENT_RTCP,
+              network_thread_));
+        }
+        if (flags2 & DTLS) {
+          auto cert2 = rtc::RTCCertificate::Create(
+              rtc::SSLIdentity::Create("session2", rtc::KT_DEFAULT));
+          fake_rtp_dtls_transport2_->SetLocalCertificate(cert2);
+          if (fake_rtcp_dtls_transport2_) {
+            fake_rtcp_dtls_transport2_->SetLocalCertificate(cert2);
+          }
         }
       }
-    }
-    rtp_transport1_ = CreateRtpTransportBasedOnFlags(
-        fake_rtp_packet_transport1_.get(), fake_rtcp_packet_transport1_.get(),
-        fake_rtp_dtls_transport1_.get(), fake_rtcp_dtls_transport1_.get(),
-        flags1);
-    rtp_transport2_ = CreateRtpTransportBasedOnFlags(
-        fake_rtp_packet_transport2_.get(), fake_rtcp_packet_transport2_.get(),
-        fake_rtp_dtls_transport2_.get(), fake_rtcp_dtls_transport2_.get(),
-        flags2);
+      rtp_transport1_ = CreateRtpTransportBasedOnFlags(
+          fake_rtp_packet_transport1_.get(), fake_rtcp_packet_transport1_.get(),
+          fake_rtp_dtls_transport1_.get(), fake_rtcp_dtls_transport1_.get(),
+          flags1);
+      rtp_transport2_ = CreateRtpTransportBasedOnFlags(
+          fake_rtp_packet_transport2_.get(), fake_rtcp_packet_transport2_.get(),
+          fake_rtp_dtls_transport2_.get(), fake_rtcp_dtls_transport2_.get(),
+          flags2);
+    });
 
     channel1_ = CreateChannel(worker_thread, network_thread_, std::move(ch1s),
                               std::move(ch1r), rtp_transport1_.get(), flags1);
@@ -1351,12 +1368,11 @@ class ChannelTest : public ::testing::Test, public sigslot::has_slots<> {
 
     CreateChannels(DTLS, DTLS);
 
-    new_rtp_transport_ = CreateDtlsSrtpTransport(
-        fake_rtp_dtls_transport2_.get(), fake_rtcp_dtls_transport2_.get());
-
     bool rcv_success, send_success;
     int rcv_buf, send_buf;
     SendTask(network_thread_, [&] {
+      new_rtp_transport_ = CreateDtlsSrtpTransport(
+          fake_rtp_dtls_transport2_.get(), fake_rtcp_dtls_transport2_.get());
       channel1_->SetOption(cricket::BaseChannel::ST_RTP,
                            rtc::Socket::Option::OPT_SNDBUF, kSndBufSize);
       channel2_->SetOption(cricket::BaseChannel::ST_RTP,
@@ -2082,8 +2098,8 @@ TEST_F(VideoChannelSingleThreadTest, UpdateLocalStreamsWithSimulcast) {
 }
 
 TEST_F(VideoChannelSingleThreadTest, TestSetLocalOfferWithPacketization) {
-  const cricket::VideoCodec kVp8Codec = cricket::CreateVideoCodec(97, "VP8");
-  cricket::VideoCodec vp9_codec = cricket::CreateVideoCodec(98, "VP9");
+  const cricket::Codec kVp8Codec = cricket::CreateVideoCodec(97, "VP8");
+  cricket::Codec vp9_codec = cricket::CreateVideoCodec(98, "VP9");
   vp9_codec.packetization = cricket::kPacketizationParamRaw;
   cricket::VideoContentDescription video;
   video.set_codecs({kVp8Codec, vp9_codec});
@@ -2105,8 +2121,8 @@ TEST_F(VideoChannelSingleThreadTest, TestSetLocalOfferWithPacketization) {
 }
 
 TEST_F(VideoChannelSingleThreadTest, TestSetRemoteOfferWithPacketization) {
-  const cricket::VideoCodec kVp8Codec = cricket::CreateVideoCodec(97, "VP8");
-  cricket::VideoCodec vp9_codec = cricket::CreateVideoCodec(98, "VP9");
+  const cricket::Codec kVp8Codec = cricket::CreateVideoCodec(97, "VP8");
+  cricket::Codec vp9_codec = cricket::CreateVideoCodec(98, "VP9");
   vp9_codec.packetization = cricket::kPacketizationParamRaw;
   cricket::VideoContentDescription video;
   video.set_codecs({kVp8Codec, vp9_codec});
@@ -2127,8 +2143,8 @@ TEST_F(VideoChannelSingleThreadTest, TestSetRemoteOfferWithPacketization) {
 }
 
 TEST_F(VideoChannelSingleThreadTest, TestSetAnswerWithPacketization) {
-  const cricket::VideoCodec kVp8Codec = cricket::CreateVideoCodec(97, "VP8");
-  cricket::VideoCodec vp9_codec = cricket::CreateVideoCodec(98, "VP9");
+  const cricket::Codec kVp8Codec = cricket::CreateVideoCodec(97, "VP8");
+  cricket::Codec vp9_codec = cricket::CreateVideoCodec(98, "VP9");
   vp9_codec.packetization = cricket::kPacketizationParamRaw;
   cricket::VideoContentDescription video;
   video.set_codecs({kVp8Codec, vp9_codec});
@@ -2159,8 +2175,8 @@ TEST_F(VideoChannelSingleThreadTest, TestSetAnswerWithPacketization) {
 }
 
 TEST_F(VideoChannelSingleThreadTest, TestSetLocalAnswerWithoutPacketization) {
-  const cricket::VideoCodec kLocalCodec = cricket::CreateVideoCodec(98, "VP8");
-  cricket::VideoCodec remote_codec = cricket::CreateVideoCodec(99, "VP8");
+  const cricket::Codec kLocalCodec = cricket::CreateVideoCodec(98, "VP8");
+  cricket::Codec remote_codec = cricket::CreateVideoCodec(99, "VP8");
   remote_codec.packetization = cricket::kPacketizationParamRaw;
   cricket::VideoContentDescription local_video;
   local_video.set_codecs({kLocalCodec});
@@ -2181,9 +2197,9 @@ TEST_F(VideoChannelSingleThreadTest, TestSetLocalAnswerWithoutPacketization) {
 }
 
 TEST_F(VideoChannelSingleThreadTest, TestSetRemoteAnswerWithoutPacketization) {
-  cricket::VideoCodec local_codec = cricket::CreateVideoCodec(98, "VP8");
+  cricket::Codec local_codec = cricket::CreateVideoCodec(98, "VP8");
   local_codec.packetization = cricket::kPacketizationParamRaw;
-  const cricket::VideoCodec kRemoteCodec = cricket::CreateVideoCodec(99, "VP8");
+  const cricket::Codec kRemoteCodec = cricket::CreateVideoCodec(99, "VP8");
   cricket::VideoContentDescription local_video;
   local_video.set_codecs({local_codec});
   cricket::VideoContentDescription remote_video;
@@ -2205,9 +2221,9 @@ TEST_F(VideoChannelSingleThreadTest, TestSetRemoteAnswerWithoutPacketization) {
 
 TEST_F(VideoChannelSingleThreadTest,
        TestSetRemoteAnswerWithInvalidPacketization) {
-  cricket::VideoCodec local_codec = cricket::CreateVideoCodec(98, "VP8");
+  cricket::Codec local_codec = cricket::CreateVideoCodec(98, "VP8");
   local_codec.packetization = cricket::kPacketizationParamRaw;
-  cricket::VideoCodec remote_codec = cricket::CreateVideoCodec(99, "VP8");
+  cricket::Codec remote_codec = cricket::CreateVideoCodec(99, "VP8");
   remote_codec.packetization = "unknownpacketizationattributevalue";
   cricket::VideoContentDescription local_video;
   local_video.set_codecs({local_codec});
@@ -2230,9 +2246,9 @@ TEST_F(VideoChannelSingleThreadTest,
 
 TEST_F(VideoChannelSingleThreadTest,
        TestSetLocalAnswerWithInvalidPacketization) {
-  cricket::VideoCodec local_codec = cricket::CreateVideoCodec(98, "VP8");
+  cricket::Codec local_codec = cricket::CreateVideoCodec(98, "VP8");
   local_codec.packetization = cricket::kPacketizationParamRaw;
-  const cricket::VideoCodec kRemoteCodec = cricket::CreateVideoCodec(99, "VP8");
+  const cricket::Codec kRemoteCodec = cricket::CreateVideoCodec(99, "VP8");
   cricket::VideoContentDescription local_video;
   local_video.set_codecs({local_codec});
   cricket::VideoContentDescription remote_video;
@@ -2253,12 +2269,12 @@ TEST_F(VideoChannelSingleThreadTest,
 
 TEST_F(VideoChannelSingleThreadTest,
        StopsPacketizationVerificationWhenMatchIsFoundInRemoteAnswer) {
-  cricket::VideoCodec vp8_foo = cricket::CreateVideoCodec(96, "VP8");
+  cricket::Codec vp8_foo = cricket::CreateVideoCodec(96, "VP8");
   vp8_foo.packetization = "foo";
-  cricket::VideoCodec vp8_bar = cricket::CreateVideoCodec(97, "VP8");
+  cricket::Codec vp8_bar = cricket::CreateVideoCodec(97, "VP8");
   vp8_bar.packetization = "bar";
-  cricket::VideoCodec vp9 = cricket::CreateVideoCodec(98, "VP9");
-  cricket::VideoCodec vp9_foo = cricket::CreateVideoCodec(99, "VP9");
+  cricket::Codec vp9 = cricket::CreateVideoCodec(98, "VP9");
+  cricket::Codec vp9_foo = cricket::CreateVideoCodec(99, "VP9");
   vp9_foo.packetization = "bar";
   cricket::VideoContentDescription local;
   local.set_codecs({vp8_foo, vp8_bar, vp9_foo});
@@ -2289,12 +2305,12 @@ TEST_F(VideoChannelSingleThreadTest,
 
 TEST_F(VideoChannelSingleThreadTest,
        StopsPacketizationVerificationWhenMatchIsFoundInLocalAnswer) {
-  cricket::VideoCodec vp8_foo = cricket::CreateVideoCodec(96, "VP8");
+  cricket::Codec vp8_foo = cricket::CreateVideoCodec(96, "VP8");
   vp8_foo.packetization = "foo";
-  cricket::VideoCodec vp8_bar = cricket::CreateVideoCodec(97, "VP8");
+  cricket::Codec vp8_bar = cricket::CreateVideoCodec(97, "VP8");
   vp8_bar.packetization = "bar";
-  cricket::VideoCodec vp9 = cricket::CreateVideoCodec(98, "VP9");
-  cricket::VideoCodec vp9_foo = cricket::CreateVideoCodec(99, "VP9");
+  cricket::Codec vp9 = cricket::CreateVideoCodec(98, "VP9");
+  cricket::Codec vp9_foo = cricket::CreateVideoCodec(99, "VP9");
   vp9_foo.packetization = "bar";
   cricket::VideoContentDescription local;
   local.set_codecs({vp8_foo, vp9});
@@ -2325,8 +2341,8 @@ TEST_F(VideoChannelSingleThreadTest,
 
 TEST_F(VideoChannelSingleThreadTest,
        ConsidersAllCodecsWithDiffrentPacketizationsInRemoteAnswer) {
-  cricket::VideoCodec vp8 = cricket::CreateVideoCodec(96, "VP8");
-  cricket::VideoCodec vp8_raw = cricket::CreateVideoCodec(97, "VP8");
+  cricket::Codec vp8 = cricket::CreateVideoCodec(96, "VP8");
+  cricket::Codec vp8_raw = cricket::CreateVideoCodec(97, "VP8");
   vp8_raw.packetization = cricket::kPacketizationParamRaw;
   cricket::VideoContentDescription local;
   local.set_codecs({vp8, vp8_raw});
@@ -2357,8 +2373,8 @@ TEST_F(VideoChannelSingleThreadTest,
 
 TEST_F(VideoChannelSingleThreadTest,
        ConsidersAllCodecsWithDiffrentPacketizationsInLocalAnswer) {
-  cricket::VideoCodec vp8 = cricket::CreateVideoCodec(96, "VP8");
-  cricket::VideoCodec vp8_raw = cricket::CreateVideoCodec(97, "VP8");
+  cricket::Codec vp8 = cricket::CreateVideoCodec(96, "VP8");
+  cricket::Codec vp8_raw = cricket::CreateVideoCodec(97, "VP8");
   vp8_raw.packetization = cricket::kPacketizationParamRaw;
   cricket::VideoContentDescription local;
   local.set_codecs({vp8_raw, vp8});

@@ -19,7 +19,9 @@
 #include <vector>
 
 #include "absl/types/optional.h"
+#include "api/audio/audio_device.h"
 #include "api/audio/audio_mixer.h"
+#include "api/audio/audio_processing.h"
 #include "api/candidate.h"
 #include "api/ice_transport_interface.h"
 #include "api/jsep.h"
@@ -27,8 +29,6 @@
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
 #include "api/scoped_refptr.h"
-#include "modules/audio_device/include/audio_device.h"
-#include "modules/audio_processing/include/audio_processing.h"
 #include "p2p/base/fake_port_allocator.h"
 #include "p2p/base/ice_transport_internal.h"
 #include "p2p/base/p2p_constants.h"
@@ -214,10 +214,10 @@ class PeerConnectionIceBaseTest : public ::testing::Test {
   cricket::Candidate CreateLocalUdpCandidate(
       const rtc::SocketAddress& address) {
     cricket::Candidate candidate;
+    RTC_DCHECK_EQ(candidate.type(), IceCandidateType::kHost);
     candidate.set_component(cricket::ICE_CANDIDATE_COMPONENT_DEFAULT);
     candidate.set_protocol(cricket::UDP_PROTOCOL_NAME);
     candidate.set_address(address);
-    candidate.set_type(cricket::LOCAL_PORT_TYPE);
     return candidate;
   }
 

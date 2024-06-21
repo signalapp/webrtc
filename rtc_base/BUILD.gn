@@ -210,11 +210,18 @@ rtc_library("event_tracer") {
     ":platform_thread_types",
     ":rtc_event",
     ":timeutils",
+    "..:tracing",
     "../api:sequence_checker",
     "synchronization:mutex",
     "system:rtc_export",
   ]
   absl_deps = [ "//third_party/abseil-cpp/absl/strings" ]
+  if (rtc_use_perfetto) {
+    sources += [
+      "trace_categories.cc",
+      "trace_categories.h",
+    ]
+  }
 }
 
 rtc_library("histogram_percentile_counter") {
@@ -643,23 +650,6 @@ rtc_source_set("type_traits") {
   sources = [ "type_traits.h" ]
 }
 
-rtc_library("rtc_task_queue") {
-  visibility = [ "*" ]
-  sources = [
-    "task_queue.cc",
-    "task_queue.h",
-  ]
-  deps = [
-    ":macromagic",
-    "../api/task_queue",
-    "system:rtc_export",
-  ]
-  absl_deps = [
-    "//third_party/abseil-cpp/absl/functional:any_invocable",
-    "//third_party/abseil-cpp/absl/memory",
-  ]
-}
-
 rtc_source_set("rtc_operations_chain") {
   visibility = [ "*" ]
   sources = [
@@ -805,6 +795,8 @@ rtc_library("weak_ptr") {
     "weak_ptr.h",
   ]
   deps = [
+    ":checks",
+    ":macromagic",
     ":refcount",
     "../api:scoped_refptr",
     "../api:sequence_checker",
@@ -823,6 +815,7 @@ rtc_library("rtc_numerics") {
     "numerics/moving_average.h",
     "numerics/moving_percentile_filter.h",
     "numerics/percentile_filter.h",
+    "numerics/rational.h",
     "numerics/running_statistics.h",
     "numerics/sequence_number_unwrapper.h",
     "numerics/sequence_number_util.h",
@@ -1049,7 +1042,6 @@ rtc_library("threading") {
     ":platform_thread_types",
     ":refcount",
     ":rtc_event",
-    ":rtc_task_queue",
     ":socket",
     ":socket_address",
     ":socket_server",
@@ -1064,6 +1056,7 @@ rtc_library("threading") {
     "../api/task_queue:pending_task_safety_flag",
     "../api/units:time_delta",
     "../system_wrappers:field_trial",
+    "./network:ecn_marking",
     "synchronization:mutex",
     "system:no_unique_address",
     "system:rtc_export",
@@ -1110,6 +1103,7 @@ rtc_library("socket") {
     ":macromagic",
     ":socket_address",
     "../api/units:timestamp",
+    "./network:ecn_marking",
     "system:rtc_export",
     "third_party/sigslot",
   ]
@@ -1291,7 +1285,6 @@ rtc_library("socket_adapters") {
     ":byte_buffer",
     ":checks",
     ":crypt_string",
-    ":http_common",
     ":logging",
     ":stringutils",
     ":zero_memory",
@@ -1385,6 +1378,7 @@ if (rtc_include_tests) {
     deps = [
       ":async_packet_socket",
       ":gunit_helpers",
+      ":socket_address",
       "../test:test_support",
       "network:received_packet",
       "third_party/sigslot",
@@ -1400,18 +1394,6 @@ rtc_library("mdns_responder_interface") {
 
 rtc_library("dscp") {
   sources = [ "dscp.h" ]
-}
-
-rtc_library("proxy_info") {
-  visibility = [ "*" ]
-  sources = [
-    "proxy_info.cc",
-    "proxy_info.h",
-  ]
-  deps = [
-    ":crypt_string",
-    ":socket_address",
-  ]
 }
 
 rtc_library("file_rotating_stream") {
@@ -1474,11 +1456,16 @@ rtc_library("stream") {
   deps = [
     ":buffer",
     ":checks",
+    ":logging",
     ":threading",
     "../api:array_view",
+    "../api:sequence_checker",
+    "system:no_unique_address",
     "system:rtc_export",
     "third_party/sigslot",
   ]
+
+  absl_deps = [ "//third_party/abseil-cpp/absl/functional:any_invocable" ]
 }
 
 rtc_library("rtc_certificate_generator") {
@@ -1609,24 +1596,6 @@ rtc_library("crypt_string") {
   ]
 }
 
-rtc_library("http_common") {
-  sources = [
-    "http_common.cc",
-    "http_common.h",
-  ]
-  deps = [
-    ":crypt_string",
-    ":logging",
-    ":socket_address",
-    ":ssl",
-    ":stringutils",
-    ":zero_memory",
-    "third_party/base64",
-  ]
-
-  absl_deps = [ "//third_party/abseil-cpp/absl/strings" ]
-}
-
 rtc_source_set("gtest_prod") {
   sources = [ "gtest_prod_util.h" ]
 }
@@ -1703,8 +1672,6 @@ rtc_library("rtc_base_tests_utils") {
     "server_socket_adapters.cc",
     "server_socket_adapters.h",
     "sigslot_tester.h",
-    "socket_stream.cc",
-    "socket_stream.h",
     "test_base64.h",
     "test_certificate_verifier.h",
     "test_echo_server.cc",
@@ -1953,7 +1920,6 @@ if (rtc_include_tests) {
         ":rtc_base_tests_utils",
         ":rtc_event",
         ":rtc_numerics",
-        ":rtc_task_queue",
         ":safe_compare",
         ":safe_minmax",
         ":sample_counter",
@@ -2167,6 +2133,7 @@ if (rtc_include_tests) {
           "ssl_identity_unittest.cc",
           "ssl_stream_adapter_unittest.cc",
         ]
+        deps += [ ":callback_list" ]
       }
       absl_deps = [
         "//third_party/abseil-cpp/absl/algorithm:container",
