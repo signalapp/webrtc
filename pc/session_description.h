@@ -128,6 +128,8 @@ class MediaContentDescription {
   void set_crypto(const absl::optional<CryptoParams>& crypto) {
     crypto_ = crypto;
   }
+  void set_manually_specify_keys(bool b) { manually_specify_keys_ = b;}
+  bool manually_specify_keys() const { return manually_specify_keys_; }
 
   // List of RTP header extensions. URIs are **NOT** guaranteed to be unique
   // as they can appear twice when both encrypted and non-encrypted extensions
@@ -270,6 +272,7 @@ class MediaContentDescription {
 
   // RingRTC: Allow out-of-band / "manual" key negotiation.
   absl::optional<CryptoParams> crypto_;
+  bool manually_specify_keys_ = false;
   std::vector<webrtc::RtpExtension> rtp_header_extensions_;
   bool rtp_header_extensions_set_ = false;
   StreamParamsVec send_streams_;

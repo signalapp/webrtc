@@ -1140,7 +1140,7 @@ bool IsMediaProtocolSupported(MediaType type,
 // RingRTC: Allow out-of-band / "manual" key negotiation.
 void SetMediaProtocol(bool secure_transport, bool manually_specify_keys,
                       MediaContentDescription* desc) {
-  if (desc->crypto().has_value() || manually_specify_keys)
+  if (manually_specify_keys)
     desc->set_protocol(kMediaProtocolSavpf);
   else if (secure_transport)
     desc->set_protocol(kMediaProtocolDtlsSavpf);
@@ -2058,6 +2058,10 @@ RTCError MediaSessionDescriptionFactory::AddRtpContentForOffer(
   } else {
     content_description = std::make_unique<VideoContentDescription>();
   }
+  // RingRTC: Allow out-of-band / "manual" key negotiation.
+  if (manually_specify_keys()) {
+    content_description->set_manually_specify_keys(true);
+  }
 
   auto error = CreateMediaContentOffer(
       media_description_options, session_options,
@@ -2225,6 +2229,10 @@ RTCError MediaSessionDescriptionFactory::AddRtpContentForAnswer(
     answer_content = std::make_unique<AudioContentDescription>();
   } else {
     answer_content = std::make_unique<VideoContentDescription>();
+  }
+  // RingRTC: Allow out-of-band / "manual" key negotiation.
+  if (manually_specify_keys()) {
+    answer_content->set_manually_specify_keys(true);
   }
   if (!SetCodecsInAnswer(
           offer_content_description, filtered_codecs, media_description_options,

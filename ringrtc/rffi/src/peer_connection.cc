@@ -352,6 +352,7 @@ Rust_sessionDescriptionFromV4(bool offer,
 
   auto set_rtp_params = [] (cricket::MediaContentDescription* media) {
     media->set_protocol(cricket::kMediaProtocolSavpf);
+    media->set_manually_specify_keys(true);
     media->set_rtcp_mux(true);
     media->set_direction(webrtc::RtpTransceiverDirection::kSendRecv);
   };
@@ -547,6 +548,7 @@ CreateSessionDescriptionForGroupCall(bool local,
     media->set_protocol(cricket::kMediaProtocolSavpf);
     media->set_rtcp_mux(true);
 
+    media->set_manually_specify_keys(true);
     media->set_crypto(crypto_params);
   };
 

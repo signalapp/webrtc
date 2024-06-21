@@ -1102,6 +1102,16 @@ RTCError JsepTransportController::MaybeCreateJsepTransport(
     return RTCError(RTCErrorType::INVALID_PARAMETER,
                     "Manual keys and DTLS-SRTP cannot be enabled at the same time.");
   }
+  if (content_desc->manually_specify_keys() &&
+      !content_desc->crypto().has_value()) {
+    return RTCError(RTCErrorType::INVALID_PARAMETER,
+                    "Manual keys required but not specified.");
+  }
+  if (!content_desc->manually_specify_keys() &&
+      content_desc->crypto().has_value()) {
+    return RTCError(RTCErrorType::INVALID_PARAMETER,
+                    "Manual keys specified in DTLS-SRTP mode.");
+  }
 
   rtc::scoped_refptr<IceTransportInterface> ice =
       CreateIceTransport(content_info.name, /*rtcp=*/false);

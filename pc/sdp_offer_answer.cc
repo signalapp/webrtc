@@ -3557,11 +3557,7 @@ RTCError SdpOfferAnswerHandler::ValidateSessionDescription(
 
   // Verify crypto settings.
   std::string crypto_error;
-  // RingRTC: Allow out-of-band / "manual" key negotiation.
-  // Do not verify if "ManuallySpecifyKeys" is set; `VerifyCrypto` only makes
-  // sense for DTLS.
-  if (!webrtc_session_desc_factory_->ManuallySpecifyKeys() &&
-      pc_->dtls_enabled()) {
+  if (pc_->dtls_enabled()) {
     RTCError crypto_error = VerifyCrypto(
         sdesc->description(), pc_->dtls_enabled(), bundle_groups_by_mid);
     if (!crypto_error.ok()) {
