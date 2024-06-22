@@ -282,7 +282,6 @@ BasicPortAllocator::CreateIceGatherer(const std::string& name) {
 
   // 4. User setters to set flags and other settings
   new_allocator->set_flags(flags());
-  new_allocator->set_proxy(user_agent(), proxy());
   new_allocator->SetPortRange(min_port(), max_port());
   new_allocator->set_max_ipv6_networks(max_ipv6_networks());
   new_allocator->set_step_delay(step_delay());

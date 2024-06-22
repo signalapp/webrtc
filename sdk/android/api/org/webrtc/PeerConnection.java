@@ -843,11 +843,12 @@ public class PeerConnection {
       return offerExtmapAllowMixed;
     }
 
-    @CalledByNative("RTCConfiguration")
-    @PortAllocatorFlags
-    int getPortAllocatorFlags() {
-      return portAllocatorFlags;
-    }
+    // RingRTC change to use default port allocator flags
+    // @CalledByNative("RTCConfiguration")
+    // @PortAllocatorFlags
+    // int getPortAllocatorFlags() {
+    //   return portAllocatorFlags;
+    // }
   };
 
   private final List<MediaStream> localStreams = new ArrayList<>();

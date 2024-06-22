@@ -6187,7 +6187,7 @@ TEST_F(P2PTransportChannelPingTest, Forking) {
       kShortTimeout, clock);
   transport1->SetRemoteIceParameters(kIceParams[1]);
   transport1->AddRemoteCandidate(
-      CreateUdpCandidate(LOCAL_PORT_TYPE, "1.1.1.1", 1, 1));
+      CreateUdpCandidate(IceCandidateType::kHost, "1.1.1.1", 1, 1));
   ASSERT_EQ(1u, transport1->connections().size());
   Connection* transport1_conn =
       WaitForConnectionTo(transport1.get(), "1.1.1.1", 1, &clock);
@@ -6208,7 +6208,7 @@ TEST_F(P2PTransportChannelPingTest, Forking) {
       kShortTimeout, clock);
   transport2->SetRemoteIceParameters(kIceParams[2]);
   transport2->AddRemoteCandidate(
-      CreateUdpCandidate(LOCAL_PORT_TYPE, "2.2.2.2", 2, 2));
+      CreateUdpCandidate(IceCandidateType::kHost, "2.2.2.2", 2, 2));
   ASSERT_EQ(1u, transport2->connections().size());
   Connection* transport2_conn =
       WaitForConnectionTo(transport2.get(), "2.2.2.2", 2, &clock);

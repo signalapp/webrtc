@@ -953,7 +953,7 @@ void P2PTransportChannel::StartGatheringWithSharedGatherer(
   RTC_DCHECK_RUN_ON(network_thread_);
   if (gathering_state_ != kIceGatheringGathering) {
     gathering_state_ = kIceGatheringGathering;
-    SignalGatheringState(this);
+    SendGatheringStateEvent();
   }
 
   // Note: we must set this before calling OnPortReady below to make sure

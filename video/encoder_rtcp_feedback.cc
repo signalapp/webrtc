@@ -37,7 +37,8 @@ EncoderRtcpFeedback::EncoderRtcpFeedback(
       per_layer_keyframes_(per_layer_keyframes),
       get_packet_infos_(std::move(get_packet_infos)),
       video_stream_encoder_(encoder),
-      time_last_packet_delivery_queue_(per_layer_keyframes ? ssrcs.size() : 1,
+      // RingRTC change to enable per-layer PLI for screen sharing
+      time_last_packet_delivery_queue_(ssrcs.size(),
                                        Timestamp::Zero()),
       min_keyframe_send_interval_(
           TimeDelta::Millis(KeyframeIntervalSettings::ParseFromFieldTrials()
