@@ -671,6 +671,7 @@ CreateSessionDescriptionForGroupCall(bool local,
   // auto tx_time_offset = webrtc::RtpExtension(webrtc::TransmissionOffset::Uri(), TX_TIME_OFFSET_EXT_ID);
   local_video->AddRtpHeaderExtension(transport_cc1);
   local_video->AddRtpHeaderExtension(video_orientation);
+  local_video->AddRtpHeaderExtension(dependency_descriptor);
   for (auto& remote_video : remote_videos) {
     remote_video->AddRtpHeaderExtension(transport_cc1);
     remote_video->AddRtpHeaderExtension(video_orientation);
