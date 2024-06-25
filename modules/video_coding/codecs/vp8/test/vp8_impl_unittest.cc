@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <memory>
 
+#include "absl/memory/memory.h"
 #include "api/environment/environment_factory.h"
 #include "api/test/create_frame_generator.h"
 #include "api/test/frame_generator_interface.h"
@@ -30,6 +31,7 @@
 #include "rtc_base/time_utils.h"
 #include "test/field_trial.h"
 #include "test/mappable_native_buffer.h"
+#include "test/scoped_key_value_config.h"
 #include "test/video_codec_settings.h"
 
 namespace webrtc {
@@ -67,11 +69,11 @@ const VideoEncoder::Settings kSettings(kCapabilities,
 class TestVp8Impl : public VideoCodecUnitTest {
  protected:
   std::unique_ptr<VideoEncoder> CreateEncoder() override {
-    return VP8Encoder::Create();
+    return CreateVp8Encoder(env_);
   }
 
   std::unique_ptr<VideoDecoder> CreateDecoder() override {
-    return CreateVp8Decoder(CreateEnvironment());
+    return CreateVp8Decoder(env_);
   }
 
   void ModifyCodecSettings(VideoCodec* codec_settings) override {
@@ -122,8 +124,7 @@ TEST_F(TestVp8Impl, ErrorResilienceDisabledForNoTemporalLayers) {
   codec_settings_.simulcastStream[0].numberOfTemporalLayers = 1;
 
   auto* const vpx = new NiceMock<MockLibvpxInterface>();
-  LibvpxVp8Encoder encoder((std::unique_ptr<LibvpxInterface>(vpx)),
-                           VP8Encoder::Settings());
+  LibvpxVp8Encoder encoder(CreateEnvironment(), {}, absl::WrapUnique(vpx));
   EXPECT_CALL(*vpx,
               codec_enc_init(
                   _, _, Field(&vpx_codec_enc_cfg_t::g_error_resilient, 0), _));
@@ -136,8 +137,7 @@ TEST_F(TestVp8Impl, DefaultErrorResilienceEnabledForTemporalLayers) {
   codec_settings_.VP8()->numberOfTemporalLayers = 2;
 
   auto* const vpx = new NiceMock<MockLibvpxInterface>();
-  LibvpxVp8Encoder encoder((std::unique_ptr<LibvpxInterface>(vpx)),
-                           VP8Encoder::Settings());
+  LibvpxVp8Encoder encoder(CreateEnvironment(), {}, absl::WrapUnique(vpx));
   EXPECT_CALL(*vpx,
               codec_enc_init(_, _,
                              Field(&vpx_codec_enc_cfg_t::g_error_resilient,
@@ -155,8 +155,7 @@ TEST_F(TestVp8Impl,
   codec_settings_.VP8()->numberOfTemporalLayers = 2;
 
   auto* const vpx = new NiceMock<MockLibvpxInterface>();
-  LibvpxVp8Encoder encoder((std::unique_ptr<LibvpxInterface>(vpx)),
-                           VP8Encoder::Settings());
+  LibvpxVp8Encoder encoder(CreateEnvironment(), {}, absl::WrapUnique(vpx));
   EXPECT_CALL(*vpx,
               codec_enc_init(_, _,
                              Field(&vpx_codec_enc_cfg_t::g_error_resilient,
@@ -169,8 +168,7 @@ TEST_F(TestVp8Impl,
 TEST_F(TestVp8Impl, SetRates) {
   codec_settings_.SetFrameDropEnabled(true);
   auto* const vpx = new NiceMock<MockLibvpxInterface>();
-  LibvpxVp8Encoder encoder((std::unique_ptr<LibvpxInterface>(vpx)),
-                           VP8Encoder::Settings());
+  LibvpxVp8Encoder encoder(CreateEnvironment(), {}, absl::WrapUnique(vpx));
   EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK,
             encoder.InitEncode(&codec_settings_,
                                VideoEncoder::Settings(kCapabilities, 1, 1000)));
@@ -253,7 +251,7 @@ TEST_F(TestVp8Impl, Configure) {
 TEST_F(TestVp8Impl, OnEncodedImageReportsInfo) {
   constexpr Timestamp kCaptureTimeIdentifier = Timestamp::Micros(1000);
   VideoFrame input_frame = NextInputFrame();
-  input_frame.set_timestamp(kInitialTimestampRtp);
+  input_frame.set_rtp_timestamp(kInitialTimestampRtp);
   input_frame.set_timestamp_us(kInitialTimestampMs *
                                rtc::kNumMicrosecsPerMillisec);
   input_frame.set_capture_time_identifier(kCaptureTimeIdentifier);
@@ -493,7 +491,7 @@ TEST_F(TestVp8Impl, ChecksSimulcastSettings) {
 #endif
 TEST_F(TestVp8Impl, MAYBE_AlignedStrideEncodeDecode) {
   VideoFrame input_frame = NextInputFrame();
-  input_frame.set_timestamp(kInitialTimestampRtp);
+  input_frame.set_rtp_timestamp(kInitialTimestampRtp);
   input_frame.set_timestamp_us(kInitialTimestampMs *
                                rtc::kNumMicrosecsPerMillisec);
   EncodedImage encoded_frame;
@@ -511,7 +509,7 @@ TEST_F(TestVp8Impl, MAYBE_AlignedStrideEncodeDecode) {
   ASSERT_TRUE(decoded_frame);
   // Compute PSNR on all planes (faster than SSIM).
   EXPECT_GT(I420PSNR(&input_frame, decoded_frame.get()), 36);
-  EXPECT_EQ(kInitialTimestampRtp, decoded_frame->timestamp());
+  EXPECT_EQ(kInitialTimestampRtp, decoded_frame->rtp_timestamp());
 }
 
 TEST_F(TestVp8Impl, EncoderWith2TemporalLayers) {
@@ -598,8 +596,7 @@ TEST_F(TestVp8Impl, DontDropKeyframes) {
 
 TEST_F(TestVp8Impl, KeepsTimestampOnReencode) {
   auto* const vpx = new NiceMock<MockLibvpxInterface>();
-  LibvpxVp8Encoder encoder((std::unique_ptr<LibvpxInterface>(vpx)),
-                           VP8Encoder::Settings());
+  LibvpxVp8Encoder encoder(CreateEnvironment(), {}, absl::WrapUnique(vpx));
 
   // Settings needed to trigger ScreenshareLayers usage, which is required for
   // overshoot-drop-reencode logic.
@@ -638,8 +635,7 @@ TEST_F(TestVp8Impl, KeepsTimestampOnReencode) {
 
 TEST(LibvpxVp8EncoderTest, GetEncoderInfoReturnsStaticInformation) {
   auto* const vpx = new NiceMock<MockLibvpxInterface>();
-  LibvpxVp8Encoder encoder((std::unique_ptr<LibvpxInterface>(vpx)),
-                           VP8Encoder::Settings());
+  LibvpxVp8Encoder encoder(CreateEnvironment(), {}, absl::WrapUnique(vpx));
 
   const auto info = encoder.GetEncoderInfo();
 
@@ -654,13 +650,13 @@ TEST(LibvpxVp8EncoderTest, GetEncoderInfoReturnsStaticInformation) {
 }
 
 TEST(LibvpxVp8EncoderTest, RequestedResolutionAlignmentFromFieldTrial) {
-  test::ScopedFieldTrials field_trials(
+  test::ScopedKeyValueConfig field_trials(
       "WebRTC-VP8-GetEncoderInfoOverride/"
       "requested_resolution_alignment:10/");
 
   auto* const vpx = new NiceMock<MockLibvpxInterface>();
-  LibvpxVp8Encoder encoder((std::unique_ptr<LibvpxInterface>(vpx)),
-                           VP8Encoder::Settings());
+  LibvpxVp8Encoder encoder(CreateEnvironment(&field_trials), {},
+                           absl::WrapUnique(vpx));
 
   EXPECT_EQ(encoder.GetEncoderInfo().requested_resolution_alignment, 10u);
   EXPECT_FALSE(
@@ -669,7 +665,7 @@ TEST(LibvpxVp8EncoderTest, RequestedResolutionAlignmentFromFieldTrial) {
 }
 
 TEST(LibvpxVp8EncoderTest, ResolutionBitrateLimitsFromFieldTrial) {
-  test::ScopedFieldTrials field_trials(
+  test::ScopedKeyValueConfig field_trials(
       "WebRTC-VP8-GetEncoderInfoOverride/"
       "frame_size_pixels:123|456|789,"
       "min_start_bitrate_bps:11000|22000|33000,"
@@ -677,8 +673,8 @@ TEST(LibvpxVp8EncoderTest, ResolutionBitrateLimitsFromFieldTrial) {
       "max_bitrate_bps:77000|88000|99000/");
 
   auto* const vpx = new NiceMock<MockLibvpxInterface>();
-  LibvpxVp8Encoder encoder((std::unique_ptr<LibvpxInterface>(vpx)),
-                           VP8Encoder::Settings());
+  LibvpxVp8Encoder encoder(CreateEnvironment(&field_trials), {},
+                           absl::WrapUnique(vpx));
 
   EXPECT_THAT(
       encoder.GetEncoderInfo().resolution_bitrate_limits,
@@ -691,8 +687,7 @@ TEST(LibvpxVp8EncoderTest, ResolutionBitrateLimitsFromFieldTrial) {
 TEST(LibvpxVp8EncoderTest,
      GetEncoderInfoReturnsEmptyResolutionBitrateLimitsByDefault) {
   auto* const vpx = new NiceMock<MockLibvpxInterface>();
-  LibvpxVp8Encoder encoder((std::unique_ptr<LibvpxInterface>(vpx)),
-                           VP8Encoder::Settings());
+  LibvpxVp8Encoder encoder(CreateEnvironment(), {}, absl::WrapUnique(vpx));
 
   const auto info = encoder.GetEncoderInfo();
 
@@ -707,12 +702,12 @@ TEST(LibvpxVp8EncoderTest,
                                              /*min_bitrate_bps=*/100,
                                              /*max_bitrate_bps=*/1000),
        VideoEncoder::ResolutionBitrateLimits(320 * 180, 100, 30, 500)};
-  VP8Encoder::Settings settings;
+  Vp8EncoderSettings settings;
   settings.resolution_bitrate_limits = resolution_bitrate_limits;
 
   auto* const vpx = new NiceMock<MockLibvpxInterface>();
-  LibvpxVp8Encoder encoder((std::unique_ptr<LibvpxInterface>(vpx)),
-                           std::move(settings));
+  LibvpxVp8Encoder encoder(CreateEnvironment(), std::move(settings),
+                           absl::WrapUnique(vpx));
 
   const auto info = encoder.GetEncoderInfo();
 

@@ -49,7 +49,7 @@ class VideoQualityTest : public test::CallTest,
     return payload_type_map_;
   }
 
-  static void FillScalabilitySettings(
+  void FillScalabilitySettings(
       Params* params,
       size_t video_idx,
       const std::vector<std::string>& stream_descriptors,
@@ -82,7 +82,8 @@ class VideoQualityTest : public test::CallTest,
   std::unique_ptr<VideoDecoder> CreateVideoDecoder(
       const Environment& env,
       const SdpVideoFormat& format);
-  std::unique_ptr<VideoEncoder> CreateVideoEncoder(const SdpVideoFormat& format,
+  std::unique_ptr<VideoEncoder> CreateVideoEncoder(const Environment& env,
+                                                   const SdpVideoFormat& format,
                                                    VideoAnalyzer* analyzer);
   void SetupVideo(Transport* send_transport, Transport* recv_transport);
   void SetupThumbnails(Transport* send_transport, Transport* recv_transport);

@@ -393,7 +393,7 @@ Rust_sessionDescriptionFromV4(bool offer,
     audio->AddCodec(opus_red);
   }
 
-  auto add_video_feedback_params = [] (cricket::VideoCodec* video_codec) {
+  auto add_video_feedback_params = [] (cricket::Codec* video_codec) {
     video_codec->AddFeedbackParam(cricket::FeedbackParam(cricket::kRtcpFbParamTransportCc, cricket::kParamValueEmpty));
     video_codec->AddFeedbackParam(cricket::FeedbackParam(cricket::kRtcpFbParamCcm, cricket::kRtcpFbCcmParamFir));
     video_codec->AddFeedbackParam(cricket::FeedbackParam(cricket::kRtcpFbParamNack, cricket::kParamValueEmpty));
@@ -618,7 +618,7 @@ CreateSessionDescriptionForGroupCall(bool local,
     remote_audio->AddCodec(opus_red);
   }
 
-  auto add_video_feedback_params = [] (cricket::VideoCodec* video_codec) {
+  auto add_video_feedback_params = [] (cricket::Codec* video_codec) {
     video_codec->AddFeedbackParam(cricket::FeedbackParam(cricket::kRtcpFbParamTransportCc, cricket::kParamValueEmpty));
     video_codec->AddFeedbackParam(cricket::FeedbackParam(cricket::kRtcpFbParamCcm, cricket::kRtcpFbCcmParamFir));
     video_codec->AddFeedbackParam(cricket::FeedbackParam(cricket::kRtcpFbParamNack, cricket::kParamValueEmpty));
@@ -649,7 +649,7 @@ CreateSessionDescriptionForGroupCall(bool local,
     remote_video->AddCodec(red_rtx);
   }
 
-  auto audio_level = webrtc::RtpExtension(webrtc::AudioLevel::Uri(), AUDIO_LEVEL_EXT_ID);
+  auto audio_level = webrtc::RtpExtension(webrtc::AudioLevelExtension::Uri(), AUDIO_LEVEL_EXT_ID);
   // Note: Do not add transport-cc for audio.  Using transport-cc with audio is still experimental in WebRTC.
   // And don't add abs_send_time because it's only used for video.
   local_audio->AddRtpHeaderExtension(audio_level);
@@ -973,7 +973,7 @@ Rust_addIceCandidateFromServer(PeerConnectionInterface* pc_borrowed_rc,
   // WebRTC generally prefers IPv6 over IPv4 for local candidates (see rtc_base::IPAddressPrecedence).
   // So we leave the priority unset to allow the local candidate preference to break the tie.
   candidate.set_component(cricket::ICE_CANDIDATE_COMPONENT_RTP);
-  candidate.set_type(cricket::LOCAL_PORT_TYPE);  // AKA "host"
+  candidate.set_type(webrtc::IceCandidateType::kHost);
   candidate.set_address(rtc::SocketAddress(IpToRtcIp(ip), port));
   candidate.set_protocol(tcp ? cricket::TCP_PROTOCOL_NAME : cricket::UDP_PROTOCOL_NAME);
 

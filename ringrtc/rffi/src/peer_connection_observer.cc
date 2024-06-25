@@ -35,7 +35,7 @@ void PeerConnectionObserverRffi::OnIceCandidate(const IceCandidateInterface* can
   candidate->ToString(&sdp);
   rust_candidate.sdp_borrowed = sdp.c_str();
 
-  rust_candidate.is_relayed = (candidate->candidate().type() == cricket::RELAY_PORT_TYPE);
+  rust_candidate.is_relayed = (candidate->candidate().type() == IceCandidateType::kRelay);
   rust_candidate.relay_protocol = TransportProtocol::kUnknown;
   if (candidate->candidate().relay_protocol() == cricket::UDP_PROTOCOL_NAME) {
     rust_candidate.relay_protocol = TransportProtocol::kUdp;
@@ -95,7 +95,7 @@ void PeerConnectionObserverRffi::OnIceSelectedCandidatePairChanged(
   auto& remote = event.selected_candidate_pair.remote_candidate();
   auto local_adapter_type = local.network_type();
   auto local_adapter_type_under_vpn = local.underlying_type_for_vpn();
-  bool local_relayed = (local.type() == cricket::RELAY_PORT_TYPE) || !local.relay_protocol().empty();
+  bool local_relayed = (local.type() == IceCandidateType::kRelay) || !local.relay_protocol().empty();
   TransportProtocol local_relay_protocol = TransportProtocol::kUnknown;
   if (local.relay_protocol() == cricket::UDP_PROTOCOL_NAME) {
     local_relay_protocol = TransportProtocol::kUdp;
@@ -104,7 +104,7 @@ void PeerConnectionObserverRffi::OnIceSelectedCandidatePairChanged(
   } else if (local.relay_protocol() == cricket::TLS_PROTOCOL_NAME) {
     local_relay_protocol = TransportProtocol::kTls;
   }
-  bool remote_relayed = (remote.type() == cricket::RELAY_PORT_TYPE);
+  bool remote_relayed = (remote.type() == IceCandidateType::kRelay);
   auto network_route = webrtc::rffi::NetworkRoute{ local_adapter_type, local_adapter_type_under_vpn, local_relayed, local_relay_protocol, remote_relayed};
 
   callbacks_.onIceNetworkRouteChange(observer_, network_route, SdpSerializeCandidate(local).c_str(), SdpSerializeCandidate(remote).c_str());

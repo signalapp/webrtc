@@ -276,18 +276,16 @@ H265BitstreamParser::Result H265BitstreamParser::ParseNonParameterSetNalu(
       }
 
       uint32_t num_pic_total_curr = 0;
-      uint32_t curr_sps_idx = 0;
+      uint32_t curr_rps_idx = 0;
       if (short_term_ref_pic_set_sps_flag) {
-        curr_sps_idx = short_term_ref_pic_set_idx;
+        curr_rps_idx = short_term_ref_pic_set_idx;
       } else {
-        curr_sps_idx = sps->num_short_term_ref_pic_sets;
+        curr_rps_idx = sps->num_short_term_ref_pic_sets;
       }
-      if (sps->short_term_ref_pic_set.size() <= curr_sps_idx) {
-        TRUE_OR_RETURN(!(curr_sps_idx != 0 || short_term_ref_pic_set_sps_flag));
-      }
+
       const H265SpsParser::ShortTermRefPicSet* ref_pic_set;
-      if (curr_sps_idx < sps->short_term_ref_pic_set.size()) {
-        ref_pic_set = &(sps->short_term_ref_pic_set[curr_sps_idx]);
+      if (curr_rps_idx < sps->short_term_ref_pic_set.size()) {
+        ref_pic_set = &(sps->short_term_ref_pic_set[curr_rps_idx]);
       } else {
         ref_pic_set = &short_term_ref_pic_set;
       }
@@ -540,6 +538,15 @@ absl::optional<int> H265BitstreamParser::GetLastSliceQp() const {
     return absl::nullopt;
   }
   return parsed_qp;
+}
+
+absl::optional<uint32_t> H265BitstreamParser::GetLastSlicePpsId() const {
+  if (!last_slice_pps_id_) {
+    RTC_LOG(LS_ERROR) << "Failed to parse PPS id from bitstream.";
+    return absl::nullopt;
+  }
+
+  return last_slice_pps_id_;
 }
 
 }  // namespace webrtc

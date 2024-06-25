@@ -1120,16 +1120,16 @@ bool ParseCandidate(absl::string_view message,
       return ParseFailed(first_line, "Unsupported transport type.", error);
   }
 
-  absl::string_view candidate_type;
+  IceCandidateType candidate_type;
   const absl::string_view type = fields[7];
   if (type == kCandidateHost) {
-    candidate_type = cricket::LOCAL_PORT_TYPE;
+    candidate_type = IceCandidateType::kHost;
   } else if (type == kCandidateSrflx) {
-    candidate_type = cricket::STUN_PORT_TYPE;
+    candidate_type = IceCandidateType::kSrflx;
   } else if (type == kCandidateRelay) {
-    candidate_type = cricket::RELAY_PORT_TYPE;
+    candidate_type = IceCandidateType::kRelay;
   } else if (type == kCandidatePrflx) {
-    candidate_type = cricket::PRFLX_PORT_TYPE;
+    candidate_type = IceCandidateType::kPrflx;
   } else {
     return ParseFailed(first_line, "Unsupported candidate type.", error);
   }
@@ -3633,7 +3633,7 @@ bool ParseRtpmapAttribute(absl::string_view line,
   }
 
   if (media_type == cricket::MEDIA_TYPE_VIDEO) {
-    for (const cricket::VideoCodec& existing_codec : media_desc->codecs()) {
+    for (const cricket::Codec& existing_codec : media_desc->codecs()) {
       if (!existing_codec.name.empty() && payload_type == existing_codec.id &&
           (!absl::EqualsIgnoreCase(encoding_name, existing_codec.name) ||
            clock_rate != existing_codec.clockrate)) {
@@ -3664,7 +3664,7 @@ bool ParseRtpmapAttribute(absl::string_view line,
       return ParseFailed(line, "At most 24 channels are supported.", error);
     }
 
-    for (const cricket::AudioCodec& existing_codec : media_desc->codecs()) {
+    for (const cricket::Codec& existing_codec : media_desc->codecs()) {
       // TODO(crbug.com/1338902) re-add checks for clockrate and number of
       // channels.
       if (!existing_codec.name.empty() && payload_type == existing_codec.id &&

@@ -22,6 +22,7 @@
 
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
+#include "api/audio/audio_processing_statistics.h"
 #include "api/audio_codecs/audio_encoder.h"
 #include "api/candidate.h"
 #include "api/data_channel_interface.h"
@@ -34,7 +35,6 @@
 #include "api/video/video_timing.h"
 #include "call/call.h"
 #include "media/base/media_channel.h"
-#include "modules/audio_processing/include/audio_processing_statistics.h"
 #include "p2p/base/ice_transport_internal.h"
 #include "p2p/base/p2p_constants.h"
 #include "pc/channel.h"
@@ -513,6 +513,15 @@ const char* IceCandidateTypeToStatsType(const cricket::Candidate& candidate) {
   return "unknown";
 }
 
+// Return std::string to make sure that the type remains kString compatible.
+std::string GetLegacyCandidateTypeName(const cricket::Candidate& c) {
+  if (c.is_local())
+    return "local";
+  if (c.is_stun())
+    return "stun";
+  return std::string(c.type_name());
+}
+
 const char* AdapterTypeToStatsType(rtc::AdapterType type) {
   switch (type) {
     case rtc::ADAPTER_TYPE_UNKNOWN:
@@ -811,11 +820,11 @@ StatsReport* LegacyStatsCollector::AddConnectionInfoReport(
   report->AddString(StatsReport::kStatsValueNameLocalAddress,
                     info.local_candidate.address().ToString());
   report->AddString(StatsReport::kStatsValueNameLocalCandidateType,
-                    info.local_candidate.type());
+                    GetLegacyCandidateTypeName(info.local_candidate));
   report->AddString(StatsReport::kStatsValueNameRemoteAddress,
                     info.remote_candidate.address().ToString());
   report->AddString(StatsReport::kStatsValueNameRemoteCandidateType,
-                    info.remote_candidate.type());
+                    GetLegacyCandidateTypeName(info.remote_candidate));
   report->AddString(StatsReport::kStatsValueNameTransportType,
                     info.local_candidate.protocol());
   report->AddString(StatsReport::kStatsValueNameLocalCandidateRelayProtocol,

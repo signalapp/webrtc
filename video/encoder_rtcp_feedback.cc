@@ -58,6 +58,7 @@ void EncoderRtcpFeedback::OnReceivedIntraFrameRequest(uint32_t ssrc) {
     RTC_LOG(LS_WARNING) << "SSRC " << ssrc << " not found.";
     return;
   }
+  // RingRTC change to enable per-layer PLI for screen sharing
   bool per_layer_keyframes = per_layer_keyframes_.load();
   size_t ssrc_index =
       per_layer_keyframes ? std::distance(ssrcs_.begin(), it) : 0;

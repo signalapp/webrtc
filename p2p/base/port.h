@@ -53,7 +53,6 @@
 #include "rtc_base/network.h"
 #include "rtc_base/network/received_packet.h"
 #include "rtc_base/network/sent_packet.h"
-#include "rtc_base/proxy_info.h"
 #include "rtc_base/rate_tracker.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/system/rtc_export.h"
@@ -171,29 +170,27 @@ typedef std::set<rtc::SocketAddress> ServerAddresses;
 // connections to similar mechanisms of the other client.  Subclasses of this
 // one add support for specific mechanisms like local UDP ports.
 class RTC_EXPORT Port : public PortInterface, public sigslot::has_slots<> {
- public:
-  // INIT: The state when a port is just created.
-  // KEEP_ALIVE_UNTIL_PRUNED: A port should not be destroyed even if no
-  // connection is using it.
-  // PRUNED: It will be destroyed if no connection is using it for a period of
-  // 30 seconds.
-  enum class State { INIT, KEEP_ALIVE_UNTIL_PRUNED, PRUNED };
+ protected:
+  // Constructors for use only by via constructors in derived classes.
   Port(webrtc::TaskQueueBase* thread,
-       absl::string_view type ABSL_ATTRIBUTE_LIFETIME_BOUND,
+       webrtc::IceCandidateType type,
        rtc::PacketSocketFactory* factory,
        const rtc::Network* network,
        absl::string_view username_fragment,
        absl::string_view password,
        const webrtc::FieldTrialsView* field_trials = nullptr);
   Port(webrtc::TaskQueueBase* thread,
-       absl::string_view type ABSL_ATTRIBUTE_LIFETIME_BOUND,
+       webrtc::IceCandidateType type,
        rtc::PacketSocketFactory* factory,
        const rtc::Network* network,
        uint16_t min_port,
        uint16_t max_port,
        absl::string_view username_fragment,
        absl::string_view password,
-       const webrtc::FieldTrialsView* field_trials = nullptr);
+       const webrtc::FieldTrialsView* field_trials = nullptr,
+       bool shared_socket = false);
+
+ public:
   ~Port() override;
 
   // Note that the port type does NOT uniquely identify different subclasses of
@@ -201,7 +198,7 @@ class RTC_EXPORT Port : public PortInterface, public sigslot::has_slots<> {
   // uniquely identify subclasses. Whenever a new subclass of Port introduces a
   // conflict in the value of the 2-tuple, make sure that the implementation
   // that relies on this 2-tuple for RTTI is properly changed.
-  const absl::string_view Type() const override;
+  webrtc::IceCandidateType Type() const override;
   const rtc::Network* Network() const override;
 
   // Methods to set/get ICE role and tiebreaker values.
@@ -322,13 +319,6 @@ class RTC_EXPORT Port : public PortInterface, public sigslot::has_slots<> {
       const rtc::SocketAddress& addr,
       const std::vector<uint16_t>& unknown_types);
 
-  void set_proxy(absl::string_view user_agent, const rtc::ProxyInfo& proxy) {
-    user_agent_ = std::string(user_agent);
-    proxy_ = proxy;
-  }
-  const std::string& user_agent() override { return user_agent_; }
-  const rtc::ProxyInfo& proxy() override { return proxy_; }
-
   void EnablePortPackets() override;
 
   // Called if the port has no connections and is no longer useful.
@@ -371,18 +361,6 @@ class RTC_EXPORT Port : public PortInterface, public sigslot::has_slots<> {
 
   void GetStunStats(absl::optional<StunStats>* stats) override {}
 
-  // Foundation:  An arbitrary string that is the same for two candidates
-  //   that have the same type, base IP address, protocol (UDP, TCP,
-  //   etc.), and STUN or TURN server.  If any of these are different,
-  //   then the foundation will be different.  Two candidate pairs with
-  //   the same foundation pairs are likely to have similar network
-  //   characteristics. Foundations are used in the frozen algorithm.
-  std::string ComputeFoundation(
-      absl::string_view type,
-      absl::string_view protocol,
-      absl::string_view relay_protocol,
-      const rtc::SocketAddress& base_address) override;
-
  protected:
   void UpdateNetworkCost() override;
 
@@ -394,7 +372,7 @@ class RTC_EXPORT Port : public PortInterface, public sigslot::has_slots<> {
                   absl::string_view protocol,
                   absl::string_view relay_protocol,
                   absl::string_view tcptype,
-                  absl::string_view type,
+                  webrtc::IceCandidateType type,
                   uint32_t type_preference,
                   uint32_t relay_preference,
                   absl::string_view url,
@@ -460,8 +438,11 @@ class RTC_EXPORT Port : public PortInterface, public sigslot::has_slots<> {
 
   const webrtc::FieldTrialsView& field_trials() const { return *field_trials_; }
 
+  webrtc::IceCandidateType type() const { return type_; }
+
  private:
-  void Construct();
+  bool MaybeObfuscateAddress(const Candidate& c, bool is_final)
+      RTC_RUN_ON(thread_);
 
   void PostDestroyIfDead(bool delayed);
   void DestroyIfDead();
@@ -483,7 +464,10 @@ class RTC_EXPORT Port : public PortInterface, public sigslot::has_slots<> {
 
   webrtc::TaskQueueBase* const thread_;
   rtc::PacketSocketFactory* const factory_;
-  const absl::string_view type_;
+  webrtc::AlwaysValidPointer<const webrtc::FieldTrialsView,
+                             webrtc::FieldTrialBasedConfig>
+      field_trials_;
+  const webrtc::IceCandidateType type_;
   bool send_retransmit_count_attribute_;
   const rtc::Network* network_;
   uint16_t min_port_;
@@ -504,28 +488,26 @@ class RTC_EXPORT Port : public PortInterface, public sigslot::has_slots<> {
   IceRole ice_role_;
   uint64_t tiebreaker_;
   bool shared_socket_;
-  // Information to use when going through a proxy.
-  std::string user_agent_;
-  rtc::ProxyInfo proxy_;
 
   // A virtual cost perceived by the user, usually based on the network type
   // (WiFi. vs. Cellular). It takes precedence over the priority when
   // comparing two connections.
   int16_t network_cost_;
+  // INIT: The state when a port is just created.
+  // KEEP_ALIVE_UNTIL_PRUNED: A port should not be destroyed even if no
+  // connection is using it.
+  // PRUNED: It will be destroyed if no connection is using it for a period of
+  // 30 seconds.
+  enum class State { INIT, KEEP_ALIVE_UNTIL_PRUNED, PRUNED };
   State state_ = State::INIT;
   int64_t last_time_all_connections_removed_ = 0;
   MdnsNameRegistrationStatus mdns_name_registration_status_ =
       MdnsNameRegistrationStatus::kNotStarted;
 
-  rtc::WeakPtrFactory<Port> weak_factory_;
-  webrtc::AlwaysValidPointer<const webrtc::FieldTrialsView,
-                             webrtc::FieldTrialBasedConfig>
-      field_trials_;
-
-  bool MaybeObfuscateAddress(const Candidate& c, bool is_final)
-      RTC_RUN_ON(thread_);
-
   webrtc::CallbackList<PortInterface*> port_destroyed_callback_list_;
+
+  // Keep as the last member variable.
+  rtc::WeakPtrFactory<Port> weak_factory_;
 };
 
 }  // namespace cricket

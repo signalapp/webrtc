@@ -63,6 +63,10 @@ class SrtpTransportTest : public ::testing::Test, public sigslot::has_slots<> {
     srtp_transport2_ =
         std::make_unique<SrtpTransport>(rtcp_mux_enabled, field_trials_);
 
+    // RingRTC change to drop all incoming packets until explicitly allowed
+    srtp_transport1_->SetIncomingRtpEnabled(true);
+    srtp_transport2_->SetIncomingRtpEnabled(true);
+
     srtp_transport1_->SetRtpPacketTransport(rtp_packet_transport1_.get());
     srtp_transport2_->SetRtpPacketTransport(rtp_packet_transport2_.get());
 
@@ -432,6 +436,9 @@ TEST_F(SrtpTransportTest, RemoveSrtpReceiveStream) {
       std::make_unique<SrtpTransport>(/*rtcp_mux_enabled=*/true, field_trials);
   auto rtp_packet_transport = std::make_unique<rtc::FakePacketTransport>(
       "fake_packet_transport_loopback");
+
+  // RingRTC change to drop all incoming packets until explicitly allowed
+  srtp_transport->SetIncomingRtpEnabled(true);
 
   bool asymmetric = false;
   rtp_packet_transport->SetDestination(rtp_packet_transport.get(), asymmetric);

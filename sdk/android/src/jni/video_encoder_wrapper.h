@@ -123,7 +123,8 @@ class VideoEncoderWrapper : public VideoEncoder {
  */
 std::unique_ptr<VideoEncoder> JavaToNativeVideoEncoder(
     JNIEnv* jni,
-    const JavaRef<jobject>& j_encoder);
+    const JavaRef<jobject>& j_encoder,
+    jlong webrtcEnvRef);
 
 bool IsHardwareVideoEncoder(JNIEnv* jni, const JavaRef<jobject>& j_encoder);
 

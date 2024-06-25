@@ -43,9 +43,6 @@ constexpr char kPlcUsePrevDecodedSamplesFieldTrial[] =
 constexpr char kAvoidNoisePumpingDuringDtxFieldTrial[] =
     "WebRTC-Audio-OpusAvoidNoisePumpingDuringDtx";
 
-constexpr char kSetSignalVoiceWithDtxFieldTrial[] =
-    "WebRTC-Audio-OpusSetSignalVoiceWithDtx";
-
 static int FrameSizePerChannel(int frame_size_ms, int sample_rate_hz) {
   RTC_DCHECK_GT(frame_size_ms, 0);
   RTC_DCHECK_EQ(frame_size_ms % 10, 0);
@@ -376,11 +373,10 @@ int16_t WebRtcOpus_EnableDtx(OpusEncInst* inst) {
   // RingRTC change to log opus setters
   RTC_LOG(LS_INFO) << "WebRtcOpus_EnableDtx";
   if (inst) {
-    if (webrtc::field_trial::IsEnabled(kSetSignalVoiceWithDtxFieldTrial)) {
-      int ret = ENCODER_CTL(inst, OPUS_SET_SIGNAL(OPUS_SIGNAL_VOICE));
-      if (ret != OPUS_OK) {
-        return ret;
-      }
+    // RingRTC change to force the Opus signal type to voice
+    int ret = ENCODER_CTL(inst, OPUS_SET_SIGNAL(OPUS_SIGNAL_VOICE));
+    if (ret != OPUS_OK) {
+      return ret;
     }
     return ENCODER_CTL(inst, OPUS_SET_DTX(1));
   } else {
@@ -392,12 +388,6 @@ int16_t WebRtcOpus_DisableDtx(OpusEncInst* inst) {
   // RingRTC change to log opus setters
   RTC_LOG(LS_INFO) << "WebRtcOpus_DisableDtx";
   if (inst) {
-    if (webrtc::field_trial::IsEnabled(kSetSignalVoiceWithDtxFieldTrial)) {
-      int ret = ENCODER_CTL(inst, OPUS_SET_SIGNAL(OPUS_AUTO));
-      if (ret != OPUS_OK) {
-        return ret;
-      }
-    }
     return ENCODER_CTL(inst, OPUS_SET_DTX(0));
   } else {
     return -1;

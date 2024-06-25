@@ -5,6 +5,7 @@
 
 #include "api/create_peerconnection_factory.h"
 #include "api/enable_media.h"
+#include "api/environment/environment.h"
 #include "api/task_queue/default_task_queue_factory.h"
 #include "api/rtc_event_log/rtc_event_log_factory.h"
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
@@ -49,7 +50,8 @@ class RingRTCVideoEncoderFactory : public VideoEncoderFactory {
     return factory_.GetSupportedFormats();
   }
 
-  std::unique_ptr<VideoEncoder> CreateVideoEncoder(
+  std::unique_ptr<VideoEncoder> Create(
+      const Environment& env,
       const SdpVideoFormat& format) override {
     if (format.IsCodecInList(
         factory_.GetSupportedFormats())) {
@@ -60,7 +62,7 @@ class RingRTCVideoEncoderFactory : public VideoEncoderFactory {
         // The adapter has a passthrough mode for the case that simulcast is not
         // used, so all responsibility can be delegated to it.
         return std::make_unique<SimulcastEncoderAdapter>(
-            &factory_, *original_format);
+            env, &factory_, nullptr, *original_format);
       }
     }
     return nullptr;
