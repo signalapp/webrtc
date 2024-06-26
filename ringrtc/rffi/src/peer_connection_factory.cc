@@ -25,6 +25,7 @@
 #include "rffi/api/peer_connection_factory.h"
 #include "rffi/api/peer_connection_observer_intf.h"
 #include "rffi/api/injectable_network.h"
+#include "rffi/src/audio_device.h"
 #include "rffi/src/peer_connection_observer.h"
 #include "rffi/src/ptr.h"
 #include "rtc_base/logging.h"
@@ -146,6 +147,8 @@ class PeerConnectionFactoryWithOwnedThreads
 #endif
         return AudioDeviceModule::Create(
           AudioDeviceModule::kPlatformDefaultAudio, dependencies.task_queue_factory.get());
+      case kRffiAudioDeviceModuleRingRtc:
+        return RingRTCAudioDeviceModule::Create();
       }
     });
 
