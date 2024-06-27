@@ -9,6 +9,10 @@
 #include <cstdint>
 
 #include "api/audio/audio_device.h"
+#include "api/sequence_checker.h"
+#include "rffi/api/audio_device_intf.h"
+#include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
 namespace rffi {
@@ -16,23 +20,57 @@ namespace rffi {
 /**
  * RingRTC-specific ADM implementation, which forwards to Rust layer.
  */
-class RingRTCAudioDeviceModule: public AudioDeviceModule {
+class RingRTCAudioDeviceModule : public AudioDeviceModule {
  public:
-  RingRTCAudioDeviceModule();
   ~RingRTCAudioDeviceModule() override;
 
-  // Creates a default ADM for usage in production code.
-  static rtc::scoped_refptr<AudioDeviceModule> Create();
+  // Creates an ADM for usage in production code.
+  static rtc::scoped_refptr<RingRTCAudioDeviceModule> Create(
+      void* adm_borrowed,
+      const AudioDeviceCallbacks* callbacks);
 
   // Retrieve the currently utilized audio layer
-  int32_t ActiveAudioLayer(AudioLayer* audioLayer) const override;
+  int32_t ActiveAudioLayer(AudioLayer* audio_layer) const override;
 
   // Full-duplex transportation of PCM audio
-  int32_t RegisterAudioCallback(AudioTransport* audioCallback) override;
+  // Note that, as with all other functions in this interface, this must be
+  // called on the thread that initialized the object.
+  // It also may not be called during recording or playback (as determined by
+  // the rust layer's Playing and Recording functions)
+  int32_t RegisterAudioCallback(AudioTransport* audio_callback) override;
+
+  // RingRTC function that forwards to the underlying `callback_` to send
+  // input data, if a callback has been specified.
+  // Used to allow rust code to invoke callback.
+  int32_t RecordedDataIsAvailable(
+      const void* audio_samples,
+      size_t n_samples,
+      size_t n_bytes_per_sample,
+      size_t n_channels,
+      uint32_t samples_per_sec,
+      uint32_t total_delay_ms,
+      int32_t clock_drift,
+      uint32_t current_mic_level,
+      bool key_pressed,
+      uint32_t& new_mic_level,
+      absl::optional<int64_t> estimated_capture_time_ns);
+
+  // RingRTC function that forwards to the underlying `callback_` to receive
+  // output data, if a callback has been specified.
+  // Used to allow rust code to invoke callback.
+  int32_t NeedMorePlayData(size_t n_samples,
+                           size_t n_bytes_per_sample,
+                           size_t n_channels,
+                           uint32_t samples_per_sec,
+                           void* audio_samples,
+                           size_t& n_samples_out,
+                           int64_t* elapsed_time_ms,
+                           int64_t* ntp_time_ms);
 
   // Main initialization and termination
   int32_t Init() override;
-  int32_t Terminate() override;
+  // Final so that calling from destructor is safe
+  int32_t Terminate() override final;
   bool Initialized() const override;
 
   // Device enumeration
@@ -77,15 +115,15 @@ class RingRTCAudioDeviceModule: public AudioDeviceModule {
   int32_t SpeakerVolumeIsAvailable(bool* available) override;
   int32_t SetSpeakerVolume(uint32_t volume) override;
   int32_t SpeakerVolume(uint32_t* volume) const override;
-  int32_t MaxSpeakerVolume(uint32_t* maxVolume) const override;
-  int32_t MinSpeakerVolume(uint32_t* minVolume) const override;
+  int32_t MaxSpeakerVolume(uint32_t* max_volume) const override;
+  int32_t MinSpeakerVolume(uint32_t* min_volume) const override;
 
   // Microphone volume controls
   int32_t MicrophoneVolumeIsAvailable(bool* available) override;
   int32_t SetMicrophoneVolume(uint32_t volume) override;
   int32_t MicrophoneVolume(uint32_t* volume) const override;
-  int32_t MaxMicrophoneVolume(uint32_t* maxVolume) const override;
-  int32_t MinMicrophoneVolume(uint32_t* minVolume) const override;
+  int32_t MaxMicrophoneVolume(uint32_t* max_volume) const override;
+  int32_t MinMicrophoneVolume(uint32_t* min_volume) const override;
 
   // Speaker mute control
   int32_t SpeakerMuteIsAvailable(bool* available) override;
@@ -136,9 +174,22 @@ class RingRTCAudioDeviceModule: public AudioDeviceModule {
     return -1;
   }
 #endif  // WEBRTC_IOS
+ protected:
+  RingRTCAudioDeviceModule(void* adm_borrowed,
+                           const AudioDeviceCallbacks* callbacks);
+
+ private:
+  // Ensures that the class is used on the same thread as it is constructed
+  // and destroyed on.
+  SequenceChecker thread_checker_;
+
+  void* adm_borrowed_ RTC_GUARDED_BY(&thread_checker_) = nullptr;
+  AudioDeviceCallbacks rust_callbacks_ RTC_GUARDED_BY(&thread_checker_);
+  // NOT owned
+  AudioTransport* transport_callback_ = nullptr;
 };
 
-} // namespace rffi
-} // namespace webrtc
+}  // namespace rffi
+}  // namespace webrtc
 
 #endif  // RFFI_AUDIO_DEVICE_H__

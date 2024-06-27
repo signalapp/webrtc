@@ -125,10 +125,14 @@ class PeerConnectionFactoryWithOwnedThreads
 #if defined(WEBRTC_WIN)
     std::unique_ptr<ScopedCOMInitializer> com_initializer;
 #endif
+    // Optionally-populated pointer that specifically goes to the RingRTC adm,
+    // used for the rust layer to be able to propagate audio data to and from
+    // WebRTC.
+    rtc::scoped_refptr<RingRTCAudioDeviceModule> ringrtc_adm;
 
     // The audio device module must be created (and destroyed) on the _worker_ thread.
     // It is safe to release the reference on this thread, however, because the PeerConnectionFactory keeps its own reference.
-    auto adm = worker_thread->BlockingCall([&]() {
+    auto adm = worker_thread->BlockingCall([&]() -> rtc::scoped_refptr<AudioDeviceModule> {
       switch (audio_config_borrowed->audio_device_module_type) {
       case kRffiAudioDeviceModuleFile:
         FileAudioDeviceFactory::SetFilenamesToUse(audio_config_borrowed->input_file_borrowed,
@@ -148,7 +152,11 @@ class PeerConnectionFactoryWithOwnedThreads
         return AudioDeviceModule::Create(
           AudioDeviceModule::kPlatformDefaultAudio, dependencies.task_queue_factory.get());
       case kRffiAudioDeviceModuleRingRtc:
-        return RingRTCAudioDeviceModule::Create();
+        auto adm = RingRTCAudioDeviceModule::Create(
+            audio_config_borrowed->rust_adm_borrowed,
+            audio_config_borrowed->rust_audio_device_callbacks);
+        ringrtc_adm = adm;
+        return adm;
       }
     });
 
@@ -185,7 +193,8 @@ class PeerConnectionFactoryWithOwnedThreads
 #if defined(WEBRTC_WIN)
         std::move(com_initializer),
 #endif
-        adm.get());
+        adm.get(),
+        ringrtc_adm.get());
   }
 
   ~PeerConnectionFactoryWithOwnedThreads() override {
@@ -278,6 +287,46 @@ class PeerConnectionFactoryWithOwnedThreads
     });
   }
 
+  int32_t RecordedDataIsAvailable(
+      const void* audio_samples,
+      size_t n_samples,
+      size_t n_bytes_per_sample,
+      size_t n_channels,
+      uint32_t samples_per_sec,
+      uint32_t total_delay_ms,
+      int32_t clock_drift,
+      uint32_t current_mic_level,
+      bool key_pressed,
+      uint32_t& new_mic_level,
+      absl::optional<int64_t> estimated_capture_time_ns) override {
+    if (!ringrtc_audio_device_module_) {
+      RTC_LOG(LS_ERROR) << "Tried to invoke callback with no ringrtc ADM";
+      return -1;
+    }
+    return ringrtc_audio_device_module_->RecordedDataIsAvailable(
+        audio_samples, n_samples, n_bytes_per_sample, n_channels,
+        samples_per_sec, total_delay_ms, clock_drift, current_mic_level,
+        key_pressed, new_mic_level, estimated_capture_time_ns);
+  }
+
+  int32_t NeedMorePlayData(
+      size_t n_samples,
+      size_t n_bytes_per_sample,
+      size_t n_channels,
+      uint32_t samples_per_sec,
+      void* audio_samples,
+      size_t& n_samples_out,
+      int64_t* elapsed_time_ms,
+      int64_t* ntp_time_ms) override {
+    if (!ringrtc_audio_device_module_) {
+      RTC_LOG(LS_ERROR) << "Tried to invoke callback with no ringrtc ADM";
+      return -1;
+    }
+    return ringrtc_audio_device_module_->NeedMorePlayData(
+        n_samples, n_bytes_per_sample, n_channels, samples_per_sec,
+        audio_samples, n_samples_out, elapsed_time_ms, ntp_time_ms);
+  }
+
  protected:
   PeerConnectionFactoryWithOwnedThreads(
       rtc::scoped_refptr<PeerConnectionFactoryInterface> factory,
@@ -288,7 +337,8 @@ class PeerConnectionFactoryWithOwnedThreads
 #if defined(WEBRTC_WIN)
       std::unique_ptr<ScopedCOMInitializer> com_initializer,
 #endif
-      AudioDeviceModule* audio_device_module) :
+      AudioDeviceModule* audio_device_module,
+      RingRTCAudioDeviceModule* ringrtc_audio_device_module) :
     owned_network_thread_(std::move(owned_network_thread)),
     owned_worker_thread_(std::move(owned_worker_thread)),
     owned_signaling_thread_(std::move(owned_signaling_thread)),
@@ -297,6 +347,7 @@ class PeerConnectionFactoryWithOwnedThreads
     com_initializer_(std::move(com_initializer)),
 #endif
     audio_device_module_(audio_device_module),
+    ringrtc_audio_device_module_(ringrtc_audio_device_module),
     factory_(std::move(factory)) {
   }
 
@@ -323,6 +374,7 @@ class PeerConnectionFactoryWithOwnedThreads
   std::unique_ptr<ScopedCOMInitializer> com_initializer_;
 #endif
   webrtc::AudioDeviceModule* audio_device_module_;
+  RingRTCAudioDeviceModule* ringrtc_audio_device_module_ = nullptr;
   const rtc::scoped_refptr<PeerConnectionFactoryInterface> factory_;
 };
 #endif // !defined(WEBRTC_IOS) && !defined(WEBRTC_ANDROID)
@@ -553,6 +605,44 @@ RUSTEXPORT int32_t Rust_getAudioRecordingDeviceName(webrtc::PeerConnectionFactor
 RUSTEXPORT bool Rust_setAudioRecordingDevice(
   webrtc::PeerConnectionFactoryOwner* factory_owner_borrowed_rc, uint16_t index) {
   return factory_owner_borrowed_rc->SetAudioRecordingDevice(index);
+}
+
+RUSTEXPORT int32_t Rust_recordedDataIsAvailable(
+    webrtc::PeerConnectionFactoryOwner* factory_owner_borrowed_rc,
+    const void* audio_samples,
+    size_t n_samples,
+    size_t n_bytes_per_sample,
+    size_t n_channels,
+    uint32_t samples_per_sec,
+    uint32_t total_delay_ms,
+    int32_t clock_drift,
+    uint32_t current_mic_level,
+    bool key_pressed,
+    uint32_t* new_mic_level,
+    int64_t estimated_capture_time_ns) {
+  absl::optional<int64_t> estimated_capture_time_ns_optional;
+  if (estimated_capture_time_ns >= 0) {
+    estimated_capture_time_ns_optional = estimated_capture_time_ns;
+  }
+  return factory_owner_borrowed_rc->RecordedDataIsAvailable(
+      audio_samples, n_samples, n_bytes_per_sample, n_channels, samples_per_sec,
+      total_delay_ms, clock_drift, current_mic_level, key_pressed, *new_mic_level,
+      estimated_capture_time_ns_optional);
+}
+
+RUSTEXPORT int32_t Rust_needMorePlayData(
+    webrtc::PeerConnectionFactoryOwner* factory_owner_borrowed_rc,
+    size_t n_samples,
+    size_t n_bytes_per_sample,
+    size_t n_channels,
+    uint32_t samples_per_sec,
+    void* audio_samples,
+    size_t* n_samples_out,
+    int64_t* elapsed_time_ms,
+    int64_t* ntp_time_ms) {
+  return factory_owner_borrowed_rc->NeedMorePlayData(
+      n_samples, n_bytes_per_sample, n_channels, samples_per_sec, audio_samples,
+      *n_samples_out, elapsed_time_ms, ntp_time_ms);
 }
 
 } // namespace rffi

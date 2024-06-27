@@ -8,6 +8,7 @@
 
 #include "rffi/api/peer_connection_intf.h"
 
+#include "rffi/api/audio_device_intf.h"
 #include "rffi/api/injectable_network.h"
 #include "rtc_base/ref_count.h"
 
@@ -52,7 +53,33 @@ namespace webrtc {
     virtual bool SetAudioRecordingDevice(uint16_t index) {
       return false;
     }
+    virtual int32_t RecordedDataIsAvailable(
+        const void* audio_samples,
+        size_t n_samples,
+        size_t n_bytes_per_sample,
+        size_t n_channels,
+        uint32_t samples_per_sec,
+        uint32_t total_delay_ms,
+        int32_t clock_drift,
+        uint32_t current_mic_level,
+        bool key_pressed,
+        uint32_t& new_mic_level,
+        absl::optional<int64_t> estimated_capture_time_ns) {
+      return -1;
+    }
+    virtual int32_t NeedMorePlayData(
+        size_t n_samples,
+        size_t n_bytes_per_sample,
+        size_t n_channels,
+        uint32_t samples_per_sec,
+        void* audio_samples,
+        size_t& n_samples_out,
+        int64_t* elapsed_time_ms,
+        int64_t* ntp_time_ms) {
+      return -1;
+    }
   };
+
 
   namespace rffi {
     class PeerConnectionObserverRffi;
@@ -92,6 +119,8 @@ typedef struct {
   bool aec_enabled;
   bool ns_enabled;
   bool agc_enabled;
+  void* rust_adm_borrowed;
+  AudioDeviceCallbacks* rust_audio_device_callbacks;
 } RffiAudioConfig;
 
 typedef struct {
@@ -164,5 +193,30 @@ RUSTEXPORT int32_t Rust_getAudioRecordingDeviceName(
 RUSTEXPORT bool Rust_setAudioRecordingDevice(
   webrtc::PeerConnectionFactoryOwner* factory_owner_borrowed_rc, 
   uint16_t index);
+
+RUSTEXPORT int32_t Rust_recordedDataIsAvailable(
+    webrtc::PeerConnectionFactoryOwner* factory_owner_borrowed_rc,
+    const void* audioSamples,
+    size_t nSamples,
+    size_t nBytesPerSample,
+    size_t nChannels,
+    uint32_t samplesPerSec,
+    uint32_t totalDelayMS,
+    int32_t clockDrift,
+    uint32_t currentMicLevel,
+    bool keyPressed,
+    uint32_t* newMicLevel,
+    int64_t estimatedCaptureTimeNS);
+
+RUSTEXPORT int32_t Rust_needMorePlayData(
+    webrtc::PeerConnectionFactoryOwner* factory_owner_borrowed_rc,
+    size_t nSamples,
+    size_t nBytesPerSample,
+    size_t nChannels,
+    uint32_t samplesPerSec,
+    void* audioSamples,
+    size_t* nSamplesOut,
+    int64_t* elapsed_time_ms,
+    int64_t* ntp_time_ms);
 
 #endif /* RFFI_API_PEER_CONNECTION_FACTORY_H__ */
