@@ -194,29 +194,4 @@ RUSTEXPORT bool Rust_setAudioRecordingDevice(
   webrtc::PeerConnectionFactoryOwner* factory_owner_borrowed_rc, 
   uint16_t index);
 
-RUSTEXPORT int32_t Rust_recordedDataIsAvailable(
-    webrtc::PeerConnectionFactoryOwner* factory_owner_borrowed_rc,
-    const void* audioSamples,
-    size_t nSamples,
-    size_t nBytesPerSample,
-    size_t nChannels,
-    uint32_t samplesPerSec,
-    uint32_t totalDelayMS,
-    int32_t clockDrift,
-    uint32_t currentMicLevel,
-    bool keyPressed,
-    uint32_t* newMicLevel,
-    int64_t estimatedCaptureTimeNS);
-
-RUSTEXPORT int32_t Rust_needMorePlayData(
-    webrtc::PeerConnectionFactoryOwner* factory_owner_borrowed_rc,
-    size_t nSamples,
-    size_t nBytesPerSample,
-    size_t nChannels,
-    uint32_t samplesPerSec,
-    void* audioSamples,
-    size_t* nSamplesOut,
-    int64_t* elapsed_time_ms,
-    int64_t* ntp_time_ms);
-
 #endif /* RFFI_API_PEER_CONNECTION_FACTORY_H__ */

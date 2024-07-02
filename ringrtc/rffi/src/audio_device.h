@@ -183,8 +183,6 @@ class RingRTCAudioDeviceModule : public AudioDeviceModule {
 
   void* adm_borrowed_ RTC_GUARDED_BY(&thread_checker_) = nullptr;
   AudioDeviceCallbacks rust_callbacks_ RTC_GUARDED_BY(&thread_checker_);
-  // NOT owned
-  AudioTransport* transport_callback_ = nullptr;
 };
 
 }  // namespace rffi
