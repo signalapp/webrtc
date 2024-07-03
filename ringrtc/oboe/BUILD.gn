@@ -1,0 +1,99 @@
+#
+# Copyright 2024 Signal Messenger, LLC
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+
+import("//webrtc.gni")
+
+rtc_library("oboe") {
+  import("//build/config/android/config.gni")
+  import("//build/config/android/rules.gni")
+
+  defines = [
+    "OBOE_ENABLE_LOGGING=0",
+  ]
+
+  cflags_cc = [
+    # These came from oboe's CMakeLists.txt file.
+    "-std=c++17",
+    "-Wall",
+    "-Wextra-semi",
+    "-Wshadow",
+    "-Wshadow-field",
+
+    # These were needed to get it building.
+    "-Wno-exit-time-destructors",
+    "-Wno-header-hygiene",
+    "-Wno-sign-compare",
+  ]
+
+  include_dirs = [
+    "src/include",
+    "src/src",
+  ]
+
+  sources = [
+    "src/src/aaudio/AAudioLoader.cpp",
+    "src/src/aaudio/AudioStreamAAudio.cpp",
+    "src/src/common/AdpfWrapper.cpp",
+    "src/src/common/AudioSourceCaller.cpp",
+    "src/src/common/AudioStream.cpp",
+    "src/src/common/AudioStreamBuilder.cpp",
+    "src/src/common/DataConversionFlowGraph.cpp",
+    "src/src/common/FilterAudioStream.cpp",
+    "src/src/common/FixedBlockAdapter.cpp",
+    "src/src/common/FixedBlockReader.cpp",
+    "src/src/common/FixedBlockWriter.cpp",
+    "src/src/common/LatencyTuner.cpp",
+    "src/src/common/OboeExtensions.cpp",
+    "src/src/common/SourceFloatCaller.cpp",
+    "src/src/common/SourceI16Caller.cpp",
+    "src/src/common/SourceI24Caller.cpp",
+    "src/src/common/SourceI32Caller.cpp",
+    "src/src/common/Utilities.cpp",
+    "src/src/common/QuirksManager.cpp",
+    "src/src/fifo/FifoBuffer.cpp",
+    "src/src/fifo/FifoController.cpp",
+    "src/src/fifo/FifoControllerBase.cpp",
+    "src/src/fifo/FifoControllerIndirect.cpp",
+    "src/src/flowgraph/FlowGraphNode.cpp",
+    "src/src/flowgraph/ChannelCountConverter.cpp",
+    "src/src/flowgraph/ClipToRange.cpp",
+    "src/src/flowgraph/Limiter.cpp",
+    "src/src/flowgraph/ManyToMultiConverter.cpp",
+    "src/src/flowgraph/MonoBlend.cpp",
+    "src/src/flowgraph/MonoToMultiConverter.cpp",
+    "src/src/flowgraph/MultiToManyConverter.cpp",
+    "src/src/flowgraph/MultiToMonoConverter.cpp",
+    "src/src/flowgraph/RampLinear.cpp",
+    "src/src/flowgraph/SampleRateConverter.cpp",
+    "src/src/flowgraph/SinkFloat.cpp",
+    "src/src/flowgraph/SinkI16.cpp",
+    "src/src/flowgraph/SinkI24.cpp",
+    "src/src/flowgraph/SinkI32.cpp",
+    "src/src/flowgraph/SinkI8_24.cpp",
+    "src/src/flowgraph/SourceFloat.cpp",
+    "src/src/flowgraph/SourceI16.cpp",
+    "src/src/flowgraph/SourceI24.cpp",
+    "src/src/flowgraph/SourceI32.cpp",
+    "src/src/flowgraph/SourceI8_24.cpp",
+    "src/src/flowgraph/resampler/IntegerRatio.cpp",
+    "src/src/flowgraph/resampler/LinearResampler.cpp",
+    "src/src/flowgraph/resampler/MultiChannelResampler.cpp",
+    "src/src/flowgraph/resampler/PolyphaseResampler.cpp",
+    "src/src/flowgraph/resampler/PolyphaseResamplerMono.cpp",
+    "src/src/flowgraph/resampler/PolyphaseResamplerStereo.cpp",
+    "src/src/flowgraph/resampler/SincResampler.cpp",
+    "src/src/flowgraph/resampler/SincResamplerStereo.cpp",
+    "src/src/opensles/AudioInputStreamOpenSLES.cpp",
+    "src/src/opensles/AudioOutputStreamOpenSLES.cpp",
+    "src/src/opensles/AudioStreamBuffered.cpp",
+    "src/src/opensles/AudioStreamOpenSLES.cpp",
+    "src/src/opensles/EngineOpenSLES.cpp",
+    "src/src/opensles/OpenSLESUtilities.cpp",
+    "src/src/opensles/OutputMixerOpenSLES.cpp",
+    "src/src/common/StabilizedCallback.cpp",
+    "src/src/common/Trace.cpp",
+    "src/src/common/Version.cpp",
+  ]
+}
