@@ -13,6 +13,12 @@
 #include "absl/strings/string_view.h"
 #include "rtc_base/experiments/field_trial_parser.h"
 
+// RingRTC change to detect interface type on macOS.
+#if defined(WEBRTC_MAC)
+#include <net/if_media.h> // For IFM_* constants
+#include <sys/ioctl.h> // For SIOCGIFMEDIA
+#endif
+
 #if defined(WEBRTC_POSIX)
 #include <net/if.h>
 #endif  // WEBRTC_POSIX
@@ -545,12 +551,24 @@ BasicNetworkManager::BasicNetworkManager(
       bind_using_ifname_(
           !field_trials_->IsDisabled("WebRTC-BindUsingInterfaceName")) {
   RTC_DCHECK(socket_factory_);
+  // RingRTC change to detect interface type on macOS.
+#if defined(WEBRTC_MAC)
+  ioctl_socket_ = socket(AF_INET6, SOCK_DGRAM, 0);
+  RTC_DCHECK_GE(ioctl_socket_, 0);
+#endif
 }
 
 BasicNetworkManager::~BasicNetworkManager() {
   if (task_safety_flag_) {
     task_safety_flag_->SetNotAlive();
   }
+  // RingRTC change to detect interface type on macOS.
+#if defined(WEBRTC_MAC)
+  if (ioctl_socket_ >= 0) {
+    auto error = close(ioctl_socket_);
+    RTC_DCHECK(error == 0 || (error == -1 && errno != EINTR));
+  }
+#endif
 }
 
 void BasicNetworkManager::OnNetworksChanged() {
@@ -582,7 +600,24 @@ NetworkMonitorInterface::InterfaceInfo BasicNetworkManager::GetInterfaceInfo(
   } else if (network_monitor_) {
     return network_monitor_->GetInterfaceInfo(cursor->ifa_name);
   } else {
-    return {.adapter_type = GetAdapterTypeFromName(cursor->ifa_name),
+    // RingRTC change to detect interface type on macOS.
+    auto adapter_type = GetAdapterTypeFromName(cursor->ifa_name);
+#if defined(WEBRTC_MAC)
+    if (adapter_type == ADAPTER_TYPE_UNKNOWN && ioctl_socket_ >= 0) {
+      struct ifmediareq ifmr = {};
+      strncpy(ifmr.ifm_name, cursor->ifa_name, sizeof(ifmr.ifm_name) - 1);
+
+      if (ioctl(ioctl_socket_, SIOCGIFMEDIA, &ifmr) != -1) {
+        if (ifmr.ifm_current & IFM_IEEE80211) {
+          adapter_type = ADAPTER_TYPE_WIFI;
+        }
+        if (ifmr.ifm_current & IFM_ETHER) {
+          adapter_type = ADAPTER_TYPE_ETHERNET;
+        }
+      }
+    }
+#endif
+    return {.adapter_type = adapter_type,
             .underlying_type_for_vpn = ADAPTER_TYPE_UNKNOWN,
             .network_preference = NetworkPreference::NEUTRAL,
             .available = true};

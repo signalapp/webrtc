@@ -349,6 +349,10 @@ class RTC_EXPORT BasicNetworkManager : public NetworkManagerBase,
   Thread* thread_ = nullptr;
   bool sent_first_update_ = true;
   int start_count_ = 0;
+  // RingRTC change to detect interface type on macOS.
+#if defined(WEBRTC_MAC)
+  int ioctl_socket_;
+#endif
 
   webrtc::AlwaysValidPointer<const webrtc::FieldTrialsView,
                              webrtc::FieldTrialBasedConfig>
