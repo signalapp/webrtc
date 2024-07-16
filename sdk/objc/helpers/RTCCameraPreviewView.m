@@ -87,10 +87,12 @@
     if (deviceOrientation == UIDeviceOrientationPortraitUpsideDown) {
       previewLayer.connection.videoOrientation =
           AVCaptureVideoOrientationPortraitUpsideDown;
-    } else if (deviceOrientation == UIDeviceOrientationLandscapeRight) {
+    // RingRTC change to fix iOS left/right orientation
+    } else if (deviceOrientation == UIDeviceOrientationLandscapeLeft) {
       previewLayer.connection.videoOrientation =
           AVCaptureVideoOrientationLandscapeRight;
-    } else if (deviceOrientation == UIDeviceOrientationLandscapeLeft) {
+    // RingRTC change to fix iOS left/right orientation
+    } else if (deviceOrientation == UIDeviceOrientationLandscapeRight) {
       previewLayer.connection.videoOrientation =
           AVCaptureVideoOrientationLandscapeLeft;
     } else if (deviceOrientation == UIDeviceOrientationPortrait) {
