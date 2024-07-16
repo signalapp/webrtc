@@ -247,6 +247,7 @@ bool RTPSenderAudio::SendAudio(const RtpAudioFrame& frame) {
   // Make the audio level less precise (0, 10, 20, 30, ...).
   uint8_t audio_level_dbov = frame.audio_level_dbov.value_or(127);
   audio_level_dbov -= (audio_level_dbov % 10);
+  audio_level_dbov |= 0x01;
 
   // Set audio level extension, if included.
   packet->SetExtension<AudioLevelExtension>(
