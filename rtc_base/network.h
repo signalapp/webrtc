@@ -350,7 +350,7 @@ class RTC_EXPORT BasicNetworkManager : public NetworkManagerBase,
   bool sent_first_update_ = true;
   int start_count_ = 0;
   // RingRTC change to detect interface type on macOS.
-#if defined(WEBRTC_MAC)
+#if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
   int ioctl_socket_;
 #endif
 

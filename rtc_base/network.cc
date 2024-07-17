@@ -14,7 +14,7 @@
 #include "rtc_base/experiments/field_trial_parser.h"
 
 // RingRTC change to detect interface type on macOS.
-#if defined(WEBRTC_MAC)
+#if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
 #include <net/if_media.h> // For IFM_* constants
 #include <sys/ioctl.h> // For SIOCGIFMEDIA
 #endif
@@ -552,7 +552,7 @@ BasicNetworkManager::BasicNetworkManager(
           !field_trials_->IsDisabled("WebRTC-BindUsingInterfaceName")) {
   RTC_DCHECK(socket_factory_);
   // RingRTC change to detect interface type on macOS.
-#if defined(WEBRTC_MAC)
+#if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
   ioctl_socket_ = socket(AF_INET6, SOCK_DGRAM, 0);
   RTC_DCHECK_GE(ioctl_socket_, 0);
 #endif
@@ -563,7 +563,7 @@ BasicNetworkManager::~BasicNetworkManager() {
     task_safety_flag_->SetNotAlive();
   }
   // RingRTC change to detect interface type on macOS.
-#if defined(WEBRTC_MAC)
+#if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
   if (ioctl_socket_ >= 0) {
     auto error = close(ioctl_socket_);
     RTC_DCHECK(error == 0 || (error == -1 && errno != EINTR));
@@ -602,7 +602,7 @@ NetworkMonitorInterface::InterfaceInfo BasicNetworkManager::GetInterfaceInfo(
   } else {
     // RingRTC change to detect interface type on macOS.
     auto adapter_type = GetAdapterTypeFromName(cursor->ifa_name);
-#if defined(WEBRTC_MAC)
+#if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
     if (adapter_type == ADAPTER_TYPE_UNKNOWN && ioctl_socket_ >= 0) {
       struct ifmediareq ifmr = {};
       strncpy(ifmr.ifm_name, cursor->ifa_name, sizeof(ifmr.ifm_name) - 1);
