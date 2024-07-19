@@ -104,12 +104,13 @@ class AndroidAudioDeviceModuleOboe :
     if (input_stream_) {
       input_stream_->stop();
       input_stream_->close();
-      input_stream_ = nullptr;
+      input_stream_.reset();
     }
     if (output_stream_) {
       output_stream_->stop();
       output_stream_->close();
-      output_stream_ = nullptr;
+      latency_tuner_.reset();
+      output_stream_.reset();
     }
 
     playout_initialized_ = false;
@@ -261,7 +262,6 @@ class AndroidAudioDeviceModuleOboe :
   }
 
   // Audio transport control
-  // Note: We generally choose non-blocking operations when starting/stopping streams.
   // Note that the general is_playing_ and is_recording_ flags may not be in sync with
   // the Oboe states, but they are good enough to use as intentions.
 
@@ -674,15 +674,12 @@ class AndroidAudioDeviceModuleOboe :
     if (audioStream == output_stream_.get()) {
       RTC_LOG(LS_WARNING) << "onError on output stream: " << oboe::convertToText(error);
       if (error == oboe::Result::ErrorDisconnected) {
-        oboe::Result result = output_stream_->stop();
-        if (result != oboe::Result::OK) {
-            RTC_LOG(LS_WARNING) << "Failed to stop the output stream: " << oboe::convertToText(result);
-        }
-        result = output_stream_->close();
+        oboe::Result result = output_stream_->close();
         if (result != oboe::Result::OK) {
             RTC_LOG(LS_WARNING) << "Failed to close the output stream: " << oboe::convertToText(result);
         }
 
+        latency_tuner_.reset();
         output_stream_.reset();
 
         if (playout_initialized_) {
@@ -709,11 +706,7 @@ class AndroidAudioDeviceModuleOboe :
     } else if (audioStream == input_stream_.get()) {
       RTC_LOG(LS_WARNING) << "onError on input stream: " << oboe::convertToText(error);
       if (error == oboe::Result::ErrorDisconnected) {
-        oboe::Result result = input_stream_->stop();
-        if (result != oboe::Result::OK) {
-            RTC_LOG(LS_WARNING) << "Failed to stop the input stream: " << oboe::convertToText(result);
-        }
-        result = input_stream_->close();
+        oboe::Result result = input_stream_->close();
         if (result != oboe::Result::OK) {
             RTC_LOG(LS_WARNING) << "Failed to close the input stream: " << oboe::convertToText(result);
         }
@@ -765,19 +758,18 @@ class AndroidAudioDeviceModuleOboe :
     if (audioStream == output_stream_.get()) {
       size_t num_samples_out = 0;
 
-      // TODO: Hook up these extra fields if necessary.
+      // Retrieve new 16-bit PCM audio data using the audio transport instance.
       int64_t elapsed_time_ms = -1;
       int64_t ntp_time_ms = -1;
-
       int32_t result = audio_callback_->NeedMorePlayData(
-        numFrames,
-        sizeof(int16_t),
-        kChannelCount,
-        kSampleRate,
-        static_cast<int16_t*>(audioData),
-        num_samples_out,
-        &elapsed_time_ms,
-        &ntp_time_ms);
+        /* samples_per_channel */ numFrames,
+        /* bytes_per_sample */ sizeof(int16_t),
+        /* number_of_channels */ kChannelCount,
+        /* samples_per_second */ kSampleRate,
+        /* audio_samples */ static_cast<int16_t*>(audioData),
+        /* samples_out */ num_samples_out,
+        /* elapsed_time_ms */ &elapsed_time_ms,
+        /* ntp_time_ms */ &ntp_time_ms);
       if (result != 0) {
         RTC_LOG(LS_ERROR) << "NeedMorePlayData failed with error: " << result;
         std::fill(static_cast<int16_t*>(audioData), static_cast<int16_t*>(audioData) + numFrames, 0);
@@ -796,21 +788,35 @@ class AndroidAudioDeviceModuleOboe :
       if (countResult) {
         playout_underrun_count_ = countResult.value();
       }
+
+      if (latency_tuner_) {
+        oboe::Result tuneResult = latency_tuner_->tune();
+        if (tuneResult != oboe::Result::OK) {
+          RTC_LOG(LS_WARNING) << "LatencyTuner::tune failed: " << oboe::convertToText(tuneResult);
+        }
+      }
     } else if (audioStream == input_stream_.get()) {
-      // TODO: Hook up these extra fields if necessary.
-      uint32_t new_mic_level = 0;
+      uint32_t new_mic_level_dummy = 0;
+      uint32_t total_delay_ms = playout_delay_ms_;
+
+      auto latencyResult = input_stream_->calculateLatencyMillis();
+      if (latencyResult) {
+        total_delay_ms += static_cast<uint16_t>(
+          std::clamp(latencyResult.value(), static_cast<double>(0), static_cast<double>(UINT16_MAX))
+        );
+      }
 
       int32_t result = audio_callback_->RecordedDataIsAvailable(
-        static_cast<int16_t*>(audioData),
-        numFrames,
-        sizeof(int16_t),
-        kChannelCount,
-        kSampleRate,
-        0,
-        0,
-        0,
-        false,
-        new_mic_level);
+        /* audio_data */ static_cast<int16_t*>(audioData),
+        /* number_of_frames */ numFrames,
+        /* bytes_per_sample */ sizeof(int16_t),
+        /* number_of_channels */ kChannelCount,
+        /* sample_rate */ kSampleRate,
+        /* audio_delay_milliseconds */ total_delay_ms,
+        /* clock_drift */ 0,
+        /* volume */ 0,
+        /* key_pressed */ false,
+        /* new_mic_volume */ new_mic_level_dummy);
       if (result != 0) {
         RTC_LOG(LS_ERROR) << "RecordedDataIsAvailable failed with error: " << result;
         std::fill(static_cast<int16_t*>(audioData), static_cast<int16_t*>(audioData) + numFrames, 0);
@@ -826,19 +832,27 @@ class AndroidAudioDeviceModuleOboe :
  private:
 
   void LogStreamConfiguration(const std::shared_ptr<oboe::AudioStream>& stream) {
-    RTC_LOG(LS_WARNING) << "  audioApi: " << oboe::convertToText(stream->getAudioApi());
-    RTC_LOG(LS_WARNING) << "  deviceId: " << stream->getDeviceId();
-    RTC_LOG(LS_WARNING) << "  format: " << oboe::convertToText(stream->getFormat());
-    RTC_LOG(LS_WARNING) << "  sampleRate: " << stream->getSampleRate();
-    RTC_LOG(LS_WARNING) << "  channelCount: " << stream->getChannelCount();
-    RTC_LOG(LS_WARNING) << "  sharingMode: " << oboe::convertToText(stream->getSharingMode());
-    RTC_LOG(LS_WARNING) << "  performanceMode: " << oboe::convertToText(stream->getPerformanceMode());
-    if (stream->getDirection() == oboe::Direction::Output) {
-      RTC_LOG(LS_WARNING) << "  usage: " << oboe::convertToText(stream->getUsage());
-      RTC_LOG(LS_WARNING) << "  contentType: " << oboe::convertToText(stream->getContentType());
-    } else if (stream->getDirection() == oboe::Direction::Input) {
-      RTC_LOG(LS_WARNING) << "  inputPreset: " << oboe::convertToText(stream->getInputPreset());
-    }
+    RTC_LOG(LS_WARNING) << "Oboe Stream Config: "
+      << "direction: " << oboe::convertToText(stream->getDirection())
+      << ", audioApi: " << oboe::convertToText(stream->getAudioApi())
+      << ", deviceId: " << stream->getDeviceId()
+      << ", format: " << oboe::convertToText(stream->getFormat())
+      << ", sampleRate: " << stream->getSampleRate()
+      << ", channelCount: " << stream->getChannelCount()
+      << ", sharingMode: " << oboe::convertToText(stream->getSharingMode())
+      << ", performanceMode: " << oboe::convertToText(stream->getPerformanceMode())
+      << "  mmap used: " << ((stream->getAudioApi() == oboe::AudioApi::AAudio) ?
+          (oboe::OboeExtensions::isMMapUsed(stream.get()) ? "true" : "false") : "n/a")
+      << ", framesPerBurst/Capacity/Size: "
+          << stream->getFramesPerBurst() << "/"
+          << stream->getBufferCapacityInFrames() << "/"
+          << stream->getBufferSizeInFrames()
+      << (stream->getDirection() == oboe::Direction::Output ?
+          (", usage: " + std::string(oboe::convertToText(stream->getUsage())) +
+           ", contentType: " + std::string(oboe::convertToText(stream->getContentType()))) :
+          (stream->getDirection() == oboe::Direction::Input ?
+           ", inputPreset: " + std::string(oboe::convertToText(stream->getInputPreset())) :
+           ""));
   }
 
   void ConfigureCommonStreamSettings(oboe::AudioStreamBuilder& builder, oboe::Direction direction) {
@@ -879,11 +893,6 @@ class AndroidAudioDeviceModuleOboe :
       this,
       [](oboe::AudioStreamErrorCallback*) {}
     ));
-
-    if (audio_session_id_ != kInvalidAudioSessionId) {
-      RTC_LOG(LS_WARNING) << "Setting session_id: " << audio_session_id_;
-      builder.setSessionId((oboe::SessionId) audio_session_id_);
-    }
   }
 
   int32_t CreateOutputStream() {
@@ -893,7 +902,7 @@ class AndroidAudioDeviceModuleOboe :
     oboe::AudioStreamBuilder builder;
     ConfigureCommonStreamSettings(builder, oboe::Direction::Output);
 
-    // Specifying usage and contentType might result in better volume and routing decisions.
+    // Specifying usage and contentType should result in better volume and routing decisions.
     // These settings are specific to the output stream.
     builder.setUsage(oboe::Usage::VoiceCommunication);
     builder.setContentType(oboe::ContentType::Speech);
@@ -902,6 +911,13 @@ class AndroidAudioDeviceModuleOboe :
     if (result != oboe::Result::OK) {
       RTC_LOG(LS_ERROR) << "Failed to open the output stream: " << oboe::convertToText(result);
       return -1;
+    }
+
+    if (output_stream_->getAudioApi() == oboe::AudioApi::AAudio) {
+      latency_tuner_ = std::make_unique<oboe::LatencyTuner>(*output_stream_.get());
+      if (!latency_tuner_) {
+        RTC_LOG(LS_WARNING) << "Could not create LatencyTuner, continue without one";
+      }
     }
 
     LogStreamConfiguration(output_stream_);
@@ -915,8 +931,15 @@ class AndroidAudioDeviceModuleOboe :
     oboe::AudioStreamBuilder builder;
     ConfigureCommonStreamSettings(builder, oboe::Direction::Input);
 
-    // Specifying an inputPreset might result in better volume and routing decisions (and privacy).
-    // This setting is specific to the input stream.
+    // If provided, attach the sessionId from the AudioManager. While not always
+    // strictly necessary, it oftentimes improves audio quality and experience.
+    if (audio_session_id_ != kInvalidAudioSessionId) {
+      RTC_LOG(LS_WARNING) << "Setting session_id: " << audio_session_id_;
+      builder.setSessionId((oboe::SessionId) audio_session_id_);
+    }
+
+    // Specifying an inputPreset should result in better volume and routing
+    // decisions (and privacy).
     builder.setInputPreset(oboe::InputPreset::VoiceCommunication);
 
     oboe::Result result = builder.openStream(input_stream_);
@@ -939,6 +962,7 @@ class AndroidAudioDeviceModuleOboe :
 
   std::shared_ptr<oboe::AudioStream> input_stream_;
   std::shared_ptr<oboe::AudioStream> output_stream_;
+  std::unique_ptr<oboe::LatencyTuner> latency_tuner_;
 
   webrtc::AudioTransport* audio_callback_ = nullptr;
 
