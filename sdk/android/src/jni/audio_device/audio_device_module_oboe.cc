@@ -36,11 +36,408 @@ namespace jni {
 
 namespace {
 
-// Implements an Audio Device Manager using the Oboe C++ audio library (https://github.com/google/oboe).
-class AndroidAudioDeviceModuleOboe :
-    public AudioDeviceModule,
+class OboeStream :
+    public std::enable_shared_from_this<OboeStream>,
     public oboe::AudioStreamDataCallback,
     public oboe::AudioStreamErrorCallback {
+ public:
+  OboeStream(
+    AudioTransport* audio_callback,
+    oboe::Direction direction,
+    bool use_exclusive_sharing_mode,
+    int audio_session_id)
+      : audio_callback_(audio_callback),
+        direction_(direction),
+        use_exclusive_sharing_mode_(use_exclusive_sharing_mode),
+        audio_session_id_(audio_session_id) {
+    RTC_LOG(LS_WARNING) << "OboeStream constructed for " << oboe::convertToText(direction_);
+  }
+
+  ~OboeStream() {
+    RTC_LOG(LS_WARNING) << "OboeStream destructor called for " << oboe::convertToText(direction_);
+  }
+
+  int32_t LockedCreate() {
+    std::lock_guard<std::mutex> lock(stream_mutex_);
+
+    return Create();
+  }
+
+  // Called before Terminate() to see whether or not termination is really needed.
+  // This is an optimization to disable more than one stream before blocking on the
+  // termination of each one serially.
+  bool Deinitialize() {
+    RTC_LOG(LS_WARNING) << "Deinitialize " << oboe::convertToText(direction_);
+
+    std::lock_guard<std::mutex> lock(stream_mutex_);
+
+    bool was_initialized = initialized_;
+    initialized_ = false;
+    return was_initialized;
+  }
+
+  void Terminate() {
+    RTC_LOG(LS_WARNING) << "Terminate " << oboe::convertToText(direction_);
+
+    std::lock_guard<std::mutex> lock(stream_mutex_);
+
+    should_start_ = false;
+    stream_->stop();
+    stream_->close();
+
+    stream_.reset();
+    latency_tuner_.reset();
+  }
+
+  int32_t Start() {
+    RTC_LOG(LS_WARNING) << "Start " << oboe::convertToText(direction_);
+
+    std::lock_guard<std::mutex> lock(stream_mutex_);
+    if (!initialized_) {
+      return -1;
+    }
+    if (should_start_) {
+      RTC_LOG(LS_WARNING) << oboe::convertToText(direction_) << " is already started!";
+      return 0;
+    }
+    if (!stream_) {
+      RTC_LOG(LS_ERROR) << oboe::convertToText(direction_) << " stream is null!";
+      return -1;
+    }
+
+    oboe::Result result = stream_->requestStart();
+    if (result == oboe::Result::OK) {
+      should_start_ = true;
+      return 0;
+    } else {
+      RTC_LOG(LS_ERROR) << "Failed to start the " << oboe::convertToText(direction_)
+                        << " stream: " << oboe::convertToText(result);
+      return -1;
+    }
+  }
+
+  int32_t Stop() {
+    RTC_LOG(LS_WARNING) << "Stop " << oboe::convertToText(direction_);
+
+    std::lock_guard<std::mutex> lock(stream_mutex_);
+
+    if (!initialized_) {
+      return -1;
+    }
+    if (!should_start_) {
+      RTC_LOG(LS_WARNING) << oboe::convertToText(direction_) << " is already stopped!";
+      return 0;
+    }
+
+    // In most error cases, the stream is stopped, and we'll return -1, so clear the state flag.
+    should_start_ = false;
+
+    if (!stream_) {
+      RTC_LOG(LS_ERROR) << oboe::convertToText(direction_) << " stream is null!";
+      return -1;
+    }
+
+    // Blocking call to stop the stream.
+    oboe::Result result = stream_->stop();
+    if (result != oboe::Result::OK) {
+      RTC_LOG(LS_ERROR) << "Failed to stop the " << oboe::convertToText(direction_)
+                        << " stream: " << oboe::convertToText(result);
+      return -1;
+    }
+
+    return 0;
+  }
+
+  // The ADM can get the playout delay from output streams.
+  uint16_t GetPlayoutDelay() {
+    return playout_delay_ms_;
+  }
+
+  // The ADM can get the playout underrun count from output streams.
+  int32_t GetPlayoutUnderrunCount() {
+    return playout_underrun_count_;
+  }
+
+  // Used for input streams so that the playout delay can be used to calculate a
+  // total delay value.
+  void SetPlayoutDelay(uint16_t playout_delay_ms) {
+    playout_delay_ms_ = playout_delay_ms;
+  }
+
+  void SetAudioCallback(AudioTransport* audio_callback) {
+    RTC_LOG(LS_WARNING) << "SetAudioCallback " << oboe::convertToText(direction_);
+
+    std::lock_guard<std::mutex> lock(stream_mutex_);
+
+    if (!should_start_) {
+      audio_callback_ = audio_callback;
+    }
+  }
+
+  // Oboe Callbacks
+
+  void onErrorAfterClose(oboe::AudioStream *audioStream, oboe::Result error) override {
+    std::lock_guard<std::mutex> lock(stream_mutex_);
+
+    if (!initialized_) {
+      RTC_LOG(LS_WARNING) << "onErrorAfterClose: Module not initialized for "
+                          << oboe::convertToText(direction_)
+                          << ". Error: " << oboe::convertToText(error);
+      return;
+    }
+
+    if (audioStream != stream_.get()) {
+      RTC_LOG(LS_ERROR) << "onErrorAfterClose: Unknown stream: "
+                        << oboe::convertToText(error);
+      return;
+    }
+
+    RTC_LOG(LS_WARNING) << "onErrorAfterClose: "
+                        << oboe::convertToText(direction_)
+                        << " stream: " << oboe::convertToText(error);
+    if (error != oboe::Result::ErrorDisconnected) {
+      RTC_LOG(LS_ERROR) << "onErrorAfterClose: Unhandled stream error";
+      return;
+    }
+
+    if (Create() != 0) {
+      RTC_LOG(LS_ERROR) << "onErrorAfterClose: Failed to recreate the stream!";
+      initialized_ = false;
+      should_start_ = false;
+    } else {
+      if (should_start_) {
+        oboe::Result result = stream_->requestStart();
+        if (result != oboe::Result::OK) {
+          RTC_LOG(LS_ERROR) << "onErrorAfterClose: Failed to start the stream.";
+          should_start_ = false;
+        }
+      }
+    }
+  }
+
+  oboe::DataCallbackResult onAudioReady(oboe::AudioStream *audioStream, void *audioData, int32_t numFrames) override {
+    if (!stream_mutex_.try_lock()) {
+      RTC_LOG(LS_WARNING) << "onAudioReady: Unable to acquire lock, skipping callback";
+      if (direction_ == oboe::Direction::Output) {
+        std::fill(static_cast<int16_t *>(audioData), static_cast<int16_t *>(audioData) + numFrames, 0);
+      }
+      return oboe::DataCallbackResult::Continue;
+    }
+
+    // We've acquired the lock, adopt it to scope.
+    std::lock_guard<std::mutex> lock(stream_mutex_, std::adopt_lock);
+
+    AudioTransport* audio_callback = audio_callback_;
+    bool return_with_stop = false;
+
+    if (!initialized_) {
+      RTC_LOG(LS_WARNING) << "onAudioReady: initialized_ is false!";
+      return_with_stop = true;
+    } else if (!audio_callback) {
+      RTC_LOG(LS_WARNING) << "onAudioReady: Audio callback is not set!";
+      return_with_stop = true;
+    } else if (audioStream != stream_.get()) {
+      RTC_LOG(LS_ERROR) << "onAudioReady: Unknown stream!";
+      return_with_stop = true;
+    }
+
+    if (return_with_stop) {
+      if (direction_ == oboe::Direction::Output) {
+        std::fill(static_cast<int16_t *>(audioData), static_cast<int16_t *>(audioData) + numFrames, 0);
+      }
+      return oboe::DataCallbackResult::Stop;
+    }
+
+    if (direction_ == oboe::Direction::Output) {
+      size_t num_samples_out = 0;
+
+      // Retrieve new 16-bit PCM audio data using the audio transport instance.
+      int64_t elapsed_time_ms = -1;
+      int64_t ntp_time_ms = -1;
+      int32_t result = audio_callback->NeedMorePlayData(
+        /* samples_per_channel */ numFrames,
+        /* bytes_per_sample */ sizeof(int16_t),
+        /* number_of_channels */ kChannelCount,
+        /* samples_per_second */ kSampleRate,
+        /* audio_samples */ static_cast<int16_t *>(audioData),
+        /* samples_out */ num_samples_out,
+        /* elapsed_time_ms */ &elapsed_time_ms,
+        /* ntp_time_ms */ &ntp_time_ms);
+      if (result != 0) {
+        RTC_LOG(LS_ERROR) << "onAudioReady: NeedMorePlayData failed with error: " << result;
+        std::fill(static_cast<int16_t *>(audioData),
+                  static_cast<int16_t *>(audioData) + numFrames, 0);
+      }
+
+      auto latencyResult = audioStream->calculateLatencyMillis();
+      if (latencyResult) {
+        playout_delay_ms_ = static_cast<uint16_t>(
+            std::clamp(latencyResult.value(), static_cast<double>(0),
+                       static_cast<double>(UINT16_MAX))
+        );
+      }
+
+      auto countResult = audioStream->getXRunCount();
+      if (countResult) {
+        playout_underrun_count_ = countResult.value();
+      }
+
+      if (auto tuner = latency_tuner_.get()) {
+        oboe::Result tuneResult = tuner->tune();
+        if (tuneResult != oboe::Result::OK) {
+          RTC_LOG(LS_WARNING) << "onAudioReady: LatencyTuner::tune failed: " << oboe::convertToText(tuneResult);
+        }
+      }
+    } else {  // direction_ == oboe::Direction::Input
+      uint32_t new_mic_level_dummy = 0;
+      uint32_t total_delay_ms = playout_delay_ms_;
+
+      auto latencyResult = audioStream->calculateLatencyMillis();
+      if (latencyResult) {
+        total_delay_ms += static_cast<uint16_t>(
+            std::clamp(latencyResult.value(), static_cast<double>(0), static_cast<double>(UINT16_MAX))
+        );
+      }
+
+      int32_t result = audio_callback->RecordedDataIsAvailable(
+        /* audio_data */ static_cast<int16_t*>(audioData),
+        /* number_of_frames */ numFrames,
+        /* bytes_per_sample */ sizeof(int16_t),
+        /* number_of_channels */ kChannelCount,
+        /* sample_rate */ kSampleRate,
+        /* audio_delay_milliseconds */ total_delay_ms,
+        /* clock_drift */ 0,
+        /* volume */ 0,
+        /* key_pressed */ false,
+        /* new_mic_volume */ new_mic_level_dummy);
+      if (result != 0) {
+        RTC_LOG(LS_ERROR) << "onAudioReady: RecordedDataIsAvailable failed with error: " << result;
+      }
+    }
+
+    return oboe::DataCallbackResult::Continue;
+  }
+
+ private:
+  void LogStreamConfiguration() {
+    RTC_LOG(LS_WARNING) << "OboeStream Config: "
+      << "direction: " << oboe::convertToText(stream_->getDirection())
+      << ", audioApi: " << oboe::convertToText(stream_->getAudioApi())
+      << ", deviceId: " << stream_->getDeviceId()
+      << ", sessionId: " << stream_->getSessionId()
+      << ", format: " << oboe::convertToText(stream_->getFormat())
+      << ", sampleRate: " << stream_->getSampleRate()
+      << ", channelCount: " << stream_->getChannelCount()
+      << ", sharingMode: " << oboe::convertToText(stream_->getSharingMode())
+      << ", performanceMode: " << oboe::convertToText(stream_->getPerformanceMode())
+      << "  mmap used: " << ((stream_->getAudioApi() == oboe::AudioApi::AAudio) ?
+          (oboe::OboeExtensions::isMMapUsed(stream_.get()) ? "true" : "false") : "n/a")
+      << ", framesPerBurst/Capacity/Size: "
+          << stream_->getFramesPerBurst() << "/"
+          << stream_->getBufferCapacityInFrames() << "/"
+          << stream_->getBufferSizeInFrames()
+      << (stream_->getDirection() == oboe::Direction::Output ?
+          (", usage: " + std::string(oboe::convertToText(stream_->getUsage())) +
+           ", contentType: " + std::string(oboe::convertToText(stream_->getContentType()))) :
+          (stream_->getDirection() == oboe::Direction::Input ?
+           ", inputPreset: " + std::string(oboe::convertToText(stream_->getInputPreset())) :
+           ""));
+  }
+
+  void ConfigureStreamBuilder(oboe::AudioStreamBuilder& builder) {
+    builder.setDirection(direction_);
+
+    // Keep using OpenSL-ES on Android 8.1 due to problems with AAudio.
+    if (oboe::getSdkVersion() == __ANDROID_API_O_MR1__) {
+      builder.setAudioApi(oboe::AudioApi::OpenSLES);
+    }
+
+    // Let Oboe manage the configuration we want.
+    builder.setFormat(kSampleFormat);
+    builder.setSampleRate(kSampleRate);
+    builder.setChannelCount(kChannelCount);
+    builder.setFramesPerDataCallback(kMaxFramesPerCallback);
+
+    // And allow Oboe to perform conversions if necessary.
+    builder.setFormatConversionAllowed(true);
+    // Use medium to balance performance, quality, and latency.
+    builder.setSampleRateConversionQuality(oboe::SampleRateConversionQuality::Medium);
+    builder.setChannelConversionAllowed(true);
+
+    if (use_exclusive_sharing_mode_) {
+      // Attempt to use Exclusive sharing mode for the lowest possible latency.
+      builder.setSharingMode(oboe::SharingMode::Exclusive);
+    }
+
+    // Set the performance mode to get the lowest possible latency.
+    builder.setPerformanceMode(oboe::PerformanceMode::LowLatency);
+
+    // Set callbacks for handling audio data and errors, providing shared pointers
+    // to this OboeStream instance.
+    builder.setDataCallback(shared_from_this());
+    builder.setErrorCallback(shared_from_this());
+
+    if (direction_ == oboe::Direction::Output) {
+      // Specifying usage and contentType should result in better volume and routing decisions.
+      builder.setUsage(oboe::Usage::VoiceCommunication);
+      builder.setContentType(oboe::ContentType::Speech);
+    } else {
+      // Only set the sessionId for input streams.
+      if (audio_session_id_ != kInvalidAudioSessionId) {
+        builder.setSessionId((oboe::SessionId) audio_session_id_);
+      }
+
+      // Specifying an inputPreset should result in better volume and routing decisions (and privacy).
+      builder.setInputPreset(oboe::InputPreset::VoiceCommunication);
+    }
+  }
+
+  int32_t Create() {
+    RTC_LOG(LS_WARNING) << "Create " << oboe::convertToText(direction_);
+
+    oboe::AudioStreamBuilder builder;
+    ConfigureStreamBuilder(builder);
+
+    oboe::Result result = builder.openStream(stream_);
+    if (result != oboe::Result::OK) {
+      RTC_LOG(LS_ERROR) << "Failed to open the stream: " << oboe::convertToText(result);
+      return -1;
+    }
+
+    initialized_ = true;
+
+    if (direction_ == oboe::Direction::Output &&
+        stream_->getAudioApi() == oboe::AudioApi::AAudio) {
+      latency_tuner_ = std::make_unique<oboe::LatencyTuner>(*stream_);
+    }
+
+    LogStreamConfiguration();
+
+    return 0;
+  }
+
+  std::atomic<bool> initialized_{ false };
+  std::atomic<bool> should_start_{ false };
+
+  std::shared_ptr<oboe::AudioStream> stream_;
+
+  std::atomic<AudioTransport*> audio_callback_{ nullptr };
+
+  const  oboe::Direction direction_;
+  const bool use_exclusive_sharing_mode_;
+  const int audio_session_id_;
+
+  std::atomic<uint16_t> playout_delay_ms_{ kDefaultPlayoutDelayMs };
+
+  // For output streams.
+  std::atomic<int32_t> playout_underrun_count_{ 0 };
+  std::unique_ptr<oboe::LatencyTuner> latency_tuner_;
+
+  std::mutex stream_mutex_;
+};
+
+// Implements an Audio Device Manager using the Oboe C++ audio library (https://github.com/google/oboe).
+class AndroidAudioDeviceModuleOboe : public AudioDeviceModule {
  public:
   AndroidAudioDeviceModuleOboe(
     bool use_software_acoustic_echo_canceler,
@@ -51,12 +448,12 @@ class AndroidAudioDeviceModuleOboe :
         use_software_noise_suppressor_(use_software_noise_suppressor),
         use_exclusive_sharing_mode_(use_exclusive_sharing_mode),
         audio_session_id_(audio_session_id) {
-    RTC_LOG(LS_WARNING) << "AndroidAudioDeviceModuleOboe::AndroidAudioDeviceModuleOboe";
+    RTC_LOG(LS_WARNING) << "AndroidAudioDeviceModuleOboe constructed";
     thread_checker_.Detach();
   }
 
   ~AndroidAudioDeviceModuleOboe() override {
-    RTC_LOG(LS_WARNING) << "AndroidAudioDeviceModuleOboe::~AndroidAudioDeviceModuleOboe";
+    RTC_LOG(LS_WARNING) << "AndroidAudioDeviceModuleOboe destructor called";
   }
 
   // Retrieve the currently utilized audio layer
@@ -72,12 +469,21 @@ class AndroidAudioDeviceModuleOboe :
   // Invoked when the VoIP Engine is initialized.
   int32_t RegisterAudioCallback(AudioTransport* audioCallback) override {
     RTC_LOG(LS_WARNING) << __FUNCTION__;
-    if (is_playing_ || is_recording_) {
+    if (should_play_ || should_record_) {
       RTC_LOG(LS_ERROR) << "Failed to set audio transport since media was active";
       return -1;
     }
 
     audio_callback_ = audioCallback;
+
+    if (output_stream_) {
+      output_stream_->SetAudioCallback(audioCallback);
+    }
+
+    if (input_stream_) {
+      input_stream_->SetAudioCallback(audioCallback);
+    }
+
     return 0;
   }
 
@@ -97,29 +503,41 @@ class AndroidAudioDeviceModuleOboe :
   int32_t Terminate() override {
     RTC_LOG(LS_WARNING) << __FUNCTION__;
     RTC_DCHECK_RUN_ON(&thread_checker_);
-    if (!initialized_) {
-      return 0;
+
+    if (initialized_) {
+      initialized_ = false;
+      playout_initialized_ = false;
+      recording_initialized_ = false;
+      should_play_ = false;
+      should_record_ = false;
+
+      bool output_was_initialized = false;
+      bool input_was_initialized = false;
+
+      if (output_stream_) {
+        output_was_initialized = output_stream_->Deinitialize();
+      }
+      if (input_stream_) {
+        input_was_initialized = input_stream_->Deinitialize();
+      }
+
+      if (output_stream_ && output_was_initialized) {
+        output_stream_->Terminate();
+        if (output_stream_.use_count() > 1) {
+          RTC_LOG(LS_WARNING) << "Oboe might still reference the Output stream";
+        }
+        output_stream_.reset();
+      }
+
+      if (input_stream_ && input_was_initialized) {
+        input_stream_->Terminate();
+        if (input_stream_.use_count() > 1) {
+          RTC_LOG(LS_WARNING) << "Oboe might still reference the Input stream";
+        }
+        input_stream_.reset();
+      }
     }
 
-    if (input_stream_) {
-      input_stream_->stop();
-      input_stream_->close();
-      input_stream_.reset();
-    }
-    if (output_stream_) {
-      output_stream_->stop();
-      output_stream_->close();
-      latency_tuner_.reset();
-      output_stream_.reset();
-    }
-
-    playout_initialized_ = false;
-    recording_initialized_ = false;
-
-    is_playing_ = false;
-    is_recording_ = false;
-
-    initialized_ = false;
     thread_checker_.Detach();
 
     return 0;
@@ -208,6 +626,7 @@ class AndroidAudioDeviceModuleOboe :
     if (!initialized_) {
       return -1;
     }
+
     if (playout_initialized_) {
       RTC_LOG(LS_WARNING) << "Playout is already initialized!";
       return 0;
@@ -241,6 +660,7 @@ class AndroidAudioDeviceModuleOboe :
     if (!initialized_) {
       return -1;
     }
+
     if (recording_initialized_) {
       RTC_LOG(LS_WARNING) << "Recording is already initialized!";
       return 0;
@@ -262,8 +682,6 @@ class AndroidAudioDeviceModuleOboe :
   }
 
   // Audio transport control
-  // Note that the general is_playing_ and is_recording_ flags may not be in sync with
-  // the Oboe states, but they are good enough to use as intentions.
 
   int32_t StartPlayout() override {
     RTC_LOG(LS_WARNING) << "StartPlayout";
@@ -275,19 +693,21 @@ class AndroidAudioDeviceModuleOboe :
       RTC_LOG(LS_ERROR) << "Playout is not initialized!";
       return -1;
     }
-    if (is_playing_) {
+    if (should_play_) {
       RTC_LOG(LS_WARNING) << "Playout is already started!";
       return 0;
     }
 
-    oboe::Result result = output_stream_->requestStart();
-    if (result == oboe::Result::OK) {
-      is_playing_ = true;
-      return 0;
-    } else {
-      RTC_LOG(LS_ERROR) << "Failed to start the output stream: " << oboe::convertToText(result);
+    if (!output_stream_) {
+      RTC_LOG(LS_ERROR) << "Output stream is null!";
       return -1;
     }
+
+    int32_t result = output_stream_->Start();
+    if (result == 0) {
+      should_play_ = true;
+    }
+    return result;
   }
 
   int32_t StopPlayout() override {
@@ -296,27 +716,26 @@ class AndroidAudioDeviceModuleOboe :
     if (!initialized_) {
       return -1;
     }
-    if (!is_playing_) {
+    if (!should_play_) {
       RTC_LOG(LS_WARNING) << "Playout is already stopped!";
       return 0;
     }
 
-    // Blocking call to stop the output stream.
-    oboe::Result result = output_stream_->stop();
-    // In most error cases, playout is stopped, and we'll return -1, so clear the state flag.
-    is_playing_ = false;
-    if (result != oboe::Result::OK) {
-      RTC_LOG(LS_ERROR) << "Failed to stop the output stream: " << oboe::convertToText(result);
+    if (!output_stream_) {
+      RTC_LOG(LS_ERROR) << "Output stream is null!";
       return -1;
     }
 
-    return 0;
+    // Blocking call to stop the output stream.
+    int32_t result = output_stream_->Stop();
+    should_play_ = false;
+    return result;
   }
 
   bool Playing() const override {
-    RTC_LOG(LS_WARNING) << "Playing " << is_playing_;
+    RTC_LOG(LS_WARNING) << "Playing " << should_play_;
     RTC_DCHECK_RUN_ON(&thread_checker_);
-    return is_playing_;
+    return should_play_;
   }
 
   int32_t StartRecording() override {
@@ -330,19 +749,21 @@ class AndroidAudioDeviceModuleOboe :
       RTC_LOG(LS_ERROR) << "Recording is not initialized!";
       return -1;
     }
-    if (is_recording_) {
+    if (should_record_) {
       RTC_LOG(LS_WARNING) << "Recording is already started!";
       return 0;
     }
 
-    oboe::Result result = input_stream_->requestStart();
-    if (result == oboe::Result::OK) {
-      is_recording_ = true;
-      return 0;
-    } else {
-      RTC_LOG(LS_ERROR) << "Failed to start the input stream: " << oboe::convertToText(result);
+    if (!input_stream_) {
+      RTC_LOG(LS_ERROR) << "Input stream is null!";
       return -1;
     }
+
+    int32_t result = input_stream_->Start();
+    if (result == 0) {
+      should_record_ = true;
+    }
+    return result;
   }
 
   int32_t StopRecording() override {
@@ -351,27 +772,26 @@ class AndroidAudioDeviceModuleOboe :
     if (!initialized_) {
       return -1;
     }
-    if (!is_recording_) {
+    if (!should_record_) {
       RTC_LOG(LS_WARNING) << "Recording is already stopped!";
       return 0;
     }
 
-    // Blocking call to stop the output stream.
-    oboe::Result result = input_stream_->stop();
-    // In most error cases, recording is stopped, and we'll return -1, so clear the state flag.
-    is_recording_ = false;
-    if (result != oboe::Result::OK) {
-      RTC_LOG(LS_ERROR) << "Failed to stop the input stream: " << oboe::convertToText(result);
+    if (!input_stream_) {
+      RTC_LOG(LS_ERROR) << "Input stream is null!";
       return -1;
     }
 
-    return 0;
+    // Blocking call to stop the input stream.
+    int32_t result = input_stream_->Stop();
+    should_record_ = false;
+    return result;
   }
 
   bool Recording() const override {
-    RTC_LOG(LS_WARNING) << "Recording " << is_recording_;
+    RTC_LOG(LS_WARNING) << "Recording " << should_record_;
     RTC_DCHECK_RUN_ON(&thread_checker_);
-    return is_recording_;
+    return should_record_;
   }
 
   // Audio mixer initialization
@@ -583,14 +1003,26 @@ class AndroidAudioDeviceModuleOboe :
   int32_t PlayoutDelay(uint16_t* delay_ms) const override {
     RTC_DCHECK_RUN_ON(&thread_checker_);
 
-    // Return the latest value set by the data callback.
-    *delay_ms = playout_delay_ms_;
+    if (output_stream_) {
+      // Return the latest value set by the data callback.
+      *delay_ms = output_stream_->GetPlayoutDelay();
 
-    // Limit logging of the playout delay.
-    if (++delay_log_counter_ % kLogEveryN == 0) {
-      RTC_LOG(LS_WARNING) << "playout_delay_ms_: " << *delay_ms;
+      // We'll use a best effort approach to keep the input stream updated.
+      // Just do it every time WebRTC requests it.
+      if (input_stream_) {
+        input_stream_->SetPlayoutDelay(*delay_ms);
+      }
+
+      // Limit logging of the playout delay.
+      if (++delay_log_counter_ % kLogEveryN == 0) {
+        RTC_LOG(LS_WARNING) << "playout_delay_ms_: " << *delay_ms;
+      }
+
+      return 0;
+    } else {
+      *delay_ms = 0;
+      return -1;
     }
-    return 0;
   }
 
   // Only supported on Android.
@@ -652,14 +1084,20 @@ class AndroidAudioDeviceModuleOboe :
   int32_t GetPlayoutUnderrunCount() const override {
     RTC_DCHECK_RUN_ON(&thread_checker_);
 
-    // Return the latest value set by the data callback.
-    if (playout_underrun_count_ != 0) {
-      // Limit logging of the playout underrun count.
+    int32_t playout_underrun_count = 0;
+
+    // Return the latest value set by the data callback for the output stream.
+    if (output_stream_) {
+      playout_underrun_count = output_stream_->GetPlayoutUnderrunCount();
+      // Limit the logging of the playout underrun count.
       if (++underrun_log_counter_ % kLogEveryN == 0) {
-        RTC_LOG(LS_WARNING) << "playout_underrun_count_: " << playout_underrun_count_;
+        if (playout_underrun_count != 0) {
+          RTC_LOG(LS_WARNING) << "playout_underrun_count_: " << playout_underrun_count;
+        }
       }
     }
-    return playout_underrun_count_;
+
+    return playout_underrun_count;
   }
 
   // Used to generate RTC stats.
@@ -668,289 +1106,35 @@ class AndroidAudioDeviceModuleOboe :
     return absl::nullopt;
   }
 
-  // Oboe Callbacks
-
-  bool onError(oboe::AudioStream *audioStream, oboe::Result error) override {
-    if (audioStream == output_stream_.get()) {
-      RTC_LOG(LS_WARNING) << "onError on output stream: " << oboe::convertToText(error);
-      if (error == oboe::Result::ErrorDisconnected) {
-        oboe::Result result = output_stream_->close();
-        if (result != oboe::Result::OK) {
-            RTC_LOG(LS_WARNING) << "Failed to close the output stream: " << oboe::convertToText(result);
-        }
-
-        latency_tuner_.reset();
-        output_stream_.reset();
-
-        if (playout_initialized_) {
-          if (CreateOutputStream() != 0) {
-            RTC_LOG(LS_ERROR) << "Failed to recreate the output stream!";
-            playout_initialized_ = false;
-            is_playing_ = false;
-          } else {
-            if (is_playing_) {
-              result = output_stream_->requestStart();
-              if (result != oboe::Result::OK) {
-                RTC_LOG(LS_ERROR) << "Failed to start the output stream.";
-                is_playing_ = false;
-              }
-            }
-          }
-        }
-
-        return true;
-      } else {
-        RTC_LOG(LS_ERROR) << "Unhandled output stream error";
-        return false;
-      }
-    } else if (audioStream == input_stream_.get()) {
-      RTC_LOG(LS_WARNING) << "onError on input stream: " << oboe::convertToText(error);
-      if (error == oboe::Result::ErrorDisconnected) {
-        oboe::Result result = input_stream_->close();
-        if (result != oboe::Result::OK) {
-            RTC_LOG(LS_WARNING) << "Failed to close the input stream: " << oboe::convertToText(result);
-        }
-
-        input_stream_.reset();
-
-        if (recording_initialized_) {
-          if (CreateInputStream() != 0) {
-            RTC_LOG(LS_ERROR) << "Failed to recreate the input stream!";
-            recording_initialized_ = false;
-            is_recording_ = false;
-          } else {
-            if (is_recording_) {
-              result = input_stream_->requestStart();
-              if (result != oboe::Result::OK) {
-                RTC_LOG(LS_ERROR) << "Failed to start the input stream.";
-                is_recording_ = false;
-              }
-            }
-          }
-        }
-
-        return true;
-      } else {
-        RTC_LOG(LS_ERROR) << "Unhandled input stream error";
-        return false;
-      }
-    } else {
-      RTC_LOG(LS_ERROR) << "onError for unknown stream: " << oboe::convertToText(error);
-      return false;
-    }
-  }
-
-  void onErrorBeforeClose(oboe::AudioStream *audioStream, oboe::Result error) override {
-    RTC_LOG(LS_ERROR) << "onErrorBeforeClose invoked! " << oboe::convertToText(error);
-  }
-
-  void onErrorAfterClose(oboe::AudioStream *audioStream, oboe::Result error) override {
-    RTC_LOG(LS_ERROR) << "onErrorAfterClose invoked! " << oboe::convertToText(error);
-  }
-
-  oboe::DataCallbackResult onAudioReady(oboe::AudioStream *audioStream, void *audioData, int32_t numFrames) override {
-    if (!audio_callback_) {
-      RTC_LOG(LS_ERROR) << "Audio callback is not set!";
-      std::fill(static_cast<int16_t*>(audioData), static_cast<int16_t*>(audioData) + numFrames, 0);
-      return oboe::DataCallbackResult::Stop;
-    }
-
-    if (audioStream == output_stream_.get()) {
-      size_t num_samples_out = 0;
-
-      // Retrieve new 16-bit PCM audio data using the audio transport instance.
-      int64_t elapsed_time_ms = -1;
-      int64_t ntp_time_ms = -1;
-      int32_t result = audio_callback_->NeedMorePlayData(
-        /* samples_per_channel */ numFrames,
-        /* bytes_per_sample */ sizeof(int16_t),
-        /* number_of_channels */ kChannelCount,
-        /* samples_per_second */ kSampleRate,
-        /* audio_samples */ static_cast<int16_t*>(audioData),
-        /* samples_out */ num_samples_out,
-        /* elapsed_time_ms */ &elapsed_time_ms,
-        /* ntp_time_ms */ &ntp_time_ms);
-      if (result != 0) {
-        RTC_LOG(LS_ERROR) << "NeedMorePlayData failed with error: " << result;
-        std::fill(static_cast<int16_t*>(audioData), static_cast<int16_t*>(audioData) + numFrames, 0);
-      }
-
-      // Update the delay of the playout.
-      auto latencyResult = output_stream_->calculateLatencyMillis();
-      if (latencyResult) {
-        playout_delay_ms_ = static_cast<uint16_t>(
-          std::clamp(latencyResult.value(), static_cast<double>(0), static_cast<double>(UINT16_MAX))
-        );
-      }
-
-      // Update the playout underrun count.
-      auto countResult = output_stream_->getXRunCount();
-      if (countResult) {
-        playout_underrun_count_ = countResult.value();
-      }
-
-      if (latency_tuner_) {
-        oboe::Result tuneResult = latency_tuner_->tune();
-        if (tuneResult != oboe::Result::OK) {
-          RTC_LOG(LS_WARNING) << "LatencyTuner::tune failed: " << oboe::convertToText(tuneResult);
-        }
-      }
-    } else if (audioStream == input_stream_.get()) {
-      uint32_t new_mic_level_dummy = 0;
-      uint32_t total_delay_ms = playout_delay_ms_;
-
-      auto latencyResult = input_stream_->calculateLatencyMillis();
-      if (latencyResult) {
-        total_delay_ms += static_cast<uint16_t>(
-          std::clamp(latencyResult.value(), static_cast<double>(0), static_cast<double>(UINT16_MAX))
-        );
-      }
-
-      int32_t result = audio_callback_->RecordedDataIsAvailable(
-        /* audio_data */ static_cast<int16_t*>(audioData),
-        /* number_of_frames */ numFrames,
-        /* bytes_per_sample */ sizeof(int16_t),
-        /* number_of_channels */ kChannelCount,
-        /* sample_rate */ kSampleRate,
-        /* audio_delay_milliseconds */ total_delay_ms,
-        /* clock_drift */ 0,
-        /* volume */ 0,
-        /* key_pressed */ false,
-        /* new_mic_volume */ new_mic_level_dummy);
-      if (result != 0) {
-        RTC_LOG(LS_ERROR) << "RecordedDataIsAvailable failed with error: " << result;
-        std::fill(static_cast<int16_t*>(audioData), static_cast<int16_t*>(audioData) + numFrames, 0);
-      }
-    } else {
-      RTC_LOG(LS_ERROR) << "onAudioReady on unknown stream!";
-      std::fill(static_cast<int16_t*>(audioData), static_cast<int16_t*>(audioData) + numFrames, 0);
-    }
-
-    return oboe::DataCallbackResult::Continue;
-  }
-
  private:
+  int32_t CreateOboeStream(oboe::Direction direction) {
+    RTC_LOG(LS_WARNING) << "CreateOboeStream: " << oboe::convertToText(direction);
 
-  void LogStreamConfiguration(const std::shared_ptr<oboe::AudioStream>& stream) {
-    RTC_LOG(LS_WARNING) << "Oboe Stream Config: "
-      << "direction: " << oboe::convertToText(stream->getDirection())
-      << ", audioApi: " << oboe::convertToText(stream->getAudioApi())
-      << ", deviceId: " << stream->getDeviceId()
-      << ", format: " << oboe::convertToText(stream->getFormat())
-      << ", sampleRate: " << stream->getSampleRate()
-      << ", channelCount: " << stream->getChannelCount()
-      << ", sharingMode: " << oboe::convertToText(stream->getSharingMode())
-      << ", performanceMode: " << oboe::convertToText(stream->getPerformanceMode())
-      << "  mmap used: " << ((stream->getAudioApi() == oboe::AudioApi::AAudio) ?
-          (oboe::OboeExtensions::isMMapUsed(stream.get()) ? "true" : "false") : "n/a")
-      << ", framesPerBurst/Capacity/Size: "
-          << stream->getFramesPerBurst() << "/"
-          << stream->getBufferCapacityInFrames() << "/"
-          << stream->getBufferSizeInFrames()
-      << (stream->getDirection() == oboe::Direction::Output ?
-          (", usage: " + std::string(oboe::convertToText(stream->getUsage())) +
-           ", contentType: " + std::string(oboe::convertToText(stream->getContentType()))) :
-          (stream->getDirection() == oboe::Direction::Input ?
-           ", inputPreset: " + std::string(oboe::convertToText(stream->getInputPreset())) :
-           ""));
-  }
+    std::shared_ptr<OboeStream>& stream = (direction == oboe::Direction::Output) ? output_stream_ : input_stream_;
 
-  void ConfigureCommonStreamSettings(oboe::AudioStreamBuilder& builder, oboe::Direction direction) {
-    builder.setDirection(direction);
+    stream = std::make_shared<OboeStream>(
+        audio_callback_.load(),
+        direction,
+        use_exclusive_sharing_mode_,
+        audio_session_id_);
 
-    // Keep using OpenSL-ES on Android 8.1 due to problems with AAudio.
-    if (oboe::getSdkVersion() == __ANDROID_API_O_MR1__) {
-      builder.setAudioApi(oboe::AudioApi::OpenSLES);
+    int32_t result = stream->LockedCreate();
+    if (result != 0) {
+      stream.reset();
+      return result;
     }
 
-    // Let Oboe manage the configuration we want.
-    builder.setFormat(kSampleFormat);
-    builder.setSampleRate(kSampleRate);
-    builder.setChannelCount(kChannelCount);
-    builder.setFramesPerDataCallback(kMaxFramesPerCallback);
-
-    // And allow Oboe to perform conversions if necessary.
-    builder.setFormatConversionAllowed(true);
-    // Use medium to balance performance and quality.
-    builder.setSampleRateConversionQuality(oboe::SampleRateConversionQuality::Medium);
-    builder.setChannelConversionAllowed(true);
-
-    if (use_exclusive_sharing_mode_) {
-      // Attempt to use Exclusive sharing mode for the lowest possible latency.
-      builder.setSharingMode(oboe::SharingMode::Exclusive);
-    }
-
-    // Set the performance mode to get the lowest possible latency.
-    builder.setPerformanceMode(oboe::PerformanceMode::LowLatency);
-
-    // Set callbacks for handling PCM data and other underlying API notifications.
-    // To avoid an abstraction, we'll set the shared pointer with a no-op deleter.
-    builder.setDataCallback(std::shared_ptr<oboe::AudioStreamDataCallback>(
-      this,
-      [](oboe::AudioStreamDataCallback*) {}
-    ));
-    builder.setErrorCallback(std::shared_ptr<oboe::AudioStreamErrorCallback>(
-      this,
-      [](oboe::AudioStreamErrorCallback*) {}
-    ));
+    RTC_LOG(LS_WARNING) << "OboeStream created, " << oboe::convertToText(direction)
+                        << " with use count: " << stream.use_count();
+    return 0;
   }
 
   int32_t CreateOutputStream() {
-    RTC_LOG(LS_WARNING) << "CreateOutputStream";
-
-    // Create a builder for an Oboe output audio stream.
-    oboe::AudioStreamBuilder builder;
-    ConfigureCommonStreamSettings(builder, oboe::Direction::Output);
-
-    // Specifying usage and contentType should result in better volume and routing decisions.
-    // These settings are specific to the output stream.
-    builder.setUsage(oboe::Usage::VoiceCommunication);
-    builder.setContentType(oboe::ContentType::Speech);
-
-    oboe::Result result = builder.openStream(output_stream_);
-    if (result != oboe::Result::OK) {
-      RTC_LOG(LS_ERROR) << "Failed to open the output stream: " << oboe::convertToText(result);
-      return -1;
-    }
-
-    if (output_stream_->getAudioApi() == oboe::AudioApi::AAudio) {
-      latency_tuner_ = std::make_unique<oboe::LatencyTuner>(*output_stream_.get());
-      if (!latency_tuner_) {
-        RTC_LOG(LS_WARNING) << "Could not create LatencyTuner, continue without one";
-      }
-    }
-
-    LogStreamConfiguration(output_stream_);
-
-    return 0;
+    return CreateOboeStream(oboe::Direction::Output);
   }
 
   int32_t CreateInputStream() {
-    RTC_LOG(LS_WARNING) << "CreateInputStream";
-
-    oboe::AudioStreamBuilder builder;
-    ConfigureCommonStreamSettings(builder, oboe::Direction::Input);
-
-    // If provided, attach the sessionId from the AudioManager. While not always
-    // strictly necessary, it oftentimes improves audio quality and experience.
-    if (audio_session_id_ != kInvalidAudioSessionId) {
-      RTC_LOG(LS_WARNING) << "Setting session_id: " << audio_session_id_;
-      builder.setSessionId((oboe::SessionId) audio_session_id_);
-    }
-
-    // Specifying an inputPreset should result in better volume and routing
-    // decisions (and privacy).
-    builder.setInputPreset(oboe::InputPreset::VoiceCommunication);
-
-    oboe::Result result = builder.openStream(input_stream_);
-    if (result != oboe::Result::OK) {
-      RTC_LOG(LS_ERROR) << "Failed to open the input stream: " << oboe::convertToText(result);
-      return -1;
-    }
-
-    LogStreamConfiguration(input_stream_);
-
-    return 0;
+    return CreateOboeStream(oboe::Direction::Input);
   }
 
   SequenceChecker thread_checker_;
@@ -960,22 +1144,16 @@ class AndroidAudioDeviceModuleOboe :
   const bool use_exclusive_sharing_mode_;
   const int32_t audio_session_id_;
 
-  std::shared_ptr<oboe::AudioStream> input_stream_;
-  std::shared_ptr<oboe::AudioStream> output_stream_;
-  std::unique_ptr<oboe::LatencyTuner> latency_tuner_;
+  std::shared_ptr<OboeStream> input_stream_;
+  std::shared_ptr<OboeStream> output_stream_;
 
-  webrtc::AudioTransport* audio_callback_ = nullptr;
+  std::atomic<AudioTransport*> audio_callback_{ nullptr };
 
   std::atomic<bool> initialized_ { false };
-
   std::atomic<bool> playout_initialized_ { false };
   std::atomic<bool> recording_initialized_ { false };
-
-  std::atomic<bool> is_playing_ { false };
-  std::atomic<bool> is_recording_ { false };
-
-  std::atomic<uint16_t> playout_delay_ms_ { kDefaultPlayoutDelayMs };
-  std::atomic<int32_t> playout_underrun_count_ { 0 };
+  std::atomic<bool> should_play_ { false };
+  std::atomic<bool> should_record_ { false };
 
   mutable std::atomic<uint32_t> delay_log_counter_ { 0 };
   mutable std::atomic<uint32_t> underrun_log_counter_ { 0 };
