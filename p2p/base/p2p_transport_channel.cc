@@ -1940,7 +1940,8 @@ void P2PTransportChannel::SwitchSelectedConnectionInternal(
         << ". New selected connection: is_receiving="
         << selected_connection_->receiving()
         << ", write_state=" << selected_connection_->write_state()
-        << ", rtt=" << selected_connection_->rtt() << "ms";
+        << ", rtt=" << selected_connection_->rtt() << "ms"
+        << ", ice_switch_reason='" << IceSwitchReasonToString(reason) << "'";
     }
     RTC_LOG(LS_INFO) << ToString() << ": New selected connection: "
                      << selected_connection_->ToString();
