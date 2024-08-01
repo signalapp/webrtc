@@ -63,26 +63,18 @@ class OboeStream :
     return Create();
   }
 
-  // Called before Terminate() to see whether or not termination is really needed.
-  // This is an optimization to disable more than one stream before blocking on the
-  // termination of each one serially.
-  bool Deinitialize() {
-    RTC_LOG(LS_WARNING) << "Deinitialize " << oboe::convertToText(direction_);
-
-    std::lock_guard<std::mutex> lock(stream_mutex_);
-
-    bool was_initialized = initialized_;
-    initialized_ = false;
-    return was_initialized;
-  }
-
   void Terminate() {
     RTC_LOG(LS_WARNING) << "Terminate " << oboe::convertToText(direction_);
 
     std::lock_guard<std::mutex> lock(stream_mutex_);
 
+    if (!initialized_) {
+      return;
+    }
+
+    initialized_ = false;
+
     should_start_ = false;
-    stream_->stop();
     stream_->close();
 
     stream_.reset();
@@ -93,6 +85,7 @@ class OboeStream :
     RTC_LOG(LS_WARNING) << "Start " << oboe::convertToText(direction_);
 
     std::lock_guard<std::mutex> lock(stream_mutex_);
+
     if (!initialized_) {
       return -1;
     }
@@ -116,38 +109,6 @@ class OboeStream :
     }
   }
 
-  int32_t Stop() {
-    RTC_LOG(LS_WARNING) << "Stop " << oboe::convertToText(direction_);
-
-    std::lock_guard<std::mutex> lock(stream_mutex_);
-
-    if (!initialized_) {
-      return -1;
-    }
-    if (!should_start_) {
-      RTC_LOG(LS_WARNING) << oboe::convertToText(direction_) << " is already stopped!";
-      return 0;
-    }
-
-    // In most error cases, the stream is stopped, and we'll return -1, so clear the state flag.
-    should_start_ = false;
-
-    if (!stream_) {
-      RTC_LOG(LS_ERROR) << oboe::convertToText(direction_) << " stream is null!";
-      return -1;
-    }
-
-    // Blocking call to stop the stream.
-    oboe::Result result = stream_->stop();
-    if (result != oboe::Result::OK) {
-      RTC_LOG(LS_ERROR) << "Failed to stop the " << oboe::convertToText(direction_)
-                        << " stream: " << oboe::convertToText(result);
-      return -1;
-    }
-
-    return 0;
-  }
-
   // The ADM can get the playout delay from output streams.
   uint16_t GetPlayoutDelay() {
     return playout_delay_ms_;
@@ -162,16 +123,6 @@ class OboeStream :
   // total delay value.
   void SetPlayoutDelay(uint16_t playout_delay_ms) {
     playout_delay_ms_ = playout_delay_ms;
-  }
-
-  void SetAudioCallback(AudioTransport* audio_callback) {
-    RTC_LOG(LS_WARNING) << "SetAudioCallback " << oboe::convertToText(direction_);
-
-    std::lock_guard<std::mutex> lock(stream_mutex_);
-
-    if (!should_start_) {
-      audio_callback_ = audio_callback;
-    }
   }
 
   // Oboe Callbacks
@@ -476,14 +427,6 @@ class AndroidAudioDeviceModuleOboe : public AudioDeviceModule {
 
     audio_callback_ = audioCallback;
 
-    if (output_stream_) {
-      output_stream_->SetAudioCallback(audioCallback);
-    }
-
-    if (input_stream_) {
-      input_stream_->SetAudioCallback(audioCallback);
-    }
-
     return 0;
   }
 
@@ -506,34 +449,16 @@ class AndroidAudioDeviceModuleOboe : public AudioDeviceModule {
 
     if (initialized_) {
       initialized_ = false;
-      playout_initialized_ = false;
-      recording_initialized_ = false;
       should_play_ = false;
       should_record_ = false;
 
-      bool output_was_initialized = false;
-      bool input_was_initialized = false;
-
       if (output_stream_) {
-        output_was_initialized = output_stream_->Deinitialize();
-      }
-      if (input_stream_) {
-        input_was_initialized = input_stream_->Deinitialize();
-      }
-
-      if (output_stream_ && output_was_initialized) {
         output_stream_->Terminate();
-        if (output_stream_.use_count() > 1) {
-          RTC_LOG(LS_WARNING) << "Oboe might still reference the Output stream";
-        }
         output_stream_.reset();
       }
 
-      if (input_stream_ && input_was_initialized) {
+      if (input_stream_) {
         input_stream_->Terminate();
-        if (input_stream_.use_count() > 1) {
-          RTC_LOG(LS_WARNING) << "Oboe might still reference the Input stream";
-        }
         input_stream_.reset();
       }
     }
@@ -627,7 +552,7 @@ class AndroidAudioDeviceModuleOboe : public AudioDeviceModule {
       return -1;
     }
 
-    if (playout_initialized_) {
+    if (output_stream_) {
       RTC_LOG(LS_WARNING) << "Playout is already initialized!";
       return 0;
     }
@@ -636,15 +561,13 @@ class AndroidAudioDeviceModuleOboe : public AudioDeviceModule {
       return -1;
     }
 
-    playout_initialized_ = true;
-
     return 0;
   }
 
   bool PlayoutIsInitialized() const override {
-    RTC_LOG(LS_WARNING) << "PlayoutIsInitialized " << playout_initialized_;
+    RTC_LOG(LS_WARNING) << "PlayoutIsInitialized " << (output_stream_ != nullptr);
     RTC_DCHECK_RUN_ON(&thread_checker_);
-    return playout_initialized_;
+    return output_stream_ != nullptr;
   }
 
   int32_t RecordingIsAvailable(bool* available) override {
@@ -661,7 +584,7 @@ class AndroidAudioDeviceModuleOboe : public AudioDeviceModule {
       return -1;
     }
 
-    if (recording_initialized_) {
+    if (input_stream_) {
       RTC_LOG(LS_WARNING) << "Recording is already initialized!";
       return 0;
     }
@@ -670,15 +593,13 @@ class AndroidAudioDeviceModuleOboe : public AudioDeviceModule {
       return -1;
     }
 
-    recording_initialized_ = true;
-
     return 0;
   }
 
   bool RecordingIsInitialized() const override {
-    RTC_LOG(LS_WARNING) << "RecordingIsInitialized " << recording_initialized_;
+    RTC_LOG(LS_WARNING) << "RecordingIsInitialized " << (input_stream_ != nullptr);
     RTC_DCHECK_RUN_ON(&thread_checker_);
-    return recording_initialized_;
+    return input_stream_ != nullptr;
   }
 
   // Audio transport control
@@ -689,25 +610,21 @@ class AndroidAudioDeviceModuleOboe : public AudioDeviceModule {
     if (!initialized_) {
       return -1;
     }
-    if (!playout_initialized_) {
-      RTC_LOG(LS_ERROR) << "Playout is not initialized!";
-      return -1;
-    }
     if (should_play_) {
       RTC_LOG(LS_WARNING) << "Playout is already started!";
       return 0;
     }
 
-    if (!output_stream_) {
+    if (output_stream_) {
+      int32_t result = output_stream_->Start();
+      if (result == 0) {
+        should_play_ = true;
+      }
+      return result;
+    } else {
       RTC_LOG(LS_ERROR) << "Output stream is null!";
       return -1;
     }
-
-    int32_t result = output_stream_->Start();
-    if (result == 0) {
-      should_play_ = true;
-    }
-    return result;
   }
 
   int32_t StopPlayout() override {
@@ -721,15 +638,16 @@ class AndroidAudioDeviceModuleOboe : public AudioDeviceModule {
       return 0;
     }
 
-    if (!output_stream_) {
+    if (output_stream_) {
+      // Stop and close the output stream, returning Playout to an uninitialized state.
+      output_stream_->Terminate();
+      output_stream_.reset();
+      should_play_ = false;
+      return 0;
+    } else {
       RTC_LOG(LS_ERROR) << "Output stream is null!";
       return -1;
     }
-
-    // Blocking call to stop the output stream.
-    int32_t result = output_stream_->Stop();
-    should_play_ = false;
-    return result;
   }
 
   bool Playing() const override {
@@ -741,12 +659,7 @@ class AndroidAudioDeviceModuleOboe : public AudioDeviceModule {
   int32_t StartRecording() override {
     RTC_LOG(LS_WARNING) << "StartRecording";
     RTC_DCHECK_RUN_ON(&thread_checker_);
-
     if (!initialized_) {
-      return -1;
-    }
-    if (!recording_initialized_) {
-      RTC_LOG(LS_ERROR) << "Recording is not initialized!";
       return -1;
     }
     if (should_record_) {
@@ -754,16 +667,16 @@ class AndroidAudioDeviceModuleOboe : public AudioDeviceModule {
       return 0;
     }
 
-    if (!input_stream_) {
+    if (input_stream_) {
+      int32_t result = input_stream_->Start();
+      if (result == 0) {
+        should_record_ = true;
+      }
+      return result;
+    } else {
       RTC_LOG(LS_ERROR) << "Input stream is null!";
       return -1;
     }
-
-    int32_t result = input_stream_->Start();
-    if (result == 0) {
-      should_record_ = true;
-    }
-    return result;
   }
 
   int32_t StopRecording() override {
@@ -777,15 +690,16 @@ class AndroidAudioDeviceModuleOboe : public AudioDeviceModule {
       return 0;
     }
 
-    if (!input_stream_) {
+    if (input_stream_) {
+      // Stop and close the input stream, returning Recording to an uninitialized state.
+      input_stream_->Terminate();
+      input_stream_.reset();
+      should_record_ = false;
+      return 0;
+    } else {
       RTC_LOG(LS_ERROR) << "Input stream is null!";
       return -1;
     }
-
-    // Blocking call to stop the input stream.
-    int32_t result = input_stream_->Stop();
-    should_record_ = false;
-    return result;
   }
 
   bool Recording() const override {
@@ -1002,7 +916,6 @@ class AndroidAudioDeviceModuleOboe : public AudioDeviceModule {
   // Playout delay calculation.
   int32_t PlayoutDelay(uint16_t* delay_ms) const override {
     RTC_DCHECK_RUN_ON(&thread_checker_);
-
     if (output_stream_) {
       // Return the latest value set by the data callback.
       *delay_ms = output_stream_->GetPlayoutDelay();
@@ -1150,8 +1063,6 @@ class AndroidAudioDeviceModuleOboe : public AudioDeviceModule {
   std::atomic<AudioTransport*> audio_callback_{ nullptr };
 
   std::atomic<bool> initialized_ { false };
-  std::atomic<bool> playout_initialized_ { false };
-  std::atomic<bool> recording_initialized_ { false };
   std::atomic<bool> should_play_ { false };
   std::atomic<bool> should_record_ { false };
 
