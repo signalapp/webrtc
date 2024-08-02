@@ -2045,6 +2045,13 @@ void RTCStatsCollector::PrepareTransceiverStatsInfosAndCallStats_s_w_n() {
       video_receive_stats;
 
   auto transceivers = pc_->GetTransceiversInternal();
+  // RingRTC change to not get stats for unused transceivers.
+  transceivers.erase(
+    std::remove_if(transceivers.begin(), transceivers.end(),
+                   [](const auto& t) {
+                     return t->fired_direction() && *t->fired_direction() == RtpTransceiverDirection::kInactive;
+                   }),
+    transceivers.end());
 
   // TODO(tommi): See if we can avoid synchronously blocking the signaling
   // thread while we do this (or avoid the BlockingCall at all).
