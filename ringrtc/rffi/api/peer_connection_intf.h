@@ -136,11 +136,6 @@ RUSTEXPORT void
 Rust_setAudioRecordingEnabled(webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
                               bool                             enabled);
 
-RUSTEXPORT void
-Rust_setIncomingAudioMuted(webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
-                           uint32_t                         ssrc,
-                           bool                             muted);
-
 RUSTEXPORT bool
 Rust_addIceCandidateFromSdp(webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
                             const char*                      sdp);

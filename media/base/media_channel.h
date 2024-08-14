@@ -933,9 +933,6 @@ class VoiceMediaReceiveChannelInterface : public MediaReceiveChannelInterface {
   virtual void SetDefaultRawAudioSink(
       std::unique_ptr<webrtc::AudioSinkInterface> sink) = 0;
 
-  // RingRTC change to disable CNG for muted incoming streams.
-  virtual void SetIncomingAudioMuted(uint32_t ssrc, bool muted) = 0;
-
   // RingRTC change to get audio levels
   virtual absl::optional<cricket::ReceivedAudioLevel> GetReceivedAudioLevel() = 0;
 

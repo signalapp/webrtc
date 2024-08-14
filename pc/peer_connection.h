@@ -261,8 +261,6 @@ class PeerConnection : public PeerConnectionInternal,
 
   void SetAudioPlayout(bool playout) override;
   void SetAudioRecording(bool recording) override;
-  // RingRTC change to disable CNG for muted incoming streams.
-  void SetIncomingAudioMuted(uint32_t ssrc, bool muted) override;
 
   rtc::scoped_refptr<DtlsTransportInterface> LookupDtlsTransportByMid(
       const std::string& mid) override;

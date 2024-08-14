@@ -969,12 +969,6 @@ absl::optional<cricket::ReceivedAudioLevel> VoiceChannel::GetReceivedAudioLevel(
   return voice_media_receive_channel()->GetReceivedAudioLevel();
 }
 
-// RingRTC change to disable CNG for muted incoming streams.
-void VoiceChannel::SetIncomingAudioMuted(uint32_t ssrc, bool muted) {
-  RTC_DCHECK_RUN_ON(worker_thread());
-  voice_media_receive_channel()->SetIncomingAudioMuted(ssrc, muted);
-}
-
 VideoChannel::VideoChannel(
     webrtc::TaskQueueBase* worker_thread,
     rtc::Thread* network_thread,

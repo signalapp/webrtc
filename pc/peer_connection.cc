@@ -1707,29 +1707,6 @@ void PeerConnection::SetAudioRecording(bool recording) {
   audio_state->SetRecording(recording);
 }
 
-// RingRTC change to disable CNG for muted incoming streams.
-void PeerConnection::SetIncomingAudioMuted(uint32_t ssrc, bool muted) {
-  auto ssrc_str = rtc::ToString(ssrc);
-  std::vector<cricket::VoiceChannel*> voice_channels;
-  for (auto transceiver : rtp_manager()->transceivers()->List()) {
-    if (transceiver->media_type() != cricket::MEDIA_TYPE_AUDIO ||
-        transceiver->direction() != RtpTransceiverDirection::kRecvOnly) {
-      continue;
-    }
-
-    auto* voice_channel = static_cast<cricket::VoiceChannel*>(transceiver->internal()->channel());
-    if (voice_channel && transceiver->receiver()->stream_ids()[0] == ssrc_str) {
-      voice_channels.push_back(voice_channel);
-    }
-  }
-
-  worker_thread()->BlockingCall([ssrc, muted, voice_channels] {
-    for (auto voice_channel : voice_channels) {
-      voice_channel->SetIncomingAudioMuted(ssrc, muted);
-    }
-  });
-}
-
 void PeerConnection::AddAdaptationResource(
     rtc::scoped_refptr<Resource> resource) {
   if (!worker_thread()->IsCurrent()) {

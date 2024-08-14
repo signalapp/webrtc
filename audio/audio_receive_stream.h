@@ -143,9 +143,6 @@ class AudioReceiveStreamImpl final : public webrtc::AudioReceiveStreamInterface,
   void ReconfigureForTesting(
       const webrtc::AudioReceiveStreamInterface::Config& config);
 
-  // RingRTC change to disable CNG for muted incoming streams.
-  void SetIncomingAudioMuted(bool muted) override;
-
   // RingRTC change to get recv audio levels
   uint16_t GetAudioLevel() override;
 

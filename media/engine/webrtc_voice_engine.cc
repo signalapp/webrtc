@@ -2774,19 +2774,6 @@ bool WebRtcVoiceReceiveChannel::MaybeDeregisterUnsignaledRecvStream(
   return false;
 }
 
-// RingRTC change to disable CNG for muted incoming streams.
-void WebRtcVoiceReceiveChannel::SetIncomingAudioMuted(uint32_t ssrc, bool muted) {
-  auto it = recv_streams_.find(ssrc);
-  if (it == recv_streams_.end()) {
-    RTC_LOG(LS_WARNING)
-        << "Attempting to SetIncomingAudioMuted for stream with ssrc "
-        << ssrc << " which doesn't exist.";
-    return;
-  }
-
-  it->second->stream().SetIncomingAudioMuted(muted);
-}
-
 // RingRTC change to get audio levels
 absl::optional<cricket::ReceivedAudioLevel> WebRtcVoiceReceiveChannel::GetReceivedAudioLevel() {
   RTC_DCHECK_RUN_ON(worker_thread_);

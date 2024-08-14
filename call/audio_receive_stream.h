@@ -199,9 +199,6 @@ class AudioReceiveStreamInterface : public MediaReceiveStreamInterface {
   // Returns current value of base minimum delay in milliseconds.
   virtual int GetBaseMinimumPlayoutDelayMs() const = 0;
 
-  // RingRTC change to disable CNG for muted incoming streams.
-  virtual void SetIncomingAudioMuted(bool muted) = 0;
-
   // RingRTC change to get recv audio levels
   virtual uint16_t GetAudioLevel() {
     RTC_LOG(LS_WARNING) << "Default AudioReceiveStream::GetAudioLevel() does nothing!";

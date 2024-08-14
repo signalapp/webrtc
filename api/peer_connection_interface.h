@@ -1210,9 +1210,6 @@ class RTC_EXPORT PeerConnectionInterface : public webrtc::RefCountInterface {
   // the appropriate SDP is also applied.
   virtual void SetAudioRecording(bool recording) = 0;
 
-  // RingRTC change to disable CNG for muted incoming streams.
-  virtual void SetIncomingAudioMuted(uint32_t ssrc, bool muted) {}
-
   // Looks up the DtlsTransport associated with a MID value.
   // In the Javascript API, DtlsTransport is a property of a sender, but
   // because the PeerConnection owns the DtlsTransport in this implementation,
