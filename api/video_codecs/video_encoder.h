@@ -33,7 +33,8 @@ namespace webrtc {
 // TODO(pbos): Expose these through a public (root) header or change these APIs.
 struct CodecSpecificInfo;
 
-constexpr int kDefaultMinPixelsPerFrame = 320 * 180;
+// RingRTC change to reduce minimum resolution of highest video layer.
+constexpr int kDefaultMinPixelsPerFrame = 160 * 90;
 
 class RTC_EXPORT EncodedImageCallback {
  public:
