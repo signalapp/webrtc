@@ -459,6 +459,16 @@ class PeerConnection : public PeerConnectionInternal,
   }
   void RequestUsagePatternReportForTesting();
 
+  NetworkControllerInterface* GetNetworkController() override {
+    if (!worker_thread()->IsCurrent()) {
+      return worker_thread()->BlockingCall(
+          [this]() { return GetNetworkController(); });
+    }
+    RTC_DCHECK_RUN_ON(worker_thread());
+    RTC_DCHECK(call_);
+    return call_->GetTransportControllerSend()->GetNetworkController();
+  }
+
   rtc::scoped_refptr<IceGathererInterface> shared_ice_gatherer() override {
       return shared_ice_gatherer_;
   }

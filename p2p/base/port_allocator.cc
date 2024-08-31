@@ -19,6 +19,7 @@
 #include "api/peer_connection_interface.h"
 #include "p2p/base/ice_credentials_iterator.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/crypto_random.h"
 
 namespace cricket {
 
