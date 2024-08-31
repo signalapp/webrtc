@@ -52,7 +52,7 @@ class RTCCertificatePEM {
 // SSLCertificate and WebRTC usage. Takes ownership of some lower level objects,
 // reference counting protects these from premature destruction.
   // RingRTC change to make it easier to deal with RTCCertificate ref counts
-class RTC_EXPORT RTCCertificate: public RefCountInterface {
+class RTC_EXPORT RTCCertificate: public webrtc::RefCountInterface {
  public:
   // Takes ownership of `identity`.
   static scoped_refptr<RTCCertificate> Create(
