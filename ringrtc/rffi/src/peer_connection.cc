@@ -483,8 +483,6 @@ Rust_sessionDescriptionFromV4(bool offer,
 
   audio->AddStream(audio_stream);
   video->AddStream(video_stream);
-
-  // TODO: Why is this only for video by default in WebRTC? Should we enable it for all of them?
   video->set_rtcp_reduced_size(true);
 
   // Keep the order as the WebRTC default: (audio, video, data).
@@ -755,7 +753,6 @@ CreateSessionDescriptionForGroupCall(bool local,
     setup_streams(remote_audio->get(), remote_video->get(), rtp_demux_id);
   }
 
-  // TODO: Why is this only for video by default in WebRTC? Should we enable it for all of them?
   local_video->set_rtcp_reduced_size(true);
   for (auto& remote_video : remote_videos) {
     remote_video->set_rtcp_reduced_size(true);

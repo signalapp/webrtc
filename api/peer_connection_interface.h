@@ -1420,6 +1420,7 @@ class PeerConnectionObserver : public RtpPacketSinkInterface {
   // implementation-defined.
   virtual void OnInterestingUsage(int usage_pattern) {}
 
+  // RingRTC change to receive RTP data
   void OnRtpPacket(const RtpPacketReceived& rtp_packet) override {}
 };
 
