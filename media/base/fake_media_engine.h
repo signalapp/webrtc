@@ -484,9 +484,6 @@ class FakeVoiceMediaReceiveChannel
   absl::optional<int> GetBaseMinimumPlayoutDelayMs(
       uint32_t ssrc) const override;
 
-  // RingRTC change to disable CNG for muted incoming streams.
-  void SetIncomingAudioMuted(uint32_t ssrc, bool muted) override {}
-
   // RingRTC change to get audio levels
   absl::optional<cricket::ReceivedAudioLevel> GetReceivedAudioLevel() override {
     return absl::nullopt;
@@ -503,6 +500,7 @@ class FakeVoiceMediaReceiveChannel
 
   std::vector<webrtc::RtpSource> GetSources(uint32_t ssrc) const override;
   void SetReceiveNackEnabled(bool enabled) override {}
+  void SetRtcpMode(webrtc::RtcpMode mode) override {}
   void SetReceiveNonSenderRttEnabled(bool enabled) override {}
 
  private:

@@ -27,7 +27,7 @@ namespace webrtc {
   // that owns the signaling thread (and other threads).
   // We could make our owner implement the PeerConnectionFactoryInterface,
   // but it's not worth the trouble.  This is easier.
-  class PeerConnectionFactoryOwner : public rtc::RefCountInterface {
+  class PeerConnectionFactoryOwner : public webrtc::RefCountInterface {
     public:
     virtual ~PeerConnectionFactoryOwner() {}
     virtual PeerConnectionFactoryInterface* peer_connection_factory() = 0;

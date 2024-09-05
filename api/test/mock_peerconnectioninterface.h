@@ -215,7 +215,10 @@ class MockPeerConnectionInterface : public webrtc::PeerConnectionInterface {
   MOCK_METHOD(void, StopRtcEventLog, (), (override));
   MOCK_METHOD(void, Close, (), (override));
   MOCK_METHOD(rtc::Thread*, signaling_thread, (), (const override));
-
+  MOCK_METHOD(NetworkControllerInterface*,
+              GetNetworkController,
+              (),
+              (override));
   // RingRTC changes for added methods
   MOCK_METHOD(rtc::scoped_refptr<webrtc::IceGathererInterface>,
       CreateSharedIceGatherer, (), (override));

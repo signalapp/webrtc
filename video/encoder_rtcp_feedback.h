@@ -13,13 +13,13 @@
 #include <functional>
 #include <vector>
 
+#include "api/environment/environment.h"
 #include "api/sequence_checker.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "call/rtp_video_sender_interface.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "rtc_base/system/no_unique_address.h"
-#include "system_wrappers/include/clock.h"
 #include "video/video_stream_encoder_interface.h"
 
 namespace webrtc {
@@ -32,7 +32,7 @@ class EncoderRtcpFeedback : public RtcpIntraFrameObserver,
                             public RtcpLossNotificationObserver {
  public:
   EncoderRtcpFeedback(
-      Clock* clock,
+      const Environment& env,
       bool per_layer_keyframes,
       const std::vector<uint32_t>& ssrcs,
       VideoStreamEncoderInterface* encoder,
@@ -55,7 +55,7 @@ class EncoderRtcpFeedback : public RtcpIntraFrameObserver,
   }
 
  private:
-  Clock* const clock_;
+  const Environment env_;
   const std::vector<uint32_t> ssrcs_;
   // RingRTC change to enable per-layer PLI for screen sharing
   std::atomic<bool> per_layer_keyframes_;

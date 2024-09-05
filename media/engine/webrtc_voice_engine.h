@@ -322,6 +322,7 @@ class WebRtcVoiceSendChannel final : public MediaChannelUtil,
   std::map<uint32_t, WebRtcAudioSendStream*> send_streams_;
   std::vector<webrtc::RtpExtension> send_rtp_extensions_;
   std::string mid_;
+  webrtc::RtcpMode rtcp_mode_;
 
   absl::optional<webrtc::AudioSendStream::Config::SendCodecSpec>
       send_codec_spec_;
@@ -430,6 +431,7 @@ class WebRtcVoiceReceiveChannel final
       override;
 
   void SetReceiveNackEnabled(bool enabled) override;
+  void SetRtcpMode(webrtc::RtcpMode mode) override;
   void SetReceiveNonSenderRttEnabled(bool enabled) override;
 
   // RingRTC change to get audio levels
@@ -466,6 +468,7 @@ class WebRtcVoiceReceiveChannel final
 
   AudioOptions options_;
   bool recv_nack_enabled_ = false;
+  webrtc::RtcpMode recv_rtcp_mode_ = webrtc::RtcpMode::kCompound;
   bool enable_non_sender_rtt_ = false;
   bool playout_ = false;
   webrtc::Call* const call_ = nullptr;

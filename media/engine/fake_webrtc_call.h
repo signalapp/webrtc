@@ -112,9 +112,6 @@ class FakeAudioReceiveStream final
     config_.sync_group = std::string(sync_group);
   }
 
-  // RingRTC change to disable CNG for muted incoming streams.
-  void SetIncomingAudioMuted(bool muted) override {}
-
   uint32_t remote_ssrc() const override { return config_.rtp.remote_ssrc; }
   void Start() override { started_ = true; }
   void Stop() override { started_ = false; }
@@ -125,6 +122,7 @@ class FakeAudioReceiveStream final
   void SetDecoderMap(
       std::map<int, webrtc::SdpAudioFormat> decoder_map) override;
   void SetNackHistory(int history_ms) override;
+  void SetRtcpMode(webrtc::RtcpMode mode) override;
   void SetNonSenderRttMeasurement(bool enabled) override;
   void SetFrameDecryptor(rtc::scoped_refptr<webrtc::FrameDecryptorInterface>
                              frame_decryptor) override;

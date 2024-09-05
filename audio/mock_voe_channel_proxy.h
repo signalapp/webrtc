@@ -30,6 +30,7 @@ namespace test {
 class MockChannelReceive : public voe::ChannelReceiveInterface {
  public:
   MOCK_METHOD(void, SetNACKStatus, (bool enable, int max_packets), (override));
+  MOCK_METHOD(void, SetRtcpMode, (RtcpMode mode), (override));
   MOCK_METHOD(void, SetNonSenderRttMeasurement, (bool enabled), (override));
   MOCK_METHOD(void,
               RegisterReceiverCongestionControlObjects,
@@ -45,9 +46,6 @@ class MockChannelReceive : public voe::ChannelReceiveInterface {
               GetDecodingCallStatistics,
               (),
               (const, override));
-
-  // RingRTC change to get tests building again.
-  MOCK_METHOD(void, SetIncomingAudioMuted, (bool), (override));
   MOCK_METHOD(int, GetSpeechOutputLevelFullRange, (), (const, override));
   MOCK_METHOD(double, GetTotalOutputEnergy, (), (const, override));
   MOCK_METHOD(double, GetTotalOutputDuration, (), (const, override));
