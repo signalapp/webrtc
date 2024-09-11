@@ -943,7 +943,8 @@ RUSTEXPORT bool
 Rust_addIceCandidateFromServer(PeerConnectionInterface* pc_borrowed_rc,
                                Ip ip,
                                uint16_t port,
-                               bool tcp) {
+                               bool tcp,
+                               const char* hostname) {
   cricket::Candidate candidate;
   // The default foundation is "", which is fine because we bundle.
   // The default generation is 0,  which is fine because we don't do ICE restarts.
@@ -964,8 +965,16 @@ Rust_addIceCandidateFromServer(PeerConnectionInterface* pc_borrowed_rc,
   // So we leave the priority unset to allow the local candidate preference to break the tie.
   candidate.set_component(cricket::ICE_CANDIDATE_COMPONENT_RTP);
   candidate.set_type(webrtc::IceCandidateType::kHost);
-  candidate.set_address(rtc::SocketAddress(IpToRtcIp(ip), port));
-  candidate.set_protocol(tcp ? cricket::TCP_PROTOCOL_NAME : cricket::UDP_PROTOCOL_NAME);
+
+  if (tcp && hostname != NULL) {
+    rtc::SocketAddress addr = rtc::SocketAddress(std::string(hostname), port);
+    addr.SetResolvedIP(IpToRtcIp(ip));
+    candidate.set_address(addr);
+    candidate.set_protocol(cricket::TLS_PROTOCOL_NAME);
+  } else {
+    candidate.set_address(rtc::SocketAddress(IpToRtcIp(ip), port));
+    candidate.set_protocol(tcp ? cricket::TCP_PROTOCOL_NAME : cricket::UDP_PROTOCOL_NAME);
+  }
 
   // Since we always use bundle, we can always use index 0 and ignore the mid
   std::unique_ptr<IceCandidateInterface> ice_candidate(

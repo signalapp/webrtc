@@ -261,7 +261,9 @@ int TCPPort::GetError() {
 }
 
 bool TCPPort::SupportsProtocol(absl::string_view protocol) const {
-  return protocol == TCP_PROTOCOL_NAME || protocol == SSLTCP_PROTOCOL_NAME;
+  // RingRTC change to allow connection to a TCP + TLS server candidate
+  return protocol == TCP_PROTOCOL_NAME || protocol == SSLTCP_PROTOCOL_NAME
+      || protocol == TLS_PROTOCOL_NAME;
 }
 
 ProtocolType TCPPort::GetProtocol() const {
@@ -571,8 +573,11 @@ void TCPConnection::OnDestroyed(Connection* c) {
 
 void TCPConnection::CreateOutgoingTcpSocket() {
   RTC_DCHECK(outgoing_);
+  // RingRTC change to allow connection to a TCP + TLS server candidate
   int opts = (remote_candidate().protocol() == SSLTCP_PROTOCOL_NAME)
                  ? rtc::PacketSocketFactory::OPT_TLS_FAKE
+                 : (remote_candidate().protocol() == TLS_PROTOCOL_NAME)
+                 ? rtc::PacketSocketFactory::OPT_TLS
                  : 0;
 
   if (socket_) {
