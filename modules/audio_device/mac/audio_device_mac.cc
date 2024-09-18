@@ -1954,10 +1954,13 @@ int32_t AudioDeviceMac::HandleStreamFormatChange(
     return -1;
   }
 
-  if (_ptrAudioBuffer && streamFormat.mChannelsPerFrame != _recChannels) {
-    RTC_LOG(LS_ERROR) << "Changing channels not supported (mChannelsPerFrame = "
-                      << streamFormat.mChannelsPerFrame << ")";
-    return -1;
+  // RingRTC change to check for a channel change for the input device only
+  if (propertyAddress.mScope == kAudioDevicePropertyScopeInput) {
+    if (_ptrAudioBuffer && streamFormat.mChannelsPerFrame != _recChannels) {
+      RTC_LOG(LS_ERROR) << "Changing channels not supported (mChannelsPerFrame = "
+                        << streamFormat.mChannelsPerFrame << ")";
+      return -1;
+    }
   }
 
   RTC_LOG(LS_VERBOSE) << "Stream format:";
