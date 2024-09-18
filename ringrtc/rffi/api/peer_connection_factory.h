@@ -53,31 +53,6 @@ namespace webrtc {
     virtual bool SetAudioRecordingDevice(uint16_t index) {
       return false;
     }
-    virtual int32_t RecordedDataIsAvailable(
-        const void* audio_samples,
-        size_t n_samples,
-        size_t n_bytes_per_sample,
-        size_t n_channels,
-        uint32_t samples_per_sec,
-        uint32_t total_delay_ms,
-        int32_t clock_drift,
-        uint32_t current_mic_level,
-        bool key_pressed,
-        uint32_t& new_mic_level,
-        absl::optional<int64_t> estimated_capture_time_ns) {
-      return -1;
-    }
-    virtual int32_t NeedMorePlayData(
-        size_t n_samples,
-        size_t n_bytes_per_sample,
-        size_t n_channels,
-        uint32_t samples_per_sec,
-        void* audio_samples,
-        size_t& n_samples_out,
-        int64_t* elapsed_time_ms,
-        int64_t* ntp_time_ms) {
-      return -1;
-    }
   };
 
 
