@@ -15,11 +15,11 @@
 
 #include <deque>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "api/candidate.h"
 #include "api/ice_gatherer_interface.h"
 #include "api/sequence_checker.h"
@@ -256,7 +256,7 @@ class RTC_EXPORT PortAllocatorSession : public sigslot::has_slots<> {
   // The default value of the interval in implementation is restored if a null
   // optional value is passed.
   virtual void SetStunKeepaliveIntervalForReadyPorts(
-      const absl::optional<int>& stun_keepalive_interval) {}
+      const std::optional<int>& stun_keepalive_interval) {}
   // Another way of getting the information provided by the signals below.
   //
   // Ports and candidates are not guaranteed to be in the same order as the
@@ -370,15 +370,15 @@ class RTC_EXPORT PortAllocator : public sigslot::has_slots<> {
                         int candidate_pool_size,
                         bool prune_turn_ports,
                         webrtc::TurnCustomizer* turn_customizer = nullptr,
-                        const absl::optional<int>&
-                            stun_candidate_keepalive_interval = absl::nullopt);
+                        const std::optional<int>&
+                            stun_candidate_keepalive_interval = std::nullopt);
   bool SetConfiguration(const ServerAddresses& stun_servers,
                         const std::vector<RelayServerConfig>& turn_servers,
                         int candidate_pool_size,
                         webrtc::PortPrunePolicy turn_port_prune_policy,
                         webrtc::TurnCustomizer* turn_customizer = nullptr,
-                        const absl::optional<int>&
-                            stun_candidate_keepalive_interval = absl::nullopt);
+                        const std::optional<int>&
+                            stun_candidate_keepalive_interval = std::nullopt);
 
   const ServerAddresses& stun_servers() const {
     CheckRunOnValidThreadIfInitialized();
@@ -395,7 +395,7 @@ class RTC_EXPORT PortAllocator : public sigslot::has_slots<> {
     return candidate_pool_size_;
   }
 
-  const absl::optional<int>& stun_candidate_keepalive_interval() const {
+  const std::optional<int>& stun_candidate_keepalive_interval() const {
     CheckRunOnValidThreadIfInitialized();
     return stun_candidate_keepalive_interval_;
   }
@@ -645,7 +645,7 @@ class RTC_EXPORT PortAllocator : public sigslot::has_slots<> {
   // all TurnPort(s) created.
   webrtc::TurnCustomizer* turn_customizer_ = nullptr;
 
-  absl::optional<int> stun_candidate_keepalive_interval_;
+  std::optional<int> stun_candidate_keepalive_interval_;
 
   // If true, TakePooledSession() will only return sessions that has same ice
   // credentials as requested.

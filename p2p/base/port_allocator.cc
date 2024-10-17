@@ -127,7 +127,7 @@ bool PortAllocator::SetConfiguration(
     int candidate_pool_size,
     bool prune_turn_ports,
     webrtc::TurnCustomizer* turn_customizer,
-    const absl::optional<int>& stun_candidate_keepalive_interval) {
+    const std::optional<int>& stun_candidate_keepalive_interval) {
   webrtc::PortPrunePolicy turn_port_prune_policy =
       prune_turn_ports ? webrtc::PRUNE_BASED_ON_PRIORITY : webrtc::NO_PRUNE;
   return SetConfiguration(stun_servers, turn_servers, candidate_pool_size,
@@ -141,7 +141,7 @@ bool PortAllocator::SetConfiguration(
     int candidate_pool_size,
     webrtc::PortPrunePolicy turn_port_prune_policy,
     webrtc::TurnCustomizer* turn_customizer,
-    const absl::optional<int>& stun_candidate_keepalive_interval) {
+    const std::optional<int>& stun_candidate_keepalive_interval) {
   RTC_DCHECK_GE(candidate_pool_size, 0);
   RTC_DCHECK_LE(candidate_pool_size, static_cast<int>(UINT16_MAX));
   CheckRunOnValidThreadIfInitialized();

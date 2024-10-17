@@ -594,7 +594,7 @@ public class PeerConnection {
       tcpCandidatePolicy = TcpCandidatePolicy.ENABLED;
       candidateNetworkPolicy = CandidateNetworkPolicy.ALL;
       this.iceServers = iceServers;
-      audioJitterBufferMaxPackets = 50;
+      audioJitterBufferMaxPackets = 200;
       // RingRTC change to configure the jitter buffer's max target delay.
       audioJitterBufferMaxTargetDelayMs = 500;
       audioJitterBufferFastAccelerate = false;
