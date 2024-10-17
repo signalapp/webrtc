@@ -171,6 +171,7 @@ void PacketRouter::SendPacket(std::unique_ptr<RtpPacketToSend> packet,
   uint32_t ssrc = packet->Ssrc();
   auto it = send_modules_map_.find(ssrc);
   if (it == send_modules_map_.end()) {
+    // RingRTC change to reduce log noise.
     RTC_LOG(LS_INFO)
         << "Failed to send packet, matching RTP module not found "
            "or transport error. SSRC = "

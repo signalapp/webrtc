@@ -53,7 +53,7 @@ class RingRTCAudioDeviceModule : public AudioDeviceModule {
       uint32_t current_mic_level,
       bool key_pressed,
       uint32_t& new_mic_level,
-      absl::optional<int64_t> estimated_capture_time_ns);
+      std::optional<int64_t> estimated_capture_time_ns);
 
   // RingRTC function that forwards to the underlying `callback_` to receive
   // output data, if a callback has been specified.
@@ -161,7 +161,7 @@ class RingRTCAudioDeviceModule : public AudioDeviceModule {
 
   // Used to generate RTC stats. If not implemented, RTCAudioPlayoutStats will
   // not be present in the stats.
-  absl::optional<Stats> GetStats() const override { return absl::nullopt; }
+  std::optional<Stats> GetStats() const override { return std::nullopt; }
 
 // Only supported on iOS.
 #if defined(WEBRTC_IOS)

@@ -135,11 +135,12 @@ void SrtpTransport::OnRtpPacketReceived(const rtc::ReceivedPacket& packet) {
     // bad packets.
     const int kFailureLogThrottleCount = 100;
     if (decryption_failure_count_ % kFailureLogThrottleCount == 0) {
+      // RingRTC change to reduce log noise.
       RTC_LOG(LS_INFO) << "Failed to unprotect RTP packet: size=" << len
-                       << ", seqnum=" << ParseRtpSequenceNumber(payload)
-                       << ", SSRC=" << ParseRtpSsrc(payload)
-                       << ", previous failure count: "
-                       << decryption_failure_count_;
+                        << ", seqnum=" << ParseRtpSequenceNumber(payload)
+                        << ", SSRC=" << ParseRtpSsrc(payload)
+                        << ", previous failure count: "
+                        << decryption_failure_count_;
     }
     ++decryption_failure_count_;
     return;
@@ -163,8 +164,9 @@ void SrtpTransport::OnRtcpPacketReceived(const rtc::ReceivedPacket& packet) {
   if (!UnprotectRtcp(data, len, &len)) {
     int type = -1;
     cricket::GetRtcpType(data, len, &type);
+    // RingRTC change to reduce log noise.
     RTC_LOG(LS_INFO) << "Failed to unprotect RTCP packet: size=" << len
-                     << ", type=" << type;
+                      << ", type=" << type;
     return;
   }
   payload.SetSize(len);

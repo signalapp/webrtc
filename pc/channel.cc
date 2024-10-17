@@ -983,7 +983,7 @@ void VoiceChannel::GetCapturedAudioLevel(cricket::AudioLevel* captured_out) {
 }
 
 // RingRTC change to get audio levels
-absl::optional<cricket::ReceivedAudioLevel> VoiceChannel::GetReceivedAudioLevel() {
+std::optional<cricket::ReceivedAudioLevel> VoiceChannel::GetReceivedAudioLevel() {
   RTC_DCHECK_RUN_ON(worker_thread());
   return voice_media_receive_channel()->GetReceivedAudioLevel();
 }

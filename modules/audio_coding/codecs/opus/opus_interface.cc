@@ -396,6 +396,7 @@ int16_t WebRtcOpus_SetForceChannels(OpusEncInst* inst, size_t num_channels) {
   }
 }
 
+// RingRTC change to detect if an encoded packet contains speech or not.
 int32_t WebRtcOpus_GetInDtx(OpusEncInst* inst) {
   if (!inst) {
     return -1;

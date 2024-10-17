@@ -828,6 +828,7 @@ void VideoReceiveStream2::OnDecodableFrameTimeout(TimeDelta wait) {
        rtp_video_stream_receiver_.IsDecryptable())) {
     std::optional<uint32_t> last_timestamp =
         rtp_video_stream_receiver_.LastReceivedFrameRtpTimestamp();
+    // RingRTC change to reduce log noise.
     RTC_LOG(LS_INFO) << "No decodable frame in " << wait
                         << " requesting keyframe. Last RTP timestamp "
                         << (last_timestamp ? rtc::ToString(*last_timestamp)
@@ -922,6 +923,7 @@ int VideoReceiveStream2::DecodeAndMaybeDispatchEncodedFrame(
   if (decode_result < WEBRTC_VIDEO_CODEC_OK) {
     // Asynchronous decoders may delay error reporting, potentially resulting in
     // error reports reflecting issues that occurred several frames back.
+    // RingRTC change to reduce log noise.
     RTC_LOG(LS_INFO)
         << "Failed to decode frame. Return code: " << decode_result
         << ", SSRC: " << remote_ssrc()

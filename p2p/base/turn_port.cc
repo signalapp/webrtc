@@ -436,6 +436,7 @@ void TurnPort::PrepareAddress() {
         << ProtoToString(server_address_.proto) << " @ "
         << server_address_.address.ToSensitiveNameAndAddressString();
     if (!CreateTurnClientSocket()) {
+      // RingRTC change to reduce log noise.
       RTC_LOG(LS_INFO) << ToString()
                         << ": Failed to create TURN client socket";
       OnAllocateError(STUN_ERROR_SERVER_NOT_REACHABLE,
@@ -544,12 +545,14 @@ void TurnPort::OnSocketConnect(rtc::AsyncPacketSocket* socket) {
                         return socket_address.ipaddr() == addr;
                       })) {
     if (socket->GetLocalAddress().IsLoopbackIP()) {
+      // RingRTC change to reduce log noise.
       RTC_LOG(LS_INFO) << ToString() << ": Socket is bound to the address:"
                           << socket_address.ToSensitiveNameAndAddressString()
                           << ", rather than an address associated with network:"
                           << Network()->ToString()
                           << ". Still allowing it since it's localhost.";
     } else if (IPIsAny(Network()->GetBestIP())) {
+      // RingRTC change to reduce log noise.
       RTC_LOG(LS_INFO)
           << ToString() << ": Socket is bound to the address:"
           << socket_address.ToSensitiveNameAndAddressString()
@@ -558,6 +561,7 @@ void TurnPort::OnSocketConnect(rtc::AsyncPacketSocket* socket) {
           << ". Still allowing it since it's the 'any' address"
              ", possibly caused by multiple_routes being disabled.";
     } else {
+      // RingRTC change to reduce log noise.
       RTC_LOG(LS_INFO) << ToString() << ": Socket is bound to the address:"
                           << socket_address.ToSensitiveNameAndAddressString()
                           << ", rather than an address associated with network:"
@@ -581,6 +585,7 @@ void TurnPort::OnSocketConnect(rtc::AsyncPacketSocket* socket) {
 }
 
 void TurnPort::OnSocketClose(rtc::AsyncPacketSocket* socket, int error) {
+  // RingRTC change to reduce log noise.
   RTC_LOG(LS_INFO) << ToString()
                       << ": Connection with server failed with error: "
                       << error;
@@ -898,6 +903,7 @@ void TurnPort::ResolveTurnAddress(const rtc::SocketAddress& address) {
     if (result.GetError() != 0 ||
         !result.GetResolvedAddress(Network()->GetBestIP().family(),
                                    &resolved_address)) {
+      // RingRTC change to reduce log noise.
       RTC_LOG(LS_INFO) << ToString() << ": TURN host lookup received error "
                           << result.GetError();
       error_ = result.GetError();
@@ -919,6 +925,7 @@ void TurnPort::OnSendStunPacket(const void* data,
   options.info_signaled_after_sent.packet_type = rtc::PacketType::kTurnMessage;
   CopyPortInformationToPacketInfo(&options.info_signaled_after_sent);
   if (Send(data, size, options) < 0) {
+    // RingRTC change to reduce log noise.
     RTC_LOG(LS_INFO) << ToString() << ": Failed to send TURN message, error: "
                       << socket_->GetError();
   }
@@ -1479,6 +1486,7 @@ void TurnAllocateRequest::OnErrorResponse(StunMessage* response) {
 }
 
 void TurnAllocateRequest::OnTimeout() {
+  // RingRTC change to reduce log noise.
   RTC_LOG(LS_INFO) << port_->ToString() << ": TURN allocate request "
                       << rtc::hex_encode(id()) << " timeout";
   port_->OnAllocateRequestTimeout();
@@ -1647,6 +1655,7 @@ void TurnRefreshRequest::OnErrorResponse(StunMessage* response) {
 }
 
 void TurnRefreshRequest::OnTimeout() {
+  // RingRTC change to reduce log noise.
   RTC_LOG(LS_INFO) << port_->ToString() << ": TURN refresh timeout "
                       << rtc::hex_encode(id());
   port_->OnRefreshError();
@@ -1704,6 +1713,7 @@ void TurnCreatePermissionRequest::OnResponse(StunMessage* response) {
 
 void TurnCreatePermissionRequest::OnErrorResponse(StunMessage* response) {
   int error_code = response->GetErrorCodeValue();
+  // RingRTC change to reduce log noise.
   RTC_LOG(LS_INFO) << port_->ToString()
                       << ": Received TURN create permission error response, id="
                       << rtc::hex_encode(id()) << ", code=" << error_code
@@ -1906,6 +1916,7 @@ void TurnEntry::OnCreatePermissionError(StunMessage* response, int code) {
   } else {
     bool found = port_->FailAndPruneConnection(ext_addr_);
     if (found) {
+      // RingRTC change to reduce log noise.
       RTC_LOG(LS_INFO) << "Received TURN CreatePermission error response, "
                            "code="
                         << code << "; pruned connection.";

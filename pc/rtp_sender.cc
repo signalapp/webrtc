@@ -823,6 +823,7 @@ void VideoRtpSender::AttachTrack() {
 
 rtc::scoped_refptr<DtmfSenderInterface> VideoRtpSender::GetDtmfSender() const {
   RTC_DCHECK_RUN_ON(signaling_thread_);
+  // RingRTC change to reduce log noise.
   RTC_LOG(LS_INFO) << "Tried to get DTMF sender from video sender.";
   return nullptr;
 }

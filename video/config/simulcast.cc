@@ -377,6 +377,7 @@ size_t LimitSimulcastLayerCount(size_t min_num_layers,
                      /*enable_lowres_bitrate_interpolation=*/false, codec)
                      .max_layers);
     if (max_num_layers > reduced_num_layers) {
+      // RingRTC change to reduce log noise.
       RTC_LOG(LS_INFO) << "Reducing simulcast layer count from "
                           << max_num_layers << " to " << reduced_num_layers;
       return reduced_num_layers;

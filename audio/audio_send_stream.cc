@@ -826,10 +826,11 @@ void AudioSendStream::RemoveBitrateObserver() {
 std::optional<AudioSendStream::TargetAudioBitrateConstraints>
 AudioSendStream::GetMinMaxBitrateConstraints() const {
   if (config_.min_bitrate_bps < 0 || config_.max_bitrate_bps < 0) {
+    // RingRTC change to reduce log noise.
     RTC_LOG(LS_INFO) << "Config is invalid: min_bitrate_bps="
-                     << config_.min_bitrate_bps
-                     << "; max_bitrate_bps=" << config_.max_bitrate_bps
-                     << "; both expected greater or equal to 0";
+                        << config_.min_bitrate_bps
+                        << "; max_bitrate_bps=" << config_.max_bitrate_bps
+                        << "; both expected greater or equal to 0";
     return std::nullopt;
   }
   TargetAudioBitrateConstraints constraints{

@@ -98,6 +98,7 @@ class StunBindingRequest : public StunRequest {
     }
   }
   void OnTimeout() override {
+    // RingRTC change to reduce log noise.
     RTC_LOG(LS_INFO) << "Binding request timed out from "
                       << port_->GetLocalAddress().ToSensitiveString() << " ("
                       << port_->Network()->name() << ")";
@@ -201,6 +202,7 @@ bool UDPPort::Init() {
     socket_ = socket_factory()->CreateUdpSocket(
         rtc::SocketAddress(Network()->GetBestIP(), 0), min_port(), max_port());
     if (!socket_) {
+      // RingRTC change to reduce log noise.
       RTC_LOG(LS_INFO) << ToString() << ": UDP socket creation failed";
       return false;
     }
@@ -290,6 +292,7 @@ int UDPPort::SendTo(const void* data,
     // TODO(webrtc:9622): Use general rate limiting mechanism once it exists.
     if (send_error_count_ < kSendErrorLogLimit) {
       ++send_error_count_;
+      // RingRTC change to reduce log noise.
       RTC_LOG(LS_INFO) << ToString() << ": UDP send of " << size
                         << " bytes to host "
                         << addr.ToSensitiveNameAndAddressString()
@@ -439,6 +442,7 @@ void UDPPort::OnResolveResult(const rtc::SocketAddress& input, int error) {
   rtc::SocketAddress resolved;
   if (error != 0 || !resolver_->GetResolvedAddress(
                         input, Network()->GetBestIP().family(), &resolved)) {
+    // RingRTC change to reduce log noise.
     RTC_LOG(LS_INFO) << ToString()
                         << ": StunPort: stun host lookup received error "
                         << error;
@@ -590,6 +594,7 @@ void UDPPort::OnSendPacket(const void* data, size_t size, StunRequest* req) {
   options.info_signaled_after_sent.packet_type = rtc::PacketType::kStunMessage;
   CopyPortInformationToPacketInfo(&options.info_signaled_after_sent);
   if (socket_->SendTo(data, size, sreq->server_addr(), options) < 0) {
+    // RingRTC change to reduce log noise.
     RTC_LOG_ERR_EX(LS_INFO, socket_->GetError())
         << "UDP send of " << size << " bytes to host "
         << sreq->server_addr().ToSensitiveNameAndAddressString()

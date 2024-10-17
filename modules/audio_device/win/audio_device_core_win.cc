@@ -542,8 +542,9 @@ AudioDeviceWindowsCore::~AudioDeviceWindowsCore() {
           << "AudioDeviceWindowsCore::~AudioDeviceWindowsCore()"
              " failed to free the loaded Avrt DLL module correctly";
     } else {
+      // RingRTC change to reduce log noise.
       RTC_LOG(LS_INFO) << "AudioDeviceWindowsCore::~AudioDeviceWindowsCore()"
-                          " the Avrt DLL module is now unloaded";
+                             " the Avrt DLL module is now unloaded";
     }
   }
 }

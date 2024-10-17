@@ -342,10 +342,12 @@ std::optional<TimeDelta> RTCPReceiver::OnPeriodicRttUpdate(Timestamp newer_than,
     // Check for expired timers and if so, log and reset.
     Timestamp now = env_.clock().CurrentTime();
     if (RtcpRrTimeoutLocked(now)) {
+      // RingRTC change to reduce log noise.
       RTC_LOG_F(LS_INFO) << "Timeout: No RTCP RR received.";
     } else if (RtcpRrSequenceNumberTimeoutLocked(now)) {
+      // RingRTC change to reduce log noise.
       RTC_LOG_F(LS_INFO) << "Timeout: No increase in RTCP RR extended "
-                            "highest sequence number.";
+                               "highest sequence number.";
     }
   } else {
     // Report rtt from receiver.

@@ -359,6 +359,7 @@ void GoogCcNetworkController::ClampConstraints() {
     min_data_rate_ = std::max(min_data_rate_, min_total_allocated_bitrate_);
   }
   if (max_data_rate_ < min_data_rate_) {
+    // RingRTC change to reduce log noise.
     RTC_LOG(LS_INFO) << "max bitrate smaller than min bitrate";
     max_data_rate_ = min_data_rate_;
   }

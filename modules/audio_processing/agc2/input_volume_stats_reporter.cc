@@ -95,6 +95,7 @@ InputVolumeStatsReporter::InputVolumeStatsReporter(InputVolumeType type)
            .update_average = CreateAverageHistogram(type, "UpdateAverage")}),
       cannot_log_stats_(!histograms_.AllPointersSet()) {
   if (cannot_log_stats_) {
+    // RingRTC change to reduce log noise.
     RTC_LOG(LS_INFO) << "Will not log any `" << MetricNamePrefix(type)
                         << "*` histogram stats.";
   }

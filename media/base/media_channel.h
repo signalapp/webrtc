@@ -952,7 +952,7 @@ class VoiceMediaReceiveChannelInterface : public MediaReceiveChannelInterface {
       std::unique_ptr<webrtc::AudioSinkInterface> sink) = 0;
 
   // RingRTC change to get audio levels
-  virtual absl::optional<cricket::ReceivedAudioLevel> GetReceivedAudioLevel() = 0;
+  virtual std::optional<cricket::ReceivedAudioLevel> GetReceivedAudioLevel() = 0;
 
   virtual bool GetStats(VoiceMediaReceiveInfo* stats, bool reset_legacy) = 0;
   virtual void SetReceiveNackEnabled(bool enabled) = 0;

@@ -330,6 +330,7 @@ AudioDeviceModuleIOS::AudioDeviceModuleIOS(bool bypass_voice_processing,
       return -1;
     }
     if (audio_device_->SetStereoPlayout(enable)) {
+      // RingRTC change to reduce log noise.
       RTC_LOG(LS_INFO) << "stereo playout is not supported";
       return -1;
     }

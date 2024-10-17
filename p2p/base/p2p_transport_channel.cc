@@ -1364,6 +1364,7 @@ void P2PTransportChannel::AddRemoteCandidate(const Candidate& candidate) {
     } else {
       // The candidate belongs to the next generation. Its pwd will be set
       // when the new remote ICE credentials arrive.
+      // RingRTC change to reduce log noise.
       RTC_LOG(LS_INFO)
           << "A remote candidate arrives with an unknown ufrag: "
           << candidate.username();

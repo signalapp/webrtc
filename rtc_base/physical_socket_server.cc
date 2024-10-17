@@ -195,8 +195,9 @@ SocketAddress PhysicalSocket::GetLocalAddress() const {
   if (result >= 0) {
     SocketAddressFromSockAddrStorage(addr_storage, &address);
   } else {
+    // RingRTC change to reduce log noise.
     RTC_LOG(LS_INFO) << "GetLocalAddress: unable to get local addr, socket="
-                     << s_;
+                        << s_;
   }
   return address;
 }
@@ -210,6 +211,7 @@ SocketAddress PhysicalSocket::GetRemoteAddress() const {
   if (result >= 0) {
     SocketAddressFromSockAddrStorage(addr_storage, &address);
   } else {
+    // RingRTC change to reduce log noise.
     RTC_LOG(LS_INFO)
         << "GetRemoteAddress: unable to get remote addr, socket=" << s_;
   }
@@ -239,8 +241,9 @@ int PhysicalSocket::Bind(const SocketAddress& bind_addr) {
         RTC_LOG(LS_VERBOSE) << "Binding socket to loopback address"
                             << " failed; result: " << static_cast<int>(result);
       } else {
+        // RingRTC change to reduce log noise.
         RTC_LOG(LS_INFO) << "Binding socket to network address"
-                         << " failed; result: " << static_cast<int>(result);
+                            << " failed; result: " << static_cast<int>(result);
         // If a network binding was attempted and failed, we should stop here
         // and not try to use the socket. Otherwise, we may end up sending
         // packets with an invalid source address.
@@ -728,6 +731,7 @@ int PhysicalSocket::TranslateOption(Option opt, int* slevel, int* sopt) {
       }
       break;
 #else
+      // RingRTC change to reduce log noise.
       RTC_LOG(LS_INFO) << "Socket::OPT_DSCP not supported.";
       return -1;
 #endif

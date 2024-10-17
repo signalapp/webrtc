@@ -3612,6 +3612,7 @@ void WebRtcVideoReceiveChannel::WebRtcVideoReceiveStream::OnFrame(
     estimated_remote_start_ntp_time_ms_ = frame.ntp_time_ms() - elapsed_time_ms;
 
   if (sink_ == NULL) {
+    // RingRTC change to reduce log noise.
     RTC_LOG(LS_INFO)
         << "VideoReceiveStreamInterface not connected to a VideoSink.";
     return;
@@ -3912,9 +3913,10 @@ void WebRtcVideoReceiveChannel::ClearRecordableEncodedFrameCallback(
   if (stream) {
     stream->ClearRecordableEncodedFrameCallback();
   } else {
+    // RingRTC change to reduce log noise.
     RTC_LOG(LS_INFO) << "Absent receive stream; ignoring clearing encoded "
-                        "frame sink for ssrc "
-                     << ssrc;
+                         "frame sink for ssrc "
+                      << ssrc;
   }
 }
 

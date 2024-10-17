@@ -78,7 +78,8 @@ std::unique_ptr<voe::ChannelReceiveInterface> CreateChannelReceive(
       config.jitter_buffer_max_target_delay_ms,
       // RingRTC change to configure the RTCP report interval.
       config.rtcp_report_interval_ms,
-      config.enable_non_sender_rtt, config.decoder_factory, config.codec_pair_id,
+      config.enable_non_sender_rtt,
+      config.decoder_factory, config.codec_pair_id,
       std::move(config.frame_decryptor), config.crypto_options,
       std::move(config.frame_transformer));
 }

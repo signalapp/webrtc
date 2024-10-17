@@ -439,6 +439,7 @@ void Connection::OnSendStunPacket(const void* data,
   auto err =
       port_->SendTo(data, size, remote_candidate_.address(), options, false);
   if (err < 0) {
+    // RingRTC change to reduce log noise.
     RTC_LOG(LS_INFO) << ToString()
                         << ": Failed to send STUN ping "
                            " err="
@@ -777,6 +778,7 @@ void Connection::SendResponseMessage(const StunMessage& response) {
       rtc::PacketType::kIceConnectivityCheckResponse;
   auto err = port_->SendTo(buf.Data(), buf.Length(), addr, options, false);
   if (err < 0) {
+    // RingRTC change to reduce log noise.
     RTC_LOG(LS_INFO) << ToString() << ": Failed to send "
                       << StunMethodToString(response.type())
                       << ", to=" << addr.ToSensitiveString() << ", err=" << err
@@ -1655,6 +1657,7 @@ void Connection::MaybeUpdateLocalCandidate(StunRequest* request,
   const StunAddressAttribute* addr =
       response->GetAddress(STUN_ATTR_XOR_MAPPED_ADDRESS);
   if (!addr) {
+    // RingRTC change to reduce log noise.
     RTC_LOG(LS_INFO)
         << "Connection::OnConnectionRequestResponse - "
            "No MAPPED-ADDRESS or XOR-MAPPED-ADDRESS found in the "

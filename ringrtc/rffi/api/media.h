@@ -38,7 +38,7 @@ class VideoSource : public rtc::AdaptedVideoTrackSource {
 
   bool is_screencast() const override;
 
-  absl::optional<bool> needs_denoising() const override;
+  std::optional<bool> needs_denoising() const override;
 };
 
 } // namespace rffi

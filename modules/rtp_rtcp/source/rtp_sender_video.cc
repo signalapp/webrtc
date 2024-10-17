@@ -711,6 +711,7 @@ bool RTPSenderVideo::SendVideo(int payload_type,
 
     if (first_frame) {
       if (i == 0) {
+        // RingRTC change to log more information around video capture
         RTC_LOG(LS_WARNING)
             << "Sent first RTP packet of the first video frame for the stream (pre-pacer): ssrc=" << ssrc << ", initial resolution=" << video_header.width << "x" << video_header.height;
       }

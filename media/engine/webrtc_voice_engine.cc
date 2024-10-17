@@ -438,6 +438,8 @@ std::vector<Codec> LegacyCollectCodecs(
   }
 
   // Add CN codecs after "proper" audio codecs.
+  // RingRTC change to disable comfort noise codecs.
+#if 0
   for (const auto& cn : generate_cn) {
     if (cn.second) {
       cricket::Codec cn_codec = CreateAudioCodec({kCnCodecName, cn.first, 1});
@@ -447,8 +449,10 @@ std::vector<Codec> LegacyCollectCodecs(
       out.push_back(cn_codec);
     }
   }
-
+#endif
   // Add telephone-event codecs last.
+  // RingRTC change to disable telephone-event codecs.
+#if 0
   for (const auto& dtmf : generate_dtmf) {
     if (dtmf.second) {
       cricket::Codec dtmf_codec =
@@ -459,6 +463,7 @@ std::vector<Codec> LegacyCollectCodecs(
       out.push_back(dtmf_codec);
     }
   }
+#endif
   return out;
 }
 
@@ -2519,6 +2524,7 @@ bool WebRtcVoiceReceiveChannel::SetOutputVolume(uint32_t ssrc, double volume) {
                                         __func__, ssrc, volume);
   const auto it = recv_streams_.find(ssrc);
   if (it == recv_streams_.end()) {
+    // RingRTC change to reduce log noise.
     RTC_LOG(LS_INFO) << rtc::StringFormat(
         "WRVMC::%s => (WARNING: no receive stream for SSRC %u)", __func__,
         ssrc);
@@ -2875,13 +2881,13 @@ bool WebRtcVoiceReceiveChannel::MaybeDeregisterUnsignaledRecvStream(
 }
 
 // RingRTC change to get audio levels
-absl::optional<cricket::ReceivedAudioLevel> WebRtcVoiceReceiveChannel::GetReceivedAudioLevel() {
+std::optional<cricket::ReceivedAudioLevel> WebRtcVoiceReceiveChannel::GetReceivedAudioLevel() {
   RTC_DCHECK_RUN_ON(worker_thread_);
   if (recv_streams_.empty()) {
     RTC_LOG(LS_WARNING)
         << "Attempting to GetReceivedAudioLevel for channel with no receiving streams."
         << " mid_=" << mid_;
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   auto kv = recv_streams_.begin();

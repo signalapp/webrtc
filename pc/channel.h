@@ -418,7 +418,7 @@ class VoiceChannel : public BaseChannel {
 
   // RingRTC change to get audio levels
   void GetCapturedAudioLevel(cricket::AudioLevel* captured_out);
-  absl::optional<cricket::ReceivedAudioLevel> GetReceivedAudioLevel();
+  std::optional<cricket::ReceivedAudioLevel> GetReceivedAudioLevel();
 
  private:
   // overrides from BaseChannel

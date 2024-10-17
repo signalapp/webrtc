@@ -254,6 +254,7 @@ TransportFeedbackAdapter::ProcessTransportFeedbackInner(
       });
 
   if (failed_lookups > 0) {
+    // RingRTC change to reduce log noise.
     RTC_LOG(LS_INFO)
         << "Failed to lookup send time for " << failed_lookups << " packet"
         << (failed_lookups > 1 ? "s" : "")

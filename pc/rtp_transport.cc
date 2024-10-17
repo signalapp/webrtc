@@ -154,6 +154,7 @@ bool RtpTransport::SendPacket(bool rtcp,
       // TODO: webrtc:361124449 - Remove SetReadyToSend if field trial
       // WebRTC-SetReadyToSendFalseIfSendFail succeed 2024-12-01.
       if (transport->GetError() == ENOTCONN) {
+        // RingRTC change to reduce log noise.
         RTC_LOG(LS_INFO) << "Got ENOTCONN from transport.";
         SetReadyToSend(rtcp, false);
       }
@@ -204,6 +205,7 @@ void RtpTransport::DemuxPacket(rtc::CopyOnWriteBuffer packet,
   }
 
   if (!rtp_demuxer_.OnRtpPacket(parsed_packet)) {
+    // RingRTC change to reduce log noise.
     RTC_LOG(LS_INFO) << "Failed to demux RTP packet: "
                         << RtpDemuxer::DescribePacket(parsed_packet);
     NotifyUnDemuxableRtpPacketReceived(parsed_packet);

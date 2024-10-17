@@ -58,7 +58,7 @@ void VideoSource::OnOutputFormatRequest(int width, int height, int fps) {
   if (width > 0 && height > 0 && fps > 0) {
     video_adapter()->OnOutputFormatRequest(std::make_pair(width, height), width * height, fps);
   } else {
-    video_adapter()->OnOutputFormatRequest(absl::nullopt, absl::nullopt, absl::nullopt);
+    video_adapter()->OnOutputFormatRequest(std::nullopt, std::nullopt, std::nullopt);
   }
 }
 
@@ -74,8 +74,8 @@ bool VideoSource::is_screencast() const {
   return false;
 }
 
-absl::optional<bool> VideoSource::needs_denoising() const {
-  return absl::nullopt;
+std::optional<bool> VideoSource::needs_denoising() const {
+  return std::nullopt;
 }
 
 RUSTEXPORT void Rust_setAudioTrackEnabled(

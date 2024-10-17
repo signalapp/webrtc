@@ -310,6 +310,7 @@ TimeDelta PacingController::UpdateTimeAndGetElapsed(Timestamp now) {
   TimeDelta elapsed_time = now - last_process_time_;
   last_process_time_ = now;
   if (elapsed_time > kMaxElapsedTime) {
+    // RingRTC change to reduce log noise.
     RTC_LOG(LS_INFO) << "Elapsed time (" << ToLogString(elapsed_time)
                         << ") longer than expected, limiting to "
                         << ToLogString(kMaxElapsedTime);
