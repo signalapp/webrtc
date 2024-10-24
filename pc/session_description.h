@@ -124,8 +124,8 @@ class MediaContentDescription {
   }
 
   // RingRTC: Allow out-of-band / "manual" key negotiation.
-  const absl::optional<CryptoParams>& crypto() const { return crypto_; }
-  void set_crypto(const absl::optional<CryptoParams>& crypto) {
+  const std::optional<CryptoParams>& crypto() const { return crypto_; }
+  void set_crypto(const std::optional<CryptoParams>& crypto) {
     crypto_ = crypto;
   }
   void set_manually_specify_keys(bool b) { manually_specify_keys_ = b;}
@@ -271,7 +271,7 @@ class MediaContentDescription {
   std::string bandwidth_type_ = kApplicationSpecificBandwidth;
 
   // RingRTC: Allow out-of-band / "manual" key negotiation.
-  absl::optional<CryptoParams> crypto_;
+  std::optional<CryptoParams> crypto_;
   bool manually_specify_keys_ = false;
   std::vector<webrtc::RtpExtension> rtp_header_extensions_;
   bool rtp_header_extensions_set_ = false;

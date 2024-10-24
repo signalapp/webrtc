@@ -72,8 +72,10 @@ static OSStatus GetAGCState(AudioUnit audio_unit, UInt32* enabled) {
 }
 
 VoiceProcessingAudioUnit::VoiceProcessingAudioUnit(bool bypass_voice_processing,
+                                                   bool detect_mute_speech,
                                                    VoiceProcessingAudioUnitObserver* observer)
     : bypass_voice_processing_(bypass_voice_processing),
+      detect_mute_speech_(detect_mute_speech),
       observer_(observer),
       vpio_unit_(nullptr),
       state_(kInitRequired) {
@@ -252,6 +254,24 @@ bool VoiceProcessingAudioUnit::Initialize(Float64 sample_rate) {
     RTCLog(@"Voice Processing I/O unit is now initialized.");
   }
 
+  if (detect_mute_speech_) {
+    if (@available(iOS 15, *)) {
+      // Set listener for muted speech event.
+      AUVoiceIOMutedSpeechActivityEventListener listener = ^(AUVoiceIOSpeechActivityEvent event) {
+        observer_->OnReceivedMutedSpeechActivity(event);
+      };
+      result = AudioUnitSetProperty(vpio_unit_,
+                                    kAUVoiceIOProperty_MutedSpeechActivityEventListener,
+                                    kAudioUnitScope_Global,
+                                    0,
+                                    &listener,
+                                    sizeof(AUVoiceIOMutedSpeechActivityEventListener));
+      if (result != noErr) {
+        RTCLog(@"Failed to set muted speech activity event listener. Error=%ld.", (long)result);
+      }
+    }
+  }
+
   if (bypass_voice_processing_) {
     // Attempt to disable builtin voice processing.
     UInt32 toggle = 1;
@@ -279,8 +299,9 @@ bool VoiceProcessingAudioUnit::Initialize(Float64 sample_rate) {
   UInt32 agc_is_enabled = 0;
   result = GetAGCState(vpio_unit_, &agc_is_enabled);
   if (result != noErr) {
+    // RingRTC change to reduce log noise.
     RTCLogInfo(@"Failed to get AGC state (1st attempt). "
-                "Error=%ld.",
+                 "Error=%ld.",
                 (long)result);
     // Example of error code: kAudioUnitErr_NoConnection (-10876).
     // All error codes related to audio units are negative and are therefore
@@ -375,6 +396,39 @@ bool VoiceProcessingAudioUnit::Uninitialize() {
   }
 
   state_ = kUninitialized;
+  return true;
+}
+
+bool VoiceProcessingAudioUnit::SetMicrophoneMute(bool enable) {
+  RTC_DCHECK_GE(state_, kUninitialized);
+
+  RTCLog(@"Setting microphone %s.", enable ? "mute" : "unmute");
+
+  OSStatus result = noErr;
+  if (detect_mute_speech_) {
+    UInt32 muteUplinkOutput = enable ? 1 : 0;
+    result = AudioUnitSetProperty(vpio_unit_,
+                                  kAUVoiceIOProperty_MuteOutput,
+                                  kAudioUnitScope_Global,
+                                  kInputBus,
+                                  &muteUplinkOutput,
+                                  sizeof(muteUplinkOutput));
+  } else {
+    UInt32 enableInput = enable ? 0 : 1;
+    result = AudioUnitSetProperty(vpio_unit_,
+                                  kAudioOutputUnitProperty_EnableIO,
+                                  kAudioUnitScope_Input,
+                                  kInputBus,
+                                  &enableInput,
+                                  sizeof(enableInput));
+  }
+
+  if (result != noErr) {
+    RTCLogError(@"Failed to %s microphone. Error=%ld", (enable ? "mute" : "unmute"), (long)result);
+    return false;
+  }
+
+  RTCLog(@"Set microphone %s.", enable ? "mute" : "unmute");
   return true;
 }
 

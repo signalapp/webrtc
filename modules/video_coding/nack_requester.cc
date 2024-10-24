@@ -271,8 +271,9 @@ std::vector<uint16_t> NackRequester::GetNackBatch(NackFilterOptions options) {
       ++it->second.retries;
       it->second.sent_at_time = now;
       if (it->second.retries >= kMaxNackRetries) {
+        // RingRTC change to reduce log noise.
         RTC_LOG(LS_INFO) << "Sequence number " << it->second.seq_num
-                         << " removed from NACK list due to max retries.";
+                            << " removed from NACK list due to max retries.";
         it = nack_list_.erase(it);
       } else {
         ++it;

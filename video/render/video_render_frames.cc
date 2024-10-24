@@ -55,8 +55,9 @@ int32_t VideoRenderFrames::AddFrame(VideoFrame&& new_frame) {
   // really slow system never renders any frames.
   if (!incoming_frames_.empty() &&
       new_frame.render_time_ms() + kOldRenderTimestampMS < time_now) {
+    // RingRTC change to reduce log noise.
     RTC_LOG(LS_INFO) << "Too old frame, timestamp="
-                     << new_frame.rtp_timestamp();
+                        << new_frame.rtp_timestamp();
     ++frames_dropped_;
     return -1;
   }
@@ -69,9 +70,10 @@ int32_t VideoRenderFrames::AddFrame(VideoFrame&& new_frame) {
   }
 
   if (new_frame.render_time_ms() < last_render_time_ms_) {
+    // RingRTC change to reduce log noise.
     RTC_LOG(LS_INFO) << "Frame scheduled out of order, render_time="
-                     << new_frame.render_time_ms()
-                     << ", latest=" << last_render_time_ms_;
+                        << new_frame.render_time_ms()
+                        << ", latest=" << last_render_time_ms_;
     // For more details, see bug:
     // https://bugs.chromium.org/p/webrtc/issues/detail?id=7253
     ++frames_dropped_;
@@ -88,8 +90,8 @@ int32_t VideoRenderFrames::AddFrame(VideoFrame&& new_frame) {
   return static_cast<int32_t>(incoming_frames_.size());
 }
 
-absl::optional<VideoFrame> VideoRenderFrames::FrameToRender() {
-  absl::optional<VideoFrame> render_frame;
+std::optional<VideoFrame> VideoRenderFrames::FrameToRender() {
+  std::optional<VideoFrame> render_frame;
   // Get the newest frame that can be released for rendering.
   while (!incoming_frames_.empty() && TimeToNextFrameRelease() <= 0) {
     if (render_frame) {

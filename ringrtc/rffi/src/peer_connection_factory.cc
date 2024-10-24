@@ -56,7 +56,7 @@ class RingRTCVideoEncoderFactory : public VideoEncoderFactory {
       const SdpVideoFormat& format) override {
     if (format.IsCodecInList(
         factory_.GetSupportedFormats())) {
-      if (absl::optional<SdpVideoFormat> original_format =
+      if (std::optional<SdpVideoFormat> original_format =
               FuzzyMatchSdpVideoFormat(factory_.GetSupportedFormats(),
                                        format)) {
         // Create a simulcast enabled encoder
@@ -71,7 +71,7 @@ class RingRTCVideoEncoderFactory : public VideoEncoderFactory {
 
   CodecSupport QueryCodecSupport(
       const SdpVideoFormat& format,
-      absl::optional<std::string> scalability_mode) const override {
+      std::optional<std::string> scalability_mode) const override {
     auto original_format =
         FuzzyMatchSdpVideoFormat(factory_.GetSupportedFormats(), format);
     return original_format

@@ -17,7 +17,6 @@
 #include "rtc_base/checks.h"
 // RingRTC change to log opus setters
 #include "rtc_base/logging.h"
-#include "system_wrappers/include/field_trial.h"
 
 enum {
 #if WEBRTC_OPUS_SUPPORT_120MS_PTIME
@@ -37,12 +36,6 @@ enum {
   kWebRtcOpusPlcFrameSizeMs = 10,
 };
 
-constexpr char kPlcUsePrevDecodedSamplesFieldTrial[] =
-    "WebRTC-Audio-OpusPlcUsePrevDecodedSamples";
-
-constexpr char kAvoidNoisePumpingDuringDtxFieldTrial[] =
-    "WebRTC-Audio-OpusAvoidNoisePumpingDuringDtx";
-
 static int FrameSizePerChannel(int frame_size_ms, int sample_rate_hz) {
   RTC_DCHECK_GT(frame_size_ms, 0);
   RTC_DCHECK_EQ(frame_size_ms % 10, 0);
@@ -54,51 +47,6 @@ static int FrameSizePerChannel(int frame_size_ms, int sample_rate_hz) {
 // Maximum sample count per channel.
 static int MaxFrameSizePerChannel(int sample_rate_hz) {
   return FrameSizePerChannel(kWebRtcOpusMaxDecodeFrameSizeMs, sample_rate_hz);
-}
-
-// Default sample count per channel.
-static int DefaultFrameSizePerChannel(int sample_rate_hz) {
-  return FrameSizePerChannel(20, sample_rate_hz);
-}
-
-// Returns true if the `encoded` payload corresponds to a refresh DTX packet
-// whose energy is larger than the expected for non activity packets.
-static bool WebRtcOpus_IsHighEnergyRefreshDtxPacket(
-    OpusEncInst* inst,
-    rtc::ArrayView<const int16_t> frame,
-    rtc::ArrayView<const uint8_t> encoded) {
-  if (encoded.size() <= 2) {
-    return false;
-  }
-  int number_frames =
-      frame.size() / DefaultFrameSizePerChannel(inst->sample_rate_hz);
-  if (number_frames > 0 &&
-      WebRtcOpus_PacketHasVoiceActivity(encoded.data(), encoded.size()) == 0) {
-    const float average_frame_energy =
-        std::accumulate(frame.begin(), frame.end(), 0.0f,
-                        [](float a, int32_t b) { return a + b * b; }) /
-        number_frames;
-    if (WebRtcOpus_GetInDtx(inst) == 1 &&
-        average_frame_energy >= inst->smooth_energy_non_active_frames * 0.5f) {
-      // This is a refresh DTX packet as the encoder is in DTX and has
-      // produced a payload > 2 bytes. This refresh packet has a higher energy
-      // than the smooth energy of non activity frames (with a 3 dB negative
-      // margin) and, therefore, it is flagged as a high energy refresh DTX
-      // packet.
-      return true;
-    }
-    // The average energy is tracked in a similar way as the modeling of the
-    // comfort noise in the Silk decoder in Opus
-    // (third_party/opus/src/silk/CNG.c).
-    if (average_frame_energy < inst->smooth_energy_non_active_frames * 0.5f) {
-      inst->smooth_energy_non_active_frames = average_frame_energy;
-    } else {
-      inst->smooth_energy_non_active_frames +=
-          (average_frame_energy - inst->smooth_energy_non_active_frames) *
-          0.25f;
-    }
-  }
-  return false;
 }
 
 int16_t WebRtcOpus_EncoderCreate(OpusEncInst** inst,
@@ -136,9 +84,6 @@ int16_t WebRtcOpus_EncoderCreate(OpusEncInst** inst,
   state->in_dtx_mode = 0;
   state->channels = channels;
   state->sample_rate_hz = sample_rate_hz;
-  state->smooth_energy_non_active_frames = 0.0f;
-  state->avoid_noise_pumping_during_dtx =
-      webrtc::field_trial::IsEnabled(kAvoidNoisePumpingDuringDtxFieldTrial);
 
   *inst = state;
   return 0;
@@ -184,8 +129,6 @@ int16_t WebRtcOpus_MultistreamEncoderCreate(
   state->in_dtx_mode = 0;
   state->channels = channels;
   state->sample_rate_hz = sample_rate_hz;
-  state->smooth_energy_non_active_frames = 0.0f;
-  state->avoid_noise_pumping_during_dtx = false;
 
   *inst = state;
   return 0;
@@ -243,21 +186,6 @@ int WebRtcOpus_Encode(OpusEncInst* inst,
     }
   }
 
-  if (inst->avoid_noise_pumping_during_dtx && WebRtcOpus_GetUseDtx(inst) == 1 &&
-      WebRtcOpus_IsHighEnergyRefreshDtxPacket(
-          inst, rtc::MakeArrayView(audio_in, samples),
-          rtc::MakeArrayView(encoded, res))) {
-    // This packet is a high energy refresh DTX packet. For avoiding an increase
-    // of the energy in the DTX region at the decoder, this packet is
-    // substituted by a TOC byte with one empty frame.
-    // The number of frames described in the TOC byte
-    // (https://tools.ietf.org/html/rfc6716#section-3.1) are overwritten to
-    // always indicate one frame (last two bits equal to 0).
-    encoded[0] = encoded[0] & 0b11111100;
-    inst->in_dtx_mode = 1;
-    // The payload is just the TOC byte and has 1 byte as length.
-    return 1;
-  }
   inst->in_dtx_mode = 0;
   return res;
 }
@@ -468,6 +396,7 @@ int16_t WebRtcOpus_SetForceChannels(OpusEncInst* inst, size_t num_channels) {
   }
 }
 
+// RingRTC change to detect if an encoded packet contains speech or not.
 int32_t WebRtcOpus_GetInDtx(OpusEncInst* inst) {
   if (!inst) {
     return -1;
@@ -500,12 +429,6 @@ int16_t WebRtcOpus_DecoderCreate(OpusDecInst** inst,
       // Creation of memory all ok.
       state->channels = channels;
       state->sample_rate_hz = sample_rate_hz;
-      state->plc_use_prev_decoded_samples =
-          webrtc::field_trial::IsEnabled(kPlcUsePrevDecodedSamplesFieldTrial);
-      if (state->plc_use_prev_decoded_samples) {
-        state->prev_decoded_samples =
-            DefaultFrameSizePerChannel(state->sample_rate_hz);
-      }
       state->in_dtx_mode = 0;
       *inst = state;
       return 0;
@@ -544,12 +467,6 @@ int16_t WebRtcOpus_MultistreamDecoderCreate(
       // Creation of memory all ok.
       state->channels = channels;
       state->sample_rate_hz = 48000;
-      state->plc_use_prev_decoded_samples =
-          webrtc::field_trial::IsEnabled(kPlcUsePrevDecodedSamplesFieldTrial);
-      if (state->plc_use_prev_decoded_samples) {
-        state->prev_decoded_samples =
-            DefaultFrameSizePerChannel(state->sample_rate_hz);
-      }
       state->in_dtx_mode = 0;
       *inst = state;
       return 0;
@@ -648,17 +565,6 @@ static int DecodePlc(OpusDecInst* inst, int16_t* decoded) {
   int plc_samples =
       FrameSizePerChannel(kWebRtcOpusPlcFrameSizeMs, inst->sample_rate_hz);
 
-  if (inst->plc_use_prev_decoded_samples) {
-    /* The number of samples we ask for is `number_of_lost_frames` times
-     * `prev_decoded_samples_`. Limit the number of samples to maximum
-     * `MaxFrameSizePerChannel()`. */
-    plc_samples = inst->prev_decoded_samples;
-    const int max_samples_per_channel =
-        MaxFrameSizePerChannel(inst->sample_rate_hz);
-    plc_samples = plc_samples <= max_samples_per_channel
-                      ? plc_samples
-                      : max_samples_per_channel;
-  }
   decoded_samples =
       DecodeNative(inst, NULL, 0, plc_samples, decoded, &audio_type, 0);
   if (decoded_samples < 0) {
@@ -685,11 +591,6 @@ int WebRtcOpus_Decode(OpusDecInst* inst,
   }
   if (decoded_samples < 0) {
     return -1;
-  }
-
-  if (inst->plc_use_prev_decoded_samples) {
-    /* Update decoded sample memory, to be used by the PLC in case of losses. */
-    inst->prev_decoded_samples = decoded_samples;
   }
 
   return decoded_samples;
@@ -745,16 +646,6 @@ int WebRtcOpus_DurationEst(OpusDecInst* inst,
 }
 
 int WebRtcOpus_PlcDuration(OpusDecInst* inst) {
-  if (inst->plc_use_prev_decoded_samples) {
-    /* The number of samples we ask for is `number_of_lost_frames` times
-     * `prev_decoded_samples_`. Limit the number of samples to maximum
-     * `MaxFrameSizePerChannel()`. */
-    const int plc_samples = inst->prev_decoded_samples;
-    const int max_samples_per_channel =
-        MaxFrameSizePerChannel(inst->sample_rate_hz);
-    return plc_samples <= max_samples_per_channel ? plc_samples
-                                                  : max_samples_per_channel;
-  }
   return FrameSizePerChannel(kWebRtcOpusPlcFrameSizeMs, inst->sample_rate_hz);
 }
 

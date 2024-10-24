@@ -1011,6 +1011,7 @@ HRESULT GetSharedModeMixFormat(IAudioClient* client,
   // Verify that the reported format can be mixed by the audio engine in
   // shared mode.
   if (!wrapped_format.IsPcm() && !wrapped_format.IsFloat()) {
+    // RingRTC change to pass the mix_format for multi-channel.
     RTC_LOG(LS_ERROR)
         << "Only pure PCM or float audio streams can be mixed in shared mode";
     return AUDCLNT_E_UNSUPPORTED_FORMAT;
@@ -1019,6 +1020,7 @@ HRESULT GetSharedModeMixFormat(IAudioClient* client,
   // Log a warning for the rare case where `mix_format` only contains a
   // stand-alone WAVEFORMATEX structure but don't return.
   if (!wrapped_format.IsExtensible()) {
+    // RingRTC change to pass the mix_format for multi-channel.
     RTC_LOG(LS_WARNING)
         << "The returned format contains no extended information. "
            "The size is "
@@ -1056,6 +1058,7 @@ bool IsFormatSupported(IAudioClient* client,
   } else if ((error.Error() == S_FALSE) && (closest_match != nullptr)) {
     // Call succeeded with a closest match to the specified format. This log can
     // only be triggered for shared mode.
+    // RingRTC change to pass the mix_format for multi-channel.
     RTC_LOG(LS_WARNING) << "No exact match, closest: "
                         << WaveFormatToString(closest_match.Get());
   } else if ((error.Error() == AUDCLNT_E_UNSUPPORTED_FORMAT) &&

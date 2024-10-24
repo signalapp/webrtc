@@ -1014,9 +1014,9 @@ class AndroidAudioDeviceModuleOboe : public AudioDeviceModule {
   }
 
   // Used to generate RTC stats.
-  absl::optional<Stats> GetStats() const override {
+  std::optional<Stats> GetStats() const override {
     // Returning nullopt because stats are not supported in this implementation.
-    return absl::nullopt;
+    return std::nullopt;
   }
 
  private:

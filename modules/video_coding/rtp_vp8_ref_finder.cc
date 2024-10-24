@@ -168,11 +168,12 @@ RtpVp8RefFinder::FrameDecision RtpVp8RefFinder::ManageFrameInternal(
 
     if (!(AheadOf<uint16_t, kFrameIdLength>(frame->Id(),
                                             layer_info_it->second[layer]))) {
+      // RingRTC change to reduce log noise.
       RTC_LOG(LS_INFO) << "Frame with picture id " << frame->Id()
-                       << " and packet range [" << frame->first_seq_num()
-                       << ", " << frame->last_seq_num()
-                       << "] already received, "
-                          " dropping frame.";
+                          << " and packet range [" << frame->first_seq_num()
+                          << ", " << frame->last_seq_num()
+                          << "] already received, "
+                             " dropping frame.";
       return kDrop;
     }
 

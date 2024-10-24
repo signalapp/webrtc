@@ -320,6 +320,7 @@ int32_t WebRtcOpus_GetBandwidth(OpusEncInst* inst);
  */
 int16_t WebRtcOpus_SetBandwidth(OpusEncInst* inst, int32_t bandwidth);
 
+// RingRTC change to detect if an encoded packet contains speech or not.
 /*
  * WebRtcOpus_GetInDtx(...)
  *

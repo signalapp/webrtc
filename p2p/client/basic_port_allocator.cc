@@ -551,7 +551,7 @@ void BasicPortAllocatorSession::GetCandidateStatsFromReadyPorts(
   for (auto* port : ports) {
     auto candidates = port->Candidates();
     for (const auto& candidate : candidates) {
-      absl::optional<StunStats> stun_stats;
+      std::optional<StunStats> stun_stats;
       port->GetStunStats(&stun_stats);
       CandidateStats candidate_stats(allocator_->SanitizeCandidate(candidate),
                                      std::move(stun_stats));
@@ -561,7 +561,7 @@ void BasicPortAllocatorSession::GetCandidateStatsFromReadyPorts(
 }
 
 void BasicPortAllocatorSession::SetStunKeepaliveIntervalForReadyPorts(
-    const absl::optional<int>& stun_keepalive_interval) {
+    const std::optional<int>& stun_keepalive_interval) {
   RTC_DCHECK_RUN_ON(network_thread_);
   auto ports = ReadyPorts();
   for (PortInterface* port : ports) {
@@ -1032,6 +1032,7 @@ void BasicPortAllocatorSession::OnCandidateReady(Port* port,
   // Discarding any candidate signal if port allocation status is
   // already done with gathering.
   if (!data->inprogress()) {
+    // RingRTC change to reduce log noise.
     RTC_LOG(LS_INFO)
         << "Discarding candidate because port is already done gathering.";
     return;
