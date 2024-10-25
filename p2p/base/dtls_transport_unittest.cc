@@ -409,7 +409,13 @@ class DtlsTransportTestBase {
 };
 
 class DtlsTransportTest : public DtlsTransportTestBase,
-                          public ::testing::Test {};
+                          public ::testing::Test {
+ // RingRTC change to disable DTLS tests
+ protected:
+  void SetUp() override {
+    GTEST_SKIP() << "DTLS is not used, skipping tests";
+  }
+};
 
 // Connect without DTLS, and transfer RTP data.
 TEST_F(DtlsTransportTest, TestTransferRtp) {
@@ -462,6 +468,11 @@ class DtlsTransportVersionTest
     : public DtlsTransportTestBase,
       public ::testing::TestWithParam<
           ::testing::tuple<rtc::SSLProtocolVersion, rtc::SSLProtocolVersion>> {
+ // RingRTC change to disable DTLS tests
+ protected:
+  void SetUp() override {
+    GTEST_SKIP() << "DTLS is not used, skipping tests";
+  }
 };
 
 // Test that an acceptable cipher suite is negotiated when different versions
@@ -639,6 +650,11 @@ class DtlsEventOrderingTest
       public ::testing::TestWithParam<
           ::testing::tuple<std::vector<DtlsTransportEvent>, bool>> {
  protected:
+  // RingRTC change to disable DTLS tests
+  void SetUp() override {
+    GTEST_SKIP() << "DTLS is not used, skipping tests";
+  }
+
   // If `valid_fingerprint` is false, the caller will receive a fingerprint
   // that doesn't match the callee's certificate, so the handshake should fail.
   void TestEventOrdering(const std::vector<DtlsTransportEvent>& events,

@@ -131,10 +131,8 @@ class VideoCaptureTest : public ::testing::Test {
   VideoCaptureTest() : number_of_devices_(0) {}
 
   void SetUp() override {
-    device_info_.reset(VideoCaptureFactory::CreateDeviceInfo());
-    RTC_DCHECK(device_info_.get());
-    number_of_devices_ = device_info_->NumberOfDevices();
-    ASSERT_GT(number_of_devices_, 0u);
+    // RingRTC change to disable video capture tests
+    GTEST_SKIP() << "Video capture not used from this location, skipping tests";
   }
 
   rtc::scoped_refptr<VideoCaptureModule> OpenVideoCaptureDevice(

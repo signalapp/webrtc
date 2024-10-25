@@ -341,8 +341,6 @@ class ChannelTest : public ::testing::Test, public sigslot::has_slots<> {
       rtc::PacketTransportInternal* rtcp_packet_transport) {
     auto rtp_transport = std::make_unique<webrtc::RtpTransport>(
         rtcp_packet_transport == nullptr, field_trials_);
-    // RingRTC change to drop all incoming packets until explicitly allowed
-    rtp_transport->SetIncomingRtpEnabled(true);
 
     SendTask(network_thread_,
              [&rtp_transport, rtp_packet_transport, rtcp_packet_transport] {
@@ -359,8 +357,6 @@ class ChannelTest : public ::testing::Test, public sigslot::has_slots<> {
       cricket::DtlsTransportInternal* rtcp_dtls_transport) {
     auto dtls_srtp_transport = std::make_unique<webrtc::DtlsSrtpTransport>(
         rtcp_dtls_transport == nullptr, field_trials_);
-    // RingRTC change to drop all incoming packets until explicitly allowed
-    dtls_srtp_transport->SetIncomingRtpEnabled(true);
 
     SendTask(network_thread_,
              [&dtls_srtp_transport, rtp_dtls_transport, rtcp_dtls_transport] {

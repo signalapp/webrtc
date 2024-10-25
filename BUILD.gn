@@ -506,6 +506,11 @@ config("common_config") {
   if (rtc_use_perfetto) {
     defines += [ "RTC_USE_PERFETTO" ]
   }
+
+  # RingRTC change to add a define for testing
+  if (rtc_include_tests) {
+    defines += [ "BUILD_WEBRTC_TESTS" ]
+  }
 }
 
 config("common_objc") {

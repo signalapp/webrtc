@@ -62,9 +62,6 @@ class DtlsSrtpTransportTest : public ::testing::Test,
     auto dtls_srtp_transport =
         std::make_unique<DtlsSrtpTransport>(rtcp_mux_enabled, field_trials_);
 
-    // RingRTC change to drop all incoming packets until explicitly allowed
-    dtls_srtp_transport->SetIncomingRtpEnabled(true);
-
     dtls_srtp_transport->SetDtlsTransports(rtp_dtls, rtcp_dtls);
 
     return dtls_srtp_transport;

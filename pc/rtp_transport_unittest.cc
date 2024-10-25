@@ -86,8 +86,6 @@ class SignalObserver : public sigslot::has_slots<> {
 
 TEST(RtpTransportTest, SettingRtcpAndRtpSignalsReady) {
   RtpTransport transport(kMuxDisabled, ExplicitKeyValueConfig(""));
-  // RingRTC change to drop all incoming packets until explicitly allowed
-  transport.SetIncomingRtpEnabled(true);
 
   SignalObserver observer(&transport);
   rtc::FakePacketTransport fake_rtcp("fake_rtcp");
@@ -103,8 +101,6 @@ TEST(RtpTransportTest, SettingRtcpAndRtpSignalsReady) {
 
 TEST(RtpTransportTest, SettingRtpAndRtcpSignalsReady) {
   RtpTransport transport(kMuxDisabled, ExplicitKeyValueConfig(""));
-  // RingRTC change to drop all incoming packets until explicitly allowed
-  transport.SetIncomingRtpEnabled(true);
   SignalObserver observer(&transport);
   rtc::FakePacketTransport fake_rtcp("fake_rtcp");
   fake_rtcp.SetWritable(true);
@@ -119,8 +115,6 @@ TEST(RtpTransportTest, SettingRtpAndRtcpSignalsReady) {
 
 TEST(RtpTransportTest, SettingRtpWithRtcpMuxEnabledSignalsReady) {
   RtpTransport transport(kMuxEnabled, ExplicitKeyValueConfig(""));
-  // RingRTC change to drop all incoming packets until explicitly allowed
-  transport.SetIncomingRtpEnabled(true);
   SignalObserver observer(&transport);
   rtc::FakePacketTransport fake_rtp("fake_rtp");
   fake_rtp.SetWritable(true);
@@ -131,8 +125,6 @@ TEST(RtpTransportTest, SettingRtpWithRtcpMuxEnabledSignalsReady) {
 
 TEST(RtpTransportTest, DisablingRtcpMuxSignalsNotReady) {
   RtpTransport transport(kMuxEnabled, ExplicitKeyValueConfig(""));
-  // RingRTC change to drop all incoming packets until explicitly allowed
-  transport.SetIncomingRtpEnabled(true);
   SignalObserver observer(&transport);
   rtc::FakePacketTransport fake_rtp("fake_rtp");
   fake_rtp.SetWritable(true);
@@ -146,8 +138,6 @@ TEST(RtpTransportTest, DisablingRtcpMuxSignalsNotReady) {
 
 TEST(RtpTransportTest, EnablingRtcpMuxSignalsReady) {
   RtpTransport transport(kMuxDisabled, ExplicitKeyValueConfig(""));
-  // RingRTC change to drop all incoming packets until explicitly allowed
-  transport.SetIncomingRtpEnabled(true);
   SignalObserver observer(&transport);
   rtc::FakePacketTransport fake_rtp("fake_rtp");
   fake_rtp.SetWritable(true);
@@ -162,8 +152,6 @@ TEST(RtpTransportTest, EnablingRtcpMuxSignalsReady) {
 // Tests the SignalNetworkRoute is fired when setting a packet transport.
 TEST(RtpTransportTest, SetRtpTransportWithNetworkRouteChanged) {
   RtpTransport transport(kMuxDisabled, ExplicitKeyValueConfig(""));
-  // RingRTC change to drop all incoming packets until explicitly allowed
-  transport.SetIncomingRtpEnabled(true);
   SignalObserver observer(&transport);
   rtc::FakePacketTransport fake_rtp("fake_rtp");
 
@@ -193,8 +181,6 @@ TEST(RtpTransportTest, SetRtpTransportWithNetworkRouteChanged) {
 
 TEST(RtpTransportTest, SetRtcpTransportWithNetworkRouteChanged) {
   RtpTransport transport(kMuxDisabled, ExplicitKeyValueConfig(""));
-  // RingRTC change to drop all incoming packets until explicitly allowed
-  transport.SetIncomingRtpEnabled(true);
   SignalObserver observer(&transport);
   rtc::FakePacketTransport fake_rtcp("fake_rtcp");
 
@@ -228,8 +214,6 @@ TEST(RtpTransportTest, RtcpPacketSentOverCorrectTransport) {
   // If the RTCP-mux is not enabled, RTCP packets are expected to be sent over
   // the RtcpPacketTransport.
   RtpTransport transport(kMuxDisabled, ExplicitKeyValueConfig(""));
-  // RingRTC change to drop all incoming packets until explicitly allowed
-  transport.SetIncomingRtpEnabled(true);
   rtc::FakePacketTransport fake_rtcp("fake_rtcp");
   rtc::FakePacketTransport fake_rtp("fake_rtp");
   transport.SetRtcpPacketTransport(&fake_rtcp);  // rtcp ready
@@ -252,8 +236,6 @@ TEST(RtpTransportTest, RtcpPacketSentOverCorrectTransport) {
 
 TEST(RtpTransportTest, ChangingReadyToSendStateOnlySignalsWhenChanged) {
   RtpTransport transport(kMuxEnabled, ExplicitKeyValueConfig(""));
-  // RingRTC change to drop all incoming packets until explicitly allowed
-  transport.SetIncomingRtpEnabled(true);
   TransportObserver observer(&transport);
   rtc::FakePacketTransport fake_rtp("fake_rtp");
   fake_rtp.SetWritable(true);
@@ -279,8 +261,6 @@ TEST(RtpTransportTest, ChangingReadyToSendStateOnlySignalsWhenChanged) {
 // received.
 TEST(RtpTransportTest, SignalDemuxedRtcp) {
   RtpTransport transport(kMuxDisabled, ExplicitKeyValueConfig(""));
-  // RingRTC change to drop all incoming packets until explicitly allowed
-  transport.SetIncomingRtpEnabled(true);
   rtc::FakePacketTransport fake_rtp("fake_rtp");
   fake_rtp.SetDestination(&fake_rtp, true);
   transport.SetRtpPacketTransport(&fake_rtp);
@@ -304,8 +284,6 @@ static const int kRtpLen = 12;
 // handled payload type is received.
 TEST(RtpTransportTest, SignalHandledRtpPayloadType) {
   RtpTransport transport(kMuxDisabled, ExplicitKeyValueConfig(""));
-  // RingRTC change to drop all incoming packets until explicitly allowed
-  transport.SetIncomingRtpEnabled(true);
   rtc::FakePacketTransport fake_rtp("fake_rtp");
   fake_rtp.SetDestination(&fake_rtp, true);
   transport.SetRtpPacketTransport(&fake_rtp);
@@ -329,8 +307,6 @@ TEST(RtpTransportTest, SignalHandledRtpPayloadType) {
 
 TEST(RtpTransportTest, ReceivedPacketEcnMarkingPropagatedToDemuxedPacket) {
   RtpTransport transport(kMuxDisabled, ExplicitKeyValueConfig(""));
-  // RingRTC change to drop all incoming packets until explicitly allowed
-  transport.SetIncomingRtpEnabled(true);
   // Setup FakePacketTransport to send packets to itself.
   rtc::FakePacketTransport fake_rtp("fake_rtp");
   fake_rtp.SetDestination(&fake_rtp, true);
@@ -356,8 +332,6 @@ TEST(RtpTransportTest, ReceivedPacketEcnMarkingPropagatedToDemuxedPacket) {
 // unhandled payload type is received.
 TEST(RtpTransportTest, DontSignalUnhandledRtpPayloadType) {
   RtpTransport transport(kMuxDisabled, ExplicitKeyValueConfig(""));
-  // RingRTC change to drop all incoming packets until explicitly allowed
-  transport.SetIncomingRtpEnabled(true);
   rtc::FakePacketTransport fake_rtp("fake_rtp");
   fake_rtp.SetDestination(&fake_rtp, true);
   transport.SetRtpPacketTransport(&fake_rtp);
@@ -408,8 +382,6 @@ TEST(RtpTransportTest, RecursiveSetSendDoesNotCrash) {
   RtpTransport transport(
       kMuxEnabled,
       ExplicitKeyValueConfig("WebRTC-SetReadyToSendFalseIfSendFail/Enabled/"));
-  // RingRTC change to drop all incoming packets until explicitly allowed
-  transport.SetIncomingRtpEnabled(true);
   rtc::FakePacketTransport fake_rtp("fake_rtp");
   transport.SetRtpPacketTransport(&fake_rtp);
   TransportObserver observer(&transport);
@@ -434,8 +406,6 @@ TEST(RtpTransportTest, RecursiveOnSentPacketDoesNotCrash) {
   const int kShortTimeout = 100;
   test::RunLoop loop;
   RtpTransport transport(kMuxDisabled, ExplicitKeyValueConfig(""));
-  // RingRTC change to drop all incoming packets until explicitly allowed
-  transport.SetIncomingRtpEnabled(true);
   rtc::FakePacketTransport fake_rtp("fake_rtp");
   transport.SetRtpPacketTransport(&fake_rtp);
   fake_rtp.SetDestination(&fake_rtp, true);

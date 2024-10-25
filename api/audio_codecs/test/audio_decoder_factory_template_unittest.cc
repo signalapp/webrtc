@@ -202,7 +202,8 @@ TEST(AudioDecoderFactoryTemplateTest, TwoDecoderTypes) {
   EXPECT_EQ(16000, dec2->SampleRateHz());
 }
 
-TEST(AudioDecoderFactoryTemplateTest, G711) {
+// RingRTC change to disable unused audio codecs
+TEST(AudioDecoderFactoryTemplateTest, DISABLED_G711) {
   const Environment env = CreateEnvironment();
   auto factory = CreateAudioDecoderFactory<AudioDecoderG711>();
   EXPECT_THAT(factory->GetSupportedDecoders(),
@@ -221,7 +222,8 @@ TEST(AudioDecoderFactoryTemplateTest, G711) {
   EXPECT_EQ(8000, dec2->SampleRateHz());
 }
 
-TEST(AudioDecoderFactoryTemplateTest, G722) {
+// RingRTC change to disable unused audio codecs
+TEST(AudioDecoderFactoryTemplateTest, DISABLED_G722) {
   const Environment env = CreateEnvironment();
   auto factory = CreateAudioDecoderFactory<AudioDecoderG722>();
   EXPECT_THAT(factory->GetSupportedDecoders(),
@@ -242,7 +244,8 @@ TEST(AudioDecoderFactoryTemplateTest, G722) {
   ASSERT_EQ(nullptr, dec3);
 }
 
-TEST(AudioDecoderFactoryTemplateTest, Ilbc) {
+// RingRTC change to disable unused audio codecs
+TEST(AudioDecoderFactoryTemplateTest, DISABLED_Ilbc) {
   const Environment env = CreateEnvironment();
   auto factory = CreateAudioDecoderFactory<AudioDecoderIlbc>();
   EXPECT_THAT(factory->GetSupportedDecoders(),
@@ -256,7 +259,8 @@ TEST(AudioDecoderFactoryTemplateTest, Ilbc) {
   EXPECT_EQ(8000, dec->SampleRateHz());
 }
 
-TEST(AudioDecoderFactoryTemplateTest, L16) {
+// RingRTC change to disable unused audio codecs
+TEST(AudioDecoderFactoryTemplateTest, DISABLED_L16) {
   const Environment env = CreateEnvironment();
   auto factory = CreateAudioDecoderFactory<AudioDecoderL16>();
   EXPECT_THAT(

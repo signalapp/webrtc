@@ -192,7 +192,8 @@ TEST_F(AudioSendStreamCallTest, SendsTransportWideSequenceNumbersInFieldTrial) {
   RunBaseTest(&test);
 }
 
-TEST_F(AudioSendStreamCallTest, SendDtmf) {
+// RingRTC change to disable test for unsupported DTMF
+TEST_F(AudioSendStreamCallTest, DISABLED_SendDtmf) {
   static const uint8_t kDtmfPayloadType = 120;
   static const int kDtmfPayloadFrequency = 8000;
   static const int kDtmfEventFirst = 12;

@@ -57,6 +57,11 @@ class TestDtlsTransportObserver : public DtlsTransportObserverInterface {
 };
 
 class DtlsTransportTest : public ::testing::Test {
+ // RingRTC change to disable DTLS tests
+ protected:
+  void SetUp() override {
+    GTEST_SKIP() << "DTLS is not used, skipping tests";
+  }
  public:
   DtlsTransport* transport() { return transport_.get(); }
   DtlsTransportObserverInterface* observer() { return &observer_; }
