@@ -9,6 +9,7 @@
 #include "api/peer_connection_interface.h"
 #include "api/video_codecs/vp9_profile.h"
 #include "modules/rtp_rtcp/source/rtp_dependency_descriptor_extension.h"
+#include "modules/rtp_rtcp/source/rtp_video_layers_allocation_extension.h"
 #include "modules/rtp_rtcp/source/rtp_header_extensions.h"
 #include "p2p/base/port.h"
 #include "pc/media_session.h"
@@ -35,6 +36,7 @@ int DEPENDENCY_DESCRIPTOR_EXT_ID = 6;
 int ABS_SEND_TIME_EXT_ID = 12;
 // Old clients used this value, so don't use it until they are all gone.
 int TX_TIME_OFFSET_EXT_ID = 13;
+int VIDEO_LAYERS_ALLOCATION_EXT_ID = 14;
 
 // Payload types must be over 96 and less than 128.
 // 101 used by connection.rs
@@ -667,9 +669,11 @@ CreateSessionDescriptionForGroupCall(bool local,
   // So, don't waste bytes on them.
   // auto abs_send_time = webrtc::RtpExtension(webrtc::AbsoluteSendTime::Uri(), ABS_SEND_TIME_EXT_ID);
   // auto tx_time_offset = webrtc::RtpExtension(webrtc::TransmissionOffset::Uri(), TX_TIME_OFFSET_EXT_ID);
+  auto video_layers_allocation = webrtc::RtpExtension(webrtc::RtpVideoLayersAllocationExtension::Uri(), VIDEO_LAYERS_ALLOCATION_EXT_ID);
   local_video->AddRtpHeaderExtension(transport_cc1);
   local_video->AddRtpHeaderExtension(video_orientation);
   local_video->AddRtpHeaderExtension(dependency_descriptor);
+  local_video->AddRtpHeaderExtension(video_layers_allocation);
   for (auto& remote_video : remote_videos) {
     remote_video->AddRtpHeaderExtension(transport_cc1);
     remote_video->AddRtpHeaderExtension(video_orientation);

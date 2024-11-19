@@ -297,6 +297,9 @@ void RTPSenderVideo::SetVideoLayersAllocationInternal(
         break;
       }
     }
+    // RingRTC change to avoid sending VideoLayersAllocation header ext except
+    // when the change is significant
+    send_allocation_ = SendVideoLayersAllocation::kDontSend;
   }
   allocation_ = std::move(allocation);
 }
