@@ -38,9 +38,7 @@ class FakeFrameDecryptor : public FrameDecryptorInterface {
                  const std::vector<uint32_t>& csrcs,
                  rtc::ArrayView<const uint8_t> additional_data,
                  rtc::ArrayView<const uint8_t> encrypted_frame,
-                 rtc::ArrayView<uint8_t> frame,
-                 // RingRTC change to encrypt media header
-                 bool has_encrypted_media_header=false) override;
+                 rtc::ArrayView<uint8_t> frame) override;
   // Always returns 1 less than the size of the encrypted frame.
   size_t GetMaxPlaintextByteSize(cricket::MediaType media_type,
                                  size_t encrypted_frame_size) override;

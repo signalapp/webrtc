@@ -727,17 +727,13 @@ void ChannelReceive::ReceivePacket(const uint8_t* packet,
 
     const std::vector<uint32_t> csrcs(header.arrOfCSRCs,
                                       header.arrOfCSRCs + header.numCSRCs);
-    // RingRTC change to determine if TOC is encrypted
-    bool has_encrypted_toc = header.extension.audio_level() && ((header.extension.audio_level()->level() & 0x1) != 0);
     const FrameDecryptorInterface::Result decrypt_result =
         frame_decryptor_->Decrypt(
             cricket::MEDIA_TYPE_AUDIO, csrcs,
             /*additional_data=*/
             nullptr,
             rtc::ArrayView<const uint8_t>(payload, payload_data_length),
-            decrypted_audio_payload,
-            // RingRTC change to determine if TOC is encrypted
-            has_encrypted_toc);
+            decrypted_audio_payload);
 
     if (decrypt_result.IsOk()) {
       decrypted_audio_payload.SetSize(decrypt_result.bytes_written);

@@ -29,9 +29,7 @@ FakeFrameDecryptor::Result FakeFrameDecryptor::Decrypt(
     const std::vector<uint32_t>& csrcs,
     rtc::ArrayView<const uint8_t> additional_data,
     rtc::ArrayView<const uint8_t> encrypted_frame,
-    rtc::ArrayView<uint8_t> frame,
-    // RingRTC change to encrypt media header
-    bool has_encrypted_media_header) {
+    rtc::ArrayView<uint8_t> frame) {
   if (fail_decryption_) {
     return Result(Status::kFailedToDecrypt, 0);
   }

@@ -224,7 +224,7 @@ class Encryptor : public webrtc::FrameEncryptorInterface {
       RTC_LOG(LS_WARNING) << "Encrypt called with weird media type: " << media_type;
       return -1;  // Error
     }
-    if (!callbacks_->encryptMedia(observer_, is_audio, plaintext.data(), plaintext.size(), ciphertext_buffer.data(), ciphertext_buffer.size(), ciphertext_size)) {
+    if (!callbacks_->encryptMedia(observer_, plaintext.data(), plaintext.size(), ciphertext_buffer.data(), ciphertext_buffer.size(), ciphertext_size)) {
       return -2;  // Error
     }
     return 0;  // No error
@@ -315,8 +315,7 @@ class Decryptor : public webrtc::FrameDecryptorInterface {
                                           // This is not supported by our SFU currently, so don't bother trying to use it.
                                           rtc::ArrayView<const uint8_t> _generic_video_header,
                                           rtc::ArrayView<const uint8_t> ciphertext,
-                                          rtc::ArrayView<uint8_t> plaintext_buffer,
-                                          bool has_encrypted_media_header) override {
+                                          rtc::ArrayView<uint8_t> plaintext_buffer) override {
     bool is_audio = (media_type == cricket::MEDIA_TYPE_AUDIO);
     bool is_video = (media_type == cricket::MEDIA_TYPE_VIDEO);
     if (!is_audio && !is_video) {
@@ -324,7 +323,7 @@ class Decryptor : public webrtc::FrameDecryptorInterface {
       return FrameDecryptorInterface::Result(FrameDecryptorInterface::Status::kUnknown, 0);
     }
     size_t plaintext_size = 0;
-    if (!callbacks_->decryptMedia(observer_, track_id_, is_audio, ciphertext.data(), ciphertext.size(), plaintext_buffer.data(), plaintext_buffer.size(), &plaintext_size, has_encrypted_media_header)) {
+    if (!callbacks_->decryptMedia(observer_, track_id_, ciphertext.data(), ciphertext.size(), plaintext_buffer.data(), plaintext_buffer.size(), &plaintext_size)) {
       return FrameDecryptorInterface::Result(FrameDecryptorInterface::Status::kFailedToDecrypt, 0);
     }
     return FrameDecryptorInterface::Result(FrameDecryptorInterface::Status::kOk, plaintext_size);

@@ -90,9 +90,7 @@ BufferedFrameDecryptor::FrameDecision BufferedFrameDecryptor::DecryptFrame(
                                 // RingRTC change to allow encryption without generic descriptor
                                 additional_data,
                                 encrypted_bitstream,
-                                inline_decrypted_bitstream,
-                                // RingRTC change to detect received dependency descriptor
-                                frame->GetRtpVideoHeader().generic.has_value());
+                                inline_decrypted_bitstream);
   // Optionally call the callback if there was a change in status
   if (decrypt_result.status != last_status_) {
     last_status_ = decrypt_result.status;
