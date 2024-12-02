@@ -6,7 +6,7 @@
 #include "rffi/api/sdp_observer_intf.h"
 #include "rffi/src/ptr.h"
 #include "rffi/src/sdp_observer.h"
-#include <regex>
+#include "third_party/re2/src/re2/re2.h"
 
 namespace webrtc {
 namespace rffi {
@@ -29,8 +29,10 @@ void CreateSessionDescriptionObserverRffi::OnSuccess(SessionDescriptionInterface
   // TODO tweak the response a little
   std::string sdp;
   if (session_description->ToString(&sdp)) {
-    sdp = std::regex_replace(sdp, std::regex("(a=fmtp:111 ((?!cbr=).)*)\r?\n"), "$1;cbr=1\r\n");
-    sdp = std::regex_replace(sdp, std::regex(".+urn:ietf:params:rtp-hdrext:ssrc-audio-level.*\r?\n"), "");
+    static LazyRE2 fmtp_re = {"(a=fmtp:111 ((?!cbr=).)*)\r?\n"};
+    RE2::Replace(&sdp, *fmtp_re, "$1;cbr=1\r\n");
+    static LazyRE2 ssrc_re = {".+urn:ietf:params:rtp-hdrext:ssrc-audio-level.*\r?\n"};
+    RE2::Replace(&sdp, *ssrc_re, "");
 
     std::unique_ptr<SessionDescriptionInterface> session_description2 = CreateSessionDescription(session_description->GetType(), sdp);
     delete session_description;
