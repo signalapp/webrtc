@@ -837,18 +837,22 @@ void RtpVideoStreamReceiver2::OnAssembledFrame(
         descriptor->dependencies);
   }
 
-  // If frames arrive before a key frame, they would not be decodable.
-  // In that case, request a key frame ASAP.
-  if (!has_received_frame_) {
-    if (frame->FrameType() != VideoFrameType::kVideoFrameKey) {
-      // `loss_notification_controller_`, if present, would have already
-      // requested a key frame when the first packet for the non-key frame
-      // had arrived, so no need to replicate the request.
-      if (!loss_notification_controller_) {
-        RequestKeyFrame();
+  // RingRTC change to detect and repair a missing key frame at the start of
+  // a decrypted stream.
+  if (buffered_frame_decryptor_ == nullptr) {
+    // If frames arrive before a key frame, they would not be decodable.
+    // In that case, request a key frame ASAP.
+    if (!has_received_frame_) {
+      if (frame->FrameType() != VideoFrameType::kVideoFrameKey) {
+        // `loss_notification_controller_`, if present, would have already
+        // requested a key frame when the first packet for the non-key frame
+        // had arrived, so no need to replicate the request.
+        if (!loss_notification_controller_) {
+          RequestKeyFrame();
+        }
       }
+      has_received_frame_ = true;
     }
-    has_received_frame_ = true;
   }
 
   // Reset `reference_finder_` if `frame` is new and the codec have changed.
@@ -903,6 +907,20 @@ void RtpVideoStreamReceiver2::OnCompleteFrames(
 void RtpVideoStreamReceiver2::OnDecryptedFrame(
     std::unique_ptr<RtpFrameObject> frame) {
   RTC_DCHECK_RUN_ON(&packet_sequence_checker_);
+  // RingRTC change to detect and repair a missing key frame at the start of
+  // a decrypted stream.
+  // If frames arrive before a key frame, they would not be decodable.
+  // In that case, request a key frame ASAP.
+  if (!has_received_frame_) {
+    if (frame->FrameType() != VideoFrameType::kVideoFrameKey) {
+      RequestKeyFrame();
+      RTC_LOG(LS_WARNING) << "First decrypted packet was not key frame, "
+                           "requesting a key frame for ssrc: "
+                        << config_.rtp.remote_ssrc;
+    }
+    has_received_frame_ = true;
+  }
+
   OnCompleteFrames(reference_finder_->ManageFrame(std::move(frame)));
 }
 
