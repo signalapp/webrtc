@@ -65,7 +65,7 @@ deps = {
 
   # RingRTC change to support Oboe for audio on Android
   'src/ringrtc/oboe/src': {
-    'url': 'https://github.com/google/oboe.git@03242e9ef9495e418e6ae83954d239dc9193ec5c',
+    'url': 'https://github.com/google/oboe.git@b15f5e39c01a7ada306d959e5129620b145fb8b4',
     'condition': 'checkout_android',
   },
 
