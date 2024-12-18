@@ -226,7 +226,11 @@ int32_t AudioDeviceIOS::StartPlayout() {
   RTC_DCHECK_RUN_ON(thread_);
   RTC_DCHECK(audio_is_initialized_);
   RTC_DCHECK(!playing_.load());
-  RTC_DCHECK(audio_unit_);
+  // RingRTC change to avoid null-pointer dereference if audio_unit init failed.
+  if (!audio_unit_) {
+    RTCLogError(@"StartPlayout without an AudioUnit");
+    return -1;
+  }
   if (fine_audio_buffer_) {
     fine_audio_buffer_->ResetPlayout();
   }
@@ -282,7 +286,11 @@ int32_t AudioDeviceIOS::StartRecording() {
   RTC_DCHECK_RUN_ON(thread_);
   RTC_DCHECK(audio_is_initialized_);
   RTC_DCHECK(!recording_.load());
-  RTC_DCHECK(audio_unit_);
+  // RingRTC change to avoid null-pointer dereference if audio_unit init failed.
+  if (!audio_unit_) {
+    RTCLogError(@"StartRecording without an AudioUnit");
+    return -1;
+  }
   if (fine_audio_buffer_) {
     fine_audio_buffer_->ResetRecord();
   }
