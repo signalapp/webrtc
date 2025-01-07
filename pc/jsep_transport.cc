@@ -547,11 +547,9 @@ bool JsepTransport::SetSrtpCrypto(
     RTC_DCHECK(recv_extension_ids_);
     return srtp_transport_->SetRtpParams(
         send.crypto_suite,
-        send.key_params.data(),
-        static_cast<int>(send.key_params.size()),
+        send.key_params,
         *(send_extension_ids_), recv.crypto_suite,
-        recv.key_params.data(),
-        static_cast<int>(recv.key_params.size()),
+        recv.key_params,
         *(recv_extension_ids_));
   }
   return true;
