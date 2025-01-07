@@ -609,6 +609,11 @@ AudioEncoder::EncodedInfo AudioEncoderOpusImpl::EncodeImpl(
       });
   input_buffer_.clear();
 
+  bool dtx_frame = (info.encoded_bytes <= 2);
+
+  // Will use new packet size for next encoding.
+  config_.frame_size_ms = next_frame_length_ms_;
+
   if (adjust_bandwidth_ && bitrate_changed_) {
     const auto bandwidth = GetNewBandwidth(config_, inst_);
     if (bandwidth) {
@@ -620,28 +625,14 @@ AudioEncoder::EncodedInfo AudioEncoderOpusImpl::EncodeImpl(
   info.encoded_timestamp = first_timestamp_in_buffer_;
   info.payload_type = payload_type_;
   info.send_even_if_empty = true;  // Allows Opus to send empty packets.
-
   // After 20 DTX frames (MAX_CONSECUTIVE_DTX) Opus will send a frame
   // coding the background noise. Avoid flagging this frame as speech
   // (even though there is a probability of the frame being speech).
-  // RingRTC change to detect if an encoded packet contains speech or not.
-  if (WebRtcOpus_GetInDtx(inst_) == 0) {
-    info.speech = true;
-    consecutive_dtx_frames_ = 0;
-  } else {
-    // Handle the case where the encoder is now in DTX mode but there might be a speech frame in the packet.
-    if (consecutive_dtx_frames_ == 0 && info.encoded_bytes > 2) {
-      info.speech = true;
-    } else {
-      info.speech = false;
-    }
-    consecutive_dtx_frames_ += 1;
-  }
-
+  info.speech = !dtx_frame && (consecutive_dtx_frames_ != 20);
   info.encoder_type = CodecType::kOpus;
 
-  // Will use new packet size for next encoding.
-  config_.frame_size_ms = next_frame_length_ms_;
+  // Increase or reset DTX counter.
+  consecutive_dtx_frames_ = (dtx_frame) ? (consecutive_dtx_frames_ + 1) : (0);
 
   return info;
 }
