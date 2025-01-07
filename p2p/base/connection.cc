@@ -896,7 +896,7 @@ void Connection::PrintPingsSinceLastResponse(std::string* s, size_t max) {
       oss << rtc::hex_encode(ping.id) << " ";
     }
   }
-  *s = oss.str();
+  *s = oss.Release();
 }
 
 bool Connection::selected() const {

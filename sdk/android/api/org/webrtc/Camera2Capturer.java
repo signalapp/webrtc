@@ -15,7 +15,6 @@ import android.hardware.camera2.CameraManager;
 import androidx.annotation.Nullable;
 
 public class Camera2Capturer extends CameraCapturer {
-  private final Context context;
   @Nullable private final CameraManager cameraManager;
 
   public Camera2Capturer(Context context, String cameraName, CameraEventsHandler eventsHandler) {
@@ -26,7 +25,6 @@ public class Camera2Capturer extends CameraCapturer {
   public Camera2Capturer(Context context, String cameraName, CameraEventsHandler eventsHandler, CameraEnumerator cameraEnumerator) {
     super(cameraName, eventsHandler, cameraEnumerator);
 
-    this.context = context;
     cameraManager = (CameraManager) context.getSystemService(Context.CAMERA_SERVICE);
   }
 
