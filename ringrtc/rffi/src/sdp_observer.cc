@@ -29,8 +29,6 @@ void CreateSessionDescriptionObserverRffi::OnSuccess(SessionDescriptionInterface
   // TODO tweak the response a little
   std::string sdp;
   if (session_description->ToString(&sdp)) {
-    static LazyRE2 fmtp_re = {"(a=fmtp:111 ((?!cbr=).)*)\r?\n"};
-    RE2::Replace(&sdp, *fmtp_re, "$1;cbr=1\r\n");
     static LazyRE2 ssrc_re = {".+urn:ietf:params:rtp-hdrext:ssrc-audio-level.*\r?\n"};
     RE2::Replace(&sdp, *ssrc_re, "");
 
