@@ -383,7 +383,7 @@ void JsepTransportController::MaybeStartGathering() {
 void JsepTransportController::StartGatheringWithSharedIceGatherer(
     rtc::scoped_refptr<webrtc::IceGathererInterface> shared_ice_gatherer) {
   if (!network_thread_->IsCurrent()) {
-    network_thread_->BlockingCall([=, this] {
+    network_thread_->BlockingCall([this, shared_ice_gatherer] {
       StartGatheringWithSharedIceGatherer(std::move(shared_ice_gatherer));
     });
     return;
@@ -398,7 +398,7 @@ void JsepTransportController::StartGatheringWithSharedIceGatherer(
 // RingRTC change to explicitly control when incoming packets can be processed
 bool JsepTransportController::SetIncomingRtpEnabled(bool enabled) {
   if (!network_thread_->IsCurrent()) {
-    return network_thread_->BlockingCall([=, this] {
+    return network_thread_->BlockingCall([this, enabled] {
       return SetIncomingRtpEnabled(enabled);
     });
   }
