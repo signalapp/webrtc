@@ -160,9 +160,6 @@ class AudioEncoderOpusImpl final : public AudioEncoder {
 
   void MaybeUpdateUplinkBandwidth();
 
-  // RingRTC change to detect if an encoded packet contains speech or not
-  bool IsPacketSpeech(int encoded_bytes, const uint8_t* encoded);
-
   AudioEncoderOpusConfig config_;
   const int payload_type_;
   const bool use_stable_target_for_adaptation_;
@@ -185,7 +182,6 @@ class AudioEncoderOpusImpl final : public AudioEncoder {
   std::optional<size_t> overhead_bytes_per_packet_;
   const std::unique_ptr<SmoothingFilter> bitrate_smoother_;
   std::optional<int64_t> bitrate_smoother_last_update_time_;
-  int consecutive_dtx_frames_;
 
   friend struct AudioEncoderOpus;
 };

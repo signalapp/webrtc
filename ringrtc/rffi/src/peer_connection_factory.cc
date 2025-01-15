@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+#include "api/audio/audio_processing.h"
+#include "api/audio/builtin_audio_processing_builder.h"
 #include "api/create_peerconnection_factory.h"
 #include "api/enable_media.h"
 #include "api/environment/environment.h"
@@ -19,7 +21,6 @@
 #include "media/engine/simulcast_encoder_adapter.h"
 #include "modules/audio_mixer/audio_mixer_impl.h"
 #include "modules/audio_device/dummy/file_audio_device_factory.h"
-#include "modules/audio_processing/include/audio_processing.h"
 #include "pc/peer_connection_factory.h"
 #include "rffi/api/media.h"
 #include "rffi/api/peer_connection_factory.h"
@@ -164,9 +165,9 @@ class PeerConnectionFactoryWithOwnedThreads
     config.noise_suppression.enabled = audio_config_borrowed->ns_enabled;
     config.gain_controller1.enabled = audio_config_borrowed->agc_enabled;
 
-    dependencies.audio_processing = AudioProcessingBuilder()
-      .SetConfig(config)
-      .Create();
+    auto builder = std::make_unique<BuiltinAudioProcessingBuilder>();
+    builder->SetConfig(config);
+    dependencies.audio_processing_builder = std::move(builder);
     dependencies.audio_mixer = AudioMixerImpl::Create();
 
     dependencies.video_encoder_factory =
