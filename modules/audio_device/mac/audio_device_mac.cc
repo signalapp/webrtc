@@ -2353,8 +2353,11 @@ bool AudioDeviceMac::CaptureWorkerThread() {
   AudioBufferList engineBuffer;
   engineBuffer.mNumberBuffers = 1;  // Interleaved channels.
   engineBuffer.mBuffers->mNumberChannels = _inDesiredFormat.mChannelsPerFrame;
-  engineBuffer.mBuffers->mDataByteSize =
-      _inDesiredFormat.mBytesPerPacket * noRecSamples;
+  // RingRTC change to ensure AudioConverterFillComplexBuffer doesn't write
+  // past the end of recordBuffer.
+  // (Upstream, both `noRecSamples` and `mBytesPerPacket` take
+  // mChannelsPerFrame into account, so if that's 2, this size is too large.)
+  engineBuffer.mBuffers->mDataByteSize = sizeof(SInt16) * noRecSamples;
   engineBuffer.mBuffers->mData = recordBuffer.data();
 
   err = AudioConverterFillComplexBuffer(_captureConverter, inConverterProc,
