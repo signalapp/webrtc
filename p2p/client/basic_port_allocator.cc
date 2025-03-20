@@ -250,7 +250,7 @@ PortAllocatorSession* BasicPortAllocator::CreateSessionInternal(
                                        std::string(ice_pwd));
 }
 
-// RingRTC change to add ICE forking
+// RingRTC change to support ICE forking
 rtc::scoped_refptr<webrtc::IceGathererInterface>
 BasicPortAllocator::CreateIceGatherer(const std::string& name) {
   CheckRunOnValidThreadAndInitialized();

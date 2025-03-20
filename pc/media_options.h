@@ -106,7 +106,8 @@ struct MediaSessionOptions {
   // List of media description options in the same order that the media
   // descriptions will be generated.
   std::vector<MediaDescriptionOptions> media_description_options;
-  std::vector<IceParameters> pooled_ice_credentials;
+  // RingRTC change to support ICE forking
+  std::vector<IceParameters> ice_credentials;
 
   // Use the draft-ietf-mmusic-sctp-sdp-03 obsolete syntax for SCTP
   // datachannels.

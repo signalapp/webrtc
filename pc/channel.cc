@@ -989,7 +989,7 @@ bool VoiceChannel::SetRemoteContent_w(const MediaContentDescription* content,
   return UpdateRemoteStreams_w(content, type, error_desc);
 }
 
-// RingRTC change to configure OPUS
+// RingRTC change to configure opus
 void VoiceChannel::ConfigureEncoders(const webrtc::AudioEncoder::Config& config) {
   RTC_DCHECK_RUN_ON(worker_thread());
   voice_media_send_channel()->ConfigureEncoders(config);

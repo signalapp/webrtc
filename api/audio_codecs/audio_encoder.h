@@ -300,7 +300,7 @@ class AudioEncoder {
   // The maximum number of audio channels supported by WebRTC encoders.
   static constexpr int kMaxNumberOfChannels = 24;
 
-  //  RingRTC Change to configure OPUS
+  // RingRTC Change to configure opus
   virtual bool Configure(const Config& config) {
     RTC_LOG(LS_WARNING) << "Default AudioEncoder::Configure(...) does nothing!";
     return false;

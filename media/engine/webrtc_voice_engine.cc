@@ -1170,7 +1170,7 @@ class WebRtcVoiceSendChannel::WebRtcAudioSendStream : public AudioSource::Sink {
     ReconfigureAudioSendStream(nullptr);
   }
 
-  // RingRTC change to configure OPUS
+  // RingRTC change to configure opus
   void ConfigureEncoder(const webrtc::AudioEncoder::Config& config) {
     stream_->ConfigureEncoder(config);
   }

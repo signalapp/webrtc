@@ -45,7 +45,7 @@
 #include "p2p/base/fake_port_allocator.h"
 #include "p2p/base/ice_controller_factory_interface.h"
 #include "p2p/base/ice_controller_interface.h"
-// RingRTC change to add ICE forking
+// RingRTC change to support ICE forking
 #include "p2p/base/ice_gatherer.h"
 #include "p2p/base/ice_switch_reason.h"
 #include "p2p/base/ice_transport_internal.h"
@@ -7078,7 +7078,7 @@ TEST(P2PTransportChannel, InjectActiveIceController) {
                                   /* component= */ 77, std::move(init));
 }
 
-// RingRTC change to enable ICE forking.
+// RingRTC change to support ICE forking.
 TEST_F(P2PTransportChannelPingTest, Forking) {
   // Prepare two transports with a shared gatherer
   rtc::ScopedFakeClock clock;

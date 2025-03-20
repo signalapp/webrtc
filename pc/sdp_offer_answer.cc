@@ -2515,7 +2515,7 @@ void SdpOfferAnswerHandler::DoSetLocalDescription(
   // MaybeStartGathering needs to be called after informing the observer so
   // that we don't signal any candidates before signaling that
   // SetLocalDescription completed.
-  // RingRTC change to add ICE forking
+  // RingRTC change to support ICE forking
   if (pc_->shared_ice_gatherer()) {
     transport_controller_s()->StartGatheringWithSharedIceGatherer(pc_->shared_ice_gatherer());
   } else {
@@ -4252,7 +4252,7 @@ void SdpOfferAnswerHandler::GetOptionsForOffer(
 
   session_options->rtcp_cname = rtcp_cname_;
   session_options->crypto_options = pc_->GetCryptoOptions();
-  // RingRTC change to add ICE forking
+  // RingRTC change to support ICE forking
   if (pc_->shared_ice_gatherer()) {
     session_options->ice_credentials.push_back(cricket::IceParameters(
         pc_->shared_ice_gatherer()->port_allocator_session()->ice_ufrag(),
@@ -4543,7 +4543,7 @@ void SdpOfferAnswerHandler::GetOptionsForAnswer(
 
   session_options->rtcp_cname = rtcp_cname_;
   session_options->crypto_options = pc_->GetCryptoOptions();
-  // RingRTC change to add ICE forking
+  // RingRTC change to support ICE forking
   if (pc_->shared_ice_gatherer()) {
     session_options->ice_credentials.push_back(cricket::IceParameters(
         pc_->shared_ice_gatherer()->port_allocator_session()->ice_ufrag(),

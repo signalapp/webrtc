@@ -1160,12 +1160,12 @@ class RTC_EXPORT PeerConnectionInterface : public webrtc::RefCountInterface {
   virtual bool RemoveIceCandidates(
       const std::vector<cricket::Candidate>& candidates) = 0;
 
-  // RingRTC change to add ICE forking
+  // RingRTC change to support ICE forking
   // Creates an IceGatherer that can be shared/used with UseSharedIceGatherer
   virtual rtc::scoped_refptr<webrtc::IceGathererInterface>
   CreateSharedIceGatherer();
 
-  // RingRTC change to add ICE forking
+  // RingRTC change to support ICE forking
   // SetGatherer with the same IceGatherer on many ICE transports to get
   // ICE forking behavior.  For example, like so:
   // auto gatherer = pc1->CreateSharedIceGatherer();

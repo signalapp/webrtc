@@ -379,7 +379,7 @@ void JsepTransportController::MaybeStartGathering() {
   }
 }
 
-// RingRTC change to configure OPUS
+// RingRTC change to support ICE forking
 void JsepTransportController::StartGatheringWithSharedIceGatherer(
     rtc::scoped_refptr<webrtc::IceGathererInterface> shared_ice_gatherer) {
   if (!network_thread_->IsCurrent()) {

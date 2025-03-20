@@ -424,7 +424,7 @@ class RTC_EXPORT PortAllocator : public sigslot::has_slots<> {
       absl::string_view ice_ufrag,
       absl::string_view ice_pwd);
 
-  // RingRTC change to add ICE forking
+  // RingRTC change to support ICE forking
   // Unlike a PortAllocatorSession, an IceGatherer is independent of the
   // PortAllocator that created it and can live on after the PortAllocator
   // is destroyed.  It can also be shared, which is useful for ICE forking.

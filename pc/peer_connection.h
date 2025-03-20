@@ -745,7 +745,7 @@ class PeerConnection : public PeerConnectionInternal,
 
   PayloadTypePicker payload_type_picker_;
 
-  // RingRTC change to add ICE forking
+  // RingRTC change to support ICE forking
   rtc::scoped_refptr<webrtc::IceGathererInterface> shared_ice_gatherer_;
 
   // RingRTC change to receive RTP data

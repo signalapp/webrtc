@@ -203,7 +203,7 @@ class AudioSendStream : public AudioSender {
     RTC_LOG(LS_WARNING) << "Default AudioSendStream::ConfigureEncoder(...) does nothing!";
   }
 
-  // RingRTC change to configure opus to get audio levels
+  // RingRTC change to get audio levels
   virtual uint16_t GetAudioLevel() {
     RTC_LOG(LS_WARNING) << "Default AudioSendStream::GetAudioLevel() does nothing!";
     return 0;

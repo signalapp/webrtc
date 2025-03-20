@@ -282,7 +282,7 @@ rtc_library("libjingle_peerconnection_api") {
     "crypto_params.h",
     "data_channel_interface.cc",
     "data_channel_interface.h",
-    # RingRTC change to add ICE forking
+    # RingRTC change to support ICE forking
     "ice_gatherer_interface.h",
     "jsep.cc",
     "jsep.h",

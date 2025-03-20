@@ -186,7 +186,7 @@ class JsepTransportController : public PayloadTypeSuggester,
   // calling GetRtpTransport for multiple MIDs may yield the same object.
   RtpTransportInternal* GetRtpTransport(absl::string_view mid) const;
 
-  // RingRTC change to configure OPUS
+  // RingRTC change to configure opus
   // If bundling, return the transport used for it.
   // If not, return nullptr.
   RtpTransportInternal* GetBundledRtpTransport() {

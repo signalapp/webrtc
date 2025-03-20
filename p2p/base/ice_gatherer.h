@@ -17,7 +17,7 @@
 
 namespace cricket {
 
-// RingRTC change to add ICE forking
+// RingRTC change to support ICE forking
 // A simple implementation of an IceGatherer that owns the
 // PortAllocator and PortAllocatorSession.
 class BasicIceGatherer : public webrtc::IceGathererInterface {

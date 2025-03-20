@@ -773,7 +773,7 @@ MediaSessionDescriptionFactory::CreateOfferOrError(
                   session_options.media_description_options.size());
   }
 
-  // RingRTC change to add ICE forking
+  // RingRTC change to support ICE forking
   IceCredentialsIterator ice_credentials(session_options.ice_credentials);
 
   std::vector<const ContentInfo*> current_active_contents;
@@ -903,7 +903,7 @@ MediaSessionDescriptionFactory::CreateAnswerOrError(
   RTC_DCHECK_EQ(offer->contents().size(),
                 session_options.media_description_options.size());
 
-  // RingRTC change to add ICE forking
+  // RingRTC change to support ICE forking
   IceCredentialsIterator ice_credentials(session_options.ice_credentials);
 
   std::vector<const ContentInfo*> current_active_contents;

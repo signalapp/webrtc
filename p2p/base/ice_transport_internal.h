@@ -40,7 +40,7 @@
 #include "rtc_base/system/rtc_export.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
 
-// RingRTC change to add ICE forking
+// RingRTC change to support ICE forking
 #include <memory>
 #include <utility>
 
@@ -303,7 +303,7 @@ class RTC_EXPORT IceTransportInternal : public rtc::PacketTransportInternal {
   // occurred.
   virtual void MaybeStartGathering() = 0;
 
-  // RingRTC change to add ICE forking
+  // RingRTC change to support ICE forking
   // Start gathering with the same IceGatherer on many ICE transports to get
   // ICE forking behavior.  For example, like so:
   // rtc::scoped_refptr<webrtc::IceGathererInterface> gatherer = ...;

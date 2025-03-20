@@ -50,14 +50,14 @@ PeerConnectionInterface::RTCConfiguration::RTCConfiguration(
 
 PeerConnectionInterface::RTCConfiguration::~RTCConfiguration() = default;
 
-// RingRTC change to add ICE forking
+// RingRTC change to support ICE forking
 rtc::scoped_refptr<webrtc::IceGathererInterface>
 PeerConnectionInterface::CreateSharedIceGatherer() {
   RTC_LOG(LS_ERROR) << "No shared ICE gatherer in dummy implementation";
   return nullptr;
 }
 
-// RingRTC change to add ICE forking
+// RingRTC change to support ICE forking
 bool PeerConnectionInterface::UseSharedIceGatherer(
     rtc::scoped_refptr<webrtc::IceGathererInterface> shared_ice_gatherer) {
   RTC_LOG(LS_ERROR) << "No shared ICE gatherer in dummy implementation";

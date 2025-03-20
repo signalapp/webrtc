@@ -134,7 +134,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
   // IceTransportChannel does not depend on this.
   void Connect() {}
   void MaybeStartGathering() override;
-  // RingRTC change to add ICE forking
+  // RingRTC change to support ICE forking
   void StartGatheringWithSharedGatherer(
       rtc::scoped_refptr<webrtc::IceGathererInterface> shared_gatherer)
       override;
@@ -229,7 +229,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
   // Public for unit tests.
   PortAllocatorSession* allocator_session() const {
     RTC_DCHECK_RUN_ON(network_thread_);
-    // RingRTC change to add ICE forking
+    // RingRTC change to support ICE forking
     // Owned allocator sessions take precedent over shared ones so that ICE
     // restarts after forking work properly.
     if (!allocator_sessions_.empty()) {
@@ -347,7 +347,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
                         const std::string& remote_username,
                         bool port_muxed,
                         bool shared);
-  // RingRTC change to add ICE forking
+  // RingRTC change to support ICE forking
   void OnUnknownAddressFromOwnedSession(PortInterface* port,
                                         const rtc::SocketAddress& addr,
                                         ProtocolType proto,
@@ -369,7 +369,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
   // Returns true if the port is found and removed from `ports_`.
   bool PrunePort(PortInterface* port);
   void OnRoleConflict(PortInterface* port);
-  // RingRTC change to add ICE forking
+  // RingRTC change to support ICE forking
   void OnRoleConflictIgnored(PortInterface* port);
 
   void OnConnectionStateChange(Connection* connection);
@@ -388,7 +388,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
 
   bool AllowedToPruneConnections() const;
 
-  // RingRTC change to add ICE forking
+  // RingRTC change to support ICE forking
   bool IsSharedSession(PortAllocatorSession* session) {
     return shared_gatherer_ &&
            shared_gatherer_->port_allocator_session() == session;
@@ -461,7 +461,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
   int error_ RTC_GUARDED_BY(network_thread_);
   std::vector<std::unique_ptr<PortAllocatorSession>> allocator_sessions_
       RTC_GUARDED_BY(network_thread_);
-  // RingRTC change to add ICE forking
+  // RingRTC change to support ICE forking
   rtc::scoped_refptr<webrtc::IceGathererInterface> shared_gatherer_;
   // `ports_` contains ports that are used to form new connections when
   // new remote candidates are added.
