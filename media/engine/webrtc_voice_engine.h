@@ -427,8 +427,9 @@ class WebRtcVoiceReceiveChannel final
       rtc::scoped_refptr<webrtc::FrameTransformerInterface> frame_transformer)
       override;
 
-  void SetReceiveNackEnabled(bool enabled) override;
+  webrtc::RtcpMode RtcpMode() const override { return recv_rtcp_mode_; }
   void SetRtcpMode(webrtc::RtcpMode mode) override;
+  void SetReceiveNackEnabled(bool enabled) override;
   void SetReceiveNonSenderRttEnabled(bool enabled) override;
 
   // RingRTC change to get audio levels

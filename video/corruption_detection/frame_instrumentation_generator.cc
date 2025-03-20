@@ -19,6 +19,7 @@
 #include "absl/algorithm/container.h"
 #include "absl/types/variant.h"
 #include "api/scoped_refptr.h"
+#include "api/video/corruption_detection_filter_settings.h"
 #include "api/video/encoded_image.h"
 #include "api/video/video_codec_type.h"
 #include "api/video/video_frame.h"
@@ -40,36 +41,33 @@ namespace {
 // can lead to frame buffer pools draining.
 constexpr size_t kMaxPendingFrames = 3;
 
-std::optional<FilterSettings> GetCorruptionFilterSettings(
+std::optional<CorruptionDetectionFilterSettings> GetCorruptionFilterSettings(
     const EncodedImage& encoded_image,
     VideoCodecType video_codec_type,
     int layer_id) {
-  /* TODO: bugs.webrtc.org/358039777 - Uncomment when parameters are available
-     in EncodedImage.
-  if (encoded_image.CorruptionDetectionParameters()) {
-    return FilterSettings{
-        .std_dev = encoded_image.CorruptionDetectionParameters()->std_dev,
-        .luma_error_threshold =
-            encoded_image.CorruptionDetectionParameters()->luma_error_threshold,
-        .chroma_error_threshold = encoded_image.CorruptionDetectionParameters()
-                                      ->chroma_error_threshold};
-  }
-  */
+  std::optional<CorruptionDetectionFilterSettings> filter_settings =
+      encoded_image.corruption_detection_filter_settings();
 
-  int qp = encoded_image.qp_;
-  if (qp == -1) {
-    std::optional<uint32_t> parsed_qp = QpParser().Parse(
-        video_codec_type, layer_id, encoded_image.data(), encoded_image.size());
-    if (!parsed_qp.has_value()) {
-      RTC_LOG(LS_VERBOSE) << "Missing QP for "
-                          << CodecTypeToPayloadString(video_codec_type)
-                          << " layer " << layer_id << ".";
-      return std::nullopt;
+  if (!filter_settings.has_value()) {
+    // No implementation specific filter settings available, using a generic
+    // QP-based settings instead.
+    int qp = encoded_image.qp_;
+    if (qp == -1) {
+      std::optional<uint32_t> parsed_qp =
+          QpParser().Parse(video_codec_type, layer_id, encoded_image.data(),
+                           encoded_image.size());
+      if (!parsed_qp.has_value()) {
+        RTC_LOG(LS_VERBOSE)
+            << "Missing QP for " << CodecTypeToPayloadString(video_codec_type)
+            << " layer " << layer_id << ".";
+        return std::nullopt;
+      }
+      qp = *parsed_qp;
     }
-    qp = *parsed_qp;
-  }
 
-  return GetCorruptionFilterSettings(qp, video_codec_type);
+    filter_settings = GetCorruptionFilterSettings(qp, video_codec_type);
+  }
+  return filter_settings;
 }
 
 }  // namespace
@@ -79,9 +77,6 @@ FrameInstrumentationGenerator::FrameInstrumentationGenerator(
     : video_codec_type_(video_codec_type) {}
 
 void FrameInstrumentationGenerator::OnCapturedFrame(VideoFrame frame) {
-  while (captured_frames_.size() >= kMaxPendingFrames) {
-    captured_frames_.pop();
-  }
   captured_frames_.push(frame);
 }
 
@@ -121,15 +116,6 @@ FrameInstrumentationGenerator::OnEncodedImage(
     contexts_[layer_id].rtp_timestamp_of_last_key_frame =
         encoded_image.RtpTimestamp();
   } else if (contexts_.find(layer_id) == contexts_.end()) {
-    // TODO: bugs.webrtc.org/358039777 - Update this if statement such that LxTy
-    // scalability modes work properly. It is not a problem for LxTy_KEY
-    // scalability.
-    //
-    // For LxTy, it sometimes hinders calculating corruption score on the higher
-    // spatial layers. Because e.g. in L3T1 the first frame might not create 3
-    // spatial layers but, only 2. Then, we end up not creating this in the map
-    // and will therefore not get any corruption score until a new key frame is
-    // sent.
     RTC_LOG(LS_INFO) << "The first frame of a spatial or simulcast layer is "
                         "not a key frame.";
     return std::nullopt;
@@ -167,7 +153,7 @@ FrameInstrumentationGenerator::OnEncodedImage(
                                         .communicate_upper_bits = true};
   }
 
-  std::optional<FilterSettings> filter_settings =
+  std::optional<CorruptionDetectionFilterSettings> filter_settings =
       GetCorruptionFilterSettings(encoded_image, video_codec_type_, layer_id);
   if (!filter_settings.has_value()) {
     return std::nullopt;
