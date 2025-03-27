@@ -125,9 +125,6 @@ static const int kDefaultTimeout = 10000;
 static const int kMediumTimeout = 3000;
 static const int kShortTimeout = 1000;
 
-// RingRTC change to avoid incorrect use of flag (only used for tests).
-const uint32_t kDefaultPortAllocatorFlags = 0;
-
 static const int kOnlyLocalPorts = cricket::PORTALLOCATOR_DISABLE_STUN |
                                    cricket::PORTALLOCATOR_DISABLE_RELAY |
                                    cricket::PORTALLOCATOR_DISABLE_TCP;

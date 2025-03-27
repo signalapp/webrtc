@@ -95,6 +95,7 @@ void PortAllocatorSession::set_generation(uint32_t generation) {
 }
 
 PortAllocator::PortAllocator()
+    // RingRTC change to default flags
     : flags_(webrtc::PeerConnectionInterface::PortAllocatorConfig().flags),
       min_port_(0),
       max_port_(0),
