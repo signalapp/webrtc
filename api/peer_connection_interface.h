@@ -1160,12 +1160,12 @@ class RTC_EXPORT PeerConnectionInterface : public webrtc::RefCountInterface {
   virtual bool RemoveIceCandidates(
       const std::vector<cricket::Candidate>& candidates) = 0;
 
-  // RingRTC change to add ICE forking
+  // RingRTC change to support ICE forking
   // Creates an IceGatherer that can be shared/used with UseSharedIceGatherer
   virtual rtc::scoped_refptr<webrtc::IceGathererInterface>
   CreateSharedIceGatherer();
 
-  // RingRTC change to add ICE forking
+  // RingRTC change to support ICE forking
   // SetGatherer with the same IceGatherer on many ICE transports to get
   // ICE forking behavior.  For example, like so:
   // auto gatherer = pc1->CreateSharedIceGatherer();
@@ -1537,9 +1537,9 @@ struct RTC_EXPORT PeerConnectionFactoryDependencies final {
   rtc::scoped_refptr<AudioEncoderFactory> audio_encoder_factory;
   rtc::scoped_refptr<AudioDecoderFactory> audio_decoder_factory;
   rtc::scoped_refptr<AudioMixer> audio_mixer;
-  // TODO: bugs.webrtc.org/369904700 - Deprecate `audio_processing` in favor
+  // TODO: bugs.webrtc.org/369904700 - Delete `audio_processing` in favor
   // of `audio_processing_builder`.
-  rtc::scoped_refptr<AudioProcessing> audio_processing;
+  [[deprecated]] scoped_refptr<AudioProcessing> audio_processing;
   std::unique_ptr<AudioProcessingBuilderInterface> audio_processing_builder;
   std::unique_ptr<AudioFrameProcessor> audio_frame_processor;
   std::unique_ptr<VideoEncoderFactory> video_encoder_factory;
@@ -1635,15 +1635,13 @@ class RTC_EXPORT PeerConnectionFactoryInterface
 
   // Returns the capabilities of an RTP sender of type `kind`.
   // If for some reason you pass in MEDIA_TYPE_DATA, returns an empty structure.
-  // TODO(orphis): Make pure virtual when all subclasses implement it.
   virtual RtpCapabilities GetRtpSenderCapabilities(
-      cricket::MediaType kind) const;
+      cricket::MediaType kind) const = 0;
 
   // Returns the capabilities of an RTP receiver of type `kind`.
   // If for some reason you pass in MEDIA_TYPE_DATA, returns an empty structure.
-  // TODO(orphis): Make pure virtual when all subclasses implement it.
   virtual RtpCapabilities GetRtpReceiverCapabilities(
-      cricket::MediaType kind) const;
+      cricket::MediaType kind) const = 0;
 
   virtual rtc::scoped_refptr<MediaStreamInterface> CreateLocalMediaStream(
       const std::string& stream_id) = 0;

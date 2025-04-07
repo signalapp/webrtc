@@ -145,7 +145,6 @@ class AudioSendStream : public AudioSender {
       int payload_type;
       SdpAudioFormat format;
       bool nack_enabled = false;
-      bool transport_cc_enabled = false;
       bool enable_non_sender_rtt = false;
       std::optional<int> cng_payload_type;
       std::optional<int> red_payload_type;
@@ -204,7 +203,7 @@ class AudioSendStream : public AudioSender {
     RTC_LOG(LS_WARNING) << "Default AudioSendStream::ConfigureEncoder(...) does nothing!";
   }
 
-  // RingRTC change to configure opus to get audio levels
+  // RingRTC change to get audio levels
   virtual uint16_t GetAudioLevel() {
     RTC_LOG(LS_WARNING) << "Default AudioSendStream::GetAudioLevel() does nothing!";
     return 0;

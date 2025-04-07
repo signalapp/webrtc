@@ -23,16 +23,14 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <algorithm>
+#include <functional>
 #include <map>
 #include <memory>
 #include <optional>
-#include <set>
 #include <string>
-#include <utility>
 #include <vector>
 
-#include "absl/base/attributes.h"
+#include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/async_dns_resolver.h"
@@ -40,12 +38,12 @@
 #include "api/ice_transport_interface.h"
 #include "api/rtc_error.h"
 #include "api/sequence_checker.h"
-#include "api/task_queue/pending_task_safety_flag.h"
 #include "api/transport/enums.h"
 #include "api/transport/stun.h"
 #include "logging/rtc_event_log/events/rtc_event_ice_candidate_pair_config.h"
 #include "logging/rtc_event_log/ice_logger.h"
 #include "p2p/base/active_ice_controller_factory_interface.h"
+#include "p2p/base/active_ice_controller_interface.h"
 #include "p2p/base/candidate_pair_interface.h"
 #include "p2p/base/connection.h"
 #include "p2p/base/ice_agent_interface.h"
@@ -64,6 +62,7 @@
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/dscp.h"
+#include "rtc_base/network/received_packet.h"
 #include "rtc_base/network/sent_packet.h"
 #include "rtc_base/network_route.h"
 #include "rtc_base/socket.h"
@@ -135,7 +134,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
   // IceTransportChannel does not depend on this.
   void Connect() {}
   void MaybeStartGathering() override;
-  // RingRTC change to add ICE forking
+  // RingRTC change to support ICE forking
   void StartGatheringWithSharedGatherer(
       rtc::scoped_refptr<webrtc::IceGathererInterface> shared_gatherer)
       override;
@@ -153,7 +152,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
   // will not use it to update the respective parameter in `config_`.
   // TODO(deadbeef): Use std::optional instead of negative values.
   void SetIceConfig(const IceConfig& config) override;
-  const IceConfig& config() const;
+  const IceConfig& config() const override;
   static webrtc::RTCError ValidateIceConfig(const IceConfig& config);
 
   // From TransportChannel:
@@ -230,7 +229,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
   // Public for unit tests.
   PortAllocatorSession* allocator_session() const {
     RTC_DCHECK_RUN_ON(network_thread_);
-    // RingRTC change to add ICE forking
+    // RingRTC change to support ICE forking
     // Owned allocator sessions take precedent over shared ones so that ICE
     // restarts after forking work properly.
     if (!allocator_sessions_.empty()) {
@@ -262,6 +261,18 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
   GetDictionaryWriter() override {
     return stun_dict_writer_;
   }
+
+  const webrtc::FieldTrialsView* field_trials() const override {
+    return field_trials_;
+  }
+  void SetDtlsPiggybackingCallbacks(
+      absl::AnyInvocable<std::optional<absl::string_view>(StunMessageType)>
+          dtls_piggyback_get_data,
+      absl::AnyInvocable<std::optional<absl::string_view>(StunMessageType)>
+          dtls_piggyback_get_ack,
+      absl::AnyInvocable<void(const StunByteStringAttribute*,
+                              const StunByteStringAttribute*)>
+          dtls_piggyback_report_data) override;
 
  private:
   P2PTransportChannel(
@@ -336,7 +347,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
                         const std::string& remote_username,
                         bool port_muxed,
                         bool shared);
-  // RingRTC change to add ICE forking
+  // RingRTC change to support ICE forking
   void OnUnknownAddressFromOwnedSession(PortInterface* port,
                                         const rtc::SocketAddress& addr,
                                         ProtocolType proto,
@@ -358,7 +369,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
   // Returns true if the port is found and removed from `ports_`.
   bool PrunePort(PortInterface* port);
   void OnRoleConflict(PortInterface* port);
-  // RingRTC change to add ICE forking
+  // RingRTC change to support ICE forking
   void OnRoleConflictIgnored(PortInterface* port);
 
   void OnConnectionStateChange(Connection* connection);
@@ -377,7 +388,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
 
   bool AllowedToPruneConnections() const;
 
-  // RingRTC change to add ICE forking
+  // RingRTC change to support ICE forking
   bool IsSharedSession(PortAllocatorSession* session) {
     return shared_gatherer_ &&
            shared_gatherer_->port_allocator_session() == session;
@@ -450,7 +461,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
   int error_ RTC_GUARDED_BY(network_thread_);
   std::vector<std::unique_ptr<PortAllocatorSession>> allocator_sessions_
       RTC_GUARDED_BY(network_thread_);
-  // RingRTC change to add ICE forking
+  // RingRTC change to support ICE forking
   rtc::scoped_refptr<webrtc::IceGathererInterface> shared_gatherer_;
   // `ports_` contains ports that are used to form new connections when
   // new remote candidates are added.
@@ -542,12 +553,23 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
 
   // Parsed field trials.
   IceFieldTrials ice_field_trials_;
+  // Unparsed field trials.
+  const webrtc::FieldTrialsView* field_trials_;
 
   // A dictionary of attributes that will be reflected to peer.
   StunDictionaryWriter stun_dict_writer_;
 
   // A dictionary that tracks attributes from peer.
   StunDictionaryView stun_dict_view_;
+
+  // DTLS-STUN piggybacking callbacks.
+  absl::AnyInvocable<std::optional<absl::string_view>(StunMessageType)>
+      dtls_piggyback_get_data_;
+  absl::AnyInvocable<std::optional<absl::string_view>(StunMessageType)>
+      dtls_piggyback_get_ack_;
+  absl::AnyInvocable<void(const StunByteStringAttribute*,
+                          const StunByteStringAttribute*)>
+      dtls_piggyback_report_data_;
 };
 
 }  // namespace cricket

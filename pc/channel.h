@@ -416,7 +416,7 @@ class VoiceChannel : public BaseChannel {
     return cricket::MEDIA_TYPE_AUDIO;
   }
 
-  // RingRTC change to configure OPUS
+  // RingRTC change to configure opus
   void ConfigureEncoders(const webrtc::AudioEncoder::Config& config);
 
   // RingRTC change to get audio levels

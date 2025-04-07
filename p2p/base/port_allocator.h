@@ -106,8 +106,7 @@ enum class IceRegatheringReason {
   MAX_VALUE
 };
 
-// RingRTC change to avoid incorrect use of flag
-// const uint32_t kDefaultPortAllocatorFlags = 0;
+const uint32_t kDefaultPortAllocatorFlags = 0;
 
 const uint32_t kDefaultStepDelay = 1000;  // 1 sec step delay.
 // As per RFC 5245 Appendix B.1, STUN transactions need to be paced at certain
@@ -250,13 +249,13 @@ class RTC_EXPORT PortAllocatorSession : public sigslot::has_slots<> {
   // Get candidate-level stats from all candidates on the ready ports and return
   // the stats to the given list.
   virtual void GetCandidateStatsFromReadyPorts(
-      CandidateStatsList* candidate_stats_list) const {}
+      CandidateStatsList* /* candidate_stats_list */) const {}
   // Set the interval at which STUN candidates will resend STUN binding requests
   // on the underlying ports to keep NAT bindings open.
   // The default value of the interval in implementation is restored if a null
   // optional value is passed.
   virtual void SetStunKeepaliveIntervalForReadyPorts(
-      const std::optional<int>& stun_keepalive_interval) {}
+      const std::optional<int>& /* stun_keepalive_interval */) {}
   // Another way of getting the information provided by the signals below.
   //
   // Ports and candidates are not guaranteed to be in the same order as the
@@ -415,7 +414,8 @@ class RTC_EXPORT PortAllocator : public sigslot::has_slots<> {
 
   // Set list of <ipaddress, mask> that shall be categorized as VPN.
   // Implemented by BasicPortAllocator.
-  virtual void SetVpnList(const std::vector<rtc::NetworkMask>& vpn_list) {}
+  virtual void SetVpnList(const std::vector<rtc::NetworkMask>& /* vpn_list */) {
+  }
 
   std::unique_ptr<PortAllocatorSession> CreateSession(
       absl::string_view content_name,
@@ -423,7 +423,7 @@ class RTC_EXPORT PortAllocator : public sigslot::has_slots<> {
       absl::string_view ice_ufrag,
       absl::string_view ice_pwd);
 
-  // RingRTC change to add ICE forking
+  // RingRTC change to support ICE forking
   // Unlike a PortAllocatorSession, an IceGatherer is independent of the
   // PortAllocator that created it and can live on after the PortAllocator
   // is destroyed.  It can also be shared, which is useful for ICE forking.

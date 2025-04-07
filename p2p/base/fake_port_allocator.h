@@ -206,7 +206,7 @@ class FakePortAllocatorSession : public PortAllocatorSession {
     allocation_done_ = true;
     SignalCandidatesAllocationDone(this);
   }
-  void OnPortDestroyed(cricket::PortInterface* port) {
+  void OnPortDestroyed(cricket::PortInterface* /* port */) {
     // Don't want to double-delete port if it deletes itself.
     port_.release();
   }
@@ -247,7 +247,7 @@ class FakePortAllocator : public cricket::PortAllocator {
                           std::move(factory),
                           field_trials) {}
 
-  void SetNetworkIgnoreMask(int network_ignore_mask) override {}
+  void SetNetworkIgnoreMask(int /* network_ignore_mask */) override {}
 
   cricket::PortAllocatorSession* CreateSessionInternal(
       absl::string_view content_name,
@@ -259,7 +259,7 @@ class FakePortAllocator : public cricket::PortAllocator {
         component, std::string(ice_ufrag), std::string(ice_pwd), field_trials_);
   }
 
-  // RingRTC change to enable ICE forking.
+  // RingRTC change to support ICE forking.
   rtc::scoped_refptr<webrtc::IceGathererInterface> CreateIceGatherer(
       const std::string& content_name) override {
     auto new_allocator = std::make_unique<FakePortAllocator>(
