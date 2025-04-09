@@ -16,7 +16,8 @@ rtc::scoped_refptr<AudioDeviceModule> CreateAudioDeviceModuleOboe(
     bool use_software_acoustic_echo_canceler,
     bool use_software_noise_suppressor,
     bool use_exclusive_sharing_mode,
-    int audio_session_id);
+    bool use_input_low_latency,
+    bool use_input_voice_comm_preset);
 
 }  // namespace jni
 }  // namespace webrtc

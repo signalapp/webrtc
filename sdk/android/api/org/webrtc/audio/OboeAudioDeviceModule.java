@@ -25,14 +25,16 @@ public class OboeAudioDeviceModule implements AudioDeviceModule {
     private boolean useSoftwareAcousticEchoCanceler;
     private boolean useSoftwareNoiseSuppressor;
     private boolean useExclusiveSharingMode;
-    private int audioSessionId;
+    private boolean useInputLowLatency;
+    private boolean useInputVoiceCommPreset;
 
     private Builder() {
       Logging.w(TAG, "Builder()");
       this.useSoftwareAcousticEchoCanceler = false;
       this.useSoftwareNoiseSuppressor = false;
       this.useExclusiveSharingMode = true;
-      this.audioSessionId = -1;
+      this.useInputLowLatency = true;
+      this.useInputVoiceCommPreset = true;
     }
 
     /**
@@ -64,11 +66,21 @@ public class OboeAudioDeviceModule implements AudioDeviceModule {
     }
 
     /**
-     * Provide an audio session ID generated from application's AudioManager.
+     * Control if the input performance mode should use Low Latency setting or not.
      */
-    public Builder setAudioSessionId(int audioSessionId) {
-      Logging.w(TAG, "setAudioSessionId: " + audioSessionId);
-      this.audioSessionId = audioSessionId;
+    public Builder setInputLowLatency(boolean useInputLowLatency) {
+      Logging.w(TAG, "setInputLowLatency: " + useInputLowLatency);
+      this.useInputLowLatency = useInputLowLatency;
+      return this;
+    }
+
+    /**
+     * Control if the input preset should use voice communications setting or not. If not, the
+     * voice recognition setting will be used.
+     */
+    public Builder setInputVoiceCommPreset(boolean useInputVoiceCommPreset) {
+      Logging.w(TAG, "setInputVoiceCommPreset: " + useInputVoiceCommPreset);
+      this.useInputVoiceCommPreset = useInputVoiceCommPreset;
       return this;
     }
 
@@ -82,14 +94,16 @@ public class OboeAudioDeviceModule implements AudioDeviceModule {
           useSoftwareAcousticEchoCanceler,
           useSoftwareNoiseSuppressor,
           useExclusiveSharingMode,
-          audioSessionId);
+          useInputLowLatency,
+          useInputVoiceCommPreset);
     }
   }
 
   private boolean useSoftwareAcousticEchoCanceler;
   private boolean useSoftwareNoiseSuppressor;
   private boolean useExclusiveSharingMode;
-  private int audioSessionId;
+  private boolean useInputLowLatency;
+  private boolean useInputVoiceCommPreset;
 
   private final Object nativeLock = new Object();
   private long nativeAudioDeviceModule;
@@ -98,12 +112,14 @@ public class OboeAudioDeviceModule implements AudioDeviceModule {
       boolean useSoftwareAcousticEchoCanceler,
       boolean useSoftwareNoiseSuppressor,
       boolean useExclusiveSharingMode,
-      int audioSessionId) {
+      boolean useInputLowLatency,
+      boolean useInputVoiceCommPreset) {
     Logging.w(TAG, "OboeAudioDeviceModule");
     this.useSoftwareAcousticEchoCanceler = useSoftwareAcousticEchoCanceler;
     this.useSoftwareNoiseSuppressor = useSoftwareNoiseSuppressor;
     this.useExclusiveSharingMode = useExclusiveSharingMode;
-    this.audioSessionId = audioSessionId;
+    this.useInputLowLatency = useInputLowLatency;
+    this.useInputVoiceCommPreset = useInputVoiceCommPreset;
   }
 
   @Override
@@ -116,7 +132,8 @@ public class OboeAudioDeviceModule implements AudioDeviceModule {
             useSoftwareAcousticEchoCanceler,
             useSoftwareNoiseSuppressor,
             useExclusiveSharingMode,
-            audioSessionId);
+            useInputLowLatency,
+            useInputVoiceCommPreset);
       }
       return nativeAudioDeviceModule;
     }
@@ -153,5 +170,6 @@ public class OboeAudioDeviceModule implements AudioDeviceModule {
       boolean useSoftwareAcousticEchoCanceler,
       boolean useSoftwareNoiseSuppressor,
       boolean useExclusiveSharingMode,
-      int audioSessionId);
+      boolean useInputLowLatency,
+      boolean useInputVoiceCommPreset);
 }

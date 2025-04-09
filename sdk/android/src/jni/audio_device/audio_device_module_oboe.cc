@@ -26,10 +26,8 @@ constexpr size_t kMaxFramesPerCallback = (kSampleRate / 100);
 // When delay can't be obtained, use a fairly high latency delay value by default.
 constexpr uint16_t kDefaultPlayoutDelayMs = 150;
 
-constexpr int kInvalidAudioSessionId = -1;
-
 // Limit logging values that get updated frequently.
-constexpr int kLogEveryN = 100;
+constexpr int kLogEveryN = 250;
 
 namespace webrtc {
 namespace jni {
@@ -45,11 +43,13 @@ class OboeStream :
     AudioTransport* audio_callback,
     oboe::Direction direction,
     bool use_exclusive_sharing_mode,
-    int audio_session_id)
+    bool use_input_low_latency,
+    bool use_input_voice_comm_preset)
       : audio_callback_(audio_callback),
         direction_(direction),
         use_exclusive_sharing_mode_(use_exclusive_sharing_mode),
-        audio_session_id_(audio_session_id) {
+        use_input_low_latency_(use_input_low_latency),
+        use_input_voice_comm_preset_(use_input_voice_comm_preset) {
     RTC_LOG(LS_WARNING) << "OboeStream constructed for " << oboe::convertToText(direction_);
   }
 
@@ -320,26 +320,31 @@ class OboeStream :
       builder.setSharingMode(oboe::SharingMode::Exclusive);
     }
 
-    // Set the performance mode to get the lowest possible latency.
-    builder.setPerformanceMode(oboe::PerformanceMode::LowLatency);
-
     // Set callbacks for handling audio data and errors, providing shared pointers
     // to this OboeStream instance.
     builder.setDataCallback(shared_from_this());
     builder.setErrorCallback(shared_from_this());
 
     if (direction_ == oboe::Direction::Output) {
+      // Set the performance mode to get the lowest possible latency.
+      builder.setPerformanceMode(oboe::PerformanceMode::LowLatency);
+
       // Specifying usage and contentType should result in better volume and routing decisions.
       builder.setUsage(oboe::Usage::VoiceCommunication);
       builder.setContentType(oboe::ContentType::Speech);
     } else {
-      // Only set the sessionId for input streams.
-      if (audio_session_id_ != kInvalidAudioSessionId) {
-        builder.setSessionId((oboe::SessionId) audio_session_id_);
+      if (use_input_low_latency_) {
+        builder.setPerformanceMode(oboe::PerformanceMode::LowLatency);
+      } else {
+        builder.setPerformanceMode(oboe::PerformanceMode::None);
       }
 
       // Specifying an inputPreset should result in better volume and routing decisions (and privacy).
-      builder.setInputPreset(oboe::InputPreset::VoiceCommunication);
+      if (use_input_voice_comm_preset_) {
+        builder.setInputPreset(oboe::InputPreset::VoiceCommunication);
+      } else {
+        builder.setInputPreset(oboe::InputPreset::VoiceRecognition);
+      }
     }
   }
 
@@ -376,7 +381,8 @@ class OboeStream :
 
   const  oboe::Direction direction_;
   const bool use_exclusive_sharing_mode_;
-  const int audio_session_id_;
+  const bool use_input_low_latency_;
+  const bool use_input_voice_comm_preset_;
 
   std::atomic<uint16_t> playout_delay_ms_{ kDefaultPlayoutDelayMs };
 
@@ -394,11 +400,13 @@ class AndroidAudioDeviceModuleOboe : public AudioDeviceModule {
     bool use_software_acoustic_echo_canceler,
     bool use_software_noise_suppressor,
     bool use_exclusive_sharing_mode,
-    int audio_session_id)
+    bool use_input_low_latency,
+    bool use_input_voice_comm_preset)
       : use_software_acoustic_echo_canceler_(use_software_acoustic_echo_canceler),
         use_software_noise_suppressor_(use_software_noise_suppressor),
         use_exclusive_sharing_mode_(use_exclusive_sharing_mode),
-        audio_session_id_(audio_session_id) {
+        use_input_low_latency_(use_input_low_latency),
+        use_input_voice_comm_preset_(use_input_voice_comm_preset) {
     RTC_LOG(LS_WARNING) << "AndroidAudioDeviceModuleOboe constructed";
     thread_checker_.Detach();
   }
@@ -1029,7 +1037,8 @@ class AndroidAudioDeviceModuleOboe : public AudioDeviceModule {
         audio_callback_.load(),
         direction,
         use_exclusive_sharing_mode_,
-        audio_session_id_);
+        use_input_low_latency_,
+        use_input_voice_comm_preset_);
 
     int32_t result = stream->LockedCreate();
     if (result != 0) {
@@ -1055,7 +1064,8 @@ class AndroidAudioDeviceModuleOboe : public AudioDeviceModule {
   const bool use_software_acoustic_echo_canceler_;
   const bool use_software_noise_suppressor_;
   const bool use_exclusive_sharing_mode_;
-  const int32_t audio_session_id_;
+  const bool use_input_low_latency_;
+  const bool use_input_voice_comm_preset_;
 
   std::shared_ptr<OboeStream> input_stream_;
   std::shared_ptr<OboeStream> output_stream_;
@@ -1076,13 +1086,15 @@ rtc::scoped_refptr<AudioDeviceModule> CreateAudioDeviceModuleOboe(
     bool use_software_acoustic_echo_canceler,
     bool use_software_noise_suppressor,
     bool use_exclusive_sharing_mode,
-    int audio_session_id) {
+    bool use_input_low_latency,
+    bool use_input_voice_comm_preset) {
   RTC_LOG(LS_WARNING) << "CreateAudioDeviceModuleOboe";
   return rtc::make_ref_counted<AndroidAudioDeviceModuleOboe>(
     use_software_acoustic_echo_canceler,
     use_software_noise_suppressor,
     use_exclusive_sharing_mode,
-    audio_session_id);
+    use_input_low_latency,
+    use_input_voice_comm_preset);
 }
 
 }  // namespace jni
