@@ -1060,8 +1060,7 @@ void VideoReceiveStream2::UpdatePlayoutDelays() const {
   }
 
   auto num_playout_delays_set =
-      // RingRTC change to reduce max playout delay
-      absl::c_count_if(min_delays, [](auto opt) { return opt.has_value() && *opt > TimeDelta::Zero(); });
+      absl::c_count_if(min_delays, [](auto opt) { return opt.has_value(); });
   if (num_playout_delays_set > 1 &&
       timing_->min_playout_delay() != *minimum_delay) {
     RTC_LOG(LS_WARNING)

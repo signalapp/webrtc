@@ -51,12 +51,7 @@ VCMTiming::VCMTiming(Clock* clock, const FieldTrialsView& field_trials)
       decode_time_filter_(std::make_unique<DecodeTimePercentileFilter>()),
       render_delay_(kDefaultRenderDelay),
       min_playout_delay_(TimeDelta::Zero()),
-      // RingRTC change to reduce max playout delay
-#if defined(WEBRTC_IOS)
-      max_playout_delay_(TimeDelta::Millis(501)),
-#else
-      max_playout_delay_(TimeDelta::Zero()),
-#endif
+      max_playout_delay_(TimeDelta::Seconds(10)),
       jitter_delay_(TimeDelta::Zero()),
       current_delay_(TimeDelta::Zero()),
       prev_frame_timestamp_(0),
@@ -92,10 +87,6 @@ TimeDelta VCMTiming::min_playout_delay() const {
 void VCMTiming::set_min_playout_delay(TimeDelta min_playout_delay) {
   MutexLock lock(&mutex_);
   if (min_playout_delay_ != min_playout_delay) {
-    // RingRTC change to reduce max playout delay
-    if (min_playout_delay > TimeDelta::Zero() && max_playout_delay_ == TimeDelta::Zero()) {
-      max_playout_delay_ = TimeDelta::Millis(501);
-    }
     CheckDelaysValid(min_playout_delay, max_playout_delay_);
     min_playout_delay_ = min_playout_delay;
   }
