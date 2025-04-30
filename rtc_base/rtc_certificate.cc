@@ -19,15 +19,16 @@
 #include "rtc_base/ssl_identity.h"
 #include "rtc_base/time_utils.h"
 
-namespace rtc {
+namespace webrtc {
 
 scoped_refptr<RTCCertificate> RTCCertificate::Create(
-    std::unique_ptr<SSLIdentity> identity) {
+    std::unique_ptr<rtc::SSLIdentity> identity) {
   // RingRTC change to make it easier to deal with RTCCertificate ref counts
   return rtc::make_ref_counted<RTCCertificate>(identity.release());
 }
 
-RTCCertificate::RTCCertificate(SSLIdentity* identity) : identity_(identity) {
+RTCCertificate::RTCCertificate(rtc::SSLIdentity* identity)
+    : identity_(identity) {
   RTC_DCHECK(identity_);
 }
 
@@ -46,11 +47,11 @@ bool RTCCertificate::HasExpired(uint64_t now) const {
   return Expires() <= now;
 }
 
-const SSLCertificate& RTCCertificate::GetSSLCertificate() const {
+const rtc::SSLCertificate& RTCCertificate::GetSSLCertificate() const {
   return identity_->certificate();
 }
 
-const SSLCertChain& RTCCertificate::GetSSLCertificateChain() const {
+const rtc::SSLCertChain& RTCCertificate::GetSSLCertificateChain() const {
   return identity_->cert_chain();
 }
 
@@ -61,8 +62,9 @@ RTCCertificatePEM RTCCertificate::ToPEM() const {
 
 scoped_refptr<RTCCertificate> RTCCertificate::FromPEM(
     const RTCCertificatePEM& pem) {
-  std::unique_ptr<SSLIdentity> identity(
-      SSLIdentity::CreateFromPEMStrings(pem.private_key(), pem.certificate()));
+  std::unique_ptr<rtc::SSLIdentity> identity(
+      rtc::SSLIdentity::CreateFromPEMStrings(pem.private_key(),
+                                             pem.certificate()));
   if (!identity)
     return nullptr;
   // RingRTC change to make it easier to deal with RTCCertificate ref counts
@@ -77,4 +79,4 @@ bool RTCCertificate::operator!=(const RTCCertificate& certificate) const {
   return !(*this == certificate);
 }
 
-}  // namespace rtc
+}  // namespace webrtc

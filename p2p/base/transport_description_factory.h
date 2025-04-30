@@ -15,6 +15,7 @@
 #include <utility>
 
 #include "api/field_trials_view.h"
+#include "api/scoped_refptr.h"
 #include "p2p/base/ice_credentials_iterator.h"
 #include "p2p/base/transport_description.h"
 #include "rtc_base/rtc_certificate.h"
@@ -46,7 +47,7 @@ class TransportDescriptionFactory {
   // RingRTC: Allow out-of-band / "manual" key negotiation.
   bool manually_specify_keys() const { return manually_specify_keys_; }
   // The certificate to use when setting up DTLS.
-  const rtc::scoped_refptr<rtc::RTCCertificate>& certificate() const {
+  const rtc::scoped_refptr<webrtc::RTCCertificate>& certificate() const {
     return certificate_;
   }
 
@@ -54,7 +55,7 @@ class TransportDescriptionFactory {
   // Specifies that keys should be manually specified.
   void set_manually_specify_keys(bool b) { manually_specify_keys_ = b; }
   // Specifies the certificate to use (only used when !manually_specify_keys).
-  void set_certificate(rtc::scoped_refptr<rtc::RTCCertificate> certificate) {
+  void set_certificate(rtc::scoped_refptr<webrtc::RTCCertificate> certificate) {
     certificate_ = std::move(certificate);
   }
 
@@ -95,7 +96,7 @@ class TransportDescriptionFactory {
   // True iff keys should be manually specified (e.g. negotiated out of band,
   // and not via DTLS).
   bool manually_specify_keys_ = false;
-  rtc::scoped_refptr<rtc::RTCCertificate> certificate_;
+  rtc::scoped_refptr<webrtc::RTCCertificate> certificate_;
   const webrtc::FieldTrialsView& field_trials_;
 };
 

@@ -10,13 +10,21 @@
 
 #include "video/buffered_frame_decryptor.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
 #include <utility>
 #include <vector>
 
+#include "api/array_view.h"
+#include "api/crypto/frame_decryptor_interface.h"
+#include "api/field_trials_view.h"
+#include "api/media_types.h"
+#include "api/scoped_refptr.h"
 #include "modules/rtp_rtcp/source/frame_object.h"
 #include "modules/rtp_rtcp/source/rtp_descriptor_authentication.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
-#include "system_wrappers/include/field_trial.h"
 
 namespace webrtc {
 
@@ -66,7 +74,7 @@ BufferedFrameDecryptor::FrameDecision BufferedFrameDecryptor::DecryptFrame(
   }
   // Retrieve the maximum possible size of the decrypted payload.
   const size_t max_plaintext_byte_size =
-      frame_decryptor_->GetMaxPlaintextByteSize(cricket::MEDIA_TYPE_VIDEO,
+      frame_decryptor_->GetMaxPlaintextByteSize(webrtc::MediaType::VIDEO,
                                                 frame->size());
   RTC_CHECK_LE(max_plaintext_byte_size, frame->size());
   // RingRTC change to allow encryption without generic descriptor
@@ -86,7 +94,7 @@ BufferedFrameDecryptor::FrameDecision BufferedFrameDecryptor::DecryptFrame(
 
   // Attempt to decrypt the video frame.
   const FrameDecryptorInterface::Result decrypt_result =
-      frame_decryptor_->Decrypt(cricket::MEDIA_TYPE_VIDEO, /*csrcs=*/{},
+      frame_decryptor_->Decrypt(webrtc::MediaType::VIDEO, /*csrcs=*/{},
                                 // RingRTC change to allow encryption without generic descriptor
                                 additional_data,
                                 encrypted_bitstream,
