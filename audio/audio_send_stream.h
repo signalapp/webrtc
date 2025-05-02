@@ -110,7 +110,7 @@ class AudioSendStream final : public webrtc::AudioSendStream,
   // RingRTC change to configure opus
   void ConfigureEncoder(const webrtc::AudioEncoder::Config& config) override;
 
-  // RingRTC change to get send/capture audio level
+  // RingRTC change to get audio levels
   uint16_t GetAudioLevel() override {
     MutexLock lock(&audio_level_lock_);
     return audio_level_.LevelFullRange();

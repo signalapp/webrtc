@@ -295,7 +295,7 @@ PeerConnectionFactory::CreatePeerConnectionOrError(
     // is enabled.
     uint32_t port_allocator_flags = configuration.port_allocator_config.flags;
     if (env.field_trials().IsEnabled("RingRTC-AnyAddressPortsKillSwitch")) {
-      port_allocator_flags &= ~cricket::PORTALLOCATOR_ENABLE_ANY_ADDRESS_PORTS;
+      port_allocator_flags &= ~webrtc::PORTALLOCATOR_ENABLE_ANY_ADDRESS_PORTS;
     }
     dependencies.allocator->set_flags(
         port_allocator_flags);

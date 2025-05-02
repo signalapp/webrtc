@@ -213,7 +213,7 @@ class MockPeerConnectionInternal : public PeerConnectionInternal {
               (override));
   MOCK_METHOD(bool,
               RemoveIceCandidates,
-              (const std::vector<cricket::Candidate>&),
+              (const std::vector<Candidate>&),
               (override));
   // RingRTC change to get unit tests building.
   MOCK_METHOD(uint32_t, GetLastBandwidthEstimateBps, (), (override));

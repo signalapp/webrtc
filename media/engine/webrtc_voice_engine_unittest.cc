@@ -330,7 +330,7 @@ class WebRtcVoiceEngineTestFake : public ::testing::TestWithParam<bool> {
       return false;
     }
     if (!use_null_apm_) {
-      // RingRTC change to RingRTC change to make it possible to share an APM.
+      // RingRTC change to make it possible to share an APM.
       // See set_capture_output_used in audio_processing.h.
       EXPECT_CALL(*apm_, set_capture_output_used(nullptr, true));
     }
@@ -416,7 +416,7 @@ class WebRtcVoiceEngineTestFake : public ::testing::TestWithParam<bool> {
                     const cricket::AudioOptions* options = nullptr) {
     ASSERT_TRUE(send_channel_);
     if (!use_null_apm_) {
-      // RingRTC change to RingRTC change to make it possible to share an APM.
+      // RingRTC change to make it possible to share an APM.
       // See set_capture_output_used in audio_processing.h.
       EXPECT_CALL(*apm_, set_capture_output_used(nullptr, enable));
     }

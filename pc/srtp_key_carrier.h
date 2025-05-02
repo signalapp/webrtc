@@ -19,7 +19,7 @@
 #include "api/jsep.h"
 #include "pc/session_description.h"
 
-namespace cricket {
+namespace webrtc {
 
 // A helper class used to propagate crypto params.
 class SrtpKeyCarrier {
@@ -46,6 +46,6 @@ class SrtpKeyCarrier {
   CryptoParams applied_recv_params_;
 };
 
-}  // namespace cricket
+}  // namespace webrtc
 
 #endif  // PC_SRTP_KEY_CARRIER_H_

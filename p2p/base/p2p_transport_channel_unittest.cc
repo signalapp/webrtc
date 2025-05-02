@@ -46,8 +46,6 @@
 #include "p2p/base/connection_info.h"
 #include "p2p/base/ice_controller_factory_interface.h"
 #include "p2p/base/ice_controller_interface.h"
-// RingRTC change to support ICE forking
-#include "p2p/base/ice_gatherer.h"
 #include "p2p/base/ice_switch_reason.h"
 #include "p2p/base/ice_transport_internal.h"
 #include "p2p/base/p2p_constants.h"
@@ -98,6 +96,9 @@
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/wait_until.h"
+
+// RingRTC change to support ICE forking
+#include "p2p/base/ice_gatherer.h"
 
 namespace {
 
@@ -7198,25 +7199,24 @@ TEST(P2PTransportChannel, InjectActiveIceController) {
                                   /* component= */ 77, std::move(init));
 }
 
-// RingRTC change to support ICE forking.
+// RingRTC change to support ICE forking
 TEST_F(P2PTransportChannelPingTest, Forking) {
-  // Prepare two transports with a shared gatherer
   rtc::ScopedFakeClock clock;
-  FakePortAllocator fake_port_allocator1(rtc::Thread::Current(), packet_socket_factory(),
-                                         &field_trials_);
+  const Environment env = CreateEnvironment();
+
+  // Prepare two transports with a shared gatherer
+  FakePortAllocator fake_port_allocator1(env, ss());
   auto transport1 = std::make_unique<P2PTransportChannel>(
       "transport1", 1, &fake_port_allocator1);
   PrepareChannel(transport1.get());
 
-  FakePortAllocator fake_port_allocator2(rtc::Thread::Current(), packet_socket_factory(),
-                                         &field_trials_);
+  FakePortAllocator fake_port_allocator2(env, ss());
   auto transport2 = std::make_unique<P2PTransportChannel>(
       "transport2", 1, &fake_port_allocator2);
   PrepareChannel(transport2.get());
 
   auto shared_pa =
-      std::make_unique<FakePortAllocator>(rtc::Thread::Current(), packet_socket_factory(),
-                                          &field_trials_);
+      std::make_unique<FakePortAllocator>(env, ss());
   auto gatherer = shared_pa->CreateIceGatherer("test");
 
   EXPECT_EQ(IceGatheringState::kIceGatheringNew, transport1->gathering_state());

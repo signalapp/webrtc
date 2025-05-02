@@ -273,7 +273,7 @@ BasicPortAllocator::CreateIceGatherer(const std::string& name) {
   // 3. Initialize()
   // 4. User setters to set flags and other settings
   // 5. SetConfiguration() to set various things.
-  // The only state this does not replicate are the follwing:
+  // The only state this does not replicate are the following:
   // - candidate_pool_size_
   // - candidate_pool_frozen_
   // - restrict_ice_credentials_change_
@@ -284,7 +284,7 @@ BasicPortAllocator::CreateIceGatherer(const std::string& name) {
   auto new_allocator = std::make_unique<BasicPortAllocator>(network_manager(),
                                                             socket_factory_,
                                                             nullptr,
-                                                            relay_port_factory_);
+                                                            relay_port_factory_.get());
 
   // 2. SetNetworkIgnoreMask().
   new_allocator->SetNetworkIgnoreMask(network_ignore_mask_);
@@ -311,9 +311,8 @@ BasicPortAllocator::CreateIceGatherer(const std::string& name) {
   auto session =
       new_allocator->CreateSession(name, 1, parameters.ufrag, parameters.pwd);
 
-  return rtc::make_ref_counted<cricket::BasicIceGatherer>(
+  return rtc::make_ref_counted<webrtc::BasicIceGatherer>(
       webrtc::Thread::Current(), std::move(new_allocator), std::move(session));
-
 }
 
 void BasicPortAllocator::AddTurnServerForTesting(

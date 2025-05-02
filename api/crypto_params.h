@@ -13,7 +13,7 @@
 #include "rtc_base/buffer.h"
 #include "rtc_base/ssl_stream_adapter.h"  // kSrtpInvalidCryptoSuite
 
-namespace cricket {
+namespace webrtc {
 
 // Parameters for propagating SRTP params to RTP transport.
 struct CryptoParams {
@@ -39,6 +39,6 @@ struct CryptoParams {
   rtc::ZeroOnFreeBuffer<uint8_t> key_params;
 };
 
-}  // namespace cricket
+}  // namespace webrtc
 
 #endif  // API_CRYPTO_PARAMS_H_

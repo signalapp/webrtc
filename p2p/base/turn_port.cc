@@ -664,7 +664,7 @@ Connection* TurnPort::CreateConnection(
   }
 
   // RingRTC change to prevent attempting relay connections to addresses that are not globally unique
-  if (rtc::IPIsNotGloballyUnique(remote_candidate.address().ipaddr())) {
+  if (webrtc::IPIsNotGloballyUnique(remote_candidate.address().ipaddr())) {
     return nullptr;
   }
 

@@ -142,7 +142,7 @@ class InjectableNetworkImpl : public InjectableNetwork, public rtc::NetworkManag
   }
 
   // As InjectableNetwork
-  std::unique_ptr<cricket::PortAllocator> CreatePortAllocator() override {
+  std::unique_ptr<webrtc::PortAllocator> CreatePortAllocator() override {
     RTC_LOG(LS_INFO) << "InjectableNetworkImpl::CreatePortAllocator()";
     return network_thread_->BlockingCall([this] {
       return std::make_unique<cricket::BasicPortAllocator>(this, this);

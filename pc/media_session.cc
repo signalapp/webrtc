@@ -658,9 +658,9 @@ bool IsMediaProtocolSupported(webrtc::MediaType type,
 void SetMediaProtocol(bool secure_transport, bool manually_specify_keys,
                       MediaContentDescription* desc) {
   if (manually_specify_keys)
-    desc->set_protocol(kMediaProtocolSavpf);
+    desc->set_protocol(cricket::kMediaProtocolSavpf);
   else if (secure_transport)
-    desc->set_protocol(kMediaProtocolDtlsSavpf);
+    desc->set_protocol(cricket::kMediaProtocolDtlsSavpf);
   else
     desc->set_protocol(cricket::kMediaProtocolAvpf);
 }
@@ -727,7 +727,7 @@ MediaSessionDescriptionFactory::CreateOfferOrError(
   }
 
   // RingRTC change to support ICE forking
-  IceCredentialsIterator ice_credentials(session_options.ice_credentials);
+  cricket::IceCredentialsIterator ice_credentials(session_options.ice_credentials);
 
   std::vector<const ContentInfo*> current_active_contents;
   if (current_description) {
@@ -859,7 +859,7 @@ MediaSessionDescriptionFactory::CreateAnswerOrError(
                 session_options.media_description_options.size());
 
   // RingRTC change to support ICE forking
-  IceCredentialsIterator ice_credentials(session_options.ice_credentials);
+  cricket::IceCredentialsIterator ice_credentials(session_options.ice_credentials);
 
   std::vector<const ContentInfo*> current_active_contents;
   if (current_description) {

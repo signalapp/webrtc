@@ -43,8 +43,6 @@
 
 // RingRTC change to support ICE forking
 #include <memory>
-#include <utility>
-
 #include "api/ice_gatherer_interface.h"
 #include "p2p/base/port_allocator.h"
 

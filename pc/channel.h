@@ -420,7 +420,7 @@ class VoiceChannel : public BaseChannel {
   void ConfigureEncoders(const webrtc::AudioEncoder::Config& config);
 
   // RingRTC change to get audio levels
-  void GetCapturedAudioLevel(cricket::AudioLevel* captured_out);
+  void GetCapturedAudioLevel(uint16_t* captured_out);
   std::optional<cricket::ReceivedAudioLevel> GetReceivedAudioLevel();
 
  private:

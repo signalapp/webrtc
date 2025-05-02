@@ -13,7 +13,7 @@
 #include <utility>
 #include "p2p/base/port_allocator.h"
 
-namespace cricket {
+namespace webrtc {
 
 // RingRTC change to support ICE forking
 BasicIceGatherer::BasicIceGatherer(
@@ -37,4 +37,4 @@ PortAllocatorSession* BasicIceGatherer::port_allocator_session() {
   return port_allocator_session_.get();
 }
 
-}  // namespace cricket
+}  // namespace webrtc

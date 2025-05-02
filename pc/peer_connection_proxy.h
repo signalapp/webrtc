@@ -153,9 +153,10 @@ PROXY_METHOD2(bool,
 PROXY_METHOD1(void,
               ConfigureAudioEncoders,
               const webrtc::AudioEncoder::Config&)
+// RingRTC change to get audio levels
 PROXY_METHOD4(void,
               GetAudioLevels,
-              cricket::AudioLevel*,
+              uint16_t*,
               cricket::ReceivedAudioLevel*,
               size_t,
               size_t*)

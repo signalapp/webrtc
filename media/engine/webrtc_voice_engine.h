@@ -274,7 +274,7 @@ class WebRtcVoiceSendChannel final : public MediaChannelUtil,
   void ConfigureEncoders(const webrtc::AudioEncoder::Config& config) override;
 
   // RingRTC change to get audio levels
-  void GetCapturedAudioLevel(cricket::AudioLevel* captured_out) override;
+  void GetCapturedAudioLevel(uint16_t* captured_out) override;
 
   bool SenderNackEnabled() const override {
     if (!send_codec_spec_) {

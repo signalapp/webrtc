@@ -2014,8 +2014,9 @@ void WebRtcVoiceSendChannel::ConfigureEncoders(const webrtc::AudioEncoder::Confi
   }
 }
 
-void WebRtcVoiceSendChannel::GetCapturedAudioLevel(cricket::AudioLevel* captured_out) {
-  cricket::AudioLevel captured = 0;
+// RingRTC change to get audio levels
+void WebRtcVoiceSendChannel::GetCapturedAudioLevel(uint16_t* captured_out) {
+  uint16_t captured = 0;
   for (const auto& kv : send_streams_) {
     captured = kv.second->GetAudioLevel();
   }
@@ -2524,7 +2525,7 @@ bool WebRtcVoiceReceiveChannel::SetOutputVolume(uint32_t ssrc, double volume) {
   const auto it = recv_streams_.find(ssrc);
   if (it == recv_streams_.end()) {
     // RingRTC change to reduce log noise.
-    RTC_LOG(LS_INFO) << rtc::StringFormat(
+    RTC_LOG(LS_INFO) << webrtc::StringFormat(
         "WRVMC::%s => (WARNING: no receive stream for SSRC %u)", __func__,
         ssrc);
     return false;

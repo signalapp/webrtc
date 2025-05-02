@@ -93,7 +93,6 @@
 #include "api/dtls_transport_interface.h"
 #include "api/fec_controller.h"
 #include "api/field_trials_view.h"
-#include "api/ice_gatherer_interface.h"
 #include "api/ice_transport_interface.h"
 #include "api/jsep.h"
 #include "api/legacy_stats_types.h"
@@ -125,12 +124,8 @@
 #include "api/video/video_bitrate_allocator_factory.h"
 #include "api/video_codecs/video_decoder_factory.h"
 #include "api/video_codecs/video_encoder_factory.h"
-#include "call/rtp_packet_sink_interface.h"
 #include "call/rtp_transport_controller_send_factory_interface.h"
 #include "media/base/media_config.h"
-#include "media/base/media_engine.h"
-#include "modules/rtp_rtcp/source/rtp_packet_received.h"
-#include "pc/rtp_transport.h"
 // TODO(bugs.webrtc.org/7447): We plan to provide a way to let applications
 // inject a PacketSocketFactory and/or NetworkManager, and not expose
 // PortAllocator in the PeerConnection api.
@@ -150,6 +145,15 @@
 #include "rtc_base/ssl_stream_adapter.h"
 #include "rtc_base/system/rtc_export.h"
 #include "rtc_base/thread.h"
+
+// RingRTC change to support ICE forking
+#include "api/ice_gatherer_interface.h"
+
+// RingRTC change to get audio levels
+#include "media/base/media_channel.h"
+
+// RingRTC change to receive RTP data
+#include "call/rtp_packet_sink_interface.h"
 
 namespace webrtc {
 // IWYU pragma: begin_keep
@@ -317,10 +321,10 @@ class RTC_EXPORT PeerConnectionInterface : public webrtc::RefCountInterface {
     int min_port = 0;
     int max_port = 0;
     // RingRTC change to default flags
-    uint32_t flags = cricket::PORTALLOCATOR_ENABLE_SHARED_SOCKET
-      | cricket::PORTALLOCATOR_ENABLE_IPV6
-      | cricket::PORTALLOCATOR_ENABLE_IPV6_ON_WIFI
-      | cricket::PORTALLOCATOR_ENABLE_ANY_ADDRESS_PORTS;
+    uint32_t flags = webrtc::PORTALLOCATOR_ENABLE_SHARED_SOCKET
+      | webrtc::PORTALLOCATOR_ENABLE_IPV6
+      | webrtc::PORTALLOCATOR_ENABLE_IPV6_ON_WIFI
+      | webrtc::PORTALLOCATOR_ENABLE_ANY_ADDRESS_PORTS;
   };
 
   enum class RTCConfigurationType {
@@ -1188,8 +1192,9 @@ class RTC_EXPORT PeerConnectionInterface : public webrtc::RefCountInterface {
     RTC_LOG(LS_WARNING) << "Default PeerConnectionInterface::ConfigureAudioEncoders(...) does nothing!";
   }
 
+  // RingRTC change to get audio levels
   virtual void GetAudioLevels(
-      cricket::AudioLevel* captured_out,
+      uint16_t* captured_out,
       cricket::ReceivedAudioLevel* received_out,
       size_t received_out_size,
       size_t* received_size_out);

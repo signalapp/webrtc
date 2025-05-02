@@ -156,8 +156,9 @@ class PeerConnectionWrapper {
   bool SendRtp(std::unique_ptr<RtpPacket> rtp_packet);
   bool ReceiveRtp(uint8_t pt, bool enable_incoming);
 
+  // RingRTC change to get audio levels
   void GetAudioLevels(
-      cricket::AudioLevel* captured_out,
+      uint16_t* captured_out,
       cricket::ReceivedAudioLevel* received_out,
       size_t received_out_size,
       size_t* received_size_out);

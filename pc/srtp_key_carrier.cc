@@ -15,7 +15,7 @@
 #include "rtc_base/logging.h"
 #include "rtc_base/ssl_stream_adapter.h"
 
-namespace cricket {
+namespace webrtc {
 
 SrtpKeyCarrier::SrtpKeyCarrier() = default;
 
@@ -64,4 +64,4 @@ bool SrtpKeyCarrier::SetAnswer(const CryptoParams& answer_params,
   return true;
 }
 
-}  // namespace cricket
+}  // namespace webrtc

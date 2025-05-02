@@ -152,7 +152,7 @@ class PeerConnectionSdpMethods {
   // `sctp_transport_name()` properties.
   virtual void DestroyDataChannelTransport(RTCError error) = 0;
 
-  // RingRTC change to support ICE forking.
+  // RingRTC change to support ICE forking
   virtual rtc::scoped_refptr<IceGathererInterface> shared_ice_gatherer() {
     return nullptr;
   }

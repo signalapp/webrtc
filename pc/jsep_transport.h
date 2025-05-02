@@ -57,7 +57,7 @@ struct JsepTransportDescription {
   JsepTransportDescription(
       bool rtcp_mux_enabled,
       // RingRTC: Allow out-of-band / "manual" key negotiation.
-      const std::optional<CryptoParams>& crypto,
+      const std::optional<webrtc::CryptoParams>& crypto,
       const std::vector<int>& encrypted_header_extension_ids,
       int rtp_abs_sendtime_extn_id,
       const TransportDescription& transport_description);
@@ -68,7 +68,7 @@ struct JsepTransportDescription {
 
   bool rtcp_mux_enabled = true;
   // RingRTC: Allow out-of-band / "manual" key negotiation.
-  std::optional<CryptoParams> crypto;
+  std::optional<webrtc::CryptoParams> crypto;
   std::vector<int> encrypted_header_extension_ids;
   int rtp_abs_sendtime_extn_id = -1;
   // TODO(zhihuang): Add the ICE and DTLS related variables and methods from
@@ -268,7 +268,7 @@ class JsepTransport {
   void ActivateRtcpMux() RTC_RUN_ON(network_thread_);
 
   // RingRTC: Allow out-of-band / "manual" key negotiation.
-  bool SetSrtpCrypto(const std::optional<CryptoParams>& crypto,
+  bool SetSrtpCrypto(const std::optional<webrtc::CryptoParams>& crypto,
                      const std::vector<int>& encrypted_extension_ids,
                      webrtc::SdpType type,
                      ContentSource source);
@@ -337,7 +337,7 @@ class JsepTransport {
   const rtc::scoped_refptr<webrtc::SctpTransport> sctp_transport_;
 
   // RingRTC: Allow out-of-band / "manual" key negotiation.
-  SrtpKeyCarrier srtp_key_carrier_ RTC_GUARDED_BY(network_thread_);
+  webrtc::SrtpKeyCarrier srtp_key_carrier_ RTC_GUARDED_BY(network_thread_);
   RtcpMuxFilter rtcp_mux_negotiator_ RTC_GUARDED_BY(network_thread_);
 
   // Cache the encrypted header extension IDs for SDES negoitation.

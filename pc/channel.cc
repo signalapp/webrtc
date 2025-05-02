@@ -1001,7 +1001,7 @@ void VoiceChannel::ConfigureEncoders(const webrtc::AudioEncoder::Config& config)
 }
 
 // RingRTC change to get audio levels
-void VoiceChannel::GetCapturedAudioLevel(cricket::AudioLevel* captured_out) {
+void VoiceChannel::GetCapturedAudioLevel(uint16_t* captured_out) {
   RTC_DCHECK_RUN_ON(worker_thread());
   voice_media_send_channel()->GetCapturedAudioLevel(captured_out);
 }

@@ -35,6 +35,11 @@
 #include "rtc_base/socket_factory.h"
 #include "rtc_base/task_queue_for_test.h"
 
+// RingRTC change to support ICE forking
+#include "api/make_ref_counted.h"
+#include "p2p/base/ice_credentials_iterator.h"
+#include "p2p/base/ice_gatherer.h"
+
 namespace cricket {
 
 class TestUDPPort : public UDPPort {
@@ -141,8 +146,8 @@ class FakePortAllocatorSession : public webrtc::PortAllocatorSession {
                                       0, 0, false));
       RTC_DCHECK(port_);
       port_->SetIceTiebreaker(allocator_->ice_tiebreaker());
-      port_->SubscribePortDestroyed(
-          [this](PortInterface* port) { OnPortDestroyed(port); });
+      // RingRTC change to support ICE forking
+      port_->SignalDestroyed.connect(this, &FakePortAllocatorSession::OnPortDestroyed);
       AddPort(port_.get());
     }
     ++port_config_count_;
@@ -239,6 +244,10 @@ class FakePortAllocator : public webrtc::PortAllocator {
                         webrtc::TaskQueueBase::Current())
       : env_(env), network_thread_(network_thread), factory_(socket_factory) {
     RTC_CHECK(network_thread);
+
+    // RingRTC change to support ICE forking
+    this->socket_factory_ = socket_factory;
+
     SendTask(network_thread_, [this] { Initialize(); });
   }
 
@@ -252,6 +261,19 @@ class FakePortAllocator : public webrtc::PortAllocator {
     return new FakePortAllocatorSession(env_, this, network_thread_, &factory_,
                                         content_name, component, ice_ufrag,
                                         ice_pwd);
+  }
+
+  // RingRTC change to support ICE forking
+  rtc::scoped_refptr<webrtc::IceGathererInterface> CreateIceGatherer(
+      const std::string& content_name) override {
+    auto new_allocator =
+        std::make_unique<FakePortAllocator>(env_, socket_factory_);
+    IceParameters parameters =
+        cricket::IceCredentialsIterator::CreateRandomIceCredentials();
+    auto session = new_allocator->CreateSession(
+        content_name, 1, parameters.ufrag, parameters.pwd);
+    return rtc::make_ref_counted<webrtc::BasicIceGatherer>(
+        webrtc::Thread::Current(), std::move(new_allocator), std::move(session));
   }
 
   bool initialized() const { return initialized_; }
@@ -268,6 +290,10 @@ class FakePortAllocator : public webrtc::PortAllocator {
   const webrtc::Environment env_;
   absl::Nonnull<webrtc::TaskQueueBase*> network_thread_;
   webrtc::BasicPacketSocketFactory factory_;
+
+  // RingRTC change to support ICE forking
+  webrtc::SocketFactory* socket_factory_;
+
   bool mdns_obfuscation_enabled_ = false;
 };
 

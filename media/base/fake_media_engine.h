@@ -627,7 +627,7 @@ class FakeVoiceMediaSendChannel
   void ConfigureEncoders(const webrtc::AudioEncoder::Config& config) override {}
 
   // RingRTC change to get audio levels
-  void GetCapturedAudioLevel(cricket::AudioLevel* captured_out) override {}
+  void GetCapturedAudioLevel(uint16_t* captured_out) override {}
 
   bool GetStats(VoiceMediaSendInfo* stats) override;
 

@@ -142,7 +142,7 @@ class RTC_EXPORT P2PTransportChannel : public webrtc::IceTransportInternal,
   webrtc::IceGathererInterface* shared_gatherer() override {
     return shared_gatherer_.get();
   }
-  IceGatheringState gathering_state() const override;
+  webrtc::IceGatheringState gathering_state() const override;
   void ResolveHostnameCandidate(const webrtc::Candidate& candidate);
   void AddRemoteCandidate(const webrtc::Candidate& candidate) override;
   void RemoveRemoteCandidate(const webrtc::Candidate& candidate) override;

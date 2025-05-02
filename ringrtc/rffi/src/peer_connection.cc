@@ -21,6 +21,7 @@
 #include "rffi/src/sdp_observer.h"
 #include "rffi/src/stats_observer.h"
 #include "rtc_base/message_digest.h"
+#include "rtc_base/net_helper.h"
 #include "rtc_base/string_encode.h"
 
 #include <algorithm>
@@ -96,7 +97,7 @@ Rust_updateTransceivers(webrtc::PeerConnectionInterface*      peer_connection_bo
     // The same demux ID is used for both the audio and video transceiver, and
     // audio is added first. So only advance to the next demux ID after seeing
     // a video transceiver.
-    if (transceiver->media_type() == cricket::MEDIA_TYPE_VIDEO) {
+    if (transceiver->media_type() == webrtc::MediaType::VIDEO) {
       remote_demux_ids_i++;
     }
   }
@@ -109,13 +110,13 @@ Rust_updateTransceivers(webrtc::PeerConnectionInterface*      peer_connection_bo
     init.direction = RtpTransceiverDirection::kRecvOnly;
     init.stream_ids = {rtc::ToString(remote_demux_id)};
 
-    auto result = peer_connection_borrowed_rc->AddTransceiver(cricket::MEDIA_TYPE_AUDIO, init);
+    auto result = peer_connection_borrowed_rc->AddTransceiver(webrtc::MediaType::AUDIO, init);
     if (!result.ok()) {
       RTC_LOG(LS_ERROR) << "Failed to PeerConnection::AddTransceiver(audio)";
       return false;
     }
 
-    result = peer_connection_borrowed_rc->AddTransceiver(cricket::MEDIA_TYPE_VIDEO, init);
+    result = peer_connection_borrowed_rc->AddTransceiver(webrtc::MediaType::VIDEO, init);
     if (!result.ok()) {
       RTC_LOG(LS_ERROR) << "Failed to PeerConnection::AddTransceiver(video)";
       return false;
@@ -199,7 +200,7 @@ Rust_disableDtlsAndSetSrtpKey(webrtc::SessionDescriptionInterface* session_descr
     return false;
   }
 
-  cricket::CryptoParams crypto_params;
+  CryptoParams crypto_params;
   crypto_params.crypto_suite = crypto_suite;
 
   crypto_params.key_params.SetData(key_borrowed, key_len);
@@ -522,7 +523,7 @@ CreateSessionDescriptionForGroupCall(bool local,
   transport.identity_fingerprint = nullptr;
 
   // Use SRTP master key material instead
-  cricket::CryptoParams crypto_params;
+  CryptoParams crypto_params;
   crypto_params.crypto_suite = srtp_key.suite;
   crypto_params.key_params.SetData(srtp_key.key_borrowed, srtp_key.key_len);
   crypto_params.key_params.AppendData(srtp_key.salt_borrowed, srtp_key.salt_len);
@@ -1044,7 +1045,7 @@ Rust_configureAudioEncoders(webrtc::PeerConnectionInterface* peer_connection_bor
 
 RUSTEXPORT void
 Rust_getAudioLevels(webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
-                    cricket::AudioLevel* captured_out,
+                    uint16_t* captured_out,
                     cricket::ReceivedAudioLevel* received_out, 
                     size_t received_out_size,
                     size_t* received_size_out) {

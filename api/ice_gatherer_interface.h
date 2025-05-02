@@ -14,11 +14,8 @@
 #include <memory>
 #include "api/ref_count.h"
 
-namespace cricket {
-class PortAllocatorSession;
-}  // namespace cricket
-
 namespace webrtc {
+class PortAllocatorSession;
 
 // An IceGatherer is basically a shareable PortAllocatorSession.
 // This is useful for doing ICE forking, where the local ports are shared
@@ -26,7 +23,7 @@ namespace webrtc {
 // PortAllocatorSession is valid.
 class IceGathererInterface : public webrtc::RefCountInterface {
  public:
-  virtual cricket::PortAllocatorSession* port_allocator_session() = 0;
+  virtual webrtc::PortAllocatorSession* port_allocator_session() = 0;
   virtual ~IceGathererInterface() = default;
 };
 

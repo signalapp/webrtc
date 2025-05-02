@@ -253,8 +253,9 @@ class PeerConnection : public PeerConnectionInternal,
 
   void ConfigureAudioEncoders(const webrtc::AudioEncoder::Config& config) override;
 
+  // RingRTC change to get audio levels
   void GetAudioLevels(
-      cricket::AudioLevel* captured_out,
+      uint16_t* captured_out,
       cricket::ReceivedAudioLevel* received_out,
       size_t received_out_size,
       size_t* received_size_out) override;

@@ -1202,7 +1202,7 @@ RTCError JsepTransportController::MaybeCreateJsepTransport(
     return RTCError::OK();
   }
   // RingRTC: Allow out-of-band / "manual" key negotiation.
-  const cricket::MediaContentDescription* content_desc =
+  const MediaContentDescription* content_desc =
       content_info.media_description();
   if (certificate_ && content_desc->crypto().has_value()) {
     return RTCError(RTCErrorType::INVALID_PARAMETER,

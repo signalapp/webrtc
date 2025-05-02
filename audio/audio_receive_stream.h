@@ -145,7 +145,7 @@ class AudioReceiveStreamImpl final : public webrtc::AudioReceiveStreamInterface,
   void ReconfigureForTesting(
       const webrtc::AudioReceiveStreamInterface::Config& config);
 
-  // RingRTC change to get recv audio levels
+  // RingRTC change to get audio levels
   uint16_t GetAudioLevel() override;
 
  private:

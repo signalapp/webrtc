@@ -15,7 +15,7 @@
 #include "api/ice_gatherer_interface.h"
 #include "p2p/base/port_allocator.h"
 
-namespace cricket {
+namespace webrtc {
 
 // RingRTC change to support ICE forking
 // A simple implementation of an IceGatherer that owns the
@@ -39,6 +39,6 @@ class BasicIceGatherer : public webrtc::IceGathererInterface {
   std::unique_ptr<PortAllocatorSession> port_allocator_session_;
 };
 
-}  // namespace cricket
+}  // namespace webrtc
 
 #endif  // P2P_BASE_ICE_GATHERER_H_

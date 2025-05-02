@@ -3119,7 +3119,7 @@ bool PeerConnection::ReceiveRtp(uint8_t pt, bool enable_incoming) {
 void PeerConnection::ConfigureAudioEncoders(const webrtc::AudioEncoder::Config& config) {
   std::vector<cricket::VoiceChannel*> sending_voice_channels;
   for (const auto& transceiver : rtp_manager()->transceivers()->List()) {
-    if (transceiver->media_type() != cricket::MEDIA_TYPE_AUDIO) {
+    if (transceiver->media_type() != webrtc::MediaType::AUDIO) {
       continue;
     }
 
@@ -3146,7 +3146,8 @@ void PeerConnection::ConfigureAudioEncoders(const webrtc::AudioEncoder::Config& 
   });
 }
 
-void PeerConnection::GetAudioLevels(cricket::AudioLevel* captured_out,
+// RingRTC change to get audio levels
+void PeerConnection::GetAudioLevels(uint16_t* captured_out,
                                     cricket::ReceivedAudioLevel* received_out,
                                     size_t received_out_size,
                                     size_t* received_size_out) {
@@ -3157,7 +3158,7 @@ void PeerConnection::GetAudioLevels(cricket::AudioLevel* captured_out,
   std::vector<cricket::VoiceChannel*> receiving_voice_channels;
   auto transceivers = rtp_manager()->transceivers()->List();
   for (auto transceiver : transceivers) {
-    if (transceiver->media_type() != cricket::MEDIA_TYPE_AUDIO) {
+    if (transceiver->media_type() != webrtc::MediaType::AUDIO) {
       continue;
     }
 

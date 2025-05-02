@@ -10,6 +10,7 @@
 #include "rffi/src/ptr.h"
 
 #include "pc/webrtc_sdp.h"
+#include "rtc_base/net_helper.h"
 
 namespace webrtc {
 namespace rffi {
@@ -156,7 +157,7 @@ void PeerConnectionObserverRffi::OnTrack(
   // Ownership is transferred to the rust call back
   // handler.  Someone must call RefCountInterface::Release()
   // eventually.
-  if (receiver->media_type() == cricket::MEDIA_TYPE_AUDIO) {
+  if (receiver->media_type() == webrtc::MediaType::AUDIO) {
     if (enable_frame_encryption_) {
       uint32_t id = 0;
       if (receiver->stream_ids().size() > 0) {
@@ -171,7 +172,7 @@ void PeerConnectionObserverRffi::OnTrack(
     } else {
       callbacks_.onAddAudioRtpReceiver(observer_, take_rc(receiver->track()));
     }
-  } else if (receiver->media_type() == cricket::MEDIA_TYPE_VIDEO) {
+  } else if (receiver->media_type() == webrtc::MediaType::VIDEO) {
     if (enable_frame_encryption_) {
       uint32_t id = 0;
       if (receiver->stream_ids().size() > 0) {
@@ -199,10 +200,10 @@ class Encryptor : public webrtc::FrameEncryptorInterface {
 
   // This is called just before Encrypt to get the size of the ciphertext
   // buffer that will be given to Encrypt.
-  size_t GetMaxCiphertextByteSize(cricket::MediaType media_type,
+  size_t GetMaxCiphertextByteSize(webrtc::MediaType media_type,
                                   size_t plaintext_size) override {
-    bool is_audio = (media_type == cricket::MEDIA_TYPE_AUDIO);
-    bool is_video = (media_type == cricket::MEDIA_TYPE_VIDEO);
+    bool is_audio = (media_type == webrtc::MediaType::AUDIO);
+    bool is_video = (media_type == webrtc::MediaType::VIDEO);
     if (!is_audio && !is_video) {
       RTC_LOG(LS_WARNING) << "GetMaxCiphertextByteSize called with weird media type: " << media_type;
       return 0;
@@ -210,7 +211,7 @@ class Encryptor : public webrtc::FrameEncryptorInterface {
     return callbacks_->getMediaCiphertextBufferSize(observer_, is_audio, plaintext_size);
   }
                                           
-  int Encrypt(cricket::MediaType media_type,
+  int Encrypt(webrtc::MediaType media_type,
               // Our encryption mechanism is the same regardless of SSRC
               uint32_t _ssrc,
               // This is not supported by our SFU currently, so don't bother trying to use it.
@@ -218,8 +219,8 @@ class Encryptor : public webrtc::FrameEncryptorInterface {
               rtc::ArrayView<const uint8_t> plaintext,
               rtc::ArrayView<uint8_t> ciphertext_buffer,
               size_t* ciphertext_size) override {
-    bool is_audio = (media_type == cricket::MEDIA_TYPE_AUDIO);
-    bool is_video = (media_type == cricket::MEDIA_TYPE_VIDEO);
+    bool is_audio = (media_type == webrtc::MediaType::AUDIO);
+    bool is_video = (media_type == webrtc::MediaType::VIDEO);
     if (!is_audio && !is_video) {
       RTC_LOG(LS_WARNING) << "Encrypt called with weird media type: " << media_type;
       return -1;  // Error
@@ -298,10 +299,10 @@ class Decryptor : public webrtc::FrameDecryptorInterface {
 
   // This is called just before Decrypt to get the size of the plaintext
   // buffer that will be given to Decrypt.
-  size_t GetMaxPlaintextByteSize(cricket::MediaType media_type,
+  size_t GetMaxPlaintextByteSize(webrtc::MediaType media_type,
                                  size_t ciphertext_size) override {
-    bool is_audio = (media_type == cricket::MEDIA_TYPE_AUDIO);
-    bool is_video = (media_type == cricket::MEDIA_TYPE_VIDEO);
+    bool is_audio = (media_type == webrtc::MediaType::AUDIO);
+    bool is_video = (media_type == webrtc::MediaType::VIDEO);
     if (!is_audio && !is_video) {
       RTC_LOG(LS_WARNING) << "GetMaxPlaintextByteSize called with weird media type: " << media_type;
       return 0;
@@ -309,15 +310,15 @@ class Decryptor : public webrtc::FrameDecryptorInterface {
     return callbacks_->getMediaPlaintextBufferSize(observer_, track_id_, is_audio, ciphertext_size);
   }
 
-  FrameDecryptorInterface::Result Decrypt(cricket::MediaType media_type,
+  FrameDecryptorInterface::Result Decrypt(webrtc::MediaType media_type,
                                           // Our encryption mechanism is the same regardless of CSRCs
                                           const std::vector<uint32_t>& _csrcs,
                                           // This is not supported by our SFU currently, so don't bother trying to use it.
                                           rtc::ArrayView<const uint8_t> _generic_video_header,
                                           rtc::ArrayView<const uint8_t> ciphertext,
                                           rtc::ArrayView<uint8_t> plaintext_buffer) override {
-    bool is_audio = (media_type == cricket::MEDIA_TYPE_AUDIO);
-    bool is_video = (media_type == cricket::MEDIA_TYPE_VIDEO);
+    bool is_audio = (media_type == webrtc::MediaType::AUDIO);
+    bool is_video = (media_type == webrtc::MediaType::VIDEO);
     if (!is_audio && !is_video) {
       RTC_LOG(LS_WARNING) << "Decrypt called with weird media type: " << media_type;
       return FrameDecryptorInterface::Result(FrameDecryptorInterface::Status::kUnknown, 0);

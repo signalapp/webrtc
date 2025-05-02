@@ -37,7 +37,7 @@ JsepTransportDescription::JsepTransportDescription() {}
 JsepTransportDescription::JsepTransportDescription(
     bool rtcp_mux_enabled,
     // RingRTC: Allow out-of-band / "manual" key negotiation.
-    const std::optional<CryptoParams>& crypto,
+    const std::optional<webrtc::CryptoParams>& crypto,
     const std::vector<int>& encrypted_header_extension_ids,
     int rtp_abs_sendtime_extn_id,
     const TransportDescription& transport_desc)
@@ -520,7 +520,7 @@ void JsepTransport::ActivateRtcpMux() {
 
 // RingRTC: Allow out-of-band / "manual" key negotiation.
 bool JsepTransport::SetSrtpCrypto(
-    const std::optional<CryptoParams>& crypto,
+    const std::optional<webrtc::CryptoParams>& crypto,
     const std::vector<int>& encrypted_extension_ids,
     webrtc::SdpType type,
     ContentSource source) {
@@ -542,8 +542,8 @@ bool JsepTransport::SetSrtpCrypto(
   // If appropriate, apply the negotiated parameters
   // to the SRTP transport.
   if (type == SdpType::kPrAnswer || type == SdpType::kAnswer) {
-    const CryptoParams& send = srtp_key_carrier_.send_params();
-    const CryptoParams& recv = srtp_key_carrier_.recv_params();
+    const webrtc::CryptoParams& send = srtp_key_carrier_.send_params();
+    const webrtc::CryptoParams& recv = srtp_key_carrier_.recv_params();
     RTC_DCHECK(send_extension_ids_);
     RTC_DCHECK(recv_extension_ids_);
     return srtp_transport_->SetRtpParams(
