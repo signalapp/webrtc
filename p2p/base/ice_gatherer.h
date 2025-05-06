@@ -8,6 +8,8 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+// RingRTC change to support ICE forking
+
 #ifndef P2P_BASE_ICE_GATHERER_H_
 #define P2P_BASE_ICE_GATHERER_H_
 
@@ -17,10 +19,9 @@
 
 namespace webrtc {
 
-// RingRTC change to support ICE forking
 // A simple implementation of an IceGatherer that owns the
 // PortAllocator and PortAllocatorSession.
-class BasicIceGatherer : public webrtc::IceGathererInterface {
+class BasicIceGatherer : public IceGathererInterface {
  public:
   BasicIceGatherer(
       rtc::Thread* network_thread,
