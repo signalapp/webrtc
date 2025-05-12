@@ -8,27 +8,27 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+// RingRTC change to support ICE forking
+
 #ifndef API_ICE_GATHERER_INTERFACE_H_
 #define API_ICE_GATHERER_INTERFACE_H_
 
 #include <memory>
 #include "api/ref_count.h"
 
-namespace cricket {
-class PortAllocatorSession;
-}  // namespace cricket
-
 namespace webrtc {
+class PortAllocatorSession;
 
 // An IceGatherer is basically a shareable PortAllocatorSession.
 // This is useful for doing ICE forking, where the local ports are shared
 // between many IceTransports. As long as the IceGatherer is not destroyed, the
 // PortAllocatorSession is valid.
-class IceGathererInterface : public webrtc::RefCountInterface {
+class IceGathererInterface : public RefCountInterface {
  public:
-  virtual cricket::PortAllocatorSession* port_allocator_session() = 0;
+  virtual PortAllocatorSession* port_allocator_session() = 0;
   virtual ~IceGathererInterface() = default;
 };
 
 }  // namespace webrtc
+
 #endif  // API_ICE_GATHERER_INTERFACE_H_

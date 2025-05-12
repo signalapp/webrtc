@@ -116,8 +116,15 @@ class WebRtcVoiceEngine final : public VoiceEngineInterface {
       const webrtc::CryptoOptions& crypto_options,
       webrtc::AudioCodecPairId codec_pair_id) override;
 
-  const std::vector<Codec>& send_codecs() const override;
-  const std::vector<Codec>& recv_codecs() const override;
+  const std::vector<Codec>& LegacySendCodecs() const override;
+  const std::vector<Codec>& LegacyRecvCodecs() const override;
+
+  webrtc::AudioEncoderFactory* encoder_factory() const override {
+    return encoder_factory_.get();
+  }
+  webrtc::AudioDecoderFactory* decoder_factory() const override {
+    return decoder_factory_.get();
+  }
   std::vector<webrtc::RtpHeaderExtensionCapability> GetRtpHeaderExtensions()
       const override;
 
@@ -193,7 +200,9 @@ class WebRtcVoiceSendChannel final : public MediaChannelUtil,
 
   ~WebRtcVoiceSendChannel() override;
 
-  MediaType media_type() const override { return MEDIA_TYPE_AUDIO; }
+  webrtc::MediaType media_type() const override {
+    return webrtc::MediaType::AUDIO;
+  }
   VideoMediaSendChannelInterface* AsVideoSendChannel() override {
     RTC_CHECK_NOTREACHED();
     return nullptr;
@@ -265,7 +274,7 @@ class WebRtcVoiceSendChannel final : public MediaChannelUtil,
   void ConfigureEncoders(const webrtc::AudioEncoder::Config& config) override;
 
   // RingRTC change to get audio levels
-  void GetCapturedAudioLevel(cricket::AudioLevel* captured_out) override;
+  void GetCapturedAudioLevel(uint16_t* captured_out) override;
 
   bool SenderNackEnabled() const override {
     if (!send_codec_spec_) {
@@ -362,7 +371,9 @@ class WebRtcVoiceReceiveChannel final
 
   ~WebRtcVoiceReceiveChannel() override;
 
-  MediaType media_type() const override { return MEDIA_TYPE_AUDIO; }
+  webrtc::MediaType media_type() const override {
+    return webrtc::MediaType::AUDIO;
+  }
 
   VideoMediaReceiveChannelInterface* AsVideoReceiveChannel() override {
     RTC_CHECK_NOTREACHED();

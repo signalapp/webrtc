@@ -8,14 +8,15 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+// RingRTC change to support ICE forking
+
 #include "p2p/base/ice_gatherer.h"
 
 #include <utility>
 #include "p2p/base/port_allocator.h"
 
-namespace cricket {
+namespace webrtc {
 
-// RingRTC change to support ICE forking
 BasicIceGatherer::BasicIceGatherer(
     rtc::Thread* network_thread,
     std::unique_ptr<PortAllocator> port_allocator,
@@ -37,4 +38,4 @@ PortAllocatorSession* BasicIceGatherer::port_allocator_session() {
   return port_allocator_session_.get();
 }
 
-}  // namespace cricket
+}  // namespace webrtc

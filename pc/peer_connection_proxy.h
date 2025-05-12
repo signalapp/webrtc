@@ -53,10 +53,10 @@ PROXY_METHOD2(RTCErrorOr<rtc::scoped_refptr<RtpTransceiverInterface>>,
               const RtpTransceiverInit&)
 PROXY_METHOD1(RTCErrorOr<rtc::scoped_refptr<RtpTransceiverInterface>>,
               AddTransceiver,
-              cricket::MediaType)
+              webrtc::MediaType)
 PROXY_METHOD2(RTCErrorOr<rtc::scoped_refptr<RtpTransceiverInterface>>,
               AddTransceiver,
-              cricket::MediaType,
+              webrtc::MediaType,
               const RtpTransceiverInit&)
 PROXY_METHOD2(rtc::scoped_refptr<RtpSenderInterface>,
               CreateSender,
@@ -136,7 +136,8 @@ PROXY_METHOD2(void,
               AddIceCandidate,
               std::unique_ptr<IceCandidateInterface>,
               std::function<void(RTCError)>)
-PROXY_METHOD1(bool, RemoveIceCandidates, const std::vector<cricket::Candidate>&)
+PROXY_METHOD1(bool, RemoveIceCandidates, const std::vector<Candidate>&)
+// RingRTC change to support ICE forking
 PROXY_METHOD0(rtc::scoped_refptr<webrtc::IceGathererInterface>,
               CreateSharedIceGatherer)
 PROXY_METHOD1(bool,
@@ -152,9 +153,10 @@ PROXY_METHOD2(bool,
 PROXY_METHOD1(void,
               ConfigureAudioEncoders,
               const webrtc::AudioEncoder::Config&)
-PROXY_METHOD4(void, 
+// RingRTC change to get audio levels
+PROXY_METHOD4(void,
               GetAudioLevels,
-              cricket::AudioLevel*,
+              uint16_t*,
               cricket::ReceivedAudioLevel*,
               size_t,
               size_t*)
@@ -192,7 +194,7 @@ PROXY_METHOD1(bool, StartRtcEventLog, std::unique_ptr<RtcEventLogOutput>)
 PROXY_METHOD0(void, StopRtcEventLog)
 PROXY_METHOD0(void, Close)
 PROXY_METHOD0(NetworkControllerInterface*, GetNetworkController)
-BYPASS_PROXY_CONSTMETHOD0(rtc::Thread*, signaling_thread)
+BYPASS_PROXY_CONSTMETHOD0(Thread*, signaling_thread)
 END_PROXY_MAP(PeerConnection)
 
 }  // namespace webrtc

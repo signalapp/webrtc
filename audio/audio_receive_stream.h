@@ -106,6 +106,7 @@ class AudioReceiveStreamImpl final : public webrtc::AudioReceiveStreamInterface,
   bool SetBaseMinimumPlayoutDelayMs(int delay_ms) override;
   int GetBaseMinimumPlayoutDelayMs() const override;
   std::vector<webrtc::RtpSource> GetSources() const override;
+  AudioMixer::Source* source() override { return this; }
 
   // AudioMixer::Source
   AudioFrameInfo GetAudioFrameWithInfo(int sample_rate_hz,
@@ -144,7 +145,7 @@ class AudioReceiveStreamImpl final : public webrtc::AudioReceiveStreamInterface,
   void ReconfigureForTesting(
       const webrtc::AudioReceiveStreamInterface::Config& config);
 
-  // RingRTC change to get recv audio levels
+  // RingRTC change to get audio levels
   uint16_t GetAudioLevel() override;
 
  private:

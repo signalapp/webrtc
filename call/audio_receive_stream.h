@@ -17,6 +17,7 @@
 #include <optional>
 #include <string>
 
+#include "api/audio/audio_mixer.h"
 #include "api/audio_codecs/audio_codec_pair_id.h"
 #include "api/audio_codecs/audio_decoder_factory.h"
 #include "api/audio_codecs/audio_format.h"
@@ -211,7 +212,7 @@ class AudioReceiveStreamInterface : public MediaReceiveStreamInterface {
   // Returns current value of base minimum delay in milliseconds.
   virtual int GetBaseMinimumPlayoutDelayMs() const = 0;
 
-  // RingRTC change to get recv audio levels
+  // RingRTC change to get audio levels
   virtual uint16_t GetAudioLevel() {
     RTC_LOG(LS_WARNING) << "Default AudioReceiveStream::GetAudioLevel() does nothing!";
     return 0;
@@ -221,6 +222,10 @@ class AudioReceiveStreamInterface : public MediaReceiveStreamInterface {
   // This member will not change mid-stream and can be assumed to be const
   // post initialization.
   virtual uint32_t remote_ssrc() const = 0;
+
+  // Get the object suitable to inject into the AudioMixer
+  // (normally "this").
+  virtual AudioMixer::Source* source() = 0;
 
  protected:
   virtual ~AudioReceiveStreamInterface() {}

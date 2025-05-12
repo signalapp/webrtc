@@ -30,7 +30,7 @@ class InjectableNetwork {
 
   // This is what the network stack sees.
   // The PacketSocketFactory and NetworkManager are referenced by the PortAllocator.
-  virtual std::unique_ptr<cricket::PortAllocator> CreatePortAllocator() = 0;
+  virtual std::unique_ptr<webrtc::PortAllocator> CreatePortAllocator() = 0;
 
   // This is what the "driver" of the network sees: control of packets, 
   // network interfaces, etc.
