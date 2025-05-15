@@ -40,10 +40,8 @@ struct BitrateConstraints {
   int start_bitrate_bps = kDefaultStartBitrateBps;
   int max_bitrate_bps = -1;
 
- public:
-  // RingRTC change to start with lower bitrate
-  // Make public to share default value for estimation and allocation.
-  static constexpr int kDefaultStartBitrateBps = 100000;
+ private:
+  static constexpr int kDefaultStartBitrateBps = 300000;
 };
 
 }  // namespace webrtc
