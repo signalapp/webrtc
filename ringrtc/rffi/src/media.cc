@@ -3,11 +3,12 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-#include "api/video/i420_buffer.h"
-#include "rtc_base/ref_counted_object.h"
 #include "rffi/api/media.h"
+
+#include "api/video/i420_buffer.h"
 #include "rffi/src/ptr.h"
 #include "rtc_base/logging.h"
+#include "rtc_base/ref_counted_object.h"
 #include "rtc_base/time_utils.h"
 #include "third_party/libyuv/include/libyuv/convert.h"
 #include "third_party/libyuv/include/libyuv/convert_argb.h"
@@ -15,11 +16,9 @@
 namespace webrtc {
 namespace rffi {
 
-VideoSource::VideoSource() : rtc::AdaptedVideoTrackSource() {
-}
+VideoSource::VideoSource() : rtc::AdaptedVideoTrackSource() {}
 
-VideoSource::~VideoSource() {
-}
+VideoSource::~VideoSource() {}
 
 void VideoSource::PushVideoFrame(const webrtc::VideoFrame& frame) {
   int adapted_width;
@@ -28,15 +27,9 @@ void VideoSource::PushVideoFrame(const webrtc::VideoFrame& frame) {
   int crop_height;
   int crop_x;
   int crop_y;
-  if (!AdaptFrame(frame.width(),
-                  frame.height(),
-                  frame.timestamp_us(),
-                  &adapted_width,
-                  &adapted_height,
-                  &crop_width,
-                  &crop_height,
-                  &crop_x,
-                  &crop_y)) {
+  if (!AdaptFrame(frame.width(), frame.height(), frame.timestamp_us(),
+                  &adapted_width, &adapted_height, &crop_width, &crop_height,
+                  &crop_x, &crop_y)) {
     return;
   }
 
@@ -45,7 +38,10 @@ void VideoSource::PushVideoFrame(const webrtc::VideoFrame& frame) {
     return;
   }
 
-  rtc::scoped_refptr<VideoFrameBuffer> adapted_buffer = frame.video_frame_buffer()->CropAndScale(crop_x, crop_y, crop_width, crop_height, adapted_width, adapted_height);
+  rtc::scoped_refptr<VideoFrameBuffer> adapted_buffer =
+      frame.video_frame_buffer()->CropAndScale(crop_x, crop_y, crop_width,
+                                               crop_height, adapted_width,
+                                               adapted_height);
 
   OnFrame(VideoFrame::Builder()
               .set_video_frame_buffer(adapted_buffer)
@@ -53,12 +49,13 @@ void VideoSource::PushVideoFrame(const webrtc::VideoFrame& frame) {
               .build());
 }
 
-
 void VideoSource::OnOutputFormatRequest(int width, int height, int fps) {
   if (width > 0 && height > 0 && fps > 0) {
-    video_adapter()->OnOutputFormatRequest(std::make_pair(width, height), width * height, fps);
+    video_adapter()->OnOutputFormatRequest(std::make_pair(width, height),
+                                           width * height, fps);
   } else {
-    video_adapter()->OnOutputFormatRequest(std::nullopt, std::nullopt, std::nullopt);
+    video_adapter()->OnOutputFormatRequest(std::nullopt, std::nullopt,
+                                           std::nullopt);
   }
 }
 
@@ -79,18 +76,23 @@ std::optional<bool> VideoSource::needs_denoising() const {
 }
 
 RUSTEXPORT void Rust_setAudioTrackEnabled(
-    webrtc::AudioTrackInterface* track_borrowed_rc, bool enabled) {
+    webrtc::AudioTrackInterface* track_borrowed_rc,
+    bool enabled) {
   track_borrowed_rc->set_enabled(enabled);
 }
 
 RUSTEXPORT void Rust_setVideoTrackEnabled(
-    webrtc::VideoTrackInterface* track_borrowed_rc, bool enabled) {
+    webrtc::VideoTrackInterface* track_borrowed_rc,
+    bool enabled) {
   track_borrowed_rc->set_enabled(enabled);
 }
 
 RUSTEXPORT void Rust_setVideoTrackContentHint(
-    webrtc::VideoTrackInterface* track_borrowed_rc, bool is_screenshare) {
-  track_borrowed_rc->set_content_hint(is_screenshare ? VideoTrackInterface::ContentHint::kText : VideoTrackInterface::ContentHint::kNone);
+    webrtc::VideoTrackInterface* track_borrowed_rc,
+    bool is_screenshare) {
+  track_borrowed_rc->set_content_hint(
+      is_screenshare ? VideoTrackInterface::ContentHint::kText
+                     : VideoTrackInterface::ContentHint::kNone);
 }
 
 RUSTEXPORT void Rust_pushVideoFrame(
@@ -98,21 +100,25 @@ RUSTEXPORT void Rust_pushVideoFrame(
     VideoFrameBuffer* buffer_borrowed_rc) {
   auto timestamp_us = rtc::TimeMicros();
   auto frame = webrtc::VideoFrame::Builder()
-      .set_video_frame_buffer(inc_rc(buffer_borrowed_rc))
-      .set_timestamp_us(timestamp_us)
-      .build();
+                   .set_video_frame_buffer(inc_rc(buffer_borrowed_rc))
+                   .set_timestamp_us(timestamp_us)
+                   .build();
   source_borrowed_rc->PushVideoFrame(std::move(frame));
 }
 
 RUSTEXPORT void Rust_adaptOutputVideoFormat(
     webrtc::rffi::VideoSource* source_borrowed_rc,
-    uint16_t width, uint16_t height, uint8_t fps) {
+    uint16_t width,
+    uint16_t height,
+    uint8_t fps) {
   source_borrowed_rc->OnOutputFormatRequest(width, height, fps);
 }
 
 // Returns an owned RC.
 RUSTEXPORT VideoFrameBuffer* Rust_copyVideoFrameBufferFromI420(
-    uint32_t width, uint32_t height, uint8_t* src_borrowed) {
+    uint32_t width,
+    uint32_t height,
+    uint8_t* src_borrowed) {
   int width_y = static_cast<int>(width);
   int height_y = static_cast<int>(height);
   int width_u = (width_y + 1) / 2;
@@ -128,13 +134,16 @@ RUSTEXPORT VideoFrameBuffer* Rust_copyVideoFrameBufferFromI420(
   uint8_t* src_y = src_borrowed;
   uint8_t* src_u = src_y + size_y;
   uint8_t* src_v = src_u + size_u;
-  
-  return take_rc(I420Buffer::Copy(width, height, src_y, stride_y, src_u, stride_u, src_v, stride_v));
+
+  return take_rc(I420Buffer::Copy(width, height, src_y, stride_y, src_u,
+                                  stride_u, src_v, stride_v));
 }
 
 // Returns an owned RC.
 RUSTEXPORT VideoFrameBuffer* Rust_copyVideoFrameBufferFromNv12(
-    uint32_t width, uint32_t height, uint8_t* src_borrowed) {
+    uint32_t width,
+    uint32_t height,
+    uint8_t* src_borrowed) {
   int width_y = static_cast<int>(width);
   int height_y = static_cast<int>(height);
   int width_u = (width_y + 1) / 2;
@@ -149,49 +158,45 @@ RUSTEXPORT VideoFrameBuffer* Rust_copyVideoFrameBufferFromNv12(
   uint8_t* src_uv = src_y + size_y;
 
   auto dest = I420Buffer::Create(width, height);
-  libyuv::NV12ToI420(
-      src_y, stride_y,
-      src_uv, stride_uv,
-      dest->MutableDataY(), dest->StrideY(),
-      dest->MutableDataU(), dest->StrideU(),
-      dest->MutableDataV(), dest->StrideV(),
-      width_y, height_y);
+  libyuv::NV12ToI420(src_y, stride_y, src_uv, stride_uv, dest->MutableDataY(),
+                     dest->StrideY(), dest->MutableDataU(), dest->StrideU(),
+                     dest->MutableDataV(), dest->StrideV(), width_y, height_y);
   return take_rc(dest);
 }
 
 // Returns an owned RC.
 RUSTEXPORT VideoFrameBuffer* Rust_copyVideoFrameBufferFromRgba(
-    uint32_t width, uint32_t height, uint8_t* rgba_borrowed) {
+    uint32_t width,
+    uint32_t height,
+    uint8_t* rgba_borrowed) {
   auto i420 = I420Buffer::Create(width, height);
   int rgba_stride = 4 * width;
-  libyuv::ABGRToI420(
-      rgba_borrowed, rgba_stride,
-      i420->MutableDataY(), i420->StrideY(),
-      i420->MutableDataU(), i420->StrideU(),
-      i420->MutableDataV(), i420->StrideV(),
-      width, height);
+  libyuv::ABGRToI420(rgba_borrowed, rgba_stride, i420->MutableDataY(),
+                     i420->StrideY(), i420->MutableDataU(), i420->StrideU(),
+                     i420->MutableDataV(), i420->StrideV(), width, height);
   return take_rc(i420);
 }
 
-RUSTEXPORT void Rust_convertVideoFrameBufferToRgba(const VideoFrameBuffer* buffer_borrowed_rc, uint8_t* rgba_out) {
+RUSTEXPORT void Rust_convertVideoFrameBufferToRgba(
+    const VideoFrameBuffer* buffer_borrowed_rc,
+    uint8_t* rgba_out) {
   const I420BufferInterface* i420 = buffer_borrowed_rc->GetI420();
   uint32_t rgba_stride = 4 * i420->width();
-  libyuv::I420ToABGR(
-      i420->DataY(), i420->StrideY(),
-      i420->DataU(), i420->StrideU(),
-      i420->DataV(), i420->StrideV(),
-      rgba_out, rgba_stride,
-      i420->width(), i420->height());
+  libyuv::I420ToABGR(i420->DataY(), i420->StrideY(), i420->DataU(),
+                     i420->StrideU(), i420->DataV(), i420->StrideV(), rgba_out,
+                     rgba_stride, i420->width(), i420->height());
 }
 
-RUSTEXPORT const uint8_t *Rust_getVideoFrameBufferAsI420(const VideoFrameBuffer* buffer_borrowed_rc) {
+RUSTEXPORT const uint8_t* Rust_getVideoFrameBufferAsI420(
+    const VideoFrameBuffer* buffer_borrowed_rc) {
   const I420BufferInterface* i420 = buffer_borrowed_rc->GetI420();
   if (!i420) {
     return nullptr;
   }
-  // Returning a single pointer only makes sense if the planes are stored contiguously.
-  const uint8_t *dataY = i420->DataY();
-  const uint8_t *dataY_end = dataY + i420->height() * i420->width();
+  // Returning a single pointer only makes sense if the planes are stored
+  // contiguously.
+  const uint8_t* dataY = i420->DataY();
+  const uint8_t* dataY_end = dataY + i420->height() * i420->width();
   if (dataY_end != i420->DataU()) {
     return nullptr;
   }
@@ -200,15 +205,19 @@ RUSTEXPORT const uint8_t *Rust_getVideoFrameBufferAsI420(const VideoFrameBuffer*
 
 // Returns an owned RC.
 RUSTEXPORT VideoFrameBuffer* Rust_scaleVideoFrameBuffer(
-    VideoFrameBuffer* buffer_borrowed_rc, int width, int height) {
+    VideoFrameBuffer* buffer_borrowed_rc,
+    int width,
+    int height) {
   return take_rc(buffer_borrowed_rc->Scale(width, height));
 }
 
 // Returns an owned RC.
 RUSTEXPORT VideoFrameBuffer* Rust_copyAndRotateVideoFrameBuffer(
-    const VideoFrameBuffer* buffer_borrowed_rc, VideoRotation rotation) {
-  return take_rc(webrtc::I420Buffer::Rotate(*buffer_borrowed_rc->GetI420(), rotation));
+    const VideoFrameBuffer* buffer_borrowed_rc,
+    VideoRotation rotation) {
+  return take_rc(
+      webrtc::I420Buffer::Rotate(*buffer_borrowed_rc->GetI420(), rotation));
 }
 
-} // namespace rffi
-} // namespace webrtc
+}  // namespace rffi
+}  // namespace webrtc

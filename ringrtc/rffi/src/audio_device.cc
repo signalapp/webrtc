@@ -15,19 +15,19 @@
 namespace webrtc {
 namespace rffi {
 
-RUSTEXPORT int32_t Rust_recordedDataIsAvailable(
-    AudioTransport* audio_callback,
-    const void* audio_samples,
-    size_t n_samples,
-    size_t n_bytes_per_sample,
-    size_t n_channels,
-    uint32_t samples_per_sec,
-    uint32_t total_delay_ms,
-    int32_t clock_drift,
-    uint32_t current_mic_level,
-    bool key_pressed,
-    uint32_t* new_mic_level,
-    int64_t estimated_capture_time_ns) {
+RUSTEXPORT int32_t
+Rust_recordedDataIsAvailable(AudioTransport* audio_callback,
+                             const void* audio_samples,
+                             size_t n_samples,
+                             size_t n_bytes_per_sample,
+                             size_t n_channels,
+                             uint32_t samples_per_sec,
+                             uint32_t total_delay_ms,
+                             int32_t clock_drift,
+                             uint32_t current_mic_level,
+                             bool key_pressed,
+                             uint32_t* new_mic_level,
+                             int64_t estimated_capture_time_ns) {
   if (!audio_callback) {
     return -1;
   }
@@ -41,16 +41,15 @@ RUSTEXPORT int32_t Rust_recordedDataIsAvailable(
       *new_mic_level, estimated_capture_time_ns_opt);
 }
 
-RUSTEXPORT int32_t Rust_needMorePlayData(
-    AudioTransport* audio_callback,
-    size_t n_samples,
-    size_t n_bytes_per_sample,
-    size_t n_channels,
-    uint32_t samples_per_sec,
-    void* audio_samples,
-    size_t* n_samples_out,
-    int64_t* elapsed_time_ms,
-    int64_t* ntp_time_ms) {
+RUSTEXPORT int32_t Rust_needMorePlayData(AudioTransport* audio_callback,
+                                         size_t n_samples,
+                                         size_t n_bytes_per_sample,
+                                         size_t n_channels,
+                                         uint32_t samples_per_sec,
+                                         void* audio_samples,
+                                         size_t* n_samples_out,
+                                         int64_t* elapsed_time_ms,
+                                         int64_t* ntp_time_ms) {
   if (!audio_callback) {
     return -1;
   }
@@ -58,7 +57,6 @@ RUSTEXPORT int32_t Rust_needMorePlayData(
       n_samples, n_bytes_per_sample, n_channels, samples_per_sec, audio_samples,
       *n_samples_out, elapsed_time_ms, ntp_time_ms);
 }
-
 
 RingRTCAudioDeviceModule::RingRTCAudioDeviceModule(
     void* adm_borrowed,

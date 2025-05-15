@@ -17,17 +17,13 @@ namespace rffi {
 
 class InjectableUdpSocket : public rtc::AsyncPacketSocket {
  public:
-  InjectableUdpSocket(InjectableNetwork* network, const rtc::SocketAddress& local_address)
-      : network_(network), local_address_(local_address) {
-  }
-  ~InjectableUdpSocket() override {
-    network_->ForgetUdp(local_address_);
-  }
+  InjectableUdpSocket(InjectableNetwork* network,
+                      const rtc::SocketAddress& local_address)
+      : network_(network), local_address_(local_address) {}
+  ~InjectableUdpSocket() override { network_->ForgetUdp(local_address_); }
 
   // As rtc::AsyncPacketSocket
-  rtc::SocketAddress GetLocalAddress() const override {
-    return local_address_;
-  }
+  rtc::SocketAddress GetLocalAddress() const override { return local_address_; }
 
   // As rtc::AsyncPacketSocket
   rtc::SocketAddress GetRemoteAddress() const override {
@@ -51,14 +47,17 @@ class InjectableUdpSocket : public rtc::AsyncPacketSocket {
     // RTC_LOG(LS_VERBOSE) << "InjectableUdpSocket::SendTo()"
     //                     << " from " << local_address_.ToString()
     //                     << " to " << remote_address.ToString();
-    int result = network_->SendUdp(local_address_, remote_address, static_cast<const uint8_t*>(data), data_size);
+    int result =
+        network_->SendUdp(local_address_, remote_address,
+                          static_cast<const uint8_t*>(data), data_size);
     if (result < 0) {
       last_error_ = result;
       return result;
     }
 
     // Ends up going to Call::OnSentPacket for congestion control purposes.
-    SignalSentPacket(this, rtc::SentPacket(options.packet_id, rtc::TimeMillis()));
+    SignalSentPacket(this,
+                     rtc::SentPacket(options.packet_id, rtc::TimeMillis()));
     return result;
   }
 
@@ -66,12 +65,11 @@ class InjectableUdpSocket : public rtc::AsyncPacketSocket {
                    size_t data_size,
                    const rtc::SocketAddress& remote_address) {
     RTC_LOG(LS_VERBOSE) << "InjectableUdpSocket::ReceiveFrom()"
-                        << " from " << remote_address.ToString()
-                        << " to " << local_address_.ToString();
-    NotifyPacketReceived(rtc::ReceivedPacket::CreateFromLegacy(reinterpret_cast<const char*>(data),
-                                                               data_size,
-                                                               rtc::TimeMicros(),
-                                                               remote_address));
+                        << " from " << remote_address.ToString() << " to "
+                        << local_address_.ToString();
+    NotifyPacketReceived(rtc::ReceivedPacket::CreateFromLegacy(
+        reinterpret_cast<const char*>(data), data_size, rtc::TimeMicros(),
+        remote_address));
   }
 
   // As rtc::AsyncPacketSocket
@@ -83,10 +81,11 @@ class InjectableUdpSocket : public rtc::AsyncPacketSocket {
 
   // As rtc::AsyncPacketSocket
   State GetState() const override {
-    // UDPPort waits until it's bound to generate a candidate and send binding requests.
-    // If it's not currently bound, it will listen for SignalAddressReady.
+    // UDPPort waits until it's bound to generate a candidate and send binding
+    // requests. If it's not currently bound, it will listen for
+    // SignalAddressReady.
     // TODO: Simulate slow binds?
-    return  rtc::AsyncPacketSocket::STATE_BOUND;
+    return rtc::AsyncPacketSocket::STATE_BOUND;
   }
 
   // As rtc::AsyncPacketSocket
@@ -130,10 +129,12 @@ class InjectableUdpSocket : public rtc::AsyncPacketSocket {
   int last_error_ = 0;
 };
 
-class InjectableNetworkImpl : public InjectableNetwork, public rtc::NetworkManager, public rtc::PacketSocketFactory {
+class InjectableNetworkImpl : public InjectableNetwork,
+                              public rtc::NetworkManager,
+                              public rtc::PacketSocketFactory {
  public:
-  InjectableNetworkImpl(rtc::Thread* network_thread) : network_thread_(network_thread) {
-  }
+  InjectableNetworkImpl(rtc::Thread* network_thread)
+      : network_thread_(network_thread) {}
 
   ~InjectableNetworkImpl() override {
     if (sender_.object_owned) {
@@ -154,34 +155,37 @@ class InjectableNetworkImpl : public InjectableNetwork, public rtc::NetworkManag
     sender_ = *sender;
   }
 
-  // name used for debugging a lot, but also as an ID for the network for TURN pruning.
-  // type Affects Candidate network cost and other ICE behavior
+  // name used for debugging a lot, but also as an ID for the network for TURN
+  // pruning. type Affects Candidate network cost and other ICE behavior
   // preference affects ICE candidate priorities higher is more preferred
-  void AddInterface(
-    const char* name, rtc::AdapterType type, Ip ip, uint16_t preference) override {
+  void AddInterface(const char* name,
+                    rtc::AdapterType type,
+                    Ip ip,
+                    uint16_t preference) override {
     RTC_LOG(LS_INFO) << "InjectableNetworkImpl::AddInterface() name: " << name;
-    // We need to access interface_by_name_ and SignalNetworksChanged on the network_thread_.
-    // Make sure to copy the name first!
+    // We need to access interface_by_name_ and SignalNetworksChanged on the
+    // network_thread_. Make sure to copy the name first!
     network_thread_->PostTask(
-        [this, name{std::string(name)}, type, ip, preference] { 
-      // TODO: Support different IP prefixes.
-      auto interface = std::make_unique<rtc::Network>(
-          name, name /* description */,  IpToRtcIp(ip) /* prefix */, 0 /* prefix_length */, type);
-      // TODO: Add more than one IP per network interface
-      interface->AddIP(IpToRtcIp(ip));
-      interface->set_preference(preference);
-      interface_by_name_.insert({std::move(name), std::move(interface)});
-      SignalNetworksChanged();
-    });
+        [this, name{std::string(name)}, type, ip, preference] {
+          // TODO: Support different IP prefixes.
+          auto interface = std::make_unique<rtc::Network>(
+              name, name /* description */, IpToRtcIp(ip) /* prefix */,
+              0 /* prefix_length */, type);
+          // TODO: Add more than one IP per network interface
+          interface->AddIP(IpToRtcIp(ip));
+          interface->set_preference(preference);
+          interface_by_name_.insert({std::move(name), std::move(interface)});
+          SignalNetworksChanged();
+        });
   }
 
   void RemoveInterface(const char* name) override {
-    RTC_LOG(LS_INFO) << "InjectableNetworkImpl::RemoveInterface() name: " << name;
+    RTC_LOG(LS_INFO) << "InjectableNetworkImpl::RemoveInterface() name: "
+                     << name;
     // We need to access interface_by_name_ on the network_thread_.
     // Make sure to copy the name first!
-    network_thread_->PostTask([this, name{std::string(name)}] { 
-      interface_by_name_.erase(name);
-    });
+    network_thread_->PostTask(
+        [this, name{std::string(name)}] { interface_by_name_.erase(name); });
   }
 
   void ReceiveUdp(IpPort source,
@@ -190,20 +194,20 @@ class InjectableNetworkImpl : public InjectableNetwork, public rtc::NetworkManag
                   size_t size) override {
     // The network stack expects everything to happen on the network thread.
     // Make sure to copy the data!
-    network_thread_->PostTask(
-        [this, source, dest, data{std::vector<uint8_t>(data, data+size)}, size] { 
+    network_thread_->PostTask([this, source, dest,
+                               data{std::vector<uint8_t>(data, data + size)},
+                               size] {
       auto local_address = IpPortToRtcSocketAddress(dest);
       auto remote_address = IpPortToRtcSocketAddress(source);
       RTC_LOG(LS_VERBOSE) << "InjectableNetworkImpl::ReceiveUdp()"
-                          << " from " << remote_address.ToString()
-                          << " to " << local_address.ToString()
-                          << " size: " << size;
+                          << " from " << remote_address.ToString() << " to "
+                          << local_address.ToString() << " size: " << size;
       auto udp_socket = udp_socket_by_local_address_.find(local_address);
       if (udp_socket == udp_socket_by_local_address_.end()) {
         RTC_LOG(LS_WARNING) << "Received packet for unknown local address.";
         return;
       }
-      udp_socket->second->ReceiveFrom(data.data(), data.size(), remote_address);      
+      udp_socket->second->ReceiveFrom(data.data(), data.size(), remote_address);
     });
   }
 
@@ -227,7 +231,7 @@ class InjectableNetworkImpl : public InjectableNetwork, public rtc::NetworkManag
 
   void ForgetUdp(const rtc::SocketAddress& local_address) override {
     // We need to access udp_socket_by_local_address_ on the network_thread_.
-    network_thread_->PostTask([this, local_address] { 
+    network_thread_->PostTask([this, local_address] {
       udp_socket_by_local_address_.erase(local_address);
     });
   }
@@ -237,14 +241,15 @@ class InjectableNetworkImpl : public InjectableNetwork, public rtc::NetworkManag
     RTC_DCHECK(network_thread_->IsCurrent());
     RTC_LOG(LS_INFO) << "InjectableNetworkImpl::StartUpdating()";
     // TODO: Add support for changing networks dynamically.
-    //       BasicPortAllocatorSession listens to it do detect when networks have failed (gone away)
-    // Documentation says this must be called by StartUpdating() once the network list is available.
+    //       BasicPortAllocatorSession listens to it do detect when networks
+    //       have failed (gone away)
+    // Documentation says this must be called by StartUpdating() once the
+    // network list is available.
     SignalNetworksChanged();
   }
 
   // As NetworkManager
-  void StopUpdating() override {
-  }
+  void StopUpdating() override {}
 
   // As NetworkManager
   std::vector<const rtc::Network*> GetNetworks() const override {
@@ -267,8 +272,8 @@ class InjectableNetworkImpl : public InjectableNetwork, public rtc::NetworkManag
 
   // As NetworkManager
   std::vector<const rtc::Network*> GetAnyAddressNetworks() override {
-    // TODO: Add support for using a default route instead of choosing a particular network.
-    // (such as when we can't enumerate networks or IPs)
+    // TODO: Add support for using a default route instead of choosing a
+    // particular network. (such as when we can't enumerate networks or IPs)
     std::vector<const rtc::Network*> networks;
 
     return networks;
@@ -276,24 +281,27 @@ class InjectableNetworkImpl : public InjectableNetwork, public rtc::NetworkManag
 
   // As NetworkManager
   EnumerationPermission enumeration_permission() const override {
-    // This is only really needed for web security things we don't need to worry about.
-    // So, always allow.
+    // This is only really needed for web security things we don't need to worry
+    // about. So, always allow.
     return ENUMERATION_ALLOWED;
   }
 
   // As NetworkManager
-  bool GetDefaultLocalAddress(int family, rtc::IPAddress* ipaddr) const override {
-    // TODO: Add support for using a default route instead of choosing a particular network.
-    // (such as when we can't enumerate networks or IPs)
+  bool GetDefaultLocalAddress(int family,
+                              rtc::IPAddress* ipaddr) const override {
+    // TODO: Add support for using a default route instead of choosing a
+    // particular network. (such as when we can't enumerate networks or IPs)
     return false;
   }
 
   // As PacketSocketFactory
-  rtc::AsyncPacketSocket* CreateUdpSocket(const rtc::SocketAddress& local_address_without_port,
-                                          uint16_t min_port,
-                                          uint16_t max_port) override {
+  rtc::AsyncPacketSocket* CreateUdpSocket(
+      const rtc::SocketAddress& local_address_without_port,
+      uint16_t min_port,
+      uint16_t max_port) override {
     RTC_DCHECK(network_thread_->IsCurrent());
-    RTC_LOG(LS_INFO) << "InjectableNetworkImpl::CreateUdpSocket() ip: " << local_address_without_port.ip();
+    RTC_LOG(LS_INFO) << "InjectableNetworkImpl::CreateUdpSocket() ip: "
+                     << local_address_without_port.ip();
     const rtc::IPAddress& local_ip = local_address_without_port.ipaddr();
     // The min_port and max_port are ultimately controlled by the PortAllocator,
     // which we create, so we can ignore those.
@@ -302,15 +310,17 @@ class InjectableNetworkImpl : public InjectableNetwork, public rtc::NetworkManag
     rtc::SocketAddress local_address(local_ip, local_port);
     auto udp_socket = new InjectableUdpSocket(this, local_address);
     udp_socket_by_local_address_.insert({local_address, udp_socket});
-    // This really should return a std::unique_ptr because callers all take ownership.
+    // This really should return a std::unique_ptr because callers all take
+    // ownership.
     return udp_socket;
   }
 
   // As PacketSocketFactory
-  rtc::AsyncListenSocket* CreateServerTcpSocket(const rtc::SocketAddress& local_address,
-                                                uint16_t min_port,
-                                                uint16_t max_port,
-                                                int opts) override {
+  rtc::AsyncListenSocket* CreateServerTcpSocket(
+      const rtc::SocketAddress& local_address,
+      uint16_t min_port,
+      uint16_t max_port,
+      int opts) override {
     // We never plan to support TCP ICE (other than through TURN),
     // So we'll never implement this.
     return nullptr;
@@ -326,7 +336,8 @@ class InjectableNetworkImpl : public InjectableNetwork, public rtc::NetworkManag
   }
 
   // As PacketSocketFactory
-  std::unique_ptr<webrtc::AsyncDnsResolverInterface> CreateAsyncDnsResolver() override {
+  std::unique_ptr<webrtc::AsyncDnsResolverInterface> CreateAsyncDnsResolver()
+      override {
     // TODO: Add support for DNS-based STUN/TURN servers.
     // For now, just use IP addresses
     return nullptr;
@@ -335,14 +346,16 @@ class InjectableNetworkImpl : public InjectableNetwork, public rtc::NetworkManag
  private:
   rtc::Thread* network_thread_;
   std::map<std::string, std::unique_ptr<rtc::Network>> interface_by_name_;
-  std::map<rtc::SocketAddress, InjectableUdpSocket*> udp_socket_by_local_address_;
+  std::map<rtc::SocketAddress, InjectableUdpSocket*>
+      udp_socket_by_local_address_;
   // The ICE stack does not like ports below 1024.
   // Give it a nice even number to count up from.
   uint16_t next_udp_port_ = 2001;
   InjectableNetworkSender sender_ = {};
 };
 
-std::unique_ptr<InjectableNetwork> CreateInjectableNetwork(rtc::Thread* network_thread) {
+std::unique_ptr<InjectableNetwork> CreateInjectableNetwork(
+    rtc::Thread* network_thread) {
   return std::make_unique<InjectableNetworkImpl>(network_thread);
 }
 

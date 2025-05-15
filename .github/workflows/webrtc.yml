@@ -1,0 +1,25 @@
+name: WebRTC CI
+on:
+  push:
+    branches: [ main ]
+  pull_request: # all target branches
+
+jobs:
+  code_formatting:
+    name: Code Formatting
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        path:
+          - check: 'ringrtc'
+            exclude: '(oboe|opus)'
+          - check: 'sdk'
+            exclude: '(objc)'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run clang-format
+        uses: jidicula/clang-format-action@v4.15.0
+        with:
+          clang-format-version: '20'
+          check-path: ${{ matrix.path['check'] }}
+          exclude-regex: ${{ matrix.path['exclude'] }}

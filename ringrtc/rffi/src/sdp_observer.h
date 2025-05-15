@@ -17,11 +17,13 @@ namespace rffi {
  * C++ callbacks to Rust.
  */
 
-class CreateSessionDescriptionObserverRffi : public CreateSessionDescriptionObserver {
+class CreateSessionDescriptionObserverRffi
+    : public CreateSessionDescriptionObserver {
  public:
   // Passed-in observer must live as long as the CreateSessionDescriptionRffi.
-  CreateSessionDescriptionObserverRffi(void*                                            csd_observer,
-                                       const CreateSessionDescriptionObserverCallbacks* csd_observer_cbs);
+  CreateSessionDescriptionObserverRffi(
+      void* csd_observer,
+      const CreateSessionDescriptionObserverCallbacks* csd_observer_cbs);
   ~CreateSessionDescriptionObserverRffi() override;
 
   // MediaConstraintsInterface* constraints() { return constraints_.get(); }
@@ -32,7 +34,6 @@ class CreateSessionDescriptionObserverRffi : public CreateSessionDescriptionObse
  private:
   void* csd_observer_;
   CreateSessionDescriptionObserverCallbacks csd_observer_cbs_;
-
 };
 
 /**
@@ -44,8 +45,9 @@ class CreateSessionDescriptionObserverRffi : public CreateSessionDescriptionObse
 class SetSessionDescriptionObserverRffi : public SetSessionDescriptionObserver {
  public:
   // Passed-in observer must live as long as the SetSessionDescriptionRffi.
-  SetSessionDescriptionObserverRffi(void*                                         ssd_observer,
-                                    const SetSessionDescriptionObserverCallbacks* ssd_observer_cbs);
+  SetSessionDescriptionObserverRffi(
+      void* ssd_observer,
+      const SetSessionDescriptionObserverCallbacks* ssd_observer_cbs);
   ~SetSessionDescriptionObserverRffi() override;
 
   void OnSuccess() override;
@@ -54,10 +56,9 @@ class SetSessionDescriptionObserverRffi : public SetSessionDescriptionObserver {
  private:
   void* ssd_observer_;
   SetSessionDescriptionObserverCallbacks ssd_observer_cbs_;
-
 };
 
-} // namespace rffi
-} // namespace webrtc
+}  // namespace rffi
+}  // namespace webrtc
 
 #endif /* RFFI_SDP_OBSERVER_H__ */

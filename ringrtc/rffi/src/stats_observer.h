@@ -6,8 +6,9 @@
 #ifndef RFFI_STATS_OBSERVER_H__
 #define RFFI_STATS_OBSERVER_H__
 
-#include "api/peer_connection_interface.h"
 #include <atomic>
+
+#include "api/peer_connection_interface.h"
 
 namespace webrtc {
 namespace rffi {
@@ -19,18 +20,19 @@ namespace rffi {
  */
 
 class StatsObserverRffi : public RTCStatsCollectorCallback {
-public:
+ public:
   // Passed-in observer must live as long as the StatsObserverRffi.
-  StatsObserverRffi(void*                         stats_observer_borrowed,
+  StatsObserverRffi(void* stats_observer_borrowed,
                     const StatsObserverCallbacks* stats_observer_cbs_borrowed);
   ~StatsObserverRffi() override;
 
-void SetCollectRawStatsReport(bool collect_raw_stats_report);
+  void SetCollectRawStatsReport(bool collect_raw_stats_report);
 
-protected:
-  void OnStatsDelivered(const rtc::scoped_refptr<const RTCStatsReport>& report) override;
+ protected:
+  void OnStatsDelivered(
+      const rtc::scoped_refptr<const RTCStatsReport>& report) override;
 
-private:
+ private:
   void* stats_observer_;
   StatsObserverCallbacks stats_observer_cbs_;
   std::atomic<bool> collect_raw_stats_report_{false};
@@ -41,7 +43,7 @@ private:
   std::vector<VideoReceiverStatistics> video_receiver_statistics_;
 };
 
-} // namespace rffi
-} // namespace webrtc
+}  // namespace rffi
+}  // namespace webrtc
 
 #endif /* RFFI_STATS_OBSERVER_H__ */

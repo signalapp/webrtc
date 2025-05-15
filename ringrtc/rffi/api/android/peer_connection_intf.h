@@ -6,11 +6,13 @@
 #ifndef ANDROID_PEER_CONNECTION_H__
 #define ANDROID_PEER_CONNECTION_H__
 
-#include "rffi/api/rffi_defs.h"
 #include <jni.h>
+
+#include "rffi/api/rffi_defs.h"
 
 // Return a borrowed RC to the native PeerConnection inside of the Java wrapper.
 RUSTEXPORT webrtc::PeerConnectionInterface*
-Rust_borrowPeerConnectionFromJniOwnedPeerConnection(jlong owned_peer_connection);
+Rust_borrowPeerConnectionFromJniOwnedPeerConnection(
+    jlong owned_peer_connection);
 
 #endif /* ANDROID_PEER_CONNECTION_H__ */

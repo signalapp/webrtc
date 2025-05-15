@@ -8,7 +8,6 @@
 
 #include "rffi/api/rffi_defs.h"
 
-RUSTEXPORT void
-Rust_setFieldTrials(const char* field_trials_string);
+RUSTEXPORT void Rust_setFieldTrials(const char* field_trials_string);
 
 #endif /* RFFI_API_FIELD_TRIAL_H__ */

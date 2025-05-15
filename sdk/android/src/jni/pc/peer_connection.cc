@@ -194,7 +194,9 @@ void JavaToNativeRTCConfiguration(
   rtc_config->audio_jitter_buffer_max_packets =
       Java_RTCConfiguration_getAudioJitterBufferMaxPackets(jni, j_rtc_config);
   // RingRTC change to configure the jitter buffer's max target delay.
-  rtc_config->set_audio_jitter_buffer_max_target_delay_ms(Java_RTCConfiguration_getAudioJitterBufferMaxTargetDelayMs(jni, j_rtc_config));
+  rtc_config->set_audio_jitter_buffer_max_target_delay_ms(
+      Java_RTCConfiguration_getAudioJitterBufferMaxTargetDelayMs(jni,
+                                                                 j_rtc_config));
   rtc_config->audio_jitter_buffer_fast_accelerate =
       Java_RTCConfiguration_getAudioJitterBufferFastAccelerate(jni,
                                                                j_rtc_config);

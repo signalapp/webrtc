@@ -41,59 +41,80 @@ class VideoSource : public rtc::AdaptedVideoTrackSource {
   std::optional<bool> needs_denoising() const override;
 };
 
-} // namespace rffi
-} // namespace webrtc
+}  // namespace rffi
+}  // namespace webrtc
 
 // Same as AudioTrack::set_enabled
-RUSTEXPORT void Rust_setAudioTrackEnabled(webrtc::AudioTrackInterface* track_borrowed_rc, bool);
+RUSTEXPORT void Rust_setAudioTrackEnabled(
+    webrtc::AudioTrackInterface* track_borrowed_rc,
+    bool);
 
 // Same as VideoTrack::set_enabled
-RUSTEXPORT void Rust_setVideoTrackEnabled(webrtc::VideoTrackInterface* track_borrowed_rc, bool);
+RUSTEXPORT void Rust_setVideoTrackEnabled(
+    webrtc::VideoTrackInterface* track_borrowed_rc,
+    bool);
 
 // Same as VideoTrack::set_content_hint with true == kText and false == kNone
-RUSTEXPORT void Rust_setVideoTrackContentHint(webrtc::VideoTrackInterface* track_borrowed_rc, bool);
+RUSTEXPORT void Rust_setVideoTrackContentHint(
+    webrtc::VideoTrackInterface* track_borrowed_rc,
+    bool);
 
 // Gets the first video track from the stream, or nullptr if there is none.
 RUSTEXPORT webrtc::VideoTrackInterface* Rust_getFistVideoTrack(
     webrtc::MediaStreamInterface* track_borrowed_rc);
 
 // Same as VideoSource::PushVideoFrame, to get frames from Rust to C++.
-RUSTEXPORT void Rust_pushVideoFrame(webrtc::rffi::VideoSource* source_borrowed_rc, webrtc::VideoFrameBuffer* buffer_borrowed_rc);
+RUSTEXPORT void Rust_pushVideoFrame(
+    webrtc::rffi::VideoSource* source_borrowed_rc,
+    webrtc::VideoFrameBuffer* buffer_borrowed_rc);
 
 // Same as VideoSource::OnOutputFormatRequest, to apply a maximum resolution
 // and framerate to video.
-RUSTEXPORT void Rust_adaptOutputVideoFormat(webrtc::rffi::VideoSource* source_borrowed_rc, uint16_t width, uint16_t height, uint8_t fps);
+RUSTEXPORT void Rust_adaptOutputVideoFormat(
+    webrtc::rffi::VideoSource* source_borrowed_rc,
+    uint16_t width,
+    uint16_t height,
+    uint8_t fps);
 
 // I420 => I420
 // Returns an owned RC.
 RUSTEXPORT webrtc::VideoFrameBuffer* Rust_copyVideoFrameBufferFromI420(
-  uint32_t width, uint32_t height, uint8_t* src_borrowed);
+    uint32_t width,
+    uint32_t height,
+    uint8_t* src_borrowed);
 
 // NV12 => I420
 // Returns an owned RC.
 RUSTEXPORT webrtc::VideoFrameBuffer* Rust_copyVideoFrameBufferFromNv12(
-  uint32_t width, uint32_t height, uint8_t* src_borrowed);
+    uint32_t width,
+    uint32_t height,
+    uint8_t* src_borrowed);
 
 // RGBA => I420
 // Returns an owned RC.
 RUSTEXPORT webrtc::VideoFrameBuffer* Rust_copyVideoFrameBufferFromRgba(
-  uint32_t width, uint32_t height, uint8_t* src_borrowed);
+    uint32_t width,
+    uint32_t height,
+    uint8_t* src_borrowed);
 
 // I420 => RGBA
 RUSTEXPORT void Rust_convertVideoFrameBufferToRgba(
-  const webrtc::VideoFrameBuffer* buffer, uint8_t* rgba_out);
+    const webrtc::VideoFrameBuffer* buffer,
+    uint8_t* rgba_out);
 
 // I420 direct access, if possible
-RUSTEXPORT const uint8_t *Rust_getVideoFrameBufferAsI420(
-  const webrtc::VideoFrameBuffer* buffer);
+RUSTEXPORT const uint8_t* Rust_getVideoFrameBufferAsI420(
+    const webrtc::VideoFrameBuffer* buffer);
 
 // See VideoFrameBuffer::Scale. Output will be in I420.
 RUSTEXPORT webrtc::VideoFrameBuffer* Rust_scaleVideoFrameBuffer(
-  webrtc::VideoFrameBuffer* buffer_borrowed_rc, int width, int height);
+    webrtc::VideoFrameBuffer* buffer_borrowed_rc,
+    int width,
+    int height);
 
 // RGBA => I420
 RUSTEXPORT webrtc::VideoFrameBuffer* Rust_copyAndRotateVideoFrameBuffer(
-    const webrtc::VideoFrameBuffer* buffer_borrowed_rc, webrtc::VideoRotation rotation);
-
+    const webrtc::VideoFrameBuffer* buffer_borrowed_rc,
+    webrtc::VideoRotation rotation);
 
 #endif /* RFFI_API_MEDIA_H__ */

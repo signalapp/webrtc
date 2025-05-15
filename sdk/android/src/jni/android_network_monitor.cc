@@ -402,8 +402,8 @@ NetworkBindingResult AndroidNetworkMonitor::BindSocketToNetwork(
 
   // RingRTC change to reduce log noise.
   RTC_LOG(LS_INFO) << "BindSocketToNetwork got error: " << rv
-                      << " addr: " << address.ToSensitiveString()
-                      << " ifname: " << if_name;
+                   << " addr: " << address.ToSensitiveString()
+                   << " ifname: " << if_name;
   if (rv == ENONET) {
     return NetworkBindingResult::NETWORK_CHANGED;
   }

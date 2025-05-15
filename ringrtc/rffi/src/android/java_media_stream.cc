@@ -7,25 +7,25 @@
  * Rust friendly wrapper around JavaMediaStream object
  */
 
-#include "sdk/android/src/jni/pc/peer_connection.h"
+#include <string>
+
 #include "rffi/api/android/media_stream_intf.h"
 #include "rffi/src/ptr.h"
-
-#include <string>
+#include "sdk/android/src/jni/pc/peer_connection.h"
 
 namespace webrtc {
 namespace rffi {
 
 // Returns an owned pointer.
-RUSTEXPORT webrtc::jni::JavaMediaStream*
-Rust_createJavaMediaStream(MediaStreamInterface* stream_borrowed_rc) {
+RUSTEXPORT webrtc::jni::JavaMediaStream* Rust_createJavaMediaStream(
+    MediaStreamInterface* stream_borrowed_rc) {
   JNIEnv* env = AttachCurrentThreadIfNeeded();
   // jni::JavaMediaStream takes an owned RC.
   return new jni::JavaMediaStream(env, inc_rc(stream_borrowed_rc));
 }
 
-RUSTEXPORT void
-Rust_deleteJavaMediaStream(webrtc::jni::JavaMediaStream* stream_owned) {
+RUSTEXPORT void Rust_deleteJavaMediaStream(
+    webrtc::jni::JavaMediaStream* stream_owned) {
   delete stream_owned;
 }
 
@@ -34,5 +34,5 @@ Rust_getJavaMediaStreamObject(webrtc::jni::JavaMediaStream* stream_borrowed) {
   return stream_borrowed->j_media_stream().obj();
 }
 
-} // namespace rffi
-} // namespace webrtc
+}  // namespace rffi
+}  // namespace webrtc

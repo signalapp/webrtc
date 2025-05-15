@@ -16,7 +16,7 @@ namespace rffi {
 // it increments the ref count.
 template <typename T>
 rtc::scoped_refptr<T> inc_rc(T* borrowed_rc) {
-    return rtc::scoped_refptr<T>(borrowed_rc);
+  return rtc::scoped_refptr<T>(borrowed_rc);
 }
 
 // This just makes it easier to read.
@@ -25,10 +25,10 @@ rtc::scoped_refptr<T> inc_rc(T* borrowed_rc) {
 // The caller now owns an RC.
 template <typename T>
 T* take_rc(rtc::scoped_refptr<T> scoped) {
-    return scoped.release();
+  return scoped.release();
 }
 
-} // namespace rffi
-} // namespace webrtc
+}  // namespace rffi
+}  // namespace webrtc
 
 #endif /* RFFI_PEER_CONNECTION_OBSERVER_H__ */

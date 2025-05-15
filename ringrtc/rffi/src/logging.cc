@@ -8,7 +8,8 @@
 namespace webrtc {
 namespace rffi {
 
-RUSTEXPORT void Rust_setLogger(LoggerCallbacks* cbs_borrowed, rtc::LoggingSeverity min_sev) {
+RUSTEXPORT void Rust_setLogger(LoggerCallbacks* cbs_borrowed,
+                               rtc::LoggingSeverity min_sev) {
   Logger* logger_owned = new Logger(cbs_borrowed);
   // LEAK: it's only called once, so it shouldn't matter.
   Logger* logger_borrowed = logger_owned;
@@ -16,5 +17,5 @@ RUSTEXPORT void Rust_setLogger(LoggerCallbacks* cbs_borrowed, rtc::LoggingSeveri
   rtc::LogMessage::AddLogToStream(logger_borrowed, min_sev);
 }
 
-} // namespace rffi
-} // namespace webrtc
+}  // namespace rffi
+}  // namespace webrtc

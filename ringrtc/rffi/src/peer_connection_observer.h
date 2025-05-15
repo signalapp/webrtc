@@ -23,7 +23,8 @@ class VideoSink;
 
 class PeerConnectionObserverRffi : public PeerConnectionObserver {
  public:
-  // Passed-in observer must live at least as long as the PeerConnectionObserverRffi.
+  // Passed-in observer must live at least as long as the
+  // PeerConnectionObserverRffi.
   PeerConnectionObserverRffi(void* observer,
                              const PeerConnectionObserverCallbacks* callbacks,
                              bool enable_frame_encryption,
@@ -39,19 +40,19 @@ class PeerConnectionObserverRffi : public PeerConnectionObserver {
   rtc::scoped_refptr<FrameEncryptorInterface> CreateEncryptor();
   // These will be a passed into RtpReceivers and will be implemented
   // with callbacks to PeerConnectionObserverCallbacks.
-  rtc::scoped_refptr<FrameDecryptorInterface> CreateDecryptor(uint32_t track_id);
+  rtc::scoped_refptr<FrameDecryptorInterface> CreateDecryptor(
+      uint32_t track_id);
 
   // Implementation of PeerConnectionObserver interface, which propagates
   // the callbacks to the Rust observer.
   void OnIceCandidate(const IceCandidateInterface* candidate) override;
   void OnIceCandidatesRemoved(
       const std::vector<cricket::Candidate>& candidates) override;
-  void OnIceCandidateError(
-      const std::string& address,
-      int port,
-      const std::string& url,
-      int error_code,
-      const std::string& error_text) override;
+  void OnIceCandidateError(const std::string& address,
+                           int port,
+                           const std::string& url,
+                           int error_code,
+                           const std::string& error_text) override;
   void OnSignalingChange(
       PeerConnectionInterface::SignalingState new_state) override;
   void OnIceConnectionChange(
@@ -65,7 +66,8 @@ class PeerConnectionObserverRffi : public PeerConnectionObserver {
       const cricket::CandidatePairChangeEvent& event) override;
   void OnAddStream(rtc::scoped_refptr<MediaStreamInterface> stream) override;
   void OnRemoveStream(rtc::scoped_refptr<MediaStreamInterface> stream) override;
-  void OnDataChannel(rtc::scoped_refptr<DataChannelInterface> channel) override {}
+  void OnDataChannel(
+      rtc::scoped_refptr<DataChannelInterface> channel) override {}
   void OnRtpPacket(const RtpPacketReceived& rtp_packet) override;
   void OnRenegotiationNeeded() override;
   void OnAddTrack(rtc::scoped_refptr<RtpReceiverInterface> receiver,
@@ -104,9 +106,7 @@ class VideoSink : public rtc::VideoSinkInterface<webrtc::VideoFrame> {
   PeerConnectionObserverRffi* pc_observer_;
 };
 
-
-
-} // namespace rffi
-} // namespace webrtc
+}  // namespace rffi
+}  // namespace webrtc
 
 #endif /* RFFI_PEER_CONNECTION_OBSERVER_H__ */
