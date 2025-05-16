@@ -6,7 +6,7 @@
 #ifndef RFFI_SDP_OBSERVER_H__
 #define RFFI_SDP_OBSERVER_H__
 
-#include "api/peer_connection_interface.h"
+#include "rffi/api/sdp_observer_intf.h"
 
 namespace webrtc {
 namespace rffi {

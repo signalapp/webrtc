@@ -6,9 +6,7 @@
 #ifndef RFFI_PEER_CONNECTION_OBSERVER_H__
 #define RFFI_PEER_CONNECTION_OBSERVER_H__
 
-#include "api/crypto/frame_encryptor_interface.h"
-#include "api/media_stream_interface.h"
-#include "api/peer_connection_interface.h"
+#include "rffi/api/peer_connection_observer_intf.h"
 
 /**
  * Adapter between the C++ PeerConnectionObserver interface and the

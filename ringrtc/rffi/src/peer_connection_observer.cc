@@ -6,8 +6,6 @@
 #include "rffi/src/peer_connection_observer.h"
 
 #include "pc/webrtc_sdp.h"
-#include "rffi/api/media.h"
-#include "rffi/api/peer_connection_observer_intf.h"
 #include "rffi/src/ptr.h"
 #include "rtc_base/net_helper.h"
 
