@@ -1063,7 +1063,8 @@ void VideoReceiveStream2::UpdatePlayoutDelays() const {
       absl::c_count_if(min_delays, [](auto opt) { return opt.has_value(); });
   if (num_playout_delays_set > 1 &&
       timing_->min_playout_delay() != *minimum_delay) {
-    RTC_LOG(LS_WARNING)
+    // RingRTC change to reduce log noise.
+    RTC_LOG(LS_INFO)
         << "Multiple playout delays set. Actual delay value set to "
         << *minimum_delay << " frame min delay="
         << OptionalDelayToLogString(frame_minimum_playout_delay_)
