@@ -217,9 +217,14 @@ TEST_F(ChannelSendTest, FrameTransformerGetsCorrectTimestamp) {
   // packet.
   EXPECT_THAT(
       WaitUntil([&] { return 0 + channel_->GetRtpRtcp()->StartTimestamp(); },
-                Eq(transformable_frame_timestamp)),
+                Eq(transformable_frame_timestamp),
+                // RingRTC change to prevent hang.
+                {.clock = static_cast<SimulatedClock*>(time_controller_.GetClock())}),
       IsRtcOk());
-  EXPECT_THAT(WaitUntil([&] { return sent_timestamp; }, IsTrue()), IsRtcOk());
+  EXPECT_THAT(WaitUntil([&] { return sent_timestamp; }, IsTrue(),
+                       // RingRTC change to prevent hang.
+                       {.clock = static_cast<SimulatedClock*>(time_controller_.GetClock())}),
+              IsRtcOk());
   EXPECT_EQ(*sent_timestamp, transformable_frame_timestamp);
 }
 
@@ -269,7 +274,8 @@ TEST_F(ChannelSendTest, AudioLevelsAttachedToCorrectTransformedFrame) {
   ProcessNextFrame(CreateAudioFrame(/*data_init_value=*/3));
 
   // Wait for both packets to be encoded and sent to the transform.
-  EXPECT_THAT(WaitUntil([&] { return frames.size(); }, Eq(2ul)), IsRtcOk());
+  // RingRTC change to prevent hang and crash.
+  ASSERT_THAT(WaitUntil([&] { return frames.size(); }, Eq(2ul), {.clock = static_cast<SimulatedClock*>(time_controller_.GetClock())}), IsRtcOk());
   // Complete the transforms on both frames at the same time
   callback->OnTransformedFrame(std::move(frames[0]));
   callback->OnTransformedFrame(std::move(frames[1]));

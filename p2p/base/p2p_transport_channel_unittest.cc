@@ -4233,7 +4233,8 @@ TEST_F(P2PTransportChannelPingTest, TestStunPingIntervals) {
   ch.MaybeStartGathering();
   ch.AddRemoteCandidate(
       CreateUdpCandidate(IceCandidateType::kHost, "1.1.1.1", 1, 1));
-  Connection* conn = WaitForConnectionTo(&ch, "1.1.1.1", 1);
+  // RingRTC change to prevent hang.
+  Connection* conn = WaitForConnectionTo(&ch, "1.1.1.1", 1, &clock);
 
   ASSERT_TRUE(conn != nullptr);
   SIMULATED_WAIT(conn->num_pings_sent() == 1, kDefaultTimeout, clock);
@@ -5318,7 +5319,8 @@ TEST_F(P2PTransportChannelPingTest, TestDontPruneWhenWeak) {
   ch.MaybeStartGathering();
   ch.AddRemoteCandidate(
       CreateUdpCandidate(IceCandidateType::kHost, "1.1.1.1", 1, 1));
-  Connection* conn1 = WaitForConnectionTo(&ch, "1.1.1.1", 1);
+  // RingRTC change to prevent hang.
+  Connection* conn1 = WaitForConnectionTo(&ch, "1.1.1.1", 1, &clock);
   ASSERT_TRUE(conn1 != nullptr);
   EXPECT_EQ(nullptr, ch.selected_connection());
   conn1->ReceivedPingResponse(LOW_RTT, "id");  // Becomes writable and receiving
@@ -5659,7 +5661,8 @@ TEST_F(P2PTransportChannelPingTest, TestPortDestroyedAfterTimeoutAndPruned) {
   ch.AddRemoteCandidate(
       CreateUdpCandidate(IceCandidateType::kHost, "1.1.1.1", 1, 1));
 
-  Connection* conn = WaitForConnectionTo(&ch, "1.1.1.1", 1);
+  // RingRTC change to prevent hang.
+  Connection* conn = WaitForConnectionTo(&ch, "1.1.1.1", 1, &fake_clock);
   ASSERT_TRUE(conn != nullptr);
 
   // Simulate 2 minutes going by. This should be enough time for the port to
