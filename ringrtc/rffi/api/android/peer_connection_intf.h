@@ -9,6 +9,7 @@
 #include <jni.h>
 
 #include "rffi/api/rffi_defs.h"
+#include "sdk/android/src/jni/pc/peer_connection.h"
 
 // Return a borrowed RC to the native PeerConnection inside of the Java wrapper.
 RUSTEXPORT webrtc::PeerConnectionInterface*
