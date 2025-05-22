@@ -7,7 +7,6 @@
 
 #include "rffi/api/sdp_observer_intf.h"
 #include "rffi/src/ptr.h"
-#include "third_party/re2/src/re2/re2.h"
 
 namespace webrtc {
 namespace rffi {
@@ -30,13 +29,8 @@ void CreateSessionDescriptionObserverRffi::OnSuccess(
   // OnSuccess transfers ownership of the description
   RTC_LOG(LS_INFO) << "CreateSessionDescriptionObserverRffi:OnSuccess(): ";
 
-  // TODO tweak the response a little
   std::string sdp;
   if (session_description->ToString(&sdp)) {
-    static LazyRE2 ssrc_re = {
-        ".+urn:ietf:params:rtp-hdrext:ssrc-audio-level.*\r?\n"};
-    RE2::Replace(&sdp, *ssrc_re, "");
-
     std::unique_ptr<SessionDescriptionInterface> session_description2 =
         CreateSessionDescription(session_description->GetType(), sdp);
     delete session_description;

@@ -58,7 +58,6 @@ if (is_android) {
       "${android_sdk}:libjingle_peerconnection_jni",
       "${android_sdk}:libjingle_peerconnection_metrics_default_jni",
       "//pc:libjingle_peerconnection",
-      "//third_party/re2",
     ]
     output_extension = "so"
   }
@@ -78,7 +77,6 @@ if (is_ios) {
 
     deps = [
       "//third_party/libyuv",
-      "//third_party/re2",
     ]
   }
 }
@@ -94,7 +92,6 @@ if (is_linux || is_mac || is_win) {
     deps = [
       "//sdk:media_constraints",
       "//media:rtc_simulcast_encoder_adapter",
-      "//third_party/re2",
     ]
   }
 }
