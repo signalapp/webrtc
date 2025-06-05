@@ -10,9 +10,8 @@
 
 #include "modules/audio_coding/neteq/decision_logic.h"
 
-#include <stdio.h>
-
 #include <cstdint>
+#include <cstdio>
 #include <memory>
 #include <optional>
 #include <utility>

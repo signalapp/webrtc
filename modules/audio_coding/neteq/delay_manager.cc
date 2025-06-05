@@ -10,10 +10,8 @@
 
 #include "modules/audio_coding/neteq/delay_manager.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-
 #include <algorithm>
+#include <cstdlib>
 #include <memory>
 
 #include "api/field_trials_view.h"
