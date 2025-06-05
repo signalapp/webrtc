@@ -28,18 +28,7 @@ void CreateSessionDescriptionObserverRffi::OnSuccess(
     SessionDescriptionInterface* session_description) {
   // OnSuccess transfers ownership of the description
   RTC_LOG(LS_INFO) << "CreateSessionDescriptionObserverRffi:OnSuccess(): ";
-
-  std::string sdp;
-  if (session_description->ToString(&sdp)) {
-    std::unique_ptr<SessionDescriptionInterface> session_description2 =
-        CreateSessionDescription(session_description->GetType(), sdp);
-    delete session_description;
-    this->csd_observer_cbs_.onSuccess(this->csd_observer_,
-                                      session_description2.release());
-  } else {
-    RTC_LOG(LS_ERROR)
-        << "Unable to convert SessionDescriptionInterface to std::string";
-  }
+  this->csd_observer_cbs_.onSuccess(this->csd_observer_, session_description);
 }
 
 void CreateSessionDescriptionObserverRffi::OnFailure(RTCError error) {

@@ -1222,10 +1222,6 @@ RTCError MediaSessionDescriptionFactory::AddRtpContentForOffer(
   } else {
     content_description = std::make_unique<VideoContentDescription>();
   }
-  // RingRTC: Allow out-of-band / "manual" key negotiation.
-  if (manually_specify_keys()) {
-    content_description->set_manually_specify_keys(true);
-  }
 
   // RFC 8888 support.
   content_description->set_rtcp_fb_ack_ccfb(
@@ -1402,11 +1398,6 @@ RTCError MediaSessionDescriptionFactory::AddRtpContentForAnswer(
     answer_content = std::make_unique<AudioContentDescription>();
   } else {
     answer_content = std::make_unique<VideoContentDescription>();
-  }
-
-  // RingRTC: Allow out-of-band / "manual" key negotiation.
-  if (manually_specify_keys()) {
-    answer_content->set_manually_specify_keys(true);
   }
 
   // RFC 8888 support. Only answer with "ack ccfb" if offer has it and
