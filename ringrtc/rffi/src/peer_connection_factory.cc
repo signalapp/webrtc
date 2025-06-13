@@ -34,12 +34,6 @@
 #include "rtc_base/logging.h"
 #include "rtc_base/message_digest.h"
 
-#if defined(WEBRTC_WIN)
-#include "modules/audio_device/include/audio_device_factory.h"
-#include "modules/audio_device/win/core_audio_utility_win.h"
-#include "rtc_base/win/scoped_com_initializer.h"
-#endif
-
 namespace webrtc {
 namespace rffi {
 
@@ -122,10 +116,6 @@ class PeerConnectionFactoryWithOwnedThreads
     dependencies.task_queue_factory = CreateDefaultTaskQueueFactory();
     dependencies.event_log_factory = std::make_unique<RtcEventLogFactory>();
 
-#if defined(WEBRTC_WIN)
-    std::unique_ptr<ScopedCOMInitializer> com_initializer;
-#endif
-
     // The audio device module must be created (and destroyed) on the _worker_
     // thread. It is safe to release the reference on this thread, however,
     // because the PeerConnectionFactory keeps its own reference.
@@ -138,23 +128,6 @@ class PeerConnectionFactoryWithOwnedThreads
                   audio_config_borrowed->output_file_borrowed);
               return AudioDeviceModule::Create(
                   AudioDeviceModule::kDummyAudio,
-                  dependencies.task_queue_factory.get());
-            case kRffiAudioDeviceModuleDefault:
-#if defined(WEBRTC_WIN)
-              // Attempt to use the Windows ADM2.
-              com_initializer = std::make_unique<ScopedCOMInitializer>(
-                  ScopedCOMInitializer::kMTA);
-              if (com_initializer->Succeeded()) {
-                return CreateWindowsCoreAudioAudioDeviceModule(
-                    dependencies.task_queue_factory.get());
-              } else {
-                RTC_LOG(LS_WARNING)
-                    << "Failed to initialize ScopedCOMInitializer. Will use "
-                       "the default ADM.";
-              }
-#endif
-              return AudioDeviceModule::Create(
-                  AudioDeviceModule::kPlatformDefaultAudio,
                   dependencies.task_queue_factory.get());
             case kRffiAudioDeviceModuleRingRtc:
               return RingRTCAudioDeviceModule::Create(
@@ -190,11 +163,7 @@ class PeerConnectionFactoryWithOwnedThreads
     auto factory = CreateModularPeerConnectionFactory(std::move(dependencies));
     return rtc::make_ref_counted<PeerConnectionFactoryWithOwnedThreads>(
         std::move(factory), std::move(network_thread), std::move(worker_thread),
-        std::move(signaling_thread), std::move(injectable_network),
-#if defined(WEBRTC_WIN)
-        std::move(com_initializer),
-#endif
-        adm.get());
+        std::move(signaling_thread), std::move(injectable_network), adm.get());
   }
 
   ~PeerConnectionFactoryWithOwnedThreads() override {
@@ -297,20 +266,13 @@ class PeerConnectionFactoryWithOwnedThreads
       std::unique_ptr<rtc::Thread> owned_worker_thread,
       std::unique_ptr<rtc::Thread> owned_signaling_thread,
       std::unique_ptr<rffi::InjectableNetwork> injectable_network,
-#if defined(WEBRTC_WIN)
-      std::unique_ptr<ScopedCOMInitializer> com_initializer,
-#endif
       AudioDeviceModule* audio_device_module)
       : owned_network_thread_(std::move(owned_network_thread)),
         owned_worker_thread_(std::move(owned_worker_thread)),
         owned_signaling_thread_(std::move(owned_signaling_thread)),
         injectable_network_(std::move(injectable_network)),
-#if defined(WEBRTC_WIN)
-        com_initializer_(std::move(com_initializer)),
-#endif
         audio_device_module_(audio_device_module),
-        factory_(std::move(factory)) {
-  }
+        factory_(std::move(factory)) {}
 
  private:
   static std::unique_ptr<rtc::Thread> CreateAndStartNetworkThread(
@@ -333,9 +295,6 @@ class PeerConnectionFactoryWithOwnedThreads
   const std::unique_ptr<rtc::Thread> owned_worker_thread_;
   const std::unique_ptr<rtc::Thread> owned_signaling_thread_;
   std::unique_ptr<rffi::InjectableNetwork> injectable_network_;
-#if defined(WEBRTC_WIN)
-  std::unique_ptr<ScopedCOMInitializer> com_initializer_;
-#endif
   webrtc::AudioDeviceModule* audio_device_module_;
   const rtc::scoped_refptr<PeerConnectionFactoryInterface> factory_;
 };

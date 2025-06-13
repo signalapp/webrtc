@@ -73,7 +73,7 @@ enum class RffiPeerConnectionKind : uint8_t {
 };
 
 enum RffiAudioDeviceModuleType {
-  kRffiAudioDeviceModuleDefault = 0,
+  // 0 used to represent the "test-only" webrtc ADMs but is no longer used.
   kRffiAudioDeviceModuleFile = 1,
   kRffiAudioDeviceModuleRingRtc = 2,
 };
