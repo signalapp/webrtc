@@ -1309,6 +1309,7 @@ if (!build_with_chromium) {
     ]
 
     deps = [
+      ":create_test_field_trials",
       ":direct_transport",
       ":encoder_settings",
       ":fake_video_codecs",
@@ -1316,7 +1317,6 @@ if (!build_with_chromium) {
       ":frame_generator_capturer",
       ":mock_transport",
       ":run_loop",
-      ":scoped_key_value_config",
       ":test_flags",
       ":test_support",
       ":test_video_capturer",
@@ -1326,6 +1326,7 @@ if (!build_with_chromium) {
       "../api:array_view",
       "../api:create_frame_generator",
       "../api:fec_controller_api",
+      "../api:field_trials",
       "../api:frame_generator_api",
       "../api:network_state_predictor_api",
       "../api:rtp_headers",
