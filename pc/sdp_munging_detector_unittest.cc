@@ -128,8 +128,7 @@ class SdpMungingTest : public ::testing::Test {
       absl::string_view field_trials) {
     auto observer = std::make_unique<MockPeerConnectionObserver>();
     PeerConnectionDependencies pc_deps(observer.get());
-    pc_deps.trials =
-        std::make_unique<FieldTrials>(CreateTestFieldTrials(field_trials));
+    pc_deps.trials = CreateTestFieldTrialsPtr(field_trials);
     auto result =
         pc_factory_->CreatePeerConnectionOrError(config, std::move(pc_deps));
     EXPECT_TRUE(result.ok());

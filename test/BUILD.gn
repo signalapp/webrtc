@@ -154,6 +154,7 @@ rtc_library("create_test_field_trials") {
   sources = [ "create_test_field_trials.h" ]
   deps = [
     "../api:field_trials",
+    "//third_party/abseil-cpp/absl/base:nullability",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
 
