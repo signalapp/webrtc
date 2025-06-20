@@ -75,6 +75,13 @@ using ::testing::ValuesIn;
 #define DISABLED_ON_ANDROID(t) t
 #endif
 
+void VerifySctpState(PeerConnectionIntegrationWrapper* pc,
+                     SctpTransportState expected_state) {
+  auto sctp_transport = pc->pc()->GetSctpTransport();
+  ASSERT_TRUE(sctp_transport);
+  EXPECT_EQ(sctp_transport->Information().state(), expected_state);
+}
+
 class DataChannelIntegrationTest
     : public PeerConnectionIntegrationBaseTest,
       public ::testing::WithParamInterface<std::tuple<SdpSemantics, bool>> {
@@ -1383,6 +1390,94 @@ TEST_P(DataChannelIntegrationTest,
             callee()->data_observer()->received_message_count());
 }
 
+TEST_P(DataChannelIntegrationTest, ChangingSctpPortIsNotAllowed) {
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignaling();
+  caller()->CreateDataChannel();
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
+              IsRtcOk());
+  ASSERT_THAT(WaitUntil([&] { return callee()->data_channel(); }, Ne(nullptr)),
+              IsRtcOk());
+  EXPECT_THAT(
+      WaitUntil([&] { return caller()->data_observer()->IsOpen(); }, IsTrue()),
+      IsRtcOk());
+  EXPECT_THAT(
+      WaitUntil([&] { return callee()->data_observer()->IsOpen(); }, IsTrue()),
+      IsRtcOk());
+
+  std::unique_ptr<SessionDescriptionInterface> answer;
+  caller()->SetReceivedSdpMunger(
+      [&answer](std::unique_ptr<SessionDescriptionInterface>& desc) {
+        // Change the SCTP port.
+        ContentInfo* sctp_content = GetFirstDataContent(desc->description());
+        ASSERT_TRUE(sctp_content);
+        auto sctp_description = sctp_content->media_description()->as_sctp();
+        ASSERT_TRUE(sctp_description);
+        sctp_description->set_port(sctp_description->port() + 1);
+
+        // Capture and suppress the answer.
+        answer.reset(desc.release());
+      });
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_TRUE(answer);
+
+  // Currently SRD succeeds.
+  EXPECT_TRUE(caller()->SetRemoteDescription(std::move(answer)));
+  // Check the state of the SCTP transport.
+  VerifySctpState(caller(), SctpTransportState::kClosed);
+}
+
+TEST_P(DataChannelIntegrationTest, ChangingSctpPortIsAllowedWithDtlsRestart) {
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignaling();
+  caller()->CreateDataChannel();
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
+              IsRtcOk());
+  ASSERT_THAT(WaitUntil([&] { return callee()->data_channel(); }, Ne(nullptr)),
+              IsRtcOk());
+  EXPECT_THAT(
+      WaitUntil([&] { return caller()->data_observer()->IsOpen(); }, IsTrue()),
+      IsRtcOk());
+  EXPECT_THAT(
+      WaitUntil([&] { return callee()->data_observer()->IsOpen(); }, IsTrue()),
+      IsRtcOk());
+
+  // Recreate the second peerconnection.
+  PeerConnectionDependencies dependencies(nullptr);
+  std::unique_ptr<FakeRTCCertificateGenerator> cert_generator(
+      new FakeRTCCertificateGenerator());
+  cert_generator->use_alternate_key();
+  dependencies.cert_generator = std::move(cert_generator);
+  SetCalleePcWrapperAndReturnCurrent(CreatePeerConnectionWrapper(
+      "Callee2", nullptr, {}, std::move(dependencies), nullptr,
+      /*reset_encoder_factory=*/false,
+      /*reset_decoder_factory=*/false,
+      /*create_media_engine=*/false));
+  ConnectFakeSignaling();
+
+  std::unique_ptr<SessionDescriptionInterface> answer;
+  caller()->SetReceivedSdpMunger(
+      [&answer](std::unique_ptr<SessionDescriptionInterface>& desc) {
+        // Change the SCTP port.
+        ContentInfo* sctp_content = GetFirstDataContent(desc->description());
+        ASSERT_TRUE(sctp_content);
+        auto sctp_description = sctp_content->media_description()->as_sctp();
+        ASSERT_TRUE(sctp_description);
+        sctp_description->set_port(sctp_description->port() + 1);
+
+        // Capture and suppress the answer.
+        answer.reset(desc.release());
+      });
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_TRUE(answer);
+
+  EXPECT_TRUE(caller()->SetRemoteDescription(std::move(answer)));
+  // Check the state of the SCTP transport.
+  VerifySctpState(caller(), SctpTransportState::kConnected);
+}
+
 INSTANTIATE_TEST_SUITE_P(DataChannelIntegrationTest,
                          DataChannelIntegrationTest,
                          Combine(Values(SdpSemantics::kPlanB_DEPRECATED,
@@ -1716,6 +1811,9 @@ TEST_P(DataChannelIntegrationTestUnifiedPlanFieldTrials,
   VerifyReceivedDcMessages(caller(), "KENT", callee2_sent_on_dc);
   VerifyReceivedDcMessages(callee2.get(), "KESO", caller_sent_on_dc);
   VerifyDtlsRoles(caller(), callee2.get());
+  VerifySctpState(caller(), SctpTransportState::kConnected);
+  VerifySctpState(callee(), SctpTransportState::kClosed);
+  VerifySctpState(callee2.get(), SctpTransportState::kConnected);
   ASSERT_FALSE(HasFailure());
 }
 
