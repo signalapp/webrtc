@@ -895,10 +895,8 @@ lkgr_config = {
         "chromium/webrtc.fyi": {
             # bucket alias: luci.chromium.webrtc.fyi
             "builders": [
-                "WebRTC Chromium FYI Android Builder (dbg)",
                 "WebRTC Chromium FYI Android Builder ARM64 (dbg)",
                 "WebRTC Chromium FYI Android Builder",
-                "WebRTC Chromium FYI Android Tests (dbg)",
                 "WebRTC Chromium FYI Android Tests ARM64 (dbg)",
                 "WebRTC Chromium FYI Linux Builder (dbg)",
                 "WebRTC Chromium FYI Linux Builder",
