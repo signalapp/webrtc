@@ -246,7 +246,7 @@ class SSLStreamAdapter : public StreamInterface {
 
   static std::set<uint16_t> GetSupportedEphemeralKeyExchangeCipherGroups();
   static std::optional<std::string> GetEphemeralKeyExchangeCipherGroupName(
-      uint16_t);
+      uint16_t group_id);
   static std::vector<uint16_t> GetDefaultEphemeralKeyExchangeCipherGroups(
       const FieldTrialsView* field_trials);
 
