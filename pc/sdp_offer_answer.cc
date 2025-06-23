@@ -5101,8 +5101,7 @@ RTCError SdpOfferAnswerHandler::PushdownMediaDescription(
     }
     // If local and remote are both set, we assume that it's safe to trigger
     // CCFB.
-    if (context_->env().field_trials().IsEnabled(
-            "WebRTC-RFC8888CongestionControlFeedback")) {
+    if (pc_->trials().IsEnabled("WebRTC-RFC8888CongestionControlFeedback")) {
       if (use_ccfb && local_description() && remote_description()) {
         // The call and the congestion controller live on the worker thread.
         context_->worker_thread()->PostTask([call = pc_->call_ptr()] {
