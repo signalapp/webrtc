@@ -52,6 +52,7 @@
 #include "media/base/media_constants.h"
 #include "media/base/stream_params.h"
 #include "p2p/base/transport_description.h"
+#include "pc/peer_connection.h"
 #include "pc/peer_connection_wrapper.h"
 #include "pc/test/fake_audio_capture_module.h"
 #include "pc/test/fake_rtc_certificate_generator.h"
@@ -1335,6 +1336,47 @@ TEST_F(SdpMungingTest, AudioCodecsRtcpFbRrtr) {
       ElementsAre(Pair(SdpMungingType::kAudioCodecsRtcpFbRrtr, 1)));
 }
 
+TEST_F(SdpMungingTest, RtcpMux) {
+  RTCConfiguration config;
+  config.rtcp_mux_policy = PeerConnection::kRtcpMuxPolicyNegotiate;
+  auto pc = CreatePeerConnection(config, /*field_trials=*/"");
+  // rtcp-mux is required by BUNDLE so set a remote description without BUNDLE
+  // and then remove rtcp-mux from the answer.
+  std::string sdp =
+      "v=0\r\n"
+      "o=- 0 3 IN IP4 127.0.0.1\r\n"
+      "s=-\r\n"
+      "t=0 0\r\n"
+      "a=fingerprint:sha-1 "
+      "D9:AB:00:AA:12:7B:62:54:CF:AD:3B:55:F7:60:BC:F3:40:A7:0B:5B\r\n"
+      "a=setup:actpass\r\n"
+      "a=ice-ufrag:ETEn\r\n"
+      "a=ice-pwd:OtSK0WpNtpUjkY4+86js7Z/l\r\n"
+      "m=audio 9 UDP/TLS/RTP/SAVPF 111\r\n"
+      "c=IN IP4 0.0.0.0\r\n"
+      "a=rtcp-mux\r\n"
+      "a=sendrecv\r\n"
+      "a=mid:0\r\n"
+      "a=rtpmap:111 opus/48000/2\r\n";
+  auto offer = CreateSessionDescription(SdpType::kOffer, sdp);
+  EXPECT_TRUE(pc->SetRemoteDescription(std::move(offer)));
+
+  auto answer = pc->CreateAnswer();
+  auto& contents = answer->description()->contents();
+  ASSERT_EQ(contents.size(), 1u);
+  auto* media_description = contents[0].media_description();
+  ASSERT_TRUE(media_description);
+  EXPECT_TRUE(media_description->rtcp_mux());
+  media_description->set_rtcp_mux(false);
+  // BUNDLE needs to be disabled too for this to work.
+
+  RTCError error;
+  EXPECT_TRUE(pc->SetLocalDescription(std::move(answer), &error));
+  EXPECT_THAT(
+      metrics::Samples("WebRTC.PeerConnection.SdpMunging.Answer.Initial"),
+      ElementsAre(Pair(SdpMungingType::kRtcpMux, 1)));
+}
+
 TEST_F(SdpMungingTest, VideoCodecsRtcpFb) {
   auto pc = CreatePeerConnection();
   pc->AddVideoTrack("video_track", {});
@@ -1354,6 +1396,44 @@ TEST_F(SdpMungingTest, VideoCodecsRtcpFb) {
   EXPECT_THAT(
       metrics::Samples("WebRTC.PeerConnection.SdpMunging.Offer.Initial"),
       ElementsAre(Pair(SdpMungingType::kVideoCodecsRtcpFb, 1)));
+}
+
+TEST_F(SdpMungingTest, AudioCodecsRtcpReducedSize) {
+  auto pc = CreatePeerConnection();
+  pc->AddAudioTrack("audio_track", {});
+
+  auto offer = pc->CreateOffer();
+  auto& contents = offer->description()->contents();
+  ASSERT_EQ(contents.size(), 1u);
+  auto* media_description = contents[0].media_description();
+  ASSERT_TRUE(media_description);
+  EXPECT_TRUE(media_description->rtcp_reduced_size());
+  media_description->set_rtcp_reduced_size(false);
+
+  RTCError error;
+  EXPECT_TRUE(pc->SetLocalDescription(std::move(offer), &error));
+  EXPECT_THAT(
+      metrics::Samples("WebRTC.PeerConnection.SdpMunging.Offer.Initial"),
+      ElementsAre(Pair(SdpMungingType::kAudioCodecsRtcpReducedSize, 1)));
+}
+
+TEST_F(SdpMungingTest, VideoCodecsRtcpReducedSize) {
+  auto pc = CreatePeerConnection();
+  pc->AddVideoTrack("video_track", {});
+
+  auto offer = pc->CreateOffer();
+  auto& contents = offer->description()->contents();
+  ASSERT_EQ(contents.size(), 1u);
+  auto* media_description = contents[0].media_description();
+  ASSERT_TRUE(media_description);
+  EXPECT_TRUE(media_description->rtcp_reduced_size());
+  media_description->set_rtcp_reduced_size(false);
+
+  RTCError error;
+  EXPECT_TRUE(pc->SetLocalDescription(std::move(offer), &error));
+  EXPECT_THAT(
+      metrics::Samples("WebRTC.PeerConnection.SdpMunging.Offer.Initial"),
+      ElementsAre(Pair(SdpMungingType::kVideoCodecsRtcpReducedSize, 1)));
 }
 
 }  // namespace webrtc

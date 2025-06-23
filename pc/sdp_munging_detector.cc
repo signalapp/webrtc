@@ -426,6 +426,22 @@ SdpMungingType DetermineSdpMungingType(
       }
     }
 
+    // rtcp-mux.
+    if (last_created_media_description->rtcp_mux() !=
+        media_description_to_set->rtcp_mux()) {
+      RTC_LOG(LS_WARNING) << "SDP munging: rtcp-mux modified.";
+      return SdpMungingType::kRtcpMux;
+    }
+
+    // rtcp-rsize.
+    if (last_created_media_description->rtcp_reduced_size() !=
+        media_description_to_set->rtcp_reduced_size()) {
+      RTC_LOG(LS_WARNING) << "SDP munging: rtcp-rsize modified.";
+      return media_type == MediaType::AUDIO
+                 ? SdpMungingType::kAudioCodecsRtcpReducedSize
+                 : SdpMungingType::kVideoCodecsRtcpReducedSize;
+    }
+
     // Validate codecs. We should have bailed out earlier if codecs were added
     // or removed.
     auto last_created_codecs = last_created_media_description->codecs();
@@ -470,6 +486,7 @@ SdpMungingType DetermineSdpMungingType(
       }
     }
 
+    // sendrecv et al.
     if (last_created_media_description->direction() !=
         media_description_to_set->direction()) {
       RTC_LOG(LS_WARNING) << "SDP munging: transceiver direction modified.";
