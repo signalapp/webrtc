@@ -34,26 +34,6 @@ namespace webrtc {
 
 class RtcEventLog;
 
-class LinkCapacityTracker {
- public:
-  LinkCapacityTracker() = default;
-  ~LinkCapacityTracker() = default;
-  // Call when a new delay-based estimate is available.
-  void UpdateDelayBasedEstimate(Timestamp at_time,
-                                DataRate delay_based_bitrate);
-  void OnStartingRate(DataRate start_rate);
-  void OnRateUpdate(std::optional<DataRate> acknowledged,
-                    DataRate target,
-                    Timestamp at_time);
-  void OnRttBackoff(DataRate backoff_rate, Timestamp at_time);
-  DataRate estimate() const;
-
- private:
-  double capacity_estimate_bps_ = 0;
-  Timestamp last_link_capacity_update_ = Timestamp::MinusInfinity();
-  DataRate last_delay_based_estimate_ = DataRate::PlusInfinity();
-};
-
 class RttBasedBackoff {
  public:
   explicit RttBasedBackoff(const FieldTrialsView& key_value_config);
@@ -94,7 +74,6 @@ class SendSideBandwidthEstimation {
   uint8_t fraction_loss() const { return last_fraction_loss_; }
   TimeDelta round_trip_time() const { return last_round_trip_time_; }
 
-  DataRate GetEstimatedLinkCapacity() const;
   // Call periodically to update estimate.
   void UpdateEstimate(Timestamp at_time);
   void OnSentPacket(const SentPacket& sent_packet);
@@ -165,7 +144,6 @@ class SendSideBandwidthEstimation {
 
   const FieldTrialsView* key_value_config_;
   RttBasedBackoff rtt_backoff_;
-  LinkCapacityTracker link_capacity_;
 
   std::deque<std::pair<Timestamp, DataRate> > min_bitrate_history_;
 

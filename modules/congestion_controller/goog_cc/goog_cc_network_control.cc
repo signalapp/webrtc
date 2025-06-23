@@ -128,7 +128,6 @@ GoogCcNetworkController::GoogCcNetworkController(NetworkControllerConfig config,
       initial_config_(config),
       last_loss_based_target_rate_(*config.constraints.starting_rate),
       last_pushback_target_rate_(last_loss_based_target_rate_),
-      last_stable_target_rate_(last_loss_based_target_rate_),
       last_loss_base_state_(LossBasedState::kDelayBasedEstimate),
       pacing_factor_(config.stream_based_config.pacing_factor.value_or(
           kDefaultPaceMultiplier)),
@@ -578,8 +577,6 @@ NetworkControlUpdate GoogCcNetworkController::GetNetworkState(
 
   update.target_rate->at_time = at_time;
   update.target_rate->target_rate = last_pushback_target_rate_;
-  update.target_rate->stable_target_rate =
-      bandwidth_estimation_->GetEstimatedLinkCapacity();
   update.pacer_config = GetPacingRates(at_time);
   update.congestion_window = current_data_window_;
   return update;
@@ -608,21 +605,16 @@ void GoogCcNetworkController::MaybeTriggerOnNetworkChanged(
                           loss_based_target_rate.bps();
     }
   }
-  DataRate stable_target_rate =
-      bandwidth_estimation_->GetEstimatedLinkCapacity();
-  stable_target_rate = std::min(stable_target_rate, pushback_target_rate);
 
   if ((loss_based_target_rate != last_loss_based_target_rate_) ||
       (loss_based_state != last_loss_base_state_) ||
       (fraction_loss != last_estimated_fraction_loss_) ||
       (round_trip_time != last_estimated_round_trip_time_) ||
-      (pushback_target_rate != last_pushback_target_rate_) ||
-      (stable_target_rate != last_stable_target_rate_)) {
+      (pushback_target_rate != last_pushback_target_rate_)) {
     last_loss_based_target_rate_ = loss_based_target_rate;
     last_pushback_target_rate_ = pushback_target_rate;
     last_estimated_fraction_loss_ = fraction_loss;
     last_estimated_round_trip_time_ = round_trip_time;
-    last_stable_target_rate_ = stable_target_rate;
     last_loss_base_state_ = loss_based_state;
 
     alr_detector_->SetEstimatedBitrate(loss_based_target_rate.bps());
@@ -637,7 +629,10 @@ void GoogCcNetworkController::MaybeTriggerOnNetworkChanged(
     } else {
       target_rate_msg.target_rate = pushback_target_rate;
     }
-    target_rate_msg.stable_target_rate = stable_target_rate;
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    target_rate_msg.stable_target_rate = loss_based_target_rate;
+#pragma clang diagnostic pop
     target_rate_msg.network_estimate.at_time = at_time;
     target_rate_msg.network_estimate.round_trip_time = round_trip_time;
     target_rate_msg.network_estimate.loss_rate_ratio = fraction_loss / 255.0f;
