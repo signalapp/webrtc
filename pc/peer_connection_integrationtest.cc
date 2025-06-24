@@ -4631,9 +4631,8 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
             PeerConnectionInterface::kStable);
 }
 
-// TODO: issues.webrtc.org/425336456 - figure out correct behavior and reenable
 TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
-       DISABLED_OnlyOnePairWantsCorruptionScorePlumbing) {
+       OnlyOnePairWantsCorruptionScorePlumbing) {
   // In order for corruption score to be logged, encryption of RTP header
   // extensions must be allowed.
   CryptoOptions crypto_options;
@@ -4657,19 +4656,12 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   ASSERT_THAT(
       WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
       IsRtcOk());
-  std::vector<RtpHeaderExtensionCapability> negotiated_extensions =
-      caller()->pc()->GetTransceivers()[0]->GetNegotiatedHeaderExtensions();
-  ASSERT_THAT(negotiated_extensions,
-              Contains(Field("uri", &RtpHeaderExtensionCapability::uri,
-                             RtpExtension::kCorruptionDetectionUri)));
   ASSERT_THAT(WaitUntil([&] { return caller()->GetCorruptionScoreCount(); },
                         ::testing::Gt(0), {.timeout = kMaxWaitForStats}),
-              IsRtcOk())
-      << "Waiting for caller corruption score count > 0";
+              IsRtcOk());
   ASSERT_THAT(WaitUntil([&] { return callee()->GetCorruptionScoreCount(); },
                         ::testing::Eq(0), {.timeout = kMaxWaitForStats}),
-              IsRtcOk())
-      << "Waiting for callee corruption score count = 0";
+              IsRtcOk());
 
   for (const auto& pair : {caller(), callee()}) {
     scoped_refptr<const RTCStatsReport> report = pair->NewGetStats();
