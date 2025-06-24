@@ -283,6 +283,15 @@ TEST_F(NetEqImplTest, RegisterPayloadType) {
   neteq_->RegisterPayloadType(rtp_payload_type, format);
 }
 
+TEST_F(NetEqImplTest, CreateDecoder) {
+  UseNoMocks();
+  CreateInstance();
+  constexpr int rtp_payload_type = 0;
+  const SdpAudioFormat format("pcmu", 8000, 1);
+  EXPECT_TRUE(neteq_->RegisterPayloadType(rtp_payload_type, format));
+  EXPECT_TRUE(neteq_->CreateDecoder(rtp_payload_type));
+}
+
 TEST_F(NetEqImplTest, RemovePayloadType) {
   CreateInstance();
   uint8_t rtp_payload_type = 0;
