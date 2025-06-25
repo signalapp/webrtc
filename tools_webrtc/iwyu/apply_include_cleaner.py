@@ -74,6 +74,8 @@ _IGNORED_HEADERS = [
     "pipewire/.*.h",  # pipewire.
     "spa/.*.h",  # pipewire.
     "openssl/.*.h",  # openssl/boringssl.
+    "alsa/.*.h",  # ALSA.
+    "pulse/.*.h",  # PulseAudio.
 ]
 
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
