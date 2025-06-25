@@ -1729,6 +1729,20 @@ class DataChannelIntegrationTestUnifiedPlanFieldTrials
         (callee_has_dtls_in_stun || callee2_has_dtls_in_stun)) {
       return "dtls-in-stun when callee(s) are dtls clients";
     }
+
+    /**
+     * This extra skip disables 108 combinations that are flaky.
+     * TODO (jonaso, b/427410792, webrtc:367395350): Should be fixed
+     * before launching dtls in stun
+     */
+    const bool caller_has_dtls_in_stun = absl::StrContains(
+        std::get<1>(GetParam()), "WebRTC-IceHandshakeDtls/Enabled/");
+    if (caller_has_dtls_in_stun &&
+        (!callee_has_dtls_in_stun && !callee2_has_dtls_in_stun)) {
+      return "TODO: b/427410792, webrtc:367395350, dtls-in-stun on caller but "
+             "neither callees";
+    }
+
     return nullptr;
   }
 };
