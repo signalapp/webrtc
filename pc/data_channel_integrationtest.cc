@@ -1721,26 +1721,15 @@ class DataChannelIntegrationTestUnifiedPlanFieldTrials
 
   const char* CheckSupported() {
     const bool callee_active = std::get<0>(GetParam());
+    const bool caller_has_dtls_in_stun = absl::StrContains(
+        std::get<1>(GetParam()), "WebRTC-IceHandshakeDtls/Enabled/");
     const bool callee_has_dtls_in_stun = absl::StrContains(
         std::get<2>(GetParam()), "WebRTC-IceHandshakeDtls/Enabled/");
     const bool callee2_has_dtls_in_stun = absl::StrContains(
         std::get<3>(GetParam()), "WebRTC-IceHandshakeDtls/Enabled/");
-    if (callee_active &&
-        (callee_has_dtls_in_stun || callee2_has_dtls_in_stun)) {
+    if (callee_active && (caller_has_dtls_in_stun || callee_has_dtls_in_stun ||
+                          callee2_has_dtls_in_stun)) {
       return "dtls-in-stun when callee(s) are dtls clients";
-    }
-
-    /**
-     * This extra skip disables 108 combinations that are flaky.
-     * TODO (jonaso, b/427410792, webrtc:367395350): Should be fixed
-     * before launching dtls in stun
-     */
-    const bool caller_has_dtls_in_stun = absl::StrContains(
-        std::get<1>(GetParam()), "WebRTC-IceHandshakeDtls/Enabled/");
-    if (caller_has_dtls_in_stun &&
-        (!callee_has_dtls_in_stun && !callee2_has_dtls_in_stun)) {
-      return "TODO: b/427410792, webrtc:367395350, dtls-in-stun on caller but "
-             "neither callees";
     }
 
     return nullptr;
@@ -1783,10 +1772,26 @@ TEST_P(DataChannelIntegrationTestUnifiedPlanFieldTrials,
         // Capture offer so that it can be sent to Callee2 too.
         offer = sdp->Clone();
       });
+  callee2->SetReceivedSdpMunger(
+      [&](std::unique_ptr<SessionDescriptionInterface>& sdp) {
+        if (callee_active) {
+          MakeOfferHavePassiveDtlsRole(sdp);
+        } else {
+          MakeOfferHaveActiveDtlsRole(sdp);
+        }
+      });
   callee()->SetGeneratedSdpMunger(
       [&](std::unique_ptr<SessionDescriptionInterface>& sdp) {
         // Modify offer to kPrAnswer
         SetSdpType(sdp, SdpType::kPrAnswer);
+        if (callee_active) {
+          MakeOfferHaveActiveDtlsRole(sdp);
+        } else {
+          MakeOfferHavePassiveDtlsRole(sdp);
+        }
+      });
+  callee2->SetGeneratedSdpMunger(
+      [&](std::unique_ptr<SessionDescriptionInterface>& sdp) {
         if (callee_active) {
           MakeOfferHaveActiveDtlsRole(sdp);
         } else {
@@ -1850,10 +1855,26 @@ TEST_P(DataChannelIntegrationTestUnifiedPlanFieldTrials,
         // Capture offer so that it can be sent to Callee2 too.
         offer = sdp->Clone();
       });
+  callee2->SetReceivedSdpMunger(
+      [&](std::unique_ptr<SessionDescriptionInterface>& sdp) {
+        if (callee_active) {
+          MakeOfferHavePassiveDtlsRole(sdp);
+        } else {
+          MakeOfferHaveActiveDtlsRole(sdp);
+        }
+      });
   callee()->SetGeneratedSdpMunger(
       [&](std::unique_ptr<SessionDescriptionInterface>& sdp) {
         // Modify offer to kPrAnswer
         SetSdpType(sdp, SdpType::kPrAnswer);
+        if (callee_active) {
+          MakeOfferHaveActiveDtlsRole(sdp);
+        } else {
+          MakeOfferHavePassiveDtlsRole(sdp);
+        }
+      });
+  callee2->SetGeneratedSdpMunger(
+      [&](std::unique_ptr<SessionDescriptionInterface>& sdp) {
         if (callee_active) {
           MakeOfferHaveActiveDtlsRole(sdp);
         } else {
@@ -1918,6 +1939,7 @@ TEST_P(DataChannelIntegrationTestUnifiedPlanFieldTrials,
   ASSERT_THAT(answer, testing::Not(testing::IsNull()));
   std::string answer_sdp;
   EXPECT_TRUE(answer->ToString(&answer_sdp));
+
   caller()->ReceiveSdpMessage(SdpType::kAnswer, answer_sdp);
 
   EXPECT_EQ(caller()->pc()->signaling_state(),
