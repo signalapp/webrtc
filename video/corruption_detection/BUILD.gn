@@ -214,6 +214,8 @@ if (rtc_include_tests) {
     sources = [ "halton_frame_sampler_unittest.cc" ]
     deps = [
       ":halton_frame_sampler",
+      ":video_frame_sampler",
+      "../../api:array_view",
       "../../api:scoped_refptr",
       "../../api/video:video_frame",
       "../../test:test_support",
