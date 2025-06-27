@@ -15,6 +15,7 @@
 #include <string>
 
 #include "api/environment/environment.h"
+#include "api/local_network_access_permission.h"
 #include "api/packet_socket_factory.h"
 #include "p2p/base/port.h"
 #include "p2p/base/port_allocator.h"
@@ -44,6 +45,8 @@ struct CreateRelayPortArgs {
   // to the candidates from other servers. Required because ICE priorities
   // need to be unique.
   int relative_priority = 0;
+  LocalNetworkAccessPermissionFactoryInterface* lna_permission_factory =
+      nullptr;
 };
 
 // A factory for creating RelayPort's.

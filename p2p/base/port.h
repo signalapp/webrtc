@@ -22,10 +22,12 @@
 #include <utility>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/candidate.h"
 #include "api/environment/environment.h"
 #include "api/field_trials_view.h"
+#include "api/local_network_access_permission.h"
 #include "api/packet_socket_factory.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/task_queue_base.h"
@@ -167,6 +169,8 @@ class RTC_EXPORT Port : public PortInterface, public sigslot::has_slots<> {
     const ::webrtc::Network* network;
     absl::string_view ice_username_fragment;
     absl::string_view ice_password;
+    LocalNetworkAccessPermissionFactoryInterface* lna_permission_factory =
+        nullptr;
   };
 
  protected:
@@ -431,6 +435,15 @@ class RTC_EXPORT Port : public PortInterface, public sigslot::has_slots<> {
 
   IceCandidateType type() const { return type_; }
 
+  // Requests the Local Network Access Permission if necessary. Asynchronously
+  // calls `callback` with the result of requesting the permission. If the
+  // permission is not needed e.g. because `address` is public, it calls
+  // `callback` synchronously. It's guaranteed that the callback won't be called
+  // after this class is destroyed.
+  void MaybeRequestLocalNetworkAccessPermission(
+      const SocketAddress& address,
+      absl::AnyInvocable<void(LocalNetworkAccessPermissionStatus)> callback);
+
  private:
   bool MaybeObfuscateAddress(const Candidate& c, bool is_final)
       RTC_RUN_ON(thread_);
@@ -453,9 +466,15 @@ class RTC_EXPORT Port : public PortInterface, public sigslot::has_slots<> {
 
   void OnNetworkTypeChanged(const ::webrtc::Network* network);
 
+  void OnRequestLocalNetworkAccessPermission(
+      LocalNetworkAccessPermissionInterface* permission_query,
+      absl::AnyInvocable<void(LocalNetworkAccessPermissionStatus)> callback,
+      LocalNetworkAccessPermissionStatus status);
+
   const Environment env_;
   TaskQueueBase* const thread_;
   PacketSocketFactory* const factory_;
+  LocalNetworkAccessPermissionFactoryInterface* const lna_permission_factory_;
   const IceCandidateType type_;
   bool send_retransmit_count_attribute_;
   const ::webrtc::Network* network_;
@@ -492,6 +511,9 @@ class RTC_EXPORT Port : public PortInterface, public sigslot::has_slots<> {
   int64_t last_time_all_connections_removed_ = 0;
   MdnsNameRegistrationStatus mdns_name_registration_status_ =
       MdnsNameRegistrationStatus::kNotStarted;
+
+  std::vector<std::unique_ptr<LocalNetworkAccessPermissionInterface>>
+      permission_queries_;
 
   CallbackList<PortInterface*> port_destroyed_callback_list_;
 

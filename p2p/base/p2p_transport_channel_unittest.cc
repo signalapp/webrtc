@@ -283,32 +283,6 @@ class ResolverFactoryFixture : public webrtc::MockAsyncDnsResolverFactory {
   absl::AnyInvocable<void()> saved_callback_;
 };
 
-class PermissionFactoryFixture
-    : public webrtc::MockLocalNetworkAccessPermissionFactory {
- public:
-  explicit PermissionFactoryFixture(
-      webrtc::LocalNetworkAccessPermissionStatus result) {
-    EXPECT_CALL(*this, Create()).WillRepeatedly([result]() {
-      auto mock_lna_permission =
-          std::make_unique<webrtc::MockLocalNetworkAccessPermission>();
-
-      EXPECT_CALL(*mock_lna_permission, RequestPermission(_, _))
-          .WillRepeatedly(
-              [result](
-                  const SocketAddress& /* addr */,
-                  absl::AnyInvocable<void(
-                      webrtc::LocalNetworkAccessPermissionStatus)> callback) {
-                webrtc::Thread::Current()->PostTask(
-                    [callback = std::move(callback), result]() mutable {
-                      callback(result);
-                    });
-              });
-
-      return mock_lna_permission;
-    });
-  }
-};
-
 bool HasLocalAddress(const webrtc::CandidatePairInterface* pair,
                      const SocketAddress& address) {
   return pair->local_candidate().address().EqualIPs(address);
@@ -7263,7 +7237,7 @@ class LocalAreaNetworkPermissionTest
 TEST_P(LocalAreaNetworkPermissionTest, LiteralAddresses) {
   const Environment env = CreateEnvironment();
   FakePortAllocator pa(env, ss());
-  PermissionFactoryFixture lna_permission_factory(
+  webrtc::FakeLocalNetworkAccessPermissionFactory lna_permission_factory(
       GetParam().lna_permission_status);
 
   IceTransportInit init;
@@ -7292,7 +7266,7 @@ TEST_P(LocalAreaNetworkPermissionTest, LiteralAddresses) {
 TEST_P(LocalAreaNetworkPermissionTest, UnresolvedAddresses) {
   const Environment env = CreateEnvironment();
   FakePortAllocator pa(env, ss());
-  PermissionFactoryFixture lna_permission_factory(
+  webrtc::FakeLocalNetworkAccessPermissionFactory lna_permission_factory(
       GetParam().lna_permission_status);
 
   ResolverFactoryFixture resolver_fixture;
