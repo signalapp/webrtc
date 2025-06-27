@@ -7575,8 +7575,8 @@ class P2PTransportChannelTestDtlsInStun : public P2PTransportChannelTestBase {
     return make_pair(absl::string_view(pending_packet_), std::nullopt);
   }
 
-  void piggyback_data_received(const StunByteStringAttribute* data,
-                               const StunByteStringAttribute* ack) {}
+  void piggyback_data_received(std::optional<ArrayView<uint8_t>> data,
+                               std::optional<std::vector<uint32_t>> ack) {}
 
   ScopedFakeClock clock_;
   Buffer pending_packet_;

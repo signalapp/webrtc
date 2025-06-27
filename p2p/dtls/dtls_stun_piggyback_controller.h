@@ -82,8 +82,8 @@ class DtlsStunPiggybackController {
       StunMessageType stun_message_type);
 
   // Called by Connection when receiving a STUN BINDING { REQUEST / RESPONSE }.
-  void ReportDataPiggybacked(const StunByteStringAttribute* data,
-                             const StunByteStringAttribute* ack);
+  void ReportDataPiggybacked(std::optional<ArrayView<uint8_t>> data,
+                             std::optional<std::vector<uint32_t>> acks);
 
   int GetCountOfReceivedData() const { return data_recv_count_; }
 

@@ -19,6 +19,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
@@ -579,8 +580,15 @@ class FakeIceTransport : public IceTransportInternal {
                         << " attr: " << (dtls_piggyback_attr != nullptr)
                         << " ack: " << (dtls_piggyback_ack != nullptr);
       if (!dtls_stun_piggyback_callbacks_.empty()) {
-        dtls_stun_piggyback_callbacks_.recv_data(dtls_piggyback_attr,
-                                                 dtls_piggyback_ack);
+        std::optional<ArrayView<uint8_t>> piggyback_attr;
+        if (dtls_piggyback_attr) {
+          piggyback_attr = dtls_piggyback_attr->array_view();
+        }
+        std::optional<std::vector<uint32_t>> piggyback_ack;
+        if (dtls_piggyback_ack) {
+          piggyback_ack = dtls_piggyback_ack->GetUInt32Vector();
+        }
+        dtls_stun_piggyback_callbacks_.recv_data(piggyback_attr, piggyback_ack);
       }
 
       if (msg->type() == STUN_BINDING_RESPONSE) {

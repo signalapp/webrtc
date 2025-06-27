@@ -14,11 +14,11 @@
 // This file contains classes for dealing with the STUN protocol, as specified
 // in RFC 5389, and its descendants.
 
-#include <stddef.h>
-#include <stdint.h>
-
+#include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -529,6 +529,8 @@ class StunByteStringAttribute : public StunAttribute {
   [[deprecated]] std::string GetString() const {
     return std::string(reinterpret_cast<const char*>(bytes_), length());
   }
+
+  std::optional<std::vector<uint32_t>> GetUInt32Vector() const;
 
   void CopyBytes(const void* bytes, size_t length);
   void CopyBytes(absl::string_view bytes);
