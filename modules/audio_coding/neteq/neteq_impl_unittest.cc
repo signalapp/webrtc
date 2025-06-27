@@ -36,6 +36,7 @@
 #include "api/scoped_refptr.h"
 #include "modules/audio_coding/codecs/g711/audio_decoder_pcm.h"
 #include "modules/audio_coding/neteq/decision_logic.h"
+#include "modules/audio_coding/neteq/delay_manager.h"
 #include "modules/audio_coding/neteq/expand.h"
 #include "modules/audio_coding/neteq/mock/mock_decoder_database.h"
 #include "modules/audio_coding/neteq/mock/mock_dtmf_buffer.h"
@@ -141,8 +142,10 @@ class NetEqImplTest : public ::testing::Test {
       controller_config.base_min_delay_ms = config_.min_delay_ms;
       controller_config.allow_time_stretching = true;
       controller_config.max_packets_in_buffer = config_.max_packets_in_buffer;
-      deps.neteq_controller =
-          std::make_unique<DecisionLogic>(env_, std::move(controller_config));
+      auto delay_manager = std::make_unique<DelayManager>(
+          DelayManager::Config(env_.field_trials()), tick_timer_);
+      deps.neteq_controller = std::make_unique<DecisionLogic>(
+          env_, std::move(controller_config), std::move(delay_manager));
     }
     neteq_controller_ = deps.neteq_controller.get();
 

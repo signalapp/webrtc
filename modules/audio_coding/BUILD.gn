@@ -528,6 +528,7 @@ rtc_library("neteq") {
     "../../api/audio:audio_frame_api",
     "../../api/audio_codecs:audio_codecs_api",
     "../../api/environment",
+    "../../api/neteq:delay_manager_api",
     "../../api/neteq:neteq_api",
     "../../api/neteq:neteq_controller_api",
     "../../api/neteq:tick_timer",
