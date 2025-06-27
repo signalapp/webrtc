@@ -86,6 +86,18 @@ SdpMungingType DetermineTransportModification(
       if (!created_renomination && set_renomination) {
         return SdpMungingType::kIceOptionsRenomination;
       }
+      bool created_trickle =
+          absl::c_find(
+              last_created_transport_infos[i].description.transport_options,
+              ICE_OPTION_TRICKLE) !=
+          last_created_transport_infos[i].description.transport_options.end();
+      bool set_trickle =
+          absl::c_find(transport_infos_to_set[i].description.transport_options,
+                       ICE_OPTION_TRICKLE) !=
+          transport_infos_to_set[i].description.transport_options.end();
+      if (created_trickle && !set_trickle) {
+        return SdpMungingType::kIceOptionsTrickle;
+      }
       return SdpMungingType::kIceOptions;
     }
   }
