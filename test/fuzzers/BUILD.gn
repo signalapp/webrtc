@@ -702,10 +702,10 @@ webrtc_fuzzer_test("frame_buffer_fuzzer") {
   deps = [
     ":fuzz_data_helper",
     "../../api:array_view",
+    "../../api:field_trials",
     "../../api/video:encoded_frame",
     "../../api/video:frame_buffer",
     "../../rtc_base:rtc_numerics",
-    "../../test:scoped_key_value_config",
   ]
 }
 
