@@ -114,7 +114,6 @@ if (rtc_include_tests) {
       "../../../../api/video_codecs:video_codecs_api",
       "../../../../rtc_base:checks",
       "../../../../test:create_test_field_trials",
-      "../../../../test:explicit_key_value_config",
       "../../../../test:test_support",
     ]
 
