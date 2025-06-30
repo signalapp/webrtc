@@ -596,7 +596,6 @@ if (rtc_include_tests) {
         "../rtc_base:logging",
         "../rtc_base:ssl_adapter",
         "../rtc_base:threading",
-        "../system_wrappers:field_trial",
         "../system_wrappers:metrics",
         "//third_party/abseil-cpp/absl/flags:flag",
         "//third_party/abseil-cpp/absl/memory",
@@ -1246,13 +1245,7 @@ if (!build_with_chromium) {
       "test_flags.h",
     ]
 
-    # TODO: bugs.webrtc.org/419453427 - remove dependency on
-    # `create_test_field_trials` when force_fieldtrials flags declaration
-    # is removed from the header.
-    deps = [
-      ":create_test_field_trials",
-      "//third_party/abseil-cpp/absl/flags:flag",
-    ]
+    deps = [ "//third_party/abseil-cpp/absl/flags:flag" ]
   }
 
   rtc_library("test_common") {
