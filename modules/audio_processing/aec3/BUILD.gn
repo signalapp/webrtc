@@ -329,7 +329,6 @@ if (rtc_include_tests) {
       "../../../rtc_base/system:arch",
       "../../../system_wrappers:metrics",
       "../../../test:explicit_key_value_config",
-      "../../../test:field_trial",
       "../../../test:test_support",
       "../utility:cascaded_biquad_filter",
     ]

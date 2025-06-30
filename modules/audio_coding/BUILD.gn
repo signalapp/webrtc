@@ -1060,7 +1060,6 @@ if (rtc_include_tests) {
         "../../rtc_base:checks",
         "../../rtc_base:refcount",
         "../../test:audio_test_common",
-        "../../test:field_trial",
         "../../test:fileutils",
         "../../test:test_support",
         "../rtp_rtcp:rtp_rtcp_format",

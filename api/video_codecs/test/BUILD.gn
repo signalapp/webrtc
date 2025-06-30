@@ -41,7 +41,6 @@ if (rtc_include_tests) {
       "../../../rtc_base:rtc_base_tests_utils",
       "../../../test:explicit_key_value_config",
       "../../../test:fake_video_codecs",
-      "../../../test:field_trial",
       "../../../test:test_support",
       "../../../test:video_test_common",
       "../../environment",

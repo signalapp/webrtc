@@ -419,7 +419,6 @@ rtc_library("frame_buffer_unittest") {
     "../../api/video:encoded_frame",
     "../../test:create_test_field_trials",
     "../../test:fake_encoded_frame",
-    "../../test:field_trial",
     "../../test:test_support",
   ]
 }

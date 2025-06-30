@@ -212,7 +212,6 @@ rtc_library("video_test_common") {
     ":create_frame_generator_capturer",
     ":fileutils",
     ":frame_utils",
-    ":scoped_key_value_config",
     ":test_video_capturer",
     "../api:array_view",
     "../api:create_frame_generator",
@@ -306,7 +305,6 @@ if (!build_with_chromium) {
         "vcm_capturer.h",
       ]
       deps += [
-        ":scoped_key_value_config",
         "../api:scoped_refptr",
         "../modules/video_capture:video_capture_module",
         "../rtc_base:checks",
@@ -343,42 +341,10 @@ rtc_library("rtp_test_utils") {
   ]
 }
 
-rtc_library("field_trial") {
-  testonly = true
-  visibility = [ "*" ]
-  sources = [
-    "field_trial.cc",
-    "field_trial.h",
-  ]
-
-  deps = [
-    "../rtc_base:checks",
-    "../system_wrappers:field_trial",
-    "//third_party/abseil-cpp/absl/strings:string_view",
-  ]
-}
-
 rtc_library("explicit_key_value_config") {
   sources = [ "explicit_key_value_config.h" ]
 
   deps = [ "../api:field_trials" ]
-}
-
-rtc_library("scoped_key_value_config") {
-  testonly = true
-  visibility = [ "*" ]
-  sources = [
-    "scoped_key_value_config.cc",
-    "scoped_key_value_config.h",
-  ]
-
-  deps = [
-    ":field_trial",
-    "../api:field_trials_registry",
-    "../rtc_base:checks",
-    "../system_wrappers:field_trial",
-    "//third_party/abseil-cpp/absl/strings:string_view",
-  ]
 }
 
 rtc_library("perf_test") {
@@ -619,7 +585,6 @@ if (rtc_include_tests) {
       ]
 
       deps = [
-        ":field_trial",
         ":fileutils",
         ":perf_test",
         ":resources_dir_flag",
@@ -736,7 +701,6 @@ if (rtc_include_tests) {
         ":rtc_expect_death",
         ":rtp_test_utils",
         ":run_loop",
-        ":scoped_key_value_config",
         ":test_main",
         ":test_support",
         ":test_support_test_artifacts",
