@@ -27,7 +27,6 @@
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
 #include "api/create_peerconnection_factory.h"
-#include "api/field_trials.h"
 #include "api/jsep.h"
 #include "api/media_types.h"
 #include "api/peer_connection_interface.h"
@@ -208,67 +207,63 @@ TEST_F(SdpMungingTest, DISABLED_ReportUMAMetricsWithNoMunging) {
 TEST_F(SdpMungingTest, AllowWithDenyListForRollout) {
   // Don't munge and you are good.
   EXPECT_TRUE(IsSdpMungingAllowed(SdpMungingType::kNoModification,
-                                  *FieldTrials::CreateNoGlobal("")));
+                                  CreateTestFieldTrials()));
   // Empty string (default) means everything is allowed from the perspective of
   // the trial.
   EXPECT_TRUE(IsSdpMungingAllowed(SdpMungingType::kUnknownModification,
-                                  *FieldTrials::CreateNoGlobal("")));
+                                  CreateTestFieldTrials()));
 
   // Deny list is set, modification on deny list is rejected.
   EXPECT_FALSE(IsSdpMungingAllowed(
       SdpMungingType::kUnknownModification /*=1*/,
-      *FieldTrials::CreateNoGlobal("WebRTC-NoSdpMangleReject/Enabled,1/")));
+      CreateTestFieldTrials("WebRTC-NoSdpMangleReject/Enabled,1/")));
 
   // Deny list is set, modification not on deny list is allowed.
   EXPECT_TRUE(IsSdpMungingAllowed(
       SdpMungingType::kWithoutCreateAnswer /*=2*/,
-      *FieldTrials::CreateNoGlobal("WebRTC-NoSdpMangleReject/Enabled,1/")));
+      CreateTestFieldTrials("WebRTC-NoSdpMangleReject/Enabled,1/")));
 
   // Split by comma.
   EXPECT_FALSE(IsSdpMungingAllowed(
       SdpMungingType::kUnknownModification /*=1*/,
-      *FieldTrials::CreateNoGlobal("WebRTC-NoSdpMangleReject/Enabled,1,2/")));
+      CreateTestFieldTrials("WebRTC-NoSdpMangleReject/Enabled,1,2/")));
   EXPECT_FALSE(IsSdpMungingAllowed(
       SdpMungingType::kWithoutCreateAnswer /*=2*/,
-      *FieldTrials::CreateNoGlobal("WebRTC-NoSdpMangleReject/Enabled,1,2/")));
+      CreateTestFieldTrials("WebRTC-NoSdpMangleReject/Enabled,1,2/")));
   EXPECT_TRUE(IsSdpMungingAllowed(
       SdpMungingType::kWithoutCreateOffer /*=3*/,
-      *FieldTrials::CreateNoGlobal("WebRTC-NoSdpMangleReject/Enabled,1,2,4/")));
+      CreateTestFieldTrials("WebRTC-NoSdpMangleReject/Enabled,1,2,4/")));
 }
 
 TEST_F(SdpMungingTest, DenyWithAllowListForTesting) {
   // Don't munge and you are good.
   EXPECT_TRUE(IsSdpMungingAllowed(SdpMungingType::kNoModification,
-                                  *FieldTrials::CreateNoGlobal("")));
+                                  CreateTestFieldTrials()));
   // Empty string (default) means everything is allowed from the perspective of
   // the trial.
   EXPECT_TRUE(IsSdpMungingAllowed(SdpMungingType::kUnknownModification,
-                                  *FieldTrials::CreateNoGlobal("")));
+                                  CreateTestFieldTrials()));
 
   // Allow-list is set, modification is on allow list.
-  EXPECT_TRUE(
-      IsSdpMungingAllowed(SdpMungingType::kUnknownModification /*=1*/,
-                          *FieldTrials::CreateNoGlobal(
-                              "WebRTC-NoSdpMangleAllowForTesting/Enabled,1/")));
+  EXPECT_TRUE(IsSdpMungingAllowed(
+      SdpMungingType::kUnknownModification /*=1*/,
+      CreateTestFieldTrials("WebRTC-NoSdpMangleAllowForTesting/Enabled,1/")));
 
   // Allow-list is set, modification is not on allow list.
-  EXPECT_FALSE(
-      IsSdpMungingAllowed(SdpMungingType::kWithoutCreateAnswer /*=2*/,
-                          *FieldTrials::CreateNoGlobal(
-                              "WebRTC-NoSdpMangleAllowForTesting/Enabled,1/")));
+  EXPECT_FALSE(IsSdpMungingAllowed(
+      SdpMungingType::kWithoutCreateAnswer /*=2*/,
+      CreateTestFieldTrials("WebRTC-NoSdpMangleAllowForTesting/Enabled,1/")));
 
   // Split by comma.
   EXPECT_TRUE(IsSdpMungingAllowed(
       SdpMungingType::kUnknownModification /*=1*/,
-      *FieldTrials::CreateNoGlobal(
-          "WebRTC-NoSdpMangleAllowForTesting/Enabled,1,2/")));
+      CreateTestFieldTrials("WebRTC-NoSdpMangleAllowForTesting/Enabled,1,2/")));
   EXPECT_TRUE(IsSdpMungingAllowed(
       SdpMungingType::kWithoutCreateAnswer /*=2*/,
-      *FieldTrials::CreateNoGlobal(
-          "WebRTC-NoSdpMangleAllowForTesting/Enabled,1,2/")));
+      CreateTestFieldTrials("WebRTC-NoSdpMangleAllowForTesting/Enabled,1,2/")));
   EXPECT_FALSE(IsSdpMungingAllowed(
       SdpMungingType::kWithoutCreateOffer /*=3*/,
-      *FieldTrials::CreateNoGlobal(
+      CreateTestFieldTrials(
           "WebRTC-NoSdpMangleAllowForTesting/Enabled,1,2,4/")));
 }
 
