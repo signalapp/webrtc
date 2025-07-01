@@ -583,9 +583,6 @@ POLICY_EXEMPT_FIELD_TRIALS: FrozenSet[FieldTrial] = frozenset([
     FieldTrial('WebRTC-Bwe-ReceiveTimeFix',
                42234228,
                date(2024, 4, 1)),
-    FieldTrial('WebRTC-Bwe-ReceiverLimitCapsOnly',
-               42222445,
-               date(2024, 4, 1)),
     FieldTrial('WebRTC-Bwe-RobustThroughputEstimatorSettings',
                42220312,
                date(2024, 4, 1)),
@@ -905,7 +902,7 @@ POLICY_EXEMPT_FIELD_TRIALS: FrozenSet[FieldTrial] = frozenset([
 ])  # yapf: disable
 
 POLICY_EXEMPT_FIELD_TRIALS_DIGEST: str = \
-    '625f8d689ab8bcfe4118347c6f8c852e3ac372c7'
+    'cf604f3ec3a4fa7cf0857f8e1f9201366abe2e5f'
 
 REGISTERED_FIELD_TRIALS: FrozenSet[FieldTrial] = ACTIVE_FIELD_TRIALS.union(
     POLICY_EXEMPT_FIELD_TRIALS)
