@@ -717,7 +717,9 @@ RTCError DisableSimulcastInSender(scoped_refptr<RtpSenderInternal> sender) {
 
 // The SDP parser used to populate these values by default for the 'content
 // name' if an a=mid line was absent.
-absl::string_view GetDefaultMidForPlanB(MediaType media_type) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+std::string GetDefaultMidForPlanB(MediaType media_type) {
   switch (media_type) {
     case MediaType::AUDIO:
       return CN_AUDIO;
@@ -734,6 +736,7 @@ absl::string_view GetDefaultMidForPlanB(MediaType media_type) {
   RTC_DCHECK_NOTREACHED();
   return "";
 }
+#pragma clang diagnostic pop
 
 // Add options to |[audio/video]_media_description_options| from `senders`.
 void AddPlanBRtpSenderOptions(
@@ -4256,8 +4259,7 @@ void SdpOfferAnswerHandler::FillInMissingRemoteMids(
         source_explanation = "generated just now";
       }
     } else {
-      new_mid = std::string(
-          GetDefaultMidForPlanB(content.media_description()->type()));
+      new_mid = GetDefaultMidForPlanB(content.media_description()->type());
       source_explanation = "to match pre-existing behavior";
     }
     RTC_DCHECK(!new_mid.empty());
@@ -4402,7 +4404,7 @@ void SdpOfferAnswerHandler::GetOptionsForPlanBOffer(
     // Add audio/video/data m= sections to the end if needed.
     if (!audio_index && offer_new_audio_description) {
       MediaDescriptionOptions options(
-          MediaType::AUDIO, CN_AUDIO,
+          MediaType::AUDIO, GetDefaultMidForPlanB(MediaType::AUDIO),
           RtpTransceiverDirectionFromSendRecv(send_audio, recv_audio), false);
       options.header_extensions =
           media_engine()->voice().GetRtpHeaderExtensions();
@@ -4411,7 +4413,7 @@ void SdpOfferAnswerHandler::GetOptionsForPlanBOffer(
     }
     if (!video_index && offer_new_video_description) {
       MediaDescriptionOptions options(
-          MediaType::VIDEO, CN_VIDEO,
+          MediaType::VIDEO, GetDefaultMidForPlanB(MediaType::VIDEO),
           RtpTransceiverDirectionFromSendRecv(send_video, recv_video), false);
       options.header_extensions =
           media_engine()->video().GetRtpHeaderExtensions();
@@ -4434,7 +4436,8 @@ void SdpOfferAnswerHandler::GetOptionsForPlanBOffer(
   }
   if (!data_index && offer_new_data_description) {
     session_options->media_description_options.push_back(
-        GetMediaDescriptionOptionsForActiveData(CN_DATA));
+        GetMediaDescriptionOptionsForActiveData(
+            GetDefaultMidForPlanB(MediaType::DATA)));
   }
 }
 

@@ -1273,7 +1273,7 @@ TEST_F(BasicPortAllocatorTest, TestGetAllPortsWithOneSecondStepDelay) {
 
 TEST_F(BasicPortAllocatorTest, TestSetupVideoRtpPortsWithNormalSendBuffers) {
   AddInterface(kClientAddr);
-  ASSERT_TRUE(CreateSession(ICE_CANDIDATE_COMPONENT_RTP, CN_VIDEO));
+  ASSERT_TRUE(CreateSession(ICE_CANDIDATE_COMPONENT_RTP, "video"));
   session_->StartGettingPorts();
   ASSERT_THAT(
       WaitUntil([&] { return candidate_allocation_done_; }, IsTrue(),

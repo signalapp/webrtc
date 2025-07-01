@@ -23,12 +23,16 @@ namespace webrtc {
 // names (since Gingle has no content names).  But when we receive a
 // Jingle call, the content name can be anything, so don't rely on
 // these values being the same as the ones received.
+// Note: these were used in the deprecated "plan-b".
+[[deprecated("plan-b")]]
 extern const char CN_AUDIO[];
+[[deprecated("plan-b")]]
 extern const char CN_VIDEO[];
+[[deprecated("plan-b")]]
 extern const char CN_DATA[];
+[[deprecated("plan-b")]]
 extern const char CN_OTHER[];
 
-// GN stands for group name
 extern const char GROUP_TYPE_BUNDLE[];
 
 RTC_EXPORT extern const int ICE_UFRAG_LENGTH;
