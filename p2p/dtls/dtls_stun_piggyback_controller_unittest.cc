@@ -450,4 +450,13 @@ TEST_F(DtlsStunPiggybackControllerTest, MultiPacketRoundRobin) {
             std::string(dtls_flight2.begin(), dtls_flight2.end()));
 }
 
+TEST_F(DtlsStunPiggybackControllerTest, DuplicateAck) {
+  server_.CapturePacket(dtls_flight1);
+  server_.Flush();
+  server_.ReportDataPiggybacked(
+      std::nullopt,
+      std::vector<uint32_t>({ComputeDtlsPacketHash(dtls_flight1),
+                             ComputeDtlsPacketHash(dtls_flight1)}));
+}
+
 }  // namespace webrtc
