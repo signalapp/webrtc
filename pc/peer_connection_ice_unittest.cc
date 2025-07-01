@@ -87,6 +87,7 @@ using RTCOfferAnswerOptions = PeerConnectionInterface::RTCOfferAnswerOptions;
 
 using ::testing::Combine;
 using ::testing::ElementsAre;
+using ::testing::NotNull;
 using ::testing::Pair;
 using ::testing::SizeIs;
 using ::testing::Values;
@@ -367,7 +368,7 @@ TEST_P(PeerConnectionIceTest, OfferContainsGatheredCandidates) {
                         {.timeout = TimeDelta::Millis(kIceCandidatesTimeout)}),
               IsRtcOk());
 
-  auto offer = caller->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
   EXPECT_LT(0u, caller->observer()->GetCandidatesByMline(0).size());
   EXPECT_EQ(caller->observer()->GetCandidatesByMline(0).size(),
             offer->candidates(0)->count());
@@ -407,7 +408,8 @@ TEST_P(PeerConnectionIceTest,
   auto caller = CreatePeerConnectionWithAudioVideo();
   auto callee = CreatePeerConnectionWithAudioVideo();
 
-  auto offer = caller->CreateOfferAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOfferAndSetAsLocal();
   Candidate candidate = CreateLocalUdpCandidate(kCallerAddress);
   AddCandidateToFirstTransport(&candidate, offer.get());
 
@@ -421,7 +423,7 @@ TEST_P(PeerConnectionIceTest,
 TEST_P(PeerConnectionIceTest, SetLocalDescriptionFailsIfNoIceCredentials) {
   auto caller = CreatePeerConnectionWithAudioVideo();
 
-  auto offer = caller->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
   RemoveIceUfragPwd(offer.get());
 
   EXPECT_FALSE(caller->SetLocalDescription(std::move(offer)));
@@ -431,7 +433,8 @@ TEST_P(PeerConnectionIceTest, SetRemoteDescriptionFailsIfNoIceCredentials) {
   auto caller = CreatePeerConnectionWithAudioVideo();
   auto callee = CreatePeerConnectionWithAudioVideo();
 
-  auto offer = caller->CreateOfferAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOfferAndSetAsLocal();
   RemoveIceUfragPwd(offer.get());
 
   EXPECT_FALSE(callee->SetRemoteDescription(std::move(offer)));
@@ -474,7 +477,8 @@ TEST_P(PeerConnectionIceTest,
   auto callee = CreatePeerConnectionWithAudioVideo();
   caller->network()->AddInterface(kCallerAddress);
 
-  auto offer = caller->CreateOfferAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOfferAndSetAsLocal();
   Candidate candidate = CreateLocalUdpCandidate(kCallerAddress);
   AddCandidateToFirstTransport(&candidate, offer.get());
   ASSERT_TRUE(callee->SetRemoteDescription(std::move(offer)));
@@ -489,8 +493,8 @@ TEST_P(PeerConnectionIceTest, CannotAddCandidateWhenRemoteDescriptionNotSet) {
   const SocketAddress kCalleeAddress("1.1.1.1", 1111);
 
   auto caller = CreatePeerConnectionWithAudioVideo();
-  auto offer = caller->CreateOffer();
-  ASSERT_TRUE(offer);
+  std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
+  ASSERT_THAT(offer, NotNull());
   ASSERT_THAT(offer->description()->contents(), SizeIs(2));
   std::string mid = offer->description()->contents()[0].mid();
   Candidate candidate = CreateLocalUdpCandidate(kCalleeAddress);
@@ -551,7 +555,8 @@ TEST_P(PeerConnectionIceTest, DISABLED_ErrorOnInvalidRemoteIceCandidateAdded) {
   ASSERT_TRUE(callee->SetRemoteDescription(caller->CreateOfferAndSetAsLocal()));
   // Add a candidate to the remote description with a candidate that has an
   // invalid address (port number == 2).
-  auto answer = callee->CreateAnswerAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      callee->CreateAnswerAndSetAsLocal();
   Candidate bad_candidate =
       CreateLocalUdpCandidate(SocketAddress("2.2.2.2", 2));
   RTC_LOG(LS_INFO) << "Bad candidate: " << bad_candidate.ToString();
@@ -639,7 +644,7 @@ TEST_P(PeerConnectionIceTest,
   ASSERT_TRUE(callee->AddIceCandidate(&candidate1));
 
   // Add the second candidate via a reoffer.
-  auto offer = caller->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
   Candidate candidate2 = CreateLocalUdpCandidate(kCallerAddress2);
   AddCandidateToFirstTransport(&candidate2, offer.get());
 
@@ -659,7 +664,7 @@ TEST_P(PeerConnectionIceTest, VerifyUfragPwdLength) {
     // Because local munging is forbidden by spec, we have to disable the
     // check for it.
     pc->GetInternalPeerConnection()->DisableSdpMungingChecksForTesting();
-    auto offer = pc->CreateOffer();
+    std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
     SetIceUfragPwd(offer.get(), std::string(ufrag_len, 'x'),
                    std::string(pwd_len, 'x'));
     bool result = pc->SetLocalDescription(std::move(offer));
@@ -670,7 +675,7 @@ TEST_P(PeerConnectionIceTest, VerifyUfragPwdLength) {
   auto set_remote_description_with_ufrag_pwd_length = [this](int ufrag_len,
                                                              int pwd_len) {
     auto pc = CreatePeerConnectionWithAudioVideo();
-    auto offer = pc->CreateOffer();
+    std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
     SetIceUfragPwd(offer.get(), std::string(ufrag_len, 'x'),
                    std::string(pwd_len, 'x'));
     bool result = pc->SetRemoteDescription(std::move(offer));
@@ -853,8 +858,8 @@ TEST_P(PeerConnectionIceTest,
   auto candidate = CreateLocalUdpCandidate(SocketAddress("1.1.1.1", 1111));
 
   auto caller = CreatePeerConnectionWithAudioVideo();
-  auto offer = caller->CreateOffer();
-  ASSERT_TRUE(offer);
+  std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
+  ASSERT_THAT(offer, NotNull());
   ASSERT_THAT(offer->description()->contents(), SizeIs(2));
   std::string mid = offer->description()->contents()[0].mid();
   std::unique_ptr<IceCandidate> jsep_candidate =
@@ -1011,7 +1016,8 @@ TEST_P(PeerConnectionIceTest, IceRestartOfferClearsExistingCandidate) {
   auto caller = CreatePeerConnectionWithAudioVideo();
   auto callee = CreatePeerConnectionWithAudioVideo();
 
-  auto offer = caller->CreateOfferAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOfferAndSetAsLocal();
   Candidate candidate = CreateLocalUdpCandidate(kCallerAddress);
   AddCandidateToFirstTransport(&candidate, offer.get());
 
@@ -1032,7 +1038,8 @@ TEST_P(PeerConnectionIceTest,
   auto caller = CreatePeerConnectionWithAudioVideo();
   auto callee = CreatePeerConnectionWithAudioVideo();
 
-  auto offer = caller->CreateOfferAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOfferAndSetAsLocal();
   Candidate old_candidate = CreateLocalUdpCandidate(kFirstCallerAddress);
   AddCandidateToFirstTransport(&old_candidate, offer.get());
 
@@ -1065,7 +1072,7 @@ TEST_P(PeerConnectionIceTest, LaterAnswerHasSameIceCredentialsIfNoIceRestart) {
   // Re-offer.
   ASSERT_TRUE(callee->SetRemoteDescription(caller->CreateOfferAndSetAsLocal()));
 
-  auto answer = callee->CreateAnswer();
+  std::unique_ptr<SessionDescriptionInterface> answer = callee->CreateAnswer();
   auto* answer_transport_desc = GetFirstTransportDescription(answer.get());
   auto* local_transport_desc =
       GetFirstTransportDescription(callee->pc()->local_description());
@@ -1329,7 +1336,7 @@ TEST_P(PeerConnectionIceUfragPwdAnswerTest, TestIncludedInAnswer) {
   ASSERT_TRUE(
       caller->SetRemoteDescription(callee->CreateAnswerAndSetAsLocal()));
 
-  auto offer = caller->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
   auto* offer_transport_desc = GetFirstTransportDescription(offer.get());
   if (offer_new_ufrag_) {
     offer_transport_desc->ice_ufrag += "+new";
@@ -1340,7 +1347,7 @@ TEST_P(PeerConnectionIceUfragPwdAnswerTest, TestIncludedInAnswer) {
 
   ASSERT_TRUE(callee->SetRemoteDescription(std::move(offer)));
 
-  auto answer = callee->CreateAnswer();
+  std::unique_ptr<SessionDescriptionInterface> answer = callee->CreateAnswer();
   auto* answer_transport_desc = GetFirstTransportDescription(answer.get());
   auto* local_transport_desc =
       GetFirstTransportDescription(callee->pc()->local_description());
@@ -1374,7 +1381,8 @@ TEST_P(PeerConnectionIceTest,
   RTCOfferAnswerOptions disable_bundle_options;
   disable_bundle_options.use_rtp_mux = false;
 
-  auto offer = caller->CreateOffer(disable_bundle_options);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOffer(disable_bundle_options);
 
   // Signal ICE restart on the first media section.
   auto* offer_transport_desc = GetFirstTransportDescription(offer.get());
@@ -1383,7 +1391,8 @@ TEST_P(PeerConnectionIceTest,
 
   ASSERT_TRUE(callee->SetRemoteDescription(std::move(offer)));
 
-  auto answer = callee->CreateAnswer(disable_bundle_options);
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      callee->CreateAnswer(disable_bundle_options);
   const auto& answer_transports = answer->description()->transport_infos();
   const auto& local_transports =
       callee->pc()->local_description()->description()->transport_infos();
@@ -1407,13 +1416,13 @@ TEST_P(PeerConnectionIceTest,
   auto caller = CreatePeerConnectionWithAudioVideo();
   auto callee = CreatePeerConnectionWithAudioVideo();
 
-  auto offer = caller->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
   SetIceMode(offer.get(), IceMode::ICEMODE_LITE);
   ASSERT_TRUE(
       caller->SetLocalDescription(CloneSessionDescription(offer.get())));
   ASSERT_TRUE(callee->SetRemoteDescription(std::move(offer)));
 
-  auto answer = callee->CreateAnswer();
+  std::unique_ptr<SessionDescriptionInterface> answer = callee->CreateAnswer();
   SetIceMode(answer.get(), IceMode::ICEMODE_FULL);
   ASSERT_TRUE(
       callee->SetLocalDescription(CloneSessionDescription(answer.get())));
@@ -1431,13 +1440,13 @@ TEST_P(PeerConnectionIceTest,
   auto caller = CreatePeerConnectionWithAudioVideo();
   auto callee = CreatePeerConnectionWithAudioVideo();
 
-  auto offer = caller->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
   SetIceMode(offer.get(), IceMode::ICEMODE_LITE);
   ASSERT_TRUE(
       caller->SetLocalDescription(CloneSessionDescription(offer.get())));
   ASSERT_TRUE(callee->SetRemoteDescription(std::move(offer)));
 
-  auto answer = callee->CreateAnswer();
+  std::unique_ptr<SessionDescriptionInterface> answer = callee->CreateAnswer();
   SetIceMode(answer.get(), IceMode::ICEMODE_LITE);
   ASSERT_TRUE(
       callee->SetLocalDescription(CloneSessionDescription(answer.get())));
@@ -1549,7 +1558,7 @@ TEST_P(PeerConnectionIceTest, IceCredentialsCreateOffer) {
   config.ice_candidate_pool_size = 1;
   auto pc = CreatePeerConnectionWithAudioVideo(config);
   ASSERT_NE(pc->GetInternalPeerConnection()->port_allocator(), nullptr);
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto credentials = pc->GetInternalPeerConnection()
                          ->port_allocator()
                          ->GetPooledIceCredentials();
@@ -1569,9 +1578,9 @@ TEST_P(PeerConnectionIceTest, IceCredentialsCreateAnswer) {
   config.ice_candidate_pool_size = 1;
   auto pc = CreatePeerConnectionWithAudioVideo(config);
   ASSERT_NE(pc->GetInternalPeerConnection()->port_allocator(), nullptr);
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   ASSERT_TRUE(pc->SetRemoteDescription(std::move(offer)));
-  auto answer = pc->CreateAnswer();
+  std::unique_ptr<SessionDescriptionInterface> answer = pc->CreateAnswer();
 
   auto credentials = pc->GetInternalPeerConnection()
                          ->port_allocator()

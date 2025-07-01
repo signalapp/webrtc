@@ -98,6 +98,15 @@
 namespace webrtc {
 namespace {
 
+using ::testing::Eq;
+using ::testing::Exactly;
+using ::testing::NotNull;
+using ::testing::SizeIs;
+using ::testing::Values;
+
+using RTCConfiguration = PeerConnectionInterface::RTCConfiguration;
+using RTCOfferAnswerOptions = PeerConnectionInterface::RTCOfferAnswerOptions;
+
 const char kStreamId1[] = "local_stream_1";
 const char kStreamId2[] = "local_stream_2";
 const char kStreamId3[] = "local_stream_3";
@@ -428,14 +437,6 @@ class RtcEventLogOutputNull final : public RtcEventLogOutput {
   bool IsActive() const override { return true; }
   bool Write(const absl::string_view /*output*/) override { return true; }
 };
-
-using ::testing::Eq;
-using ::testing::Exactly;
-using ::testing::SizeIs;
-using ::testing::Values;
-
-using RTCConfiguration = PeerConnectionInterface::RTCConfiguration;
-using RTCOfferAnswerOptions = PeerConnectionInterface::RTCOfferAnswerOptions;
 
 // Gets the first ssrc of given content type from the ContentInfo.
 bool GetFirstSsrc(const ContentInfo* content_info, int* ssrc) {
@@ -1032,7 +1033,7 @@ class PeerConnectionInterfaceBaseTest : public ::testing::Test {
   void CreateAnswerAsRemoteDescription(const std::string& sdp) {
     std::unique_ptr<SessionDescriptionInterface> answer(
         CreateSessionDescription(SdpType::kAnswer, sdp));
-    ASSERT_TRUE(answer);
+    ASSERT_THAT(answer, NotNull());
     EXPECT_TRUE(DoSetRemoteDescription(std::move(answer)));
     EXPECT_EQ(PeerConnectionInterface::kStable, observer_.state_);
   }
@@ -1045,7 +1046,7 @@ class PeerConnectionInterfaceBaseTest : public ::testing::Test {
     EXPECT_EQ(PeerConnectionInterface::kHaveRemotePrAnswer, observer_.state_);
     std::unique_ptr<SessionDescriptionInterface> answer(
         CreateSessionDescription(SdpType::kAnswer, sdp));
-    ASSERT_TRUE(answer);
+    ASSERT_THAT(answer, NotNull());
     EXPECT_TRUE(DoSetRemoteDescription(std::move(answer)));
     EXPECT_EQ(PeerConnectionInterface::kStable, observer_.state_);
   }
@@ -2073,7 +2074,7 @@ TEST_P(PeerConnectionInterfaceTest, DISABLED_TestRejectSctpDataChannelInAnswer)
   EXPECT_TRUE(pc_->local_description()->ToString(&sdp));
   std::unique_ptr<SessionDescriptionInterface> answer(
       CreateSessionDescription(SdpType::kAnswer, sdp));
-  ASSERT_TRUE(answer);
+  ASSERT_THAT(answer, NotNull());
   ContentInfo* data_info = GetFirstDataContent(answer->description());
   data_info->rejected = true;
 
@@ -3485,7 +3486,7 @@ TEST_P(PeerConnectionInterfaceTest, CreateOfferWithAudioVideoOptions) {
   std::unique_ptr<SessionDescriptionInterface> offer;
   CreatePeerConnection();
   offer = CreateOfferWithOptions(rtc_options);
-  ASSERT_TRUE(offer);
+  ASSERT_THAT(offer, NotNull());
   EXPECT_NE(nullptr, GetFirstAudioContent(offer->description()));
   EXPECT_NE(nullptr, GetFirstVideoContent(offer->description()));
 }
@@ -3500,7 +3501,7 @@ TEST_P(PeerConnectionInterfaceTest, CreateOfferWithAudioOnlyOptions) {
   std::unique_ptr<SessionDescriptionInterface> offer;
   CreatePeerConnection();
   offer = CreateOfferWithOptions(rtc_options);
-  ASSERT_TRUE(offer);
+  ASSERT_THAT(offer, NotNull());
   EXPECT_NE(nullptr, GetFirstAudioContent(offer->description()));
   EXPECT_EQ(nullptr, GetFirstVideoContent(offer->description()));
 }
@@ -3515,7 +3516,7 @@ TEST_P(PeerConnectionInterfaceTest, CreateOfferWithVideoOnlyOptions) {
   std::unique_ptr<SessionDescriptionInterface> offer;
   CreatePeerConnection();
   offer = CreateOfferWithOptions(rtc_options);
-  ASSERT_TRUE(offer);
+  ASSERT_THAT(offer, NotNull());
   EXPECT_EQ(nullptr, GetFirstAudioContent(offer->description()));
   EXPECT_NE(nullptr, GetFirstVideoContent(offer->description()));
 }
@@ -3528,7 +3529,7 @@ TEST_P(PeerConnectionInterfaceTest, CreateOfferWithDefaultOfferAnswerOptions) {
   std::unique_ptr<SessionDescriptionInterface> offer;
   CreatePeerConnection();
   offer = CreateOfferWithOptions(rtc_options);
-  ASSERT_TRUE(offer);
+  ASSERT_THAT(offer, NotNull());
   EXPECT_EQ(nullptr, GetFirstAudioContent(offer->description()));
   EXPECT_EQ(nullptr, GetFirstVideoContent(offer->description()));
 }
@@ -3583,14 +3584,14 @@ TEST_P(PeerConnectionInterfaceTest, CreateOfferWithRtpMux) {
 
   rtc_options.use_rtp_mux = true;
   offer = CreateOfferWithOptions(rtc_options);
-  ASSERT_TRUE(offer);
+  ASSERT_THAT(offer, NotNull());
   EXPECT_NE(nullptr, GetFirstAudioContent(offer->description()));
   EXPECT_NE(nullptr, GetFirstVideoContent(offer->description()));
   EXPECT_TRUE(offer->description()->HasGroup(GROUP_TYPE_BUNDLE));
 
   rtc_options.use_rtp_mux = false;
   offer = CreateOfferWithOptions(rtc_options);
-  ASSERT_TRUE(offer);
+  ASSERT_THAT(offer, NotNull());
   EXPECT_NE(nullptr, GetFirstAudioContent(offer->description()));
   EXPECT_NE(nullptr, GetFirstVideoContent(offer->description()));
   EXPECT_FALSE(offer->description()->HasGroup(GROUP_TYPE_BUNDLE));

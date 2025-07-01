@@ -253,7 +253,7 @@ class PeerConnectionIntegrationWrapper : public PeerConnectionObserver,
   // will set the whole offer/answer exchange in motion. Just need to wait for
   // the signaling state to reach "stable".
   void CreateAndSetAndSignalOffer() {
-    auto offer = CreateOfferAndWait();
+    std::unique_ptr<SessionDescriptionInterface> offer = CreateOfferAndWait();
     ASSERT_NE(nullptr, offer);
     EXPECT_TRUE(SetLocalDescriptionAndSendSdpMessage(std::move(offer)));
   }
@@ -859,7 +859,7 @@ class PeerConnectionIntegrationWrapper : public PeerConnectionObserver,
     if (remote_offer_handler_) {
       remote_offer_handler_();
     }
-    auto answer = CreateAnswer();
+    std::unique_ptr<SessionDescriptionInterface> answer = CreateAnswer();
     ASSERT_NE(nullptr, answer);
     EXPECT_TRUE(SetLocalDescriptionAndSendSdpMessage(std::move(answer)));
   }

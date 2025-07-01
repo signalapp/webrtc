@@ -189,7 +189,8 @@ class PeerConnectionWrapperForUsageHistogramTest
   }
 
   bool GenerateOfferAndCollectCandidates() {
-    auto offer = CreateOffer(RTCOfferAnswerOptions());
+    std::unique_ptr<SessionDescriptionInterface> offer =
+        CreateOffer(RTCOfferAnswerOptions());
     if (!offer) {
       return false;
     }
@@ -698,7 +699,7 @@ TEST_F(PeerConnectionUsageHistogramTest,
   ASSERT_TRUE(callee->SetRemoteDescription(std::move(offer)));
 
   // By default, the Answer created does not contain ICE candidates.
-  auto answer = callee->CreateAnswer();
+  std::unique_ptr<SessionDescriptionInterface> answer = callee->CreateAnswer();
   callee->SetLocalDescription(CloneSessionDescription(answer.get()));
   caller->SetRemoteDescription(std::move(answer));
   EXPECT_THAT(

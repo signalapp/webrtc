@@ -460,7 +460,7 @@ void PeerScenarioClient::SetSdpAnswer(
       CreateSessionDescription(SdpType::kAnswer, remote_answer),
       make_ref_counted<LambdaSetRemoteDescriptionObserver>(
           [remote_answer, done_handler](RTCError) {
-            auto answer =
+            std::unique_ptr<SessionDescriptionInterface> answer =
                 CreateSessionDescription(SdpType::kAnswer, remote_answer);
             done_handler(*answer);
           }));

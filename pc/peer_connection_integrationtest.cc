@@ -4876,7 +4876,8 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
       WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
       IsRtcOk());
   caller()->SetGeneratedSdpMunger(nullptr);
-  auto offer = caller()->CreateOfferAndWait();
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller()->CreateOfferAndWait();
   ASSERT_NE(nullptr, offer);
   // The offer should be acceptable.
   EXPECT_TRUE(caller()->SetLocalDescriptionAndSendSdpMessage(std::move(offer)));
@@ -4955,8 +4956,9 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   ASSERT_EQ(transceivers.size(), 1u);
   transceivers[0]->SetCodecPreferences(codecs);
 
-  auto offer = caller()->CreateOfferAndWait();
-  ASSERT_NE(offer, nullptr);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller()->CreateOfferAndWait();
+  ASSERT_THAT(offer, NotNull());
   // The offer should be acceptable.
   EXPECT_TRUE(caller()->SetLocalDescriptionAndSendSdpMessage(std::move(offer)));
 
@@ -5027,7 +5029,7 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   // associated RTX codec.
   std::unique_ptr<SessionDescriptionInterface> answer =
       caller()->CreateAnswerForTest();
-  ASSERT_NE(answer, nullptr);
+  ASSERT_THAT(answer, NotNull());
   RTC_LOG(LS_ERROR) << "Answer is " << *answer;
   ASSERT_THAT(answer->description()->contents().size(), Eq(1));
   auto codecs =
@@ -5054,7 +5056,8 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   // Add first video track.
   caller()->AddVideoTrack();
-  auto offer = caller()->CreateOfferAndWait();
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller()->CreateOfferAndWait();
   EXPECT_EQ(offer->description()->contents().size(), 1U);
   // Observe that packetization is NOT raw.
   for (const auto& content : offer->description()->contents()) {
