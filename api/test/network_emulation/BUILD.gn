@@ -76,3 +76,34 @@ rtc_library("create_cross_traffic") {
     "../../../test/network:emulated_network",
   ]
 }
+
+rtc_library("network_queue") {
+  visibility = [ "*" ]
+
+  sources = [
+    "leaky_bucket_network_queue.cc",
+    "leaky_bucket_network_queue.h",
+    "network_queue.h",
+  ]
+
+  deps = [
+    "../..:sequence_checker",
+    "../..:simulated_network_api",
+    "../../../rtc_base:checks",
+    "../../../rtc_base:macromagic",
+    "../../units:timestamp",
+  ]
+}
+
+rtc_library("network_queue_unittests") {
+  sources = [ "leaky_bucket_network_queue_unittest.cc" ]
+
+  testonly = true
+  deps = [
+    ":network_queue",
+    "../..:simulated_network_api",
+    "../../../test:test_support",
+    "../../units:data_size",
+    "../../units:timestamp",
+  ]
+}
