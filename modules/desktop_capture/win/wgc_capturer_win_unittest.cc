@@ -440,68 +440,6 @@ TEST_F(WgcCapturerWindowTest, FocusOnWindow) {
   DestroyTestWindow(window_info_);
 }
 
-TEST_F(WgcCapturerWindowTest, FullScreenWindowDetector) {
-  capturer_ = WgcCapturerWin::CreateRawWindowCapturer(
-      DesktopCaptureOptions::CreateDefault());
-
-  WindowInfo editor_info = CreateTestWindow(
-      L"My - Title - PowerPoint", /*height=*/240, /*width=*/320,
-      /*extended_styles=*/0, /*window_class=*/L"PPTFrameClass");
-  WindowInfo slide_show_info = CreateTestWindow(
-      L"PowerPoint Slide Show - [My - Title]", /*height=*/240, /*width=*/320,
-      /*extended_styles=*/0, /*window_class=*/L"screenClass");
-
-  auto* wgc_capturer = static_cast<WgcCapturerWin*>(capturer_.get());
-  wgc_capturer->SetUpFullScreenDetectorForTest(
-      /*use_heuristic=*/true,
-      reinterpret_cast<DesktopCapturer::SourceId>(editor_info.hwnd));
-
-  EXPECT_TRUE(capturer_->SelectSource(
-      reinterpret_cast<DesktopCapturer::SourceId>(editor_info.hwnd)));
-  capturer_->Start(this);
-  DoCapture();
-
-  EXPECT_FALSE(wgc_capturer->IsSourceBeingCaptured(
-      reinterpret_cast<DesktopCapturer::SourceId>(editor_info.hwnd)));
-  EXPECT_TRUE(wgc_capturer->IsSourceBeingCaptured(
-      reinterpret_cast<DesktopCapturer::SourceId>(slide_show_info.hwnd)));
-  EXPECT_EQ(metrics::NumEvents(kCaptureFullscreenDetectorHistogram, true), 1);
-
-  DestroyTestWindow(editor_info);
-  DestroyTestWindow(slide_show_info);
-}
-
-TEST_F(WgcCapturerWindowTest, FullScreenWindowDetectorDoesNotWorkByDefault) {
-  capturer_ = WgcCapturerWin::CreateRawWindowCapturer(
-      DesktopCaptureOptions::CreateDefault());
-
-  WindowInfo editor_info = CreateTestWindow(
-      L"My - Title - PowerPoint", /*height=*/240, /*width=*/320,
-      /*extended_styles=*/0, /*window_class=*/L"PPTFrameClass");
-  WindowInfo slide_show_info = CreateTestWindow(
-      L"PowerPoint Slide Show - [My - Title]", /*height=*/240, /*width=*/320,
-      /*extended_styles=*/0, /*window_class=*/L"screenClass");
-
-  auto* wgc_capturer = static_cast<WgcCapturerWin*>(capturer_.get());
-  // The default behavior on WGC capturer of `use_heuristic` is false.
-  wgc_capturer->SetUpFullScreenDetectorForTest(
-      /*use_heuristic=*/false,
-      reinterpret_cast<DesktopCapturer::SourceId>(editor_info.hwnd));
-
-  EXPECT_TRUE(capturer_->SelectSource(
-      reinterpret_cast<DesktopCapturer::SourceId>(editor_info.hwnd)));
-  capturer_->Start(this);
-  DoCapture();
-
-  EXPECT_TRUE(wgc_capturer->IsSourceBeingCaptured(
-      reinterpret_cast<DesktopCapturer::SourceId>(editor_info.hwnd)));
-  EXPECT_FALSE(wgc_capturer->IsSourceBeingCaptured(
-      reinterpret_cast<DesktopCapturer::SourceId>(slide_show_info.hwnd)));
-  EXPECT_EQ(metrics::NumEvents(kCaptureFullscreenDetectorHistogram, true), 0);
-
-  DestroyTestWindow(editor_info);
-  DestroyTestWindow(slide_show_info);
-}
 TEST_F(WgcCapturerWindowTest, SelectMinimizedWindow) {
   SetUpForWindowCapture();
   MinimizeTestWindow(reinterpret_cast<HWND>(source_id_));
@@ -633,6 +571,132 @@ TEST_F(WgcCapturerWindowTest, CloseWindowMidCapture) {
   EXPECT_GE(metrics::NumEvents(kCaptureSessionResultHistogram, kSourceClosed),
             1);
   EXPECT_EQ(result_, DesktopCapturer::Result::ERROR_PERMANENT);
+}
+
+class WgcCapturerFullScreenDetectorTest : public WgcCapturerWindowTest {
+ public:
+  void SetUp() override {
+    capturer_ = WgcCapturerWin::CreateRawWindowCapturer(
+        DesktopCaptureOptions::CreateDefault());
+    wgc_capturer_ = static_cast<WgcCapturerWin*>(capturer_.get());
+
+    editor_window_ = CreateEditorWindow();
+    CreateSlideShowWindow();
+    WgcCapturerWindowTest::SetUp();
+  }
+
+  WindowInfo CreateEditorWindow() {
+    return CreateTestWindow(
+        L"My - Title - PowerPoint", kMediumWindowHeight, kMediumWindowWidth,
+        /*extended_styles=*/0, /*window_class=*/L"PPTFrameClass");
+  }
+
+  void CreateSlideShowWindow() {
+    slide_show_window_ =
+        CreateTestWindow(L"PowerPoint Slide Show - [My - Title]",
+                         kLargeWindowHeight, kLargeWindowWidth,
+                         /*extended_styles=*/0,
+                         /*window_class=*/L"screenClass");
+  }
+
+  WgcCapturerWin* wgc_capturer_;
+  WindowInfo editor_window_;
+  WindowInfo slide_show_window_;
+};
+
+TEST_F(WgcCapturerFullScreenDetectorTest, SlideShowNotFoundByDefaultConfig) {
+  // The default behavior on WGC capturer of `use_heuristic` is false.
+  wgc_capturer_->SetUpFullScreenDetectorForTest(
+      /*use_heuristic=*/false,
+      reinterpret_cast<DesktopCapturer::SourceId>(editor_window_.hwnd));
+
+  EXPECT_TRUE(wgc_capturer_->SelectSource(
+      reinterpret_cast<DesktopCapturer::SourceId>(editor_window_.hwnd)));
+  wgc_capturer_->Start(this);
+  DoCapture();
+
+  EXPECT_TRUE(wgc_capturer_->IsSourceBeingCaptured(
+      reinterpret_cast<DesktopCapturer::SourceId>(editor_window_.hwnd)));
+  EXPECT_FALSE(wgc_capturer_->IsSourceBeingCaptured(
+      reinterpret_cast<DesktopCapturer::SourceId>(slide_show_window_.hwnd)));
+  EXPECT_EQ(metrics::NumEvents(kCaptureFullscreenDetectorHistogram, true), 0);
+}
+
+TEST_F(WgcCapturerFullScreenDetectorTest, CorrectSlideShowFoundForEditor) {
+  wgc_capturer_->SetUpFullScreenDetectorForTest(
+      /*use_heuristic=*/true,
+      reinterpret_cast<DesktopCapturer::SourceId>(editor_window_.hwnd));
+
+  EXPECT_TRUE(wgc_capturer_->SelectSource(
+      reinterpret_cast<DesktopCapturer::SourceId>(editor_window_.hwnd)));
+  wgc_capturer_->Start(this);
+  DoCapture();
+
+  EXPECT_FALSE(wgc_capturer_->IsSourceBeingCaptured(
+      reinterpret_cast<DesktopCapturer::SourceId>(editor_window_.hwnd)));
+  EXPECT_TRUE(wgc_capturer_->IsSourceBeingCaptured(
+      reinterpret_cast<DesktopCapturer::SourceId>(slide_show_window_.hwnd)));
+
+  EXPECT_EQ(metrics::NumEvents(kCaptureFullscreenDetectorHistogram, true), 1);
+}
+
+TEST_F(WgcCapturerFullScreenDetectorTest, LoggedOnlyOnce) {
+  wgc_capturer_->SetUpFullScreenDetectorForTest(
+      /*use_heuristic=*/true,
+      reinterpret_cast<DesktopCapturer::SourceId>(editor_window_.hwnd));
+
+  EXPECT_TRUE(wgc_capturer_->SelectSource(
+      reinterpret_cast<DesktopCapturer::SourceId>(editor_window_.hwnd)));
+  wgc_capturer_->Start(this);
+  DoCapture();
+  ValidateFrame(kLargeWindowWidth, kLargeWindowHeight);
+  DoCapture();
+  ValidateFrame(kLargeWindowWidth, kLargeWindowHeight);
+
+  EXPECT_TRUE(wgc_capturer_->IsSourceBeingCaptured(
+      reinterpret_cast<DesktopCapturer::SourceId>(slide_show_window_.hwnd)));
+  EXPECT_EQ(metrics::NumEvents(kCaptureFullscreenDetectorHistogram, true), 1);
+}
+
+TEST_F(WgcCapturerFullScreenDetectorTest,
+       SlideShowNotFoundWithMultipleSameTitleEditors) {
+  WindowInfo same_title_editor_window = CreateEditorWindow();
+  EXPECT_NE(editor_window_.hwnd, same_title_editor_window.hwnd);
+  wgc_capturer_->SetUpFullScreenDetectorForTest(
+      /*use_heuristic=*/true,
+      reinterpret_cast<DesktopCapturer::SourceId>(editor_window_.hwnd));
+
+  EXPECT_TRUE(wgc_capturer_->SelectSource(
+      reinterpret_cast<DesktopCapturer::SourceId>(editor_window_.hwnd)));
+  wgc_capturer_->Start(this);
+  DoCapture();
+
+  EXPECT_TRUE(wgc_capturer_->IsSourceBeingCaptured(
+      reinterpret_cast<DesktopCapturer::SourceId>(editor_window_.hwnd)));
+  EXPECT_FALSE(wgc_capturer_->IsSourceBeingCaptured(
+      reinterpret_cast<DesktopCapturer::SourceId>(slide_show_window_.hwnd)));
+  EXPECT_EQ(metrics::NumEvents(kCaptureFullscreenDetectorHistogram, true), 0);
+}
+
+TEST_F(WgcCapturerFullScreenDetectorTest,
+       CaptureTiedToSlideShowIfSlideShowIsShared) {
+  wgc_capturer_->SetUpFullScreenDetectorForTest(
+      /*use_heuristic=*/true,
+      reinterpret_cast<DesktopCapturer::SourceId>(editor_window_.hwnd));
+  wgc_capturer_->SetUpFullScreenDetectorForTest(
+      /*use_heuristic=*/true,
+      reinterpret_cast<DesktopCapturer::SourceId>(slide_show_window_.hwnd));
+
+  EXPECT_TRUE(wgc_capturer_->SelectSource(
+      reinterpret_cast<DesktopCapturer::SourceId>(slide_show_window_.hwnd)));
+  wgc_capturer_->Start(this);
+  DoCapture();
+
+  EXPECT_FALSE(wgc_capturer_->IsSourceBeingCaptured(
+      reinterpret_cast<DesktopCapturer::SourceId>(editor_window_.hwnd)));
+  EXPECT_TRUE(wgc_capturer_->IsSourceBeingCaptured(
+      reinterpret_cast<DesktopCapturer::SourceId>(slide_show_window_.hwnd)));
+  EXPECT_EQ(metrics::NumEvents(kCaptureFullscreenDetectorHistogram, true), 0);
 }
 
 }  // namespace webrtc
