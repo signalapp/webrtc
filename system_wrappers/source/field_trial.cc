@@ -9,19 +9,20 @@
 
 #include "system_wrappers/include/field_trial.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <map>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "absl/algorithm/container.h"
+#include "absl/algorithm/container.h"  // IWYU pragma: keep
 #include "absl/strings/string_view.h"
-#include "experiments/registered_field_trials.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/string_encode.h"
+
+// Generated file.
+#include "experiments/registered_field_trials.h"  // IWYU pragma: keep
 
 // Simple field trial implementation, which allows client to
 // specify desired flags in InitFieldTrialsFromString.
