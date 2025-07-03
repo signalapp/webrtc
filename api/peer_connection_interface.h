@@ -1564,13 +1564,6 @@ class RTC_EXPORT PeerConnectionFactoryInterface : public RefCountInterface {
   virtual scoped_refptr<VideoTrackInterface> CreateVideoTrack(
       scoped_refptr<VideoTrackSourceInterface> source,
       absl::string_view label) = 0;
-  ABSL_DEPRECATED("Use version with scoped_refptr")
-  virtual scoped_refptr<VideoTrackInterface> CreateVideoTrack(
-      const std::string& label,
-      VideoTrackSourceInterface* source) {
-    return CreateVideoTrack(scoped_refptr<VideoTrackSourceInterface>(source),
-                            label);
-  }
 
   // Creates an new AudioTrack. At the moment `source` can be null.
   virtual scoped_refptr<AudioTrackInterface> CreateAudioTrack(
