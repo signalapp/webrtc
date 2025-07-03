@@ -1703,6 +1703,11 @@ rtc_source_set("field_trials_view") {
 
 rtc_library("field_trials") {
   visibility = [ "*" ]
+
+  # Internally webrtc shouldn't create or modify field trials, and should use
+  # FieldTrials through the FieldTrialsView interface that is usually propagated
+  # with Environment.
+  poisonous = [ "environment_construction" ]
   sources = [
     "field_trials.cc",
     "field_trials.h",
