@@ -148,6 +148,10 @@
 #include "rtc_base/system/rtc_export.h"
 #include "rtc_base/thread.h"
 
+// TODO: bugs.webrtc.org/42220069 - Remove this include when users of this
+// function include "create_modular_peer_connection_factory.h" instead.
+#include "api/create_modular_peer_connection_factory_internal.h"  // IWYU pragma: keep
+
 namespace webrtc {
 // IWYU pragma: begin_keep
 // MediaFactory class definition is not part of the api.
@@ -1593,26 +1597,6 @@ class RTC_EXPORT PeerConnectionFactoryInterface : public RefCountInterface {
   PeerConnectionFactoryInterface() {}
   ~PeerConnectionFactoryInterface() override = default;
 };
-
-// CreateModularPeerConnectionFactory is implemented in the "peerconnection"
-// build target, which doesn't pull in the implementations of every module
-// webrtc may use.
-//
-// If an application knows it will only require certain modules, it can reduce
-// webrtc's impact on its binary size by depending only on the "peerconnection"
-// target and the modules the application requires, using
-// CreateModularPeerConnectionFactory. For example, if an application
-// only uses WebRTC for audio, it can pass in null pointers for the
-// video-specific interfaces, and omit the corresponding modules from its
-// build.
-//
-// If `network_thread` or `worker_thread` are null, the PeerConnectionFactory
-// will create the necessary thread internally. If `signaling_thread` is null,
-// the PeerConnectionFactory will use the thread on which this method is called
-// as the signaling thread, wrapping it in an Thread object if needed.
-RTC_EXPORT scoped_refptr<PeerConnectionFactoryInterface>
-CreateModularPeerConnectionFactory(
-    PeerConnectionFactoryDependencies dependencies);
 
 // https://w3c.github.io/webrtc-pc/#dom-rtcsignalingstate
 inline constexpr absl::string_view PeerConnectionInterface::AsString(

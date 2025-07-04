@@ -86,6 +86,9 @@ Environment AssembleEnvironment(PeerConnectionFactoryDependencies& deps) {
 
 }  // namespace
 
+// TODO: bugs.webrtc.org/42220069 - Move this function to
+// 'create_modular_peer_connection_factory' build target when all users of this
+// function would depend on that build target.
 scoped_refptr<PeerConnectionFactoryInterface>
 CreateModularPeerConnectionFactory(
     PeerConnectionFactoryDependencies dependencies) {
