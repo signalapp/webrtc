@@ -181,8 +181,10 @@ rtc_library("copy_on_write_buffer") {
 
 rtc_library("denormal_disabler") {
   visibility = [ "*" ]
-  public = [ "denormal_disabler.h" ]
-  sources = [ "denormal_disabler.cc" ]
+  sources = [
+    "denormal_disabler.cc",
+    "denormal_disabler.h",
+  ]
   deps = [
     "../rtc_base:checks",
     "../rtc_base/system:arch",

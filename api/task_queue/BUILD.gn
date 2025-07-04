@@ -10,11 +10,11 @@ import("../../webrtc.gni")
 
 rtc_library("task_queue") {
   visibility = [ "*" ]
-  public = [
+  sources = [
+    "task_queue_base.cc",
     "task_queue_base.h",
     "task_queue_factory.h",
   ]
-  sources = [ "task_queue_base.cc" ]
 
   deps = [
     "..:location",
