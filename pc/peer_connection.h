@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/adaptation/resource.h"
 #include "api/async_dns_resolver.h"
@@ -308,8 +309,15 @@ class PeerConnection : public PeerConnectionInternal,
 
   // Functions needed by DataChannelController
   void NoteDataAddedEvent() override { NoteUsageEvent(UsageEvent::DATA_ADDED); }
-  // Returns the observer. Will crash on CHECK if the observer is removed.
-  PeerConnectionObserver* Observer() const override;
+
+  void RunWithObserver(
+      absl::AnyInvocable<void(webrtc::PeerConnectionObserver*) &&>) override
+      RTC_RUN_ON(signaling_thread());
+
+  void RunWithMaybeNullObserver(
+      absl::AnyInvocable<void(webrtc::PeerConnectionObserver*) &&>) const
+      RTC_RUN_ON(signaling_thread());
+
   bool IsClosed() const override {
     RTC_DCHECK_RUN_ON(signaling_thread());
     return !sdp_handler_ ||

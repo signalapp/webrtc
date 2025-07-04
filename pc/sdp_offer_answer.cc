@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
+#include "absl/functional/any_invocable.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
@@ -1855,13 +1856,14 @@ RTCError SdpOfferAnswerHandler::ApplyLocalDescription(
           transceiver->set_fired_direction(media_desc->direction());
         }
       }
-      auto observer = pc_->Observer();
-      for (const auto& transceiver : remove_list) {
-        observer->OnRemoveTrack(transceiver->receiver());
-      }
-      for (const auto& stream : removed_streams) {
-        observer->OnRemoveStream(stream);
-      }
+      pc_->RunWithObserver([&](auto observer) {
+        for (const auto& transceiver : remove_list) {
+          observer->OnRemoveTrack(transceiver->receiver());
+        }
+        for (const auto& stream : removed_streams) {
+          observer->OnRemoveStream(stream);
+        }
+      });
     }
   } else {
     // Media channels will be created only when offer is set. These may use new
@@ -2307,22 +2309,23 @@ void SdpOfferAnswerHandler::ApplyRemoteDescriptionUpdateTransceiverState(
     }
   }
   // Once all processing has finished, fire off callbacks.
-  auto observer = pc_->Observer();
-  for (const auto& transceiver : now_receiving_transceivers) {
-    pc_->legacy_stats()->AddTrack(transceiver->receiver()->track().get());
-    observer->OnTrack(transceiver);
-    observer->OnAddTrack(transceiver->receiver(),
-                         transceiver->receiver()->streams());
-  }
-  for (const auto& stream : added_streams) {
-    observer->OnAddStream(stream);
-  }
-  for (const auto& transceiver : remove_list) {
-    observer->OnRemoveTrack(transceiver->receiver());
-  }
-  for (const auto& stream : removed_streams) {
-    observer->OnRemoveStream(stream);
-  }
+  pc_->RunWithObserver([&](auto observer) {
+    for (const auto& transceiver : now_receiving_transceivers) {
+      pc_->legacy_stats()->AddTrack(transceiver->receiver()->track().get());
+      observer->OnTrack(transceiver);
+      observer->OnAddTrack(transceiver->receiver(),
+                           transceiver->receiver()->streams());
+    }
+    for (const auto& stream : added_streams) {
+      observer->OnAddStream(stream);
+    }
+    for (const auto& transceiver : remove_list) {
+      observer->OnRemoveTrack(transceiver->receiver());
+    }
+    for (const auto& stream : removed_streams) {
+      observer->OnRemoveStream(stream);
+    }
+  });
 }
 
 void SdpOfferAnswerHandler::PlanBUpdateSendersAndReceivers(
@@ -2376,12 +2379,13 @@ void SdpOfferAnswerHandler::PlanBUpdateSendersAndReceivers(
   }
 
   // Iterate new_streams and notify the observer about new MediaStreams.
-  auto observer = pc_->Observer();
-  for (size_t i = 0; i < new_streams->count(); ++i) {
-    MediaStreamInterface* new_stream = new_streams->at(i);
-    pc_->legacy_stats()->AddStream(new_stream);
-    observer->OnAddStream(scoped_refptr<MediaStreamInterface>(new_stream));
-  }
+  pc_->RunWithObserver([&](auto observer) {
+    for (size_t i = 0; i < new_streams->count(); ++i) {
+      MediaStreamInterface* new_stream = new_streams->at(i);
+      pc_->legacy_stats()->AddStream(new_stream);
+      observer->OnAddStream(scoped_refptr<MediaStreamInterface>(new_stream));
+    }
+  });
 
   UpdateEndedRemoteMediaStreams();
 }
@@ -2600,7 +2604,8 @@ void SdpOfferAnswerHandler::DoSetLocalDescription(
     if (signaling_state() == PeerConnectionInterface::kStable &&
         was_negotiation_needed && is_negotiation_needed_) {
       // Legacy version.
-      pc_->Observer()->OnRenegotiationNeeded();
+      pc_->RunWithObserver(
+          [&](auto observer) { observer->OnRenegotiationNeeded(); });
       // Spec-compliant version; the event may get invalidated before firing.
       GenerateNegotiationNeededEvent();
     }
@@ -2825,7 +2830,8 @@ void SdpOfferAnswerHandler::SetRemoteDescriptionPostProcess(bool was_answer) {
     if (signaling_state() == PeerConnectionInterface::kStable &&
         was_negotiation_needed && is_negotiation_needed_) {
       // Legacy version.
-      pc_->Observer()->OnRenegotiationNeeded();
+      pc_->RunWithObserver(
+          [&](auto observer) { observer->OnRenegotiationNeeded(); });
       // Spec-compliant version; the event may get invalidated before firing.
       GenerateNegotiationNeededEvent();
     }
@@ -3097,7 +3103,10 @@ void SdpOfferAnswerHandler::ChangeSignalingState(
                    << " New state: "
                    << PeerConnectionInterface::AsString(signaling_state);
   signaling_state_ = signaling_state;
-  pc_->Observer()->OnSignalingChange(signaling_state_);
+  pc_->RunWithObserver([&](auto observer) {
+    RTC_DCHECK_RUN_ON(signaling_thread());
+    observer->OnSignalingChange(signaling_state_);
+  });
 }
 
 RTCError SdpOfferAnswerHandler::UpdateSessionState(
@@ -3402,20 +3411,22 @@ RTCError SdpOfferAnswerHandler::Rollback(SdpType desc_type) {
   ChangeSignalingState(PeerConnectionInterface::kStable);
 
   // Once all processing has finished, fire off callbacks.
-  for (const auto& transceiver : now_receiving_transceivers) {
-    pc_->Observer()->OnTrack(transceiver);
-    pc_->Observer()->OnAddTrack(transceiver->receiver(),
-                                transceiver->receiver()->streams());
-  }
-  for (const auto& receiver : removed_receivers) {
-    pc_->Observer()->OnRemoveTrack(receiver);
-  }
-  for (const auto& stream : all_added_streams) {
-    pc_->Observer()->OnAddStream(stream);
-  }
-  for (const auto& stream : all_removed_streams) {
-    pc_->Observer()->OnRemoveStream(stream);
-  }
+  pc_->RunWithObserver([&](auto observer) {
+    for (const auto& transceiver : now_receiving_transceivers) {
+      observer->OnTrack(transceiver);
+      observer->OnAddTrack(transceiver->receiver(),
+                           transceiver->receiver()->streams());
+    }
+    for (const auto& receiver : removed_receivers) {
+      observer->OnRemoveTrack(receiver);
+    }
+    for (const auto& stream : all_added_streams) {
+      observer->OnAddStream(stream);
+    }
+    for (const auto& stream : all_removed_streams) {
+      observer->OnRemoveStream(stream);
+    }
+  });
 
   // The assumption is that in case of implicit rollback
   // UpdateNegotiationNeeded gets called in SetRemoteDescription.
@@ -3423,7 +3434,8 @@ RTCError SdpOfferAnswerHandler::Rollback(SdpType desc_type) {
     UpdateNegotiationNeeded();
     if (is_negotiation_needed_) {
       // Legacy version.
-      pc_->Observer()->OnRenegotiationNeeded();
+      pc_->RunWithObserver(
+          [&](auto observer) { observer->OnRenegotiationNeeded(); });
       // Spec-compliant version; the event may get invalidated before firing.
       GenerateNegotiationNeededEvent();
     }
@@ -3479,7 +3491,8 @@ std::optional<SSLRole> SdpOfferAnswerHandler::GetDtlsRole(
 void SdpOfferAnswerHandler::UpdateNegotiationNeeded() {
   RTC_DCHECK_RUN_ON(signaling_thread());
   if (!IsUnifiedPlan()) {
-    pc_->Observer()->OnRenegotiationNeeded();
+    pc_->RunWithObserver(
+        [&](auto observer) { observer->OnRenegotiationNeeded(); });
     GenerateNegotiationNeededEvent();
     return;
   }
@@ -3532,7 +3545,8 @@ void SdpOfferAnswerHandler::UpdateNegotiationNeeded() {
   // If connection's [[IsClosed]] slot is true, abort these steps.
   // If connection's [[NegotiationNeeded]] slot is false, abort these steps.
   // Fire an event named negotiationneeded at connection.
-  pc_->Observer()->OnRenegotiationNeeded();
+  pc_->RunWithObserver(
+      [&](auto observer) { observer->OnRenegotiationNeeded(); });
   // Fire the spec-compliant version; when ShouldFireNegotiationNeededEvent()
   // is used in the task queued by the observer, this event will only fire
   // when the chain is empty.
@@ -3759,7 +3773,10 @@ bool SdpOfferAnswerHandler::CheckIfNegotiationIsNeeded() {
 void SdpOfferAnswerHandler::GenerateNegotiationNeededEvent() {
   RTC_DCHECK_RUN_ON(signaling_thread());
   ++negotiation_needed_event_id_;
-  pc_->Observer()->OnNegotiationNeededEvent(negotiation_needed_event_id_);
+  pc_->RunWithObserver([&](auto observer) {
+    RTC_DCHECK_RUN_ON(signaling_thread());
+    observer->OnNegotiationNeededEvent(negotiation_needed_event_id_);
+  });
 }
 
 RTCError SdpOfferAnswerHandler::ValidateSessionDescription(
@@ -5244,10 +5261,13 @@ void SdpOfferAnswerHandler::UpdateEndedRemoteMediaStreams() {
     }
   }
 
-  for (auto& stream : streams_to_remove) {
-    remote_streams_->RemoveStream(stream.get());
-    pc_->Observer()->OnRemoveStream(std::move(stream));
-  }
+  pc_->RunWithObserver([&](auto observer) {
+    RTC_DCHECK_RUN_ON(signaling_thread());
+    for (auto& stream : streams_to_remove) {
+      remote_streams_->RemoveStream(stream.get());
+      observer->OnRemoveStream(std::move(stream));
+    }
+  });
 }
 
 bool SdpOfferAnswerHandler::UseCandidatesInRemoteDescription() {
