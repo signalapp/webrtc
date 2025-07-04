@@ -68,14 +68,15 @@ _IWYU_MAPPING = {
 # Supported file suffices.
 _SUFFICES = [".cc", ".h"]
 
-# Ignored headers, used with `clang-include-cleaner --ignore-headers=`
+# Ignored headers, regexps used with `clang-include-cleaner --ignore-headers=`
 _IGNORED_HEADERS = [
-    ".pb.h",  # generated protobuf files.
-    "pipewire/.*.h",  # pipewire.
-    "spa/.*.h",  # pipewire.
-    "openssl/.*.h",  # openssl/boringssl.
-    "alsa/.*.h",  # ALSA.
-    "pulse/.*.h",  # PulseAudio.
+    "\\.pb\\.h",  # generated protobuf files.
+    "pipewire\\/.*\\.h",  # pipewire.
+    "spa\\/.*\\.h",  # pipewire.
+    "openssl\\/.*\\.h",  # openssl/boringssl.
+    "alsa\\/.*\\.h",  # ALSA.
+    "pulse\\/.*\\.h",  # PulseAudio.
+    "bits\\/.*\\.h",  # pthreads.
 ]
 
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
