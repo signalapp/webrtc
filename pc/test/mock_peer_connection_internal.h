@@ -211,6 +211,10 @@ class MockPeerConnectionInternal : public PeerConnectionInternal {
               (override));
   MOCK_METHOD(bool, AddIceCandidate, (const IceCandidate*), (override));
   MOCK_METHOD(bool,
+              RemoveIceCandidate,
+              (const IceCandidate* candidate),
+              (override));
+  MOCK_METHOD(bool,
               RemoveIceCandidates,
               (const std::vector<webrtc::Candidate>&),
               (override));

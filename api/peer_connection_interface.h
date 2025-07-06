@@ -1124,8 +1124,9 @@ class RTC_EXPORT PeerConnectionInterface : public RefCountInterface {
   virtual bool AddIceCandidate(const IceCandidate* candidate) = 0;
   // TODO(hbos): Remove default implementation once implemented by downstream
   // projects.
-  virtual void AddIceCandidate(std::unique_ptr<IceCandidate> /* candidate */,
-                               std::function<void(RTCError)> /* callback */) {}
+  virtual void AddIceCandidate(std::unique_ptr<IceCandidate> candidate,
+                               std::function<void(RTCError)> callback) {}
+  virtual bool RemoveIceCandidate(const IceCandidate* candidate) = 0;
 
   // Removes a group of remote candidates from the ICE agent. Needed mainly for
   // continual gathering, to avoid an ever-growing list of candidates as
@@ -1133,6 +1134,7 @@ class RTC_EXPORT PeerConnectionInterface : public RefCountInterface {
   // to the MID of the m= section that generated the candidate.
   // TODO(bugs.webrtc.org/8395): Use IceCandidate instead of
   // Candidate, which would avoid the transport_name oddity.
+  [[deprecated("Use IceCandidate version")]]
   virtual bool RemoveIceCandidates(
       const std::vector<Candidate>& candidates) = 0;
 

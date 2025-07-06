@@ -229,6 +229,10 @@ class FakePeerConnectionBase : public PeerConnectionInternal {
 
   bool AddIceCandidate(const IceCandidate* candidate) override { return false; }
 
+  bool RemoveIceCandidate(const IceCandidate* candidate) override {
+    return false;
+  }
+
   bool RemoveIceCandidates(const std::vector<Candidate>& candidates) override {
     return false;
   }

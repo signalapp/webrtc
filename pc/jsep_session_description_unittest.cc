@@ -166,6 +166,16 @@ TEST_F(JsepSessionDescriptionTest, CheckSessionDescription) {
   EXPECT_EQ(2u, jsep_desc_->number_of_mediasections());
 }
 
+TEST_F(JsepSessionDescriptionTest, IsValidMLineIndex) {
+  ASSERT_GT(jsep_desc_->number_of_mediasections(), 0u);
+  // Create a candidate with no mid and an illegal index.
+  IceCandidate ice_candidate("", -1, candidate_);
+  EXPECT_FALSE(jsep_desc_->AddCandidate(&ice_candidate));
+  IceCandidate ice_candidate2("", jsep_desc_->number_of_mediasections(),
+                              candidate_);
+  EXPECT_FALSE(jsep_desc_->AddCandidate(&ice_candidate2));
+}
+
 // Test that we can add a candidate to a session description without MID.
 TEST_F(JsepSessionDescriptionTest, AddCandidateWithoutMid) {
   IceCandidate jsep_candidate("", 0, candidate_);
@@ -226,9 +236,7 @@ TEST_F(JsepSessionDescriptionTest, AddAndRemoveCandidatesWithMid) {
   // The mline index should have been updated according to mid.
   EXPECT_EQ(1, ice_candidate->sdp_mline_index());
 
-  std::vector<Candidate> candidates(1, candidate_);
-  candidates[0].set_transport_name(mid);
-  EXPECT_EQ(1u, jsep_desc_->RemoveCandidates(candidates));
+  EXPECT_EQ(1u, jsep_desc_->RemoveCandidate(ice_candidate));
   EXPECT_EQ(0u, jsep_desc_->candidates(0)->count());
   EXPECT_EQ(0u, jsep_desc_->candidates(1)->count());
 }

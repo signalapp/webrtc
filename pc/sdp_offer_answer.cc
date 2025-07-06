@@ -2992,6 +2992,22 @@ void SdpOfferAnswerHandler::AddIceCandidate(
       });
 }
 
+bool SdpOfferAnswerHandler::RemoveIceCandidate(const IceCandidate* candidate) {
+  TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::RemoveIceCandidate");
+  RTC_DCHECK_RUN_ON(signaling_thread());
+  if (pc_->IsClosed() || !remote_description() || !candidate) {
+    RTC_LOG(LS_ERROR) << "RemoveIceCandidate: PeerConnection is closed.";
+    return false;
+  }
+
+  bool removed = mutable_remote_description()->RemoveCandidate(candidate);
+  // Remove the candidates from the transport controller.
+  // This involves a hop to the network thread - should we rather do this
+  // asynchronously?
+  transport_controller_s()->RemoveRemoteCandidate(candidate);
+  return removed;
+}
+
 bool SdpOfferAnswerHandler::RemoveIceCandidates(
     const std::vector<Candidate>& candidates) {
   TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::RemoveIceCandidates");
@@ -3002,23 +3018,22 @@ bool SdpOfferAnswerHandler::RemoveIceCandidates(
   }
 
   if (!remote_description()) {
-    RTC_LOG(LS_ERROR) << "RemoveIceCandidates: ICE candidates can't be removed "
-                         "without any remote session description.";
+    RTC_LOG(LS_ERROR) << "RemoveIceCandidates: No remote description.";
     return false;
   }
 
   if (candidates.empty()) {
-    RTC_LOG(LS_ERROR) << "RemoveIceCandidates: candidates are empty.";
+    RTC_LOG(LS_ERROR) << "RemoveIceCandidates: No candidates.";
     return false;
   }
 
-  size_t number_removed =
+  const size_t number_removed =
       mutable_remote_description()->RemoveCandidates(candidates);
   if (number_removed != candidates.size()) {
     RTC_LOG(LS_ERROR)
         << "RemoveIceCandidates: Failed to remove candidates. Requested "
         << candidates.size() << " but only " << number_removed
-        << " are removed.";
+        << " were removed.";
   }
 
   // Remove the candidates from the transport controller.
@@ -3028,6 +3043,8 @@ bool SdpOfferAnswerHandler::RemoveIceCandidates(
         << "RemoveIceCandidates: Error when removing remote candidates: "
         << error.message();
   }
+  // Technically it would be more correct to return `number_removed != 0u` here,
+  // but some downstream code needs to be updated first.
   return true;
 }
 

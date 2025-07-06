@@ -1578,6 +1578,12 @@ void PeerConnection::AddIceCandidate(std::unique_ptr<IceCandidate> candidate,
                                 });
 }
 
+bool PeerConnection::RemoveIceCandidate(const IceCandidate* candidate) {
+  TRACE_EVENT0("webrtc", "PeerConnection::RemoveIceCandidate");
+  RTC_DCHECK_RUN_ON(signaling_thread());
+  return sdp_handler_->RemoveIceCandidate(candidate);
+}
+
 bool PeerConnection::RemoveIceCandidates(
     const std::vector<Candidate>& candidates) {
   TRACE_EVENT0("webrtc", "PeerConnection::RemoveIceCandidates");
