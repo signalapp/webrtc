@@ -85,19 +85,19 @@ using ::testing::NotNull;
 using ::testing::SaveArg;
 using ::testing::SizeIs;
 
-const int8_t kPayloadType = 96;
-const int8_t kPayloadType2 = 98;
-const uint32_t kSsrc1 = 12345;
-const uint32_t kSsrc2 = 23456;
-const uint32_t kRtxSsrc1 = 34567;
-const uint32_t kRtxSsrc2 = 45678;
-const int16_t kInitialPictureId1 = 222;
-const int16_t kInitialPictureId2 = 44;
-const int16_t kInitialTl0PicIdx1 = 99;
-const int16_t kInitialTl0PicIdx2 = 199;
-const int64_t kRetransmitWindowSizeMs = 500;
-const int kTransportsSequenceExtensionId = 7;
-const int kDependencyDescriptorExtensionId = 8;
+constexpr int8_t kPayloadType = 96;
+constexpr int8_t kPayloadType2 = 98;
+constexpr uint32_t kSsrc1 = 12345;
+constexpr uint32_t kSsrc2 = 23456;
+constexpr uint32_t kRtxSsrc1 = 34567;
+constexpr uint32_t kRtxSsrc2 = 45678;
+constexpr int16_t kInitialPictureId1 = 222;
+constexpr int16_t kInitialPictureId2 = 44;
+constexpr int16_t kInitialTl0PicIdx1 = 99;
+constexpr int16_t kInitialTl0PicIdx2 = 199;
+constexpr int64_t kRetransmitWindowSizeMs = 500;
+constexpr int kTransportsSequenceExtensionId = 7;
+constexpr int kDependencyDescriptorExtensionId = 8;
 
 class MockRtcpIntraFrameObserver : public RtcpIntraFrameObserver {
  public:

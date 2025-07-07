@@ -82,7 +82,7 @@ using ::testing::StartsWith;
 using ::testing::Values;
 
 namespace {
-const int64_t kWaitTimeout = 10000;
+constexpr int64_t kWaitTimeout = 10000;
 }  // namespace
 
 class PeerConnectionWrapperForSignalingTest : public PeerConnectionWrapper {

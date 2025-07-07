@@ -87,9 +87,9 @@ using ::webrtc::UniqueRandomIdGenerator;
 
 using Candidates = std::vector<Candidate>;
 
-const char kAudioMid[] = "0";
-const char kVideoMid[] = "1";
-const char kDataMid[] = "2";
+constexpr char kAudioMid[] = "0";
+constexpr char kVideoMid[] = "1";
+constexpr char kDataMid[] = "2";
 
 class CodecLookupHelperForTesting : public CodecLookupHelper {
  public:
@@ -144,11 +144,11 @@ const Codec kVideoCodecsAnswer[] = {CreateVideoCodec(97, "H264")};
 // H.265 level-id, according to H.265 spec, is calculated this way:
 // For any given H.265 level a.b, level-id = (a * 10 + b) * 3. For level 6.0,
 // level-id = (6 * 10 + 0) * 3 = 180. Similar for all other H.265 levels.
-const char kVideoCodecsH265Level6LevelId[] = "180";
-const char kVideoCodecsH265Level52LevelId[] = "156";
-const char kVideoCodecsH265Level5LevelId[] = "150";
-const char kVideoCodecsH265Level4LevelId[] = "120";
-const char kVideoCodecsH265Level31LevelId[] = "93";
+constexpr char kVideoCodecsH265Level6LevelId[] = "180";
+constexpr char kVideoCodecsH265Level52LevelId[] = "156";
+constexpr char kVideoCodecsH265Level5LevelId[] = "150";
+constexpr char kVideoCodecsH265Level4LevelId[] = "120";
+constexpr char kVideoCodecsH265Level31LevelId[] = "93";
 
 const SdpVideoFormat kH265MainProfileLevel31Sdp(
     "H265",
@@ -357,19 +357,19 @@ const RtpExtension kRtpExtensionGenericFrameDescriptorUri00[] = {
                  3),
 };
 
-const uint32_t kSimulcastParamsSsrc[] = {10, 11, 20, 21, 30, 31};
-const uint32_t kSimSsrc[] = {10, 20, 30};
-const uint32_t kFec1Ssrc[] = {10, 11};
-const uint32_t kFec2Ssrc[] = {20, 21};
-const uint32_t kFec3Ssrc[] = {30, 31};
+constexpr uint32_t kSimulcastParamsSsrc[] = {10, 11, 20, 21, 30, 31};
+constexpr uint32_t kSimSsrc[] = {10, 20, 30};
+constexpr uint32_t kFec1Ssrc[] = {10, 11};
+constexpr uint32_t kFec2Ssrc[] = {20, 21};
+constexpr uint32_t kFec3Ssrc[] = {30, 31};
 
-const char kMediaStream1[] = "stream_1";
-const char kMediaStream2[] = "stream_2";
-const char kVideoTrack1[] = "video_1";
-const char kVideoTrack2[] = "video_2";
-const char kAudioTrack1[] = "audio_1";
-const char kAudioTrack2[] = "audio_2";
-const char kAudioTrack3[] = "audio_3";
+constexpr char kMediaStream1[] = "stream_1";
+constexpr char kMediaStream2[] = "stream_2";
+constexpr char kVideoTrack1[] = "video_1";
+constexpr char kVideoTrack2[] = "video_2";
+constexpr char kAudioTrack1[] = "audio_1";
+constexpr char kAudioTrack2[] = "audio_2";
+constexpr char kAudioTrack3[] = "audio_3";
 
 const char* kMediaProtocols[] = {"RTP/AVP", "RTP/SAVP", "RTP/AVPF",
                                  "RTP/SAVPF"};
@@ -4882,18 +4882,18 @@ const Codec kOfferAnswerCodecs[] = {CreateAudioCodec(40, "codec0", 16000, 1),
  *     6   | x    x    x |  x    x    x |  x    x    x    x    x
  */
 // Codecs used by offerer in the AudioCodecsAnswerTest
-const int kOfferSendCodecs[] = {0, 1, 3, 5, 6};
-const int kOfferRecvCodecs[] = {1, 2, 3, 4, 6};
+constexpr int kOfferSendCodecs[] = {0, 1, 3, 5, 6};
+constexpr int kOfferRecvCodecs[] = {1, 2, 3, 4, 6};
 // Codecs used in the answerer in the AudioCodecsAnswerTest.  The order is
 // jumbled to catch the answer not following the order in the offer.
-const int kAnswerSendCodecs[] = {6, 5, 2, 3, 4};
-const int kAnswerRecvCodecs[] = {6, 5, 4, 1, 0};
+constexpr int kAnswerSendCodecs[] = {6, 5, 2, 3, 4};
+constexpr int kAnswerRecvCodecs[] = {6, 5, 4, 1, 0};
 // The resulting sets of codecs in the answer in the AudioCodecsAnswerTest
-const int kResultSend_RecvCodecs[] = {0, 1, 5, 6};
-const int kResultRecv_SendCodecs[] = {2, 3, 4, 6};
-const int kResultSendrecv_SendCodecs[] = {3, 6};
-const int kResultSendrecv_RecvCodecs[] = {1, 6};
-const int kResultSendrecv_SendrecvCodecs[] = {6};
+constexpr int kResultSend_RecvCodecs[] = {0, 1, 5, 6};
+constexpr int kResultRecv_SendCodecs[] = {2, 3, 4, 6};
+constexpr int kResultSendrecv_SendCodecs[] = {3, 6};
+constexpr int kResultSendrecv_RecvCodecs[] = {1, 6};
+constexpr int kResultSendrecv_SendrecvCodecs[] = {6};
 
 template <typename T, int IDXS>
 std::vector<T> VectorFromIndices(const T* array, const int (&indices)[IDXS]) {

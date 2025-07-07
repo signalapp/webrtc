@@ -39,17 +39,17 @@ using ::testing::NotNull;
 using ::testing::Values;
 
 namespace {
-const char kAudioMid[] = "audio";
-const char kVideoMid[] = "video";
-const char kCandidateUfrag[] = "ufrag";
-const char kCandidatePwd[] = "pwd";
-const char kCandidateUfragVoice[] = "ufrag_voice";
-const char kCandidatePwdVoice[] = "pwd_voice";
-const char kCandidateUfragVideo[] = "ufrag_video";
-const char kCandidatePwdVideo[] = "pwd_video";
-const char kCandidateFoundation[] = "a0+B/1";
-const uint32_t kCandidatePriority = 2130706432U;  // pref = 1.0
-const uint32_t kCandidateGeneration = 2;
+constexpr char kAudioMid[] = "audio";
+constexpr char kVideoMid[] = "video";
+constexpr char kCandidateUfrag[] = "ufrag";
+constexpr char kCandidatePwd[] = "pwd";
+constexpr char kCandidateUfragVoice[] = "ufrag_voice";
+constexpr char kCandidatePwdVoice[] = "pwd_voice";
+constexpr char kCandidateUfragVideo[] = "ufrag_video";
+constexpr char kCandidatePwdVideo[] = "pwd_video";
+constexpr char kCandidateFoundation[] = "a0+B/1";
+constexpr uint32_t kCandidatePriority = 2130706432U;  // pref = 1.0
+constexpr uint32_t kCandidateGeneration = 2;
 
 // This creates a session description with both audio and video media contents.
 // In SDP this is described by two m lines, one audio and one video.

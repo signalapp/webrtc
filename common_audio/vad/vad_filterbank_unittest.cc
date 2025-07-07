@@ -21,7 +21,7 @@ extern "C" {
 namespace webrtc {
 namespace test {
 
-const int kNumValidFrameLengths = 3;
+constexpr int kNumValidFrameLengths = 3;
 
 TEST_F(VadTest, vad_filterbank) {
   VadInstT* self = reinterpret_cast<VadInstT*>(malloc(sizeof(VadInstT)));

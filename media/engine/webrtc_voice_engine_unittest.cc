@@ -122,13 +122,13 @@ const webrtc::Codec kTelephoneEventCodec2 =
 const webrtc::Codec kUnknownCodec =
     webrtc::CreateAudioCodec(127, "XYZ", 32000, 1);
 
-const uint32_t kSsrc0 = 0;
-const uint32_t kSsrc1 = 1;
-const uint32_t kSsrcX = 0x99;
-const uint32_t kSsrcY = 0x17;
-const uint32_t kSsrcZ = 0x42;
-const uint32_t kSsrcW = 0x02;
-const uint32_t kSsrcs4[] = {11, 200, 30, 44};
+constexpr uint32_t kSsrc0 = 0;
+constexpr uint32_t kSsrc1 = 1;
+constexpr uint32_t kSsrcX = 0x99;
+constexpr uint32_t kSsrcY = 0x17;
+constexpr uint32_t kSsrcZ = 0x42;
+constexpr uint32_t kSsrcW = 0x02;
+constexpr uint32_t kSsrcs4[] = {11, 200, 30, 44};
 
 constexpr int kRtpHistoryMs = 5000;
 

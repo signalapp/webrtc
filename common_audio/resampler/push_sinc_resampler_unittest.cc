@@ -25,7 +25,7 @@ namespace webrtc {
 namespace {
 
 // Almost all conversions have an RMS error of around -14 dbFS.
-const double kResamplingRMSError = -14.42;
+constexpr double kResamplingRMSError = -14.42;
 
 // Used to convert errors to dbFS.
 template <typename T>
