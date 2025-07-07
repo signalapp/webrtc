@@ -7544,7 +7544,8 @@ class P2PTransportChannelTestDtlsInStun : public P2PTransportChannelTestBase {
     DestroyChannels();
   }
 
-  std::pair<std::optional<absl::string_view>, std::optional<absl::string_view>>
+  std::pair<std::optional<absl::string_view>,
+            std::optional<std::vector<uint32_t>>>
   data_to_piggyback_func(StunMessageType type) {
     return make_pair(absl::string_view(pending_packet_), std::nullopt);
   }

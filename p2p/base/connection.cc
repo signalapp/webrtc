@@ -607,7 +607,8 @@ void Connection::MaybeAddDtlsPiggybackingAttributes(StunMessage* msg) {
 
   if (ack) {
     size_t msg_length = msg->length();
-    size_t need_length = ack->length() + kStunAttributeHeaderSize;
+    size_t need_length =
+        kStunAttributeHeaderSize + ack->size() * sizeof(uint32_t);
     if (msg_length + need_length <= kMaxStunBindingLength) {
       msg->AddAttribute(std::make_unique<StunByteStringAttribute>(
           STUN_ATTR_META_DTLS_IN_STUN_ACK, *ack));
