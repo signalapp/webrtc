@@ -11,7 +11,6 @@
 #include "video/video_receive_stream2.h"
 
 #include <stdlib.h>
-#include <string.h>
 
 #include <algorithm>
 #include <cmath>
@@ -349,9 +348,9 @@ void VideoReceiveStream2::SignalNetworkState(NetworkState state) {
   rtp_video_stream_receiver_.SignalNetworkState(state);
 }
 
-bool VideoReceiveStream2::DeliverRtcp(const uint8_t* packet, size_t length) {
+bool VideoReceiveStream2::DeliverRtcp(ArrayView<const uint8_t> packet) {
   RTC_DCHECK_RUN_ON(&packet_sequence_checker_);
-  return rtp_video_stream_receiver_.DeliverRtcp(packet, length);
+  return rtp_video_stream_receiver_.DeliverRtcp(packet);
 }
 
 void VideoReceiveStream2::SetSync(Syncable* audio_syncable) {

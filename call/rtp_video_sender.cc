@@ -720,10 +720,10 @@ DataRate RtpVideoSender::GetPostEncodeOverhead() const {
   return post_encode_overhead;
 }
 
-void RtpVideoSender::DeliverRtcp(const uint8_t* packet, size_t length) {
+void RtpVideoSender::DeliverRtcp(ArrayView<const uint8_t> packet) {
   // Runs on a network thread.
   for (const RtpStreamSender& stream : rtp_streams_)
-    stream.rtp_rtcp->IncomingRtcpPacket(MakeArrayView(packet, length));
+    stream.rtp_rtcp->IncomingRtcpPacket(packet);
 }
 
 void RtpVideoSender::ConfigureSsrcs(

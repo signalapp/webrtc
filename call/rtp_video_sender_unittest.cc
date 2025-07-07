@@ -548,7 +548,7 @@ TEST(RtpVideoSenderTest, DoesNotRetrasmitAckedPackets) {
             ByteReader<uint16_t>::ReadBigEndian(payload.data()));
         return true;
       });
-  test.router()->DeliverRtcp(nack_buffer.data(), nack_buffer.size());
+  test.router()->DeliverRtcp(nack_buffer);
   test.AdvanceTime(TimeDelta::Millis(33));
 
   // Verify that both packets were retransmitted.
@@ -589,7 +589,7 @@ TEST(RtpVideoSenderTest, DoesNotRetrasmitAckedPackets) {
                   ByteReader<uint16_t>::ReadBigEndian(payload.data()));
         return true;
       });
-  test.router()->DeliverRtcp(nack_buffer.data(), nack_buffer.size());
+  test.router()->DeliverRtcp(nack_buffer);
   test.AdvanceTime(TimeDelta::Millis(33));
 }
 
@@ -988,8 +988,8 @@ TEST(RtpVideoSenderTest, MixedCodecSimulcastPayloadType) {
             EXPECT_TRUE(rtp_packet.Parse(packet));
             return true;
           });
-  test.router()->DeliverRtcp(nack_buffer1.data(), nack_buffer1.size());
-  test.router()->DeliverRtcp(nack_buffer2.data(), nack_buffer2.size());
+  test.router()->DeliverRtcp(nack_buffer1);
+  test.router()->DeliverRtcp(nack_buffer2);
 
   test.AdvanceTime(TimeDelta::Millis(33));
 
@@ -1598,7 +1598,7 @@ TEST(RtpVideoSenderTest, RetransmitsBaseLayerOnly) {
             ByteReader<uint16_t>::ReadBigEndian(payload.data()));
         return true;
       });
-  test.router()->DeliverRtcp(nack_buffer.data(), nack_buffer.size());
+  test.router()->DeliverRtcp(nack_buffer);
   test.AdvanceTime(TimeDelta::Millis(33));
 
   // Verify that only base layer packet was retransmitted.

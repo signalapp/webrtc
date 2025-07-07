@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 
+#include "api/array_view.h"
 #include "api/crypto/frame_decryptor_interface.h"
 #include "api/environment/environment.h"
 #include "api/frame_transformer_interface.h"
@@ -150,7 +151,7 @@ class VideoReceiveStream2
   }
 
   void SignalNetworkState(NetworkState state);
-  bool DeliverRtcp(const uint8_t* packet, size_t length);
+  bool DeliverRtcp(ArrayView<const uint8_t> packet);
 
   void SetSync(Syncable* audio_syncable);
 
