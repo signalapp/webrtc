@@ -635,7 +635,6 @@ if (rtc_include_tests && !build_with_chromium) {
       "api/numerics:numerics_unittests",
       "api/task_queue:pending_task_safety_flag_unittests",
       "api/test/metrics:metrics_unittests",
-      "api/test/network_emulation:network_queue_unittests",
       "api/transport:stun_unittest",
       "api/transport/rtp:corruption_detection_message_unittest",
       "api/video/test:rtc_api_video_unittests",
