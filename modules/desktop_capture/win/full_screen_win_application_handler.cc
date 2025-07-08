@@ -31,7 +31,7 @@
 
 void RecordFullScreenDetectorResult(FullScreenDetectorResult result) {
   RTC_HISTOGRAM_ENUMERATION(
-      "WebRTC.Screenshare.FullscreenDetectorResult", static_cast<int>(result),
+      "WebRTC.Screenshare.FullScreenDetectorResult", static_cast<int>(result),
       static_cast<int>(FullScreenDetectorResult::kMaxValue));
 }
 
