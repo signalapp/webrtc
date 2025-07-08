@@ -48,6 +48,7 @@
 #include "api/video/recordable_encoded_frame.h"
 #include "api/video/render_resolution.h"
 #include "api/video/video_codec_type.h"
+#include "api/video/video_content_type.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_frame_type.h"
 #include "api/video/video_rotation.h"
@@ -266,6 +267,7 @@ VideoReceiveStream2::VideoReceiveStream2(
       max_wait_for_frame_(DetermineMaxWaitForFrame(
           TimeDelta::Millis(config_.rtp.nack.rtp_history_ms),
           false)),
+      frame_evaluator_(&stats_proxy_),
       decode_queue_(env_.task_queue_factory().CreateTaskQueue(
           "DecodingQueue",
           TaskQueueFactory::Priority::HIGH)) {
@@ -651,10 +653,13 @@ void VideoReceiveStream2::UpdateHistograms() {
   stats_proxy_.UpdateHistograms(fraction_lost, rtp_stats, nullptr);
 }
 
-std::optional<double> VideoReceiveStream2::CalculateCorruptionScore(
+void VideoReceiveStream2::CalculateCorruptionScore(
     const VideoFrame& frame,
-    const FrameInstrumentationData& frame_instrumentation_data) {
-  return GetCorruptionScore(frame_instrumentation_data, frame);
+    const FrameInstrumentationData& frame_instrumentation_data,
+    VideoContentType content_type) {
+  RTC_DCHECK_RUN_ON(&decode_sequence_checker_);
+  frame_evaluator_.OnInstrumentedFrame(frame_instrumentation_data, frame,
+                                       content_type);
 }
 
 bool VideoReceiveStream2::SetBaseMinimumPlayoutDelayMs(int delay_ms) {

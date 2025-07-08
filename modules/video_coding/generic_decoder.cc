@@ -147,17 +147,6 @@ void VCMDecodedFrameCallback::Decoded(VideoFrame& decodedImage,
     return;
   }
 
-  std::optional<double> corruption_score;
-  if (corruption_score_calculator_ &&
-      frame_info->frame_instrumentation_data.has_value()) {
-    if (const FrameInstrumentationData* data =
-            std::get_if<FrameInstrumentationData>(
-                &*frame_info->frame_instrumentation_data)) {
-      corruption_score = corruption_score_calculator_->CalculateCorruptionScore(
-          decodedImage, *data);
-    }
-  }
-
   decodedImage.set_ntp_time_ms(frame_info->ntp_time_ms);
   decodedImage.set_packet_infos(frame_info->packet_infos);
   decodedImage.set_rotation(frame_info->rotation);
@@ -255,8 +244,17 @@ void VCMDecodedFrameCallback::Decoded(VideoFrame& decodedImage,
                                      .qp = qp,
                                      .decode_time = decode_time,
                                      .content_type = frame_info->content_type,
-                                     .frame_type = frame_info->frame_type,
-                                     .corruption_score = corruption_score});
+                                     .frame_type = frame_info->frame_type});
+
+  if (corruption_score_calculator_ &&
+      frame_info->frame_instrumentation_data.has_value()) {
+    if (const FrameInstrumentationData* data =
+            std::get_if<FrameInstrumentationData>(
+                &*frame_info->frame_instrumentation_data)) {
+      corruption_score_calculator_->CalculateCorruptionScore(
+          decodedImage, *data, frame_info->content_type);
+    }
+  }
 }
 
 void VCMDecodedFrameCallback::OnDecoderInfoChanged(

@@ -40,6 +40,7 @@
 #include "rtc_base/rate_tracker.h"
 #include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/thread_annotations.h"
+#include "video/corruption_detection/frame_instrumentation_evaluation.h"
 #include "video/stats_counter.h"
 #include "video/video_quality_observer2.h"
 #include "video/video_stream_buffer_controller.h"
@@ -55,7 +56,8 @@ struct VideoFrameMetaData;
 
 class ReceiveStatisticsProxy : public VideoStreamBufferControllerStatsObserver,
                                public RtcpCnameCallback,
-                               public RtcpPacketTypeCounterObserver {
+                               public RtcpPacketTypeCounterObserver,
+                               public CorruptionScoreObserver {
  public:
   ReceiveStatisticsProxy(uint32_t remote_ssrc,
                          Clock* clock,
@@ -115,7 +117,7 @@ class ReceiveStatisticsProxy : public VideoStreamBufferControllerStatsObserver,
   void OnCname(uint32_t ssrc, absl::string_view cname) override;
 
   void OnCorruptionScore(double corruption_score,
-                         VideoContentType content_type);
+                         VideoContentType content_type) override;
 
   // Implements RtcpPacketTypeCounterObserver.
   void RtcpPacketTypesCounterUpdated(

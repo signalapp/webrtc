@@ -34,6 +34,7 @@
 #include "api/units/timestamp.h"
 #include "api/video/encoded_frame.h"
 #include "api/video/recordable_encoded_frame.h"
+#include "api/video/video_content_type.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_sink_interface.h"
 #include "call/call.h"
@@ -50,6 +51,7 @@
 #include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/thread_annotations.h"
 #include "rtc_base/time_utils.h"
+#include "video/corruption_detection/frame_instrumentation_evaluation.h"
 #include "video/decode_synchronizer.h"
 #include "video/receive_statistics_proxy.h"
 #include "video/rtp_streams_synchronizer2.h"
@@ -258,9 +260,10 @@ class VideoReceiveStream2
       RTC_RUN_ON(decode_sequence_checker_);
 
   void UpdateHistograms();
-  std::optional<double> CalculateCorruptionScore(
+  void CalculateCorruptionScore(
       const VideoFrame& frame,
-      const FrameInstrumentationData& frame_instrumentation_data) override;
+      const FrameInstrumentationData& frame_instrumentation_data,
+      VideoContentType content_type) override;
 
   const Environment env_;
 
@@ -362,6 +365,9 @@ class VideoReceiveStream2
       RTC_GUARDED_BY(pending_resolution_mutex_);
   // Buffered encoded frames held while waiting for decoded resolution.
   std::vector<std::unique_ptr<EncodedFrame>> buffered_encoded_frames_
+      RTC_GUARDED_BY(decode_sequence_checker_);
+
+  FrameInstrumentationEvaluation frame_evaluator_
       RTC_GUARDED_BY(decode_sequence_checker_);
 
   // Used to signal destruction to potentially pending tasks.
