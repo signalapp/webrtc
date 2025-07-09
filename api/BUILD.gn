@@ -440,6 +440,7 @@ rtc_library("frame_transformer_interface") {
     ":make_ref_counted",
     ":ref_count",
     ":scoped_refptr",
+    "../rtc_base:checks",
     "../rtc_base:refcount",
     "../rtc_base/system:rtc_export",
     "units:time_delta",

@@ -105,6 +105,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "..:test_support",
       "..:wait_until",
       "../../api:audio_options_api",
+      "../../api:create_modular_peer_connection_factory",
       "../../api:enable_media_with_defaults",
       "../../api:libjingle_peerconnection_api",
       "../../api:media_stream_interface",
