@@ -2218,6 +2218,7 @@ if (rtc_include_tests) {
         ":async_udp_socket",
         ":buffer",
         ":buffer_queue",
+        ":byte_order",
         ":checks",
         ":crc32",
         ":crypto_random",

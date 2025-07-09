@@ -17,6 +17,10 @@
 #include "absl/strings/string_view.h"
 #include "rtc_base/platform_thread_types.h"  // IWYU pragma: keep
 
+#if !defined(WEBRTC_WIN)
+#include <pthread.h>  // IWYU pragma: keep
+#endif
+
 namespace webrtc {
 
 enum class ThreadPriority {

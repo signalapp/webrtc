@@ -24,10 +24,10 @@
 #elif defined(WEBRTC_POSIX)
 #include <errno.h>
 #include <pthread.h>
-#include <time.h>
-#if defined(WEBRTC_MAC)
+#ifdef WEBRTC_MAC
 #include <sys/time.h>
 #endif
+#include <time.h>
 #else
 #error "Must define either WEBRTC_WIN or WEBRTC_POSIX."
 #endif
