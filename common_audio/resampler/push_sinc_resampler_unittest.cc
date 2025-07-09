@@ -12,13 +12,16 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <memory>
+#include <tuple>
 
 #include "common_audio/include/audio_util.h"
+#include "common_audio/resampler/sinc_resampler.h"
 #include "common_audio/resampler/sinusoidal_linear_chirp_source.h"
 #include "rtc_base/time_utils.h"
-#include "test/gmock.h"
 #include "test/gtest.h"
 
 namespace webrtc {

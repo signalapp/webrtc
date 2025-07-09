@@ -10,6 +10,9 @@
 
 #include "common_audio/channel_buffer.h"
 
+#include <cstddef>
+
+#include "rtc_base/checks.h"
 #include "test/gtest.h"
 #include "test/testsupport/rtc_expect_death.h"
 

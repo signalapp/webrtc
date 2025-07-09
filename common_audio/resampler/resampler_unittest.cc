@@ -11,6 +11,9 @@
 #include "common_audio/resampler/include/resampler.h"
 
 #include <array>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 
 #include "rtc_base/strings/string_builder.h"
 #include "test/gtest.h"
