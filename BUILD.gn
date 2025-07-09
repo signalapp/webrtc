@@ -82,7 +82,9 @@ if (!build_with_chromium) {
       if (use_libfuzzer) {
         deps += [ "test/fuzzers" ]
       }
-      if (!is_asan) {
+
+      # TODO(bugs.webrtc.org/430260876): Remove once rust links with libwebrtc.
+      if (!is_asan && !rtc_rusty_base64) {
         # Do not build :webrtc_lib_link_test because lld complains on some OS
         # (e.g. when target_os = "mac") when is_asan=true. For more details,
         # see bugs.webrtc.org/11027#c5.
@@ -521,6 +523,7 @@ if (!build_with_chromium) {
     ]
 
     sources = []
+
     complete_static_lib = true
     suppressed_configs += [ "//build/config/compiler:thin_archive" ]
     defines = []
@@ -584,7 +587,9 @@ if (!build_with_chromium) {
     }
   }
 
-  if (rtc_include_tests && !is_asan) {
+  # TODO(bugs.webrtc.org/430260876): Compile webrtc lib with rust once toolchain
+  # is working.
+  if (rtc_include_tests && !is_asan && !rtc_rusty_base64) {
     rtc_executable("webrtc_lib_link_test") {
       testonly = true
 
