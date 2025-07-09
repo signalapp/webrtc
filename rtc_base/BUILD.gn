@@ -1342,7 +1342,6 @@ rtc_library("async_packet_socket") {
 if (rtc_include_tests) {
   rtc_library("async_packet_socket_unittest") {
     testonly = true
-    visibility = [ "*" ]
     sources = [ "async_packet_socket_unittest.cc" ]
     deps = [
       ":async_packet_socket",
@@ -1357,7 +1356,6 @@ if (rtc_include_tests) {
 
   rtc_library("async_udp_socket_unittest") {
     testonly = true
-    visibility = [ "*" ]
     sources = [ "async_udp_socket_unittest.cc" ]
     deps = [
       ":async_packet_socket",
@@ -1370,6 +1368,20 @@ if (rtc_include_tests) {
       "network:received_packet",
       "third_party/sigslot",
       "//third_party/abseil-cpp/absl/memory",
+    ]
+  }
+  rtc_library("async_tcp_socket_unittest") {
+    testonly = true
+    sources = [ "async_tcp_socket_unittest.cc" ]
+    deps = [
+      ":async_packet_socket",
+      ":async_tcp_socket",
+      ":gunit_helpers",
+      ":net_helpers",
+      ":rtc_base_tests_utils",
+      ":socket",
+      "../test:test_support",
+      "third_party/sigslot",
     ]
   }
 }

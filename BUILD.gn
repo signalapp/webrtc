@@ -651,6 +651,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "call:fake_network_pipe_unittests",
       "rtc_base:async_dns_resolver_unittests",
       "rtc_base:async_packet_socket_unittest",
+      "rtc_base:async_tcp_socket_unittest",
       "rtc_base:async_udp_socket_unittest",
       "rtc_base:callback_list_unittests",
       "rtc_base:rtc_base_approved_unittests",
