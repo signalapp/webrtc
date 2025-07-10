@@ -1804,35 +1804,45 @@ TEST_P(PeerConnectionIntegrationTest, CallerDtls10ToCalleeDtls12) {
 // works as expected; the cipher should only be used if enabled by both sides.
 TEST_P(PeerConnectionIntegrationTest,
        Aes128Sha1_32_CipherNotUsedWhenOnlyCallerSupported) {
-  PeerConnectionFactory::Options caller_options;
-  caller_options.crypto_options.srtp.enable_aes128_sha1_32_crypto_cipher = true;
-  PeerConnectionFactory::Options callee_options;
-  callee_options.crypto_options.srtp.enable_aes128_sha1_32_crypto_cipher =
-      false;
+  RTCConfiguration caller_config;
+  CryptoOptions caller_crypto;
+  caller_crypto.srtp.enable_aes128_sha1_32_crypto_cipher = true;
+  caller_config.crypto_options = caller_crypto;
+  RTCConfiguration callee_config;
+  CryptoOptions callee_crypto;
+  callee_crypto.srtp.enable_aes128_sha1_32_crypto_cipher = false;
+  callee_config.crypto_options = callee_crypto;
   int expected_cipher_suite = kSrtpAes128CmSha1_80;
-  TestNegotiatedCipherSuite(caller_options, callee_options,
+  TestNegotiatedCipherSuite(caller_config, callee_config,
                             expected_cipher_suite);
 }
 
 TEST_P(PeerConnectionIntegrationTest,
        Aes128Sha1_32_CipherNotUsedWhenOnlyCalleeSupported) {
-  PeerConnectionFactory::Options caller_options;
-  caller_options.crypto_options.srtp.enable_aes128_sha1_32_crypto_cipher =
-      false;
-  PeerConnectionFactory::Options callee_options;
-  callee_options.crypto_options.srtp.enable_aes128_sha1_32_crypto_cipher = true;
+  RTCConfiguration caller_config;
+  CryptoOptions caller_crypto;
+  caller_crypto.srtp.enable_aes128_sha1_32_crypto_cipher = false;
+  caller_config.crypto_options = caller_crypto;
+  RTCConfiguration callee_config;
+  CryptoOptions callee_crypto;
+  callee_crypto.srtp.enable_aes128_sha1_32_crypto_cipher = true;
+  callee_config.crypto_options = callee_crypto;
   int expected_cipher_suite = kSrtpAes128CmSha1_80;
-  TestNegotiatedCipherSuite(caller_options, callee_options,
+  TestNegotiatedCipherSuite(caller_config, callee_config,
                             expected_cipher_suite);
 }
 
 TEST_P(PeerConnectionIntegrationTest, Aes128Sha1_32_CipherUsedWhenSupported) {
-  PeerConnectionFactory::Options caller_options;
-  caller_options.crypto_options.srtp.enable_aes128_sha1_32_crypto_cipher = true;
-  PeerConnectionFactory::Options callee_options;
-  callee_options.crypto_options.srtp.enable_aes128_sha1_32_crypto_cipher = true;
+  RTCConfiguration caller_config;
+  CryptoOptions caller_crypto;
+  caller_crypto.srtp.enable_aes128_sha1_32_crypto_cipher = true;
+  caller_config.crypto_options = caller_crypto;
+  RTCConfiguration callee_config;
+  CryptoOptions callee_crypto;
+  callee_crypto.srtp.enable_aes128_sha1_32_crypto_cipher = true;
+  callee_config.crypto_options = callee_crypto;
   int expected_cipher_suite = kSrtpAes128CmSha1_32;
-  TestNegotiatedCipherSuite(caller_options, callee_options,
+  TestNegotiatedCipherSuite(caller_config, callee_config,
                             expected_cipher_suite);
 }
 
@@ -1862,11 +1872,12 @@ TEST_P(PeerConnectionIntegrationTest, GcmCipherUsedWhenOnlyGcmSupported) {
 // only verify that a GCM cipher is negotiated, and not necessarily that SRTP
 // works with it.
 TEST_P(PeerConnectionIntegrationTest, EndToEndCallWithGcmCipher) {
-  PeerConnectionFactory::Options gcm_options;
-  gcm_options.crypto_options.srtp.enable_gcm_crypto_suites = true;
-  gcm_options.crypto_options.srtp.enable_aes128_sha1_80_crypto_cipher = false;
-  ASSERT_TRUE(
-      CreatePeerConnectionWrappersWithOptions(gcm_options, gcm_options));
+  RTCConfiguration gcm_config;
+  CryptoOptions gcm_options;
+  gcm_options.srtp.enable_gcm_crypto_suites = true;
+  gcm_options.srtp.enable_aes128_sha1_80_crypto_cipher = false;
+  gcm_config.crypto_options = gcm_options;
+  ASSERT_TRUE(CreatePeerConnectionWrappersWithConfig(gcm_config, gcm_config));
   ConnectFakeSignaling();
   // Do normal offer/answer and wait for some frames to be received in each
   // direction.

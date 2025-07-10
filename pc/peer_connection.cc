@@ -298,6 +298,7 @@ RTCErrorOr<PeerConnectionInterface::RTCConfiguration> ApplyConfiguration(
       existing_configuration;
   modified_config.servers = configuration.servers;
   modified_config.type = configuration.type;
+  modified_config.crypto_options = configuration.crypto_options;
   modified_config.ice_candidate_pool_size =
       configuration.ice_candidate_pool_size;
   modified_config.prune_turn_ports = configuration.prune_turn_ports;
@@ -687,11 +688,9 @@ JsepTransportController* PeerConnection::InitializeTransportController_n(
   config.disable_encryption = options_.disable_encryption;
   config.bundle_policy = configuration.bundle_policy;
   config.rtcp_mux_policy = configuration.rtcp_mux_policy;
-  // TODO(bugs.webrtc.org/9891) - Remove options_.crypto_options then remove
-  // this stub.
   config.crypto_options = configuration.crypto_options.has_value()
                               ? *configuration.crypto_options
-                              : options_.crypto_options;
+                              : CryptoOptions();
 
   // Maybe enable PQC from FieldTrials
   config.crypto_options.ephemeral_key_exchange_cipher_groups.Update(
@@ -2968,11 +2967,10 @@ RTCError PeerConnection::StartSctpTransport(const SctpOptions& options) {
 
 CryptoOptions PeerConnection::GetCryptoOptions() {
   RTC_DCHECK_RUN_ON(signaling_thread());
-  // TODO(bugs.webrtc.org/9891) - Remove PeerConnectionFactory::CryptoOptions
-  // after it has been removed.
-  return configuration_.crypto_options.has_value()
-             ? *configuration_.crypto_options
-             : options_.crypto_options;
+  if (!configuration_.crypto_options) {
+    configuration_.crypto_options = CryptoOptions();
+  }
+  return *configuration_.crypto_options;
 }
 
 void PeerConnection::ClearStatsCache() {
