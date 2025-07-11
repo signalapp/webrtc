@@ -1754,6 +1754,7 @@ rtc_library("rtc_base_tests_utils") {
     ":async_udp_socket",
     ":buffer",
     ":byte_buffer",
+    ":byte_order",
     ":checks",
     ":digest",
     ":ip_address",
