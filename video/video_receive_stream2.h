@@ -50,7 +50,6 @@
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/thread_annotations.h"
-#include "rtc_base/time_utils.h"
 #include "video/corruption_detection/frame_instrumentation_evaluation.h"
 #include "video/decode_synchronizer.h"
 #include "video/receive_statistics_proxy.h"
@@ -82,18 +81,14 @@ class CallStats;
 struct VideoFrameMetaData {
   VideoFrameMetaData(const webrtc::VideoFrame& frame, Timestamp now)
       : rtp_timestamp(frame.rtp_timestamp()),
-        timestamp_us(frame.timestamp_us()),
+        render_time(Timestamp::Micros(frame.timestamp_us())),
         ntp_time_ms(frame.ntp_time_ms()),
         width(frame.width()),
         height(frame.height()),
         decode_timestamp(now) {}
 
-  int64_t render_time_ms() const {
-    return timestamp_us / kNumMicrosecsPerMillisec;
-  }
-
   const uint32_t rtp_timestamp;
-  const int64_t timestamp_us;
+  const Timestamp render_time;
   const int64_t ntp_time_ms;
   const int width;
   const int height;

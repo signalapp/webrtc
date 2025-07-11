@@ -203,7 +203,7 @@ class ReceiveStatisticsProxy : public VideoStreamBufferControllerStatsObserver,
   std::optional<int64_t> last_decoded_frame_time_ms_
       RTC_GUARDED_BY(main_thread_);
   size_t num_delayed_frames_rendered_ RTC_GUARDED_BY(main_thread_);
-  int64_t sum_missed_render_deadline_ms_ RTC_GUARDED_BY(main_thread_);
+  TimeDelta sum_missed_render_deadline_ RTC_GUARDED_BY(main_thread_);
   // Mutable because calling Max() on MovingMaxCounter is not const. Yet it is
   // called from const GetStats().
   mutable MovingMaxCounter<TimingFrameInfo> timing_frame_info_counter_

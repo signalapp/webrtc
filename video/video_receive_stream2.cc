@@ -704,7 +704,7 @@ void VideoReceiveStream2::OnFrame(const VideoFrame& video_frame) {
         int64_t sync_offset_ms;
         double estimated_freq_khz;
         if (rtp_stream_sync_.GetStreamSyncOffsetInMs(
-                frame_meta.rtp_timestamp, frame_meta.render_time_ms(),
+                frame_meta.rtp_timestamp, frame_meta.render_time.ms(),
                 &video_playout_ntp_ms, &sync_offset_ms, &estimated_freq_khz)) {
           stats_proxy_.OnSyncOffsetUpdated(video_playout_ntp_ms, sync_offset_ms,
                                            estimated_freq_khz);
