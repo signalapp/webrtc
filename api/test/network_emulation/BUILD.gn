@@ -81,6 +81,8 @@ rtc_library("network_queue") {
   visibility = [ "*" ]
 
   sources = [
+    "dual_pi2_network_queue.cc",
+    "dual_pi2_network_queue.h",
     "leaky_bucket_network_queue.cc",
     "leaky_bucket_network_queue.h",
     "network_queue.h",
@@ -90,20 +92,32 @@ rtc_library("network_queue") {
     "../..:sequence_checker",
     "../..:simulated_network_api",
     "../../../rtc_base:checks",
+    "../../../rtc_base:logging",
     "../../../rtc_base:macromagic",
+    "../../../rtc_base:random",
+    "../../transport:ecn_marking",
+    "../../units:data_rate",
+    "../../units:data_size",
+    "../../units:time_delta",
     "../../units:timestamp",
   ]
 }
 
 rtc_library("network_queue_unittests") {
-  sources = [ "leaky_bucket_network_queue_unittest.cc" ]
+  sources = [
+    "dual_pi2_network_queue_unittest.cc",
+    "leaky_bucket_network_queue_unittest.cc",
+  ]
 
   testonly = true
   deps = [
     ":network_queue",
     "../..:simulated_network_api",
     "../../../test:test_support",
+    "../../transport:ecn_marking",
+    "../../units:data_rate",
     "../../units:data_size",
+    "../../units:time_delta",
     "../../units:timestamp",
   ]
 }
