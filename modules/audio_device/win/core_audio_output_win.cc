@@ -340,7 +340,7 @@ bool CoreAudioOutput::OnDataCallback(uint64_t device_frequency) {
   // Get audio data from WebRTC and write it to the allocated buffer in
   // `audio_data`. The playout latency is not updated for each callback.
   fine_audio_buffer_->GetPlayoutData(
-      rtc::MakeArrayView(reinterpret_cast<int16_t*>(audio_data),
+      webrtc::MakeArrayView(reinterpret_cast<int16_t*>(audio_data),
                          num_requested_frames *
                              // RingRTC change to ensure that only 1 or 2
                              // channels are read from the buffer.
@@ -400,7 +400,7 @@ int CoreAudioOutput::EstimateOutputLatencyMillis(uint64_t device_frequency) {
 
     // Convert latency in number of frames into milliseconds.
     webrtc::TimeDelta delay =
-        webrtc::TimeDelta::Micros(delay_frames * rtc::kNumMicrosecsPerSec /
+        webrtc::TimeDelta::Micros(delay_frames * webrtc::kNumMicrosecsPerSec /
                                   format_.Format.nSamplesPerSec);
     delay_ms = delay.ms();
   }

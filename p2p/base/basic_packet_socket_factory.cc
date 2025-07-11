@@ -47,13 +47,13 @@ AsyncPacketSocket* BasicPacketSocketFactory::CreateUdpSocket(
   // UDP sockets are simple.
   Socket* socket = socket_factory_->CreateSocket(address.family(), SOCK_DGRAM);
   if (!socket) {
-    return NULL;
+    return nullptr;
   }
   if (BindSocket(socket, address, min_port, max_port) < 0) {
     // RingRTC change to reduce log noise.
     RTC_LOG(LS_INFO) << "UDP bind failed with error " << socket->GetError();
     delete socket;
-    return NULL;
+    return nullptr;
   }
   return new AsyncUDPSocket(socket);
 }
@@ -66,24 +66,24 @@ AsyncListenSocket* BasicPacketSocketFactory::CreateServerTcpSocket(
   // Fail if TLS is required.
   if (opts & PacketSocketFactory::OPT_TLS) {
     RTC_LOG(LS_ERROR) << "TLS support currently is not available.";
-    return NULL;
+    return nullptr;
   }
 
   if (opts & PacketSocketFactory::OPT_TLS_FAKE) {
     RTC_LOG(LS_ERROR) << "Fake TLS not supported.";
-    return NULL;
+    return nullptr;
   }
   Socket* socket =
       socket_factory_->CreateSocket(local_address.family(), SOCK_STREAM);
   if (!socket) {
-    return NULL;
+    return nullptr;
   }
 
   if (BindSocket(socket, local_address, min_port, max_port) < 0) {
     // RingRTC change to reduce log noise.
     RTC_LOG(LS_INFO) << "TCP bind failed with error " << socket->GetError();
     delete socket;
-    return NULL;
+    return nullptr;
   }
 
   RTC_CHECK(!(opts & PacketSocketFactory::OPT_STUN));
@@ -98,7 +98,7 @@ AsyncPacketSocket* BasicPacketSocketFactory::CreateClientTcpSocket(
   Socket* socket =
       socket_factory_->CreateSocket(local_address.family(), SOCK_STREAM);
   if (!socket) {
-    return NULL;
+    return nullptr;
   }
 
   if (BindSocket(socket, local_address, 0, 0) < 0) {
@@ -113,7 +113,7 @@ AsyncPacketSocket* BasicPacketSocketFactory::CreateClientTcpSocket(
       // RingRTC change to reduce log noise.
       RTC_LOG(LS_INFO) << "TCP bind failed with error " << socket->GetError();
       delete socket;
-      return NULL;
+      return nullptr;
     }
   }
 
@@ -136,9 +136,9 @@ AsyncPacketSocket* BasicPacketSocketFactory::CreateClientTcpSocket(
   if ((tlsOpts & PacketSocketFactory::OPT_TLS) ||
       (tlsOpts & PacketSocketFactory::OPT_TLS_INSECURE)) {
     // Using TLS, wrap the socket in an SSL adapter.
-    rtc::SSLAdapter* ssl_adapter = rtc::SSLAdapter::Create(socket);
+    SSLAdapter* ssl_adapter = SSLAdapter::Create(socket);
     if (!ssl_adapter) {
-      return NULL;
+      return nullptr;
     }
 
     if (tlsOpts & PacketSocketFactory::OPT_TLS_INSECURE) {
@@ -153,7 +153,7 @@ AsyncPacketSocket* BasicPacketSocketFactory::CreateClientTcpSocket(
 
     if (ssl_adapter->StartSSL(remote_address.hostname().c_str()) != 0) {
       delete ssl_adapter;
-      return NULL;
+      return nullptr;
     }
 
   } else if (tlsOpts & PacketSocketFactory::OPT_TLS_FAKE) {
@@ -165,7 +165,7 @@ AsyncPacketSocket* BasicPacketSocketFactory::CreateClientTcpSocket(
     // RingRTC change to reduce log noise.
     RTC_LOG(LS_INFO) << "TCP connect failed with error " << socket->GetError();
     delete socket;
-    return NULL;
+    return nullptr;
   }
 
   // Finally, wrap that socket in a TCP or STUN TCP packet socket.

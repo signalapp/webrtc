@@ -74,3 +74,4 @@
 /.vscode
 /.idea
 !webrtc/*
+rust-project.json

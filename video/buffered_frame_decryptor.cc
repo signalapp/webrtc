@@ -40,7 +40,7 @@ BufferedFrameDecryptor::BufferedFrameDecryptor(
 BufferedFrameDecryptor::~BufferedFrameDecryptor() {}
 
 void BufferedFrameDecryptor::SetFrameDecryptor(
-    rtc::scoped_refptr<FrameDecryptorInterface> frame_decryptor) {
+    scoped_refptr<FrameDecryptorInterface> frame_decryptor) {
   frame_decryptor_ = std::move(frame_decryptor);
 }
 
@@ -74,17 +74,18 @@ BufferedFrameDecryptor::FrameDecision BufferedFrameDecryptor::DecryptFrame(
   }
   // Retrieve the maximum possible size of the decrypted payload.
   const size_t max_plaintext_byte_size =
-      frame_decryptor_->GetMaxPlaintextByteSize(webrtc::MediaType::VIDEO,
+      frame_decryptor_->GetMaxPlaintextByteSize(MediaType::VIDEO,
                                                 frame->size());
   RTC_CHECK_LE(max_plaintext_byte_size, frame->size());
+
   // RingRTC change to allow encryption without generic descriptor
   // Place the decrypted frame inline into the existing frame.
-  rtc::ArrayView<uint8_t> encrypted_bitstream(frame->mutable_data(),
+  ArrayView<uint8_t> encrypted_bitstream(frame->mutable_data(),
                                               frame->size());
 
   // Place the decrypted frame inline into the existing frame.
-  rtc::ArrayView<uint8_t> inline_decrypted_bitstream(frame->mutable_data(),
-                                                     max_plaintext_byte_size);
+  ArrayView<uint8_t> inline_decrypted_bitstream(frame->mutable_data(),
+                                                max_plaintext_byte_size);
 
   // Enable authenticating the header if the field trial isn't disabled.
   std::vector<uint8_t> additional_data;
@@ -94,11 +95,9 @@ BufferedFrameDecryptor::FrameDecision BufferedFrameDecryptor::DecryptFrame(
 
   // Attempt to decrypt the video frame.
   const FrameDecryptorInterface::Result decrypt_result =
-      frame_decryptor_->Decrypt(webrtc::MediaType::VIDEO, /*csrcs=*/{},
+      frame_decryptor_->Decrypt(MediaType::VIDEO, /*csrcs=*/{}, additional_data,
                                 // RingRTC change to allow encryption without generic descriptor
-                                additional_data,
-                                encrypted_bitstream,
-                                inline_decrypted_bitstream);
+                                encrypted_bitstream, inline_decrypted_bitstream);
   // Optionally call the callback if there was a change in status
   if (decrypt_result.status != last_status_) {
     last_status_ = decrypt_result.status;
