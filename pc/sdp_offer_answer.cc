@@ -4340,7 +4340,7 @@ void SdpOfferAnswerHandler::GetOptionsForOffer(
   session_options->crypto_options = pc_->GetCryptoOptions();
   // RingRTC change to support ICE forking
   if (pc_->shared_ice_gatherer()) {
-    session_options->ice_credentials.push_back(cricket::IceParameters(
+    session_options->ice_credentials.push_back(IceParameters(
         pc_->shared_ice_gatherer()->port_allocator_session()->ice_ufrag(),
         pc_->shared_ice_gatherer()->port_allocator_session()->ice_pwd(),
         pc_->configuration()->enable_ice_renomination));
@@ -4629,7 +4629,7 @@ void SdpOfferAnswerHandler::GetOptionsForAnswer(
   session_options->crypto_options = pc_->GetCryptoOptions();
   // RingRTC change to support ICE forking
   if (pc_->shared_ice_gatherer()) {
-    session_options->ice_credentials.push_back(cricket::IceParameters(
+    session_options->ice_credentials.push_back(IceParameters(
         pc_->shared_ice_gatherer()->port_allocator_session()->ice_ufrag(),
         pc_->shared_ice_gatherer()->port_allocator_session()->ice_pwd(),
         pc_->configuration()->enable_ice_renomination));

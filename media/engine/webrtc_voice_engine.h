@@ -422,7 +422,7 @@ class WebRtcVoiceReceiveChannel final
   void SetReceiveNonSenderRttEnabled(bool enabled) override;
 
   // RingRTC change to get audio levels
-  std::optional<cricket::ReceivedAudioLevel> GetReceivedAudioLevel() override;
+  std::optional<ReceivedAudioLevel> GetReceivedAudioLevel() override;
 
  private:
   bool SetOptions(const AudioOptions& options);

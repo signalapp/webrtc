@@ -2757,7 +2757,7 @@ TEST_F(BasicPortAllocatorTest, TestCreateIceGathererForForking) {
 
   auto gatherer = allocator_->CreateIceGatherer("test");
   ASSERT_TRUE(gatherer);
-  auto* forked = static_cast<cricket::BasicPortAllocator*>(
+  auto* forked = static_cast<webrtc::BasicPortAllocator*>(
     static_cast<webrtc::BasicIceGatherer*>(gatherer.get())->port_allocator());
 
   EXPECT_EQ(allocator_->flags(), forked->flags());

@@ -259,7 +259,8 @@ BasicPortAllocator::CreateIceGatherer(const std::string& name) {
   // for IceGatherers.
 
   // 1. Create with NetworkManager, PacketSocketFactory, and RelayPortFactory.
-  auto new_allocator = std::make_unique<BasicPortAllocator>(network_manager(),
+  auto new_allocator = std::make_unique<BasicPortAllocator>(env_,
+                                                            network_manager(),
                                                             socket_factory_,
                                                             nullptr,
                                                             relay_port_factory_.get());

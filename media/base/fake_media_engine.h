@@ -520,7 +520,7 @@ class FakeVoiceMediaReceiveChannel
   std::optional<int> GetBaseMinimumPlayoutDelayMs(uint32_t ssrc) const override;
 
   // RingRTC change to get audio levels
-  std::optional<cricket::ReceivedAudioLevel> GetReceivedAudioLevel() override {
+  std::optional<ReceivedAudioLevel> GetReceivedAudioLevel() override {
     return std::nullopt;
   }
 

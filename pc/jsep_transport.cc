@@ -99,9 +99,9 @@ JsepTransportDescription& JsepTransportDescription::operator=(
 
 JsepTransport::JsepTransport(
     const std::string& mid,
-    const rtc::scoped_refptr<RTCCertificate>& local_certificate,
-    rtc::scoped_refptr<IceTransportInterface> ice_transport,
-    rtc::scoped_refptr<IceTransportInterface> rtcp_ice_transport,
+    const scoped_refptr<RTCCertificate>& local_certificate,
+    scoped_refptr<IceTransportInterface> ice_transport,
+    scoped_refptr<IceTransportInterface> rtcp_ice_transport,
     std::unique_ptr<RtpTransport> unencrypted_rtp_transport,
     // RingRTC: Allow out-of-band / "manual" key negotiation.
     std::unique_ptr<SrtpTransport> srtp_transport,
@@ -534,7 +534,7 @@ void JsepTransport::ActivateRtcpMux() {
 
 // RingRTC: Allow out-of-band / "manual" key negotiation.
 bool JsepTransport::SetSrtpCrypto(
-    const std::optional<webrtc::CryptoParams>& crypto,
+    const std::optional<CryptoParams>& crypto,
     const std::vector<int>& encrypted_extension_ids,
     SdpType type,
     ContentSource source) {

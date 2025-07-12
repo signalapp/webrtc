@@ -250,7 +250,7 @@ class PeerConnection : public PeerConnectionInternal,
   // RingRTC change to get audio levels
   void GetAudioLevels(
       uint16_t* captured_out,
-      cricket::ReceivedAudioLevel* received_out,
+      ReceivedAudioLevel* received_out,
       size_t received_out_size,
       size_t* received_size_out) override;
 

@@ -83,23 +83,17 @@ struct SimulcastFormat {
 // Important!! Keep this table from high resolution to low resolution.
 constexpr const SimulcastFormat kSimulcastFormatsVP8[] = {
     {1920, 1080, 3, DataRate::KilobitsPerSec(5000),
-     DataRate::KilobitsPerSec(4000),
-     DataRate::KilobitsPerSec(800)},
+     DataRate::KilobitsPerSec(4000), DataRate::KilobitsPerSec(800)},
     {1280, 720, 3, DataRate::KilobitsPerSec(2500),
-     DataRate::KilobitsPerSec(2500),
-     DataRate::KilobitsPerSec(600)},
+     DataRate::KilobitsPerSec(2500), DataRate::KilobitsPerSec(600)},
     {960, 540, 3, DataRate::KilobitsPerSec(1200),
-     DataRate::KilobitsPerSec(1200),
-     DataRate::KilobitsPerSec(350)},
+     DataRate::KilobitsPerSec(1200), DataRate::KilobitsPerSec(350)},
     // RingRTC change to allow for 3 spatial layers when the highest layer is 640x480
-    {640, 360, 3, DataRate::KilobitsPerSec(700),
-     DataRate::KilobitsPerSec(500),
+    {640, 360, 3, DataRate::KilobitsPerSec(700), DataRate::KilobitsPerSec(500),
      DataRate::KilobitsPerSec(150)},
-    {480, 270, 2, DataRate::KilobitsPerSec(450),
-     DataRate::KilobitsPerSec(350),
+    {480, 270, 2, DataRate::KilobitsPerSec(450), DataRate::KilobitsPerSec(350),
      DataRate::KilobitsPerSec(150)},
-    {320, 180, 1, DataRate::KilobitsPerSec(200),
-     DataRate::KilobitsPerSec(150),
+    {320, 180, 1, DataRate::KilobitsPerSec(200), DataRate::KilobitsPerSec(150),
      DataRate::KilobitsPerSec(30)},
     // As the resolution goes down, interpolate the target and max bitrates down
     // towards zero. The min bitrate is still limited at 30 kbps and the target

@@ -1192,7 +1192,7 @@ class RTC_EXPORT PeerConnectionInterface : public webrtc::RefCountInterface {
   // RingRTC change to get audio levels
   virtual void GetAudioLevels(
       uint16_t* captured_out,
-      cricket::ReceivedAudioLevel* received_out,
+      ReceivedAudioLevel* received_out,
       size_t received_out_size,
       size_t* received_size_out);
 

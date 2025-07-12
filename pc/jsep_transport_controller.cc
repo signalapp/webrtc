@@ -1085,9 +1085,10 @@ JsepTransportController::CreateJsepTransportDescription(
 
   // RingRTC: Allow out-of-band / "manual" key negotiation.
   return JsepTransportDescription(rtcp_mux_enabled,
-      content_desc->crypto(), encrypted_extension_ids,
-      rtp_abs_sendtime_extn_id,
-      transport_info.description);
+                                  content_desc->crypto(),
+                                  encrypted_extension_ids,
+                                  rtp_abs_sendtime_extn_id,
+                                  transport_info.description);
 }
 
 std::vector<int> JsepTransportController::GetEncryptedHeaderExtensionIds(

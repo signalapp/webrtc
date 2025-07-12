@@ -87,20 +87,19 @@ class JsepTransport {
   // `mid` is just used for log statements in order to identify the Transport.
   // Note that `local_certificate` is allowed to be null since a remote
   // description may be set before a local certificate is generated.
-  JsepTransport(
-      const std::string& mid,
-      const scoped_refptr<RTCCertificate>& local_certificate,
-      scoped_refptr<IceTransportInterface> ice_transport,
-      scoped_refptr<IceTransportInterface> rtcp_ice_transport,
-      std::unique_ptr<RtpTransport> unencrypted_rtp_transport,
-      // RingRTC: Allow out-of-band / "manual" key negotiation.
-      std::unique_ptr<SrtpTransport> srtp_transport,
-      std::unique_ptr<DtlsSrtpTransport> dtls_srtp_transport,
-      std::unique_ptr<DtlsTransportInternal> rtp_dtls_transport,
-      std::unique_ptr<DtlsTransportInternal> rtcp_dtls_transport,
-      std::unique_ptr<SctpTransportInternal> sctp_transport,
-      std::function<void()> rtcp_mux_active_callback,
-      PayloadTypePicker& suggester);
+  JsepTransport(const std::string& mid,
+                const scoped_refptr<RTCCertificate>& local_certificate,
+                scoped_refptr<IceTransportInterface> ice_transport,
+                scoped_refptr<IceTransportInterface> rtcp_ice_transport,
+                std::unique_ptr<RtpTransport> unencrypted_rtp_transport,
+                // RingRTC: Allow out-of-band / "manual" key negotiation.
+                std::unique_ptr<SrtpTransport> srtp_transport,
+                std::unique_ptr<DtlsSrtpTransport> dtls_srtp_transport,
+                std::unique_ptr<DtlsTransportInternal> rtp_dtls_transport,
+                std::unique_ptr<DtlsTransportInternal> rtcp_dtls_transport,
+                std::unique_ptr<SctpTransportInternal> sctp_transport,
+                std::function<void()> rtcp_mux_active_callback,
+                PayloadTypePicker& suggester);
 
   ~JsepTransport();
 

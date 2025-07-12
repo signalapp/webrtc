@@ -5,11 +5,13 @@
 
 #include "rffi/api/injectable_network.h"
 
+#include "api/environment/environment.h"
 #include "api/packet_socket_factory.h"
 #include "p2p/client/basic_port_allocator.h"
 #include "rffi/api/network.h"
 #include "rtc_base/ip_address.h"
 #include "rtc_base/network/received_packet.h"
+#include "rtc_base/time_utils.h"
 
 namespace webrtc {
 
@@ -57,7 +59,7 @@ class InjectableUdpSocket : public rtc::AsyncPacketSocket {
 
     // Ends up going to Call::OnSentPacket for congestion control purposes.
     SignalSentPacket(this,
-                     rtc::SentPacket(options.packet_id, rtc::TimeMillis()));
+                     rtc::SentPacket(options.packet_id, webrtc::TimeMillis()));
     return result;
   }
 
@@ -133,8 +135,9 @@ class InjectableNetworkImpl : public InjectableNetwork,
                               public rtc::NetworkManager,
                               public rtc::PacketSocketFactory {
  public:
-  InjectableNetworkImpl(rtc::Thread* network_thread)
-      : network_thread_(network_thread) {}
+  InjectableNetworkImpl(const webrtc::Environment& env,
+                        rtc::Thread* network_thread)
+      : env_(env), network_thread_(network_thread) {}
 
   ~InjectableNetworkImpl() override {
     if (sender_.object_owned) {
@@ -146,7 +149,7 @@ class InjectableNetworkImpl : public InjectableNetwork,
   std::unique_ptr<webrtc::PortAllocator> CreatePortAllocator() override {
     RTC_LOG(LS_INFO) << "InjectableNetworkImpl::CreatePortAllocator()";
     return network_thread_->BlockingCall([this] {
-      return std::make_unique<cricket::BasicPortAllocator>(this, this);
+      return std::make_unique<cricket::BasicPortAllocator>(env_, this, this);
     });
   }
 
@@ -344,6 +347,7 @@ class InjectableNetworkImpl : public InjectableNetwork,
   }
 
  private:
+  const webrtc::Environment env_;
   rtc::Thread* network_thread_;
   std::map<std::string, std::unique_ptr<rtc::Network>> interface_by_name_;
   std::map<rtc::SocketAddress, InjectableUdpSocket*>
@@ -355,8 +359,9 @@ class InjectableNetworkImpl : public InjectableNetwork,
 };
 
 std::unique_ptr<InjectableNetwork> CreateInjectableNetwork(
+    const webrtc::Environment& env,
     rtc::Thread* network_thread) {
-  return std::make_unique<InjectableNetworkImpl>(network_thread);
+  return std::make_unique<InjectableNetworkImpl>(env, network_thread);
 }
 
 // The passed-in sender must live as long as the InjectableNetwork,

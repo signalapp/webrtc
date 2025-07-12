@@ -3080,7 +3080,7 @@ bool PeerConnection::SendRtp(std::unique_ptr<RtpPacket> rtp_packet) {
 
     // Doesn't copy because we're not writing to it.
     CopyOnWriteBuffer buffer = rtp_packet->Buffer();
-    PacketOptions options;
+    AsyncSocketPacketOptions options;
     // This makes the packet use SRTP instead of DTLS.
     int flags = PF_SRTP_BYPASS;
     return rtp_transport->SendRtpPacket(&buffer, options, flags);

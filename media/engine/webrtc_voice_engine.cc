@@ -2877,7 +2877,7 @@ bool WebRtcVoiceReceiveChannel::MaybeDeregisterUnsignaledRecvStream(
 }
 
 // RingRTC change to get audio levels
-std::optional<cricket::ReceivedAudioLevel> WebRtcVoiceReceiveChannel::GetReceivedAudioLevel() {
+std::optional<ReceivedAudioLevel> WebRtcVoiceReceiveChannel::GetReceivedAudioLevel() {
   RTC_DCHECK_RUN_ON(worker_thread_);
   if (recv_streams_.empty()) {
     RTC_LOG(LS_WARNING)
@@ -2887,7 +2887,7 @@ std::optional<cricket::ReceivedAudioLevel> WebRtcVoiceReceiveChannel::GetReceive
   }
 
   auto kv = recv_streams_.begin();
-  return cricket::ReceivedAudioLevel {
+  return ReceivedAudioLevel {
       kv->first,
       kv->second->GetAudioLevel()
   };

@@ -71,7 +71,7 @@ class MockVoiceMediaReceiveChannelInterface
               (std::unique_ptr<AudioSinkInterface> sink),
               (override));
   // RingRTC change to get audio levels
-  MOCK_METHOD(std::optional<cricket::ReceivedAudioLevel>,
+  MOCK_METHOD(std::optional<ReceivedAudioLevel>,
               GetReceivedAudioLevel,
               (),
               (override));

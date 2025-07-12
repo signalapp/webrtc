@@ -179,7 +179,7 @@ PROXY_METHOD1(void,
 PROXY_METHOD4(void,
               GetAudioLevels,
               uint16_t*,
-              cricket::ReceivedAudioLevel*,
+              ReceivedAudioLevel*,
               size_t,
               size_t*)
 // RingRTC change to get upload bandwidth estimate
