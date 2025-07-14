@@ -49,7 +49,7 @@ namespace internal {
 namespace {
 using ::testing::DoubleEq;
 
-const TimeDelta kFreqOffsetProcessInterval = TimeDelta::Seconds(40);
+constexpr TimeDelta kFreqOffsetProcessInterval = TimeDelta::Seconds(40);
 constexpr uint32_t kRemoteSsrc = 456;
 constexpr int kMinRequiredSamples = 200;
 constexpr int kWidth = 1280;
@@ -1324,11 +1324,11 @@ class ReceiveStatisticsProxyTestWithFreezeDuration
 // the current one.
 //
 // Condition 1: 3 * avg_frame_duration > avg_frame_duration + 150
-const auto kFreezeDetectionCond1Freeze = std::make_tuple(150, 483, 1);
-const auto kFreezeDetectionCond1NotFreeze = std::make_tuple(150, 482, 0);
+constexpr auto kFreezeDetectionCond1Freeze = std::make_tuple(150, 483, 1);
+constexpr auto kFreezeDetectionCond1NotFreeze = std::make_tuple(150, 482, 0);
 // Condition 2: 3 * avg_frame_duration < avg_frame_duration + 150
-const auto kFreezeDetectionCond2Freeze = std::make_tuple(30, 185, 1);
-const auto kFreezeDetectionCond2NotFreeze = std::make_tuple(30, 184, 0);
+constexpr auto kFreezeDetectionCond2Freeze = std::make_tuple(30, 185, 1);
+constexpr auto kFreezeDetectionCond2NotFreeze = std::make_tuple(30, 184, 0);
 
 INSTANTIATE_TEST_SUITE_P(_,
                          ReceiveStatisticsProxyTestWithFreezeDuration,
