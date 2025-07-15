@@ -75,6 +75,10 @@ _IGNORED_HEADERS = [
     "\\.pb\\.h",  # generated protobuf files.
     "pipewire\\/.*\\.h",  # pipewire.
     "spa\\/.*\\.h",  # pipewire.
+    "glib\\.h",  # glib.
+    "glibconfig\\.h",  # glib.
+    "glib-object\\.h",  # glib.
+    "gio\\/.*\\.h",  # glib.
     "openssl\\/.*\\.h",  # openssl/boringssl.
     "alsa\\/.*\\.h",  # ALSA.
     "pulse\\/.*\\.h",  # PulseAudio.
