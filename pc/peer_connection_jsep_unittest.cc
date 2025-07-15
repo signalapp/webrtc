@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "api/create_modular_peer_connection_factory.h"
 #include "api/enable_media_with_defaults.h"
 #include "api/jsep.h"
 #include "api/media_stream_interface.h"

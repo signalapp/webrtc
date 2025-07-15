@@ -529,6 +529,7 @@ if (!build_with_chromium) {
     defines = []
 
     deps = [
+      "api:create_modular_peer_connection_factory",
       "api:create_peerconnection_factory",
       "api:enable_media",
       "api:libjingle_peerconnection_api",

@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "api/candidate.h"
+#include "api/create_modular_peer_connection_factory.h"
 #include "api/enable_media_with_defaults.h"
 #include "api/jsep.h"
 #include "api/media_types.h"
