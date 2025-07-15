@@ -253,10 +253,6 @@ if (is_ios || is_mac) {
       rtc_library("native_api_audio_device_module") {
         visibility = [ "*" ]
 
-        # TODO: bugs.webrtc.org/413413572 - Remove the poison when users of this
-        # api provide Environment explicitly.
-        allow_poison = [ "environment_construction" ]
-
         sources = [
           "objc/native/api/audio_device_module.h",
           "objc/native/api/audio_device_module.mm",
@@ -269,7 +265,6 @@ if (is_ios || is_mac) {
           "../api:scoped_refptr",
           "../api/audio:audio_device",
           "../api/environment",
-          "../api/environment:environment_factory",
           "../modules/audio_device:audio_device_generic",
           "../rtc_base:checks",
           "../rtc_base:logging",
