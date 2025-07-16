@@ -878,7 +878,7 @@ class PeerConnectionIntegrationWrapper : public PeerConnectionObserver,
 
   void HandleIncomingAnswer(SdpType type, const std::string& msg) {
     RTC_LOG(LS_INFO) << debug_name_ << ": HandleIncomingAnswer of type "
-                     << SdpTypeToString(type);
+                     << type;
     std::unique_ptr<SessionDescriptionInterface> desc =
         CreateSessionDescription(type, msg);
     if (received_sdp_munger_) {

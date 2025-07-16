@@ -288,7 +288,7 @@ class RTC_EXPORT SessionDescriptionInterface {
   template <typename Sink>
   friend void AbslStringify(Sink& sink, const SessionDescriptionInterface& p) {
     sink.Append("\n--- BEGIN SDP ");
-    sink.Append(SdpTypeToString(p.GetType()));
+    absl::Format(&sink, "%v", p.GetType());
     sink.Append(" ---\n");
     std::string temp;
     if (p.ToString(&temp)) {

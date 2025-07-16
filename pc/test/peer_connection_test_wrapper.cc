@@ -299,8 +299,7 @@ void PeerConnectionTestWrapper::OnSuccess(SessionDescriptionInterface* desc) {
   EXPECT_TRUE(desc->ToString(&sdp));
 
   RTC_LOG(LS_INFO) << "PeerConnectionTestWrapper " << name_ << ": "
-                   << webrtc::SdpTypeToString(desc->GetType())
-                   << " sdp created: " << sdp;
+                   << desc->GetType() << " sdp created: " << sdp;
 
   SetLocalDescription(desc->GetType(), sdp);
 
@@ -334,8 +333,7 @@ void PeerConnectionTestWrapper::ReceiveAnswerSdp(const std::string& sdp) {
 void PeerConnectionTestWrapper::SetLocalDescription(SdpType type,
                                                     const std::string& sdp) {
   RTC_LOG(LS_INFO) << "PeerConnectionTestWrapper " << name_
-                   << ": SetLocalDescription " << webrtc::SdpTypeToString(type)
-                   << " " << sdp;
+                   << ": SetLocalDescription " << type << " " << sdp;
 
   auto observer = webrtc::make_ref_counted<MockSetSessionDescriptionObserver>();
   peer_connection_->SetLocalDescription(
@@ -345,8 +343,7 @@ void PeerConnectionTestWrapper::SetLocalDescription(SdpType type,
 void PeerConnectionTestWrapper::SetRemoteDescription(SdpType type,
                                                      const std::string& sdp) {
   RTC_LOG(LS_INFO) << "PeerConnectionTestWrapper " << name_
-                   << ": SetRemoteDescription " << webrtc::SdpTypeToString(type)
-                   << " " << sdp;
+                   << ": SetRemoteDescription " << type << " " << sdp;
 
   auto observer = webrtc::make_ref_counted<MockSetSessionDescriptionObserver>();
   peer_connection_->SetRemoteDescription(

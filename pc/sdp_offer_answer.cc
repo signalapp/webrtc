@@ -1805,8 +1805,7 @@ RTCError SdpOfferAnswerHandler::ApplyLocalDescription(
         CS_LOCAL, *local_description(), old_local_description,
         remote_description(), bundle_groups_by_mid);
     if (!error.ok()) {
-      RTC_LOG(LS_ERROR) << error.message() << " (" << SdpTypeToString(type)
-                        << ")";
+      RTC_LOG(LS_ERROR) << error.message() << " (" << type << ")";
       return error;
     }
     if (ConfiguredForMedia()) {
@@ -1873,8 +1872,7 @@ RTCError SdpOfferAnswerHandler::ApplyLocalDescription(
       // description is applied. Restore back to old description.
       error = CreateChannels(*local_description()->description());
       if (!error.ok()) {
-        RTC_LOG(LS_ERROR) << error.message() << " (" << SdpTypeToString(type)
-                          << ")";
+        RTC_LOG(LS_ERROR) << error.message() << " (" << type << ")";
         return error;
       }
     }
@@ -1885,8 +1883,7 @@ RTCError SdpOfferAnswerHandler::ApplyLocalDescription(
   error = UpdateSessionState(type, CS_LOCAL, local_description()->description(),
                              bundle_groups_by_mid);
   if (!error.ok()) {
-    RTC_LOG(LS_ERROR) << error.message() << " (" << SdpTypeToString(type)
-                      << ")";
+    RTC_LOG(LS_ERROR) << error.message() << " (" << type << ")";
     return error;
   }
 
