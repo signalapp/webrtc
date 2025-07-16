@@ -24,7 +24,6 @@ extern "C" {
 #else
 // Include directory supplied by gn
 #include "jpeglib.h"  // NOLINT
-#include "jpeglibmangler.h"
 #endif
 }
 
