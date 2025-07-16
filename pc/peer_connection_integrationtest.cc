@@ -4488,12 +4488,19 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   caller()->CreateAndSetAndSignalOffer();
   ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
               IsRtcOk());
-  ASSERT_THAT(WaitUntil([&] { return caller()->GetReceivedFrameCount(); },
+  std::vector<RtpHeaderExtensionCapability> negotiated_extensions =
+      caller()->pc()->GetTransceivers()[0]->GetNegotiatedHeaderExtensions();
+  ASSERT_THAT(negotiated_extensions,
+              Contains(Field("uri", &RtpHeaderExtensionCapability::uri,
+                             RtpExtension::kCorruptionDetectionUri)));
+  ASSERT_THAT(WaitUntil([&] { return caller()->GetCorruptionScoreCount(); },
                         Eq(3), {.timeout = kMaxWaitForStats}),
-              IsRtcOk());
-  ASSERT_THAT(WaitUntil([&] { return callee()->GetReceivedFrameCount(); },
+              IsRtcOk())
+      << "Waiting for caller corruption score count > 0";
+  ASSERT_THAT(WaitUntil([&] { return callee()->GetCorruptionScoreCount(); },
                         Eq(3), {.timeout = kMaxWaitForStats}),
-              IsRtcOk());
+              IsRtcOk())
+      << "Waiting for callee corruption score count > 0";
 
   for (const auto& pair : {caller(), callee()}) {
     scoped_refptr<const RTCStatsReport> report = pair->NewGetStats();

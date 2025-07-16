@@ -198,6 +198,11 @@ enum class SdpType {
 // SessionDescriptionInterface.
 RTC_EXPORT const char* SdpTypeToString(SdpType type);
 
+template <typename Sink>
+void AbslStringify(Sink& sink, SdpType sdp_type) {
+  sink.Append(SdpTypeToString(sdp_type));
+}
+
 // Returns the SdpType from its string form. The string form can be one of the
 // constants defined in SessionDescriptionInterface. Passing in any other string
 // results in nullopt.
