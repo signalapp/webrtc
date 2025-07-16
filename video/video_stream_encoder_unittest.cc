@@ -8234,6 +8234,9 @@ TEST_F(VideoStreamEncoderTest, SwitchEncoderOnInitFailureWithEncoderSelector) {
 
 TEST_F(VideoStreamEncoderTest,
        SwitchEncoderOnInitFailureWithoutEncoderSelector) {
+  field_trials_.Set("WebRTC-SwitchEncoderFollowCodecPreferenceOrder",
+                    "Disabled");
+
   NiceMock<MockVideoEncoder> video_encoder;
   StrictMock<MockEncoderSwitchRequestCallback> switch_callback;
   video_send_config_.encoder_settings.encoder_switch_request_callback =
@@ -8328,9 +8331,6 @@ TEST_F(VideoStreamEncoderTest, NoPreferenceDefaultFallbackToVP8Disabled) {
   constexpr int kSufficientBitrateToNotDrop = 1000;
   constexpr int kDontCare = 100;
   constexpr int kNumFrames = 8;
-
-  field_trials_.Set("WebRTC-SwitchEncoderFollowCodecPreferenceOrder",
-                    "Enabled");
 
   NiceMock<MockVideoEncoder> video_encoder;
   StrictMock<MockEncoderSwitchRequestCallback> switch_callback;
@@ -8461,6 +8461,9 @@ TEST_F(VideoStreamEncoderTest,
 TEST_F(VideoStreamEncoderTest, NoPreferenceDefaultFallbackToVP8Enabled) {
   constexpr int kSufficientBitrateToNotDrop = 1000;
   constexpr int kDontCare = 100;
+
+  field_trials_.Set("WebRTC-SwitchEncoderFollowCodecPreferenceOrder",
+                    "Disabled");
 
   NiceMock<MockVideoEncoder> video_encoder;
   StrictMock<MockEncoderSwitchRequestCallback> switch_callback;
