@@ -79,7 +79,9 @@ _IGNORED_HEADERS = [
     "alsa\\/.*\\.h",  # ALSA.
     "pulse\\/.*\\.h",  # PulseAudio.
     "bits\\/.*\\.h",  # pthreads.
-    "jpeglibmangler\\.h"  # libjpeg.
+    "jpeglibmangler\\.h",  # libjpeg.
+    "libavcodec\\/.*\\.h",  # ffmpeg.
+    "libavutil\\/.*\\.h",  # ffmpeg.
 ]
 
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
