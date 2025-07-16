@@ -3465,7 +3465,7 @@ TEST_P(PeerConnectionIntegrationTest, OnIceCandidateError) {
   EXPECT_THAT(
       WaitUntil([&] { return caller()->error_event().error_code; }, Eq(401)),
       IsRtcOk());
-  EXPECT_EQ("Unauthorized", caller()->error_event().error_text);
+  EXPECT_EQ("Unauthorized.", caller()->error_event().error_text);
   EXPECT_EQ("turn:88.88.88.0:3478?transport=udp", caller()->error_event().url);
   EXPECT_NE(caller()->error_event().address, "");
 }
