@@ -231,9 +231,7 @@ bool RtpPacketizerH264::NextPacket(RtpPacketToSend* rtp_packet) {
   PacketUnit packet = packets_.front();
   if (packet.first_fragment && packet.last_fragment) {
     // Single NAL unit packet.
-    size_t bytes_to_send = packet.source_fragment.size();
-    uint8_t* buffer = rtp_packet->AllocatePayload(bytes_to_send);
-    memcpy(buffer, packet.source_fragment.data(), bytes_to_send);
+    rtp_packet->SetPayload(packet.source_fragment);
     packets_.pop();
     input_fragments_.pop_front();
   } else if (packet.aggregated) {

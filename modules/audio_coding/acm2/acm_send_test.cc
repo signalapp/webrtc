@@ -149,9 +149,7 @@ std::unique_ptr<RtpPacketReceived> AcmSendTestOldApi::CreatePacket() {
   rtp_packet->SetSsrc(0x12345678);
   ++sequence_number_;
 
-  // Copy the payload data.
-  memcpy(rtp_packet->AllocatePayload(last_payload_vec_.size()),
-         last_payload_vec_.data(), last_payload_vec_.size());
+  rtp_packet->SetPayload(last_payload_vec_);
   rtp_packet->set_arrival_time(clock_.CurrentTime());
   return rtp_packet;
 }
