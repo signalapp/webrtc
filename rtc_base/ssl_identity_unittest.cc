@@ -16,7 +16,6 @@
 #include <openssl/evp.h>  // IWYU pragma: keep
 #endif
 #include <openssl/sha.h>
-#include <string.h>
 
 #include <array>
 #include <cstdint>

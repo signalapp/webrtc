@@ -10,10 +10,9 @@
 
 #include "api/peer_connection_interface.h"
 
-#include <limits.h>
-#include <stdint.h>
-
+#include <climits>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>

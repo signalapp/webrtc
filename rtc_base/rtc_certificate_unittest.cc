@@ -10,9 +10,8 @@
 
 #include "rtc_base/rtc_certificate.h"
 
-#include <time.h>
-
 #include <cstdint>
+#include <ctime>
 #include <memory>
 #include <utility>
 

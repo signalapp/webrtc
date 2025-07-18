@@ -9,10 +9,9 @@
  */
 #include "api/test/metrics/stdout_metrics_exporter.h"
 
-#include <stdio.h>
-
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <optional>
 #include <string>
 

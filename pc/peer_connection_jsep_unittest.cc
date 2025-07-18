@@ -8,9 +8,8 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include <stddef.h>
-
 #include <algorithm>
+#include <cstddef>
 #include <map>
 #include <memory>
 #include <optional>

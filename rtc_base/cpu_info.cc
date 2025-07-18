@@ -23,9 +23,10 @@
 #include <zircon/syscalls.h>
 #elif defined(WEBRTC_LINUX)
 #include <features.h>
-#include <stdlib.h>
-#include <string.h>  // IWYU pragma: keep
 #include <unistd.h>
+
+#include <cstdlib>
+#include <cstring>  // IWYU pragma: keep
 
 #ifdef __GLIBC_PREREQ
 #define WEBRTC_GLIBC_PREREQ(a, b) __GLIBC_PREREQ(a, b)

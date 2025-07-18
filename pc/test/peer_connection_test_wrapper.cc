@@ -10,8 +10,7 @@
 
 #include "pc/test/peer_connection_test_wrapper.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <string>

@@ -10,6 +10,8 @@
 
 #include "rtc_base/event.h"
 
+#include <time.h>
+
 #include <cstdint>
 #include <optional>
 
@@ -22,12 +24,13 @@
 #if defined(WEBRTC_WIN)
 #include <windows.h>
 #elif defined(WEBRTC_POSIX)
-#include <errno.h>
 #include <pthread.h>
+
+#include <cerrno>
 #ifdef WEBRTC_MAC
 #include <sys/time.h>
 #endif
-#include <time.h>
+#include <ctime>
 #else
 #error "Must define either WEBRTC_WIN or WEBRTC_POSIX."
 #endif

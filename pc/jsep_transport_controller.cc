@@ -10,8 +10,7 @@
 
 #include "pc/jsep_transport_controller.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <map>

@@ -10,10 +10,9 @@
 
 #include "rtc_base/logging.h"
 
-#include <string.h>
-
 #include <atomic>
 #include <cstdint>
+#include <cstring>
 #include <string>
 
 #if RTC_LOG_ENABLED()
@@ -37,12 +36,11 @@
 static const int kMaxLogLineSize = 1024 - 60;
 #endif  // WEBRTC_MAC && !defined(WEBRTC_IOS) || WEBRTC_ANDROID
 
-#include <inttypes.h>
-#include <stdio.h>
-#include <time.h>
-
 #include <algorithm>
+#include <cinttypes>
 #include <cstdarg>
+#include <cstdio>
+#include <ctime>
 #include <vector>
 
 #include "absl/base/attributes.h"
