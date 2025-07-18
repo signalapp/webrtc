@@ -10,10 +10,9 @@
 
 #include "modules/congestion_controller/goog_cc/goog_cc_network_control.h"
 
-#include <stdio.h>
-
 #include <algorithm>
 #include <cstdint>
+#include <cstdio>
 #include <memory>
 #include <optional>
 #include <utility>

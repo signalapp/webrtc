@@ -10,9 +10,8 @@
 
 #include "modules/congestion_controller/pcc/utility_function.h"
 
-#include <stddef.h>
-
 #include <cmath>
+#include <cstddef>
 #include <vector>
 
 #include "api/transport/network_types.h"

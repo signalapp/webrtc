@@ -10,9 +10,8 @@
 
 #include "modules/rtp_rtcp/include/flexfec_sender.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 #include <list>
 #include <memory>
 #include <optional>

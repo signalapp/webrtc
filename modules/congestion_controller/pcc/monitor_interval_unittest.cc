@@ -10,8 +10,7 @@
 
 #include "modules/congestion_controller/pcc/monitor_interval.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <vector>
 
 #include "api/transport/network_types.h"

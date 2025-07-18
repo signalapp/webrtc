@@ -11,9 +11,10 @@
 #include "modules/video_coding/codecs/vp8/screenshare_layers.h"
 
 #include <stdlib.h>
-#include <string.h>
 
 #include <cstdint>
+#include <cstdlib>
+#include <cstring>
 #include <memory>
 #include <optional>
 #include <vector>

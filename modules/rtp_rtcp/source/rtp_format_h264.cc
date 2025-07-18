@@ -10,10 +10,9 @@
 
 #include "modules/rtp_rtcp/source/rtp_format_h264.h"
 
-#include <string.h>
-
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <vector>
 
 #include "absl/algorithm/container.h"
