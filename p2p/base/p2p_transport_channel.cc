@@ -1979,12 +1979,13 @@ void P2PTransportChannel::UpdateTransportState() {
         RTC_DCHECK_NOTREACHED();
         break;
     }
-    state_ = state;
-    SignalStateChanged(this);
   }
 
-  if (standardized_state_ != current_standardized_state) {
+  if (standardized_state_ != current_standardized_state || state_ != state) {
     standardized_state_ = current_standardized_state;
+    state_ = state;
+    // Unconditionally signal change, no matter what changed.
+    // TODO: issues.webrtc.org/42234495 - rmeove nonstandard state_
     SignalIceTransportStateChanged(this);
   }
 }

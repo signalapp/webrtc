@@ -2256,7 +2256,11 @@ TEST_P(PeerConnectionIntegrationTest, MediaContinuesFlowingAfterIceRestart) {
   ASSERT_NE(callee_candidate_pre_restart, callee_candidate_post_restart);
   ASSERT_NE(caller_ufrag_pre_restart, caller_ufrag_post_restart);
   ASSERT_NE(callee_ufrag_pre_restart, callee_ufrag_post_restart);
-  EXPECT_GT(caller()->ice_candidate_pair_change_history().size(), 1u);
+  EXPECT_THAT(
+      WaitUntil(
+          [&] { return caller()->ice_candidate_pair_change_history().size(); },
+          Gt(1U), {.timeout = kMaxWaitForFrames}),
+      IsRtcOk());
 
   // Ensure that additional frames are received after the ICE restart.
   MediaExpectations media_expectations;
