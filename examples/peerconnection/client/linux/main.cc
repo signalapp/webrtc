@@ -10,8 +10,8 @@
 
 #include <glib.h>
 #include <gtk/gtk.h>
-#include <stdio.h>
 
+#include <cstdio>
 #include <memory>
 #include <string>
 

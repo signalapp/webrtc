@@ -10,10 +10,9 @@
 
 #include "logging/rtc_event_log/rtc_event_log_parser.h"
 
-#include <stdint.h>
-#include <string.h>
-
 #include <algorithm>
+#include <cstdint>
+#include <cstring>
 #include <limits>
 #include <map>
 #include <optional>

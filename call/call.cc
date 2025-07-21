@@ -10,11 +10,10 @@
 
 #include "call/call.h"
 
-#include <string.h>
-
 #include <algorithm>
 #include <atomic>
 #include <cstdint>
+#include <cstring>
 #include <map>
 #include <memory>
 #include <optional>
