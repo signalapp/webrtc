@@ -76,7 +76,7 @@ bool PeerConnectionInterface::ReceiveRtp(uint8_t pt, bool enable_incoming) {
 // RingRTC change to get audio levels
 void PeerConnectionInterface::GetAudioLevels(
       uint16_t* captured_out,
-      cricket::ReceivedAudioLevel* received_out,
+      ReceivedAudioLevel* received_out,
       size_t received_out_size,
       size_t* received_size_out) {
   RTC_LOG(LS_ERROR) << "No GetAudioLevels in dummy implementation";
@@ -88,21 +88,16 @@ PeerConnectionDependencies::PeerConnectionDependencies(
     PeerConnectionObserver* observer_in)
     : observer(observer_in) {}
 
-// TODO(bugs.webrtc.org/12598: remove pragma once async_resolver_factory
-// is removed from PeerConnectionDependencies
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 PeerConnectionDependencies::PeerConnectionDependencies(
     PeerConnectionDependencies&&) = default;
-#pragma clang diagnostic pop
 
 PeerConnectionDependencies::~PeerConnectionDependencies() = default;
 
 PeerConnectionFactoryDependencies::PeerConnectionFactoryDependencies() =
     default;
 
-// TODO: bugs.webrtc.org/369904700 - remove pragma once `audio_processing`
-// is removed from PeerConnectionFactoryDependencies.
+// Allow move constructor to move deprecated members. Pragma can be removed
+// when there are no deprecated depedencies at the moment.
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 PeerConnectionFactoryDependencies::PeerConnectionFactoryDependencies(

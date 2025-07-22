@@ -150,7 +150,7 @@ void PeerConnectionDelegateAdapter::OnSignalingChange(
 }
 
 void PeerConnectionDelegateAdapter::OnAddStream(
-    rtc::scoped_refptr<MediaStreamInterface> stream) {
+    webrtc::scoped_refptr<MediaStreamInterface> stream) {
   RTC_OBJC_TYPE(RTCPeerConnection) *peer_connection = peer_connection_;
   if (peer_connection == nil) {
     return;
@@ -168,7 +168,7 @@ void PeerConnectionDelegateAdapter::OnAddStream(
 }
 
 void PeerConnectionDelegateAdapter::OnRemoveStream(
-    rtc::scoped_refptr<MediaStreamInterface> stream) {
+    webrtc::scoped_refptr<MediaStreamInterface> stream) {
   RTC_OBJC_TYPE(RTCPeerConnection) *peer_connection = peer_connection_;
   if (peer_connection == nil) {
     return;
@@ -185,7 +185,7 @@ void PeerConnectionDelegateAdapter::OnRemoveStream(
 }
 
 void PeerConnectionDelegateAdapter::OnTrack(
-    rtc::scoped_refptr<RtpTransceiverInterface> nativeTransceiver) {
+    webrtc::scoped_refptr<RtpTransceiverInterface> nativeTransceiver) {
   RTC_OBJC_TYPE(RTCPeerConnection) *peer_connection = peer_connection_;
   if (peer_connection == nil) {
     return;
@@ -208,7 +208,7 @@ void PeerConnectionDelegateAdapter::OnTrack(
 }
 
 void PeerConnectionDelegateAdapter::OnDataChannel(
-    rtc::scoped_refptr<DataChannelInterface> data_channel) {
+    webrtc::scoped_refptr<DataChannelInterface> data_channel) {
   RTC_OBJC_TYPE(RTCPeerConnection) *peer_connection = peer_connection_;
   if (peer_connection == nil) {
     return;
@@ -355,7 +355,7 @@ void PeerConnectionDelegateAdapter::OnIceCandidateError(
 }
 
 void PeerConnectionDelegateAdapter::OnIceCandidatesRemoved(
-    const std::vector<cricket::Candidate> &candidates) {
+    const std::vector<webrtc::Candidate> &candidates) {
   RTC_OBJC_TYPE(RTCPeerConnection) *peer_connection = peer_connection_;
   if (peer_connection == nil) {
     return;
@@ -380,7 +380,7 @@ void PeerConnectionDelegateAdapter::OnIceCandidatesRemoved(
 }
 
 void PeerConnectionDelegateAdapter::OnIceSelectedCandidatePairChanged(
-    const cricket::CandidatePairChangeEvent &event) {
+    const webrtc::CandidatePairChangeEvent &event) {
   RTC_OBJC_TYPE(RTCPeerConnection) *peer_connection = peer_connection_;
   if (peer_connection == nil) {
     return;
@@ -419,8 +419,8 @@ void PeerConnectionDelegateAdapter::OnIceSelectedCandidatePairChanged(
 }
 
 void PeerConnectionDelegateAdapter::OnAddTrack(
-    rtc::scoped_refptr<RtpReceiverInterface> receiver,
-    const std::vector<rtc::scoped_refptr<MediaStreamInterface>> &streams) {
+    webrtc::scoped_refptr<RtpReceiverInterface> receiver,
+    const std::vector<webrtc::scoped_refptr<MediaStreamInterface>> &streams) {
   RTC_OBJC_TYPE(RTCPeerConnection) *peer_connection = peer_connection_;
   if (peer_connection == nil) {
     return;
@@ -453,7 +453,7 @@ void PeerConnectionDelegateAdapter::OnAddTrack(
 }
 
 void PeerConnectionDelegateAdapter::OnRemoveTrack(
-    rtc::scoped_refptr<RtpReceiverInterface> receiver) {
+    webrtc::scoped_refptr<RtpReceiverInterface> receiver) {
   RTC_OBJC_TYPE(RTCPeerConnection) *peer_connection = peer_connection_;
   if (peer_connection == nil) {
     return;
@@ -480,7 +480,7 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
   std::unique_ptr<webrtc::PeerConnectionDelegateAdapter> _observer;
   // RingRTC changes for low-level FFI
   std::unique_ptr<webrtc::PeerConnectionObserver> _customObserver;
-  rtc::scoped_refptr<webrtc::PeerConnectionInterface> _peerConnection;
+  webrtc::scoped_refptr<webrtc::PeerConnectionInterface> _peerConnection;
   std::unique_ptr<webrtc::MediaConstraints> _nativeConstraints;
   BOOL _hasStartedRtcEventLog;
 }
@@ -521,7 +521,7 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
                       configuration:configuration
                         constraints:constraints
                        dependencies:std::move(dependencies)
-                          // RingRTC changes for low-level FFI
+                           // RingRTC changes for low-level FFI
                            observer:observer];
 }
 
@@ -609,7 +609,7 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
   // @note Modeled on the PeerConnectionDelegateAdapter::OnAddStream
   // function above in this file.
 
-  rtc::scoped_refptr<webrtc::MediaStreamInterface> stream = rtc::scoped_refptr<webrtc::MediaStreamInterface>((webrtc::MediaStreamInterface*)nativeStreamBorrowedRc);
+  webrtc::scoped_refptr<webrtc::MediaStreamInterface> stream = webrtc::scoped_refptr<webrtc::MediaStreamInterface>((webrtc::MediaStreamInterface*)nativeStreamBorrowedRc);
 
   return [[RTC_OBJC_TYPE(RTCMediaStream) alloc] initWithFactory:_factory nativeMediaStream:stream];
 }
@@ -712,7 +712,7 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
 }
 - (void)removeIceCandidates:
     (NSArray<RTC_OBJC_TYPE(RTCIceCandidate) *> *)iceCandidates {
-  std::vector<cricket::Candidate> candidates;
+  std::vector<webrtc::Candidate> candidates;
   for (RTC_OBJC_TYPE(RTCIceCandidate) * iceCandidate in iceCandidates) {
     std::unique_ptr<const webrtc::IceCandidateInterface> candidate(
         iceCandidate.nativeCandidate);
@@ -747,7 +747,7 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
   for (NSString *streamId in streamIds) {
     nativeStreamIds.push_back([streamId UTF8String]);
   }
-  webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpSenderInterface>>
+  webrtc::RTCErrorOr<webrtc::scoped_refptr<webrtc::RtpSenderInterface>>
       nativeSenderOrError =
           _peerConnection->AddTrack(track.nativeTrack, nativeStreamIds);
   if (!nativeSenderOrError.ok()) {
@@ -780,7 +780,7 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
 - (nullable RTC_OBJC_TYPE(RTCRtpTransceiver) *)
     addTransceiverWithTrack:(RTC_OBJC_TYPE(RTCMediaStreamTrack) *)track
                        init:(RTC_OBJC_TYPE(RTCRtpTransceiverInit) *)init {
-  webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpTransceiverInterface>>
+  webrtc::RTCErrorOr<webrtc::scoped_refptr<webrtc::RtpTransceiverInterface>>
       nativeTransceiverOrError =
           _peerConnection->AddTransceiver(track.nativeTrack, init.nativeInit);
   if (!nativeTransceiverOrError.ok()) {
@@ -804,7 +804,7 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
 - (nullable RTC_OBJC_TYPE(RTCRtpTransceiver) *)
     addTransceiverOfType:(RTCRtpMediaType)mediaType
                     init:(RTC_OBJC_TYPE(RTCRtpTransceiverInit) *)init {
-  webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpTransceiverInterface>>
+  webrtc::RTCErrorOr<webrtc::scoped_refptr<webrtc::RtpTransceiverInterface>>
       nativeTransceiverOrError = _peerConnection->AddTransceiver(
           [RTC_OBJC_TYPE(RTCRtpReceiver) nativeMediaTypeForMediaType:mediaType],
           init.nativeInit);
@@ -827,9 +827,9 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
           completionHandler:
               (RTCCreateSessionDescriptionCompletionHandler)completionHandler {
   RTC_DCHECK(completionHandler != nil);
-  rtc::scoped_refptr<webrtc::CreateSessionDescriptionObserverAdapter> observer =
-      rtc::make_ref_counted<webrtc::CreateSessionDescriptionObserverAdapter>(
-          completionHandler);
+  webrtc::scoped_refptr<webrtc::CreateSessionDescriptionObserverAdapter>
+      observer = webrtc::make_ref_counted<
+          webrtc::CreateSessionDescriptionObserverAdapter>(completionHandler);
   webrtc::PeerConnectionInterface::RTCOfferAnswerOptions options;
   CopyConstraintsIntoOfferAnswerOptions(constraints.nativeConstraints.get(),
                                         &options);
@@ -841,9 +841,9 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
            completionHandler:
                (RTCCreateSessionDescriptionCompletionHandler)completionHandler {
   RTC_DCHECK(completionHandler != nil);
-  rtc::scoped_refptr<webrtc::CreateSessionDescriptionObserverAdapter> observer =
-      rtc::make_ref_counted<webrtc::CreateSessionDescriptionObserverAdapter>(
-          completionHandler);
+  webrtc::scoped_refptr<webrtc::CreateSessionDescriptionObserverAdapter>
+      observer = webrtc::make_ref_counted<
+          webrtc::CreateSessionDescriptionObserverAdapter>(completionHandler);
   webrtc::PeerConnectionInterface::RTCOfferAnswerOptions options;
   CopyConstraintsIntoOfferAnswerOptions(constraints.nativeConstraints.get(),
                                         &options);
@@ -855,16 +855,18 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
           completionHandler:
               (RTCSetSessionDescriptionCompletionHandler)completionHandler {
   RTC_DCHECK(completionHandler != nil);
-  rtc::scoped_refptr<webrtc::SetLocalDescriptionObserverInterface> observer =
-      rtc::make_ref_counted<::SetSessionDescriptionObserver>(completionHandler);
+  webrtc::scoped_refptr<webrtc::SetLocalDescriptionObserverInterface> observer =
+      webrtc::make_ref_counted<::SetSessionDescriptionObserver>(
+          completionHandler);
   _peerConnection->SetLocalDescription(sdp.nativeDescription, observer);
 }
 
 - (void)setLocalDescriptionWithCompletionHandler:
     (RTCSetSessionDescriptionCompletionHandler)completionHandler {
   RTC_DCHECK(completionHandler != nil);
-  rtc::scoped_refptr<webrtc::SetLocalDescriptionObserverInterface> observer =
-      rtc::make_ref_counted<::SetSessionDescriptionObserver>(completionHandler);
+  webrtc::scoped_refptr<webrtc::SetLocalDescriptionObserverInterface> observer =
+      webrtc::make_ref_counted<::SetSessionDescriptionObserver>(
+          completionHandler);
   _peerConnection->SetLocalDescription(observer);
 }
 
@@ -872,8 +874,9 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
            completionHandler:
                (RTCSetSessionDescriptionCompletionHandler)completionHandler {
   RTC_DCHECK(completionHandler != nil);
-  rtc::scoped_refptr<webrtc::SetRemoteDescriptionObserverInterface> observer =
-      rtc::make_ref_counted<::SetSessionDescriptionObserver>(completionHandler);
+  webrtc::scoped_refptr<webrtc::SetRemoteDescriptionObserverInterface>
+      observer = webrtc::make_ref_counted<::SetSessionDescriptionObserver>(
+          completionHandler);
   _peerConnection->SetRemoteDescription(sdp.nativeDescription, observer);
 }
 
@@ -910,7 +913,7 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
   // TODO(eladalon): It would be better to not allow negative values into PC.
   const size_t max_size = (maxSizeInBytes < 0) ?
       webrtc::RtcEventLog::kUnlimitedOutput :
-      rtc::saturated_cast<size_t>(maxSizeInBytes);
+      webrtc::saturated_cast<size_t>(maxSizeInBytes);
 
   _hasStartedRtcEventLog = _peerConnection->StartRtcEventLog(
       std::make_unique<webrtc::RtcEventLogOutputFile>(f, max_size));
@@ -926,7 +929,7 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
                                        streamId:(NSString *)streamId {
   std::string nativeKind = [NSString stdStringForString:kind];
   std::string nativeStreamId = [NSString stdStringForString:streamId];
-  rtc::scoped_refptr<webrtc::RtpSenderInterface> nativeSender(
+  webrtc::scoped_refptr<webrtc::RtpSenderInterface> nativeSender(
       _peerConnection->CreateSender(nativeKind, nativeStreamId));
   return nativeSender ?
       [[RTC_OBJC_TYPE(RTCRtpSender) alloc] initWithFactory:self.factory
@@ -935,7 +938,7 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
 }
 
 - (NSArray<RTC_OBJC_TYPE(RTCRtpSender) *> *)senders {
-  std::vector<rtc::scoped_refptr<webrtc::RtpSenderInterface>> nativeSenders(
+  std::vector<webrtc::scoped_refptr<webrtc::RtpSenderInterface>> nativeSenders(
       _peerConnection->GetSenders());
   NSMutableArray *senders = [[NSMutableArray alloc] init];
   for (const auto &nativeSender : nativeSenders) {
@@ -948,8 +951,8 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
 }
 
 - (NSArray<RTC_OBJC_TYPE(RTCRtpReceiver) *> *)receivers {
-  std::vector<rtc::scoped_refptr<webrtc::RtpReceiverInterface>> nativeReceivers(
-      _peerConnection->GetReceivers());
+  std::vector<webrtc::scoped_refptr<webrtc::RtpReceiverInterface>>
+      nativeReceivers(_peerConnection->GetReceivers());
   NSMutableArray *receivers = [[NSMutableArray alloc] init];
   for (const auto &nativeReceiver : nativeReceivers) {
     RTC_OBJC_TYPE(RTCRtpReceiver) *receiver =
@@ -961,7 +964,7 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
 }
 
 - (NSArray<RTC_OBJC_TYPE(RTCRtpTransceiver) *> *)transceivers {
-  std::vector<rtc::scoped_refptr<webrtc::RtpTransceiverInterface>>
+  std::vector<webrtc::scoped_refptr<webrtc::RtpTransceiverInterface>>
       nativeTransceivers(_peerConnection->GetTransceivers());
   NSMutableArray *transceivers = [[NSMutableArray alloc] init];
   for (const auto &nativeTransceiver : nativeTransceivers) {
@@ -1193,7 +1196,7 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
   }
 }
 
-- (rtc::scoped_refptr<webrtc::PeerConnectionInterface>)nativePeerConnection {
+- (webrtc::scoped_refptr<webrtc::PeerConnectionInterface>)nativePeerConnection {
   return _peerConnection;
 }
 

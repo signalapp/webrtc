@@ -10,10 +10,13 @@
 
 #include "rtc_base/rtc_certificate.h"
 
+#include <cstdint>
 #include <memory>
+#include <utility>
 
 // RingRTC change to make it easier to deal with RTCCertificate ref counts
 #include "api/make_ref_counted.h"
+#include "api/scoped_refptr.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_identity.h"
@@ -22,13 +25,12 @@
 namespace webrtc {
 
 scoped_refptr<RTCCertificate> RTCCertificate::Create(
-    std::unique_ptr<rtc::SSLIdentity> identity) {
+    std::unique_ptr<SSLIdentity> identity) {
   // RingRTC change to make it easier to deal with RTCCertificate ref counts
-  return rtc::make_ref_counted<RTCCertificate>(identity.release());
+  return make_ref_counted<RTCCertificate>(identity.release());
 }
 
-RTCCertificate::RTCCertificate(rtc::SSLIdentity* identity)
-    : identity_(identity) {
+RTCCertificate::RTCCertificate(SSLIdentity* identity) : identity_(identity) {
   RTC_DCHECK(identity_);
 }
 
@@ -47,11 +49,11 @@ bool RTCCertificate::HasExpired(uint64_t now) const {
   return Expires() <= now;
 }
 
-const rtc::SSLCertificate& RTCCertificate::GetSSLCertificate() const {
+const SSLCertificate& RTCCertificate::GetSSLCertificate() const {
   return identity_->certificate();
 }
 
-const rtc::SSLCertChain& RTCCertificate::GetSSLCertificateChain() const {
+const SSLCertChain& RTCCertificate::GetSSLCertificateChain() const {
   return identity_->cert_chain();
 }
 
@@ -62,13 +64,12 @@ RTCCertificatePEM RTCCertificate::ToPEM() const {
 
 scoped_refptr<RTCCertificate> RTCCertificate::FromPEM(
     const RTCCertificatePEM& pem) {
-  std::unique_ptr<rtc::SSLIdentity> identity(
-      rtc::SSLIdentity::CreateFromPEMStrings(pem.private_key(),
-                                             pem.certificate()));
+  std::unique_ptr<SSLIdentity> identity(
+      SSLIdentity::CreateFromPEMStrings(pem.private_key(), pem.certificate()));
   if (!identity)
     return nullptr;
   // RingRTC change to make it easier to deal with RTCCertificate ref counts
-  return rtc::make_ref_counted<RTCCertificate>(identity.release());
+  return make_ref_counted<RTCCertificate>(identity.release());
 }
 
 bool RTCCertificate::operator==(const RTCCertificate& certificate) const {

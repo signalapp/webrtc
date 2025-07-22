@@ -24,7 +24,6 @@
 #include "rffi/src/stats_observer.h"
 #include "rtc_base/message_digest.h"
 #include "rtc_base/net_helper.h"
-#include "rtc_base/string_encode.h"
 #include "sdk/media_constraints.h"
 
 namespace webrtc {
@@ -91,7 +90,7 @@ RUSTEXPORT bool Rust_updateTransceivers(
       auto desired_demux_id = remote_demux_ids[remote_demux_ids_i];
       if (desired_demux_id == DISABLED_DEMUX_ID) {
         transceiver->SetDirectionWithError(RtpTransceiverDirection::kInactive);
-      } else if (ids.empty() || ids[0] != rtc::ToString(desired_demux_id)) {
+      } else if (ids.empty() || ids[0] != absl::StrCat(desired_demux_id)) {
         // This transceiver is being reused
         transceiver->SetDirectionWithError(RtpTransceiverDirection::kRecvOnly);
       }
@@ -111,7 +110,7 @@ RUSTEXPORT bool Rust_updateTransceivers(
 
     RtpTransceiverInit init;
     init.direction = RtpTransceiverDirection::kRecvOnly;
-    init.stream_ids = {rtc::ToString(remote_demux_id)};
+    init.stream_ids = {absl::StrCat(remote_demux_id)};
 
     auto result = peer_connection_borrowed_rc->AddTransceiver(
         webrtc::MediaType::AUDIO, init);
@@ -199,8 +198,7 @@ RUSTEXPORT bool Rust_disableDtlsAndSetSrtpKey(
     return false;
   }
 
-  cricket::SessionDescription* session =
-      session_description_borrowed->description();
+  SessionDescription* session = session_description_borrowed->description();
   if (!session) {
     return false;
   }
@@ -212,16 +210,16 @@ RUSTEXPORT bool Rust_disableDtlsAndSetSrtpKey(
   crypto_params.key_params.AppendData(salt_borrowed, salt_len);
 
   // Disable DTLS
-  for (cricket::TransportInfo& transport : session->transport_infos()) {
-    transport.description.connection_role = cricket::CONNECTIONROLE_NONE;
+  for (TransportInfo& transport : session->transport_infos()) {
+    transport.description.connection_role = CONNECTIONROLE_NONE;
     transport.description.identity_fingerprint = nullptr;
   }
 
   // Set SRTP key
-  for (cricket::ContentInfo& content : session->contents()) {
-    cricket::MediaContentDescription* media = content.media_description();
+  for (ContentInfo& content : session->contents()) {
+    MediaContentDescription* media = content.media_description();
     if (media) {
-      media->set_protocol(cricket::kMediaProtocolSavpf);
+      media->set_protocol(kMediaProtocolSavpf);
       media->set_crypto(crypto_params);
     }
   }
@@ -248,7 +246,7 @@ RUSTEXPORT RffiConnectionParametersV4* Rust_sessionDescriptionToV4(
     return nullptr;
   }
 
-  const cricket::SessionDescription* session =
+  const SessionDescription* session =
       session_description_borrowed->description();
   if (!session) {
     return nullptr;
@@ -266,7 +264,7 @@ RUSTEXPORT RffiConnectionParametersV4* Rust_sessionDescriptionToV4(
   v4->ice_pwd = transport->ice_pwd;
 
   // Get video codecs
-  auto* video = cricket::GetFirstVideoContentDescription(session);
+  auto* video = GetFirstVideoContentDescription(session);
   if (video) {
     for (const auto& codec : video->codecs()) {
       auto codec_type = webrtc::PayloadStringToCodecType(codec.name);
@@ -351,31 +349,30 @@ RUSTEXPORT webrtc::SessionDescriptionInterface* Rust_sessionDescriptionFromV4(
   // This must stay in sync with PeerConnectionFactory.createVideoTrack
   std::string VIDEO_TRACK_ID = "video1";
 
-  auto transport = cricket::TransportDescription();
-  transport.ice_mode = cricket::ICEMODE_FULL;
+  auto transport = TransportDescription();
+  transport.ice_mode = ICEMODE_FULL;
   transport.ice_ufrag = std::string(v4_borrowed->ice_ufrag_borrowed);
   transport.ice_pwd = std::string(v4_borrowed->ice_pwd_borrowed);
-  transport.AddOption(cricket::ICE_OPTION_TRICKLE);
-  transport.AddOption(cricket::ICE_OPTION_RENOMINATION);
+  transport.AddOption(ICE_OPTION_TRICKLE);
+  transport.AddOption(ICE_OPTION_RENOMINATION);
 
   // DTLS is disabled
-  transport.connection_role = cricket::CONNECTIONROLE_NONE;
+  transport.connection_role = CONNECTIONROLE_NONE;
   transport.identity_fingerprint = nullptr;
 
-  auto set_rtp_params = [](cricket::MediaContentDescription* media) {
-    media->set_protocol(cricket::kMediaProtocolSavpf);
+  auto set_rtp_params = [](MediaContentDescription* media) {
+    media->set_protocol(kMediaProtocolSavpf);
     media->set_manually_specify_keys(true);
     media->set_rtcp_mux(true);
     media->set_direction(webrtc::RtpTransceiverDirection::kSendRecv);
   };
 
-  auto audio = std::make_unique<cricket::AudioContentDescription>();
+  auto audio = std::make_unique<AudioContentDescription>();
   set_rtp_params(audio.get());
-  auto video = std::make_unique<cricket::VideoContentDescription>();
+  auto video = std::make_unique<VideoContentDescription>();
   set_rtp_params(video.get());
 
-  auto opus =
-      cricket::CreateAudioCodec(OPUS_PT, cricket::kOpusCodecName, 48000, 2);
+  auto opus = CreateAudioCodec(OPUS_PT, kOpusCodecName, 48000, 2);
   // These are the current defaults for WebRTC
   // We set them explicitly to avoid having the defaults change on us.
   opus.SetParam("stereo", "0");  // "1" would cause non-VOIP mode to be used
@@ -389,21 +386,21 @@ RUSTEXPORT webrtc::SessionDescriptionInterface* Rust_sessionDescriptionFromV4(
   opus.SetParam("maxaveragebitrate", "32000");
   // This is not a default. We enable this for privacy.
   opus.SetParam("cbr", "1");
-  opus.AddFeedbackParam(cricket::FeedbackParam(cricket::kRtcpFbParamTransportCc,
-                                               cricket::kParamValueEmpty));
+  opus.AddFeedbackParam(
+      FeedbackParam(kRtcpFbParamTransportCc, kParamValueEmpty));
   audio->AddCodec(opus);
 
-  auto add_video_feedback_params = [](cricket::Codec* video_codec) {
-    video_codec->AddFeedbackParam(cricket::FeedbackParam(
-        cricket::kRtcpFbParamTransportCc, cricket::kParamValueEmpty));
-    video_codec->AddFeedbackParam(cricket::FeedbackParam(
-        cricket::kRtcpFbParamCcm, cricket::kRtcpFbCcmParamFir));
-    video_codec->AddFeedbackParam(cricket::FeedbackParam(
-        cricket::kRtcpFbParamNack, cricket::kParamValueEmpty));
-    video_codec->AddFeedbackParam(cricket::FeedbackParam(
-        cricket::kRtcpFbParamNack, cricket::kRtcpFbNackParamPli));
-    video_codec->AddFeedbackParam(cricket::FeedbackParam(
-        cricket::kRtcpFbParamRemb, cricket::kParamValueEmpty));
+  auto add_video_feedback_params = [](Codec* video_codec) {
+    video_codec->AddFeedbackParam(
+        FeedbackParam(kRtcpFbParamTransportCc, kParamValueEmpty));
+    video_codec->AddFeedbackParam(
+        FeedbackParam(kRtcpFbParamCcm, kRtcpFbCcmParamFir));
+    video_codec->AddFeedbackParam(
+        FeedbackParam(kRtcpFbParamNack, kParamValueEmpty));
+    video_codec->AddFeedbackParam(
+        FeedbackParam(kRtcpFbParamNack, kRtcpFbNackParamPli));
+    video_codec->AddFeedbackParam(
+        FeedbackParam(kRtcpFbParamRemb, kParamValueEmpty));
   };
 
   std::stable_sort(v4_borrowed->receive_video_codecs_borrowed,
@@ -417,10 +414,10 @@ RUSTEXPORT webrtc::SessionDescriptionInterface* Rust_sessionDescriptionFromV4(
     RffiVideoCodec rffi_codec = v4_borrowed->receive_video_codecs_borrowed[i];
     if (rffi_codec.type == kRffiVideoCodecVp9) {
       if (enable_vp9) {
-        auto vp9 = cricket::CreateVideoCodec(VP9_PT, cricket::kVp9CodecName);
+        auto vp9 = CreateVideoCodec(VP9_PT, kVp9CodecName);
         vp9.params[kVP9FmtpProfileId] =
             VP9ProfileToString(VP9Profile::kProfile0);
-        auto vp9_rtx = cricket::CreateVideoRtxCodec(VP9_RTX_PT, VP9_PT);
+        auto vp9_rtx = CreateVideoRtxCodec(VP9_RTX_PT, VP9_PT);
         vp9_rtx.params[kVP9FmtpProfileId] =
             VP9ProfileToString(VP9Profile::kProfile0);
         add_video_feedback_params(&vp9);
@@ -429,8 +426,8 @@ RUSTEXPORT webrtc::SessionDescriptionInterface* Rust_sessionDescriptionFromV4(
         video->AddCodec(vp9_rtx);
       }
     } else if (rffi_codec.type == kRffiVideoCodecVp8) {
-      auto vp8 = cricket::CreateVideoCodec(VP8_PT, cricket::kVp8CodecName);
-      auto vp8_rtx = cricket::CreateVideoRtxCodec(VP8_RTX_PT, VP8_PT);
+      auto vp8 = CreateVideoCodec(VP8_PT, kVp8CodecName);
+      auto vp8_rtx = CreateVideoRtxCodec(VP8_RTX_PT, VP8_PT);
       add_video_feedback_params(&vp8);
 
       video->AddCodec(vp8);
@@ -440,9 +437,9 @@ RUSTEXPORT webrtc::SessionDescriptionInterface* Rust_sessionDescriptionFromV4(
 
   // These are "meta codecs" for redundancy and FEC.
   // They are enabled by default currently with WebRTC.
-  auto red = cricket::CreateVideoCodec(RED_PT, cricket::kRedCodecName);
-  auto red_rtx = cricket::CreateVideoRtxCodec(RED_RTX_PT, RED_PT);
-  auto ulpfec = cricket::CreateVideoCodec(ULPFEC_PT, cricket::kUlpfecCodecName);
+  auto red = CreateVideoCodec(RED_PT, kRedCodecName);
+  auto red_rtx = CreateVideoRtxCodec(RED_RTX_PT, RED_PT);
+  auto ulpfec = CreateVideoCodec(ULPFEC_PT, kUlpfecCodecName);
 
   video->AddCodec(red);
   video->AddCodec(red_rtx);
@@ -473,11 +470,11 @@ RUSTEXPORT webrtc::SessionDescriptionInterface* Rust_sessionDescriptionFromV4(
   video->AddRtpHeaderExtension(video_orientation);
   video->AddRtpHeaderExtension(abs_send_time);
 
-  auto audio_stream = cricket::StreamParams();
+  auto audio_stream = StreamParams();
   audio_stream.id = AUDIO_TRACK_ID;
   audio_stream.add_ssrc(AUDIO_SSRC);
 
-  auto video_stream = cricket::StreamParams();
+  auto video_stream = StreamParams();
   video_stream.id = VIDEO_TRACK_ID;
   video_stream.add_ssrc(VIDEO_SSRC);
   video_stream.AddFidSsrc(VIDEO_SSRC, VIDEO_RTX_SSRC);  // AKA RTX
@@ -501,24 +498,22 @@ RUSTEXPORT webrtc::SessionDescriptionInterface* Rust_sessionDescriptionFromV4(
   auto audio_content_name = "audio";
   auto video_content_name = "video";
 
-  auto session = std::make_unique<cricket::SessionDescription>();
-  session->AddTransportInfo(
-      cricket::TransportInfo(audio_content_name, transport));
-  session->AddTransportInfo(
-      cricket::TransportInfo(video_content_name, transport));
+  auto session = std::make_unique<SessionDescription>();
+  session->AddTransportInfo(TransportInfo(audio_content_name, transport));
+  session->AddTransportInfo(TransportInfo(video_content_name, transport));
 
   bool stopped = false;
-  session->AddContent(audio_content_name, cricket::MediaProtocolType::kRtp,
-                      stopped, std::move(audio));
-  session->AddContent(video_content_name, cricket::MediaProtocolType::kRtp,
-                      stopped, std::move(video));
+  session->AddContent(audio_content_name, MediaProtocolType::kRtp, stopped,
+                      std::move(audio));
+  session->AddContent(video_content_name, MediaProtocolType::kRtp, stopped,
+                      std::move(video));
 
-  auto bundle = cricket::ContentGroup(cricket::GROUP_TYPE_BUNDLE);
+  auto bundle = ContentGroup(GROUP_TYPE_BUNDLE);
   bundle.AddContentName(audio_content_name);
   bundle.AddContentName(video_content_name);
   session->AddGroup(bundle);
 
-  session->set_msid_signaling(cricket::kMsidSignalingMediaSection);
+  session->set_msid_signaling(kMsidSignalingMediaSection);
 
   auto typ = offer ? SdpType::kOffer : SdpType::kAnswer;
   return new webrtc::JsepSessionDescription(typ, std::move(session), "1", "1");
@@ -542,14 +537,14 @@ webrtc::JsepSessionDescription* CreateSessionDescriptionForGroupCall(
   // This must stay in sync with PeerConnectionFactory.createVideoTrack
   std::string LOCAL_VIDEO_TRACK_ID = "video1";
 
-  auto transport = cricket::TransportDescription();
-  transport.ice_mode = cricket::ICEMODE_FULL;
+  auto transport = TransportDescription();
+  transport.ice_mode = ICEMODE_FULL;
   transport.ice_ufrag = ice_ufrag;
   transport.ice_pwd = ice_pwd;
-  transport.AddOption(cricket::ICE_OPTION_TRICKLE);
+  transport.AddOption(ICE_OPTION_TRICKLE);
 
   // DTLS is disabled
-  transport.connection_role = cricket::CONNECTIONROLE_NONE;
+  transport.connection_role = CONNECTIONROLE_NONE;
   transport.identity_fingerprint = nullptr;
 
   // Use SRTP master key material instead
@@ -559,32 +554,31 @@ webrtc::JsepSessionDescription* CreateSessionDescriptionForGroupCall(
   crypto_params.key_params.AppendData(srtp_key.salt_borrowed,
                                       srtp_key.salt_len);
 
-  auto set_rtp_params =
-      [crypto_params](cricket::MediaContentDescription* media) {
-        media->set_protocol(cricket::kMediaProtocolSavpf);
-        media->set_rtcp_mux(true);
+  auto set_rtp_params = [crypto_params](MediaContentDescription* media) {
+    media->set_protocol(kMediaProtocolSavpf);
+    media->set_rtcp_mux(true);
 
-        media->set_manually_specify_keys(true);
-        media->set_crypto(crypto_params);
-      };
+    media->set_manually_specify_keys(true);
+    media->set_crypto(crypto_params);
+  };
 
   auto local_direction = local ? RtpTransceiverDirection::kSendOnly
                                : RtpTransceiverDirection::kRecvOnly;
 
-  auto local_audio = std::make_unique<cricket::AudioContentDescription>();
+  auto local_audio = std::make_unique<AudioContentDescription>();
   set_rtp_params(local_audio.get());
   local_audio.get()->set_direction(local_direction);
 
-  auto local_video = std::make_unique<cricket::VideoContentDescription>();
+  auto local_video = std::make_unique<VideoContentDescription>();
   set_rtp_params(local_video.get());
   local_video.get()->set_direction(local_direction);
 
   auto remote_direction = local ? RtpTransceiverDirection::kRecvOnly
                                 : RtpTransceiverDirection::kSendOnly;
 
-  std::vector<std::unique_ptr<cricket::AudioContentDescription>> remote_audios;
+  std::vector<std::unique_ptr<AudioContentDescription>> remote_audios;
   for (auto demux_id : remote_demux_ids) {
-    auto remote_audio = std::make_unique<cricket::AudioContentDescription>();
+    auto remote_audio = std::make_unique<AudioContentDescription>();
     set_rtp_params(remote_audio.get());
     if (demux_id == DISABLED_DEMUX_ID) {
       remote_audio.get()->set_direction(RtpTransceiverDirection::kInactive);
@@ -595,9 +589,9 @@ webrtc::JsepSessionDescription* CreateSessionDescriptionForGroupCall(
     remote_audios.push_back(std::move(remote_audio));
   }
 
-  std::vector<std::unique_ptr<cricket::VideoContentDescription>> remote_videos;
+  std::vector<std::unique_ptr<VideoContentDescription>> remote_videos;
   for (auto demux_id : remote_demux_ids) {
-    auto remote_video = std::make_unique<cricket::VideoContentDescription>();
+    auto remote_video = std::make_unique<VideoContentDescription>();
     set_rtp_params(remote_video.get());
     if (demux_id == DISABLED_DEMUX_ID) {
       remote_video.get()->set_direction(RtpTransceiverDirection::kInactive);
@@ -608,8 +602,7 @@ webrtc::JsepSessionDescription* CreateSessionDescriptionForGroupCall(
     remote_videos.push_back(std::move(remote_video));
   }
 
-  auto opus =
-      cricket::CreateAudioCodec(OPUS_PT, cricket::kOpusCodecName, 48000, 2);
+  auto opus = CreateAudioCodec(OPUS_PT, kOpusCodecName, 48000, 2);
   // These are the current defaults for WebRTC
   // We set them explicitly to avoid having the defaults change on us.
   opus.SetParam("stereo", "0");  // "1" would cause non-VOIP mode to be used
@@ -623,35 +616,35 @@ webrtc::JsepSessionDescription* CreateSessionDescriptionForGroupCall(
   opus.SetParam("maxaveragebitrate", "32000");
   // This is not a default. We enable this for privacy.
   opus.SetParam("cbr", "1");
-  opus.AddFeedbackParam(cricket::FeedbackParam(cricket::kRtcpFbParamTransportCc,
-                                               cricket::kParamValueEmpty));
+  opus.AddFeedbackParam(
+      FeedbackParam(kRtcpFbParamTransportCc, kParamValueEmpty));
 
   local_audio->AddCodec(opus);
   for (auto& remote_audio : remote_audios) {
     remote_audio->AddCodec(opus);
   }
 
-  auto add_video_feedback_params = [](cricket::Codec* video_codec) {
-    video_codec->AddFeedbackParam(cricket::FeedbackParam(
-        cricket::kRtcpFbParamTransportCc, cricket::kParamValueEmpty));
-    video_codec->AddFeedbackParam(cricket::FeedbackParam(
-        cricket::kRtcpFbParamCcm, cricket::kRtcpFbCcmParamFir));
-    video_codec->AddFeedbackParam(cricket::FeedbackParam(
-        cricket::kRtcpFbParamNack, cricket::kParamValueEmpty));
-    video_codec->AddFeedbackParam(cricket::FeedbackParam(
-        cricket::kRtcpFbParamNack, cricket::kRtcpFbNackParamPli));
-    video_codec->AddFeedbackParam(cricket::FeedbackParam(
-        cricket::kRtcpFbParamRemb, cricket::kParamValueEmpty));
+  auto add_video_feedback_params = [](Codec* video_codec) {
+    video_codec->AddFeedbackParam(
+        FeedbackParam(kRtcpFbParamTransportCc, kParamValueEmpty));
+    video_codec->AddFeedbackParam(
+        FeedbackParam(kRtcpFbParamCcm, kRtcpFbCcmParamFir));
+    video_codec->AddFeedbackParam(
+        FeedbackParam(kRtcpFbParamNack, kParamValueEmpty));
+    video_codec->AddFeedbackParam(
+        FeedbackParam(kRtcpFbParamNack, kRtcpFbNackParamPli));
+    video_codec->AddFeedbackParam(
+        FeedbackParam(kRtcpFbParamRemb, kParamValueEmpty));
   };
 
-  auto vp8 = cricket::CreateVideoCodec(VP8_PT, cricket::kVp8CodecName);
-  auto vp8_rtx = cricket::CreateVideoRtxCodec(VP8_RTX_PT, VP8_PT);
+  auto vp8 = CreateVideoCodec(VP8_PT, kVp8CodecName);
+  auto vp8_rtx = CreateVideoRtxCodec(VP8_RTX_PT, VP8_PT);
   add_video_feedback_params(&vp8);
 
   // These are "meta codecs" for redundancy and FEC.
   // They are enabled by default currently with WebRTC.
-  auto red = cricket::CreateVideoCodec(RED_PT, cricket::kRedCodecName);
-  auto red_rtx = cricket::CreateVideoRtxCodec(RED_RTX_PT, RED_PT);
+  auto red = CreateVideoCodec(RED_PT, kRedCodecName);
+  auto red_rtx = CreateVideoRtxCodec(RED_RTX_PT, RED_PT);
 
   local_video->AddCodec(vp8);
   local_video->AddCodec(vp8_rtx);
@@ -706,9 +699,8 @@ webrtc::JsepSessionDescription* CreateSessionDescriptionForGroupCall(
   }
 
   auto setup_streams = [local, &LOCAL_AUDIO_TRACK_ID, &LOCAL_VIDEO_TRACK_ID](
-                           cricket::MediaContentDescription* audio,
-                           cricket::MediaContentDescription* video,
-                           uint32_t demux_id) {
+                           MediaContentDescription* audio,
+                           MediaContentDescription* video, uint32_t demux_id) {
     uint32_t audio_ssrc = demux_id + 0;
     // Leave room for audio RTX
     uint32_t video1_ssrc = demux_id + 2;
@@ -719,18 +711,18 @@ webrtc::JsepSessionDescription* CreateSessionDescriptionForGroupCall(
     uint32_t video3_rtx_ssrc = demux_id + 7;
     // Leave room for some more video layers or FEC
 
-    auto audio_stream = cricket::StreamParams();
+    auto audio_stream = StreamParams();
 
     // We will use the string version of the demux ID to know which
     // transceiver is for which remote device.
-    std::string demux_id_str = rtc::ToString(demux_id);
+    std::string demux_id_str = absl::StrCat(demux_id);
 
     // For local, this should stay in sync with
     // PeerConnectionFactory.createAudioTrack
     audio_stream.id = local ? LOCAL_AUDIO_TRACK_ID : demux_id_str;
     audio_stream.add_ssrc(audio_ssrc);
 
-    auto video_stream = cricket::StreamParams();
+    auto video_stream = StreamParams();
     // For local, this should stay in sync with
     // PeerConnectionFactory.createVideoSource
     video_stream.id = local ? LOCAL_VIDEO_TRACK_ID : demux_id_str;
@@ -739,8 +731,8 @@ webrtc::JsepSessionDescription* CreateSessionDescriptionForGroupCall(
       // Don't add simulcast for remote descriptions
       video_stream.add_ssrc(video2_ssrc);
       video_stream.add_ssrc(video3_ssrc);
-      video_stream.ssrc_groups.push_back(cricket::SsrcGroup(
-          cricket::kSimSsrcGroupSemantics, video_stream.ssrcs));
+      video_stream.ssrc_groups.push_back(
+          SsrcGroup(kSimSsrcGroupSemantics, video_stream.ssrcs));
     }
     video_stream.AddFidSsrc(video1_ssrc, video1_rtx_ssrc);  // AKA RTX
     if (local) {
@@ -799,23 +791,19 @@ webrtc::JsepSessionDescription* CreateSessionDescriptionForGroupCall(
   auto remote_audio_content_name = "remote-audio";
   auto remote_video_content_name = "remote-video";
 
-  auto bundle = cricket::ContentGroup(cricket::GROUP_TYPE_BUNDLE);
+  auto bundle = ContentGroup(GROUP_TYPE_BUNDLE);
   bundle.AddContentName(local_audio_content_name);
   bundle.AddContentName(local_video_content_name);
 
-  auto session = std::make_unique<cricket::SessionDescription>();
-  session->AddTransportInfo(
-      cricket::TransportInfo(local_audio_content_name, transport));
-  session->AddTransportInfo(
-      cricket::TransportInfo(local_video_content_name, transport));
+  auto session = std::make_unique<SessionDescription>();
+  session->AddTransportInfo(TransportInfo(local_audio_content_name, transport));
+  session->AddTransportInfo(TransportInfo(local_video_content_name, transport));
 
   bool stopped = false;
-  session->AddContent(local_audio_content_name,
-                      cricket::MediaProtocolType::kRtp, stopped,
-                      std::move(local_audio));
-  session->AddContent(local_video_content_name,
-                      cricket::MediaProtocolType::kRtp, stopped,
-                      std::move(local_video));
+  session->AddContent(local_audio_content_name, MediaProtocolType::kRtp,
+                      stopped, std::move(local_audio));
+  session->AddContent(local_video_content_name, MediaProtocolType::kRtp,
+                      stopped, std::move(local_video));
 
   auto audio_it = remote_audios.begin();
   auto video_it = remote_videos.begin();
@@ -827,8 +815,8 @@ webrtc::JsepSessionDescription* CreateSessionDescriptionForGroupCall(
 
     std::string audio_name = remote_audio_content_name;
     audio_name += std::to_string(i);
-    session->AddTransportInfo(cricket::TransportInfo(audio_name, transport));
-    session->AddContent(audio_name, cricket::MediaProtocolType::kRtp, stopped,
+    session->AddTransportInfo(TransportInfo(audio_name, transport));
+    session->AddContent(audio_name, MediaProtocolType::kRtp, stopped,
                         std::move(remote_audio));
     bundle.AddContentName(audio_name);
 
@@ -837,15 +825,15 @@ webrtc::JsepSessionDescription* CreateSessionDescriptionForGroupCall(
 
     std::string video_name = remote_video_content_name;
     video_name += std::to_string(i);
-    session->AddTransportInfo(cricket::TransportInfo(video_name, transport));
-    session->AddContent(video_name, cricket::MediaProtocolType::kRtp, stopped,
+    session->AddTransportInfo(TransportInfo(video_name, transport));
+    session->AddContent(video_name, MediaProtocolType::kRtp, stopped,
                         std::move(remote_video));
     bundle.AddContentName(video_name);
   }
 
   session->AddGroup(bundle);
 
-  session->set_msid_signaling(cricket::kMsidSignalingMediaSection);
+  session->set_msid_signaling(kMsidSignalingMediaSection);
 
   auto typ = local ? SdpType::kOffer : SdpType::kAnswer;
   // The session ID and session version (both "1" here) go into SDP, but are not
@@ -970,7 +958,7 @@ RUSTEXPORT bool Rust_removeIceCandidates(
       removed_addresses_data_borrowed,
       removed_addresses_data_borrowed + removed_addresses_len);
 
-  std::vector<cricket::Candidate> candidates_removed;
+  std::vector<Candidate> candidates_removed;
   for (const auto& address_removed : removed_addresses) {
     // This only needs to contain the correct transport_name, component,
     // protocol, and address. SeeCandidate::MatchesForRemoval and
@@ -979,10 +967,10 @@ RUSTEXPORT bool Rust_removeIceCandidates(
     // bundle/rtcp-mux everything) that the transport name is "audio", and the
     // component is 1. We also know (because we don't use TCP candidates) that
     // the protocol is UDP. So we only need to know the address.
-    cricket::Candidate candidate_removed;
+    Candidate candidate_removed;
     candidate_removed.set_transport_name("audio");
-    candidate_removed.set_component(cricket::ICE_CANDIDATE_COMPONENT_RTP);
-    candidate_removed.set_protocol(cricket::UDP_PROTOCOL_NAME);
+    candidate_removed.set_component(ICE_CANDIDATE_COMPONENT_RTP);
+    candidate_removed.set_protocol(UDP_PROTOCOL_NAME);
     candidate_removed.set_address(IpPortToRtcSocketAddress(address_removed));
 
     candidates_removed.push_back(candidate_removed);
@@ -997,7 +985,7 @@ RUSTEXPORT bool Rust_addIceCandidateFromServer(
     uint16_t port,
     bool tcp,
     const char* hostname) {
-  cricket::Candidate candidate;
+  Candidate candidate;
   // The default foundation is "", which is fine because we bundle.
   // The default generation is 0, which is fine because we don't do ICE
   // restarts. The default username and password are "", which is fine because
@@ -1018,18 +1006,17 @@ RUSTEXPORT bool Rust_addIceCandidateFromServer(
   // IPv6 when both are available. WebRTC generally prefers IPv6 over IPv4 for
   // local candidates (see rtc_base::IPAddressPrecedence). So we leave the
   // priority unset to allow the local candidate preference to break the tie.
-  candidate.set_component(cricket::ICE_CANDIDATE_COMPONENT_RTP);
+  candidate.set_component(ICE_CANDIDATE_COMPONENT_RTP);
   candidate.set_type(webrtc::IceCandidateType::kHost);
 
   if (tcp && hostname != NULL) {
     rtc::SocketAddress addr = rtc::SocketAddress(std::string(hostname), port);
     addr.SetResolvedIP(IpToRtcIp(ip));
     candidate.set_address(addr);
-    candidate.set_protocol(cricket::TLS_PROTOCOL_NAME);
+    candidate.set_protocol(TLS_PROTOCOL_NAME);
   } else {
     candidate.set_address(rtc::SocketAddress(IpToRtcIp(ip), port));
-    candidate.set_protocol(tcp ? cricket::TCP_PROTOCOL_NAME
-                               : cricket::UDP_PROTOCOL_NAME);
+    candidate.set_protocol(tcp ? TCP_PROTOCOL_NAME : UDP_PROTOCOL_NAME);
   }
 
   // Since we always use bundle, we can always use index 0 and ignore the mid
@@ -1133,7 +1120,7 @@ RUSTEXPORT void Rust_configureAudioEncoders(
 RUSTEXPORT void Rust_getAudioLevels(
     webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
     uint16_t* captured_out,
-    cricket::ReceivedAudioLevel* received_out,
+    webrtc::ReceivedAudioLevel* received_out,
     size_t received_out_size,
     size_t* received_size_out) {
   RTC_LOG(LS_VERBOSE) << "Rust_getAudioLevels(...)";

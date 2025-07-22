@@ -7,11 +7,13 @@
 
 #include "api/audio/audio_processing.h"
 #include "api/audio/builtin_audio_processing_builder.h"
+#include "api/audio/create_audio_device_module.h"
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
 #include "api/create_peerconnection_factory.h"
 #include "api/enable_media.h"
 #include "api/environment/environment.h"
+#include "api/environment/environment_factory.h"
 #include "api/rtc_event_log/rtc_event_log_factory.h"
 #include "api/task_queue/default_task_queue_factory.h"
 #include "api/video_codecs/video_decoder_factory_template.h"
@@ -104,17 +106,18 @@ class PeerConnectionFactoryWithOwnedThreads
     auto network_thread = CreateAndStartNetworkThread("Network-Thread");
     auto worker_thread = CreateAndStartNonNetworkThread("Worker-Thread");
     auto signaling_thread = CreateAndStartNonNetworkThread("Signaling-Thread");
+    auto env = webrtc::CreateEnvironment();
     std::unique_ptr<InjectableNetwork> injectable_network;
     if (use_injectable_network) {
-      injectable_network = CreateInjectableNetwork(network_thread.get());
+      injectable_network = CreateInjectableNetwork(env, network_thread.get());
     }
 
     PeerConnectionFactoryDependencies dependencies;
     dependencies.network_thread = network_thread.get();
     dependencies.worker_thread = worker_thread.get();
     dependencies.signaling_thread = signaling_thread.get();
-    dependencies.task_queue_factory = CreateDefaultTaskQueueFactory();
     dependencies.event_log_factory = std::make_unique<RtcEventLogFactory>();
+    dependencies.env = env;
 
     // The audio device module must be created (and destroyed) on the _worker_
     // thread. It is safe to release the reference on this thread, however,
@@ -126,9 +129,8 @@ class PeerConnectionFactoryWithOwnedThreads
               FileAudioDeviceFactory::SetFilenamesToUse(
                   audio_config_borrowed->input_file_borrowed,
                   audio_config_borrowed->output_file_borrowed);
-              return AudioDeviceModule::Create(
-                  AudioDeviceModule::kDummyAudio,
-                  dependencies.task_queue_factory.get());
+              return CreateAudioDeviceModule(env,
+                                             AudioDeviceModule::kDummyAudio);
             case kRffiAudioDeviceModuleRingRtc:
               return RingRTCAudioDeviceModule::Create(
                   audio_config_borrowed->rust_adm_borrowed,
@@ -374,8 +376,8 @@ RUSTEXPORT PeerConnectionInterface* Rust_createPeerConnection(
       rtc_ice_server.username = std::string(ice_server.username_borrowed);
       rtc_ice_server.password = std::string(ice_server.password_borrowed);
       rtc_ice_server.hostname = std::string(ice_server.hostname_borrowed);
-      for (size_t i = 0; i < ice_server.urls_size; i++) {
-        rtc_ice_server.urls.push_back(std::string(ice_server.urls_borrowed[i]));
+      for (size_t j = 0; j < ice_server.urls_size; j++) {
+        rtc_ice_server.urls.push_back(std::string(ice_server.urls_borrowed[j]));
       }
       config.servers.push_back(rtc_ice_server);
     }
@@ -416,11 +418,11 @@ RUSTEXPORT PeerConnectionInterface* Rust_createPeerConnection(
       init.direction = RtpTransceiverDirection::kSendOnly;
       init.stream_ids = stream_ids;
 
-      auto result =
+      auto add_transceiver_result =
           pc->AddTransceiver(inc_rc(outgoing_audio_track_borrowed_rc), init);
-      if (result.ok()) {
+      if (add_transceiver_result.ok()) {
         if (observer_borrowed->enable_frame_encryption()) {
-          auto rtp_sender = result.MoveValue()->sender();
+          auto rtp_sender = add_transceiver_result.MoveValue()->sender();
           rtp_sender->SetFrameEncryptor(observer_borrowed->CreateEncryptor());
         }
       } else {
@@ -428,11 +430,11 @@ RUSTEXPORT PeerConnectionInterface* Rust_createPeerConnection(
       }
 
     } else {
-      auto result =
+      auto add_track_result =
           pc->AddTrack(inc_rc(outgoing_audio_track_borrowed_rc), stream_ids);
-      if (result.ok()) {
+      if (add_track_result.ok()) {
         if (observer_borrowed->enable_frame_encryption()) {
-          auto rtp_sender = result.MoveValue();
+          auto rtp_sender = add_track_result.MoveValue();
           rtp_sender->SetFrameEncryptor(observer_borrowed->CreateEncryptor());
         }
       } else {
@@ -453,11 +455,11 @@ RUSTEXPORT PeerConnectionInterface* Rust_createPeerConnection(
       init.stream_ids = stream_ids;
       init.send_encodings = rtp_parameters;
 
-      auto result =
+      auto add_transceiver_result =
           pc->AddTransceiver(inc_rc(outgoing_video_track_borrowed_rc), init);
-      if (result.ok()) {
+      if (add_transceiver_result.ok()) {
         if (observer_borrowed->enable_frame_encryption()) {
-          auto rtp_sender = result.MoveValue()->sender();
+          auto rtp_sender = add_transceiver_result.MoveValue()->sender();
           rtp_sender->SetFrameEncryptor(observer_borrowed->CreateEncryptor());
         }
       } else {
@@ -465,11 +467,11 @@ RUSTEXPORT PeerConnectionInterface* Rust_createPeerConnection(
       }
 
     } else {
-      auto result = pc->AddTrack(inc_rc(outgoing_video_track_borrowed_rc),
-                                 stream_ids, rtp_parameters);
-      if (result.ok()) {
+      auto add_track_result = pc->AddTrack(
+          inc_rc(outgoing_video_track_borrowed_rc), stream_ids, rtp_parameters);
+      if (add_track_result.ok()) {
         if (observer_borrowed->enable_frame_encryption()) {
-          auto rtp_sender = result.MoveValue();
+          auto rtp_sender = add_track_result.MoveValue();
           rtp_sender->SetFrameEncryptor(observer_borrowed->CreateEncryptor());
         }
       } else {

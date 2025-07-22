@@ -19,12 +19,9 @@
 #include "p2p/base/ice_credentials_iterator.h"
 #include "p2p/base/transport_description.h"
 #include "rtc_base/rtc_certificate.h"
+#include "rtc_base/ssl_identity.h"
 
-namespace rtc {
-class SSLIdentity;
-}
-
-namespace cricket {
+namespace webrtc {
 
 struct TransportOptions {
   bool ice_restart = false;
@@ -40,14 +37,13 @@ struct TransportOptions {
 class TransportDescriptionFactory {
  public:
   // Default ctor; use methods below to set configuration.
-  explicit TransportDescriptionFactory(
-      const webrtc::FieldTrialsView& field_trials);
+  explicit TransportDescriptionFactory(const FieldTrialsView& field_trials);
   ~TransportDescriptionFactory();
 
   // RingRTC: Allow out-of-band / "manual" key negotiation.
   bool manually_specify_keys() const { return manually_specify_keys_; }
   // The certificate to use when setting up DTLS.
-  const rtc::scoped_refptr<webrtc::RTCCertificate>& certificate() const {
+  const scoped_refptr<RTCCertificate>& certificate() const {
     return certificate_;
   }
 
@@ -55,7 +51,7 @@ class TransportDescriptionFactory {
   // Specifies that keys should be manually specified.
   void set_manually_specify_keys(bool b) { manually_specify_keys_ = b; }
   // Specifies the certificate to use (only used when !manually_specify_keys).
-  void set_certificate(rtc::scoped_refptr<webrtc::RTCCertificate> certificate) {
+  void set_certificate(scoped_refptr<RTCCertificate> certificate) {
     certificate_ = std::move(certificate);
   }
 
@@ -78,7 +74,7 @@ class TransportDescriptionFactory {
       const TransportDescription* current_description,
       IceCredentialsIterator* ice_credentials) const;
 
-  const webrtc::FieldTrialsView& trials() const { return field_trials_; }
+  const FieldTrialsView& trials() const { return field_trials_; }
   // Functions for disabling encryption - test only!
   // In insecure mode, the connection will accept a description without
   // fingerprint, and will generate SDP even if certificate is not set.
@@ -96,10 +92,19 @@ class TransportDescriptionFactory {
   // True iff keys should be manually specified (e.g. negotiated out of band,
   // and not via DTLS).
   bool manually_specify_keys_ = false;
-  rtc::scoped_refptr<webrtc::RTCCertificate> certificate_;
-  const webrtc::FieldTrialsView& field_trials_;
+  scoped_refptr<RTCCertificate> certificate_;
+  const FieldTrialsView& field_trials_;
 };
 
+}  //  namespace webrtc
+
+// Re-export symbols from the webrtc namespace for backwards compatibility.
+// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
+#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
+namespace cricket {
+using ::webrtc::TransportDescriptionFactory;
+using ::webrtc::TransportOptions;
 }  // namespace cricket
+#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // P2P_BASE_TRANSPORT_DESCRIPTION_FACTORY_H_

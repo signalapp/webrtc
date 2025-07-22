@@ -60,6 +60,7 @@ class InjectableNetwork {
 };
 
 std::unique_ptr<InjectableNetwork> CreateInjectableNetwork(
+    const webrtc::Environment& env,
     rtc::Thread* network_thread);
 
 RUSTEXPORT void Rust_InjectableNetwork_SetSender(

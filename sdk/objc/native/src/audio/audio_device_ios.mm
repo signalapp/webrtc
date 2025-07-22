@@ -17,6 +17,7 @@
 #include <cmath>
 
 #include "api/array_view.h"
+#include "api/environment/environment.h"
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "helpers.h"
 #include "modules/audio_device/fine_audio_buffer.h"
@@ -25,7 +26,6 @@
 #include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
 #include "rtc_base/time_utils.h"
-#include "system_wrappers/include/field_trial.h"
 #include "system_wrappers/include/metrics.h"
 
 #import "base/RTCLogging.h"
@@ -96,10 +96,12 @@ static void LogDeviceInfo() {
 #endif  // !defined(NDEBUG)
 
 AudioDeviceIOS::AudioDeviceIOS(
+    const Environment& env,
     bool bypass_voice_processing,
     AudioDeviceModule::MutedSpeechEventHandler muted_speech_event_handler,
     AudioDeviceIOSRenderErrorHandler render_error_handler)
-    : bypass_voice_processing_(bypass_voice_processing),
+    : env_(env),
+      bypass_voice_processing_(bypass_voice_processing),
       muted_speech_event_handler_(muted_speech_event_handler),
       render_error_handler_(render_error_handler),
       disregard_next_render_error_(false),
@@ -124,7 +126,7 @@ AudioDeviceIOS::AudioDeviceIOS(
   LOGI() << "ctor" << ios::GetCurrentThreadDescription()
          << ",bypass_voice_processing=" << bypass_voice_processing_;
   io_thread_checker_.Detach();
-  thread_ = rtc::Thread::Current();
+  thread_ = webrtc::Thread::Current();
 
   audio_session_observer_ =
       [[RTCNativeAudioSessionDelegateAdapter alloc] initWithObserver:this];
@@ -205,7 +207,6 @@ int32_t AudioDeviceIOS::InitPlayout() {
       return -1;
     }
   }
-  audio_is_initialized_ = true;
   return 0;
 }
 
@@ -231,7 +232,6 @@ int32_t AudioDeviceIOS::InitRecording() {
       return -1;
     }
   }
-  audio_is_initialized_ = true;
   return 0;
 }
 
@@ -243,6 +243,9 @@ int32_t AudioDeviceIOS::StartPlayout() {
   // RingRTC change to avoid null-pointer dereference if audio_unit init failed.
   if (!audio_unit_) {
     RTCLogError(@"StartPlayout without an AudioUnit");
+    return -1;
+  }
+  if (!audio_is_initialized_) {
     return -1;
   }
   if (fine_audio_buffer_) {
@@ -276,7 +279,6 @@ int32_t AudioDeviceIOS::StopPlayout() {
   }
   if (!recording_.load()) {
     ShutdownPlayOrRecord();
-    audio_is_initialized_ = false;
   }
   playing_.store(0, std::memory_order_release);
 
@@ -312,6 +314,9 @@ int32_t AudioDeviceIOS::StartRecording() {
     RTCLogError(@"StartRecording without an AudioUnit");
     return -1;
   }
+  if (!audio_is_initialized_) {
+    return -1;
+  }
   if (fine_audio_buffer_) {
     fine_audio_buffer_->ResetRecord();
   }
@@ -340,7 +345,6 @@ int32_t AudioDeviceIOS::StopRecording() {
   }
   if (!playing_.load()) {
     ShutdownPlayOrRecord();
-    audio_is_initialized_ = false;
   }
   recording_.store(0, std::memory_order_release);
   return 0;
@@ -490,12 +494,13 @@ OSStatus AudioDeviceIOS::OnGetPlayoutData(AudioUnitRenderActionFlags* flags,
   // If so, we have an indication of a glitch in the output audio since the
   // core audio layer will most likely run dry in this state.
   ++num_playout_callbacks_;
-  const int64_t now_time = rtc::TimeMillis();
+  const int64_t now_time = webrtc::TimeMillis();
   if (time_stamp->mSampleTime != num_frames) {
     const int64_t delta_time = now_time - last_playout_time_;
     const int glitch_threshold =
         1.6 * playout_parameters_.GetBufferSizeInMilliseconds();
     if (delta_time > glitch_threshold) {
+      // RingRTC change to reduce log noise.
       RTCLogInfo(@"Possible playout audio glitch detected.\n"
                   "  Time since last OnGetPlayoutData was %lld ms.\n",
                   delta_time);
@@ -537,8 +542,8 @@ OSStatus AudioDeviceIOS::OnGetPlayoutData(AudioUnitRenderActionFlags* flags,
   // the native I/O audio unit) and copy the result to the audio buffer in the
   // `io_data` destination.
   fine_audio_buffer_->GetPlayoutData(
-      rtc::ArrayView<int16_t>(static_cast<int16_t*>(audio_buffer->mData),
-                              num_frames),
+      webrtc::ArrayView<int16_t>(static_cast<int16_t*>(audio_buffer->mData),
+                                 num_frames),
       playout_delay_ms);
 
   last_hw_output_latency_update_sample_count_ += num_frames;
@@ -585,7 +590,7 @@ void AudioDeviceIOS::HandleInterruptionEnd() {
          is_interrupted_);
   is_interrupted_ = false;
   if (!audio_unit_) return;
-  if (webrtc::field_trial::IsEnabled("WebRTC-Audio-iOS-Holding")) {
+  if (env_.field_trials().IsEnabled("WebRTC-Audio-iOS-Holding")) {
     // Work around an issue where audio does not restart properly after an
     // interruption by restarting the audio unit when the interruption ends.
     if (audio_unit_->GetState() == VoiceProcessingAudioUnit::kStarted) {
@@ -694,9 +699,9 @@ void AudioDeviceIOS::HandleSampleRateChange() {
   if (restart_audio_unit) {
     OSStatus result = audio_unit_->Start();
     if (result != noErr) {
-      RTC_OBJC_TYPE(RTCAudioSession)* session =
+      RTC_OBJC_TYPE(RTCAudioSession)* new_session =
           [RTC_OBJC_TYPE(RTCAudioSession) sharedInstance];
-      [session notifyAudioUnitStartFailedWithError:result];
+      [new_session notifyAudioUnitStartFailedWithError:result];
       RTCLogError(@"Failed to start audio unit with sample rate: %d, reason %d",
                   playout_parameters_.sample_rate(),
                   result);
@@ -717,7 +722,7 @@ void AudioDeviceIOS::HandlePlayoutGlitchDetected(uint64_t glitch_duration_ms) {
   // Avoid doing glitch detection for two seconds after a volume change
   // has been detected to reduce the risk of false alarm.
   if (last_output_volume_change_time_ > 0 &&
-      rtc::TimeSince(last_output_volume_change_time_) < 2000) {
+      webrtc::TimeSince(last_output_volume_change_time_) < 2000) {
     RTCLog(@"Ignoring audio glitch due to recent output volume change.");
     return;
   }
@@ -740,7 +745,7 @@ void AudioDeviceIOS::HandleOutputVolumeChange() {
   RTCLog(@"Output volume change detected.");
   // Store time of this detection so it can be used to defer detection of
   // glitches too close in time to this event.
-  last_output_volume_change_time_ = rtc::TimeMillis();
+  last_output_volume_change_time_ = webrtc::TimeMillis();
 }
 
 void AudioDeviceIOS::UpdateAudioDeviceBuffer() {
@@ -821,6 +826,10 @@ void AudioDeviceIOS::SetupAudioBuffersForActiveAudioSession() {
 
 bool AudioDeviceIOS::CreateAudioUnit() {
   RTC_DCHECK(!audio_unit_);
+  RTC_DCHECK(!audio_is_initialized_);
+  if (audio_unit_ || audio_is_initialized_) {
+    return false;
+  }
   BOOL detect_mute_speech_ = (muted_speech_event_handler_ != 0);
   audio_unit_.reset(new VoiceProcessingAudioUnit(
       bypass_voice_processing_, detect_mute_speech_, this));
@@ -965,6 +974,7 @@ void AudioDeviceIOS::UnconfigureAudioSession() {
   RTC_DCHECK_RUN_ON(thread_);
   RTCLog(@"Unconfiguring audio session.");
   if (!has_configured_session_) {
+    // RingRTC change to reduce log noise.
     RTCLogInfo(@"Audio session already unconfigured.");
     return;
   }
@@ -1021,6 +1031,7 @@ bool AudioDeviceIOS::InitPlayOrRecord() {
 
   // Release the lock.
   [session unlockForConfiguration];
+  audio_is_initialized_ = true;
   return true;
 }
 
@@ -1046,6 +1057,8 @@ void AudioDeviceIOS::ShutdownPlayOrRecord() {
   // All I/O should be stopped or paused prior to deactivating the audio
   // session, hence we deactivate as last action.
   UnconfigureAudioSession();
+
+  audio_is_initialized_ = false;
 }
 
 void AudioDeviceIOS::PrepareForNewStart() {
@@ -1130,6 +1143,7 @@ int32_t AudioDeviceIOS::SpeakerMute(bool& enabled) const {
 }
 
 int32_t AudioDeviceIOS::SetPlayoutDevice(uint16_t index) {
+  // RingRTC change to reduce log noise.
   RTC_LOG_F(LS_INFO) << "Not implemented";
   return 0;
 }
@@ -1191,6 +1205,7 @@ int32_t AudioDeviceIOS::StereoPlayoutIsAvailable(bool& available) {
 }
 
 int32_t AudioDeviceIOS::SetStereoPlayout(bool enable) {
+  // RingRTC change to reduce log noise.
   RTC_LOG_F(LS_INFO) << "Not implemented";
   return -1;
 }
@@ -1240,6 +1255,7 @@ int32_t AudioDeviceIOS::RecordingDeviceName(uint16_t index,
 }
 
 int32_t AudioDeviceIOS::SetRecordingDevice(uint16_t index) {
+  // RingRTC change to reduce log noise.
   RTC_LOG_F(LS_INFO) << "Not implemented";
   return 0;
 }
