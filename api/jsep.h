@@ -273,7 +273,8 @@ class RTC_EXPORT SessionDescriptionInterface {
   // Returns the number of candidates removed.
   // TODO: webrtc:42233526 - Deprecate and eventually remove this method in
   // favor of the IceCandidate version.
-  virtual size_t RemoveCandidates(const std::vector<Candidate>& candidates);
+  virtual size_t RemoveCandidates(absl::string_view mid,
+                                  const std::vector<Candidate>& candidates);
 
   // Returns the number of m= sections in the session description.
   virtual size_t number_of_mediasections() const = 0;

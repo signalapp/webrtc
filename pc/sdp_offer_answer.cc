@@ -3024,8 +3024,11 @@ bool SdpOfferAnswerHandler::RemoveIceCandidates(
     return false;
   }
 
-  const size_t number_removed =
-      mutable_remote_description()->RemoveCandidates(candidates);
+  size_t number_removed = 0u;
+  for (const auto& c : candidates) {
+    number_removed +=
+        mutable_remote_description()->RemoveCandidates(c.transport_name(), {c});
+  }
   if (number_removed != candidates.size()) {
     RTC_LOG(LS_ERROR)
         << "RemoveIceCandidates: Failed to remove candidates. Requested "
@@ -3054,10 +3057,11 @@ void SdpOfferAnswerHandler::AddLocalIceCandidate(
 }
 
 void SdpOfferAnswerHandler::RemoveLocalIceCandidates(
+    absl::string_view mid,
     const std::vector<Candidate>& candidates) {
   RTC_DCHECK_RUN_ON(signaling_thread());
   if (local_description()) {
-    mutable_local_description()->RemoveCandidates(candidates);
+    mutable_local_description()->RemoveCandidates(mid, candidates);
   }
 }
 

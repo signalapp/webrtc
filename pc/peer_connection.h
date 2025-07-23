@@ -521,7 +521,8 @@ class PeerConnection : public PeerConnectionInternal,
                            const std::string& error_text)
       RTC_RUN_ON(signaling_thread());
   // Some local ICE candidates have been removed.
-  void OnIceCandidatesRemoved(const std::vector<Candidate>& candidates)
+  void OnIceCandidatesRemoved(absl::string_view mid,
+                              const std::vector<Candidate>& candidates)
       RTC_RUN_ON(signaling_thread());
 
   void OnSelectedCandidatePairChanged(const CandidatePairChangeEvent& event)
@@ -582,6 +583,7 @@ class PeerConnection : public PeerConnectionInternal,
   void OnTransportControllerCandidateError(const IceCandidateErrorEvent& event)
       RTC_RUN_ON(signaling_thread());
   void OnTransportControllerCandidatesRemoved(
+      absl::string_view mid,
       const std::vector<Candidate>& candidates) RTC_RUN_ON(signaling_thread());
   void OnTransportControllerCandidateChanged(
       const CandidatePairChangeEvent& event) RTC_RUN_ON(signaling_thread());

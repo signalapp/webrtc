@@ -778,12 +778,13 @@ JsepTransportController* PeerConnection::InitializeTransportController_n(
             }));
       });
   transport_controller_->SubscribeIceCandidatesRemoved(
-      [this](const std::vector<Candidate>& c) {
+      [this](IceTransportInternal* transport, const std::vector<Candidate>& c) {
         RTC_DCHECK_RUN_ON(network_thread());
-        signaling_thread()->PostTask(
-            SafeTask(signaling_thread_safety_.flag(), [this, c = c]() {
+        std::string mid = transport->transport_name();
+        signaling_thread()->PostTask(SafeTask(
+            signaling_thread_safety_.flag(), [this, mid = mid, c = c]() {
               RTC_DCHECK_RUN_ON(signaling_thread());
-              OnTransportControllerCandidatesRemoved(c);
+              OnTransportControllerCandidatesRemoved(mid, c);
             }));
       });
   transport_controller_->SubscribeIceCandidatePairChanged(
@@ -2076,12 +2077,24 @@ void PeerConnection::OnIceCandidateError(const std::string& address,
 }
 
 void PeerConnection::OnIceCandidatesRemoved(
+    absl::string_view mid,
     const std::vector<Candidate>& candidates) {
   if (IsClosed()) {
     return;
   }
-  RunWithObserver(
-      [&](auto observer) { observer->OnIceCandidatesRemoved(candidates); });
+  // Since this callback is based on the Candidate type, and not IceCandidate,
+  // all candidate instances should have the transport_name() property set to
+  // `mid`. See BasicPortAllocatorSession::PrunePortsAndRemoveCandidates for
+  // where the list of candidates is initially gathered.
+  std::vector<Candidate> candidates_for_notification;
+  candidates_for_notification.reserve(candidates.size());
+  for (Candidate candidate : candidates) {  // Create a copy.
+    candidate.set_transport_name(mid);
+    candidates_for_notification.push_back(candidate);
+  }
+  RunWithObserver([&](auto observer) {
+    observer->OnIceCandidatesRemoved(candidates_for_notification);
+  });
 }
 
 void PeerConnection::OnSelectedCandidatePairChanged(
@@ -2455,18 +2468,11 @@ void PeerConnection::OnTransportControllerCandidateError(
 }
 
 void PeerConnection::OnTransportControllerCandidatesRemoved(
+    absl::string_view mid,
     const std::vector<Candidate>& candidates) {
-  // Sanity check.
-  for (const Candidate& candidate : candidates) {
-    if (candidate.transport_name().empty()) {
-      RTC_LOG(LS_ERROR) << "OnTransportControllerCandidatesRemoved: "
-                           "empty content name in candidate "
-                        << candidate.ToString();
-      return;
-    }
-  }
-  sdp_handler_->RemoveLocalIceCandidates(candidates);
-  OnIceCandidatesRemoved(candidates);
+  RTC_DCHECK(!mid.empty());
+  sdp_handler_->RemoveLocalIceCandidates(mid, candidates);
+  OnIceCandidatesRemoved(mid, candidates);
 }
 
 void PeerConnection::OnTransportControllerCandidateChanged(

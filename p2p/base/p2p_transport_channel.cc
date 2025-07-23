@@ -2220,14 +2220,8 @@ void P2PTransportChannel::OnCandidatesRemoved(
   if (!config_.gather_continually() || session != allocator_session()) {
     return;
   }
-
-  std::vector<Candidate> candidates_to_remove;
-  for (Candidate candidate : candidates) {
-    candidate.set_transport_name(transport_name());
-    candidates_to_remove.push_back(candidate);
-  }
   if (candidates_removed_callback_) {
-    candidates_removed_callback_(this, candidates_to_remove);
+    candidates_removed_callback_(this, candidates);
   }
 }
 

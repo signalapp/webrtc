@@ -1346,7 +1346,7 @@ void JsepTransportController::OnTransportCandidateError_n(
 void JsepTransportController::OnTransportCandidatesRemoved_n(
     IceTransportInternal* transport,
     const Candidates& candidates) {
-  signal_ice_candidates_removed_.Send(candidates);
+  signal_ice_candidates_removed_.Send(transport, candidates);
 }
 void JsepTransportController::OnTransportCandidatePairChanged_n(
     const CandidatePairChangeEvent& event) {
