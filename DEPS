@@ -10,7 +10,7 @@ vars = {
   # chromium waterfalls. More info at: crbug.com/570091.
   'checkout_configuration': 'default',
   'checkout_instrumented_libraries': 'checkout_linux and checkout_configuration == "default"',
-  'chromium_revision': '0abeb23926b62d06825dac8d36c383a81fea6e29',
+  'chromium_revision': '4056bc106f791e8073fb4f7b697b066a0d945285',
 
   # Fetch the prebuilt binaries for llvm-cov and llvm-profdata. Needed to
   # process the raw profiles produced by instrumented targets (built with
@@ -78,13 +78,13 @@ deps = {
     'condition': 'checkout_android',
   },
   'src/ios': {
-    'url': 'https://chromium.googlesource.com/chromium/src/ios@79638b5d5769d56f9c7cc101b8341b4b18afe89c',
+    'url': 'https://chromium.googlesource.com/chromium/src/ios@1e70b8fa88006f3e317208bd0fc28e22c729de2f',
     'condition': 'checkout_ios',
   },
   'src/testing':
-    'https://chromium.googlesource.com/chromium/src/testing@e5c75466ea81b7f6a0233bf6114245f19e09eb4e',
+    'https://chromium.googlesource.com/chromium/src/testing@6ae6ad626129dbb6e5d4491976650324558d6f05',
   'src/third_party':
-    'https://chromium.googlesource.com/chromium/src/third_party@e5eee0a500d987f791b9a170d2812cdac2e42c82',
+    'https://chromium.googlesource.com/chromium/src/third_party@832cc16168b9254d3fe72058b2fa056928ad7f27',
 
   'src/buildtools/linux64': {
     'packages': [
@@ -335,7 +335,7 @@ deps = {
   'src/third_party/libc++/src':
     'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxx.git@ac9e4860cadb33ec5185084ed7c6345eca5fa50c',
   'src/third_party/libc++abi/src':
-    'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxxabi.git@b6f2833c99549e5725055f6e9c795ca6e226afc0',
+    'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxxabi.git@00a175050b73903b2f00e460dd2c9751c4a0fd88',
   'src/third_party/llvm-libc/src':
     'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libc.git@3a943c302028af8cf94f53f2f7f9d7c884a7ce05',
   'src/third_party/libunwind/src':
@@ -476,7 +476,7 @@ deps = {
   },
 
   'src/third_party/boringssl/src':
-    'https://boringssl.googlesource.com/boringssl.git@6aa79db9d5d3b149ac10250f3773da91d5cbeace',
+    'https://boringssl.googlesource.com/boringssl.git@3647d11b051c4a1330b6e6eb344e1139936fbcf7',
   'src/third_party/breakpad/breakpad':
     'https://chromium.googlesource.com/breakpad/breakpad.git@7c56a01c1437ecdbe1d02c724573ca378947f82b',
   'src/third_party/catapult':
@@ -499,7 +499,7 @@ deps = {
   'src/third_party/flatbuffers/src':
     'https://chromium.googlesource.com/external/github.com/google/flatbuffers.git@8db59321d9f02cdffa30126654059c7d02f70c32',
   'src/third_party/grpc/src': {
-    'url': 'https://chromium.googlesource.com/external/github.com/grpc/grpc.git@ccb51eaa23ab514489af155f2990904bfdff65a6',
+    'url': 'https://chromium.googlesource.com/external/github.com/grpc/grpc.git@4499b46e4fe228a5b18f3a3e3a3c6cec0178af56',
   },
   # Used for embedded builds. CrOS & Linux use the system version.
   'src/third_party/fontconfig/src': {
@@ -593,7 +593,7 @@ deps = {
       'condition': 'checkout_android',
   },
   'src/third_party/perfetto':
-    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + 'ceb75fb568cc0f3a1897aa31becb79e26f6ef67d',
+    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + '40f166cc9df71dd893f0b589b69b3e6d53171855',
   'src/third_party/protobuf-javascript/src':
     Var('chromium_git') + '/external/github.com/protocolbuffers/protobuf-javascript' + '@' + '28bf5df73ef2f345a936d9cc95d64ba8ed426a53',
   'src/third_party/libvpx/source/libvpx':
@@ -652,7 +652,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'src/tools':
-    'https://chromium.googlesource.com/chromium/src/tools@7f1e601c7f6ea9a747e8cce9ce592e3c86984cd1',
+    'https://chromium.googlesource.com/chromium/src/tools@f79dcc370eff56ab924b7f86a3c1771e7e0319b6',
 
   'src/third_party/espresso': {
       'packages': [
@@ -691,7 +691,7 @@ deps = {
     'packages': [
       {
           'package': 'chromium/third_party/androidx',
-          'version': 'Wbth0Hhvx5z5vMMelaz6z2j6Va_8P-e8bYwLMqJ6xBYC',
+          'version': 'yw3aroPDXtnr2cYx6QITwkOyczeZwqwvrcBj_ItBtOAC',
       },
     ],
     'condition': 'checkout_android and non_git_source',
