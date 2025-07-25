@@ -588,7 +588,8 @@ TEST_F(JsepTransportControllerTest, AddRemoveRemoteCandidates) {
   EXPECT_EQ(1U,
             fake_audio_dtls->fake_ice_transport()->remote_candidates().size());
 
-  EXPECT_TRUE(transport_controller_->RemoveRemoteCandidates(candidates).ok());
+  IceCandidate ice_candidate(kAudioMid1, -1, candidates[0]);
+  EXPECT_TRUE(transport_controller_->RemoveRemoteCandidate(&ice_candidate));
   EXPECT_EQ(0U,
             fake_audio_dtls->fake_ice_transport()->remote_candidates().size());
 }
