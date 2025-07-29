@@ -109,6 +109,7 @@ DesktopCapturer::SourceList GetProcessWindows(
 FullScreenPowerPointHandler::FullScreenPowerPointHandler(
     DesktopCapturer::SourceId sourceId)
     : FullScreenApplicationHandler(sourceId),
+      was_slide_show_created_after_capture_started_(false),
       full_screen_detector_result_(FullScreenDetectorResult::kUnknown) {}
 
 DesktopCapturer::SourceId FullScreenPowerPointHandler::FindFullScreenWindow(
@@ -129,13 +130,16 @@ DesktopCapturer::SourceId FullScreenPowerPointHandler::FindFullScreenWindow(
   // No relevant windows with the same process id as the `original_window` were
   // found.
   if (powerpoint_windows.empty()) {
+    was_slide_show_created_after_capture_started_ = true;
     return 0;
   }
 
+  bool do_same_title_editors_exist = false;
+  bool does_slide_show_exist = false;
   DesktopCapturer::SourceId full_screen_slide_show_id = 0;
   const std::string original_document_title =
       GetDocumentTitleFromEditor(original_window);
-  auto result = FullScreenDetectorResult::kUnknown;
+  auto result = full_screen_detector_result_;
   for (const auto& source : powerpoint_windows) {
     HWND window = reinterpret_cast<HWND>(source.id);
 
@@ -144,23 +148,43 @@ DesktopCapturer::SourceId FullScreenPowerPointHandler::FindFullScreenWindow(
     // slide show.
     if (GetWindowType(window) == WindowType::kEditor &&
         GetDocumentTitleFromEditor(window) == original_document_title) {
+      do_same_title_editors_exist = true;
       result = FullScreenDetectorResult::kFailureDueToSameTitleWindows;
-      return 0;
     }
 
     // Looking for fullscreen slide show window for the corresponding editor
     // document.
     if (GetWindowType(window) == WindowType::kSlideShow &&
         GetDocumentTitleFromSlideShow(window) == original_document_title) {
-      result = FullScreenDetectorResult::kSuccess;
+      does_slide_show_exist = true;
       full_screen_slide_show_id = source.id;
     }
   }
+  if (does_slide_show_exist) {
+    if (!was_slide_show_created_after_capture_started_) {
+      full_screen_slide_show_id = 0;
+      result = FullScreenDetectorResult::kFailureDueToSlideShowWasNotChosen;
+    } else if (do_same_title_editors_exist) {
+      full_screen_slide_show_id = 0;
+      result = FullScreenDetectorResult::kFailureDueToSameTitleWindows;
+    } else {
+      result = FullScreenDetectorResult::kSuccess;
+    }
+  } else {
+    was_slide_show_created_after_capture_started_ = true;
+  }
+
   if (full_screen_detector_result_ != result) {
     full_screen_detector_result_ = result;
     RecordFullScreenDetectorResult(result);
   }
   return full_screen_slide_show_id;
+}
+
+void FullScreenPowerPointHandler::SetSlideShowCreationStateForTest(
+    bool fullscreen_slide_show_started_after_capture_start) {
+  was_slide_show_created_after_capture_started_ =
+      fullscreen_slide_show_started_after_capture_start;
 }
 
 FullScreenPowerPointHandler::WindowType

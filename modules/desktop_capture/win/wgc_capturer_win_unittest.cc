@@ -54,6 +54,12 @@ constexpr int kSourceClosed = 1;
 constexpr char kCaptureTimeHistogram[] =
     "WebRTC.DesktopCapture.Win.WgcCapturerFrameTime";
 
+constexpr char kFullScreenDetectorResult[] =
+    "WebRTC.Screenshare.FullScreenDetectorResult";
+constexpr int detector_result_success = 1;
+constexpr int detector_result_failure_same_title_windows = 2;
+constexpr int detector_result_failure_slide_show_not_chosen = 3;
+
 constexpr char kCaptureFullscreenDetectorHistogram[] =
     "WebRTC.Screenshare.DesktopCapturerFullscreenDetector";
 
@@ -622,7 +628,8 @@ TEST_F(WgcCapturerFullScreenDetectorTest, SlideShowNotFoundByDefaultConfig) {
   EXPECT_EQ(metrics::NumEvents(kCaptureFullscreenDetectorHistogram, true), 0);
 }
 
-TEST_F(WgcCapturerFullScreenDetectorTest, CorrectSlideShowFoundForEditor) {
+TEST_F(WgcCapturerFullScreenDetectorTest,
+       CorrectSlideShowFoundForEditorWhenSlideShowCreatedAfter) {
   wgc_capturer_->SetUpFullScreenDetectorForTest(
       /*use_heuristic=*/true,
       reinterpret_cast<DesktopCapturer::SourceId>(editor_window_.hwnd));
@@ -638,6 +645,38 @@ TEST_F(WgcCapturerFullScreenDetectorTest, CorrectSlideShowFoundForEditor) {
       reinterpret_cast<DesktopCapturer::SourceId>(slide_show_window_.hwnd)));
 
   EXPECT_EQ(metrics::NumEvents(kCaptureFullscreenDetectorHistogram, true), 1);
+  EXPECT_EQ(
+      metrics::NumEvents(kFullScreenDetectorResult, detector_result_success),
+      1);
+  EXPECT_EQ(metrics::NumEvents(kFullScreenDetectorResult,
+                               detector_result_failure_slide_show_not_chosen),
+            0);
+}
+
+TEST_F(WgcCapturerFullScreenDetectorTest,
+       SlideShowNotFoundForEditorWhenSlideShowCreatedBefore) {
+  wgc_capturer_->SetUpFullScreenDetectorForTest(
+      /*use_heuristic=*/true,
+      reinterpret_cast<DesktopCapturer::SourceId>(editor_window_.hwnd),
+      /*fullscreen_slide_show_started_after_capture_start=*/false);
+
+  EXPECT_TRUE(wgc_capturer_->SelectSource(
+      reinterpret_cast<DesktopCapturer::SourceId>(editor_window_.hwnd)));
+  wgc_capturer_->Start(this);
+  DoCapture();
+
+  EXPECT_TRUE(wgc_capturer_->IsSourceBeingCaptured(
+      reinterpret_cast<DesktopCapturer::SourceId>(editor_window_.hwnd)));
+  EXPECT_FALSE(wgc_capturer_->IsSourceBeingCaptured(
+      reinterpret_cast<DesktopCapturer::SourceId>(slide_show_window_.hwnd)));
+
+  EXPECT_EQ(metrics::NumEvents(kCaptureFullscreenDetectorHistogram, true), 0);
+  EXPECT_EQ(
+      metrics::NumEvents(kFullScreenDetectorResult, detector_result_success),
+      0);
+  EXPECT_EQ(metrics::NumEvents(kFullScreenDetectorResult,
+                               detector_result_failure_slide_show_not_chosen),
+            1);
 }
 
 TEST_F(WgcCapturerFullScreenDetectorTest, LoggedOnlyOnce) {
@@ -656,6 +695,9 @@ TEST_F(WgcCapturerFullScreenDetectorTest, LoggedOnlyOnce) {
   EXPECT_TRUE(wgc_capturer_->IsSourceBeingCaptured(
       reinterpret_cast<DesktopCapturer::SourceId>(slide_show_window_.hwnd)));
   EXPECT_EQ(metrics::NumEvents(kCaptureFullscreenDetectorHistogram, true), 1);
+  EXPECT_EQ(
+      metrics::NumEvents(kFullScreenDetectorResult, detector_result_success),
+      1);
 }
 
 TEST_F(WgcCapturerFullScreenDetectorTest,
@@ -676,6 +718,12 @@ TEST_F(WgcCapturerFullScreenDetectorTest,
   EXPECT_FALSE(wgc_capturer_->IsSourceBeingCaptured(
       reinterpret_cast<DesktopCapturer::SourceId>(slide_show_window_.hwnd)));
   EXPECT_EQ(metrics::NumEvents(kCaptureFullscreenDetectorHistogram, true), 0);
+  EXPECT_EQ(
+      metrics::NumEvents(kFullScreenDetectorResult, detector_result_success),
+      0);
+  EXPECT_EQ(metrics::NumEvents(kFullScreenDetectorResult,
+                               detector_result_failure_same_title_windows),
+            1);
 }
 
 TEST_F(WgcCapturerFullScreenDetectorTest,
@@ -697,6 +745,12 @@ TEST_F(WgcCapturerFullScreenDetectorTest,
   EXPECT_TRUE(wgc_capturer_->IsSourceBeingCaptured(
       reinterpret_cast<DesktopCapturer::SourceId>(slide_show_window_.hwnd)));
   EXPECT_EQ(metrics::NumEvents(kCaptureFullscreenDetectorHistogram, true), 0);
+  EXPECT_EQ(
+      metrics::NumEvents(kFullScreenDetectorResult, detector_result_success),
+      0);
+  EXPECT_EQ(metrics::NumEvents(kFullScreenDetectorResult,
+                               detector_result_failure_slide_show_not_chosen),
+            0);
 }
 
 }  // namespace webrtc
