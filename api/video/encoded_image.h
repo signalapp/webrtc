@@ -78,6 +78,13 @@ class RTC_EXPORT EncodedImageBuffer : public EncodedImageBufferInterface {
 // cleaned up. Direct use of its members is strongly discouraged.
 class RTC_EXPORT EncodedImage {
  public:
+  // Peak signal to noise ratio, Y/U/V components.
+  struct Psnr {
+    double y = 0.0;
+    double u = 0.0;
+    double v = 0.0;
+  };
+
   EncodedImage();
   EncodedImage(EncodedImage&&);
   EncodedImage(const EncodedImage&);
@@ -260,6 +267,9 @@ class RTC_EXPORT EncodedImage {
   EncodedImage::Timing video_timing() const { return timing_; }
   EncodedImage::Timing* video_timing_mutable() { return &timing_; }
 
+  std::optional<Psnr> psnr() const { return psnr_; }
+  void set_psnr(std::optional<Psnr> psnr) { psnr_ = psnr; }
+
  private:
   size_t capacity() const { return encoded_data_ ? encoded_data_->size() : 0; }
 
@@ -296,6 +306,9 @@ class RTC_EXPORT EncodedImage {
   // used.
   std::optional<CorruptionDetectionFilterSettings>
       corruption_detection_filter_settings_;
+
+  // Encoders may compute PSNR for a frame.
+  std::optional<Psnr> psnr_;
 };
 
 }  // namespace webrtc
