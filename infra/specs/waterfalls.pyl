@@ -86,14 +86,14 @@
       },
       'Linux Asan': {
         'os_type': 'linux',
-        'mixins': ['linux-focal', 'x86-64', 'resultdb-json-format'],
+        'mixins': ['linux-jammy', 'x86-64', 'resultdb-json-format'],
         'test_suites': {
           'isolated_scripts': 'linux_tests',
         },
       },
       'Linux MSan': {
         'os_type': 'linux',
-        'mixins': ['linux-focal', 'x86-64', 'resultdb-json-format'],
+        'mixins': ['linux-jammy', 'x86-64', 'resultdb-json-format'],
         'test_suites': {
           # TODO(crbug.com/webrtc/14568): Using 'linux_tests'
           # fails on "MemorySanitizer: use-of-uninitialized-value in
@@ -103,7 +103,7 @@
       },
       'Linux Tsan v2': {
         'os_type': 'linux',
-        'mixins': ['linux-focal', 'x86-64', 'resultdb-json-format'],
+        'mixins': ['linux-jammy', 'x86-64', 'resultdb-json-format'],
         'test_suites': {
           # TODO(crbug.com/webrtc/14568): Using 'linux_tests'
           # fails on "ThreadSanitizer: data race on vptr (ctor/dtor vs
@@ -113,14 +113,14 @@
       },
       'Linux UBSan': {
         'os_type': 'linux',
-        'mixins': ['linux-focal', 'x86-64', 'resultdb-json-format'],
+        'mixins': ['linux-jammy', 'x86-64', 'resultdb-json-format'],
         'test_suites': {
           'isolated_scripts': 'linux_tests',
         },
       },
       'Linux UBSan vptr': {
         'os_type': 'linux',
-        'mixins': ['linux-focal', 'x86-64', 'resultdb-json-format'],
+        'mixins': ['linux-jammy', 'x86-64', 'resultdb-json-format'],
         'test_suites': {
           'isolated_scripts': 'linux_tests',
         },
@@ -441,7 +441,7 @@
       'iwyu_verifier': {},
       'linux_asan': {
         'os_type': 'linux',
-        'mixins': ['linux-focal', 'x86-64', 'resultdb-json-format'],
+        'mixins': ['linux-jammy', 'x86-64', 'resultdb-json-format'],
         'test_suites': {
           'isolated_scripts': 'linux_tests',
         },
@@ -480,7 +480,7 @@
       },
       'linux_msan': {
         'os_type': 'linux',
-        'mixins': ['linux-focal', 'x86-64', 'resultdb-json-format'],
+        'mixins': ['linux-jammy', 'x86-64', 'resultdb-json-format'],
         'test_suites': {
           # TODO(crbug.com/webrtc/14568): Using 'linux_tests'
           # fails on "MemorySanitizer: use-of-uninitialized-value in
@@ -497,7 +497,7 @@
       },
       'linux_tsan2': {
         'os_type': 'linux',
-        'mixins': ['linux-focal', 'x86-64', 'resultdb-json-format'],
+        'mixins': ['linux-jammy', 'x86-64', 'resultdb-json-format'],
         'test_suites': {
           # TODO(crbug.com/webrtc/14568): Using 'linux_tests'
           # fails on "ThreadSanitizer: data race on vptr (ctor/dtor vs
@@ -507,14 +507,14 @@
       },
       'linux_ubsan': {
         'os_type': 'linux',
-        'mixins': ['linux-focal', 'x86-64', 'resultdb-json-format'],
+        'mixins': ['linux-jammy', 'x86-64', 'resultdb-json-format'],
         'test_suites': {
           'isolated_scripts': 'linux_tests',
         },
       },
       'linux_ubsan_vptr': {
         'os_type': 'linux',
-        'mixins': ['linux-focal', 'x86-64', 'resultdb-json-format'],
+        'mixins': ['linux-jammy', 'x86-64', 'resultdb-json-format'],
         'test_suites': {
           'isolated_scripts': 'linux_tests',
         },
