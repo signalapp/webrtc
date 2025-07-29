@@ -1039,7 +1039,7 @@ class SdpOfferAnswerHandler::RemoteDescriptionOperation {
   void ReportOfferAnswerUma() {
     RTC_DCHECK(ok());
     if (type_ == SdpType::kOffer || type_ == SdpType::kAnswer) {
-      handler_->pc_->ReportSdpBundleUsage(*desc_.get());
+      handler_->pc_->ReportSdpBundleUsage(*desc_);
     }
   }
 
