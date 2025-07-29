@@ -75,6 +75,7 @@ rtc_library("channel") {
     ":rtp_transport_internal",
     ":session_description",
     "../api:libjingle_peerconnection_api",
+    "../api:rtc_error",
     "../api:rtp_headers",
     "../api:rtp_parameters",
     "../api:rtp_transceiver_direction",

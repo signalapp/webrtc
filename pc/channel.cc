@@ -24,6 +24,7 @@
 #include "api/crypto/crypto_options.h"
 #include "api/jsep.h"
 #include "api/media_types.h"
+#include "api/rtc_error.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_parameters.h"
 #include "api/sequence_checker.h"
@@ -88,8 +89,6 @@ struct StreamFinder {
   const StreamParams* target_;
 };
 
-}  // namespace
-
 void MediaChannelParametersFromMediaDescription(
     const MediaContentDescription* desc,
     const RtpHeaderExtensions& extensions,
@@ -117,6 +116,62 @@ void RtpSendParametersFromMediaDescription(
   send_params->max_bandwidth_bps = desc->bandwidth();
   send_params->extmap_allow_mixed = desc->extmap_allow_mixed();
 }
+
+// Ensure that there is a matching packetization for each codec in
+// new_params. If old_params had a special packetization but the
+// response in new_params has no special packetization we amend
+// old_params by ignoring the packetization and fall back to standard
+// packetization instead.
+// Returns true if codecs need to be changed.
+RTCErrorOr<bool> MaybeIgnorePacketization(
+    const MediaChannelParameters& new_params,
+    MediaChannelParameters& old_params) {
+  flat_set<const Codec*> matched_codecs;
+  bool needs_update = false;
+  for (Codec& codec : old_params.codecs) {
+    if (absl::c_any_of(matched_codecs,
+                       [&](const Codec* c) { return codec.Matches(*c); })) {
+      continue;
+    }
+
+    std::vector<const Codec*> new_codecs =
+        FindAllMatchingCodecs(new_params.codecs, codec);
+    if (new_codecs.empty()) {
+      continue;
+    }
+
+    bool may_ignore_packetization = false;
+    bool has_matching_packetization = false;
+    for (const Codec* new_codec : new_codecs) {
+      if (!new_codec->packetization.has_value() &&
+          codec.packetization.has_value()) {
+        may_ignore_packetization = true;
+      } else if (new_codec->packetization == codec.packetization) {
+        has_matching_packetization = true;
+        break;
+      }
+    }
+
+    if (may_ignore_packetization) {
+      // Note: this writes into old_params
+      codec.packetization = std::nullopt;
+      needs_update = true;
+    } else if (!has_matching_packetization) {
+      std::string error_desc = StringFormat(
+          "Failed to set local answer due to incompatible codec "
+          "packetization for pt='%d' specified.",
+          codec.id);
+      return RTCError(RTCErrorType::INTERNAL_ERROR, error_desc);
+    }
+
+    if (has_matching_packetization) {
+      matched_codecs.insert(&codec);
+    }
+  }
+  return needs_update;
+}
+
+}  // namespace
 
 BaseChannel::BaseChannel(
     TaskQueueBase* worker_thread,
@@ -1053,46 +1108,14 @@ bool VideoChannel::SetLocalContent_w(const MediaContentDescription* content,
   // offer by ignoring the packetiztion and fall back to standard packetization
   // instead.
   if (type == SdpType::kAnswer || type == SdpType::kPrAnswer) {
-    flat_set<const Codec*> matched_codecs;
-    for (Codec& send_codec : send_params.codecs) {
-      if (absl::c_any_of(matched_codecs, [&](const Codec* c) {
-            return send_codec.Matches(*c);
-          })) {
-        continue;
-      }
-
-      std::vector<const Codec*> recv_codecs =
-          FindAllMatchingCodecs(recv_params.codecs, send_codec);
-      if (recv_codecs.empty()) {
-        continue;
-      }
-
-      bool may_ignore_packetization = false;
-      bool has_matching_packetization = false;
-      for (const Codec* recv_codec : recv_codecs) {
-        if (!recv_codec->packetization.has_value() &&
-            send_codec.packetization.has_value()) {
-          may_ignore_packetization = true;
-        } else if (recv_codec->packetization == send_codec.packetization) {
-          has_matching_packetization = true;
-          break;
-        }
-      }
-
-      if (may_ignore_packetization) {
-        send_codec.packetization = std::nullopt;
-      } else if (!has_matching_packetization) {
-        error_desc = StringFormat(
-            "Failed to set local answer due to incompatible codec "
-            "packetization for pt='%d' specified in m-section with mid='%s'.",
-            send_codec.id, mid().c_str());
-        return false;
-      }
-
-      if (has_matching_packetization) {
-        matched_codecs.insert(&send_codec);
-      }
+    RTCErrorOr<bool> changed_codecs =
+        MaybeIgnorePacketization(recv_params, send_params);
+    if (!changed_codecs.ok()) {
+      error_desc = changed_codecs.error().message();
+      return false;
     }
+    // In this case, we don't care if codecs are changed, because
+    // we always set the new send_params.
   }
 
   if (!media_receive_channel()->SetReceiverParameters(recv_params)) {
@@ -1166,47 +1189,13 @@ bool VideoChannel::SetRemoteContent_w(const MediaContentDescription* content,
   // instead.
   bool needs_recv_params_update = false;
   if (type == SdpType::kAnswer || type == SdpType::kPrAnswer) {
-    flat_set<const Codec*> matched_codecs;
-    for (Codec& recv_codec : recv_params.codecs) {
-      if (absl::c_any_of(matched_codecs, [&](const Codec* c) {
-            return recv_codec.Matches(*c);
-          })) {
-        continue;
-      }
-
-      std::vector<const Codec*> send_codecs =
-          FindAllMatchingCodecs(send_params.codecs, recv_codec);
-      if (send_codecs.empty()) {
-        continue;
-      }
-
-      bool may_ignore_packetization = false;
-      bool has_matching_packetization = false;
-      for (const Codec* send_codec : send_codecs) {
-        if (!send_codec->packetization.has_value() &&
-            recv_codec.packetization.has_value()) {
-          may_ignore_packetization = true;
-        } else if (send_codec->packetization == recv_codec.packetization) {
-          has_matching_packetization = true;
-          break;
-        }
-      }
-
-      if (may_ignore_packetization) {
-        recv_codec.packetization = std::nullopt;
-        needs_recv_params_update = true;
-      } else if (!has_matching_packetization) {
-        error_desc = StringFormat(
-            "Failed to set remote answer due to incompatible codec "
-            "packetization for pt='%d' specified in m-section with mid='%s'.",
-            recv_codec.id, mid().c_str());
-        return false;
-      }
-
-      if (has_matching_packetization) {
-        matched_codecs.insert(&recv_codec);
-      }
+    RTCErrorOr<bool> codecs_changed =
+        MaybeIgnorePacketization(send_params, recv_params);
+    if (!codecs_changed.ok()) {
+      error_desc = codecs_changed.error().message();
+      return false;
     }
+    needs_recv_params_update = codecs_changed.value();
   }
 
   if (!media_send_channel()->SetSenderParameters(send_params)) {
