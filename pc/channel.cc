@@ -122,12 +122,9 @@ void RtpSendParametersFromMediaDescription(
 // response in new_params has no special packetization we amend
 // old_params by ignoring the packetization and fall back to standard
 // packetization instead.
-// Returns true if codecs need to be changed.
-RTCErrorOr<bool> MaybeIgnorePacketization(
-    const MediaChannelParameters& new_params,
-    MediaChannelParameters& old_params) {
+RTCError MaybeIgnorePacketization(const MediaChannelParameters& new_params,
+                                  MediaChannelParameters& old_params) {
   flat_set<const Codec*> matched_codecs;
-  bool needs_update = false;
   for (Codec& codec : old_params.codecs) {
     if (absl::c_any_of(matched_codecs,
                        [&](const Codec* c) { return codec.Matches(*c); })) {
@@ -155,7 +152,6 @@ RTCErrorOr<bool> MaybeIgnorePacketization(
     if (may_ignore_packetization) {
       // Note: this writes into old_params
       codec.packetization = std::nullopt;
-      needs_update = true;
     } else if (!has_matching_packetization) {
       std::string error_desc = StringFormat(
           "Failed to set local answer due to incompatible codec "
@@ -168,7 +164,7 @@ RTCErrorOr<bool> MaybeIgnorePacketization(
       matched_codecs.insert(&codec);
     }
   }
-  return needs_update;
+  return RTCError::OK();
 }
 
 }  // namespace
@@ -1108,14 +1104,11 @@ bool VideoChannel::SetLocalContent_w(const MediaContentDescription* content,
   // offer by ignoring the packetiztion and fall back to standard packetization
   // instead.
   if (type == SdpType::kAnswer || type == SdpType::kPrAnswer) {
-    RTCErrorOr<bool> changed_codecs =
-        MaybeIgnorePacketization(recv_params, send_params);
-    if (!changed_codecs.ok()) {
-      error_desc = changed_codecs.error().message();
+    RTCError status = MaybeIgnorePacketization(recv_params, send_params);
+    if (!status.ok()) {
+      error_desc = status.message();
       return false;
     }
-    // In this case, we don't care if codecs are changed, because
-    // we always set the new send_params.
   }
 
   if (!media_receive_channel()->SetReceiverParameters(recv_params)) {
@@ -1187,15 +1180,12 @@ bool VideoChannel::SetRemoteContent_w(const MediaContentDescription* content,
   // peer only accepts to send standard packetization we effectively amend our
   // offer by ignoring the packetiztion and fall back to standard packetization
   // instead.
-  bool needs_recv_params_update = false;
   if (type == SdpType::kAnswer || type == SdpType::kPrAnswer) {
-    RTCErrorOr<bool> codecs_changed =
-        MaybeIgnorePacketization(send_params, recv_params);
-    if (!codecs_changed.ok()) {
-      error_desc = codecs_changed.error().message();
+    RTCError status = MaybeIgnorePacketization(send_params, recv_params);
+    if (!status.ok()) {
+      error_desc = status.message();
       return false;
     }
-    needs_recv_params_update = codecs_changed.value();
   }
 
   if (!media_send_channel()->SetSenderParameters(send_params)) {
@@ -1205,15 +1195,8 @@ bool VideoChannel::SetRemoteContent_w(const MediaContentDescription* content,
         mid().c_str());
     return false;
   }
-  // adjust receive streams based on send codec
-  media_receive_channel()->SetReceiverFeedbackParameters(
-      media_send_channel()->SendCodecHasLntf(),
-      media_send_channel()->SendCodecHasNack(),
-      media_send_channel()->SendCodecRtcpMode(),
-      media_send_channel()->SendCodecRtxTime());
-  last_send_params_ = send_params;
-
-  if (needs_recv_params_update) {
+  if (type == SdpType::kAnswer || type == SdpType::kPrAnswer) {
+    recv_params.extensions = send_params.extensions;
     if (!media_receive_channel()->SetReceiverParameters(recv_params)) {
       error_desc = StringFormat(
           "Failed to set recv parameters for m-section with mid='%s'.",
@@ -1222,6 +1205,13 @@ bool VideoChannel::SetRemoteContent_w(const MediaContentDescription* content,
     }
     last_recv_params_ = recv_params;
   }
+  // adjust receive streams based on send codec
+  media_receive_channel()->SetReceiverFeedbackParameters(
+      media_send_channel()->SendCodecHasLntf(),
+      media_send_channel()->SendCodecHasNack(),
+      media_send_channel()->SendCodecRtcpMode(),
+      media_send_channel()->SendCodecRtxTime());
+  last_send_params_ = send_params;
 
   return UpdateRemoteStreams_w(content, type, error_desc);
 }
