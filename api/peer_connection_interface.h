@@ -662,10 +662,6 @@ class RTC_EXPORT PeerConnectionInterface : public RefCountInterface {
     // frame encryption for native WebRTC.
     CryptoOptions crypto_options;
 
-    // TODO: bugs.webrtc.org/42235111 - remove after converting callers that
-    // expect an optional.
-    CryptoOptions& GetWritableCryptoOptions() { return crypto_options; }
-
     // Configure if we should include the SDP attribute extmap-allow-mixed in
     // our offer on session level.
     bool offer_extmap_allow_mixed = true;
