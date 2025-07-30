@@ -272,12 +272,11 @@
           'isolated_scripts': 'perf_tests',
         }
       },
-      'Perf Linux Bionic': {
+      'Perf Linux': {
         'os_type':
         'linux',
         'mixins': [
-          'linux-bionic', 'perf-pool', 'timeout-3h',
-          'resultdb-gtest-json-format'
+          'linux-jammy', 'perf-pool', 'timeout-3h', 'resultdb-gtest-json-format'
         ],
         'test_suites': {
           'isolated_scripts': 'perf_tests_save_worst_frame',

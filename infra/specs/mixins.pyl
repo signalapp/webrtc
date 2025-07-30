@@ -115,13 +115,6 @@
       'expiration': 10800
     }
   },
-  'linux-bionic': {
-    'swarming': {
-      'dimensions': {
-        'os': 'Ubuntu-18.04'
-      }
-    }
-  },
   'linux-jammy': {
     'fail_if_unused': False,
     'swarming': {
