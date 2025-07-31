@@ -79,7 +79,7 @@ if (is_android) {
       "//sdk/android:native_api_audio_device_module",
       "//sdk/android:native_api_base",
       "//sdk/android:native_api_jni",
-      "//third_party/abseil-cpp/absl/memory:memory",
+      "//third_party/abseil-cpp/absl/memory",
       "//third_party/jni_zero",
     ]
   }
