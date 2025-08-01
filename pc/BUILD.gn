@@ -558,7 +558,15 @@ rtc_source_set("rtp_sender_proxy") {
   sources = [ "rtp_sender_proxy.h" ]
   deps = [
     ":proxy",
+    "../api:dtls_transport_interface",
+    "../api:frame_transformer_interface",
     "../api:libjingle_peerconnection_api",
+    "../api:media_stream_interface",
+    "../api:rtc_error",
+    "../api:rtp_parameters",
+    "../api:scoped_refptr",
+    "../api/crypto:frame_encryptor_interface",
+    "../api/video_codecs:video_codecs_api",
   ]
 }
 
@@ -605,6 +613,7 @@ rtc_source_set("rtp_transport_internal") {
     ":session_description",
     "../call:rtp_receiver",
     "../p2p:ice_transport_internal",
+    "../rtc_base:async_packet_socket",
     "../rtc_base:callback_list",
     "../rtc_base:copy_on_write_buffer",
     "../rtc_base:network_route",
@@ -1373,7 +1382,12 @@ rtc_library("legacy_stats_collector") {
 rtc_source_set("stream_collection") {
   visibility = [ ":*" ]
   sources = [ "stream_collection.h" ]
-  deps = [ "../api:libjingle_peerconnection_api" ]
+  deps = [
+    "../api:libjingle_peerconnection_api",
+    "../api:make_ref_counted",
+    "../api:media_stream_interface",
+    "../api:scoped_refptr",
+  ]
 }
 rtc_library("track_media_info_map") {
   visibility = [ ":*" ]
@@ -1602,6 +1616,7 @@ rtc_library("peer_connection_message_handler") {
     "../api/task_queue:pending_task_safety_flag",
     "../api/units:time_delta",
     "../rtc_base:checks",
+    "../rtc_base:threading",
   ]
 }
 
@@ -1717,6 +1732,7 @@ rtc_library("transceiver_list") {
     "../api:libjingle_peerconnection_api",
     "../api:rtc_error",
     "../api:rtp_parameters",
+    "../api:rtp_transceiver_direction",
     "../api:scoped_refptr",
     "../api:sequence_checker",
     "../rtc_base:checks",
@@ -1868,7 +1884,10 @@ rtc_library("video_track") {
 rtc_source_set("sdp_state_provider") {
   visibility = [ ":*" ]
   sources = [ "sdp_state_provider.h" ]
-  deps = [ "../api:libjingle_peerconnection_api" ]
+  deps = [
+    "../api:libjingle_peerconnection_api",
+    "../rtc_base:ssl_adapter",
+  ]
 }
 
 rtc_library("jitter_buffer_delay") {
