@@ -369,6 +369,9 @@ class RTC_EXPORT RTCOutboundRtpStreamStats final
 
   // RTX ssrc. Only present if RTX is negotiated.
   std::optional<uint32_t> rtx_ssrc;
+
+  // https://w3c.github.io/webrtc-stats/#dom-rtcoutboundrtpstreamstats-packetssentwithect1
+  std::optional<uint64_t> packets_sent_with_ect1;
 };
 
 // https://w3c.github.io/webrtc-stats/#remoteinboundrtpstats-dict*

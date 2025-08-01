@@ -2514,6 +2514,8 @@ WebRtcVideoSendChannel::WebRtcVideoSendStream::GetPerLayerVideoSenderInfos(
         stream_stats.rtp_stats.transmitted.header_bytes +
         stream_stats.rtp_stats.transmitted.padding_bytes;
     info.packets_sent = stream_stats.rtp_stats.transmitted.packets;
+    info.packets_sent_with_ect1 =
+        stream_stats.rtp_stats.transmitted.packets_with_ect1;
     info.total_packet_send_delay +=
         stream_stats.rtp_stats.transmitted.total_packet_delay;
     info.send_frame_width = stream_stats.width;

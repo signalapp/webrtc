@@ -9,6 +9,8 @@
  */
 
 #include <atomic>
+#include <cstdint>
+#include <optional>
 #include <string>
 
 #include "absl/strings/str_cat.h"
@@ -119,6 +121,15 @@ DataRate GetAvailableSendBitrate(
     return DataRate::Zero();
   }
   return DataRate::BitsPerSec(*stats[0]->available_outgoing_bitrate);
+}
+
+std::optional<uint64_t> GetPacketsSentWithEct1(
+    const scoped_refptr<const RTCStatsReport>& report) {
+  auto stats = report->GetStatsOfType<RTCOutboundRtpStreamStats>();
+  if (stats.empty()) {
+    return std::nullopt;
+  }
+  return stats[0]->packets_sent_with_ect1;
 }
 
 TEST(L4STest, NegotiateAndUseCcfbIfEnabled) {
@@ -303,11 +314,11 @@ TEST(L4STest, SendsEct1UntilFirstFeedback) {
     feedback_counter.Count(packet);
     if (feedback_counter.ect1() > 0) {
       seen_ect1_feedback = true;
-      RTC_LOG(LS_INFO) << " ect 1" << feedback_counter.ect1();
+      RTC_LOG(LS_INFO) << " ect 1: " << feedback_counter.ect1();
     }
     if (feedback_counter.not_ect() > 0) {
       seen_not_ect_feedback = true;
-      RTC_LOG(LS_INFO) << " not ect" << feedback_counter.not_ect();
+      RTC_LOG(LS_INFO) << " not ect: " << feedback_counter.not_ect();
     }
   });
 
@@ -331,6 +342,9 @@ TEST(L4STest, SendsEct1UntilFirstFeedback) {
   EXPECT_TRUE(s.WaitAndProcess(&seen_ect1_feedback, TimeDelta::Seconds(1)));
   EXPECT_FALSE(seen_not_ect_feedback);
   EXPECT_TRUE(s.WaitAndProcess(&seen_not_ect_feedback, TimeDelta::Seconds(1)));
+  auto packets_sent_with_ect1_stats =
+      GetPacketsSentWithEct1(GetStatsAndProcess(s, caller));
+  EXPECT_EQ(packets_sent_with_ect1_stats, feedback_counter.ect1());
 }
 
 TEST(L4STest, SendsEct1AfterRouteChange) {
@@ -416,6 +430,10 @@ TEST(L4STest, SendsEct1AfterRouteChange) {
   s.net()->DisableEndpoint(callee->endpoint(0));
   EXPECT_TRUE(
       s.WaitAndProcess(&seen_ect1_on_cellular_feedback, TimeDelta::Seconds(5)));
+  auto packets_sent_with_ect1_stats =
+      GetPacketsSentWithEct1(GetStatsAndProcess(s, caller));
+  EXPECT_EQ(packets_sent_with_ect1_stats,
+            wifi_feedback_counter.ect1() + cellular_feedback_counter.ect1());
 }
 
 }  // namespace

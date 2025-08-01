@@ -51,12 +51,16 @@ RtpPacketCounter::RtpPacketCounter(const RtpPacket& packet)
     : header_bytes(packet.headers_size()),
       payload_bytes(packet.payload_size()),
       padding_bytes(packet.padding_size()),
-      packets(1) {}
+      packets(1),
+      packets_with_ect1(0) {}
 
 RtpPacketCounter::RtpPacketCounter(const RtpPacketToSend& packet_to_send)
     : RtpPacketCounter(static_cast<const RtpPacket&>(packet_to_send)) {
   total_packet_delay =
       packet_to_send.time_in_send_queue().value_or(TimeDelta::Zero());
+  if (packet_to_send.send_as_ect1()) {
+    ++packets_with_ect1;
+  }
 }
 
 void RtpPacketCounter::AddPacket(const RtpPacket& packet) {
@@ -70,6 +74,9 @@ void RtpPacketCounter::AddPacket(const RtpPacketToSend& packet_to_send) {
   AddPacket(static_cast<const RtpPacket&>(packet_to_send));
   total_packet_delay +=
       packet_to_send.time_in_send_queue().value_or(TimeDelta::Zero());
+  if (packet_to_send.send_as_ect1()) {
+    ++packets_with_ect1;
+  }
 }
 
 }  // namespace webrtc

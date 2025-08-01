@@ -799,6 +799,8 @@ class RTCStatsReportVerifier {
     verifier.TestAttributeIsNonNegative<uint64_t>(
         outbound_stream.retransmitted_bytes_sent);
     verifier.TestAttributeIsNonNegative<double>(outbound_stream.target_bitrate);
+    verifier.TestAttributeIsNonNegative<uint64_t>(
+        outbound_stream.packets_sent_with_ect1);
     if (outbound_stream.kind.has_value() && *outbound_stream.kind == "video") {
       verifier.TestAttributeIsDefined(outbound_stream.frames_encoded);
       verifier.TestAttributeIsDefined(outbound_stream.key_frames_encoded);

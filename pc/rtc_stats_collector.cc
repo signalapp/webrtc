@@ -730,6 +730,8 @@ void SetOutboundRTPStreamStatsFromMediaSenderInfo(
   if (media_sender_info.active.has_value()) {
     outbound_stats->active = *media_sender_info.active;
   }
+  outbound_stats->packets_sent_with_ect1 =
+      media_sender_info.packets_sent_with_ect1;
 }
 
 std::unique_ptr<RTCOutboundRtpStreamStats>
