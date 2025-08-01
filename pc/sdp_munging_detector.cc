@@ -598,8 +598,14 @@ bool HasUfragSdpMunging(const SessionDescriptionInterface* sdesc,
 
 bool IsSdpMungingAllowed(SdpMungingType sdp_munging_type,
                          const FieldTrialsView& trials) {
-  if (sdp_munging_type == SdpMungingType::kNoModification) {
-    return true;
+  switch (sdp_munging_type) {
+    case SdpMungingType::kNoModification:
+      return true;
+    case SdpMungingType::kNumberOfContents:
+      return false;
+    default:
+      // Handled below.
+      break;
   }
   std::string type_as_string =
       std::to_string(static_cast<int>(sdp_munging_type));
