@@ -59,6 +59,26 @@ bool CheckWindowClassName(HWND window, const wchar_t* class_name) {
   return wcsncmp(buffer, class_name, classNameLength) == 0;
 }
 
+bool IsFullScreenWindow(HWND wnd) {
+  // Get the monitor info of the display monitor where the window is.
+  MONITORINFO monitor_info = {sizeof(monitor_info)};
+  if (!::GetMonitorInfo(::MonitorFromWindow(wnd, MONITOR_DEFAULTTONEAREST),
+                        &monitor_info)) {
+    return false;
+  }
+
+  // Verifies if the window rectangle is same as the monitor.
+  RECT wnd_rect;
+  if (!::GetWindowRect(wnd, &wnd_rect) ||
+      !::EqualRect(&wnd_rect, &monitor_info.rcMonitor)) {
+    return false;
+  }
+
+  // Check if the window style does not have WS_OVERLAPPEDWINDOW as the full
+  // screen window should not have a title bar or border.
+  return !(::GetWindowLongPtr(wnd, GWL_STYLE) & WS_OVERLAPPEDWINDOW);
+}
+
 std::string WindowText(HWND window) {
   size_t len = ::GetWindowTextLength(window);
   if (len == 0) {
@@ -233,12 +253,8 @@ bool FullScreenPowerPointHandler::IsEditorWindow(HWND window) const {
 }
 
 bool FullScreenPowerPointHandler::IsSlideShowWindow(HWND window) const {
-  // TODO(https://crbug.com/409473386): Change this to use GetWindowLongPtr
-  // instead as recommended in the MS Windows API.
-  // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowlongptra
-  const bool has_minimize_or_maximize_buttons =
-      ::GetWindowLong(window, GWL_STYLE) & (WS_MINIMIZEBOX | WS_MAXIMIZEBOX);
-  return !has_minimize_or_maximize_buttons;
+  return CheckWindowClassName(window, L"screenClass") &&
+         IsFullScreenWindow(window);
 }
 
 class OpenOfficeApplicationHandler : public FullScreenApplicationHandler {

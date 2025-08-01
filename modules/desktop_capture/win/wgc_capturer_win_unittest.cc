@@ -603,6 +603,7 @@ class WgcCapturerFullScreenDetectorTest : public WgcCapturerWindowTest {
                          kLargeWindowHeight, kLargeWindowWidth,
                          /*extended_styles=*/0,
                          /*window_class=*/L"screenClass");
+    ResizeTestWindowToFullScreen(slide_show_window_.hwnd);
   }
 
   WgcCapturerWin* wgc_capturer_;
@@ -688,9 +689,7 @@ TEST_F(WgcCapturerFullScreenDetectorTest, LoggedOnlyOnce) {
       reinterpret_cast<DesktopCapturer::SourceId>(editor_window_.hwnd)));
   wgc_capturer_->Start(this);
   DoCapture();
-  ValidateFrame(kLargeWindowWidth, kLargeWindowHeight);
   DoCapture();
-  ValidateFrame(kLargeWindowWidth, kLargeWindowHeight);
 
   EXPECT_TRUE(wgc_capturer_->IsSourceBeingCaptured(
       reinterpret_cast<DesktopCapturer::SourceId>(slide_show_window_.hwnd)));

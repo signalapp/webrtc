@@ -41,6 +41,7 @@ class FullScreenWinApplicationHandlerTest : public ::testing::Test {
   HWND CreateSlideShowWindow(const WCHAR* title) {
     slide_show_window_info_ =
         CreateTestWindow(title, /*window_class=*/L"screenClass");
+    ResizeTestWindowToFullScreen(slide_show_window_info_.hwnd);
     return slide_show_window_info_.hwnd;
   }
 
