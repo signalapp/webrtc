@@ -1769,7 +1769,7 @@ void EventLogAnalyzer::CreateSendSideBweSimulationGraph(Plot* plot) const {
   // TODO(holmer): Log the call config and use that here instead.
   static const uint32_t kDefaultStartBitrateBps = 300000;
   NetworkControllerConfig cc_config(env_);
-  cc_config.constraints.at_time = Timestamp::Micros(clock.TimeInMicroseconds());
+  cc_config.constraints.at_time = clock.CurrentTime();
   cc_config.constraints.starting_rate =
       DataRate::BitsPerSec(kDefaultStartBitrateBps);
   auto goog_cc = factory.Create(cc_config);
@@ -1870,8 +1870,7 @@ void EventLogAnalyzer::CreateSendSideBweSimulationGraph(Plot* plot) const {
       RTC_DCHECK_EQ(clock.TimeInMicroseconds(), NextRtcpTime());
 
       auto feedback_msg = transport_feedback.ProcessTransportFeedback(
-          rtcp_iterator->transport_feedback,
-          Timestamp::Millis(clock.TimeInMilliseconds()));
+          rtcp_iterator->transport_feedback, clock.CurrentTime());
       if (feedback_msg) {
         observer.Update(goog_cc->OnTransportPacketsFeedback(*feedback_msg));
         std::vector<PacketResult> feedback =
@@ -1910,7 +1909,7 @@ void EventLogAnalyzer::CreateSendSideBweSimulationGraph(Plot* plot) const {
     if (clock.TimeInMicroseconds() >= NextProcessTime()) {
       RTC_DCHECK_EQ(clock.TimeInMicroseconds(), NextProcessTime());
       ProcessInterval msg;
-      msg.at_time = Timestamp::Micros(clock.TimeInMicroseconds());
+      msg.at_time = clock.CurrentTime();
       observer.Update(goog_cc->OnProcessInterval(msg));
       next_process_time_us_ += process_interval.us();
     }
