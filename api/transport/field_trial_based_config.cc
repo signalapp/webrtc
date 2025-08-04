@@ -9,6 +9,7 @@
  */
 #include "api/transport/field_trial_based_config.h"
 
+#include <cstddef>
 #include <string>
 
 #include "absl/strings/string_view.h"
@@ -18,7 +19,35 @@ namespace webrtc {
 std::string FieldTrialBasedConfig::GetValue(absl::string_view key) const {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-  return field_trial::FindFullName(std::string(key));
+  const char* global_field_trial_string = field_trial::GetFieldTrialString();
 #pragma clang diagnostic pop
+
+  if (global_field_trial_string == nullptr)
+    return std::string();
+
+  absl::string_view trials_string(global_field_trial_string);
+  if (trials_string.empty())
+    return std::string();
+
+  size_t next_item = 0;
+  while (next_item < trials_string.length()) {
+    // Find next name/value pair in field trial configuration string.
+    size_t field_name_end = trials_string.find('/', next_item);
+    if (field_name_end == trials_string.npos || field_name_end == next_item)
+      break;
+    size_t field_value_end = trials_string.find('/', field_name_end + 1);
+    if (field_value_end == trials_string.npos ||
+        field_value_end == field_name_end + 1)
+      break;
+    absl::string_view field_name =
+        trials_string.substr(next_item, field_name_end - next_item);
+    absl::string_view field_value = trials_string.substr(
+        field_name_end + 1, field_value_end - field_name_end - 1);
+    next_item = field_value_end + 1;
+
+    if (key == field_name)
+      return std::string(field_value);
+  }
+  return std::string();
 }
 }  // namespace webrtc
