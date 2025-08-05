@@ -98,8 +98,6 @@ void UpdateEventLogStreamConfig(RtcEventLog& event_log,
 
 }  // namespace
 
-constexpr char AudioAllocationConfig::kKey[];
-
 std::unique_ptr<StructParametersParser> AudioAllocationConfig::Parser() {
   return StructParametersParser::Create(       //
       "min", &min_bitrate,                     //
