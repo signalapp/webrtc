@@ -12,7 +12,13 @@
 
 #include <libdrm/drm_fourcc.h>
 #include <pipewire/pipewire.h>
-#include <spa/param/video/format-utils.h>
+#include <spa/param/format.h>
+#include <spa/param/param.h>
+#include <spa/pod/builder.h>
+#include <spa/pod/iter.h>
+#include <spa/pod/pod.h>
+#include <spa/pod/vararg.h>
+#include <spa/utils/type.h>
 
 #include <cstdint>
 #include <optional>
