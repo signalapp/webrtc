@@ -847,6 +847,9 @@ MediaSessionDescriptionFactory::CreateAnswerOrError(
   if (transport_desc_factory_->trials().IsEnabled(
           "WebRTC-RFC8888CongestionControlFeedback")) {
     for (const auto& content : offer->contents()) {
+      if (content.type != MediaProtocolType::kRtp) {
+        continue;
+      }
       if (content.media_description()->rtcp_fb_ack_ccfb()) {
         has_ack_ccfb = true;
       } else if (has_ack_ccfb) {

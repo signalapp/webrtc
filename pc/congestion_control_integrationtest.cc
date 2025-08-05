@@ -22,6 +22,7 @@
 #include "api/rtp_parameters.h"
 #include "api/rtp_transceiver_direction.h"
 #include "api/test/rtc_error_matchers.h"
+#include "pc/session_description.h"
 #include "pc/test/integration_test_helpers.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
@@ -120,6 +121,57 @@ TEST_F(PeerConnectionCongestionControlTest, SendOnlySupportDoesNotEnableCcFb) {
   std::string answer_str = absl::StrCat(*caller()->pc()->remote_description());
   EXPECT_THAT(answer_str, HasSubstr("transport-cc"));
 }
+
+#ifdef WEBRTC_HAVE_SCTP
+TEST_F(PeerConnectionCongestionControlTest,
+       ReceiveOfferWithDataChannelsSetsCcfbFlag) {
+  SetFieldTrials("WebRTC-RFC8888CongestionControlFeedback/Enabled/");
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignalingForSdpOnly();
+  caller()->AddAudioVideoTracks();
+  caller()->CreateDataChannel();
+  callee()->CreateDataChannel();
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
+              IsRtcOk());
+  {
+    // Check that the callee parsed it.
+    auto parsed_contents =
+        callee()->pc()->remote_description()->description()->contents();
+    EXPECT_FALSE(parsed_contents.empty());
+    bool has_data_channel = false;
+    for (const auto& content : parsed_contents) {
+      if (content.type == MediaProtocolType::kSctp) {
+        EXPECT_FALSE(content.media_description()->rtcp_fb_ack_ccfb());
+        has_data_channel = true;
+      } else {
+        EXPECT_TRUE(content.media_description()->rtcp_fb_ack_ccfb());
+      }
+    }
+    ASSERT_TRUE(has_data_channel);
+  }
+
+  {
+    // Check that the caller also parsed the answer.
+    auto parsed_contents =
+        caller()->pc()->remote_description()->description()->contents();
+    EXPECT_FALSE(parsed_contents.empty());
+    bool has_data_channel = false;
+    for (const auto& content : parsed_contents) {
+      if (content.type == MediaProtocolType::kSctp) {
+        EXPECT_FALSE(content.media_description()->rtcp_fb_ack_ccfb());
+        has_data_channel = true;
+      } else {
+        EXPECT_TRUE(content.media_description()->rtcp_fb_ack_ccfb());
+      }
+    }
+    ASSERT_TRUE(has_data_channel);
+  }
+  // Check that the answer does not contain transport-cc
+  std::string answer_str = absl::StrCat(*caller()->pc()->remote_description());
+  EXPECT_THAT(answer_str, Not(HasSubstr("transport-cc")));
+}
+#endif
 
 TEST_F(PeerConnectionCongestionControlTest, NegotiatingCcfbRemovesTsn) {
   SetFieldTrials("WebRTC-RFC8888CongestionControlFeedback/Enabled/");
