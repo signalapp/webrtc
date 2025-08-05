@@ -7,7 +7,7 @@
  *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
-#include "api/transport/field_trial_based_config.h"
+#include "api/environment/deprecated_global_field_trials.h"
 
 #include <cstddef>
 #include <string>
@@ -16,7 +16,7 @@
 #include "system_wrappers/include/field_trial.h"
 
 namespace webrtc {
-std::string FieldTrialBasedConfig::GetValue(absl::string_view key) const {
+std::string DeprecatedGlobalFieldTrials::GetValue(absl::string_view key) const {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
   const char* global_field_trial_string = field_trial::GetFieldTrialString();
