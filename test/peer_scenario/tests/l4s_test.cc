@@ -45,6 +45,7 @@ namespace {
 using test::PeerScenario;
 using test::PeerScenarioClient;
 using ::testing::HasSubstr;
+using ::testing::TestWithParam;
 
 // Helper class used for counting RTCP feedback messages.
 class RtcpFeedbackCounter {
@@ -203,20 +204,51 @@ TEST(L4STest, NegotiateAndUseCcfbIfEnabled) {
   EXPECT_EQ(ret_node_feedback_counter.FeedbackAccordingToTransportCc(), 0);
 }
 
-TEST(L4STest, CallerAdaptToLinkCapacityOnNetworkWithoutEcn) {
-  PeerScenario s(*test_info_);
+struct SupportRfc8888Params {
+  bool caller_supports_rfc8888 = false;
+  bool callee_supports_rfc8888 = false;
+  std::string test_suffix;
+};
 
-  PeerScenarioClient::Config config;
-  config.field_trials.Set("WebRTC-RFC8888CongestionControlFeedback", "Enabled");
-  PeerScenarioClient* caller = s.CreateClient(config);
-  PeerScenarioClient* callee = s.CreateClient(config);
+class FeedbackFormatTest : public TestWithParam<SupportRfc8888Params> {};
+
+TEST_P(FeedbackFormatTest, AdaptToLinkCapacityWithoutEcn) {
+  const SupportRfc8888Params& params = GetParam();
+  PeerScenario s(*testing::UnitTest::GetInstance()->current_test_info());
+
+  PeerScenarioClient::Config caller_config;
+  caller_config.disable_encryption = true;
+  caller_config.field_trials.Set(
+      "WebRTC-RFC8888CongestionControlFeedback",
+      params.caller_supports_rfc8888 ? "Enabled" : "Disabled");
+  PeerScenarioClient* caller = s.CreateClient(caller_config);
+
+  PeerScenarioClient::Config callee_config;
+  callee_config.disable_encryption = true;
+  callee_config.field_trials.Set(
+      "WebRTC-RFC8888CongestionControlFeedback",
+      params.callee_supports_rfc8888 ? "Enabled" : "Disabled");
+  PeerScenarioClient* callee = s.CreateClient(callee_config);
 
   auto caller_to_callee = s.net()
                               ->NodeBuilder()
                               .capacity(DataRate::KilobitsPerSec(600))
                               .Build()
                               .node;
-  auto callee_to_caller = s.net()->NodeBuilder().Build().node;
+  auto callee_to_caller = s.net()
+                              ->NodeBuilder()
+                              .capacity(DataRate::KilobitsPerSec(600))
+                              .Build()
+                              .node;
+  RtcpFeedbackCounter callee_feedback_counter;
+  caller_to_callee->router()->SetWatcher([&](const EmulatedIpPacket& packet) {
+    callee_feedback_counter.Count(packet);
+  });
+  RtcpFeedbackCounter caller_feedback_counter;
+  callee_to_caller->router()->SetWatcher([&](const EmulatedIpPacket& packet) {
+    caller_feedback_counter.Count(packet);
+  });
+
   s.net()->CreateRoute(caller->endpoint(), {caller_to_callee},
                        callee->endpoint());
   s.net()->CreateRoute(callee->endpoint(), {callee_to_caller},
@@ -228,7 +260,8 @@ TEST(L4STest, CallerAdaptToLinkCapacityOnNetworkWithoutEcn) {
   video_conf.generator.squares_video->framerate = 30;
   video_conf.generator.squares_video->width = 640;
   video_conf.generator.squares_video->height = 360;
-  caller->CreateVideo("VIDEO_1", video_conf);
+  caller->CreateVideo("FROM_CALLER", video_conf);
+  callee->CreateVideo("FROM_CALLEE", video_conf);
 
   signaling.StartIceSignaling();
   std::atomic<bool> offer_exchange_done(false);
@@ -236,12 +269,45 @@ TEST(L4STest, CallerAdaptToLinkCapacityOnNetworkWithoutEcn) {
     offer_exchange_done = true;
   });
   s.WaitAndProcess(&offer_exchange_done);
-  s.ProcessMessages(TimeDelta::Seconds(3));
-  DataRate available_bwe =
+  s.ProcessMessages(TimeDelta::Seconds(5));
+
+  DataRate caller_available_bwe =
       GetAvailableSendBitrate(GetStatsAndProcess(s, caller));
-  EXPECT_GT(available_bwe.kbps(), 450);
-  EXPECT_LT(available_bwe.kbps(), 610);
+  EXPECT_GT(caller_available_bwe.kbps(), 450);
+  EXPECT_LT(caller_available_bwe.kbps(), 610);
+
+  DataRate callee_available_bwe =
+      GetAvailableSendBitrate(GetStatsAndProcess(s, callee));
+  EXPECT_GT(callee_available_bwe.kbps(), 450);
+  EXPECT_LT(callee_available_bwe.kbps(), 610);
+
+  if (params.caller_supports_rfc8888 && params.callee_supports_rfc8888) {
+    EXPECT_GT(caller_feedback_counter.FeedbackAccordingToRfc8888(), 0);
+    EXPECT_GT(callee_feedback_counter.FeedbackAccordingToRfc8888(), 0);
+    EXPECT_EQ(caller_feedback_counter.FeedbackAccordingToTransportCc(), 0);
+    EXPECT_EQ(callee_feedback_counter.FeedbackAccordingToTransportCc(), 0);
+  } else {
+    EXPECT_EQ(caller_feedback_counter.FeedbackAccordingToRfc8888(), 0);
+    EXPECT_EQ(callee_feedback_counter.FeedbackAccordingToRfc8888(), 0);
+    EXPECT_GT(caller_feedback_counter.FeedbackAccordingToTransportCc(), 0);
+    EXPECT_GT(callee_feedback_counter.FeedbackAccordingToTransportCc(), 0);
+  }
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    L4STest,
+    FeedbackFormatTest,
+    testing::Values(
+        SupportRfc8888Params{.caller_supports_rfc8888 = true,
+                             .test_suffix = "OnlyCallerSupportsRfc8888"},
+        SupportRfc8888Params{.callee_supports_rfc8888 = true,
+                             .test_suffix = "OnlyCalleeSupportsRfc8888"},
+        SupportRfc8888Params{.caller_supports_rfc8888 = true,
+                             .callee_supports_rfc8888 = true,
+                             .test_suffix = "SupportsRfc8888"}),
+    [](const testing::TestParamInfo<SupportRfc8888Params>& info) {
+      return info.param.test_suffix;
+    });
 
 // Note - this test only test that the
 // caller adapt to the link capacity. It does not test that the caller uses ECN
