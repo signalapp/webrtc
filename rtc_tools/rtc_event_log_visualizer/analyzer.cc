@@ -767,34 +767,37 @@ void EventLogAnalyzer::CreateRtcpTypeGraph(PacketDirection direction,
   plot->AppendTimeSeries(CreateRtcpTypeTimeSeries(
       parsed_log_.transport_feedbacks(direction), config_, "TWCC", 1));
   plot->AppendTimeSeries(CreateRtcpTypeTimeSeries(
-      parsed_log_.receiver_reports(direction), config_, "RR", 2));
+      parsed_log_.congestion_feedback(direction), config_, "CCFB", 2));
   plot->AppendTimeSeries(CreateRtcpTypeTimeSeries(
-      parsed_log_.sender_reports(direction), config_, "SR", 3));
+      parsed_log_.receiver_reports(direction), config_, "RR", 3));
   plot->AppendTimeSeries(CreateRtcpTypeTimeSeries(
-      parsed_log_.extended_reports(direction), config_, "XR", 4));
+      parsed_log_.sender_reports(direction), config_, "SR", 4));
+  plot->AppendTimeSeries(CreateRtcpTypeTimeSeries(
+      parsed_log_.extended_reports(direction), config_, "XR", 5));
   plot->AppendTimeSeries(CreateRtcpTypeTimeSeries(parsed_log_.nacks(direction),
-                                                  config_, "NACK", 5));
+                                                  config_, "NACK", 6));
   plot->AppendTimeSeries(CreateRtcpTypeTimeSeries(parsed_log_.rembs(direction),
-                                                  config_, "REMB", 6));
+                                                  config_, "REMB", 7));
   plot->AppendTimeSeries(
-      CreateRtcpTypeTimeSeries(parsed_log_.firs(direction), config_, "FIR", 7));
+      CreateRtcpTypeTimeSeries(parsed_log_.firs(direction), config_, "FIR", 8));
   plot->AppendTimeSeries(
-      CreateRtcpTypeTimeSeries(parsed_log_.plis(direction), config_, "PLI", 8));
-  plot->AppendTimeSeries(
-      CreateRtcpTypeTimeSeries(parsed_log_.byes(direction), config_, "BYE", 9));
+      CreateRtcpTypeTimeSeries(parsed_log_.plis(direction), config_, "PLI", 9));
+  plot->AppendTimeSeries(CreateRtcpTypeTimeSeries(parsed_log_.byes(direction),
+                                                  config_, "BYE", 10));
   plot->SetXAxis(config_.CallBeginTimeSec(), config_.CallEndTimeSec(),
                  "Time (s)", kLeftMargin, kRightMargin);
   plot->SetSuggestedYAxis(0, 1, "RTCP type", kBottomMargin, kTopMargin);
   plot->SetTitle(GetDirectionAsString(direction) + " RTCP packets");
   plot->SetYAxisTickLabels({{1, "TWCC"},
-                            {2, "RR"},
-                            {3, "SR"},
-                            {4, "XR"},
-                            {5, "NACK"},
-                            {6, "REMB"},
-                            {7, "FIR"},
-                            {8, "PLI"},
-                            {9, "BYE"}});
+                            {2, "CCFB"},
+                            {3, "RR"},
+                            {4, "SR"},
+                            {5, "XR"},
+                            {6, "NACK"},
+                            {7, "REMB"},
+                            {8, "FIR"},
+                            {9, "PLI"},
+                            {10, "BYE"}});
 }
 
 template <typename IterableType>
