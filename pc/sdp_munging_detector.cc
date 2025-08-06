@@ -372,7 +372,10 @@ SdpMungingType DetermineSdpMungingType(
     const SessionDescriptionInterface* last_created_desc) {
   if (!sdesc || !sdesc->description()) {
     RTC_LOG(LS_WARNING) << "SDP munging: Failed to parse session description.";
-    return SdpMungingType::kUnknownModification;
+    // This is done to ensure the pointers are valid and should not happen at
+    // this point.
+    RTC_DCHECK_NOTREACHED();
+    return SdpMungingType::kCurrentDescriptionFailedToParse;
   }
 
   if (!last_created_desc || !last_created_desc->description()) {
