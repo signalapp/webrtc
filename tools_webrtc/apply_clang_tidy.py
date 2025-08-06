@@ -9,6 +9,9 @@
 # be found in the AUTHORS file in the root of the source tree.
 #
 # Run clang-tidy in the webrtc source directory.
+# The list of checks that is getting applied is in the toplevel
+# .clang-tidy file. To add a new check, add it to that file and run
+# the script.
 #
 # clang-tidy needs to be added to the .gclient file:
 # Example .gclient file:
@@ -42,18 +45,6 @@ _LLVM = "tools/clang/third_party/llvm/"
 _TIDY_RUNNER = _LLVM + "clang-tools-extra/clang-tidy/tool/run-clang-tidy.py"
 _TIDY_BINARY = _LLVM + "build/bin/clang-tidy"
 _REPLACEMENTS_BINARY = _LLVM + "build/bin/clang-apply-replacements"
-
-# The list of checks that is getting applied.
-# TODO: bugs.webrtc.org/424706384 - move to .clang-tidy file.
-_CHECKS = [
-    "-*",  # disable all checks by default.
-    "llvm-namespace-comment",
-    # conflicts with IWYU.
-    #"modernize-deprecated-headers",
-    "readability-static-definition-in-anonymous-namespace",
-    "readability-redundant-smartptr-get",
-]
-
 
 def _valid_dir(path: str) -> pathlib.Path:
     """Checks if the given path is an existing dir
@@ -108,8 +99,7 @@ def _run_clang_tidy(work_dir: pathlib.Path) -> None:
     clang_tidy_cmd = (work_dir / _TIDY_RUNNER, "-p", work_dir,
                       "-clang-tidy-binary", work_dir / _TIDY_BINARY,
                       "-clang-apply-replacements-binary",
-                      work_dir / _REPLACEMENTS_BINARY,
-                      "-checks=" + ",".join(_CHECKS), "-fix")
+                      work_dir / _REPLACEMENTS_BINARY, "-fix")
     subprocess.run(clang_tidy_cmd,
                    capture_output=False,
                    text=True,
