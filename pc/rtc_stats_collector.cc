@@ -2013,7 +2013,7 @@ void RTCStatsCollector::ProduceTransportStats_n(
       channel_transport_stats->dtls_cipher =
           channel_stats.tls_cipher_suite_name;
       if (channel_stats.srtp_crypto_suite != kSrtpInvalidCryptoSuite &&
-          SrtpCryptoSuiteToName(channel_stats.srtp_crypto_suite).length()) {
+          !SrtpCryptoSuiteToName(channel_stats.srtp_crypto_suite).empty()) {
         channel_transport_stats->srtp_cipher =
             SrtpCryptoSuiteToName(channel_stats.srtp_crypto_suite);
       }

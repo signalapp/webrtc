@@ -6797,7 +6797,7 @@ TEST_F(P2PTransportChannelTest, EnableDnsLookupsWithTransportPolicyNoHost) {
   DestroyChannels();
 }
 
-static struct LocalAreaNetworkPermissionTestConfig {
+struct LocalAreaNetworkPermissionTestConfig {
   template <typename Sink>
   friend void AbslStringify(
       Sink& sink,

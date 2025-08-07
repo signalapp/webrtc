@@ -2171,7 +2171,7 @@ RTCError WebRtcVideoSendChannel::WebRtcVideoSendStream::SetRtpParameters(
   }
   if (!key_frames_requested_by_rid.empty()) {
     if (key_frames_requested_by_rid.size() == 1 &&
-        key_frames_requested_by_rid[0] == "") {
+        key_frames_requested_by_rid[0].empty()) {
       // For non-simulcast cases there is no rid,
       // request a keyframe on all layers.
       key_frames_requested_by_rid.clear();
@@ -2581,7 +2581,7 @@ WebRtcVideoSendChannel::WebRtcVideoSendStream::GetAggregatedVideoSenderInfo(
     info.firs_received += infos[i].firs_received;
     info.nacks_received += infos[i].nacks_received;
     info.plis_received += infos[i].plis_received;
-    if (infos[i].report_block_datas.size())
+    if (!infos[i].report_block_datas.empty())
       info.report_block_datas.push_back(infos[i].report_block_datas[0]);
     if (infos[i].qp_sum) {
       if (!info.qp_sum) {
