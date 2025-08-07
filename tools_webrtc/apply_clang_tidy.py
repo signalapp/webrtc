@@ -97,8 +97,8 @@ def _generate_compile_commands(work_dir: pathlib.Path) -> None:
 
 def _run_clang_tidy(work_dir: pathlib.Path) -> None:
     clang_tidy_cmd = (work_dir / _TIDY_RUNNER, "-p", work_dir,
-                      "-clang-tidy-binary", work_dir / _TIDY_BINARY,
-                      "-clang-apply-replacements-binary",
+                      "-allow-no-checks", "-clang-tidy-binary", work_dir /
+                      _TIDY_BINARY, "-clang-apply-replacements-binary",
                       work_dir / _REPLACEMENTS_BINARY, "-fix")
     subprocess.run(clang_tidy_cmd,
                    capture_output=False,
