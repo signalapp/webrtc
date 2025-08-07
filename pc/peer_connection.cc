@@ -1397,6 +1397,7 @@ PeerConnection::CreateDataChannelOrError(const std::string& label,
     return ret.MoveError();
   }
 
+  ClearStatsCache();
   scoped_refptr<DataChannelInterface> channel = ret.MoveValue();
 
   // Check the onRenegotiationNeeded event (with plan-b backward compat)
