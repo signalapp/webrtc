@@ -112,6 +112,7 @@ using ::testing::Gt;
 using ::testing::MockFunction;
 using ::testing::Ne;
 using ::testing::NotNull;
+using ::testing::Property;
 using ::testing::Return;
 using ::testing::ReturnRef;
 using ::testing::SetArgPointee;
@@ -387,7 +388,6 @@ class P2PTransportChannelTestBase : public ::testing::Test,
   struct Endpoint : public sigslot::has_slots<> {
     Endpoint()
         : role_(ICEROLE_UNKNOWN),
-          tiebreaker_(0),
           role_conflict_(false),
           save_candidates_(false) {}
     bool HasTransport(const PacketTransportInternal* transport) {
@@ -427,7 +427,6 @@ class P2PTransportChannelTestBase : public ::testing::Test,
     ChannelData cd1_;
     ChannelData cd2_;
     IceRole role_;
-    uint64_t tiebreaker_;
     bool role_conflict_;
     bool save_candidates_;
     std::vector<CandidateData> saved_candidates_;
@@ -1949,28 +1948,30 @@ TEST_F(P2PTransportChannelTest, TestIceConfigWillPassDownToPort) {
   AddAddress(0, kPublicAddrs[0]);
   AddAddress(1, kPublicAddrs[1]);
 
-  // Give the first connection the higher tiebreaker so its role won't
-  // change unless we tell it to.
   SetIceRole(0, ICEROLE_CONTROLLING);
   SetIceRole(1, ICEROLE_CONTROLLING);
 
   CreateChannels(env);
 
-  EXPECT_THAT(WaitUntil([&] { return ep1_ch1()->ports().size(); }, Eq(2u),
+  // Pick channel with the higher tiebreaker so its role won't change unless we
+  // tell it to.
+  P2PTransportChannel* channel =
+      GetEndpoint(0)->allocator_->ice_tiebreaker() >
+              GetEndpoint(1)->allocator_->ice_tiebreaker()
+          ? ep1_ch1()
+          : ep2_ch1();
+
+  EXPECT_THAT(WaitUntil([&] { return channel->ports(); }, SizeIs(2),
                         {.timeout = kShortTimeout, .clock = &clock}),
               IsRtcOk());
 
-  const std::vector<PortInterface*> ports_before = ep1_ch1()->ports();
-  for (size_t i = 0; i < ports_before.size(); ++i) {
-    EXPECT_EQ(ICEROLE_CONTROLLING, ports_before[i]->GetIceRole());
-  }
+  EXPECT_THAT(channel->ports(), Each(Property(&PortInterface::GetIceRole,
+                                              Eq(ICEROLE_CONTROLLING))));
 
-  ep1_ch1()->SetIceRole(ICEROLE_CONTROLLED);
+  channel->SetIceRole(ICEROLE_CONTROLLED);
 
-  const std::vector<PortInterface*> ports_after = ep1_ch1()->ports();
-  for (size_t i = 0; i < ports_after.size(); ++i) {
-    EXPECT_EQ(ICEROLE_CONTROLLED, ports_before[i]->GetIceRole());
-  }
+  EXPECT_THAT(channel->ports(), Each(Property(&PortInterface::GetIceRole,
+                                              Eq(ICEROLE_CONTROLLED))));
 
   EXPECT_TRUE(WaitUntil([&] { return CheckConnected(ep1_ch1(), ep2_ch1()); },
                         {.timeout = kShortTimeout, .clock = &clock}));
@@ -2380,8 +2381,7 @@ TEST_F(P2PTransportChannelTest,
                      kDefaultPortAllocatorFlags | PORTALLOCATOR_DISABLE_UDP |
                          PORTALLOCATOR_DISABLE_STUN |
                          PORTALLOCATOR_DISABLE_TCP);
-  // With conflicting ICE roles, endpoint 1 has the higher tie breaker and will
-  // send a binding error response.
+
   SetIceRole(0, ICEROLE_CONTROLLING);
   SetIceRole(1, ICEROLE_CONTROLLING);
   // We want the remote TURN candidate to show up as prflx. To do this we need
