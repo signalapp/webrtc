@@ -23,7 +23,7 @@
 #include "api/scoped_refptr.h"
 #include "api/units/timestamp.h"
 #include "api/video/color_space.h"
-#include "api/video/corruption_detection_filter_settings.h"
+#include "api/video/corruption_detection/corruption_detection_filter_settings.h"
 #include "api/video/video_codec_constants.h"
 #include "api/video/video_content_type.h"
 #include "api/video/video_frame_type.h"
