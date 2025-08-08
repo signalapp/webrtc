@@ -38,6 +38,8 @@
 namespace webrtc {
 class RtpPacket;
 class RtpPacketToSend;
+class RtpPacketReceived;
+
 namespace rtcp {
 class TransportFeedback;
 }  // namespace rtcp
@@ -272,10 +274,12 @@ struct RtpPacketCounter {
         payload_bytes(0),
         padding_bytes(0),
         packets(0),
-        packets_with_ect1(0) {}
+        packets_with_ect1(0),
+        packets_with_ce(0) {}
 
   explicit RtpPacketCounter(const RtpPacket& packet);
   explicit RtpPacketCounter(const RtpPacketToSend& packet_to_send);
+  explicit RtpPacketCounter(const RtpPacketReceived& packet_received);
 
   void Add(const RtpPacketCounter& other) {
     header_bytes += other.header_bytes;
@@ -283,6 +287,7 @@ struct RtpPacketCounter {
     padding_bytes += other.padding_bytes;
     packets += other.packets;
     packets_with_ect1 += other.packets_with_ect1;
+    packets_with_ce += other.packets_with_ce;
     total_packet_delay += other.total_packet_delay;
   }
 
@@ -291,12 +296,14 @@ struct RtpPacketCounter {
            payload_bytes == other.payload_bytes &&
            padding_bytes == other.padding_bytes && packets == other.packets &&
            packets_with_ect1 == other.packets_with_ect1 &&
+           packets_with_ce == other.packets_with_ce &&
            total_packet_delay == other.total_packet_delay;
   }
 
   // Not inlined, since use of RtpPacket would result in circular includes.
   void AddPacket(const RtpPacket& packet);
   void AddPacket(const RtpPacketToSend& packet_to_send);
+  void AddPacket(const RtpPacketReceived& packet_received);
 
   size_t TotalBytes() const {
     return header_bytes + payload_bytes + padding_bytes;
@@ -307,6 +314,7 @@ struct RtpPacketCounter {
   size_t padding_bytes;  // Number of padding bytes.
   size_t packets;        // Number of packets.
   size_t packets_with_ect1;  // Number of packets with ECT1 flag set to true.
+  size_t packets_with_ce;    // Number of packets with CE flag set to true.
   // The total delay of all `packets`. For RtpPacketToSend packets, this is
   // `time_in_send_queue()`. For receive packets, this is zero.
   TimeDelta total_packet_delay = TimeDelta::Zero();

@@ -186,7 +186,9 @@ RTCRtpStreamStats::~RTCRtpStreamStats() {}
 WEBRTC_RTCSTATS_IMPL(
     RTCReceivedRtpStreamStats, RTCRtpStreamStats, "received-rtp",
     AttributeInit("jitter", &jitter),
-    AttributeInit("packetsLost", &packets_lost))
+    AttributeInit("packetsLost", &packets_lost),
+    AttributeInit("packetsReceivedWithEct1", &packets_received_with_ect1),
+    AttributeInit("packetsReceivedWithCn", &packets_received_with_ce))
 // clang-format on
 
 RTCReceivedRtpStreamStats::RTCReceivedRtpStreamStats(std::string id,

@@ -397,6 +397,10 @@ void SetInboundRTPStreamStatsFromMediaReceiverInfo(
   inbound_stats->ssrc = media_receiver_info.ssrc();
   inbound_stats->packets_received =
       static_cast<uint32_t>(media_receiver_info.packets_received);
+  inbound_stats->packets_received_with_ect1 =
+      media_receiver_info.packets_received_with_ect1;
+  inbound_stats->packets_received_with_ce =
+      media_receiver_info.packets_received_with_ce;
   inbound_stats->bytes_received =
       static_cast<uint64_t>(media_receiver_info.payload_bytes_received);
   inbound_stats->header_bytes_received = static_cast<uint64_t>(

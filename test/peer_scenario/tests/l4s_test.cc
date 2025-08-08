@@ -124,13 +124,31 @@ DataRate GetAvailableSendBitrate(
   return DataRate::BitsPerSec(*stats[0]->available_outgoing_bitrate);
 }
 
-std::optional<uint64_t> GetPacketsSentWithEct1(
+std::optional<int64_t> GetPacketsSentWithEct1(
     const scoped_refptr<const RTCStatsReport>& report) {
   auto stats = report->GetStatsOfType<RTCOutboundRtpStreamStats>();
   if (stats.empty()) {
     return std::nullopt;
   }
   return stats[0]->packets_sent_with_ect1;
+}
+
+std::optional<int64_t> GetPacketsReceivedWithEct1(
+    const scoped_refptr<const RTCStatsReport>& report) {
+  auto stats = report->GetStatsOfType<RTCInboundRtpStreamStats>();
+  if (stats.empty()) {
+    return std::nullopt;
+  }
+  return stats[0]->packets_received_with_ect1;
+}
+
+std::optional<int64_t> GetPacketsReceivedWithCe(
+    const scoped_refptr<const RTCStatsReport>& report) {
+  auto stats = report->GetStatsOfType<RTCInboundRtpStreamStats>();
+  if (stats.empty()) {
+    return std::nullopt;
+  }
+  return stats[0]->packets_received_with_ce;
 }
 
 TEST(L4STest, NegotiateAndUseCcfbIfEnabled) {
@@ -380,11 +398,11 @@ TEST(L4STest, SendsEct1UntilFirstFeedback) {
     feedback_counter.Count(packet);
     if (feedback_counter.ect1() > 0) {
       seen_ect1_feedback = true;
-      RTC_LOG(LS_INFO) << " ect 1: " << feedback_counter.ect1();
+      RTC_LOG(LS_INFO) << "ect 1 feedback: " << feedback_counter.ect1();
     }
     if (feedback_counter.not_ect() > 0) {
       seen_not_ect_feedback = true;
-      RTC_LOG(LS_INFO) << " not ect: " << feedback_counter.not_ect();
+      RTC_LOG(LS_INFO) << "not ect feedback: " << feedback_counter.not_ect();
     }
   });
 
@@ -447,12 +465,12 @@ TEST(L4STest, SendsEct1AfterRouteChange) {
         wifi_feedback_counter.Count(packet);
         if (wifi_feedback_counter.ect1() > 0) {
           seen_ect1_on_wifi_feedback = true;
-          RTC_LOG(LS_INFO) << " ect 1 feedback on wifi: "
+          RTC_LOG(LS_INFO) << "ect 1 feedback on wifi: "
                            << wifi_feedback_counter.ect1();
         }
         if (wifi_feedback_counter.not_ect() > 0) {
           seen_not_ect_on_wifi_feedback = true;
-          RTC_LOG(LS_INFO) << " not ect feedback on wifi: "
+          RTC_LOG(LS_INFO) << "not ect feedback on wifi: "
                            << wifi_feedback_counter.not_ect();
         }
       });
@@ -487,7 +505,7 @@ TEST(L4STest, SendsEct1AfterRouteChange) {
         cellular_feedback_counter.Count(packet);
         if (cellular_feedback_counter.ect1() > 0) {
           seen_ect1_on_cellular_feedback = true;
-          RTC_LOG(LS_INFO) << " ect 1 feedback on cellular: "
+          RTC_LOG(LS_INFO) << "ect 1 feedback on cellular: "
                            << cellular_feedback_counter.ect1();
         }
       });
@@ -496,10 +514,20 @@ TEST(L4STest, SendsEct1AfterRouteChange) {
   s.net()->DisableEndpoint(callee->endpoint(0));
   EXPECT_TRUE(
       s.WaitAndProcess(&seen_ect1_on_cellular_feedback, TimeDelta::Seconds(5)));
+
+  // Check statistics.
   auto packets_sent_with_ect1_stats =
       GetPacketsSentWithEct1(GetStatsAndProcess(s, caller));
   EXPECT_EQ(packets_sent_with_ect1_stats,
             wifi_feedback_counter.ect1() + cellular_feedback_counter.ect1());
+
+  auto callee_stats = GetStatsAndProcess(s, callee);
+  auto packets_received_with_ect1_stats =
+      GetPacketsReceivedWithEct1(callee_stats);
+  auto packets_received_with_ce_stats = GetPacketsReceivedWithCe(callee_stats);
+  EXPECT_EQ(packets_received_with_ect1_stats, wifi_feedback_counter.ect1());
+  // TODO: bugs.webrtc.org/42225697 - testing CE would be useful.
+  EXPECT_EQ(packets_received_with_ce_stats, 0);
 }
 
 }  // namespace

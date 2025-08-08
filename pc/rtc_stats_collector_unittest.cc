@@ -2147,6 +2147,8 @@ TEST_F(RTCStatsCollectorTest, CollectRTCInboundRtpStreamStats_Audio) {
   voice_media_info.receivers[0].packets_lost = -1;  // Signed per RFC3550
   voice_media_info.receivers[0].packets_discarded = 7788;
   voice_media_info.receivers[0].packets_received = 2;
+  voice_media_info.receivers[0].packets_received_with_ect1 = 7;
+  voice_media_info.receivers[0].packets_received_with_ce = 5;
   voice_media_info.receivers[0].nacks_sent = 5;
   voice_media_info.receivers[0].fec_packets_discarded = 5566;
   voice_media_info.receivers[0].fec_packets_received = 6677;
@@ -2204,6 +2206,8 @@ TEST_F(RTCStatsCollectorTest, CollectRTCInboundRtpStreamStats_Audio) {
   expected_audio.transport_id = "TTransportName1";
   expected_audio.codec_id = "CITTransportName1_42";
   expected_audio.packets_received = 2;
+  expected_audio.packets_received_with_ect1 = 7;
+  expected_audio.packets_received_with_ce = 5;
   expected_audio.nack_count = 5;
   expected_audio.fec_packets_discarded = 5566;
   expected_audio.fec_packets_received = 6677;
@@ -2300,6 +2304,8 @@ TEST_F(RTCStatsCollectorTest, CollectRTCInboundRtpStreamStats_Video) {
   video_media_info.receivers[0].local_stats.push_back(SsrcReceiverInfo());
   video_media_info.receivers[0].local_stats[0].ssrc = 1;
   video_media_info.receivers[0].packets_received = 2;
+  video_media_info.receivers[0].packets_received_with_ect1 = 7;
+  video_media_info.receivers[0].packets_received_with_ce = 5;
   video_media_info.receivers[0].packets_lost = 42;
   video_media_info.receivers[0].payload_bytes_received = 3;
   video_media_info.receivers[0].header_and_padding_bytes_received = 12;
@@ -2377,6 +2383,8 @@ TEST_F(RTCStatsCollectorTest, CollectRTCInboundRtpStreamStats_Video) {
   expected_video.pli_count = 6;
   expected_video.nack_count = 7;
   expected_video.packets_received = 2;
+  expected_video.packets_received_with_ect1 = 7;
+  expected_video.packets_received_with_ce = 5;
   expected_video.bytes_received = 3;
   expected_video.header_bytes_received = 12;
   expected_video.packets_lost = 42;
