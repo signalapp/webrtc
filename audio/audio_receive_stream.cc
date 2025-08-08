@@ -33,6 +33,8 @@
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
 #include "api/transport/rtp/rtp_source.h"
+#include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "audio/audio_send_stream.h"
 #include "audio/audio_state.h"
 #include "audio/channel_receive.h"
@@ -45,6 +47,7 @@
 #include "rtc_base/logging.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/time_utils.h"
+#include "system_wrappers/include/ntp_time.h"
 
 namespace webrtc {
 
@@ -410,25 +413,23 @@ std::optional<Syncable::Info> AudioReceiveStreamImpl::GetInfo() const {
   return channel_receive_->GetSyncInfo();
 }
 
-bool AudioReceiveStreamImpl::GetPlayoutRtpTimestamp(uint32_t* rtp_timestamp,
-                                                    int64_t* time_ms) const {
+std::optional<Syncable::PlayoutInfo>
+AudioReceiveStreamImpl::GetPlayoutRtpTimestamp() const {
   // Called on video capture thread.
-  return channel_receive_->GetPlayoutRtpTimestamp(rtp_timestamp, time_ms);
+  return channel_receive_->GetPlayoutRtpTimestamp();
 }
 
-void AudioReceiveStreamImpl::SetEstimatedPlayoutNtpTimestampMs(
-    int64_t ntp_timestamp_ms,
-    int64_t time_ms) {
+void AudioReceiveStreamImpl::SetEstimatedPlayoutNtpTimestamp(NtpTime ntp_time,
+                                                             Timestamp time) {
   // Called on video capture thread.
-  channel_receive_->SetEstimatedPlayoutNtpTimestampMs(ntp_timestamp_ms,
-                                                      time_ms);
+  channel_receive_->SetEstimatedPlayoutNtpTimestamp(ntp_time, time);
 }
 
-bool AudioReceiveStreamImpl::SetMinimumPlayoutDelay(int delay_ms) {
+bool AudioReceiveStreamImpl::SetMinimumPlayoutDelay(TimeDelta delay) {
   // TODO(bugs.webrtc.org/11993): This is called via RtpStreamsSynchronizer,
   // expect to be called on the network thread.
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);
-  return channel_receive_->SetMinimumPlayoutDelay(delay_ms);
+  return channel_receive_->SetMinimumPlayoutDelay(delay);
 }
 
 void AudioReceiveStreamImpl::DeliverRtcp(ArrayView<const uint8_t> packet) {

@@ -426,15 +426,14 @@ std::optional<Syncable::Info> RtpVideoStreamReceiver2::GetSyncInfo() const {
   if (!last_sr.has_value()) {
     return std::nullopt;
   }
-  info.capture_time_ntp_secs = last_sr->last_remote_ntp_timestamp.seconds();
-  info.capture_time_ntp_frac = last_sr->last_remote_ntp_timestamp.fractions();
-  info.capture_time_source_clock = last_sr->last_remote_rtp_timestamp;
+  info.capture_time_ntp = last_sr->last_remote_ntp_timestamp;
+  info.capture_time_rtp = last_sr->last_remote_rtp_timestamp;
 
   if (!last_received_rtp_timestamp_ || !last_received_rtp_system_time_) {
     return std::nullopt;
   }
-  info.latest_received_capture_timestamp = *last_received_rtp_timestamp_;
-  info.latest_receive_time_ms = last_received_rtp_system_time_->ms();
+  info.latest_received_capture_rtp_timestamp = *last_received_rtp_timestamp_;
+  info.latest_receive_time = *last_received_rtp_system_time_;
 
   // Leaves info.current_delay_ms uninitialized.
   return info;

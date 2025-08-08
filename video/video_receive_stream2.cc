@@ -84,6 +84,7 @@
 #include "rtc_base/time_utils.h"
 #include "rtc_base/trace_event.h"
 #include "system_wrappers/include/clock.h"
+#include "system_wrappers/include/ntp_time.h"
 #include "video/call_stats2.h"
 #include "video/corruption_detection/frame_instrumentation_evaluation.h"
 #include "video/decode_synchronizer.h"
@@ -790,25 +791,24 @@ std::optional<Syncable::Info> VideoReceiveStream2::GetInfo() const {
   if (!info)
     return std::nullopt;
 
-  info->current_delay_ms = timing_->TargetVideoDelay().ms();
+  info->current_delay = timing_->TargetVideoDelay();
   return info;
 }
 
-bool VideoReceiveStream2::GetPlayoutRtpTimestamp(uint32_t* rtp_timestamp,
-                                                 int64_t* time_ms) const {
+std::optional<Syncable::PlayoutInfo>
+VideoReceiveStream2::GetPlayoutRtpTimestamp() const {
   RTC_DCHECK_NOTREACHED();
-  return false;
+  return std::nullopt;
 }
 
-void VideoReceiveStream2::SetEstimatedPlayoutNtpTimestampMs(
-    int64_t ntp_timestamp_ms,
-    int64_t time_ms) {
+void VideoReceiveStream2::SetEstimatedPlayoutNtpTimestamp(NtpTime ntp_time,
+                                                          Timestamp time) {
   RTC_DCHECK_NOTREACHED();
 }
 
-bool VideoReceiveStream2::SetMinimumPlayoutDelay(int delay_ms) {
+bool VideoReceiveStream2::SetMinimumPlayoutDelay(TimeDelta delay) {
   RTC_DCHECK_RUN_ON(&worker_sequence_checker_);
-  syncable_minimum_playout_delay_ = TimeDelta::Millis(delay_ms);
+  syncable_minimum_playout_delay_ = delay;
   UpdatePlayoutDelays();
   return true;
 }
