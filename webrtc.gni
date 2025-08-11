@@ -323,6 +323,9 @@ declare_args() {
 
   # Enables an experimental rust version of base64 for building and testing.
   rtc_rusty_base64 = false
+
+  # Enables PSNR calculation for video getStats.
+  rtc_video_psnr = build_with_chromium
 }
 
 declare_args() {
