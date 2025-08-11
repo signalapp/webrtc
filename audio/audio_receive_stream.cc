@@ -278,29 +278,33 @@ AudioReceiveStreamInterface::Stats AudioReceiveStreamImpl::GetStats(
     stats.codec_payload_type = receive_codec->first;
   }
 
-  CallReceiveStatistics call_stats = channel_receive_->GetRTCPStatistics();
-  stats.payload_bytes_received = call_stats.payload_bytes_received;
+  ChannelReceiveStatistics channel_stats =
+      channel_receive_->GetRTCPStatistics();
+  stats.payload_bytes_received = channel_stats.payload_bytes_received;
   stats.header_and_padding_bytes_received =
-      call_stats.header_and_padding_bytes_received;
-  stats.packets_received = call_stats.packets_received;
-  stats.packets_received_with_ect1 = call_stats.packets_received_with_ect1;
-  stats.packets_received_with_ce = call_stats.packets_received_with_ce;
-  stats.packets_lost = call_stats.packets_lost;
-  stats.jitter_ms = call_stats.jitter_ms;
-  stats.nacks_sent = call_stats.nacks_sent;
-  stats.capture_start_ntp_time_ms = call_stats.capture_start_ntp_time_ms;
-  stats.last_packet_received = call_stats.last_packet_received;
-  stats.last_sender_report_timestamp = call_stats.last_sender_report_timestamp;
+      channel_stats.header_and_padding_bytes_received;
+  stats.packets_received = channel_stats.packets_received;
+  stats.packets_received_with_ect1 = channel_stats.packets_received_with_ect1;
+  stats.packets_received_with_ce = channel_stats.packets_received_with_ce;
+  stats.packets_lost = channel_stats.packets_lost;
+  stats.jitter_ms = channel_stats.jitter_ms;
+  stats.nacks_sent = channel_stats.nacks_sent;
+  stats.capture_start_ntp_time_ms = channel_stats.capture_start_ntp_time_ms;
+  stats.last_packet_received = channel_stats.last_packet_received;
+  stats.last_sender_report_timestamp =
+      channel_stats.last_sender_report_timestamp;
   stats.last_sender_report_utc_timestamp =
-      call_stats.last_sender_report_utc_timestamp;
+      channel_stats.last_sender_report_utc_timestamp;
   stats.last_sender_report_remote_utc_timestamp =
-      call_stats.last_sender_report_remote_utc_timestamp;
-  stats.sender_reports_packets_sent = call_stats.sender_reports_packets_sent;
-  stats.sender_reports_bytes_sent = call_stats.sender_reports_bytes_sent;
-  stats.sender_reports_reports_count = call_stats.sender_reports_reports_count;
-  stats.round_trip_time = call_stats.round_trip_time;
-  stats.round_trip_time_measurements = call_stats.round_trip_time_measurements;
-  stats.total_round_trip_time = call_stats.total_round_trip_time;
+      channel_stats.last_sender_report_remote_utc_timestamp;
+  stats.sender_reports_packets_sent = channel_stats.sender_reports_packets_sent;
+  stats.sender_reports_bytes_sent = channel_stats.sender_reports_bytes_sent;
+  stats.sender_reports_reports_count =
+      channel_stats.sender_reports_reports_count;
+  stats.round_trip_time = channel_stats.round_trip_time;
+  stats.round_trip_time_measurements =
+      channel_stats.round_trip_time_measurements;
+  stats.total_round_trip_time = channel_stats.total_round_trip_time;
 
   stats.delay_estimate_ms = channel_receive_->GetDelayEstimate();
   stats.audio_level = channel_receive_->GetSpeechOutputLevelFullRange();

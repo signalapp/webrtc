@@ -50,7 +50,7 @@ class ReceiveStatistics;
 class RtpPacketReceived;
 class RtpRtcp;
 
-struct CallReceiveStatistics {
+struct ChannelReceiveStatistics {
   int packets_lost = 0;
   uint32_t jitter_ms = 0;
   int64_t payload_bytes_received = 0;
@@ -145,7 +145,7 @@ class ChannelReceiveInterface : public RtpPacketSinkInterface {
       PacketRouter* packet_router) = 0;
   virtual void ResetReceiverCongestionControlObjects() = 0;
 
-  virtual CallReceiveStatistics GetRTCPStatistics() const = 0;
+  virtual ChannelReceiveStatistics GetRTCPStatistics() const = 0;
   virtual void SetNACKStatus(bool enable, int max_packets) = 0;
   virtual void SetRtcpMode(webrtc::RtcpMode mode) = 0;
   virtual void SetNonSenderRttMeasurement(bool enabled) = 0;

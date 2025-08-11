@@ -60,7 +60,10 @@ class MockChannelReceive : public voe::ChannelReceiveInterface {
               (PacketRouter*),
               (override));
   MOCK_METHOD(void, ResetReceiverCongestionControlObjects, (), (override));
-  MOCK_METHOD(CallReceiveStatistics, GetRTCPStatistics, (), (const, override));
+  MOCK_METHOD(ChannelReceiveStatistics,
+              GetRTCPStatistics,
+              (),
+              (const, override));
   MOCK_METHOD(NetworkStatistics,
               GetNetworkStatistics,
               (bool),
@@ -155,7 +158,7 @@ class MockChannelSend : public voe::ChannelSendInterface {
               (RtpTransportControllerSendInterface*),
               (override));
   MOCK_METHOD(void, ResetSenderCongestionControlObjects, (), (override));
-  MOCK_METHOD(CallSendStatistics, GetRTCPStatistics, (), (const, override));
+  MOCK_METHOD(ChannelSendStatistics, GetRTCPStatistics, (), (const, override));
   MOCK_METHOD(std::vector<ReportBlockData>,
               GetRemoteRTCPReportBlocks,
               (),

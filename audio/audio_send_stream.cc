@@ -434,19 +434,20 @@ webrtc::AudioSendStream::Stats AudioSendStream::GetStats(
   stats.local_ssrc = config_.rtp.ssrc;
   stats.target_bitrate_bps = channel_send_->GetTargetBitrate();
 
-  webrtc::CallSendStatistics call_stats = channel_send_->GetRTCPStatistics();
-  stats.payload_bytes_sent = call_stats.payload_bytes_sent;
+  webrtc::ChannelSendStatistics channel_stats =
+      channel_send_->GetRTCPStatistics();
+  stats.payload_bytes_sent = channel_stats.payload_bytes_sent;
   stats.header_and_padding_bytes_sent =
-      call_stats.header_and_padding_bytes_sent;
-  stats.retransmitted_bytes_sent = call_stats.retransmitted_bytes_sent;
-  stats.packets_sent = call_stats.packetsSent;
-  stats.packets_sent_with_ect1 = call_stats.packets_sent_with_ect1;
-  stats.total_packet_send_delay = call_stats.total_packet_send_delay;
-  stats.retransmitted_packets_sent = call_stats.retransmitted_packets_sent;
+      channel_stats.header_and_padding_bytes_sent;
+  stats.retransmitted_bytes_sent = channel_stats.retransmitted_bytes_sent;
+  stats.packets_sent = channel_stats.packets_sent;
+  stats.packets_sent_with_ect1 = channel_stats.packets_sent_with_ect1;
+  stats.total_packet_send_delay = channel_stats.total_packet_send_delay;
+  stats.retransmitted_packets_sent = channel_stats.retransmitted_packets_sent;
   // RTT isn't known until a RTCP report is received. Until then, VoiceEngine
   // returns 0 to indicate an error value.
-  if (call_stats.rttMs > 0) {
-    stats.rtt_ms = call_stats.rttMs;
+  if (channel_stats.round_trip_time.ms() > 0) {
+    stats.rtt_ms = channel_stats.round_trip_time.ms();
   }
   if (config_.send_codec_spec) {
     const auto& spec = *config_.send_codec_spec;
@@ -482,9 +483,9 @@ webrtc::AudioSendStream::Stats AudioSendStream::GetStats(
     stats.apm_statistics = ap->GetStatistics(has_remote_tracks);
   }
 
-  stats.report_block_datas = std::move(call_stats.report_block_datas);
+  stats.report_block_datas = std::move(channel_stats.report_block_datas);
 
-  stats.nacks_received = call_stats.nacks_received;
+  stats.nacks_received = channel_stats.nacks_received;
 
   return stats;
 }

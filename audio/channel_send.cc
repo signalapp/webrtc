@@ -187,7 +187,7 @@ class ChannelSend : public ChannelSendInterface,
   void ResetSenderCongestionControlObjects() override;
   void SetRTCP_CNAME(absl::string_view c_name) override;
   std::vector<ReportBlockData> GetRemoteRTCPReportBlocks() const override;
-  CallSendStatistics GetRTCPStatistics() const override;
+  ChannelSendStatistics GetRTCPStatistics() const override;
 
   // ProcessAndEncodeAudio() posts a task on the shared encoder task queue,
   // which in turn calls (on the queue) ProcessAndEncodeAudioOnTaskQueue() where
@@ -791,10 +791,10 @@ std::vector<ReportBlockData> ChannelSend::GetRemoteRTCPReportBlocks() const {
   return rtp_rtcp_->GetLatestReportBlockData();
 }
 
-CallSendStatistics ChannelSend::GetRTCPStatistics() const {
+ChannelSendStatistics ChannelSend::GetRTCPStatistics() const {
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);
-  CallSendStatistics stats = {0};
-  stats.rttMs = rtp_rtcp_->LastRtt().value_or(TimeDelta::Zero()).ms();
+  ChannelSendStatistics stats = {
+      .round_trip_time = rtp_rtcp_->LastRtt().value_or(TimeDelta::Zero())};
 
   StreamDataCounters rtp_stats;
   StreamDataCounters rtx_stats;
@@ -808,7 +808,7 @@ CallSendStatistics ChannelSend::GetRTCPStatistics() const {
   // TODO(https://crbug.com/webrtc/10555): RTX retransmissions should show up in
   // separate outbound-rtp stream objects.
   stats.retransmitted_bytes_sent = rtp_stats.retransmitted.payload_bytes;
-  stats.packetsSent =
+  stats.packets_sent =
       rtp_stats.transmitted.packets + rtx_stats.transmitted.packets;
   stats.packets_sent_with_ect1 = rtp_stats.transmitted.packets_with_ect1 +
                                  rtx_stats.transmitted.packets_with_ect1;

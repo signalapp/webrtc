@@ -186,7 +186,7 @@ class ChannelReceive : public ChannelReceiveInterface,
       PacketRouter* packet_router) override;
   void ResetReceiverCongestionControlObjects() override;
 
-  CallReceiveStatistics GetRTCPStatistics() const override;
+  ChannelReceiveStatistics GetRTCPStatistics() const override;
   void SetNACKStatus(bool enable, int max_packets) override;
   void SetRtcpMode(RtcpMode mode) override;
   void SetNonSenderRttMeasurement(bool enabled) override;
@@ -824,9 +824,9 @@ void ChannelReceive::ResetReceiverCongestionControlObjects() {
   packet_router_ = nullptr;
 }
 
-CallReceiveStatistics ChannelReceive::GetRTCPStatistics() const {
+ChannelReceiveStatistics ChannelReceive::GetRTCPStatistics() const {
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);
-  CallReceiveStatistics stats;
+  ChannelReceiveStatistics stats;
 
   // The jitter statistics is updated for each received RTP packet and is based
   // on received packets.
