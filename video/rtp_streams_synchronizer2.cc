@@ -125,8 +125,8 @@ void RtpStreamsSynchronizer::UpdateDelay() {
 
   int relative_delay_ms;
   // Calculate how much later or earlier the audio stream is compared to video.
-  if (!sync_->ComputeRelativeDelay(audio_measurement_, video_measurement_,
-                                   &relative_delay_ms)) {
+  if (!StreamSynchronization::ComputeRelativeDelay(
+          audio_measurement_, video_measurement_, &relative_delay_ms)) {
     return;
   }
 
