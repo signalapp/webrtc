@@ -51,7 +51,6 @@ class EncodedImageBufferWrapper : public EncodedImageBufferInterface {
       : buffer_(std::move(buffer)) {}
 
   const uint8_t* data() const override { return buffer_.data(); }
-  uint8_t* data() override { return buffer_.data(); }
   size_t size() const override { return buffer_.size(); }
 
  private:
