@@ -29,6 +29,10 @@ std::unique_ptr<IceCandidate> JavaToNativeCandidate(
 
 ScopedJavaLocalRef<jobject> NativeToJavaCandidate(JNIEnv* env,
                                                   const Candidate& candidate);
+ScopedJavaLocalRef<jobject> NativeToJavaIceCandidate(
+    JNIEnv* env,
+    absl::string_view mid,
+    const Candidate& candidate);
 
 ScopedJavaLocalRef<jobject> NativeToJavaIceCandidate(
     JNIEnv* env,

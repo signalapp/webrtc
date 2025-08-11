@@ -1302,6 +1302,7 @@ void JsepTransportController::OnTransportCandidatesRemoved_n(
 }
 void JsepTransportController::OnTransportCandidatePairChanged_n(
     const CandidatePairChangeEvent& event) {
+  RTC_DCHECK(!event.transport_name.empty());
   signal_ice_candidate_pair_changed_.Send(event);
 }
 

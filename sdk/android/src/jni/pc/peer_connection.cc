@@ -131,8 +131,11 @@ ScopedJavaLocalRef<jobject> NativeToJavaCandidatePairChange(
     const CandidatePairChangeEvent& event) {
   const auto& selected_pair = event.selected_candidate_pair;
   return Java_CandidatePairChangeEvent_Constructor(
-      env, NativeToJavaCandidate(env, selected_pair.local_candidate()),
-      NativeToJavaCandidate(env, selected_pair.remote_candidate()),
+      env,
+      NativeToJavaIceCandidate(env, event.transport_name,
+                               selected_pair.local_candidate()),
+      NativeToJavaIceCandidate(env, event.transport_name,
+                               selected_pair.remote_candidate()),
       static_cast<int>(event.last_data_received_ms),
       NativeToJavaString(env, event.reason),
       static_cast<int>(event.estimated_disconnected_time_ms));

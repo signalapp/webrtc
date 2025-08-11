@@ -211,6 +211,11 @@ ScopedJavaLocalRef<jstring> NativeToJavaString(JNIEnv* jni,
   return NativeToJavaString(jni, str.c_str());
 }
 
+ScopedJavaLocalRef<jstring> NativeToJavaString(JNIEnv* jni,
+                                               absl::string_view str) {
+  return NativeToJavaString(jni, str.data());
+}
+
 ScopedJavaLocalRef<jobject> NativeToJavaDouble(
     JNIEnv* jni,
     const std::optional<double>& optional_double) {

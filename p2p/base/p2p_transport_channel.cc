@@ -1879,23 +1879,17 @@ void P2PTransportChannel::SwitchSelectedConnectionInternal(
   SignalNetworkRouteChanged(network_route_);
 
   // Create event for candidate pair change.
-  if (selected_connection_) {
-    CandidatePairChangeEvent pair_change;
-    pair_change.reason = IceSwitchReasonToString(reason);
-    pair_change.selected_candidate_pair = *GetSelectedCandidatePair();
-    pair_change.last_data_received_ms =
-        selected_connection_->last_data_received();
-
-    if (old_selected_connection) {
-      pair_change.estimated_disconnected_time_ms =
-          ComputeEstimatedDisconnectedTimeMs(TimeMillis(),
-                                             old_selected_connection);
-    } else {
-      pair_change.estimated_disconnected_time_ms = 0;
-    }
-    if (candidate_pair_change_callback_) {
-      candidate_pair_change_callback_(pair_change);
-    }
+  if (selected_connection_ && candidate_pair_change_callback_) {
+    CandidatePairChangeEvent pair_change = {
+        .transport_name = transport_name(),
+        .selected_candidate_pair = *GetSelectedCandidatePair(),
+        .last_data_received_ms = selected_connection_->last_data_received(),
+        .reason = IceSwitchReasonToString(reason),
+        .estimated_disconnected_time_ms =
+            old_selected_connection ? ComputeEstimatedDisconnectedTimeMs(
+                                          TimeMillis(), old_selected_connection)
+                                    : 0};
+    candidate_pair_change_callback_(pair_change);
   }
 
   ++selected_candidate_pair_changes_;

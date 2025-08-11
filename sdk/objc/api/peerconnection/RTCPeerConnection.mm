@@ -391,16 +391,12 @@ void PeerConnectionDelegateAdapter::OnIceSelectedCandidatePairChanged(
   }
   const auto &selected_pair = event.selected_candidate_pair;
   IceCandidate local_candidate_wrapper(
-      selected_pair.local_candidate().transport_name(),
-      -1,
-      selected_pair.local_candidate());
+      event.transport_name, -1, selected_pair.local_candidate());
   RTC_OBJC_TYPE(RTCIceCandidate) *local_candidate =
       [[RTC_OBJC_TYPE(RTCIceCandidate) alloc]
           initWithNativeCandidate:&local_candidate_wrapper];
   IceCandidate remote_candidate_wrapper(
-      selected_pair.remote_candidate().transport_name(),
-      -1,
-      selected_pair.remote_candidate());
+      event.transport_name, -1, selected_pair.remote_candidate());
   RTC_OBJC_TYPE(RTCIceCandidate) *remote_candidate =
       [[RTC_OBJC_TYPE(RTCIceCandidate) alloc]
           initWithNativeCandidate:&remote_candidate_wrapper];

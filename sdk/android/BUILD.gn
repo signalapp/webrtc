@@ -866,6 +866,7 @@ if (current_os == "linux" || is_android) {
       "../../stats:rtc_stats",
       "../../system_wrappers:field_trial",
       "//third_party/abseil-cpp/absl/memory",
+      "//third_party/abseil-cpp/absl/strings:string_view",
       "//third_party/jni_zero",
     ]
   }
@@ -1018,6 +1019,7 @@ if (current_os == "linux" || is_android) {
       "../../api:array_view",
       "../../api:sequence_checker",
       "../../rtc_base:checks",
+      "//third_party/abseil-cpp/absl/strings:string_view",
       "//third_party/jni_zero",
     ]
   }

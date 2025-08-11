@@ -3727,6 +3727,7 @@ class P2PTransportChannelPingTest : public ::testing::Test,
     channel_state_ = channel->GetState();
   }
   void OnCandidatePairChanged(const CandidatePairChangeEvent& event) {
+    RTC_DCHECK(!event.transport_name.empty());
     last_candidate_change_event_ = event;
   }
 
