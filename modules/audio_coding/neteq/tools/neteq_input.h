@@ -17,7 +17,6 @@
 #include <optional>
 #include <string>
 
-#include "api/rtp_headers.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 
 namespace webrtc {
@@ -74,7 +73,7 @@ class NetEqInput {
 
   // Returns the next packet to be inserted into NetEq. The packet following the
   // returned one is pre-fetched in the NetEqInput object, such that future
-  // calls to NextPacketTime() or NextHeader() will return information from that
+  // calls to NextPacketTime() or NextPacket() will return information from that
   // packet.
   virtual std::unique_ptr<RtpPacketReceived> PopPacket() = 0;
 
@@ -92,9 +91,9 @@ class NetEqInput {
   // infinite loop.
   virtual bool ended() const = 0;
 
-  // Returns the RTP header for the next packet, i.e., the packet that will be
-  // delivered next by PopPacket().
-  virtual std::optional<RTPHeader> NextHeader() const = 0;
+  // Returns the next RTP packet, i.e., the packet that will be delivered next
+  // by PopPacket().
+  virtual const RtpPacketReceived* NextPacket() const = 0;
 };
 
 // Wrapper class to impose a time limit on a NetEqInput object, typically
@@ -111,7 +110,7 @@ class TimeLimitedNetEqInput : public NetEqInput {
   void AdvanceOutputEvent() override;
   void AdvanceSetMinimumDelay() override;
   bool ended() const override;
-  std::optional<RTPHeader> NextHeader() const override;
+  const RtpPacketReceived* NextPacket() const override;
 
  private:
   void MaybeSetEnded();

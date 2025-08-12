@@ -16,7 +16,6 @@
 #include <string>
 #include <utility>
 
-#include "api/rtp_headers.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "rtc_base/strings/string_builder.h"
 
@@ -95,8 +94,8 @@ bool TimeLimitedNetEqInput::ended() const {
   return ended_ || input_->ended();
 }
 
-std::optional<RTPHeader> TimeLimitedNetEqInput::NextHeader() const {
-  return ended_ ? std::nullopt : input_->NextHeader();
+const RtpPacketReceived* TimeLimitedNetEqInput::NextPacket() const {
+  return ended_ ? nullptr : input_->NextPacket();
 }
 
 void TimeLimitedNetEqInput::MaybeSetEnded() {

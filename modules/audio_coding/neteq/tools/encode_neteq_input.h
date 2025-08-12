@@ -18,7 +18,6 @@
 
 #include "api/array_view.h"
 #include "api/audio_codecs/audio_encoder.h"
-#include "api/rtp_headers.h"
 #include "modules/audio_coding/neteq/tools/neteq_input.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 
@@ -59,7 +58,7 @@ class EncodeNetEqInput : public NetEqInput {
 
   bool ended() const override;
 
-  std::optional<RTPHeader> NextHeader() const override;
+  const RtpPacketReceived* NextPacket() const override;
 
  private:
   static constexpr int64_t kOutputPeriodMs = 10;

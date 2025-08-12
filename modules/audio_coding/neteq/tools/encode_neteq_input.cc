@@ -17,7 +17,6 @@
 #include <utility>
 
 #include "api/audio_codecs/audio_encoder.h"
-#include "api/rtp_headers.h"
 #include "api/units/timestamp.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "rtc_base/buffer.h"
@@ -65,11 +64,9 @@ bool EncodeNetEqInput::ended() const {
   return next_output_event_ms_ > input_duration_ms_;
 }
 
-std::optional<RTPHeader> EncodeNetEqInput::NextHeader() const {
+const RtpPacketReceived* EncodeNetEqInput::NextPacket() const {
   RTC_DCHECK(packet_data_);
-  std::optional<RTPHeader> rtp_header(std::in_place);
-  packet_data_->GetHeader(&*rtp_header);
-  return rtp_header;
+  return packet_data_.get();
 }
 
 void EncodeNetEqInput::CreatePacket() {

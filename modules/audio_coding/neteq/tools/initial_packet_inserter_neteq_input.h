@@ -15,7 +15,6 @@
 #include <memory>
 #include <optional>
 
-#include "api/rtp_headers.h"
 #include "modules/audio_coding/neteq/tools/neteq_input.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 
@@ -36,7 +35,7 @@ class InitialPacketInserterNetEqInput final : public NetEqInput {
   void AdvanceOutputEvent() override;
   void AdvanceSetMinimumDelay() override;
   bool ended() const override;
-  std::optional<RTPHeader> NextHeader() const override;
+  const RtpPacketReceived* NextPacket() const override;
 
  private:
   const std::unique_ptr<NetEqInput> source_;

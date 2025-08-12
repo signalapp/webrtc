@@ -22,7 +22,6 @@
 #include "api/audio_codecs/audio_format.h"
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
 #include "api/neteq/neteq.h"
-#include "api/rtp_headers.h"
 #include "modules/audio_coding/codecs/pcm16b/audio_encoder_pcm16b.h"
 #include "modules/audio_coding/neteq/tools/audio_checksum.h"
 #include "modules/audio_coding/neteq/tools/encode_neteq_input.h"
@@ -108,11 +107,9 @@ class FuzzRtpInput : public NetEqInput {
 
   bool ended() const override { return ended_; }
 
-  std::optional<RTPHeader> NextHeader() const override {
+  const RtpPacketReceived* NextPacket() const override {
     RTC_DCHECK(packet_);
-    std::optional<RTPHeader> rtp_header(std::in_place);
-    packet_->GetHeader(&*rtp_header);
-    return rtp_header;
+    return packet_.get();
   }
 
  private:

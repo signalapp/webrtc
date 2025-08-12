@@ -17,7 +17,6 @@
 #include <utility>
 
 #include "absl/strings/string_view.h"
-#include "api/rtp_headers.h"
 #include "modules/audio_coding/neteq/tools/neteq_input.h"
 #include "modules/audio_coding/neteq/tools/rtp_file_source.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
@@ -70,14 +69,7 @@ class NetEqRtpDumpInput : public NetEqInput {
     return std::exchange(packet_, source_->NextPacket());
   }
 
-  std::optional<RTPHeader> NextHeader() const override {
-    if (packet_ == nullptr) {
-      return std::nullopt;
-    }
-    RTPHeader rtp_header;
-    packet_->GetHeader(&rtp_header);
-    return rtp_header;
-  }
+  const RtpPacketReceived* NextPacket() const override { return packet_.get(); }
 
   bool ended() const override { return !next_output_event_ms_; }
 

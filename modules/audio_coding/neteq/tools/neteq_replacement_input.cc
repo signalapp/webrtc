@@ -17,7 +17,6 @@
 #include <set>
 #include <utility>
 
-#include "api/rtp_headers.h"
 #include "modules/audio_coding/neteq/tools/fake_decode_from_file.h"
 #include "modules/audio_coding/neteq/tools/neteq_input.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
@@ -80,8 +79,8 @@ bool NetEqReplacementInput::ended() const {
   return source_->ended();
 }
 
-std::optional<RTPHeader> NetEqReplacementInput::NextHeader() const {
-  return source_->NextHeader();
+const RtpPacketReceived* NetEqReplacementInput::NextPacket() const {
+  return source_->NextPacket();
 }
 
 void NetEqReplacementInput::ReplacePacket() {
@@ -106,17 +105,18 @@ void NetEqReplacementInput::ReplacePacket() {
     return;
   }
 
-  std::optional<RTPHeader> next_hdr = source_->NextHeader();
-  RTC_DCHECK(next_hdr);
+  const RtpPacketReceived* next_packet = source_->NextPacket();
+  RTC_DCHECK(next_packet);
   uint8_t payload[12];
   constexpr uint32_t kMaxFrameSize = 120 * 48;
-  const uint32_t timestamp_diff = next_hdr->timestamp - packet_->Timestamp();
+  const uint32_t timestamp_diff =
+      next_packet->Timestamp() - packet_->Timestamp();
   uint32_t frame_size = last_frame_size_timestamps_;
   if (timestamp_diff > 0) {
     frame_size = std::min(frame_size, timestamp_diff);
   }
   const bool opus_dtx = packet_->payload_size() <= 2;
-  if (next_hdr->sequenceNumber == packet_->SequenceNumber() + 1 &&
+  if (next_packet->SequenceNumber() == packet_->SequenceNumber() + 1 &&
       timestamp_diff <= kMaxFrameSize && timestamp_diff > 0 && !opus_dtx) {
     // Packets are in order and the timestamp diff is valid.
     frame_size = timestamp_diff;

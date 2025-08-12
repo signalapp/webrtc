@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <utility>
 #include <vector>
 
 #include "api/array_view.h"
@@ -45,6 +46,8 @@ class NetEqEventLogInput : public NetEqInput {
         neteq_set_minimum_delay_events_it_(
             neteq_set_minimum_delay_events_.begin()),
         end_time_ms_(end_time_ms) {
+    next_packet_ = CreateNextPacket();
+
     // Ignore all output events before the first packet.
     while (output_events_it_ != output_events_.end() &&
            output_events_it_->log_time_ms() <
@@ -91,24 +94,8 @@ class NetEqEventLogInput : public NetEqInput {
     if (packet_stream_it_ == packet_stream_.end()) {
       return nullptr;
     }
-    const LoggedRtpPacket& logged = packet_stream_it_->rtp;
-    auto packet_data = std::make_unique<RtpPacketReceived>();
-    packet_data->SetPayloadType(logged.header.payloadType);
-    packet_data->SetMarker(logged.header.markerBit);
-    packet_data->SetSequenceNumber(logged.header.sequenceNumber);
-    packet_data->SetTimestamp(logged.header.timestamp);
-    packet_data->SetSsrc(logged.header.ssrc);
-    packet_data->SetCsrcs(
-        MakeArrayView(logged.header.arrOfCSRCs, logged.header.numCSRCs));
-    packet_data->set_arrival_time(logged.log_time());
-
-    // This is a header-only "dummy" packet. Set the payload to all zeros, with
-    // length according to the virtual length.
-    size_t payload_size = logged.total_length - logged.header_length;
-    std::fill_n(packet_data->AllocatePayload(payload_size), payload_size, 0);
-
     ++packet_stream_it_;
-    return packet_data;
+    return std::exchange(next_packet_, CreateNextPacket());
   }
 
   void AdvanceOutputEvent() override {
@@ -126,16 +113,37 @@ class NetEqEventLogInput : public NetEqInput {
 
   bool ended() const override { return !NextEventTime(); }
 
-  std::optional<RTPHeader> NextHeader() const override {
-    if (packet_stream_it_ == packet_stream_.end()) {
-      return std::nullopt;
-    }
-    return packet_stream_it_->rtp.header;
+  const RtpPacketReceived* NextPacket() const override {
+    return next_packet_.get();
   }
 
  private:
+  std::unique_ptr<RtpPacketReceived> CreateNextPacket() {
+    if (packet_stream_it_ == packet_stream_.end()) {
+      return nullptr;
+    }
+    const LoggedRtpPacket& logged = packet_stream_it_->rtp;
+    auto packet_data = std::make_unique<RtpPacketReceived>();
+    packet_data->SetPayloadType(logged.header.payloadType);
+    packet_data->SetMarker(logged.header.markerBit);
+    packet_data->SetSequenceNumber(logged.header.sequenceNumber);
+    packet_data->SetTimestamp(logged.header.timestamp);
+    packet_data->SetSsrc(logged.header.ssrc);
+    packet_data->SetCsrcs(
+        MakeArrayView(logged.header.arrOfCSRCs, logged.header.numCSRCs));
+    packet_data->set_arrival_time(logged.log_time());
+
+    // This is a header-only "dummy" packet. Set the payload to all zeros, with
+    // length according to the virtual length.
+    size_t payload_size = logged.total_length - logged.header_length;
+    std::fill_n(packet_data->AllocatePayload(payload_size), payload_size, 0);
+
+    return packet_data;
+  }
+
   const std::vector<LoggedRtpPacketIncoming> packet_stream_;
   std::vector<LoggedRtpPacketIncoming>::const_iterator packet_stream_it_;
+  std::unique_ptr<RtpPacketReceived> next_packet_;
   const std::vector<LoggedAudioPlayoutEvent> output_events_;
   std::vector<LoggedAudioPlayoutEvent>::const_iterator output_events_it_;
   const std::vector<LoggedNetEqSetMinimumDelayEvent>

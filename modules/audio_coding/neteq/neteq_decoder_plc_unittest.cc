@@ -23,7 +23,6 @@
 #include "api/audio_codecs/audio_format.h"
 #include "api/make_ref_counted.h"
 #include "api/neteq/neteq.h"
-#include "api/rtp_headers.h"
 #include "modules/audio_coding/codecs/pcm16b/audio_encoder_pcm16b.h"
 #include "modules/audio_coding/neteq/tools/audio_checksum.h"
 #include "modules/audio_coding/neteq/tools/encode_neteq_input.h"
@@ -162,8 +161,8 @@ class LossyInput : public NetEqInput {
 
   bool ended() const override { return input_->ended(); }
 
-  std::optional<RTPHeader> NextHeader() const override {
-    return input_->NextHeader();
+  const RtpPacketReceived* NextPacket() const override {
+    return input_->NextPacket();
   }
 
  private:

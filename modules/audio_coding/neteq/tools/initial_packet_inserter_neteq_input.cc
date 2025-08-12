@@ -15,7 +15,6 @@
 #include <optional>
 #include <utility>
 
-#include "api/rtp_headers.h"
 #include "modules/audio_coding/neteq/tools/neteq_input.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "rtc_base/checks.h"
@@ -81,8 +80,8 @@ bool InitialPacketInserterNetEqInput::ended() const {
   return source_->ended();
 }
 
-std::optional<RTPHeader> InitialPacketInserterNetEqInput::NextHeader() const {
-  return source_->NextHeader();
+const RtpPacketReceived* InitialPacketInserterNetEqInput::NextPacket() const {
+  return source_->NextPacket();
 }
 
 }  // namespace test
