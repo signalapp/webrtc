@@ -119,7 +119,6 @@ Blocker::Blocker(size_t chunk_size,
   RTC_CHECK_LE(num_output_channels_, num_input_channels_);
   RTC_CHECK_LE(shift_amount_, block_size_);
 
-  // NOLINTNEXTLINE(readability-redundant-smartptr-get)
   memcpy(window_.get(), window, block_size_ * sizeof(*window_.get()));
   input_buffer_.MoveReadPositionBackward(initial_delay_);
 }

@@ -163,17 +163,12 @@ SincResampler::SincResampler(double io_sample_rate_ratio,
   Flush();
   RTC_DCHECK_GT(block_size_, kKernelSize);
 
-  // NOLINTBEGIN (readability-redundant-smartptr-get)
-  // clang-tidy tries to remove the .get() in calls to sizeof(). This will
-  // not compile.
-  // Bug report ID: 437035885
   memset(kernel_storage_.get(), 0,
          sizeof(*kernel_storage_.get()) * kKernelStorageSize);
   memset(kernel_pre_sinc_storage_.get(), 0,
          sizeof(*kernel_pre_sinc_storage_.get()) * kKernelStorageSize);
   memset(kernel_window_storage_.get(), 0,
          sizeof(*kernel_window_storage_.get()) * kKernelStorageSize);
-  // NOLINTEND
 
   InitializeKernel();
 }
@@ -324,7 +319,6 @@ void SincResampler::Resample(size_t frames, float* destination) {
 
     // Step (3) -- Copy r3_, r4_ to r1_, r2_.
     // This wraps the last input frames back to the start of the buffer.
-    // NOLINTNEXTLINE(readability-redundant-smartptr-get)
     memcpy(r1_, r3_, sizeof(*input_buffer_.get()) * kKernelSize);
 
     // Step (4) -- Reinitialize regions if necessary.
@@ -345,7 +339,6 @@ size_t SincResampler::ChunkSize() const {
 void SincResampler::Flush() {
   virtual_source_idx_ = 0;
   buffer_primed_ = false;
-  // NOLINTNEXTLINE(readability-redundant-smartptr-get)
   memset(input_buffer_.get(), 0,
          sizeof(*input_buffer_.get()) * input_buffer_size_);
   UpdateRegions(false);
