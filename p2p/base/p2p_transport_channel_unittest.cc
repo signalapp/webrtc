@@ -18,6 +18,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -30,7 +31,6 @@
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
 #include "api/ice_transport_interface.h"
-#include "api/local_network_access_permission.h"
 #include "api/packet_socket_factory.h"
 #include "api/scoped_refptr.h"
 #include "api/task_queue/pending_task_safety_flag.h"
@@ -119,6 +119,7 @@ using ::testing::SetArgPointee;
 using ::testing::SizeIs;
 using ::testing::Values;
 using ::testing::WithParamInterface;
+using LnaFakeResult = FakeLocalNetworkAccessPermissionFactory::Result;
 
 // Default timeout for tests in this file.
 // Should be large enough for slow buildbots to run the tests reliably.
@@ -6798,63 +6799,27 @@ TEST_F(P2PTransportChannelTest, EnableDnsLookupsWithTransportPolicyNoHost) {
   DestroyChannels();
 }
 
-struct LocalAreaNetworkPermissionTestConfig {
-  template <typename Sink>
-  friend void AbslStringify(
-      Sink& sink,
-      const LocalAreaNetworkPermissionTestConfig& config) {
-    sink.Append(config.address);
-    sink.Append("_");
-    switch (config.lna_permission_status) {
-      case LocalNetworkAccessPermissionStatus::kDenied:
-        sink.Append("Denied");
-        break;
-      case LocalNetworkAccessPermissionStatus::kGranted:
-        sink.Append("Granted");
-        break;
-    }
-  }
-
-  LocalNetworkAccessPermissionStatus lna_permission_status;
-  absl::string_view address;
-  bool candidate_added;
-} kAllLocalAreNetworkPermissionTestConfigs[] = {
-    {LocalNetworkAccessPermissionStatus::kDenied, "127.0.0.1",
-     /*candidate_added=*/false},
-    {LocalNetworkAccessPermissionStatus::kDenied, "10.0.0.3",
-     /*candidate_added=*/false},
-    {LocalNetworkAccessPermissionStatus::kDenied, "1.1.1.1",
-     /*candidate_added=*/true},
-    {LocalNetworkAccessPermissionStatus::kDenied, "::1",
-     /*candidate_added=*/false},
-    {LocalNetworkAccessPermissionStatus::kDenied, "fd00:4860:4860::8844",
-     /*candidate_added=*/false},
-    {LocalNetworkAccessPermissionStatus::kDenied, "2001:4860:4860::8888",
-     /*candidate_added=*/true},
-    {LocalNetworkAccessPermissionStatus::kGranted, "127.0.0.1",
-     /*candidate_added=*/true},
-    {LocalNetworkAccessPermissionStatus::kGranted, "10.0.0.3",
-     /*candidate_added=*/true},
-    {LocalNetworkAccessPermissionStatus::kGranted, "1.1.1.1",
-     /*candidate_added=*/true},
-    {LocalNetworkAccessPermissionStatus::kGranted, "::1",
-     /*candidate_added=*/true},
-    {LocalNetworkAccessPermissionStatus::kGranted, "fd00:4860:4860::8844",
-     /*candidate_added=*/true},
-    {LocalNetworkAccessPermissionStatus::kGranted, "2001:4860:4860::8888",
-     /*candidate_added=*/true},
+constexpr absl::string_view kTestAddresses[] = {
+    "127.0.0.1",
+    "10.0.0.3",
+    "1.1.1.1",
+    "::1",
+    "fd00:4860:4860::8844",
+    "2001:4860:4860::8888",
 };
 
-class LocalAreaNetworkPermissionTest
+class LocalNetworkAccessPermissionTest
     : public P2PTransportChannelPingTest,
       public ::testing::WithParamInterface<
-          LocalAreaNetworkPermissionTestConfig> {};
+          std::tuple<absl::string_view, LnaFakeResult>> {};
 
-TEST_P(LocalAreaNetworkPermissionTest, LiteralAddresses) {
+TEST_P(LocalNetworkAccessPermissionTest, LiteralAddresses) {
+  const auto [address, lna_fake_result] = GetParam();
+
   const Environment env = CreateEnvironment();
   FakePortAllocator pa(env, ss());
   FakeLocalNetworkAccessPermissionFactory lna_permission_factory(
-      GetParam().lna_permission_status);
+      lna_fake_result);
 
   IceTransportInit init;
   init.set_port_allocator(&pa);
@@ -6866,27 +6831,30 @@ TEST_P(LocalAreaNetworkPermissionTest, LiteralAddresses) {
   ch->MaybeStartGathering();
 
   ch->AddRemoteCandidate(
-      CreateUdpCandidate(IceCandidateType::kHost, GetParam().address, 5000, 1));
+      CreateUdpCandidate(IceCandidateType::kHost, address, 5000, 1));
 
   ASSERT_THAT(
       WaitUntil([&] { return ch->PermissionQueriesOutstandingForTesting(); },
                 Eq(0)),
       IsRtcOk());
-  if (GetParam().candidate_added) {
+  if (lna_fake_result == LnaFakeResult::kPermissionNotNeeded ||
+      lna_fake_result == LnaFakeResult::kPermissionGranted) {
     EXPECT_EQ(1u, ch->remote_candidates().size());
   } else {
     EXPECT_EQ(0u, ch->remote_candidates().size());
   }
 }
 
-TEST_P(LocalAreaNetworkPermissionTest, UnresolvedAddresses) {
+TEST_P(LocalNetworkAccessPermissionTest, UnresolvedAddresses) {
+  const auto [address, lna_fake_result] = GetParam();
+
   const Environment env = CreateEnvironment();
   FakePortAllocator pa(env, ss());
   FakeLocalNetworkAccessPermissionFactory lna_permission_factory(
-      GetParam().lna_permission_status);
+      lna_fake_result);
 
   ResolverFactoryFixture resolver_fixture;
-  resolver_fixture.SetAddressToReturn({GetParam().address, 5000});
+  resolver_fixture.SetAddressToReturn({address, 5000});
 
   IceTransportInit init;
   init.set_port_allocator(&pa);
@@ -6905,7 +6873,8 @@ TEST_P(LocalAreaNetworkPermissionTest, UnresolvedAddresses) {
       WaitUntil([&] { return ch->PermissionQueriesOutstandingForTesting(); },
                 Eq(0)),
       IsRtcOk());
-  if (GetParam().candidate_added) {
+  if (lna_fake_result == LnaFakeResult::kPermissionNotNeeded ||
+      lna_fake_result == LnaFakeResult::kPermissionGranted) {
     EXPECT_EQ(1u, ch->remote_candidates().size());
   } else {
     EXPECT_EQ(0u, ch->remote_candidates().size());
@@ -6914,8 +6883,11 @@ TEST_P(LocalAreaNetworkPermissionTest, UnresolvedAddresses) {
 
 INSTANTIATE_TEST_SUITE_P(
     All,
-    LocalAreaNetworkPermissionTest,
-    ::testing::ValuesIn(kAllLocalAreNetworkPermissionTestConfigs));
+    LocalNetworkAccessPermissionTest,
+    ::testing::Combine(::testing::ValuesIn(kTestAddresses),
+                       ::testing::Values(LnaFakeResult::kPermissionNotNeeded,
+                                         LnaFakeResult::kPermissionGranted,
+                                         LnaFakeResult::kPermissionDenied)));
 
 class GatherAfterConnectedTest : public P2PTransportChannelTest,
                                  public WithParamInterface<bool> {};

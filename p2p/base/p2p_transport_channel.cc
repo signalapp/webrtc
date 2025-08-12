@@ -1315,17 +1315,16 @@ void P2PTransportChannel::CheckLocalNetworkAccessPermission(
     return;
   }
 
-  if (!candidate.address().IsPrivateIP() &&
-      !candidate.address().IsLoopbackIP()) {
-    RTC_LOG(LS_VERBOSE) << "Skipping LNA permission check for public IP "
+  std::unique_ptr<LocalNetworkAccessPermissionInterface> permission_query =
+      lna_permission_factory_->Create();
+  if (!permission_query->ShouldRequestPermission(candidate.address())) {
+    RTC_LOG(LS_VERBOSE) << "No need to request permission for candidate: "
                         << candidate.address().ipaddr().ToSensitiveString()
                         << ".";
     FinishAddingRemoteCandidate(candidate);
     return;
   }
 
-  std::unique_ptr<LocalNetworkAccessPermissionInterface> permission_query =
-      lna_permission_factory_->Create();
   auto permission_query_ptr = permission_query.get();
   permission_queries_.emplace_back(candidate, std::move(permission_query));
 
