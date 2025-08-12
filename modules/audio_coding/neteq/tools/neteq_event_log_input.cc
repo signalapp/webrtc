@@ -11,17 +11,20 @@
 #include "modules/audio_coding/neteq/tools/neteq_event_log_input.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <optional>
 #include <vector>
 
+#include "api/array_view.h"
 #include "api/rtp_headers.h"
 #include "logging/rtc_event_log/events/logged_rtp_rtcp.h"
 #include "logging/rtc_event_log/events/rtc_event_audio_playout.h"
 #include "logging/rtc_event_log/events/rtc_event_neteq_set_minimum_delay.h"
 #include "logging/rtc_event_log/rtc_event_log_parser.h"
 #include "modules/audio_coding/neteq/tools/neteq_input.h"
+#include "modules/rtp_rtcp/source/rtp_packet_received.h"
 
 namespace webrtc {
 namespace test {
@@ -84,19 +87,25 @@ class NetEqEventLogInput : public NetEqInput {
         neteq_set_minimum_delay_events_it_->minimum_delay_ms);
   }
 
-  std::unique_ptr<PacketData> PopPacket() override {
+  std::unique_ptr<RtpPacketReceived> PopPacket() override {
     if (packet_stream_it_ == packet_stream_.end()) {
       return nullptr;
     }
-    auto packet_data = std::make_unique<PacketData>();
-    packet_data->header = packet_stream_it_->rtp.header;
-    packet_data->time_ms = packet_stream_it_->rtp.log_time_ms();
+    const LoggedRtpPacket& logged = packet_stream_it_->rtp;
+    auto packet_data = std::make_unique<RtpPacketReceived>();
+    packet_data->SetPayloadType(logged.header.payloadType);
+    packet_data->SetMarker(logged.header.markerBit);
+    packet_data->SetSequenceNumber(logged.header.sequenceNumber);
+    packet_data->SetTimestamp(logged.header.timestamp);
+    packet_data->SetSsrc(logged.header.ssrc);
+    packet_data->SetCsrcs(
+        MakeArrayView(logged.header.arrOfCSRCs, logged.header.numCSRCs));
+    packet_data->set_arrival_time(logged.log_time());
 
     // This is a header-only "dummy" packet. Set the payload to all zeros, with
     // length according to the virtual length.
-    packet_data->payload.SetSize(packet_stream_it_->rtp.total_length -
-                                 packet_stream_it_->rtp.header_length);
-    std::fill_n(packet_data->payload.data(), packet_data->payload.size(), 0);
+    size_t payload_size = logged.total_length - logged.header_length;
+    std::fill_n(packet_data->AllocatePayload(payload_size), payload_size, 0);
 
     ++packet_stream_it_;
     return packet_data;

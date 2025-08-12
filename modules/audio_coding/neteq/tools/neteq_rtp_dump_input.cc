@@ -14,6 +14,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <utility>
 
 #include "absl/strings/string_view.h"
 #include "api/rtp_headers.h"
@@ -36,7 +37,7 @@ class NetEqRtpDumpInput : public NetEqInput {
     for (const auto& ext_pair : hdr_ext_map) {
       source_->RegisterRtpHeaderExtension(ext_pair.second, ext_pair.first);
     }
-    LoadNextPacket();
+    packet_ = source_->NextPacket();
   }
 
   std::optional<int64_t> NextOutputEventTime() const override {
@@ -62,18 +63,11 @@ class NetEqRtpDumpInput : public NetEqInput {
     return packet_ ? std::optional(packet_->arrival_time().ms()) : std::nullopt;
   }
 
-  std::unique_ptr<PacketData> PopPacket() override {
+  std::unique_ptr<RtpPacketReceived> PopPacket() override {
     if (!packet_) {
-      return std::unique_ptr<PacketData>();
+      return nullptr;
     }
-    auto packet_data = std::make_unique<PacketData>();
-    packet_->GetHeader(&packet_data->header);
-    packet_data->payload.SetData(packet_->payload());
-    packet_data->time_ms = packet_->arrival_time().ms();
-
-    LoadNextPacket();
-
-    return packet_data;
+    return std::exchange(packet_, source_->NextPacket());
   }
 
   std::optional<RTPHeader> NextHeader() const override {
@@ -88,8 +82,6 @@ class NetEqRtpDumpInput : public NetEqInput {
   bool ended() const override { return !next_output_event_ms_; }
 
  private:
-  void LoadNextPacket() { packet_ = source_->NextPacket(); }
-
   std::optional<int64_t> next_output_event_ms_ = 0;
   static constexpr int64_t kOutputPeriodMs = 10;
 

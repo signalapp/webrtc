@@ -8,7 +8,6 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -30,6 +29,7 @@
 #include "modules/audio_coding/neteq/tools/neteq_input.h"
 #include "modules/audio_coding/neteq/tools/neteq_test.h"
 #include "modules/rtp_rtcp/source/byte_io.h"
+#include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "rtc_base/checks.h"
 
 namespace webrtc {
@@ -80,7 +80,7 @@ class FuzzRtpInput : public NetEqInput {
   }
 
   std::optional<int64_t> NextPacketTime() const override {
-    return packet_->time_ms;
+    return packet_->arrival_time().ms();
   }
 
   std::optional<int64_t> NextOutputEventTime() const override {
@@ -91,9 +91,9 @@ class FuzzRtpInput : public NetEqInput {
     return input_->NextSetMinimumDelayInfo();
   }
 
-  std::unique_ptr<PacketData> PopPacket() override {
+  std::unique_ptr<RtpPacketReceived> PopPacket() override {
     RTC_DCHECK(packet_);
-    std::unique_ptr<PacketData> packet_to_return = std::move(packet_);
+    std::unique_ptr<RtpPacketReceived> packet_to_return = std::move(packet_);
     packet_ = input_->PopPacket();
     FuzzHeader();
     MaybeFuzzPayload();
@@ -110,7 +110,9 @@ class FuzzRtpInput : public NetEqInput {
 
   std::optional<RTPHeader> NextHeader() const override {
     RTC_DCHECK(packet_);
-    return packet_->header;
+    std::optional<RTPHeader> rtp_header(std::in_place);
+    packet_->GetHeader(&*rtp_header);
+    return rtp_header;
   }
 
  private:
@@ -122,18 +124,16 @@ class FuzzRtpInput : public NetEqInput {
     }
     RTC_DCHECK(packet_);
     const size_t start_ix = data_ix_;
-    packet_->header.payloadType =
-        ByteReader<uint8_t>::ReadLittleEndian(&data_[data_ix_]);
-    packet_->header.payloadType &= 0x7F;
+    packet_->SetPayloadType(
+        ByteReader<uint8_t>::ReadLittleEndian(&data_[data_ix_]) & 0x7F);
     data_ix_ += sizeof(uint8_t);
-    packet_->header.sequenceNumber =
-        ByteReader<uint16_t>::ReadLittleEndian(&data_[data_ix_]);
+    packet_->SetSequenceNumber(
+        ByteReader<uint16_t>::ReadLittleEndian(&data_[data_ix_]));
     data_ix_ += sizeof(uint16_t);
-    packet_->header.timestamp =
-        ByteReader<uint32_t>::ReadLittleEndian(&data_[data_ix_]);
+    packet_->SetTimestamp(
+        ByteReader<uint32_t>::ReadLittleEndian(&data_[data_ix_]));
     data_ix_ += sizeof(uint32_t);
-    packet_->header.ssrc =
-        ByteReader<uint32_t>::ReadLittleEndian(&data_[data_ix_]);
+    packet_->SetSsrc(ByteReader<uint32_t>::ReadLittleEndian(&data_[data_ix_]));
     data_ix_ += sizeof(uint32_t);
     RTC_CHECK_EQ(data_ix_ - start_ix, kNumBytesToFuzz);
   }
@@ -147,8 +147,8 @@ class FuzzRtpInput : public NetEqInput {
     size_t bytes_to_fuzz = data_[data_ix_++];
 
     // Restrict number of bytes to fuzz to 16; a reasonably low number enough to
-    // cover a few RED headers. Also don't write outside the payload length.
-    bytes_to_fuzz = std::min(bytes_to_fuzz % 16, packet_->payload.size());
+    // cover a few RED headers.
+    bytes_to_fuzz = bytes_to_fuzz % 16;
 
     if (bytes_to_fuzz == 0)
       return;
@@ -158,7 +158,7 @@ class FuzzRtpInput : public NetEqInput {
       return;
     }
 
-    std::memcpy(packet_->payload.data(), &data_[data_ix_], bytes_to_fuzz);
+    packet_->SetPayload(MakeArrayView(&data_[data_ix_], bytes_to_fuzz));
     data_ix_ += bytes_to_fuzz;
   }
 
@@ -166,7 +166,7 @@ class FuzzRtpInput : public NetEqInput {
   webrtc::ArrayView<const uint8_t> data_;
   size_t data_ix_ = 0;
   std::unique_ptr<EncodeNetEqInput> input_;
-  std::unique_ptr<PacketData> packet_;
+  std::unique_ptr<RtpPacketReceived> packet_;
 };
 }  // namespace
 

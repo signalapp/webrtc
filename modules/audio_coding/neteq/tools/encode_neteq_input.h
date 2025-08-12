@@ -20,6 +20,7 @@
 #include "api/audio_codecs/audio_encoder.h"
 #include "api/rtp_headers.h"
 #include "modules/audio_coding/neteq/tools/neteq_input.h"
+#include "modules/rtp_rtcp/source/rtp_packet_received.h"
 
 namespace webrtc {
 namespace test {
@@ -50,7 +51,7 @@ class EncodeNetEqInput : public NetEqInput {
     return std::nullopt;
   }
 
-  std::unique_ptr<PacketData> PopPacket() override;
+  std::unique_ptr<RtpPacketReceived> PopPacket() override;
 
   void AdvanceOutputEvent() override;
 
@@ -67,7 +68,7 @@ class EncodeNetEqInput : public NetEqInput {
 
   std::unique_ptr<Generator> generator_;
   std::unique_ptr<AudioEncoder> encoder_;
-  std::unique_ptr<PacketData> packet_data_;
+  std::unique_ptr<RtpPacketReceived> packet_data_;
   uint32_t rtp_timestamp_ = 0;
   int16_t sequence_number_ = 0;
   int64_t next_packet_time_ms_ = 0;

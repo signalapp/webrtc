@@ -90,16 +90,15 @@ class SsrcSwitchDetector : public NetEqPostInsertPacket {
   explicit SsrcSwitchDetector(NetEqPostInsertPacket* other_callback)
       : other_callback_(other_callback) {}
 
-  void AfterInsertPacket(const NetEqInput::PacketData& packet,
+  void AfterInsertPacket(const RtpPacketReceived& packet,
                          NetEq* neteq) override {
-    if (last_ssrc_ && packet.header.ssrc != *last_ssrc_) {
+    if (last_ssrc_ && packet.Ssrc() != *last_ssrc_) {
       std::cout << "Changing streams from 0x" << std::hex << *last_ssrc_
-                << " to 0x" << std::hex << packet.header.ssrc << std::dec
-                << " (payload type "
-                << static_cast<int>(packet.header.payloadType) << ")"
+                << " to 0x" << std::hex << packet.Ssrc() << std::dec
+                << " (payload type " << int{packet.PayloadType()} << ")"
                 << std::endl;
     }
-    last_ssrc_ = packet.header.ssrc;
+    last_ssrc_ = packet.Ssrc();
     if (other_callback_) {
       other_callback_->AfterInsertPacket(packet, neteq);
     }

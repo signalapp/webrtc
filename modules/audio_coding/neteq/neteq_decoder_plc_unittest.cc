@@ -30,6 +30,7 @@
 #include "modules/audio_coding/neteq/tools/input_audio_file.h"
 #include "modules/audio_coding/neteq/tools/neteq_input.h"
 #include "modules/audio_coding/neteq/tools/neteq_test.h"
+#include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/numerics/safe_conversions.h"
@@ -141,7 +142,7 @@ class LossyInput : public NetEqInput {
     return input_->NextSetMinimumDelayInfo();
   }
 
-  std::unique_ptr<PacketData> PopPacket() override {
+  std::unique_ptr<RtpPacketReceived> PopPacket() override {
     if (loss_cadence_ != 0 && (++count_ % loss_cadence_) == 0) {
       // Pop `burst_length_` packets to create the loss.
       auto packet_to_return = input_->PopPacket();
