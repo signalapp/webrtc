@@ -1344,7 +1344,7 @@ class VideoStreamEncoderTest : public ::testing::Test {
         // cycle of these objects.
         Vp8TemporalLayersFactory factory;
         frame_buffer_controller_ =
-            factory.Create(*config, settings, &fec_controller_override_);
+            factory.Create(env_, *config, settings, &fec_controller_override_);
       }
 
       last_encoder_complexity_ = config->GetVideoEncoderComplexity();
