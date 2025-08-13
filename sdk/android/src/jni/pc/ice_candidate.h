@@ -11,14 +11,19 @@
 #ifndef SDK_ANDROID_SRC_JNI_PC_ICE_CANDIDATE_H_
 #define SDK_ANDROID_SRC_JNI_PC_ICE_CANDIDATE_H_
 
+#include <jni.h>
+
+#include <memory>
+#include <optional>
 #include <vector>
 
-#include "api/data_channel_interface.h"
+#include "api/candidate.h"
 #include "api/jsep.h"
 #include "api/peer_connection_interface.h"
-#include "api/rtp_parameters.h"
+#include "api/transport/enums.h"
+#include "rtc_base/network_constants.h"
 #include "rtc_base/ssl_identity.h"
-#include "sdk/android/src/jni/jni_helpers.h"
+#include "sdk/android/native_api/jni/scoped_java_ref.h"
 
 namespace webrtc {
 namespace jni {

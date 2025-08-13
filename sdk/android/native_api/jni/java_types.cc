@@ -10,10 +10,21 @@
 
 #include "sdk/android/native_api/jni/java_types.h"
 
-#include <memory>
-#include <string>
-#include <utility>
+#include <jni.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <map>
+#include <optional>
+#include <string>
+#include <type_traits>
+#include <utility>
+#include <vector>
+
+#include "api/array_view.h"
+#include "api/sequence_checker.h"
+#include "rtc_base/checks.h"
 #include "sdk/android/generated_external_classes_jni/ArrayList_jni.h"
 #include "sdk/android/generated_external_classes_jni/Boolean_jni.h"
 #include "sdk/android/generated_external_classes_jni/Double_jni.h"
@@ -25,6 +36,7 @@
 #include "sdk/android/generated_external_classes_jni/Long_jni.h"
 #include "sdk/android/generated_external_classes_jni/Map_jni.h"
 #include "sdk/android/generated_native_api_jni/JniHelper_jni.h"
+#include "sdk/android/native_api/jni/scoped_java_ref.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace webrtc {
