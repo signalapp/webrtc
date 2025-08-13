@@ -818,7 +818,6 @@ if (current_os == "linux" || is_android) {
       ":base_jni",
       ":environment_jni",
       ":generated_external_classes_jni",
-      ":generated_external_classes_jni",
       ":generated_peerconnection_jni",
       ":generated_rtcerror_jni",
       ":internal_jni",
@@ -1585,7 +1584,7 @@ if (is_android) {
     rtc_instrumentation_test_apk("android_instrumentation_test_apk") {
       apk_name = "android_instrumentation_test_apk"
       android_manifest = "instrumentationtests/AndroidManifest.xml"
-      min_sdk_version = 21
+      min_sdk_version = 23
       target_sdk_version = 24
 
       sources = [

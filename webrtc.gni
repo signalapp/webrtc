@@ -523,7 +523,7 @@ template("rtc_test") {
       use_default_launcher = false
       android_manifest = webrtc_root + "test/android/AndroidManifest.xml"
       use_raw_android_executable = false
-      min_sdk_version = 21
+      min_sdk_version = 23
       target_sdk_version = 24
       deps += [
         "//build/android/gtest_apk:native_test_instrumentation_test_runner_java",
