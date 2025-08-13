@@ -246,7 +246,8 @@ BasicPortAllocator::CreateIceGatherer(const std::string& name) {
   CheckRunOnValidThreadAndInitialized();
   // We follow the order that PeerConnectionFactory::CreatePeerConnection
   // + PeerConnection::InitializePortAllocator_n does:
-  // 1. Create with NetworkManager, PacketSocketFactory, and RelayPortFactory.
+  // 1. Create with NetworkManager and PacketSocketFactory (relay port factory
+  //    has mismatched ownership, and we are not overriding it anyway).
   // 2. SetNetworkIgnoreMask().
   // 3. Initialize()
   // 4. User setters to set flags and other settings
@@ -263,7 +264,7 @@ BasicPortAllocator::CreateIceGatherer(const std::string& name) {
                                                             network_manager(),
                                                             socket_factory_,
                                                             nullptr,
-                                                            relay_port_factory_.get());
+                                                            nullptr);
 
   // 2. SetNetworkIgnoreMask().
   new_allocator->SetNetworkIgnoreMask(network_ignore_mask_);
