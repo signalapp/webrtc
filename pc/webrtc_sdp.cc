@@ -1883,11 +1883,9 @@ void RemoveDuplicateRidDescriptions(const std::vector<int>& payload_types,
   }
   // Remove every rid description that appears in the to_remove list.
   if (!to_remove.empty()) {
-    rids->erase(std::remove_if(rids->begin(), rids->end(),
-                               [&to_remove](const RidDescription& rid) {
-                                 return to_remove.count(rid.rid) > 0;
-                               }),
-                rids->end());
+    std::erase_if(*rids, [&to_remove](const RidDescription& rid) {
+      return to_remove.contains(rid.rid);
+    });
   }
 }
 

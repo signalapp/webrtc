@@ -36,9 +36,8 @@ namespace webrtc {
 // permission->RequestPermission(
 //     target_address,
 //     [&, r = permission.get()](LocalNetworkAccessPermissionStatus status) {
-//       permission_list.erase(std::remove_if(
-//           permission_list.begin(), permission_list.end(),
-//           [&](const auto& refptr) { return refptr.get() == r; }));
+//       std::erase_if(permission_list,
+//           [&](const auto& refptr) { return refptr.get() == r; });
 //
 //       if (status == LocalNetworkAccessPermissionStatus::kGranted) {
 //         // Permission was granted.

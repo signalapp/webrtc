@@ -2183,10 +2183,8 @@ void P2PTransportChannel::RemoveConnection(Connection* connection) {
 void P2PTransportChannel::OnPortDestroyed(PortInterface* port) {
   RTC_DCHECK_RUN_ON(network_thread_);
 
-  ports_.erase(std::remove(ports_.begin(), ports_.end(), port), ports_.end());
-  pruned_ports_.erase(
-      std::remove(pruned_ports_.begin(), pruned_ports_.end(), port),
-      pruned_ports_.end());
+  std::erase(ports_, port);
+  std::erase(pruned_ports_, port);
   RTC_LOG(LS_INFO) << "Removed port because it is destroyed: " << ports_.size()
                    << " remaining";
 }
