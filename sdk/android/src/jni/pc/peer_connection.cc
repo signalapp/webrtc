@@ -352,11 +352,11 @@ void PeerConnectionObserverJni::OnIceCandidateError(
   Java_Observer_onIceCandidateError(env, j_observer_global_, event);
 }
 
-void PeerConnectionObserverJni::OnIceCandidatesRemoved(
-    const std::vector<Candidate>& candidates) {
+void PeerConnectionObserverJni::OnIceCandidateRemoved(
+    const IceCandidate* candidate) {
   JNIEnv* env = AttachCurrentThreadIfNeeded();
   Java_Observer_onIceCandidatesRemoved(
-      env, j_observer_global_, NativeToJavaCandidateArray(env, candidates));
+      env, j_observer_global_, NativeToJavaCandidateArray(env, candidate));
 }
 
 void PeerConnectionObserverJni::OnSignalingChange(

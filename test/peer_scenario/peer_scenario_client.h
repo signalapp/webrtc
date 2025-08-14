@@ -19,7 +19,6 @@
 #include <vector>
 
 #include "api/audio_options.h"
-#include "api/candidate.h"
 #include "api/data_channel_interface.h"
 #include "api/environment/environment.h"
 #include "api/field_trials.h"
@@ -76,7 +75,7 @@ class PeerScenarioClient {
                                    int,
                                    const std::string&)>>
         on_ice_candidate_error;
-    std::vector<std::function<void(const std::vector<webrtc::Candidate>&)>>
+    std::vector<std::function<void(const webrtc::IceCandidate*)>>
         on_ice_candidates_removed;
     std::vector<std::function<void(
         webrtc::scoped_refptr<RtpReceiverInterface>,

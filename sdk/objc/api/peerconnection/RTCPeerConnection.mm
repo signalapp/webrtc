@@ -354,8 +354,8 @@ void PeerConnectionDelegateAdapter::OnIceCandidateError(
   }
 }
 
-void PeerConnectionDelegateAdapter::OnIceCandidatesRemoved(
-    const std::vector<webrtc::Candidate> &candidates) {
+void PeerConnectionDelegateAdapter::OnIceCandidateRemoved(
+    const webrtc::IceCandidate *c) {
   RTC_OBJC_TYPE(RTCPeerConnection) *peer_connection = peer_connection_;
   if (peer_connection == nil) {
     return;
@@ -365,15 +365,10 @@ void PeerConnectionDelegateAdapter::OnIceCandidatesRemoved(
   if (delegate == nil) {
     return;
   }
-  NSMutableArray *ice_candidates =
-      [NSMutableArray arrayWithCapacity:candidates.size()];
-  for (const auto &candidate : candidates) {
-    IceCandidate candidate_wrapper(candidate.transport_name(), -1, candidate);
-    RTC_OBJC_TYPE(RTCIceCandidate) *ice_candidate =
-        [[RTC_OBJC_TYPE(RTCIceCandidate) alloc]
-            initWithNativeCandidate:&candidate_wrapper];
-    [ice_candidates addObject:ice_candidate];
-  }
+  NSMutableArray *ice_candidates = [NSMutableArray arrayWithCapacity:1];
+  RTC_OBJC_TYPE(RTCIceCandidate) *ice_candidate =
+      [[RTC_OBJC_TYPE(RTCIceCandidate) alloc] initWithNativeCandidate:c];
+  [ice_candidates addObject:ice_candidate];
   [delegate peerConnection:peer_connection
       didRemoveIceCandidates:ice_candidates];
 }

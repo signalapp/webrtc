@@ -46,6 +46,9 @@ ScopedJavaLocalRef<jobject> NativeToJavaIceCandidate(
 ScopedJavaLocalRef<jobjectArray> NativeToJavaCandidateArray(
     JNIEnv* jni,
     const std::vector<Candidate>& candidates);
+ScopedJavaLocalRef<jobjectArray> NativeToJavaCandidateArray(
+    JNIEnv* jni,
+    const IceCandidate* candidate);
 
 /*****************************************************
  * Below are all things that go into RTCConfiguration.

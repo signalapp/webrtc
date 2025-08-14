@@ -21,7 +21,6 @@
 #include "absl/container/inlined_vector.h"
 #include "absl/memory/memory.h"
 #include "api/audio_options.h"
-#include "api/candidate.h"
 #include "api/create_modular_peer_connection_factory.h"
 #include "api/data_channel_interface.h"
 #include "api/enable_media_with_defaults.h"
@@ -135,10 +134,10 @@ class LambdaPeerConnectionObserver final : public PeerConnectionObserver {
     for (const auto& handler : handlers_->on_ice_candidate_error)
       handler(address, port, url, error_code, error_text);
   }
-  void OnIceCandidatesRemoved(
-      const std::vector<Candidate>& candidates) override {
-    for (const auto& handler : handlers_->on_ice_candidates_removed)
-      handler(candidates);
+  void OnIceCandidateRemoved(const IceCandidate* candidate) override {
+    for (const auto& handler : handlers_->on_ice_candidates_removed) {
+      handler(candidate);
+    }
   }
   void OnAddTrack(scoped_refptr<RtpReceiverInterface> receiver,
                   const std::vector<scoped_refptr<MediaStreamInterface>>&

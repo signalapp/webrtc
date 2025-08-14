@@ -64,8 +64,7 @@ class PeerConnectionObserverJni : public PeerConnectionObserver {
                            int error_code,
                            const std::string& error_text) override;
 
-  void OnIceCandidatesRemoved(
-      const std::vector<Candidate>& candidates) override;
+  void OnIceCandidateRemoved(const IceCandidate* candidate) override;
   void OnSignalingChange(
       PeerConnectionInterface::SignalingState new_state) override;
   void OnIceConnectionChange(

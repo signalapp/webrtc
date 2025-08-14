@@ -74,12 +74,26 @@ ScopedJavaLocalRef<jobject> NativeToJavaIceCandidate(
       candidate.ToString(), candidate.candidate().url(), 0);
 }
 
+ScopedJavaLocalRef<jobject> NativeToJavaIceCandidatePtr(
+    JNIEnv* env,
+    const IceCandidate* candidate) {
+  return NativeToJavaIceCandidate(env, *candidate);
+}
+
 ScopedJavaLocalRef<jobjectArray> NativeToJavaCandidateArray(
     JNIEnv* jni,
     const std::vector<Candidate>& candidates) {
   return NativeToJavaObjectArray(jni, candidates,
                                  org_webrtc_IceCandidate_clazz(jni),
                                  &NativeToJavaCandidate);
+}
+
+ScopedJavaLocalRef<jobjectArray> NativeToJavaCandidateArray(
+    JNIEnv* jni,
+    const IceCandidate* candidate) {
+  return NativeToJavaObjectArray<const IceCandidate*>(
+      jni, {candidate}, org_webrtc_IceCandidate_clazz(jni),
+      &NativeToJavaIceCandidatePtr);
 }
 
 PeerConnectionInterface::IceTransportsType JavaToNativeIceTransportsType(
