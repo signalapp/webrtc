@@ -465,6 +465,28 @@ void PeerScenarioClient::SetSdpAnswer(
           }));
 }
 
+void PeerScenarioClient::SetLocalDescription(
+    std::string sdp,
+    SdpType type,
+    std::function<void(RTCError)> on_complete) {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
+  peer_connection_->SetLocalDescription(
+      CreateSessionDescription(type, sdp),
+      make_ref_counted<LambdaSetLocalDescriptionObserver>(
+          std::move(on_complete)));
+}
+
+void PeerScenarioClient::SetRemoteDescription(
+    std::string sdp,
+    SdpType type,
+    std::function<void(RTCError)> on_complete) {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
+  peer_connection_->SetRemoteDescription(
+      CreateSessionDescription(type, sdp),
+      make_ref_counted<LambdaSetRemoteDescriptionObserver>(
+          std::move(on_complete)));
+}
+
 void PeerScenarioClient::AddIceCandidate(
     std::unique_ptr<IceCandidate> candidate) {
   RTC_DCHECK_RUN_ON(signaling_thread_);
