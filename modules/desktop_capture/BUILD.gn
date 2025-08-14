@@ -36,6 +36,7 @@ rtc_library("primitives") {
 
   deps = [
     "../../api:scoped_refptr",
+    "../../media:video_common",
     "../../rtc_base:checks",
     "../../rtc_base:refcount",
     "../../rtc_base:stringutils",
