@@ -553,6 +553,22 @@ SdpMungingType DetermineSdpMungingType(
     return type;
   }
 
+  // Validate number of candidates.
+  for (size_t content_index = 0; content_index < last_created_contents.size();
+       content_index++) {
+    // All contents have a (possibly empty) candidate set.
+    // Check that this holds.
+    RTC_DCHECK(sdesc->candidates(content_index));
+    if (sdesc->candidates(content_index)->count() !=
+        last_created_desc->candidates(content_index)->count()) {
+      RTC_LOG(LS_WARNING)
+          << "SDP munging: media section " << content_index << " changed from "
+          << last_created_desc->candidates(content_index)->count() << " to "
+          << sdesc->candidates(content_index)->count() << " candidates";
+      return SdpMungingType::kIceCandidateCount;
+    }
+  }
+
   // TODO: crbug.com/40567530 - this serializes the descriptions back to a SDP
   // string which is very complex and we not should be be forced to rely on
   // string equality.
