@@ -804,8 +804,21 @@ CreateOutboundRTPStreamStatsFromVideoSenderInfo(
       static_cast<uint32_t>(video_sender_info.firs_received);
   outbound_video->pli_count =
       static_cast<uint32_t>(video_sender_info.plis_received);
-  if (video_sender_info.qp_sum.has_value())
+  if (video_sender_info.qp_sum.has_value()) {
     outbound_video->qp_sum = *video_sender_info.qp_sum;
+  }
+  // psnrSum is gated on psnrMeasurements > 0.
+  if (video_sender_info.psnr_measurements > 0) {
+    outbound_video->psnr_measurements = video_sender_info.psnr_measurements;
+    outbound_video->psnr_sum = {
+        {"y", video_sender_info.psnr_sum.y},
+        {"u", video_sender_info.psnr_sum.u},
+        {"v", video_sender_info.psnr_sum.v},
+    };
+  }
+  if (video_sender_info.psnr_measurements > 0) {
+    outbound_video->psnr_measurements = video_sender_info.psnr_measurements;
+  }
   if (video_sender_info.target_bitrate.has_value()) {
     outbound_video->target_bitrate = video_sender_info.target_bitrate->bps();
   }

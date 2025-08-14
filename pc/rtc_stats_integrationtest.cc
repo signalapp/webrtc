@@ -39,6 +39,7 @@
 #include "rtc_base/thread.h"
 #include "rtc_base/trace_event.h"
 #include "rtc_base/virtual_socket_server.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/wait_until.h"
@@ -49,7 +50,7 @@ namespace webrtc {
 
 namespace {
 
-const int64_t kGetStatsTimeoutMs = 10000;
+constexpr int64_t kGetStatsTimeoutMs = 10000;
 
 class RTCStatsIntegrationTest : public ::testing::Test {
  public:
@@ -67,17 +68,22 @@ class RTCStatsIntegrationTest : public ::testing::Test {
         worker_thread_.get());
   }
 
-  void StartCall() {
+  void StartCall() { StartCall(""); }
+  void StartCall(const char* field_trial_string) {
     // Create PeerConnections and "connect" sigslots
     PeerConnectionInterface::RTCConfiguration config;
     config.sdp_semantics = SdpSemantics::kUnifiedPlan;
     PeerConnectionInterface::IceServer ice_server;
     ice_server.uri = "stun:1.1.1.1:3478";
     config.servers.push_back(ice_server);
-    EXPECT_TRUE(caller_->CreatePc(config, CreateBuiltinAudioEncoderFactory(),
-                                  CreateBuiltinAudioDecoderFactory()));
-    EXPECT_TRUE(callee_->CreatePc(config, CreateBuiltinAudioEncoderFactory(),
-                                  CreateBuiltinAudioDecoderFactory()));
+    EXPECT_TRUE(
+        caller_->CreatePc(config, CreateBuiltinAudioEncoderFactory(),
+                          CreateBuiltinAudioDecoderFactory(),
+                          CreateTestFieldTrialsPtr(field_trial_string)));
+    EXPECT_TRUE(
+        callee_->CreatePc(config, CreateBuiltinAudioEncoderFactory(),
+                          CreateBuiltinAudioDecoderFactory(),
+                          CreateTestFieldTrialsPtr(field_trial_string)));
     PeerConnectionTestWrapper::Connect(caller_.get(), callee_.get());
 
     // Get user media for audio and video
@@ -571,6 +577,7 @@ class RTCStatsReportVerifier {
       verifier.TestAttributeIsUndefined(inbound_stream.decoder_implementation);
       verifier.TestAttributeIsUndefined(inbound_stream.power_efficient_decoder);
     }
+
     // As long as the corruption detection RTP header extension is not activated
     // it should not aggregate any corruption score. The tests where this header
     // extension is enabled are located in pc/peer_connection_integrationtest.cc
@@ -793,6 +800,10 @@ class RTCStatsReportVerifier {
                                           RTCAudioSourceStats::kType);
       verifier.TestAttributeIsUndefined(outbound_stream.qp_sum);
     }
+    // TODO: bugs.webrtc.org/388070060 - PSNR stats are disabled by default.
+    verifier.TestAttributeIsUndefined(outbound_stream.psnr_sum);
+    verifier.TestAttributeIsUndefined(outbound_stream.psnr_measurements);
+
     verifier.TestAttributeIsNonNegative<uint32_t>(outbound_stream.nack_count);
     verifier.TestAttributeIsOptionalIDReference(
         outbound_stream.remote_id, RTCRemoteInboundRtpStreamStats::kType);
@@ -1195,6 +1206,29 @@ TEST_F(RTCStatsIntegrationTest, GetStatsContainsNoDuplicateAttributes) {
                   attribute_names.end())
           << attribute.name() << " is a duplicate!";
       attribute_names.insert(attribute.name());
+    }
+  }
+}
+
+TEST_F(RTCStatsIntegrationTest, ExperimentalPsnrStats) {
+  StartCall("WebRTC-Video-CalculatePsnr/Enabled/");
+
+  // This assumes all other stats are ok and tests the stats which should be
+  // different under the field trial.
+  scoped_refptr<const RTCStatsReport> report = GetStatsFromCaller();
+  for (const RTCStats& stats : *report) {
+    if (stats.type() == RTCOutboundRtpStreamStats::kType) {
+      const RTCOutboundRtpStreamStats& outbound_stream(
+          stats.cast_to<RTCOutboundRtpStreamStats>());
+      RTCStatsVerifier verifier(report.get(), &outbound_stream);
+      if (outbound_stream.kind.has_value() &&
+          *outbound_stream.kind == "video") {
+        verifier.TestAttributeIsDefined(outbound_stream.psnr_sum);
+        verifier.TestAttributeIsNonNegative(outbound_stream.psnr_measurements);
+      } else {
+        verifier.TestAttributeIsUndefined(outbound_stream.psnr_sum);
+        verifier.TestAttributeIsUndefined(outbound_stream.psnr_measurements);
+      }
     }
   }
 }
