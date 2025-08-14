@@ -695,7 +695,6 @@ JsepTransportController* PeerConnection::InitializeTransportController_n(
   config.transport_observer = this;
   config.rtcp_handler = InitializeRtcpCallback();
   config.un_demuxable_packet_handler = InitializeUnDemuxablePacketHandler();
-  config.event_log = &env_.event_log();
 #if defined(ENABLE_EXTERNAL_AUTH)
   config.enable_external_auth = true;
 #endif
