@@ -259,7 +259,7 @@ VideoReceiveStream2::VideoReceiveStream2(
                                  this,  // OnCompleteFrameCallback
                                  std::move(config_.frame_decryptor),
                                  std::move(config_.frame_transformer)),
-      rtp_stream_sync_(call->worker_thread(), this),
+      rtp_stream_sync_(env_, call->worker_thread(), this),
       max_wait_for_keyframe_(DetermineMaxWaitForFrame(
           TimeDelta::Millis(config_.rtp.nack.rtp_history_ms),
           true)),
@@ -387,8 +387,8 @@ void VideoReceiveStream2::Start() {
   transport_adapter_.Enable();
   VideoSinkInterface<VideoFrame>* renderer = nullptr;
   if (config_.enable_prerenderer_smoothing) {
-    incoming_video_stream_.reset(new IncomingVideoStream(
-        &env_.task_queue_factory(), config_.render_delay_ms, this));
+    incoming_video_stream_ = std::make_unique<IncomingVideoStream>(
+        env_, config_.render_delay_ms, this);
     renderer = incoming_video_stream_.get();
   } else {
     renderer = this;

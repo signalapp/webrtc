@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <optional>
 
+#include "api/environment/environment.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/units/time_delta.h"
@@ -22,7 +23,6 @@
 #include "rtc_base/logging.h"
 #include "rtc_base/rtp_to_ntp_estimator.h"
 #include "rtc_base/task_utils/repeating_task.h"
-#include "rtc_base/time_utils.h"
 #include "rtc_base/trace_event.h"
 #include "system_wrappers/include/ntp_time.h"
 #include "video/stream_synchronization.h"
@@ -45,11 +45,13 @@ bool UpdateMeasurements(StreamSynchronization::Measurements* stream,
 
 }  // namespace
 
-RtpStreamsSynchronizer::RtpStreamsSynchronizer(TaskQueueBase* main_queue,
+RtpStreamsSynchronizer::RtpStreamsSynchronizer(const Environment& env,
+                                               TaskQueueBase* main_queue,
                                                Syncable* syncable_video)
-    : task_queue_(main_queue),
+    : env_(env),
+      task_queue_(main_queue),
       syncable_video_(syncable_video),
-      last_stats_log_ms_(TimeMillis()) {
+      last_stats_log_ms_(env_.clock().TimeInMilliseconds()) {
   RTC_DCHECK(syncable_video);
 }
 
@@ -94,7 +96,7 @@ void RtpStreamsSynchronizer::UpdateDelay() {
   RTC_DCHECK(sync_.get());
 
   bool log_stats = false;
-  const int64_t now_ms = TimeMillis();
+  const int64_t now_ms = env_.clock().TimeInMilliseconds();
   if (now_ms - last_stats_log_ms_ > kStatsLogIntervalMs) {
     last_stats_log_ms_ = now_ms;
     log_stats = true;
@@ -210,7 +212,7 @@ bool RtpStreamsSynchronizer::GetStreamSyncOffsetInMs(
   int64_t latest_video_ntp_ms = latest_video_ntp.ToMs();
 
   // Current audio ntp.
-  Timestamp now = Timestamp::Millis(TimeMillis());
+  Timestamp now = env_.clock().CurrentTime();
   latest_audio_ntp_ms += (now - audio->time).ms();
 
   // Remove video playout delay.
