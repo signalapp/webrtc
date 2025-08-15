@@ -600,7 +600,7 @@ void OveruseFrameDetector::CheckForOveruse(
       !encode_usage_percent_)
     return;
 
-  int64_t now_ms = env_.clock().TimeInMilliseconds();
+  int64_t now_ms = TimeMillis();
   const char* action = "NoAction";
 
   if (IsOverusing(*encode_usage_percent_)) {

@@ -53,6 +53,7 @@
 #include "rtc_base/string_encode.h"
 #include "rtc_base/string_utils.h"
 #include "rtc_base/strings/string_builder.h"
+#include "rtc_base/time_utils.h"
 #include "rtc_base/trace_event.h"
 #include "rtc_base/weak_ptr.h"
 
@@ -829,8 +830,7 @@ void Port::DestroyIfDead() {
   bool dead =
       (state_ == State::INIT || state_ == State::PRUNED) &&
       connections_.empty() &&
-      env_.clock().TimeInMilliseconds() - last_time_all_connections_removed_ >=
-          timeout_delay_;
+      TimeMillis() - last_time_all_connections_removed_ >= timeout_delay_;
   if (dead) {
     Destroy();
   }
@@ -899,7 +899,7 @@ bool Port::OnConnectionDestroyed(Connection* conn) {
   // fails and is removed before kPortTimeoutDelay, then this message will
   // not cause the Port to be destroyed.
   if (connections_.empty()) {
-    last_time_all_connections_removed_ = env_.clock().TimeInMilliseconds();
+    last_time_all_connections_removed_ = TimeMillis();
     PostDestroyIfDead(/*delayed=*/true);
   }
 

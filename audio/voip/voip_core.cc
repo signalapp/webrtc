@@ -40,6 +40,7 @@
 #include "rtc_base/logging.h"
 #include "rtc_base/random.h"
 #include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/time_utils.h"
 
 namespace webrtc {
 
@@ -151,7 +152,7 @@ ChannelId VoipCore::CreateChannel(Transport* transport,
 
   // Set local ssrc to random if not set by caller.
   if (!local_ssrc) {
-    Random random(env_.clock().TimeInMicroseconds());
+    Random random(TimeMicros());
     local_ssrc = random.Rand<uint32_t>();
   }
 
