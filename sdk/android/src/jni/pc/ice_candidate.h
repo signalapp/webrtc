@@ -32,8 +32,6 @@ std::unique_ptr<IceCandidate> JavaToNativeCandidate(
     JNIEnv* jni,
     const JavaRef<jobject>& j_candidate);
 
-ScopedJavaLocalRef<jobject> NativeToJavaCandidate(JNIEnv* env,
-                                                  const Candidate& candidate);
 ScopedJavaLocalRef<jobject> NativeToJavaIceCandidate(
     JNIEnv* env,
     absl::string_view mid,
@@ -43,9 +41,6 @@ ScopedJavaLocalRef<jobject> NativeToJavaIceCandidate(
     JNIEnv* env,
     const IceCandidate& candidate);
 
-ScopedJavaLocalRef<jobjectArray> NativeToJavaCandidateArray(
-    JNIEnv* jni,
-    const std::vector<Candidate>& candidates);
 ScopedJavaLocalRef<jobjectArray> NativeToJavaCandidateArray(
     JNIEnv* jni,
     const IceCandidate* candidate);

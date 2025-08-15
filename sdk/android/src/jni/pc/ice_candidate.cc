@@ -50,11 +50,6 @@ std::unique_ptr<IceCandidate> JavaToNativeCandidate(
   return IceCandidate::Create(sdp_mid, sdp_mline_index, sdp, nullptr);
 }
 
-ScopedJavaLocalRef<jobject> NativeToJavaCandidate(JNIEnv* env,
-                                                  const Candidate& candidate) {
-  return NativeToJavaIceCandidate(env, candidate.transport_name(), candidate);
-}
-
 ScopedJavaLocalRef<jobject> NativeToJavaIceCandidate(
     JNIEnv* env,
     absl::string_view mid,
@@ -78,14 +73,6 @@ ScopedJavaLocalRef<jobject> NativeToJavaIceCandidatePtr(
     JNIEnv* env,
     const IceCandidate* candidate) {
   return NativeToJavaIceCandidate(env, *candidate);
-}
-
-ScopedJavaLocalRef<jobjectArray> NativeToJavaCandidateArray(
-    JNIEnv* jni,
-    const std::vector<Candidate>& candidates) {
-  return NativeToJavaObjectArray(jni, candidates,
-                                 org_webrtc_IceCandidate_clazz(jni),
-                                 &NativeToJavaCandidate);
 }
 
 ScopedJavaLocalRef<jobjectArray> NativeToJavaCandidateArray(
