@@ -990,9 +990,7 @@ bool SharedScreenCastStreamPrivate::ProcessDMABuffer(
                       << " and trying to renegotiate stream parameters";
 
     if (pw_server_version_ >= kDropSingleModifierMinVersion) {
-      modifiers_.erase(
-          std::remove(modifiers_.begin(), modifiers_.end(), modifier_),
-          modifiers_.end());
+      std::erase(modifiers_, modifier_);
     } else {
       modifiers_.clear();
     }
