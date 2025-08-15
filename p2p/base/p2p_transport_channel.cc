@@ -1391,15 +1391,13 @@ void P2PTransportChannel::FinishAddingRemoteCandidate(
 void P2PTransportChannel::RemoveRemoteCandidate(
     const Candidate& cand_to_remove) {
   RTC_DCHECK_RUN_ON(network_thread_);
-  auto iter =
-      std::remove_if(remote_candidates_.begin(), remote_candidates_.end(),
-                     [cand_to_remove](const Candidate& candidate) {
-                       return cand_to_remove.MatchesForRemoval(candidate);
-                     });
-  if (iter != remote_candidates_.end()) {
+  size_t num_erased = std::erase_if(
+      remote_candidates_, [cand_to_remove](const Candidate& candidate) {
+        return cand_to_remove.MatchesForRemoval(candidate);
+      });
+  if (num_erased > 0) {
     RTC_LOG(LS_VERBOSE) << "Removed remote candidate "
                         << cand_to_remove.ToSensitiveString();
-    remote_candidates_.erase(iter, remote_candidates_.end());
   }
 }
 
