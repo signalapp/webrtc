@@ -424,6 +424,12 @@ SdpMungingType DetermineSdpMungingType(
     }
     // Validate video and audio contents.
     MediaType media_type = last_created_media_description->type();
+    bool is_rtp =
+        media_type == MediaType::AUDIO || media_type == MediaType::VIDEO;
+    if (!is_rtp) {
+      // The checks that follow only apply for RTP-based contents.
+      continue;
+    }
     if (media_type == MediaType::VIDEO) {
       type = DetermineVideoSdpMungingType(last_created_media_description,
                                           media_description_to_set);
