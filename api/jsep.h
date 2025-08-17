@@ -111,8 +111,8 @@ class RTC_EXPORT IceCandidate final {
 
 // TODO: webrtc:406795492 - Deprecate and eventually remove these types when no
 // longer referenced. They're provided here for backwards compatiblity.
-using JsepIceCandidate = IceCandidate;
-using IceCandidateInterface = IceCandidate;
+using JsepIceCandidate [[deprecated("Use IceCandidate")]] = IceCandidate;
+using IceCandidateInterface [[deprecated("Use IceCandidate")]] = IceCandidate;
 
 // Creates an IceCandidate based on SDP string.
 // Returns null if the sdp string can't be parsed.
