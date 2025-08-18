@@ -846,11 +846,14 @@ void AudioSendStream::ConfigureBitrateObserver() {
   bitrate_allocator_->AddObserver(
       this,
       MediaStreamAllocationConfig{
-          constraints->min.bps<uint32_t>(), constraints->max.bps<uint32_t>(), 0,
-          priority_bitrate.bps(), true,
-          allocation_settings_.bitrate_priority.value_or(
+          .min_bitrate_bps = constraints->min.bps<uint32_t>(),
+          .max_bitrate_bps = constraints->max.bps<uint32_t>(),
+          .pad_up_bitrate_bps = 0,
+          .priority_bitrate_bps = priority_bitrate.bps(),
+          .enforce_min_bitrate = true,
+          .bitrate_priority = allocation_settings_.bitrate_priority.value_or(
               config_.bitrate_priority),
-          TrackRateElasticity::kCanContributeUnusedRate});
+          .rate_elasticity = TrackRateElasticity::kCanContributeUnusedRate});
 
   registered_with_allocator_ = true;
 }
@@ -870,8 +873,8 @@ AudioSendStream::GetMinMaxBitrateConstraints() const {
     return std::nullopt;
   }
   TargetAudioBitrateConstraints constraints{
-      DataRate::BitsPerSec(config_.min_bitrate_bps),
-      DataRate::BitsPerSec(config_.max_bitrate_bps)};
+      .min = DataRate::BitsPerSec(config_.min_bitrate_bps),
+      .max = DataRate::BitsPerSec(config_.max_bitrate_bps)};
 
   // If bitrates were explicitly overriden via field trial, use those values.
   if (allocation_settings_.min_bitrate)

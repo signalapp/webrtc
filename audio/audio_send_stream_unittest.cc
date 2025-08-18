@@ -90,8 +90,11 @@ constexpr double kEchoReturnLoss = -65;
 constexpr double kEchoReturnLossEnhancement = 101;
 constexpr double kResidualEchoLikelihood = -1.0f;
 constexpr double kResidualEchoLikelihoodMax = 23.0f;
-constexpr ChannelSendStatistics kChannelStats = {TimeDelta::Millis(112), 12,
-                                                 13456, 17890};
+constexpr ChannelSendStatistics kChannelStats = {
+    .round_trip_time = TimeDelta::Millis(112),
+    .payload_bytes_sent = 12,
+    .header_and_padding_bytes_sent = 13456,
+    .retransmitted_bytes_sent = 17890};
 constexpr int kFractionLost = 123;
 constexpr int kCumulativeLost = 567;
 constexpr uint32_t kInterarrivalJitter = 132;
@@ -104,9 +107,9 @@ const SdpAudioFormat kIsacFormat = {"isac", 16000, 1};
 const SdpAudioFormat kOpusFormat = {"opus", 48000, 2};
 const SdpAudioFormat kG722Format = {"g722", 8000, 1};
 const AudioCodecSpec kCodecSpecs[] = {
-    {kIsacFormat, {16000, 1, 32000, 10000, 32000}},
-    {kOpusFormat, {48000, 1, 32000, 6000, 510000}},
-    {kG722Format, {16000, 1, 64000}}};
+    {.format = kIsacFormat, .info = {16000, 1, 32000, 10000, 32000}},
+    {.format = kOpusFormat, .info = {48000, 1, 32000, 6000, 510000}},
+    {.format = kG722Format, .info = {16000, 1, 64000}}};
 
 // TODO(dklee): This mirrors calculation in audio_send_stream.cc, which
 // should be made more precise in the future. This can be changed when that
