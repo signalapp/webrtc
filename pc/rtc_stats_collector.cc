@@ -1207,7 +1207,7 @@ void RTCStatsCollector::GetStatsReportInternal(
   requests_.push_back(std::move(request));
 
   // "Now" using a monotonically increasing timer.
-  int64_t cache_now_us = TimeMicros();
+  int64_t cache_now_us = env_.clock().TimeInMicroseconds();
   if (cached_report_ &&
       cache_now_us - cache_timestamp_us_ <= cache_lifetime_us_) {
     // We have a fresh cached report to deliver. Deliver asynchronously, since
