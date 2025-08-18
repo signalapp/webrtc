@@ -2,6 +2,7 @@
 ---
   Checks:          '-*,
                     llvm-namespace-comment,
+                    modernize-use-designated-initializers,
                     modernize-use-override,
                     modernize-use-std-numbers,
                     readability-container-size-empty,
