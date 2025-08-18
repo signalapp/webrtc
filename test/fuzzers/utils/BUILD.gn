@@ -47,3 +47,16 @@ rtc_library("rtp_replayer") {
     "//third_party/abseil-cpp/absl/memory",
   ]
 }
+
+rtc_library("validate_rtp_packetizer") {
+  testonly = true
+  sources = [
+    "validate_rtp_packetizer.cc",
+    "validate_rtp_packetizer.h",
+  ]
+  deps = [
+    "..:fuzz_data_helper",
+    "../../../modules/rtp_rtcp",
+    "../../../modules/rtp_rtcp:rtp_rtcp_format",
+  ]
+}
