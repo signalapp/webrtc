@@ -18,6 +18,7 @@
 #include <optional>
 
 #include "api/audio/audio_device_defines.h"
+#include "api/environment/environment.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/task_queue/task_queue_factory.h"
@@ -82,6 +83,9 @@ class AudioDeviceBuffer {
   // If `create_detached` is true, the created buffer can be used on another
   // thread compared to the one on which it was created. It's useful for
   // testing.
+  explicit AudioDeviceBuffer(const Environment& env,
+                             bool create_detached = false);
+  [[deprecated("bugs.webrtc.org/42223992")]]
   explicit AudioDeviceBuffer(TaskQueueFactory* task_queue_factory,
                              bool create_detached = false);
   virtual ~AudioDeviceBuffer();

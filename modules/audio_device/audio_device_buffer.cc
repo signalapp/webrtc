@@ -17,6 +17,7 @@
 #include <optional>
 
 #include "api/audio/audio_device_defines.h"
+#include "api/environment/environment.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/task_queue_factory.h"
 #include "api/units/time_delta.h"
@@ -46,6 +47,14 @@ static const size_t kMinValidCallTimeTimeInMilliseconds =
 #ifdef AUDIO_DEVICE_PLAYS_SINUS_TONE
 static const double k2Pi = 6.28318530717959;
 #endif
+
+AudioDeviceBuffer::AudioDeviceBuffer(const Environment& env,
+                                     bool create_detached)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    : AudioDeviceBuffer(&env.task_queue_factory(), create_detached) {
+}
+#pragma clang diagnostic pop
 
 AudioDeviceBuffer::AudioDeviceBuffer(TaskQueueFactory* task_queue_factory,
                                      bool create_detached)
