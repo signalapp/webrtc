@@ -2084,7 +2084,10 @@ void PeerConnection::OnIceCandidatesRemoved(
   for (Candidate candidate : candidates) {  // Get a copy to set the transport.
     // For backwards compatibility reasons, all candidate instances still need
     // to have the transport_name() property set to the `mid`.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     candidate.set_transport_name(mid);
+#pragma clang diagnostic pop
     IceCandidate c(mid, -1, candidate);
     RunWithObserver([&](auto o) { o->OnIceCandidateRemoved(&c); });
   }

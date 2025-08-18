@@ -3372,7 +3372,10 @@ bool SdpDeserializeCandidate(absl::string_view transport_name,
   if (!ParseCandidate(message, candidate, error, true)) {
     return false;
   }
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   candidate->set_transport_name(transport_name);
+#pragma clang diagnostic pop
   return true;
 }
 
