@@ -947,6 +947,7 @@ void RtpVideoStreamReceiver2::OnInsertedPacket(
           last_packet.video_header.frame_instrumentation_data,     //
           RtpPacketInfos(std::move(packet_infos)),                 //
           std::move(bitstream)));
+      packet_infos.clear();
     }
   }
   if (result.buffer_cleared) {

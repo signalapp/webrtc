@@ -94,8 +94,8 @@ JsepTransportController::JsepTransportController(
             UpdateAggregateStates_n();
           }),
       config_(std::move(config)),
-      active_reset_srtp_params_(config.active_reset_srtp_params),
-      bundles_(config.bundle_policy),
+      active_reset_srtp_params_(config_.active_reset_srtp_params),
+      bundles_(config_.bundle_policy),
       payload_type_picker_(payload_type_picker) {
   // The `transport_observer` is assumed to be non-null.
   RTC_DCHECK(config_.transport_observer);
