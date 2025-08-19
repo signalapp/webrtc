@@ -363,43 +363,6 @@ rtc_library("rtp_rtcp") {
   ]
 }
 
-rtc_library("rtp_rtcp_legacy") {
-  sources = [
-    "include/rtp_rtcp.h",
-    "source/deprecated/deprecated_rtp_sender_egress.cc",
-    "source/deprecated/deprecated_rtp_sender_egress.h",
-    "source/rtp_rtcp_impl.cc",
-    "source/rtp_rtcp_impl.h",
-  ]
-  deps = [
-    ":ntp_time_util",
-    ":rtp_rtcp",
-    ":rtp_rtcp_format",
-    "..:module_fec_api",
-    "../../api:array_view",
-    "../../api:rtp_headers",
-    "../../api:rtp_packet_sender",
-    "../../api:transport_api",
-    "../../api/environment",
-    "../../api/rtc_event_log",
-    "../../api/transport:network_control",
-    "../../api/units:data_rate",
-    "../../api/units:time_delta",
-    "../../api/units:timestamp",
-    "../../api/video:video_bitrate_allocation",
-    "../../logging:rtc_event_rtp_rtcp",
-    "../../rtc_base:bitrate_tracker",
-    "../../rtc_base:checks",
-    "../../rtc_base:gtest_prod",
-    "../../rtc_base:logging",
-    "../../rtc_base:macromagic",
-    "../../rtc_base/synchronization:mutex",
-    "../../system_wrappers",
-    "//third_party/abseil-cpp/absl/base:core_headers",
-    "//third_party/abseil-cpp/absl/strings:string_view",
-  ]
-}
-
 rtc_library("ntp_time_util") {
   visibility = [ "*" ]
   sources = [
@@ -643,7 +606,6 @@ if (rtc_include_tests) {
       "source/rtp_packet_unittest.cc",
       "source/rtp_packetizer_av1_unittest.cc",
       "source/rtp_rtcp_impl2_unittest.cc",
-      "source/rtp_rtcp_impl_unittest.cc",
       "source/rtp_sender_audio_unittest.cc",
       "source/rtp_sender_egress_unittest.cc",
       "source/rtp_sender_unittest.cc",
@@ -682,7 +644,6 @@ if (rtc_include_tests) {
       ":rtp_packetizer_av1_test_helper",
       ":rtp_rtcp",
       ":rtp_rtcp_format",
-      ":rtp_rtcp_legacy",
       ":rtp_video_header",
       ":rtp_video_header_unittest",
       "..:module_fec_api",
