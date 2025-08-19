@@ -33,7 +33,7 @@ rtc_library("frame_instrumentation_evaluation") {
     "../../api:scoped_refptr",
     "../../api/video:video_frame",
     "../../api/video:video_rtp_headers",
-    "../../common_video:frame_instrumentation_data",
+    "../../api/video/corruption_detection:frame_instrumentation_data",
     "../../rtc_base:checks",
     "../../rtc_base:logging",
   ]
@@ -52,8 +52,8 @@ rtc_library("frame_instrumentation_generator") {
     "../../api/video:video_frame",
     "../../api/video:video_frame_type",
     "../../api/video/corruption_detection:filter_settings",
+    "../../api/video/corruption_detection:frame_instrumentation_data",
     "../../api/video_codecs:video_codecs_api",
-    "../../common_video:frame_instrumentation_data",
     "../../modules:module_api_public",
     "../../modules/video_coding:video_coding_utility",
     "../../rtc_base:checks",
@@ -164,7 +164,7 @@ if (rtc_include_tests) {
       "../../api:scoped_refptr",
       "../../api/video:video_frame",
       "../../api/video:video_rtp_headers",
-      "../../common_video:frame_instrumentation_data",
+      "../../api/video/corruption_detection:frame_instrumentation_data",
       "../../test:test_support",
     ]
   }
@@ -180,7 +180,7 @@ if (rtc_include_tests) {
       "../../api/video:video_frame",
       "../../api/video:video_frame_type",
       "../../api/video/corruption_detection:filter_settings",
-      "../../common_video:frame_instrumentation_data",
+      "../../api/video/corruption_detection:frame_instrumentation_data",
       "../../rtc_base:refcount",
       "../../test:test_support",
     ]

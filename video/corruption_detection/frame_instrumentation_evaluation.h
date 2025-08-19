@@ -11,9 +11,9 @@
 #ifndef VIDEO_CORRUPTION_DETECTION_FRAME_INSTRUMENTATION_EVALUATION_H_
 #define VIDEO_CORRUPTION_DETECTION_FRAME_INSTRUMENTATION_EVALUATION_H_
 
+#include "api/video/corruption_detection/frame_instrumentation_data.h"
 #include "api/video/video_content_type.h"
 #include "api/video/video_frame.h"
-#include "common_video/frame_instrumentation_data.h"
 #include "video/corruption_detection/corruption_classifier.h"
 #include "video/corruption_detection/halton_frame_sampler.h"
 
