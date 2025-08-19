@@ -55,7 +55,7 @@ class PortInterface {
   virtual ~PortInterface();
 
   virtual IceCandidateType Type() const = 0;
-  virtual const Network* Network() const = 0;
+  virtual const ::webrtc::Network* Network() const = 0;
 
   // Methods to set/get ICE role and tiebreaker values.
   virtual void SetIceRole(IceRole role) = 0;
@@ -204,6 +204,5 @@ class PortInterface {
 };
 
 }  //  namespace webrtc
-
 
 #endif  // P2P_BASE_PORT_INTERFACE_H_
