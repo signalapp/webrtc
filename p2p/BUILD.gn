@@ -310,7 +310,6 @@ rtc_library("dtls_transport") {
     "../rtc_base:stream",
     "../rtc_base:stringutils",
     "../rtc_base:threading",
-    "../rtc_base:timeutils",
     "../rtc_base/network:received_packet",
     "../rtc_base/network:sent_packet",
     "../rtc_base/system:no_unique_address",
