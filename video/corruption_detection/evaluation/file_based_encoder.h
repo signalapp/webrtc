@@ -30,7 +30,8 @@ class FileBasedEncoder {
 
   // Encodes the raw video clip specified by `clip` given in a Y4M or YUV file.
   // Creates an encoded file where the encoded frames are stored. The encoded
-  // path is returned if successful.
+  // path is returned if successful. If not successful, an empty string is
+  // returned.
   virtual std::string Encode(const TestClip& clip, DataRate bitrate) = 0;
 
   // Returns the used codec for encoding.
