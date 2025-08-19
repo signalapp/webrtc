@@ -219,18 +219,21 @@ P2PTransportChannel::P2PTransportChannel(
   ParseFieldTrials(field_trials);
 
   IceControllerFactoryArgs args{
-      [this] { return GetState(); }, [this] { return GetIceRole(); },
-      [this](const Connection* connection) {
-        return IsPortPruned(connection->port()) ||
-               IsRemoteCandidatePruned(connection->remote_candidate());
-      },
-      &ice_field_trials_,
-      field_trials ? field_trials->Lookup("WebRTC-IceControllerFieldTrials")
-                   : ""};
+      .ice_transport_state_func = [this] { return GetState(); },
+      .ice_role_func = [this] { return GetIceRole(); },
+      .is_connection_pruned_func =
+          [this](const Connection* connection) {
+            return IsPortPruned(connection->port()) ||
+                   IsRemoteCandidatePruned(connection->remote_candidate());
+          },
+      .ice_field_trials = &ice_field_trials_,
+      .ice_controller_field_trials =
+          field_trials ? field_trials->Lookup("WebRTC-IceControllerFieldTrials")
+                       : ""};
 
   if (active_ice_controller_factory) {
-    ActiveIceControllerFactoryArgs active_args{args,
-                                               /* ice_agent= */ this};
+    ActiveIceControllerFactoryArgs active_args{.legacy_args = args,
+                                               .ice_agent = this};
     ice_controller_ = active_ice_controller_factory->Create(active_args);
   } else {
     ice_controller_ = std::make_unique<WrappingActiveIceController>(
