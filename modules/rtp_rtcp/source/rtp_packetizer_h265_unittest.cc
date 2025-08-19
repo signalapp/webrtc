@@ -534,6 +534,14 @@ TEST(RtpPacketizerH265Test, FuBig) {
       ElementsAre(1197, 1197, 1197, 1197, 1197, 1197, 1197, 1197, 1197, 1197));
 }
 
+// Invalid input tests.
+TEST(RtpPacketizerH265Test, TooShortNalUnitHeader) {
+  const uint8_t kFrame[] = {0, 0, 0, 1, 15};
+  RtpPacketizer::PayloadSizeLimits limits;
+  RtpPacketizerH265 packetizer(kFrame, limits);
+  EXPECT_EQ(packetizer.NumPackets(), 0u);
+}
+
 struct PacketInfo {
   bool first_fragment = false;
   bool last_fragment = false;

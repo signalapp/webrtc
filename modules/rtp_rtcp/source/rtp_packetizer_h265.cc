@@ -29,8 +29,9 @@ namespace webrtc {
 RtpPacketizerH265::RtpPacketizerH265(ArrayView<const uint8_t> payload,
                                      PayloadSizeLimits limits)
     : limits_(limits), num_packets_left_(0) {
-  for (const auto& nalu : H264::FindNaluIndices(payload)) {
-    if (!nalu.payload_size) {
+  for (const H264::NaluIndex& nalu : H264::FindNaluIndices(payload)) {
+    if (nalu.payload_size < 2) {
+      // Payload size has to include NALU header which is fixed 2 bytes.
       input_fragments_.clear();
       return;
     }
