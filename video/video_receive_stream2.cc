@@ -43,6 +43,7 @@
 #include "api/units/timestamp.h"
 #include "api/video/color_space.h"
 #include "api/video/corruption_detection/frame_instrumentation_data.h"
+#include "api/video/corruption_detection/frame_instrumentation_evaluation.h"
 #include "api/video/encoded_frame.h"
 #include "api/video/encoded_image.h"
 #include "api/video/recordable_encoded_frame.h"
@@ -85,7 +86,6 @@
 #include "system_wrappers/include/clock.h"
 #include "system_wrappers/include/ntp_time.h"
 #include "video/call_stats2.h"
-#include "video/corruption_detection/frame_instrumentation_evaluation.h"
 #include "video/decode_synchronizer.h"
 #include "video/frame_decode_scheduler.h"
 #include "video/frame_dumping_decoder.h"
@@ -266,7 +266,7 @@ VideoReceiveStream2::VideoReceiveStream2(
       max_wait_for_frame_(DetermineMaxWaitForFrame(
           TimeDelta::Millis(config_.rtp.nack.rtp_history_ms),
           false)),
-      frame_evaluator_(&stats_proxy_),
+      frame_evaluator_(FrameInstrumentationEvaluation::Create(&stats_proxy_)),
       decode_queue_(env_.task_queue_factory().CreateTaskQueue(
           "DecodingQueue",
           TaskQueueFactory::Priority::HIGH)) {
@@ -657,8 +657,8 @@ void VideoReceiveStream2::CalculateCorruptionScore(
     const FrameInstrumentationData& frame_instrumentation_data,
     VideoContentType content_type) {
   RTC_DCHECK_RUN_ON(&decode_sequence_checker_);
-  frame_evaluator_.OnInstrumentedFrame(frame_instrumentation_data, frame,
-                                       content_type);
+  frame_evaluator_->OnInstrumentedFrame(frame_instrumentation_data, frame,
+                                        content_type);
 }
 
 bool VideoReceiveStream2::SetBaseMinimumPlayoutDelayMs(int delay_ms) {

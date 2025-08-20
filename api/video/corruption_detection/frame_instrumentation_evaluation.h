@@ -8,14 +8,14 @@
  * be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef VIDEO_CORRUPTION_DETECTION_FRAME_INSTRUMENTATION_EVALUATION_H_
-#define VIDEO_CORRUPTION_DETECTION_FRAME_INSTRUMENTATION_EVALUATION_H_
+#ifndef API_VIDEO_CORRUPTION_DETECTION_FRAME_INSTRUMENTATION_EVALUATION_H_
+#define API_VIDEO_CORRUPTION_DETECTION_FRAME_INSTRUMENTATION_EVALUATION_H_
+
+#include <memory>
 
 #include "api/video/corruption_detection/frame_instrumentation_data.h"
 #include "api/video/video_content_type.h"
 #include "api/video/video_frame.h"
-#include "video/corruption_detection/corruption_classifier.h"
-#include "video/corruption_detection/halton_frame_sampler.h"
 
 namespace webrtc {
 
@@ -32,19 +32,18 @@ class CorruptionScoreObserver {
 
 class FrameInstrumentationEvaluation {
  public:
-  explicit FrameInstrumentationEvaluation(CorruptionScoreObserver* observer);
+  static std::unique_ptr<FrameInstrumentationEvaluation> Create(
+      CorruptionScoreObserver* observer);
 
-  void OnInstrumentedFrame(const FrameInstrumentationData& data,
-                           const VideoFrame& frame,
-                           VideoContentType frame_type);
+  virtual ~FrameInstrumentationEvaluation() = default;
+  virtual void OnInstrumentedFrame(const FrameInstrumentationData& data,
+                                   const VideoFrame& frame,
+                                   VideoContentType frame_type) = 0;
 
- private:
-  CorruptionScoreObserver* const observer_;
-
-  HaltonFrameSampler frame_sampler_;
-  CorruptionClassifier classifier_;
+ protected:
+  FrameInstrumentationEvaluation() = default;
 };
 
 }  // namespace webrtc
 
-#endif  // VIDEO_CORRUPTION_DETECTION_FRAME_INSTRUMENTATION_EVALUATION_H_
+#endif  // API_VIDEO_CORRUPTION_DETECTION_FRAME_INSTRUMENTATION_EVALUATION_H_

@@ -8,9 +8,10 @@
  * be found in the AUTHORS file in the root of the source tree.
  */
 
-#include "video/corruption_detection/frame_instrumentation_evaluation.h"
+#include "api/video/corruption_detection/frame_instrumentation_evaluation.h"
 
 #include <cstdint>
+#include <memory>
 #include <vector>
 
 #include "api/scoped_refptr.h"
@@ -59,9 +60,10 @@ TEST(FrameInstrumentationEvaluationTest,
           .build();
 
   MockCorruptionScoreObserver observer;
-  FrameInstrumentationEvaluation evaluator(&observer);
+  std::unique_ptr<FrameInstrumentationEvaluation> evaluator =
+      FrameInstrumentationEvaluation::Create(&observer);
   EXPECT_CALL(observer, OnCorruptionScore).Times(0);
-  evaluator.OnInstrumentedFrame(data, frame, VideoContentType::UNSPECIFIED);
+  evaluator->OnInstrumentedFrame(data, frame, VideoContentType::UNSPECIFIED);
 }
 
 TEST(FrameInstrumentationEvaluationTest,
@@ -75,9 +77,10 @@ TEST(FrameInstrumentationEvaluationTest,
           .build();
 
   MockCorruptionScoreObserver observer;
-  FrameInstrumentationEvaluation evaluator(&observer);
+  std::unique_ptr<FrameInstrumentationEvaluation> evaluator =
+      FrameInstrumentationEvaluation::Create(&observer);
   EXPECT_CALL(observer, OnCorruptionScore(1.0, VideoContentType::SCREENSHARE));
-  evaluator.OnInstrumentedFrame(data, frame, VideoContentType::SCREENSHARE);
+  evaluator->OnInstrumentedFrame(data, frame, VideoContentType::SCREENSHARE);
 }
 
 TEST(FrameInstrumentationEvaluationTest,
@@ -93,9 +96,10 @@ TEST(FrameInstrumentationEvaluationTest,
           .build();
 
   MockCorruptionScoreObserver observer;
-  FrameInstrumentationEvaluation evaluator(&observer);
+  std::unique_ptr<FrameInstrumentationEvaluation> evaluator =
+      FrameInstrumentationEvaluation::Create(&observer);
   EXPECT_CALL(observer, OnCorruptionScore(AllOf(Ge(0.0), Le(1.0)), _));
-  evaluator.OnInstrumentedFrame(data, frame, VideoContentType::UNSPECIFIED);
+  evaluator->OnInstrumentedFrame(data, frame, VideoContentType::UNSPECIFIED);
 }
 
 TEST(FrameInstrumentationEvaluationTest,
@@ -112,9 +116,10 @@ TEST(FrameInstrumentationEvaluationTest,
           .build();
 
   MockCorruptionScoreObserver observer;
-  FrameInstrumentationEvaluation evaluator(&observer);
+  std::unique_ptr<FrameInstrumentationEvaluation> evaluator =
+      FrameInstrumentationEvaluation::Create(&observer);
   EXPECT_CALL(observer, OnCorruptionScore(AllOf(Ge(0.0), Le(1.0)), _));
-  evaluator.OnInstrumentedFrame(data, frame, VideoContentType::UNSPECIFIED);
+  evaluator->OnInstrumentedFrame(data, frame, VideoContentType::UNSPECIFIED);
 }
 
 TEST(FrameInstrumentationEvaluationTest, ApplySequenceIndexWhenProvided) {
@@ -131,9 +136,10 @@ TEST(FrameInstrumentationEvaluationTest, ApplySequenceIndexWhenProvided) {
           .build();
 
   MockCorruptionScoreObserver observer;
-  FrameInstrumentationEvaluation evaluator(&observer);
+  std::unique_ptr<FrameInstrumentationEvaluation> evaluator =
+      FrameInstrumentationEvaluation::Create(&observer);
   EXPECT_CALL(observer, OnCorruptionScore(AllOf(Ge(0.0), Le(1.0)), _));
-  evaluator.OnInstrumentedFrame(data, frame, VideoContentType::UNSPECIFIED);
+  evaluator->OnInstrumentedFrame(data, frame, VideoContentType::UNSPECIFIED);
 }
 
 }  // namespace
