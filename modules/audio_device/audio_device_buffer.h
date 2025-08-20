@@ -21,7 +21,6 @@
 #include "api/environment/environment.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/task_queue_base.h"
-#include "api/task_queue/task_queue_factory.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread_annotations.h"
@@ -85,9 +84,6 @@ class AudioDeviceBuffer {
   // testing.
   explicit AudioDeviceBuffer(const Environment& env,
                              bool create_detached = false);
-  [[deprecated("bugs.webrtc.org/42223992")]]
-  explicit AudioDeviceBuffer(TaskQueueFactory* task_queue_factory,
-                             bool create_detached = false);
   virtual ~AudioDeviceBuffer();
 
   int32_t RegisterAudioCallback(AudioTransport* audio_callback);
@@ -146,6 +142,8 @@ class AudioDeviceBuffer {
   // These methods both run on the task queue.
   void ResetRecStats();
   void ResetPlayStats();
+
+  const Environment env_;
 
   // This object lives on the main (creating) thread and most methods are
   // called on that same thread. When audio has started some methods will be
