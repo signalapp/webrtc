@@ -26,7 +26,6 @@
 #include "absl/strings/string_view.h"
 #include "api/candidate.h"
 #include "api/environment/environment.h"
-#include "api/field_trials_view.h"
 #include "api/local_network_access_permission.h"
 #include "api/packet_socket_factory.h"
 #include "api/sequence_checker.h"
@@ -465,8 +464,7 @@ class RTC_EXPORT Port : public PortInterface, public sigslot::has_slots<> {
     mdns_name_registration_status_ = status;
   }
 
-  const FieldTrialsView& field_trials() const { return env_.field_trials(); }
-
+  const Environment& env() const { return env_; }
   IceCandidateType type() const { return type_; }
 
   // Requests the Local Network Access Permission if necessary. Asynchronously

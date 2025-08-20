@@ -245,7 +245,7 @@ void Port::AddAddress(const SocketAddress& address,
 
   c.set_priority(
       c.GetPriority(type_preference, network_->preference(), relay_preference,
-                    field_trials().IsEnabled(
+                    env().field_trials().IsEnabled(
                         "WebRTC-IncreaseIceCandidatePriorityHostSrflx")));
 #if RTC_DCHECK_IS_ON
   if (protocol == TCP_PROTOCOL_NAME && c.is_local()) {
@@ -889,7 +889,7 @@ std::string Port::ToString() const {
 // TODO(honghaiz): Make the network cost configurable from user setting.
 void Port::UpdateNetworkCost() {
   RTC_DCHECK_RUN_ON(thread_);
-  uint16_t new_cost = network_->GetCost(field_trials());
+  uint16_t new_cost = network_->GetCost(env().field_trials());
   if (network_cost_ == new_cost) {
     return;
   }
