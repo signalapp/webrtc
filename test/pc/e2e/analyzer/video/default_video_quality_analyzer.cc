@@ -134,7 +134,8 @@ std::optional<T> MaybeGetValue(const std::map<size_t, T>& map, size_t key) {
 
 SamplesStatsCounter::StatsSample StatsSample(double value,
                                              Timestamp sampling_time) {
-  return SamplesStatsCounter::StatsSample{value, sampling_time};
+  return SamplesStatsCounter::StatsSample{.value = value,
+                                          .time = sampling_time};
 }
 
 }  // namespace

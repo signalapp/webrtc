@@ -683,7 +683,9 @@ std::optional<uint16_t> EmulatedEndpointImpl::BindReceiverInternal(
   RTC_CHECK(port != 0) << "Can't find free port for receiver in endpoint "
                        << options_.log_name << "; id=" << options_.id;
   bool result =
-      port_to_receiver_.insert({port, {receiver, is_one_shot}}).second;
+      port_to_receiver_
+          .insert({port, {.receiver = receiver, .is_one_shot = is_one_shot}})
+          .second;
   if (!result) {
     RTC_LOG(LS_INFO) << "Can't bind receiver to used port " << desired_port
                      << " in endpoint " << options_.log_name

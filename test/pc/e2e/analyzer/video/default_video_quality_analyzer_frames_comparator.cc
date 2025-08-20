@@ -48,16 +48,17 @@ SamplesStatsCounter::StatsSample StatsSample(
     double value,
     Timestamp sampling_time,
     std::map<std::string, std::string> metadata) {
-  return SamplesStatsCounter::StatsSample{value, sampling_time,
-                                          std::move(metadata)};
+  return {
+      .value = value, .time = sampling_time, .metadata = std::move(metadata)};
 }
 
 SamplesStatsCounter::StatsSample StatsSample(
     TimeDelta duration,
     Timestamp sampling_time,
     std::map<std::string, std::string> metadata) {
-  return SamplesStatsCounter::StatsSample{duration.ms<double>(), sampling_time,
-                                          std::move(metadata)};
+  return {.value = duration.ms<double>(),
+          .time = sampling_time,
+          .metadata = std::move(metadata)};
 }
 
 FrameComparison ValidateFrameComparison(FrameComparison comparison) {
