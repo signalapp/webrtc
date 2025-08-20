@@ -940,8 +940,7 @@ void TurnPort::OnAllocateError(int error_code, absl::string_view reason) {
     port = 0;
   }
   if (error_code != STUN_ERROR_NOT_AN_ERROR) {
-    SignalCandidateError(
-        this,
+    SendCandidateError(
         IceCandidateErrorEvent(address, port, server_url_, error_code, reason));
   }
 }

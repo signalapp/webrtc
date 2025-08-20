@@ -574,10 +574,9 @@ void UDPPort::OnStunBindingOrResolveRequestFailed(
   if (error_code != STUN_ERROR_NOT_AN_ERROR) {
     StringBuilder url;
     url << "stun:" << stun_server_addr.ToString();
-    SignalCandidateError(
-        this, IceCandidateErrorEvent(
-                  GetLocalAddress().HostAsSensitiveURIString(),
-                  GetLocalAddress().port(), url.str(), error_code, reason));
+    SendCandidateError(IceCandidateErrorEvent(
+        GetLocalAddress().HostAsSensitiveURIString(), GetLocalAddress().port(),
+        url.str(), error_code, reason));
   }
   if (bind_request_failed_servers_.find(stun_server_addr) !=
       bind_request_failed_servers_.end()) {

@@ -309,6 +309,15 @@ void Port::PostAddAddress(bool is_final) {
   }
 }
 
+void Port::SubscribeCandidateError(
+    std::function<void(Port*, const IceCandidateErrorEvent&)> callback) {
+  candidate_error_callback_list_.AddReceiver(std::move(callback));
+}
+
+void Port::SendCandidateError(const IceCandidateErrorEvent& event) {
+  candidate_error_callback_list_.Send(this, event);
+}
+
 void Port::AddOrReplaceConnection(Connection* conn) {
   auto ret = connections_.insert(
       std::make_pair(conn->remote_candidate().address(), conn));
@@ -838,7 +847,7 @@ void Port::DestroyIfDead() {
 
 void Port::SubscribePortDestroyed(
     std::function<void(PortInterface*)> callback) {
-  port_destroyed_callback_list_.AddReceiver(callback);
+  port_destroyed_callback_list_.AddReceiver(std::move(callback));
 }
 
 void Port::SendPortDestroyed(Port* port) {

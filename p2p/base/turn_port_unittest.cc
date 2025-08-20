@@ -367,8 +367,11 @@ class TurnPortTest : public ::testing::Test,
     turn_port_->SignalPortComplete.connect(this,
                                            &TurnPortTest::OnTurnPortComplete);
     turn_port_->SignalPortError.connect(this, &TurnPortTest::OnTurnPortError);
-    turn_port_->SignalCandidateError.connect(this,
-                                             &TurnPortTest::OnCandidateError);
+    turn_port_->SubscribeCandidateError(
+        [this](Port* port, const IceCandidateErrorEvent& event) {
+          OnCandidateError(port, event);
+        });
+
     turn_port_->SignalUnknownAddress.connect(
         this, &TurnPortTest::OnTurnUnknownAddress);
     turn_port_->SubscribePortDestroyed(

@@ -218,8 +218,10 @@ class StunPortTestBase : public ::testing::Test, public sigslot::has_slots<> {
     stun_port_->SignalPortComplete.connect(this,
                                            &StunPortTestBase::OnPortComplete);
     stun_port_->SignalPortError.connect(this, &StunPortTestBase::OnPortError);
-    stun_port_->SignalCandidateError.connect(
-        this, &StunPortTestBase::OnCandidateError);
+    stun_port_->SubscribeCandidateError(
+        [this](Port* port, const IceCandidateErrorEvent& event) {
+          OnCandidateError(port, event);
+        });
   }
 
   void CreateSharedUdpPort(
