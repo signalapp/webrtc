@@ -1611,7 +1611,7 @@ void Connection::OnConnectionRequestErrorResponse(ConnectionRequest* request,
       error_code == STUN_ERROR_UNAUTHORIZED) {
     // Recoverable error, retry
   } else if (error_code == STUN_ERROR_ROLE_CONFLICT) {
-    port_->SignalRoleConflict(port_.get());
+    port_->NotifyRoleConflict();
   } else if (request->msg()->type() == GOOG_PING_REQUEST) {
     // Race, retry.
   } else {

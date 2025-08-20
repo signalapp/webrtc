@@ -124,7 +124,9 @@ class PortInterface {
       std::function<void(PortInterface*)> callback) = 0;
 
   // Signaled when Port discovers ice role conflict with the peer.
-  sigslot::signal1<PortInterface*> SignalRoleConflict;
+  virtual void SubscribeRoleConflict(
+      std::function<void(PortInterface*)> callback) = 0;
+  virtual void NotifyRoleConflict() = 0;
 
   // Normally, packets arrive through a connection (or they result signaling of
   // unknown address).  Calling this method turns off delivery of packets

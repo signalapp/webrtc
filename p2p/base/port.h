@@ -383,6 +383,11 @@ class RTC_EXPORT Port : public PortInterface, public sigslot::has_slots<> {
 
   void GetStunStats(std::optional<StunStats>* /* stats */) override {}
 
+  // Signals for ICE role conflicts.
+  void SubscribeRoleConflict(
+      std::function<void(PortInterface*)> callback) override;
+  void NotifyRoleConflict() override;
+
  protected:
   void UpdateNetworkCost() override;
 
@@ -551,6 +556,8 @@ class RTC_EXPORT Port : public PortInterface, public sigslot::has_slots<> {
       RTC_GUARDED_BY(thread_);
   CallbackList<Port*, const IceCandidateErrorEvent&>
       candidate_error_callback_list_ RTC_GUARDED_BY(thread_);
+
+  CallbackList<PortInterface*> role_conflict_callback_list_;
 
   // Keep as the last member variable.
   WeakPtrFactory<Port> weak_factory_ RTC_GUARDED_BY(thread_);
