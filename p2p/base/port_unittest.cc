@@ -879,8 +879,7 @@ class PortTest : public ::testing::Test, public sigslot::has_slots<> {
                                     .ice_username_fragment = username,
                                     .ice_password = password};
     auto port = std::make_unique<TestPort>(args, 0, 0);
-    port->SubscribeRoleConflict(
-        [this](const PortInterface*) { OnRoleConflict(); });
+    port->SignalRoleConflict.connect(this, &PortTest::OnRoleConflict);
     return port;
   }
   std::unique_ptr<TestPort> CreateTestPort(const SocketAddress& addr,
@@ -904,12 +903,11 @@ class PortTest : public ::testing::Test, public sigslot::has_slots<> {
                                     .ice_username_fragment = username,
                                     .ice_password = password};
     auto port = std::make_unique<TestPort>(args, 0, 0);
-    port->SubscribeRoleConflict(
-        [this](const PortInterface*) { OnRoleConflict(); });
+    port->SignalRoleConflict.connect(this, &PortTest::OnRoleConflict);
     return port;
   }
 
-  void OnRoleConflict() { role_conflict_ = true; }
+  void OnRoleConflict(PortInterface* port) { role_conflict_ = true; }
   bool role_conflict() const { return role_conflict_; }
 
   void ConnectToSignalDestroyed(PortInterface* port) {

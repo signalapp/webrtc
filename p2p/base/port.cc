@@ -682,7 +682,7 @@ bool Port::MaybeIceRoleConflict(const SocketAddress& addr,
     case ICEROLE_CONTROLLING:
       if (ICEROLE_CONTROLLING == remote_ice_role) {
         if (remote_tiebreaker >= tiebreaker_) {
-          NotifyRoleConflict();
+          SignalRoleConflict(this);
         } else {
           // Send Role Conflict (487) error response.
           SendBindingErrorResponse(stun_msg, addr, STUN_ERROR_ROLE_CONFLICT,
@@ -694,7 +694,7 @@ bool Port::MaybeIceRoleConflict(const SocketAddress& addr,
     case ICEROLE_CONTROLLED:
       if (ICEROLE_CONTROLLED == remote_ice_role) {
         if (remote_tiebreaker < tiebreaker_) {
-          NotifyRoleConflict();
+          SignalRoleConflict(this);
         } else {
           // Send Role Conflict (487) error response.
           SendBindingErrorResponse(stun_msg, addr, STUN_ERROR_ROLE_CONFLICT,
@@ -1019,15 +1019,6 @@ void Port::OnRequestLocalNetworkAccessPermission(
 
   permission_queries_.erase(it);
   std::move(callback)(status);
-}
-
-void Port::SubscribeRoleConflict(
-    std::function<void(PortInterface* /*unused*/)> callback) {
-  role_conflict_callback_list_.AddReceiver(std::move(callback));
-}
-
-void Port::NotifyRoleConflict() {
-  role_conflict_callback_list_.Send(this);
 }
 
 }  // namespace webrtc
