@@ -486,6 +486,7 @@ rtc_library("p2p_transport_channel") {
     "../api:local_network_access_permission",
     "../api:rtc_error",
     "../api:sequence_checker",
+    "../api/environment",
     "../api/task_queue:pending_task_safety_flag",
     "../api/transport:enums",
     "../api/transport:stun_types",

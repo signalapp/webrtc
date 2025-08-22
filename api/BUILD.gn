@@ -233,6 +233,7 @@ rtc_source_set("ice_transport_interface") {
     ":ref_count",
     ":rtc_error",
     ":scoped_refptr",
+    "environment",
     "rtc_event_log",
   ]
 }
