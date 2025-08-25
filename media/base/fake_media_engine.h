@@ -896,12 +896,14 @@ class FakeVideoEngine : public VideoEngineInterface {
   FakeVideoEngine();
   bool SetOptions(const VideoOptions& options);
   std::unique_ptr<VideoMediaSendChannelInterface> CreateSendChannel(
+      const Environment& env,
       Call* call,
       const MediaConfig& config,
       const VideoOptions& options,
       const CryptoOptions& crypto_options,
       VideoBitrateAllocatorFactory* video_bitrate_allocator_factory) override;
   std::unique_ptr<VideoMediaReceiveChannelInterface> CreateReceiveChannel(
+      const Environment& env,
       Call* call,
       const MediaConfig& config,
       const VideoOptions& options,

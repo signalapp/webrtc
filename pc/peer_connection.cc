@@ -579,12 +579,12 @@ PeerConnection::PeerConnection(
     rtp_manager_->transceivers()->Add(
         RtpTransceiverProxyWithInternal<RtpTransceiver>::Create(
             signaling_thread(), make_ref_counted<RtpTransceiver>(
-                                    webrtc::MediaType::AUDIO, context_.get(),
+                                    env_, MediaType::AUDIO, context_.get(),
                                     codec_lookup_helper_.get())));
     rtp_manager_->transceivers()->Add(
         RtpTransceiverProxyWithInternal<RtpTransceiver>::Create(
             signaling_thread(), make_ref_counted<RtpTransceiver>(
-                                    webrtc::MediaType::VIDEO, context_.get(),
+                                    env_, MediaType::VIDEO, context_.get(),
                                     codec_lookup_helper_.get())));
   }
 

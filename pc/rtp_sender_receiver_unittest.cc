@@ -117,13 +117,13 @@ class RtpSenderReceiverTest
         &fake_call_, MediaConfig(), AudioOptions(), CryptoOptions(),
         AudioCodecPairId::Create());
     video_media_send_channel_ = media_engine_->video().CreateSendChannel(
-        &fake_call_, MediaConfig(), VideoOptions(), CryptoOptions(),
+        env_, &fake_call_, MediaConfig(), VideoOptions(), CryptoOptions(),
         video_bitrate_allocator_factory_.get());
     voice_media_receive_channel_ = media_engine_->voice().CreateReceiveChannel(
         &fake_call_, MediaConfig(), AudioOptions(), CryptoOptions(),
         AudioCodecPairId::Create());
     video_media_receive_channel_ = media_engine_->video().CreateReceiveChannel(
-        &fake_call_, MediaConfig(), VideoOptions(), CryptoOptions());
+        env_, &fake_call_, MediaConfig(), VideoOptions(), CryptoOptions());
 
     // Create streams for predefined SSRCs. Streams need to exist in order
     // for the senders and receievers to apply parameters to them.
