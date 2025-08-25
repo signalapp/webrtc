@@ -4035,20 +4035,21 @@ TEST(WebRtcVoiceEngineTest, CollectRecvCodecs) {
   Environment env = CreateEnvironment();
   for (bool use_null_apm : {false, true}) {
     std::vector<webrtc::AudioCodecSpec> specs;
-    webrtc::AudioCodecSpec spec1{{"codec1", 48000, 2, {{"param1", "value1"}}},
-                                 {48000, 2, 16000, 10000, 20000}};
+    webrtc::AudioCodecSpec spec1 = {
+        .format = {"codec1", 48000, 2, {{"param1", "value1"}}},
+        .info = {48000, 2, 16000, 10000, 20000},
+    };
     spec1.info.allow_comfort_noise = false;
     spec1.info.supports_network_adaption = true;
     specs.push_back(spec1);
-    webrtc::AudioCodecSpec spec2{{"codec2", 48000, 2, {{"param1", "value1"}}},
-                                 {48000, 2, 16000, 10000, 20000}};
+    webrtc::AudioCodecSpec spec2 = {
+        .format = {"codec2", 48000, 2, {{"param1", "value1"}}},
+        .info = {48000, 2, 16000, 10000, 20000}};
     // We do not support 48khz CN.
     spec2.info.allow_comfort_noise = true;
     specs.push_back(spec2);
-    specs.push_back(
-        webrtc::AudioCodecSpec{{"codec3", 8000, 1}, {8000, 1, 64000}});
-    specs.push_back(
-        webrtc::AudioCodecSpec{{"codec4", 8000, 2}, {8000, 1, 64000}});
+    specs.push_back({.format = {"codec3", 8000, 1}, .info = {8000, 1, 64000}});
+    specs.push_back({.format = {"codec4", 8000, 2}, .info = {8000, 1, 64000}});
 
     webrtc::scoped_refptr<webrtc::MockAudioEncoderFactory>
         unused_encoder_factory =
@@ -4124,20 +4125,20 @@ TEST(WebRtcVoiceEngineTest, CollectRecvCodecsWithLatePtAssignment) {
 
   for (bool use_null_apm : {false, true}) {
     std::vector<webrtc::AudioCodecSpec> specs;
-    webrtc::AudioCodecSpec spec1{{"codec1", 48000, 2, {{"param1", "value1"}}},
-                                 {48000, 2, 16000, 10000, 20000}};
+    webrtc::AudioCodecSpec spec1 = {
+        .format = {"codec1", 48000, 2, {{"param1", "value1"}}},
+        .info = {48000, 2, 16000, 10000, 20000}};
     spec1.info.allow_comfort_noise = false;
     spec1.info.supports_network_adaption = true;
     specs.push_back(spec1);
-    webrtc::AudioCodecSpec spec2{{"codec2", 48000, 2, {{"param1", "value1"}}},
-                                 {48000, 2, 16000, 10000, 20000}};
+    webrtc::AudioCodecSpec spec2 = {
+        .format = {"codec2", 48000, 2, {{"param1", "value1"}}},
+        .info = {48000, 2, 16000, 10000, 20000}};
     // We do not support 48khz CN.
     spec2.info.allow_comfort_noise = true;
     specs.push_back(spec2);
-    specs.push_back(
-        webrtc::AudioCodecSpec{{"codec3", 8000, 1}, {8000, 1, 64000}});
-    specs.push_back(
-        webrtc::AudioCodecSpec{{"codec4", 8000, 2}, {8000, 1, 64000}});
+    specs.push_back({.format = {"codec3", 8000, 1}, .info = {8000, 1, 64000}});
+    specs.push_back({.format = {"codec4", 8000, 2}, .info = {8000, 1, 64000}});
 
     webrtc::scoped_refptr<webrtc::MockAudioEncoderFactory>
         unused_encoder_factory =

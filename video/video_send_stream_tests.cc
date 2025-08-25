@@ -2931,7 +2931,9 @@ TEST_F(VideoSendStreamTest, ReportsSentResolution) {
   static const struct {
     int width;
     int height;
-  } kEncodedResolution[kNumStreams] = {{241, 181}, {300, 121}, {121, 221}};
+  } kEncodedResolution[kNumStreams] = {{.width = 241, .height = 181},
+                                       {.width = 300, .height = 121},
+                                       {.width = 121, .height = 221}};
   class ScreencastTargetBitrateTest : public test::SendTest,
                                       public test::FakeEncoder {
    public:
@@ -3623,7 +3625,10 @@ TEST_F(VideoSendStreamTest, Vp9NonFlexModeSmallResolution) {
     }
   };
 
-  Vp9TestParams params{"L1T1", 1, 1, InterLayerPredMode::kOn};
+  Vp9TestParams params{.scalability_mode = "L1T1",
+                       .num_spatial_layers = 1,
+                       .num_temporal_layers = 1,
+                       .inter_layer_pred = InterLayerPredMode::kOn};
   NonFlexibleModeResolution test(params);
 
   RunBaseTest(&test);
@@ -3667,7 +3672,10 @@ TEST_F(VideoSendStreamTest, MAYBE_Vp9FlexModeRefCount) {
     }
   };
 
-  Vp9TestParams params{"L2T1", 2, 1, InterLayerPredMode::kOn};
+  Vp9TestParams params{.scalability_mode = "L2T1",
+                       .num_spatial_layers = 2,
+                       .num_temporal_layers = 1,
+                       .inter_layer_pred = InterLayerPredMode::kOn};
   FlexibleMode test(params);
 
   RunBaseTest(&test);

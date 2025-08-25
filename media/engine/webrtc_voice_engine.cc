@@ -1199,7 +1199,8 @@ class WebRtcVoiceSendChannel::WebRtcAudioSendStream : public AudioSource::Sink {
           std::min(info->max_bitrate_bps, *send_codec_spec.target_bitrate_bps));
     }
 
-    audio_codec_spec_.emplace(AudioCodecSpec{send_codec_spec.format, *info});
+    audio_codec_spec_.emplace(
+        AudioCodecSpec{.format = send_codec_spec.format, .info = *info});
 
     config_.send_codec_spec->target_bitrate_bps = ComputeSendBitrate(
         max_send_bitrate_bps_, rtp_parameters_.encodings[0].max_bitrate_bps,
