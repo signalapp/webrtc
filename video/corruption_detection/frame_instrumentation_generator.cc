@@ -140,17 +140,17 @@ FrameInstrumentationGenerator::OnEncodedImage(
     }
 
     int sequence_index = contexts_[layer_id].frame_sampler.GetCurrentIndex();
-    if (is_key_frame) {
+    if (is_key_frame && ((sequence_index & 0b0111'1111) != 0)) {
       // Increase until all the last 7 bits are zeroes.
-      // If this would overflow to 15 bits, reset to 0.
-      if (sequence_index > 0b0011'1111'1000'0000) {
-        sequence_index = 0;
-      } else if ((sequence_index & 0b0111'1111) != 0) {
-        // Last 7 bits are not all zeroes.
-        sequence_index >>= 7;
-        sequence_index += 1;
-        sequence_index <<= 7;
-      }
+      sequence_index >>= 7;
+      sequence_index += 1;
+      sequence_index <<= 7;
+      contexts_[layer_id].frame_sampler.SetCurrentIndex(sequence_index);
+    }
+
+    if (sequence_index >= (1 << 14)) {
+      // Overflow of 14 bit counter, reset to 0.
+      sequence_index = 0;
       contexts_[layer_id].frame_sampler.SetCurrentIndex(sequence_index);
     }
 

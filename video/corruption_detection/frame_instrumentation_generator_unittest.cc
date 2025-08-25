@@ -581,6 +581,54 @@ TEST(FrameInstrumentationGeneratorTest,
   EXPECT_EQ(data1->sequence_index(), 0b0000'1000'0000);
   EXPECT_EQ(data2->sequence_index(), 0b0001'0000'0000);
 }
+TEST(FrameInstrumentationGeneratorTest,
+     SequenceIndexThatWouldOverflowTo15BitsIncreasesCorrectlyAtNewDeltaFrame) {
+  FrameInstrumentationGenerator generator(VideoCodecType::kVideoCodecVP8);
+  generator.OnCapturedFrame(
+      VideoFrame::Builder()
+          .set_video_frame_buffer(MakeI420FrameBufferWithDifferentPixelValues())
+          .set_rtp_timestamp(1)
+          .build());
+  EncodedImage encoded_image;
+  encoded_image.SetRtpTimestamp(1);
+  encoded_image.SetFrameType(VideoFrameType::kVideoFrameDelta);
+  encoded_image.qp_ = 10;
+  encoded_image._encodedWidth = kDefaultScaledWidth;
+  encoded_image._encodedHeight = kDefaultScaledHeight;
+  encoded_image.SetSimulcastIndex(0);
+
+  constexpr int kMaxSequenceIndex = 0b11'1111'1111'1111;
+
+  generator.SetHaltonSequenceIndex(kMaxSequenceIndex,
+                                   generator.GetLayerId(encoded_image));
+  std::optional<FrameInstrumentationData> data =
+      generator.OnEncodedImage(encoded_image);
+
+  ASSERT_TRUE(data.has_value());
+  EXPECT_EQ(data->sequence_index(), kMaxSequenceIndex);
+
+  // Loop until we get a new delta frame.
+  bool has_found_delta_frame = false;
+  for (int i = 0; i < 34; ++i) {
+    generator.OnCapturedFrame(
+        VideoFrame::Builder()
+            .set_video_frame_buffer(
+                MakeI420FrameBufferWithDifferentPixelValues())
+            .set_rtp_timestamp(i + 2)
+            .build());
+
+    encoded_image.SetRtpTimestamp(i + 2);
+
+    std::optional<FrameInstrumentationData> frame_instrumentation_data =
+        generator.OnEncodedImage(encoded_image);
+    if (frame_instrumentation_data.has_value()) {
+      has_found_delta_frame = true;
+      EXPECT_EQ(frame_instrumentation_data->sequence_index(), 0);
+      break;
+    }
+  }
+  EXPECT_TRUE(has_found_delta_frame);
+}
 
 TEST(FrameInstrumentationGeneratorTest, GetterAndSetterOperatesAsExpected) {
   FrameInstrumentationGenerator generator(VideoCodecType::kVideoCodecVP8);
