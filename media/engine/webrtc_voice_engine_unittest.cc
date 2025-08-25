@@ -881,14 +881,8 @@ class WebRtcVoiceEngineTestFake : public ::testing::TestWithParam<bool> {
   }
 
   void VerifyEchoCancellationSettings(bool enabled) {
-    constexpr bool kDefaultUseAecm =
-#if defined(WEBRTC_ANDROID)
-        true;
-#else
-        false;
-#endif
     EXPECT_EQ(apm_config_.echo_canceller.enabled, enabled);
-    EXPECT_EQ(apm_config_.echo_canceller.mobile_mode, kDefaultUseAecm);
+    EXPECT_EQ(apm_config_.echo_canceller.mobile_mode, false);
   }
 
   bool IsHighPassFilterEnabled() {
