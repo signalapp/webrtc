@@ -285,6 +285,7 @@ class WebRtcVoiceSendChannel final : public MediaChannelUtil,
   bool SetMaxSendBitrate(int bps);
   void SetupRecording();
 
+  const Environment& env_;
   TaskQueueBase* const worker_thread_;
   ScopedTaskSafety task_safety_;
   SequenceChecker network_thread_checker_{SequenceChecker::kDetached};
@@ -433,6 +434,7 @@ class WebRtcVoiceReceiveChannel final
   // unsignaled anymore (i.e. it is now removed, or signaled), and return true.
   bool MaybeDeregisterUnsignaledRecvStream(uint32_t ssrc);
 
+  const Environment& env_;
   TaskQueueBase* const worker_thread_;
   ScopedTaskSafety task_safety_;
   SequenceChecker network_thread_checker_{SequenceChecker::kDetached};

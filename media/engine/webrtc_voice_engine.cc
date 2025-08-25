@@ -851,7 +851,8 @@ class WebRtcVoiceSendChannel::WebRtcAudioSendStream : public AudioSource::Sink {
       const std::optional<AudioCodecPairId> codec_pair_id,
       scoped_refptr<FrameEncryptorInterface> frame_encryptor,
       const CryptoOptions& crypto_options)
-      : adaptive_ptime_config_(call->trials()),
+      : env_(call->env()),
+        adaptive_ptime_config_(env_.field_trials()),
         call_(call),
         config_(send_transport),
         max_send_bitrate_bps_(max_send_bitrate_bps),
@@ -1087,7 +1088,7 @@ class WebRtcVoiceSendChannel::WebRtcAudioSendStream : public AudioSource::Sink {
   RTCError SetRtpParameters(const RtpParameters& parameters,
                             SetParametersCallback callback) {
     RTCError error = CheckRtpParametersInvalidModificationAndValues(
-        rtp_parameters_, parameters, call_->trials());
+        rtp_parameters_, parameters, env_.field_trials());
     if (!error.ok()) {
       return InvokeSetParametersCallback(callback, error);
     }
@@ -1245,6 +1246,7 @@ class WebRtcVoiceSendChannel::WebRtcAudioSendStream : public AudioSource::Sink {
 
   int NumPreferredChannels() const override { return num_encoded_channels_; }
 
+  const Environment env_;
   const AdaptivePtimeConfig adaptive_ptime_config_;
   SequenceChecker worker_thread_checker_;
   RaceChecker audio_capture_race_checker_;
@@ -1277,6 +1279,7 @@ WebRtcVoiceSendChannel::WebRtcVoiceSendChannel(
     Call* call,
     AudioCodecPairId codec_pair_id)
     : MediaChannelUtil(call->network_thread(), config.enable_dscp),
+      env_(call->env()),
       worker_thread_(call->worker_thread()),
       engine_(engine),
       call_(call),
@@ -1373,7 +1376,7 @@ bool WebRtcVoiceSendChannel::SetSenderParameters(
 
   std::vector<RtpExtension> filtered_extensions =
       FilterRtpExtensions(params.extensions, RtpExtension::IsSupportedForAudio,
-                          true, call_->trials());
+                          true, env_.field_trials());
   if (send_rtp_extensions_ != filtered_extensions) {
     send_rtp_extensions_.swap(filtered_extensions);
     for (auto& it : send_streams_) {
@@ -2112,6 +2115,7 @@ WebRtcVoiceReceiveChannel::WebRtcVoiceReceiveChannel(
     Call* call,
     AudioCodecPairId codec_pair_id)
     : MediaChannelUtil(call->network_thread(), config.enable_dscp),
+      env_(call->env()),
       worker_thread_(call->worker_thread()),
       engine_(engine),
       call_(call),
@@ -2154,7 +2158,7 @@ bool WebRtcVoiceReceiveChannel::SetReceiverParameters(
   }
   std::vector<RtpExtension> filtered_extensions =
       FilterRtpExtensions(params.extensions, RtpExtension::IsSupportedForAudio,
-                          false, call_->trials());
+                          false, env_.field_trials());
   if (recv_rtp_extensions_ != filtered_extensions) {
     recv_rtp_extensions_.swap(filtered_extensions);
     recv_rtp_extension_map_ = RtpHeaderExtensionMap(recv_rtp_extensions_);
@@ -2579,7 +2583,7 @@ void WebRtcVoiceReceiveChannel::OnPacketReceived(
         // applied directly in RtpTransport::DemuxPacket;
         packet.IdentifyExtensions(recv_rtp_extension_map_);
         if (!packet.arrival_time().IsFinite()) {
-          packet.set_arrival_time(call_->env().clock().CurrentTime());
+          packet.set_arrival_time(env_.clock().CurrentTime());
         }
 
         call_->Receiver()->DeliverRtpPacket(
