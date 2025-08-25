@@ -10,7 +10,11 @@
 
 #include "modules/audio_device/include/audio_device_factory.h"
 
+#include <memory>
+
+#include "api/audio/audio_device.h"
 #include "api/environment/environment.h"
+#include "api/scoped_refptr.h"
 #include "rtc_base/logging.h"
 
 #if defined(WEBRTC_WIN)
@@ -41,8 +45,8 @@ CreateWindowsCoreAudioAudioDeviceModuleForTest(const Environment& env,
     return nullptr;
   }
   return CreateWindowsCoreAudioAudioDeviceModuleFromInputAndOutput(
-      env, std::make_unique<webrtc_win::CoreAudioInput>(automatic_restart),
-      std::make_unique<webrtc_win::CoreAudioOutput>(automatic_restart));
+      env, std::make_unique<webrtc_win::CoreAudioInput>(env, automatic_restart),
+      std::make_unique<webrtc_win::CoreAudioOutput>(env, automatic_restart));
 }
 
 }  // namespace webrtc
