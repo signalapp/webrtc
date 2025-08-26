@@ -790,12 +790,14 @@ class FakeVoiceEngine : public VoiceEngineInterface {
   scoped_refptr<AudioState> GetAudioState() const override;
 
   std::unique_ptr<VoiceMediaSendChannelInterface> CreateSendChannel(
+      const Environment& env,
       Call* call,
       const MediaConfig& config,
       const AudioOptions& options,
       const CryptoOptions& crypto_options,
       AudioCodecPairId codec_pair_id) override;
   std::unique_ptr<VoiceMediaReceiveChannelInterface> CreateReceiveChannel(
+      const Environment& env,
       Call* call,
       const MediaConfig& config,
       const AudioOptions& options,

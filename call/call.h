@@ -16,9 +16,7 @@
 
 #include "absl/strings/string_view.h"
 #include "api/adaptation/resource.h"
-#include "api/environment/environment.h"
 #include "api/fec_controller.h"
-#include "api/field_trials_view.h"
 #include "api/media_types.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_parameters.h"
@@ -162,14 +160,10 @@ class Call {
   virtual int FeedbackAccordingToRfc8888Count() = 0;
   virtual int FeedbackAccordingToTransportCcCount() = 0;
 
-  // TODO(bugs.webrtc.org/440271885): Use env() instead.
-  virtual const FieldTrialsView& trials() const = 0;
-  virtual const Environment& env() const = 0;
-
   virtual TaskQueueBase* network_thread() const = 0;
   virtual TaskQueueBase* worker_thread() const = 0;
 
-  virtual ~Call() {}
+  virtual ~Call() = default;
 };
 
 }  // namespace webrtc

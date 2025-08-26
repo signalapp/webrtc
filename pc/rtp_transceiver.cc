@@ -234,11 +234,11 @@ RTCError RtpTransceiver::CreateChannel(
 
       std::unique_ptr<VoiceMediaSendChannelInterface> media_send_channel =
           media_engine()->voice().CreateSendChannel(
-              call_ptr, media_config, audio_options, crypto_options,
+              env_, call_ptr, media_config, audio_options, crypto_options,
               codec_pair_id);
       std::unique_ptr<VoiceMediaReceiveChannelInterface> media_receive_channel =
           media_engine()->voice().CreateReceiveChannel(
-              call_ptr, media_config, audio_options, crypto_options,
+              env_, call_ptr, media_config, audio_options, crypto_options,
               codec_pair_id);
       // Note that this is safe because both sending and
       // receiving channels will be deleted at the same time.

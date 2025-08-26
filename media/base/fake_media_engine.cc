@@ -572,7 +572,8 @@ scoped_refptr<AudioState> FakeVoiceEngine::GetAudioState() const {
   return scoped_refptr<AudioState>();
 }
 std::unique_ptr<VoiceMediaSendChannelInterface>
-FakeVoiceEngine::CreateSendChannel(Call* call,
+FakeVoiceEngine::CreateSendChannel(const Environment& /*env*/,
+                                   Call* call,
                                    const MediaConfig& /* config */,
                                    const AudioOptions& options,
                                    const CryptoOptions& /* crypto_options */,
@@ -583,7 +584,8 @@ FakeVoiceEngine::CreateSendChannel(Call* call,
   return ch;
 }
 std::unique_ptr<VoiceMediaReceiveChannelInterface>
-FakeVoiceEngine::CreateReceiveChannel(Call* call,
+FakeVoiceEngine::CreateReceiveChannel(const Environment& /*env*/,
+                                      Call* call,
                                       const MediaConfig& /* config */,
                                       const AudioOptions& options,
                                       const CryptoOptions& /* crypto_options */,

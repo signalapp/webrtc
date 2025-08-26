@@ -1802,8 +1802,8 @@ WebRtcVideoSendChannel::WebRtcVideoSendStream::WebRtcVideoSendStream(
                   codec_settings_list),
       rtp_parameters_(CreateRtpParametersWithEncodings(sp)),
       sending_(false),
-      disable_automatic_resize_(
-          call->trials().IsEnabled("WebRTC-Video-DisableAutomaticResize")) {
+      disable_automatic_resize_(env_.field_trials().IsEnabled(
+          "WebRTC-Video-DisableAutomaticResize")) {
   // Maximum packet size may come in RtpConfig from external transport, for
   // example from QuicTransportInterface implementation, so do not exceed
   // given max_packet_size.

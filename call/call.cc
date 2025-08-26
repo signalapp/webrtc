@@ -28,7 +28,6 @@
 #include "api/array_view.h"
 #include "api/environment/environment.h"
 #include "api/fec_controller.h"
-#include "api/field_trials_view.h"
 #include "api/media_types.h"
 #include "api/rtc_error.h"
 #include "api/rtc_event_log/rtc_event_log.h"
@@ -283,9 +282,6 @@ class Call final : public webrtc::Call,
       RtcpFeedbackType preferred_rtcp_cc_ack_type) override;
   int FeedbackAccordingToRfc8888Count() override;
   int FeedbackAccordingToTransportCcCount() override;
-
-  const FieldTrialsView& trials() const override;
-  const Environment& env() const override;
 
   TaskQueueBase* network_thread() const override;
   TaskQueueBase* worker_thread() const override;
@@ -1049,7 +1045,7 @@ webrtc::VideoReceiveStreamInterface* Call::CreateVideoReceiveStream(
   VideoReceiveStream2* receive_stream = new VideoReceiveStream2(
       env_, this, num_cpu_cores_, transport_send_->packet_router(),
       std::move(configuration), call_stats_.get(),
-      std::make_unique<VCMTiming>(&env_.clock(), trials()),
+      std::make_unique<VCMTiming>(&env_.clock(), env_.field_trials()),
       &nack_periodic_processor_, decode_sync_.get());
   // TODO(bugs.webrtc.org/11993): Set this up asynchronously on the network
   // thread.
@@ -1188,14 +1184,6 @@ int Call::FeedbackAccordingToRfc8888Count() {
 
 int Call::FeedbackAccordingToTransportCcCount() {
   return transport_send_->ReceivedTransportCcFeedbackCount();
-}
-
-const FieldTrialsView& Call::trials() const {
-  return env_.field_trials();
-}
-
-const Environment& Call::env() const {
-  return env_;
 }
 
 TaskQueueBase* Call::network_thread() const {

@@ -577,23 +577,25 @@ scoped_refptr<AudioState> WebRtcVoiceEngine::GetAudioState() const {
 }
 
 std::unique_ptr<VoiceMediaSendChannelInterface>
-WebRtcVoiceEngine::CreateSendChannel(Call* call,
+WebRtcVoiceEngine::CreateSendChannel(const Environment& env,
+                                     Call* call,
                                      const MediaConfig& config,
                                      const AudioOptions& options,
                                      const CryptoOptions& crypto_options,
                                      AudioCodecPairId codec_pair_id) {
   return std::make_unique<WebRtcVoiceSendChannel>(
-      this, config, options, crypto_options, call, codec_pair_id);
+      env, this, config, options, crypto_options, call, codec_pair_id);
 }
 
 std::unique_ptr<VoiceMediaReceiveChannelInterface>
-WebRtcVoiceEngine::CreateReceiveChannel(Call* call,
+WebRtcVoiceEngine::CreateReceiveChannel(const Environment& env,
+                                        Call* call,
                                         const MediaConfig& config,
                                         const AudioOptions& options,
                                         const CryptoOptions& crypto_options,
                                         AudioCodecPairId codec_pair_id) {
   return std::make_unique<WebRtcVoiceReceiveChannel>(
-      this, config, options, crypto_options, call, codec_pair_id);
+      env, this, config, options, crypto_options, call, codec_pair_id);
 }
 
 void WebRtcVoiceEngine::ApplyOptions(const AudioOptions& options_in) {
@@ -833,6 +835,7 @@ AudioState* WebRtcVoiceEngine::audio_state() {
 class WebRtcVoiceSendChannel::WebRtcAudioSendStream : public AudioSource::Sink {
  public:
   WebRtcAudioSendStream(
+      const Environment& env,
       uint32_t ssrc,
       const std::string& mid,
       const std::string& c_name,
@@ -851,7 +854,7 @@ class WebRtcVoiceSendChannel::WebRtcAudioSendStream : public AudioSource::Sink {
       const std::optional<AudioCodecPairId> codec_pair_id,
       scoped_refptr<FrameEncryptorInterface> frame_encryptor,
       const CryptoOptions& crypto_options)
-      : env_(call->env()),
+      : env_(env),
         adaptive_ptime_config_(env_.field_trials()),
         call_(call),
         config_(send_transport),
@@ -1272,6 +1275,7 @@ class WebRtcVoiceSendChannel::WebRtcAudioSendStream : public AudioSource::Sink {
 };
 
 WebRtcVoiceSendChannel::WebRtcVoiceSendChannel(
+    const Environment& env,
     WebRtcVoiceEngine* engine,
     const MediaConfig& config,
     const AudioOptions& options,
@@ -1279,7 +1283,7 @@ WebRtcVoiceSendChannel::WebRtcVoiceSendChannel(
     Call* call,
     AudioCodecPairId codec_pair_id)
     : MediaChannelUtil(call->network_thread(), config.enable_dscp),
-      env_(call->env()),
+      env_(env),
       worker_thread_(call->worker_thread()),
       engine_(engine),
       call_(call),
@@ -1628,7 +1632,7 @@ bool WebRtcVoiceSendChannel::AddSendStream(const StreamParams& sp) {
   std::optional<std::string> audio_network_adaptor_config =
       GetAudioNetworkAdaptorConfig(options_);
   WebRtcAudioSendStream* stream = new WebRtcAudioSendStream(
-      ssrc, mid_, sp.cname, sp.id, send_codec_spec_, ExtmapAllowMixed(),
+      env_, ssrc, mid_, sp.cname, sp.id, send_codec_spec_, ExtmapAllowMixed(),
       send_rtp_extensions_, rtcp_cc_ack_type_, max_send_bitrate_bps_,
       audio_config_.rtcp_report_interval_ms, audio_network_adaptor_config,
       call_, transport(), engine()->encoder_factory_, codec_pair_id_, nullptr,
@@ -2108,6 +2112,7 @@ class WebRtcVoiceReceiveChannel::WebRtcAudioReceiveStream {
 };
 
 WebRtcVoiceReceiveChannel::WebRtcVoiceReceiveChannel(
+    const Environment& env,
     WebRtcVoiceEngine* engine,
     const MediaConfig& config,
     const AudioOptions& options,
@@ -2115,7 +2120,7 @@ WebRtcVoiceReceiveChannel::WebRtcVoiceReceiveChannel(
     Call* call,
     AudioCodecPairId codec_pair_id)
     : MediaChannelUtil(call->network_thread(), config.enable_dscp),
-      env_(call->env()),
+      env_(env),
       worker_thread_(call->worker_thread()),
       engine_(engine),
       call_(call),
