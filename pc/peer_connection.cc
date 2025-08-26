@@ -539,7 +539,7 @@ PeerConnection::PeerConnection(
           /*alive=*/call_ != nullptr,
           worker_thread())),
       call_ptr_(call_.get()),
-      legacy_stats_(std::make_unique<LegacyStatsCollector>(this)),
+      legacy_stats_(std::make_unique<LegacyStatsCollector>(this, env_.clock())),
       stats_collector_(RTCStatsCollector::Create(this, env_)),
       // RFC 3264: The numeric value of the session id and version in the
       // o line MUST be representable with a "64 bit signed integer".

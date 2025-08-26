@@ -1375,6 +1375,7 @@ rtc_library("legacy_stats_collector") {
     "../rtc_base:stringutils",
     "../rtc_base:threading",
     "../rtc_base:timeutils",
+    "../system_wrappers",
     "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]

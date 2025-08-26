@@ -63,6 +63,7 @@
 #include "rtc_base/thread.h"
 #include "rtc_base/time_utils.h"
 #include "rtc_base/trace_event.h"
+#include "system_wrappers/include/clock.h"
 
 namespace webrtc {
 namespace {
@@ -554,8 +555,10 @@ const char* AdapterTypeToStatsType(AdapterType type) {
   }
 }
 
-LegacyStatsCollector::LegacyStatsCollector(PeerConnectionInternal* pc)
+LegacyStatsCollector::LegacyStatsCollector(PeerConnectionInternal* pc,
+                                           Clock& clock)
     : pc_(pc),
+      clock_(clock),
       stats_gathering_started_(0),
       use_standard_bytes_stats_(
           pc->trials().IsEnabled(kUseStandardBytesStats)) {
@@ -677,7 +680,7 @@ void LegacyStatsCollector::UpdateStats(
   // will be ignored. Using a monotonic clock specifically for this, while using
   // a UTC clock for the reports themselves.
   const int64_t kMinGatherStatsPeriodMs = 50;
-  int64_t cache_now_ms = TimeMillis();
+  int64_t cache_now_ms = clock_.TimeInMilliseconds();
   if (cache_timestamp_ms_ != 0 &&
       cache_timestamp_ms_ + kMinGatherStatsPeriodMs > cache_now_ms) {
     return;
