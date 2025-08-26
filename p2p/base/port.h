@@ -268,7 +268,16 @@ class RTC_EXPORT Port : public PortInterface, public sigslot::has_slots<> {
 
   // Fired when candidates are discovered by the port. When all candidates
   // are discovered that belong to port SignalAddressReady is fired.
+  void SubscribeCandidateReadyCallback(
+      absl::AnyInvocable<void(Port*, const Candidate&)> callback);
+
+  void SendCandidateReady(const Candidate& candidate);
+  // Downstream code uses this signal. We will continue firing it along with the
+  // callback list. The signal can be deleted once all downstream usages are
+  // replaced with the new CallbackList implementation.
   sigslot::signal2<Port*, const Candidate&> SignalCandidateReady;
+  void SendCandidateReadyCallbackList(Port*, const Candidate&);
+
   // Provides all of the above information in one handy object.
   const std::vector<Candidate>& Candidates() const override;
   // Fired when candidate discovery failed using certain server.
@@ -551,6 +560,8 @@ class RTC_EXPORT Port : public PortInterface, public sigslot::has_slots<> {
       RTC_GUARDED_BY(thread_);
   CallbackList<Port*, const IceCandidateErrorEvent&>
       candidate_error_callback_list_ RTC_GUARDED_BY(thread_);
+  CallbackList<Port*, const Candidate&> candidate_ready_callback_list_
+      RTC_GUARDED_BY(thread_);
 
   // Keep as the last member variable.
   WeakPtrFactory<Port> weak_factory_ RTC_GUARDED_BY(thread_);

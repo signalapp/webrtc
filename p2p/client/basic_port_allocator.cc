@@ -338,7 +338,7 @@ void BasicPortAllocatorSession::SetCandidateFilter(uint32_t filter) {
           found_signalable_candidate = true;
           port_data.set_state(PortData::STATE_INPROGRESS);
         }
-        port->SignalCandidateReady(port, c);
+        port->SendCandidateReady(c);
       }
 
       if (CandidatePairable(c, port)) {
@@ -920,8 +920,14 @@ void BasicPortAllocatorSession::AddAllocatedPort(Port* port,
   PortData data(port, seq);
   ports_.push_back(data);
 
-  port->SignalCandidateReady.connect(
-      this, &BasicPortAllocatorSession::OnCandidateReady);
+  // This is a temporary solution to support SignalCandidateReady signals from
+  // downstream. We also register a method to send the callbacks in callback
+  // list. This will no longer be needed once downstream stops using
+  // SignalCandidateReady.
+  port->SignalCandidateReady.connect(port,
+                                     &Port::SendCandidateReadyCallbackList);
+  port->SubscribeCandidateReadyCallback(
+      [this](Port* port, const Candidate& c) { OnCandidateReady(port, c); });
   port->SubscribeCandidateError(
       [this](Port* port, const IceCandidateErrorEvent& event) {
         OnCandidateError(port, event);
