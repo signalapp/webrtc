@@ -73,10 +73,6 @@
 #include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
-class RtcEventLog;
-}  // namespace webrtc
-
-namespace webrtc {
 
 bool IceCredentialsChanged(absl::string_view old_ufrag,
                            absl::string_view old_pwd,
@@ -111,13 +107,6 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
                       absl::string_view transport_name,
                       int component,
                       PortAllocator* allocator);
-
-  // TODO: bugs.webrtc.org/42223992 - Remove this constructor when chromium is
-  // updated not to use it.
-  P2PTransportChannel(absl::string_view transport_name,
-                      int component,
-                      PortAllocator* allocator,
-                      const FieldTrialsView* field_trials = nullptr);
 
   ~P2PTransportChannel() override;
 
@@ -252,7 +241,9 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
     return stun_dict_writer_;
   }
 
-  const FieldTrialsView* field_trials() const override { return field_trials_; }
+  const FieldTrialsView* field_trials() const override {
+    return &env_.field_trials();
+  }
 
   void ResetDtlsStunPiggybackCallbacks() override;
   void SetDtlsStunPiggybackCallbacks(
@@ -293,7 +284,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
   };
 
   P2PTransportChannel(
-      std::optional<Environment> env,
+      const Environment& env,
       absl::string_view transport_name,
       int component,
       PortAllocator* allocator,
@@ -304,10 +295,8 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
       std::unique_ptr<AsyncDnsResolverFactoryInterface>
           owned_dns_resolver_factory,
       LocalNetworkAccessPermissionFactoryInterface* lna_permission_factory,
-      RtcEventLog* event_log,
       IceControllerFactoryInterface* ice_controller_factory,
-      ActiveIceControllerFactoryInterface* active_ice_controller_factory,
-      const FieldTrialsView* field_trials);
+      ActiveIceControllerFactoryInterface* active_ice_controller_factory);
 
   bool IsGettingPorts() {
     RTC_DCHECK_RUN_ON(network_thread_);
@@ -437,7 +426,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
   int64_t ComputeEstimatedDisconnectedTimeMs(int64_t now,
                                              Connection* old_connection);
 
-  void ParseFieldTrials(const FieldTrialsView* field_trials);
+  void ParseFieldTrials(const FieldTrialsView& field_trials);
 
   void FinishAddingRemoteCandidate(const Candidate& new_remote_candidate);
   void OnCandidateResolved(AsyncDnsResolverInterface* resolver);
@@ -452,7 +441,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
       const StunByteStringAttribute*);
   void GoogDeltaAckReceived(RTCErrorOr<const StunUInt64Attribute*>);
 
-  const std::optional<Environment> env_;
+  const Environment env_;
   std::string transport_name_ RTC_GUARDED_BY(network_thread_);
   int component_ RTC_GUARDED_BY(network_thread_);
   PortAllocator* allocator_ RTC_GUARDED_BY(network_thread_);
@@ -538,8 +527,6 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
 
   // Parsed field trials.
   IceFieldTrials ice_field_trials_;
-  // Unparsed field trials.
-  const FieldTrialsView* field_trials_;
 
   // A dictionary of attributes that will be reflected to peer.
   StunDictionaryWriter stun_dict_writer_;
