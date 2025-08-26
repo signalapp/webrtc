@@ -912,8 +912,9 @@ lkgr_config = {
                 "WebRTC Chromium FYI Win Builder (dbg)",
                 "WebRTC Chromium FYI Win Builder",
                 "WebRTC Chromium FYI Win10 Tester",
-                "WebRTC Chromium FYI ios-device",
-                "WebRTC Chromium FYI ios-simulator",
+                # TODO: b/441273941 - Re-enable once the ios infra issue is resolved
+                #"WebRTC Chromium FYI ios-device",
+                #"WebRTC Chromium FYI ios-simulator",
             ],
         },
     },
