@@ -1250,6 +1250,56 @@ class RTCStatsRtpLifetimeTest : public RTCStatsIntegrationTest {
   }
 };
 
+TEST_F(RTCStatsRtpLifetimeTest, AudioOutboundRtpMissingBeforeStable) {
+  // Caller to send audio.
+  scoped_refptr<MediaStreamInterface> stream = caller_->GetUserMedia(
+      /*audio=*/true, {}, /*video=*/false);
+  scoped_refptr<AudioTrackInterface> track = stream->GetAudioTracks()[0];
+  caller_->pc()->AddTransceiver(track, {});
+
+  // Setting the offer is not enough to make the outbound-rtp appear.
+  auto offer = caller_->AwaitCreateOffer();
+  caller_->AwaitSetLocalDescription(offer.get());
+  scoped_refptr<const RTCStatsReport> report = GetStats(caller_->pc());
+  std::vector<const RTCOutboundRtpStreamStats*> outbound_rtps =
+      report->GetStatsOfType<RTCOutboundRtpStreamStats>();
+  EXPECT_THAT(outbound_rtps, SizeIs(0));
+
+  // Once the O/A completes, the outbound-rtp immediately appears (the stats
+  // cache is cleared).
+  callee_->AwaitSetRemoteDescription(offer.get());
+  auto answer = callee_->AwaitCreateAnswer();
+  caller_->AwaitSetRemoteDescription(answer.get());
+  report = GetStats(caller_->pc());
+  outbound_rtps = report->GetStatsOfType<RTCOutboundRtpStreamStats>();
+  EXPECT_THAT(outbound_rtps, SizeIs(1));
+}
+
+TEST_F(RTCStatsRtpLifetimeTest, VideoOutboundRtpMissingBeforeStable) {
+  // Caller to send video.
+  scoped_refptr<MediaStreamInterface> stream = caller_->GetUserMedia(
+      /*audio=*/false, {}, /*video=*/true);
+  scoped_refptr<VideoTrackInterface> track = stream->GetVideoTracks()[0];
+  caller_->pc()->AddTransceiver(track, {});
+
+  // Setting the offer is not enough to make the outbound-rtp appear.
+  auto offer = caller_->AwaitCreateOffer();
+  caller_->AwaitSetLocalDescription(offer.get());
+  scoped_refptr<const RTCStatsReport> report = GetStats(caller_->pc());
+  std::vector<const RTCOutboundRtpStreamStats*> outbound_rtps =
+      report->GetStatsOfType<RTCOutboundRtpStreamStats>();
+  EXPECT_THAT(outbound_rtps, SizeIs(0));
+
+  // Once the O/A completes, the outbound-rtp immediately appears (the stats
+  // cache is cleared).
+  callee_->AwaitSetRemoteDescription(offer.get());
+  auto answer = callee_->AwaitCreateAnswer();
+  caller_->AwaitSetRemoteDescription(answer.get());
+  report = GetStats(caller_->pc());
+  outbound_rtps = report->GetStatsOfType<RTCOutboundRtpStreamStats>();
+  EXPECT_THAT(outbound_rtps, SizeIs(1));
+}
+
 TEST_F(RTCStatsRtpLifetimeTest, AudioInboundRtpMissingBeforeFirstPacket) {
   // Caller to send audio.
   scoped_refptr<MediaStreamInterface> stream = caller_->GetUserMedia(

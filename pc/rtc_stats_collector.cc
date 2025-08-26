@@ -1174,6 +1174,7 @@ RTCStatsCollector::RTCStatsCollector(PeerConnectionInternal* pc,
                                      const Environment& env,
                                      int64_t cache_lifetime_us)
     : pc_(pc),
+      is_unified_plan_(pc->IsUnifiedPlan()),
       env_(env),
       stats_timestamp_with_environment_clock_(
           pc->GetConfiguration().stats_timestamp_with_environment_clock()),
@@ -1750,9 +1751,11 @@ void RTCStatsCollector::ProduceAudioRTPStreamStats_n(
   for (const VoiceReceiverInfo& voice_receiver_info :
        stats.track_media_info_map.voice_media_info()->receivers) {
     if (!voice_receiver_info.connected()) {
-      continue;
+      continue;  // The SSRC is not known yet.
     }
     if (spec_lifetime && voice_receiver_info.packets_received == 0) {
+      // The SSRC is known despite not receiving any packets. This happens if
+      // SSRC is signalled in the SDP which we should not rely on for getStats.
       continue;
     }
     // Inbound.
@@ -1799,8 +1802,13 @@ void RTCStatsCollector::ProduceAudioRTPStreamStats_n(
   std::map<std::string, RTCOutboundRtpStreamStats*> audio_outbound_rtps;
   for (const VoiceSenderInfo& voice_sender_info :
        stats.track_media_info_map.voice_media_info()->senders) {
-    if (!voice_sender_info.connected())
-      continue;
+    if (!voice_sender_info.connected()) {
+      continue;  // The SSRC is not known yet.
+    }
+    if (spec_lifetime && is_unified_plan_ &&
+        !stats.current_direction.has_value()) {
+      continue;  // The SSRC is known but the O/A has not completed.
+    }
     auto outbound_audio = CreateOutboundRTPStreamStatsFromVoiceSenderInfo(
         transport_id, mid, *stats.track_media_info_map.voice_media_info(),
         voice_sender_info, timestamp, report);
@@ -1858,9 +1866,11 @@ void RTCStatsCollector::ProduceVideoRTPStreamStats_n(
   for (const VideoReceiverInfo& video_receiver_info :
        stats.track_media_info_map.video_media_info()->receivers) {
     if (!video_receiver_info.connected()) {
-      continue;
+      continue;  // The SSRC is not known yet.
     }
     if (spec_lifetime && video_receiver_info.packets_received == 0) {
+      // The SSRC is known despite not receiving any packets. This happens if
+      // SSRC is signalled in the SDP which we should not rely on for getStats.
       continue;
     }
     auto inbound_video = CreateInboundRTPStreamStatsFromVideoReceiverInfo(
@@ -1899,8 +1909,13 @@ void RTCStatsCollector::ProduceVideoRTPStreamStats_n(
   std::map<std::string, RTCOutboundRtpStreamStats*> video_outbound_rtps;
   for (const VideoSenderInfo& video_sender_info :
        stats.track_media_info_map.video_media_info()->senders) {
-    if (!video_sender_info.connected())
-      continue;
+    if (!video_sender_info.connected()) {
+      continue;  // The SSRC is not known yet.
+    }
+    if (spec_lifetime && is_unified_plan_ &&
+        !stats.current_direction.has_value()) {
+      continue;  // The SSRC is known but the O/A has not completed.
+    }
     auto outbound_video = CreateOutboundRTPStreamStatsFromVideoSenderInfo(
         transport_id, mid, *stats.track_media_info_map.video_media_info(),
         video_sender_info, timestamp, report);

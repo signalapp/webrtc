@@ -250,6 +250,7 @@ class RTCStatsCollector : public RefCountInterface {
       scoped_refptr<RtpReceiverInternal> receiver_selector);
 
   PeerConnectionInternal* const pc_;
+  const bool is_unified_plan_;
   const Environment env_;
   const bool stats_timestamp_with_environment_clock_;
   Thread* const signaling_thread_;
