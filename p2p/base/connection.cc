@@ -227,20 +227,12 @@ int Connection::ConnectionRequest::resend_delay() {
   return CONNECTION_RESPONSE_TIMEOUT;
 }
 
-Connection::Connection(const Environment& /*env*/,
+Connection::Connection(const Environment& env,
                        WeakPtr<PortInterface> port,
                        size_t index,
                        const Candidate& remote_candidate)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-    : Connection(std::move(port), index, remote_candidate) {
-}
-#pragma clang diagnostic pop
-
-Connection::Connection(WeakPtr<PortInterface> port,
-                       size_t index,
-                       const Candidate& remote_candidate)
-    : network_thread_(port->thread()),
+    : env_(env),
+      network_thread_(port->thread()),
       id_(CreateRandomId()),
       port_(std::move(port)),
       local_candidate_(port_->Candidates()[index]),
@@ -1883,14 +1875,6 @@ void Connection::ForgetLearnedState() {
   pings_since_last_response_.clear();
 }
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-ProxyConnection::ProxyConnection(WeakPtr<PortInterface> port,
-                                 size_t index,
-                                 const Candidate& remote_candidate)
-    : Connection(std::move(port), index, remote_candidate) {}
-#pragma clang diagnostic pop
-
 ProxyConnection::ProxyConnection(const Environment& env,
                                  WeakPtr<PortInterface> port,
                                  size_t index,
@@ -1900,23 +1884,23 @@ ProxyConnection::ProxyConnection(const Environment& env,
 int ProxyConnection::Send(const void* data,
                           size_t size,
                           const AsyncSocketPacketOptions& options) {
-  RTC_DCHECK(port_) << ToDebugId() << ": port_ null in Send()";
-  if (!port_)
+  RTC_DCHECK(port() != nullptr) << ToDebugId() << ": port_ null in Send()";
+  if (port() == nullptr)
     return SOCKET_ERROR;
 
-  stats_.sent_total_packets++;
+  mutable_stats().sent_total_packets++;
   int sent =
-      port_->SendTo(data, size, remote_candidate_.address(), options, true);
+      port()->SendTo(data, size, remote_candidate().address(), options, true);
   int64_t now = TimeMillis();
   if (sent <= 0) {
     RTC_DCHECK(sent < 0);
-    error_ = port_->GetError();
-    stats_.sent_discarded_packets++;
-    stats_.sent_discarded_bytes += size;
+    error_ = port()->GetError();
+    mutable_stats().sent_discarded_packets++;
+    mutable_stats().sent_discarded_bytes += size;
   } else {
-    send_rate_tracker_.AddSamplesAtTime(now, sent);
+    send_rate_tracker().AddSamplesAtTime(now, sent);
   }
-  last_send_data_ = now;
+  set_last_send_data(now);
   return sent;
 }
 

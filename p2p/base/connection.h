@@ -372,11 +372,6 @@ class RTC_EXPORT Connection : public CandidatePairInterface {
   class ConnectionRequest;
 
   // Constructs a new connection to the given remote port.
-  [[deprecated("bugs.webrtc.org/42223992")]]
-  Connection(WeakPtr<PortInterface> port,
-             size_t index,
-             const Candidate& candidate);
-
   Connection(const Environment& env,
              WeakPtr<PortInterface> port,
              size_t index,
@@ -411,21 +406,10 @@ class RTC_EXPORT Connection : public CandidatePairInterface {
   // The local port where this connection sends and receives packets.
   PortInterface* port() { return port_.get(); }
 
-  // NOTE: A pointer to the network thread is held by `port_` so in theory we
-  // shouldn't need to hold on to this pointer here, but rather defer to
-  // port_->thread(). However, some tests delete the classes in the wrong order
-  // so `port_` may be deleted before an instance of this class is deleted.
-  // TODO(tommi): This ^^^ should be fixed.
-  TaskQueueBase* const network_thread_;
-  const uint32_t id_;
-  WeakPtr<PortInterface> port_;
-  Candidate local_candidate_ RTC_GUARDED_BY(network_thread_);
-  Candidate remote_candidate_;
-
-  ConnectionInfo stats_;
-  RateTracker recv_rate_tracker_;
-  RateTracker send_rate_tracker_;
-  int64_t last_send_data_ = 0;
+  const Environment& env() { return env_; }
+  ConnectionInfo& mutable_stats() { return stats_; }
+  RateTracker& send_rate_tracker() { return send_rate_tracker_; }
+  void set_last_send_data(int64_t now_ms) { last_send_data_ = now_ms; }
 
  private:
   // Update the local candidate based on the mapped address attribute.
@@ -443,6 +427,24 @@ class RTC_EXPORT Connection : public CandidatePairInterface {
   // to last message ack:ed STUN_BINDING_REQUEST.
   bool ShouldSendGoogPing(const StunMessage* message)
       RTC_RUN_ON(network_thread_);
+
+  const Environment env_;
+
+  // NOTE: A pointer to the network thread is held by `port_` so in theory we
+  // shouldn't need to hold on to this pointer here, but rather defer to
+  // port_->thread(). However, some tests delete the classes in the wrong order
+  // so `port_` may be deleted before an instance of this class is deleted.
+  // TODO(tommi): This ^^^ should be fixed.
+  TaskQueueBase* const network_thread_;
+  const uint32_t id_;
+  WeakPtr<PortInterface> port_;
+  Candidate local_candidate_ RTC_GUARDED_BY(network_thread_);
+  Candidate remote_candidate_;
+
+  ConnectionInfo stats_;
+  RateTracker recv_rate_tracker_;
+  RateTracker send_rate_tracker_;
+  int64_t last_send_data_ = 0;
 
   WriteState write_state_ RTC_GUARDED_BY(network_thread_);
   bool receiving_ RTC_GUARDED_BY(network_thread_);
@@ -535,11 +537,6 @@ class RTC_EXPORT Connection : public CandidatePairInterface {
 // ProxyConnection defers all the interesting work to the port.
 class ProxyConnection : public Connection {
  public:
-  [[deprecated("bugs.webrtc.org/42223992")]]
-  ProxyConnection(WeakPtr<PortInterface> port,
-                  size_t index,
-                  const Candidate& remote_candidate);
-
   ProxyConnection(const Environment& env,
                   WeakPtr<PortInterface> port,
                   size_t index,
