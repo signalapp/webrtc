@@ -1179,6 +1179,7 @@ rtc_library("network") {
     "network.h",
   ]
   deps = [
+    ":callback_list",
     ":checks",
     ":ifaddrs_converter",
     ":ip_address",
@@ -1205,6 +1206,7 @@ rtc_library("network") {
     "//third_party/abseil-cpp/absl/algorithm:container",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/base:nullability",
+    "//third_party/abseil-cpp/absl/functional:any_invocable",
     "//third_party/abseil-cpp/absl/memory",
     "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",

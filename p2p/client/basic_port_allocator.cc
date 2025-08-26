@@ -268,8 +268,8 @@ BasicPortAllocatorSession::BasicPortAllocatorSession(
       turn_port_prune_policy_(allocator->turn_port_prune_policy()) {
   TRACE_EVENT0("webrtc",
                "BasicPortAllocatorSession::BasicPortAllocatorSession");
-  allocator_->network_manager()->SignalNetworksChanged.connect(
-      this, &BasicPortAllocatorSession::OnNetworksChanged);
+  allocator_->network_manager()->SubscribeNetworksChanged(
+      SafeInvocable(network_safety_.flag(), [this] { OnNetworksChanged(); }));
   allocator_->network_manager()->StartUpdating();
 }
 
