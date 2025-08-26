@@ -2423,6 +2423,11 @@ WebRtcVideoSendChannel::WebRtcVideoSendStream::GetPerLayerVideoSenderInfos(
     common_info.codec_name = parameters_.codec_settings->codec.name;
     common_info.codec_payload_type = parameters_.codec_settings->codec.id;
   }
+  // If SVC is used, one stream is configured but multiple encodings exist. This
+  // is not spec-compliant, but it is how we've implemented SVC so this affects
+  // how the RTP stream's "active" value is determined.
+  bool is_svc = (parameters_.encoder_config.number_of_streams == 1 &&
+                 rtp_parameters_.encodings.size() > 1);
   std::vector<VideoSenderInfo> infos;
   VideoSendStream::Stats stats;
   if (stream_ == nullptr) {
@@ -2466,24 +2471,23 @@ WebRtcVideoSendChannel::WebRtcVideoSendStream::GetPerLayerVideoSenderInfos(
     common_info.aggregated_huge_frames_sent = stats.huge_frames_sent;
     common_info.power_efficient_encoder = stats.power_efficient_encoder;
 
-    // The normal case is that substreams are present, handled below. But if
-    // substreams are missing (can happen before negotiated/connected where we
-    // have no stats yet) a single outbound-rtp is created representing any and
-    // all layers.
+    // The "typical case" where `substreams` exist because we have negotiated
+    // and connected is handled below, but prior to that `substreams` is empty.
+    // In this case we still need to return one "info" per SSRC and set a few
+    // stats that should never be missing.
     if (stats.substreams.empty()) {
+      size_t encoding_index = 0;
       for (uint32_t ssrc : parameters_.config.rtp.ssrcs) {
-        common_info.add_ssrc(ssrc);
+        auto info = common_info;
+        info.add_ssrc(ssrc);
+        info.rid = parameters_.config.rtp.GetRidForSsrc(ssrc);
+        info.encoding_index = encoding_index;
+        info.active = IsActiveFromEncodings(
+            !is_svc ? std::optional<uint32_t>(ssrc) : std::nullopt,
+            rtp_parameters_.encodings);
+        ++encoding_index;
+        infos.push_back(info);
       }
-      common_info.encoding_index = 0;
-      common_info.active =
-          IsActiveFromEncodings(std::nullopt, rtp_parameters_.encodings);
-      common_info.framerate_sent = stats.encode_frame_rate;
-      common_info.frames_encoded = stats.frames_encoded;
-      common_info.total_encode_time_ms = stats.total_encode_time_ms;
-      common_info.total_encoded_bytes_target = stats.total_encoded_bytes_target;
-      common_info.frames_sent = stats.frames_encoded;
-      common_info.huge_frames_sent = stats.huge_frames_sent;
-      infos.push_back(common_info);
       return infos;
     }
   }
@@ -2498,11 +2502,6 @@ WebRtcVideoSendChannel::WebRtcVideoSendStream::GetPerLayerVideoSenderInfos(
   for (size_t i = 0; i < parameters_.config.rtp.ssrcs.size(); ++i) {
     encoding_index_by_ssrc[parameters_.config.rtp.ssrcs[i]] = i;
   }
-  // If SVC is used, one stream is configured but multiple encodings exist. This
-  // is not spec-compliant, but it is how we've implemented SVC so this affects
-  // how the RTP stream's "active" value is determined.
-  bool is_svc = (parameters_.encoder_config.number_of_streams == 1 &&
-                 rtp_parameters_.encodings.size() > 1);
   for (const auto& pair : outbound_rtp_substreams) {
     auto info = common_info;
     uint32_t ssrc = pair.first;

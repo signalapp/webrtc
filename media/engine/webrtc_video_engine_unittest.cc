@@ -5883,7 +5883,7 @@ TEST_F(WebRtcVideoChannelTest, GetStatsReportsCpuOveruseMetrics) {
 TEST_F(WebRtcVideoChannelTest, GetStatsReportsFramesEncoded) {
   FakeVideoSendStream* stream = AddSendStream();
   VideoSendStream::Stats stats;
-  stats.frames_encoded = 13;
+  stats.substreams[123].frames_encoded = 13;
   stream->SetStats(stats);
 
   VideoMediaSendInfo send_info;
@@ -5891,7 +5891,7 @@ TEST_F(WebRtcVideoChannelTest, GetStatsReportsFramesEncoded) {
   EXPECT_TRUE(send_channel_->GetStats(&send_info));
   EXPECT_TRUE(receive_channel_->GetStats(&receive_info));
 
-  EXPECT_EQ(stats.frames_encoded, send_info.senders[0].frames_encoded);
+  EXPECT_EQ(13u, send_info.senders[0].frames_encoded);
 }
 
 TEST_F(WebRtcVideoChannelTest, GetStatsReportsKeyFramesEncoded) {
@@ -6007,9 +6007,10 @@ TEST_F(WebRtcVideoChannelTest, GetAggregatedStatsReportWithoutSubStreams) {
   EXPECT_EQ(sender.nacks_received, 0u);
   EXPECT_EQ(sender.send_frame_width, 0);
   EXPECT_EQ(sender.send_frame_height, 0);
+  EXPECT_EQ(sender.framerate_sent, 0);
+  EXPECT_EQ(sender.frames_encoded, 0u);
 
   EXPECT_EQ(sender.framerate_input, stats.input_frame_rate);
-  EXPECT_EQ(sender.framerate_sent, stats.encode_frame_rate);
   EXPECT_EQ(sender.nominal_bitrate, stats.media_bitrate_bps);
   EXPECT_NE(sender.adapt_reason & WebRtcVideoChannel::ADAPTREASON_CPU, 0);
   EXPECT_NE(sender.adapt_reason & WebRtcVideoChannel::ADAPTREASON_BANDWIDTH, 0);
@@ -6021,22 +6022,21 @@ TEST_F(WebRtcVideoChannelTest, GetAggregatedStatsReportWithoutSubStreams) {
             stats.quality_limitation_resolution_changes);
   EXPECT_EQ(sender.avg_encode_ms, stats.avg_encode_time_ms);
   EXPECT_EQ(sender.encode_usage_percent, stats.encode_usage_percent);
-  EXPECT_EQ(sender.frames_encoded, stats.frames_encoded);
   // Comes from substream only.
   EXPECT_EQ(sender.key_frames_encoded, 0u);
+  EXPECT_EQ(sender.total_encode_time_ms, 0u);
 
-  EXPECT_EQ(sender.total_encode_time_ms, stats.total_encode_time_ms);
   EXPECT_EQ(sender.total_encoded_bytes_target,
             stats.total_encoded_bytes_target);
   // Comes from substream only.
   EXPECT_EQ(sender.total_packet_send_delay, TimeDelta::Zero());
   EXPECT_EQ(sender.qp_sum, std::nullopt);
+  EXPECT_EQ(sender.frames_sent, 0u);
+  EXPECT_EQ(sender.huge_frames_sent, 0u);
 
   EXPECT_EQ(sender.has_entered_low_resolution,
             stats.has_entered_low_resolution);
   EXPECT_EQ(sender.content_type, VideoContentType::SCREENSHARE);
-  EXPECT_EQ(sender.frames_sent, stats.frames_encoded);
-  EXPECT_EQ(sender.huge_frames_sent, stats.huge_frames_sent);
   EXPECT_EQ(sender.rid, std::nullopt);
 }
 
@@ -7030,7 +7030,7 @@ TEST_F(WebRtcVideoChannelTest, ReportsSsrcGroupsInStats) {
   EXPECT_TRUE(send_channel_->GetStats(&send_info));
   EXPECT_TRUE(receive_channel_->GetStats(&receive_info));
 
-  ASSERT_EQ(1u, send_info.senders.size());
+  ASSERT_EQ(3u, send_info.senders.size());
   ASSERT_EQ(1u, receive_info.receivers.size());
 
   EXPECT_NE(sender_sp.ssrc_groups, receiver_sp.ssrc_groups);
