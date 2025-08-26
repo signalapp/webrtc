@@ -33,6 +33,7 @@
 #include "api/rtc_error.h"
 #include "api/rtc_event_log/rtc_event_log.h"
 #include "api/rtp_headers.h"
+#include "api/rtp_parameters.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
@@ -278,7 +279,8 @@ class Call final : public webrtc::Call,
 
   Stats GetStats() const override;
 
-  void EnableSendCongestionControlFeedbackAccordingToRfc8888() override;
+  void SetPreferredRtcpCcAckType(
+      RtcpFeedbackType preferred_rtcp_cc_ack_type) override;
   int FeedbackAccordingToRfc8888Count() override;
   int FeedbackAccordingToTransportCcCount() override;
 
@@ -1172,9 +1174,12 @@ Call::Stats Call::GetStats() const {
   return stats;
 }
 
-void Call::EnableSendCongestionControlFeedbackAccordingToRfc8888() {
-  receive_side_cc_.EnableSendCongestionControlFeedbackAccordingToRfc8888();
-  transport_send_->EnableCongestionControlFeedbackAccordingToRfc8888();
+void Call::SetPreferredRtcpCcAckType(
+    RtcpFeedbackType preferred_rtcp_cc_ack_type) {
+  if (preferred_rtcp_cc_ack_type == RtcpFeedbackType::CCFB) {
+    receive_side_cc_.EnableSendCongestionControlFeedbackAccordingToRfc8888();
+    transport_send_->EnableCongestionControlFeedbackAccordingToRfc8888();
+  }  //  else default to transport CC if correct header extension is negotiated
 }
 
 int Call::FeedbackAccordingToRfc8888Count() {

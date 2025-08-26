@@ -21,6 +21,7 @@
 #include "api/field_trials_view.h"
 #include "api/media_types.h"
 #include "api/rtp_headers.h"
+#include "api/rtp_parameters.h"
 #include "api/scoped_refptr.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/transport/bitrate_settings.h"
@@ -154,7 +155,10 @@ class Call {
   virtual void SetClientBitratePreferences(
       const BitrateSettings& preferences) = 0;
 
-  virtual void EnableSendCongestionControlFeedbackAccordingToRfc8888() = 0;
+  // Decides which RTCP feedback type to use for congestion control.
+  virtual void SetPreferredRtcpCcAckType(
+      RtcpFeedbackType preferred_rtcp_cc_ack_type) = 0;
+
   virtual int FeedbackAccordingToRfc8888Count() = 0;
   virtual int FeedbackAccordingToTransportCcCount() = 0;
 

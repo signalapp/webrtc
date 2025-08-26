@@ -196,9 +196,8 @@ class ConfigHelper {
     stream_config_.rtp.c_name = kCName;
     stream_config_.rtp.extensions.push_back(
         RtpExtension(RtpExtension::kAudioLevelUri, kAudioLevelId));
-    if (audio_bwe_enabled) {
-      AddBweToConfig(&stream_config_);
-    }
+    stream_config_.include_in_congestion_control_allocation = audio_bwe_enabled;
+
     stream_config_.encoder_factory = SetupEncoderFactoryMock();
     stream_config_.min_bitrate_bps = 10000;
     stream_config_.max_bitrate_bps = 65000;
@@ -223,11 +222,6 @@ class ConfigHelper {
   RtpTransportControllerSendInterface* transport() { return &rtp_transport_; }
   MockBitrateAllocator* bitrate_allocator() { return &bitrate_allocator_; }
 
-  static void AddBweToConfig(AudioSendStream::Config* config) {
-    config->rtp.extensions.push_back(RtpExtension(
-        RtpExtension::kTransportSequenceNumberUri, kTransportSequenceNumberId));
-  }
-
   void SetupDefaultChannelSend(bool audio_bwe_enabled) {
     EXPECT_TRUE(channel_send_ == nullptr);
     channel_send_ = new ::testing::StrictMock<MockChannelSend>();
@@ -246,12 +240,6 @@ class ConfigHelper {
         .Times(1);
     EXPECT_CALL(rtp_transport_, GetRtcpObserver)
         .WillRepeatedly(Return(&rtcp_observer_));
-    if (audio_bwe_enabled) {
-      EXPECT_CALL(rtp_rtcp_,
-                  RegisterRtpHeaderExtension(TransportSequenceNumber::Uri(),
-                                             kTransportSequenceNumberId))
-          .Times(1);
-    }
     EXPECT_CALL(*channel_send_,
                 RegisterSenderCongestionControlObjects(&rtp_transport_))
         .Times(1);
@@ -804,12 +792,25 @@ TEST(AudioSendStreamTest, DontRecreateEncoder) {
   }
 }
 
+TEST(AudioSendStreamTest, ConfiguresTransportCcIfExtensionNegotiated) {
+  ConfigHelper helper(true, true, false);
+  helper.config().rtp.extensions.push_back(RtpExtension(
+      RtpExtension::kTransportSequenceNumberUri, kTransportSequenceNumberId));
+
+  EXPECT_CALL(*helper.rtp_rtcp(),
+              RegisterRtpHeaderExtension(TransportSequenceNumber::Uri(),
+                                         kTransportSequenceNumberId))
+      .Times(1);
+  auto send_stream = helper.CreateAudioSendStream();
+}
+
 TEST(AudioSendStreamTest, ReconfigureTransportCcResetsFirst) {
   for (bool use_null_audio_processing : {false, true}) {
     ConfigHelper helper(false, true, use_null_audio_processing);
     auto send_stream = helper.CreateAudioSendStream();
     auto new_config = helper.config();
-    ConfigHelper::AddBweToConfig(&new_config);
+    new_config.rtp.extensions.push_back(RtpExtension(
+        RtpExtension::kTransportSequenceNumberUri, kTransportSequenceNumberId));
 
     EXPECT_CALL(*helper.rtp_rtcp(),
                 RegisterRtpHeaderExtension(TransportSequenceNumber::Uri(),

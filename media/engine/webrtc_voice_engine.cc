@@ -841,6 +841,7 @@ class WebRtcVoiceSendChannel::WebRtcAudioSendStream : public AudioSource::Sink {
           send_codec_spec,
       bool extmap_allow_mixed,
       const std::vector<RtpExtension>& extensions,
+      std::optional<RtcpFeedbackType> rtcp_cc_ack_type,
       int max_send_bitrate_bps,
       int rtcp_report_interval_ms,
       const std::optional<std::string>& audio_network_adaptor_config,
@@ -862,6 +863,8 @@ class WebRtcVoiceSendChannel::WebRtcAudioSendStream : public AudioSource::Sink {
     config_.rtp.c_name = c_name;
     config_.rtp.extmap_allow_mixed = extmap_allow_mixed;
     config_.rtp.extensions = extensions;
+    config_.include_in_congestion_control_allocation =
+        rtcp_cc_ack_type.has_value();
     config_.has_dscp =
         rtp_parameters_.encodings[0].network_priority != Priority::kLow;
     config_.encoder_factory = encoder_factory;
@@ -904,6 +907,12 @@ class WebRtcVoiceSendChannel::WebRtcAudioSendStream : public AudioSource::Sink {
     RTC_DCHECK_RUN_ON(&worker_thread_checker_);
     config_.rtp.extensions = extensions;
     rtp_parameters_.header_extensions = extensions;
+    ReconfigureAudioSendStream(nullptr);
+  }
+
+  void SetIncludeInCongestionControlAllocation() {
+    RTC_DCHECK_RUN_ON(&worker_thread_checker_);
+    config_.include_in_congestion_control_allocation = true;
     ReconfigureAudioSendStream(nullptr);
   }
 
@@ -1371,6 +1380,21 @@ bool WebRtcVoiceSendChannel::SetSenderParameters(
       it.second->SetRtpExtensions(send_rtp_extensions_);
     }
   }
+  if (rtcp_cc_ack_type_.has_value() &&
+      rtcp_cc_ack_type_ != params.rtcp_cc_ack_type) {
+    RTC_LOG(LS_WARNING) << "RTCP cc ack type change is not supported! Current: "
+                        << *rtcp_cc_ack_type_;
+  } else {
+    rtcp_cc_ack_type_ = params.rtcp_cc_ack_type;
+    if (rtcp_cc_ack_type_.has_value()) {
+      // It does not matter what type of RTCP feedback we use for congestion
+      // control. Only that audio is included in the BWE allocation.
+      for (auto& it : send_streams_) {
+        it.second->SetIncludeInCongestionControlAllocation();
+      }
+    }
+  }
+
   if (!params.mid.empty()) {
     mid_ = params.mid;
     for (auto& it : send_streams_) {
@@ -1602,7 +1626,7 @@ bool WebRtcVoiceSendChannel::AddSendStream(const StreamParams& sp) {
       GetAudioNetworkAdaptorConfig(options_);
   WebRtcAudioSendStream* stream = new WebRtcAudioSendStream(
       ssrc, mid_, sp.cname, sp.id, send_codec_spec_, ExtmapAllowMixed(),
-      send_rtp_extensions_, max_send_bitrate_bps_,
+      send_rtp_extensions_, rtcp_cc_ack_type_, max_send_bitrate_bps_,
       audio_config_.rtcp_report_interval_ms, audio_network_adaptor_config,
       call_, transport(), engine()->encoder_factory_, codec_pair_id_, nullptr,
       crypto_options_);

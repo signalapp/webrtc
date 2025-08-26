@@ -434,7 +434,8 @@ class FakeCall final : public Call, public PacketReceiver {
       const BitrateSettings& /* preferences */) override {}
   const FieldTrialsView& trials() const override { return env_.field_trials(); }
   const Environment& env() const override { return env_; }
-  void EnableSendCongestionControlFeedbackAccordingToRfc8888() override {}
+  void SetPreferredRtcpCcAckType(
+      RtcpFeedbackType preferred_rtcp_cc_ack_type) override {}
   int FeedbackAccordingToRfc8888Count() { return 0; }
   int FeedbackAccordingToTransportCcCount() { return 0; }
 

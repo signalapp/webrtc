@@ -361,7 +361,8 @@ void AudioSendStream::Start() {
   RTC_LOG(LS_INFO) << "AudioSendStream::Start: " << config_.rtp.ssrc;
   if (!config_.has_dscp && config_.min_bitrate_bps != -1 &&
       config_.max_bitrate_bps != -1 &&
-      (allocate_audio_without_feedback_ || TransportSeqNumId(config_) != 0)) {
+      (allocate_audio_without_feedback_ ||
+       config_.include_in_congestion_control_allocation)) {
     rtp_transport_->AccountForAudioPacketsInPacedSender(true);
     rtp_transport_->IncludeOverheadInPacedSender();
     rtp_rtcp_module_->SetAsPartOfAllocation(true);
@@ -793,7 +794,8 @@ void AudioSendStream::ReconfigureBitrateObserver(
   }
 
   if (!new_config.has_dscp && new_config.min_bitrate_bps != -1 &&
-      new_config.max_bitrate_bps != -1 && TransportSeqNumId(new_config) != 0) {
+      new_config.max_bitrate_bps != -1 &&
+      new_config.include_in_congestion_control_allocation) {
     rtp_transport_->AccountForAudioPacketsInPacedSender(true);
     rtp_transport_->IncludeOverheadInPacedSender();
     // We may get a callback immediately as the observer is registered, so
