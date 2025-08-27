@@ -1,6 +1,7 @@
 #!/usr/bin/env lucicfg
 
 #  Copyright (c) 2019 The WebRTC project authors. All Rights Reserved.
+#
 #  Use of this source code is governed by a BSD-style license
 #  that can be found in the LICENSE file in the root of the source
 #  tree. An additional intellectual property rights grant can be found
@@ -461,7 +462,6 @@ def recipe(recipe, pkg = "infra/recipe_bundles/chromium.googlesource.com/chromiu
         cipd_package = pkg,
         cipd_version = "refs/heads/main",
         recipe = recipe,
-        use_python3 = True,
     )
 
 recipe("chromium_trybot")
