@@ -911,15 +911,14 @@ void P2PTransportChannel::OnPortReady(PortAllocatorSession* /* session */,
   ports_.push_back(port);
   port->SignalUnknownAddress.connect(this,
                                      &P2PTransportChannel::OnUnknownAddress);
+  port->SignalSentPacket.connect(this, &P2PTransportChannel::OnSentPacket);
+
   port->SubscribePortDestroyed(
       [this](PortInterface* port) { OnPortDestroyed(port); });
-
-  port->SignalRoleConflict.connect(this, &P2PTransportChannel::OnRoleConflict);
-  port->SignalSentPacket.connect(this, &P2PTransportChannel::OnSentPacket);
+  port->SubscribeRoleConflict([this]() { NotifyRoleConflict(); });
 
   // Attempt to create a connection from this new port to all of the remote
   // candidates that we were given so far.
-
   std::vector<RemoteCandidate>::iterator iter;
   for (iter = remote_candidates_.begin(); iter != remote_candidates_.end();
        ++iter) {
@@ -1123,7 +1122,7 @@ void P2PTransportChannel::OnCandidateFilterChanged(uint32_t prev_filter,
   }
 }
 
-void P2PTransportChannel::OnRoleConflict(PortInterface* /* port */) {
+void P2PTransportChannel::NotifyRoleConflict() {
   SignalRoleConflict(this);  // STUN ping will be sent when SetRole is called
                              // from Transport.
 }

@@ -650,6 +650,7 @@ rtc_library("port_interface") {
     "../rtc_base:socket_address",
     "../rtc_base/network:sent_packet",
     "../rtc_base/third_party/sigslot",
+    "//third_party/abseil-cpp/absl/functional:any_invocable",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
 }

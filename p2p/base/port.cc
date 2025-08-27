@@ -131,6 +131,7 @@ Port::Port(const PortParametersRef& args,
       tiebreaker_(0),
       shared_socket_(shared_socket),
       network_cost_(args.network->GetCost(env_.field_trials())),
+      role_conflict_callback_(nullptr),
       weak_factory_(this) {
   RTC_DCHECK_RUN_ON(thread_);
   RTC_DCHECK(factory_ != nullptr);
@@ -701,7 +702,7 @@ bool Port::MaybeIceRoleConflict(const SocketAddress& addr,
     case ICEROLE_CONTROLLING:
       if (ICEROLE_CONTROLLING == remote_ice_role) {
         if (remote_tiebreaker >= tiebreaker_) {
-          SignalRoleConflict(this);
+          NotifyRoleConflict();
         } else {
           // Send Role Conflict (487) error response.
           SendBindingErrorResponse(stun_msg, addr, STUN_ERROR_ROLE_CONFLICT,
@@ -713,7 +714,7 @@ bool Port::MaybeIceRoleConflict(const SocketAddress& addr,
     case ICEROLE_CONTROLLED:
       if (ICEROLE_CONTROLLED == remote_ice_role) {
         if (remote_tiebreaker < tiebreaker_) {
-          SignalRoleConflict(this);
+          NotifyRoleConflict();
         } else {
           // Send Role Conflict (487) error response.
           SendBindingErrorResponse(stun_msg, addr, STUN_ERROR_ROLE_CONFLICT,
@@ -1038,6 +1039,24 @@ void Port::OnRequestLocalNetworkAccessPermission(
 
   permission_queries_.erase(it);
   std::move(callback)(status);
+}
+
+void Port::SubscribeRoleConflict(absl::AnyInvocable<void()> callback) {
+  RTC_DCHECK_RUN_ON(thread_);
+  RTC_DCHECK(callback);
+  RTC_DCHECK(!role_conflict_callback_);
+  RTC_DCHECK(SignalRoleConflict.is_empty());
+  role_conflict_callback_ = std::move(callback);
+}
+
+void Port::NotifyRoleConflict() {
+  RTC_DCHECK_RUN_ON(thread_);
+  if (role_conflict_callback_) {
+    RTC_DCHECK(SignalRoleConflict.is_empty());
+    role_conflict_callback_();
+  } else {
+    SignalRoleConflict(this);
+  }
 }
 
 }  // namespace webrtc
