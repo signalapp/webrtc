@@ -24,9 +24,12 @@
 #include "api/field_trials.h"
 #include "api/make_ref_counted.h"
 #include "api/media_stream_interface.h"
+#include "api/media_types.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtp_receiver_interface.h"
 #include "api/rtp_sender_interface.h"
+#include "api/rtp_transceiver_direction.h"
+#include "api/rtp_transceiver_interface.h"
 #include "api/scoped_refptr.h"
 #include "api/stats/attribute.h"
 #include "api/stats/rtc_stats.h"
@@ -1360,6 +1363,58 @@ TEST_F(RTCStatsRtpLifetimeTest, VideoInboundRtpMissingBeforeFirstPacket) {
   EXPECT_THAT(WaitUntil(
                   [&] {
                     report = GetStats(callee_->pc());
+                    inbound_rtps =
+                        report->GetStatsOfType<RTCInboundRtpStreamStats>();
+                    return inbound_rtps.size() > 0;
+                  },
+                  IsTrue(), {.timeout = TimeDelta::Millis(kGetStatsTimeoutMs)}),
+              IsRtcOk());
+  ASSERT_THAT(inbound_rtps, SizeIs(1));
+  EXPECT_GT(inbound_rtps[0]->packets_received.value_or(0), 0u);
+}
+
+TEST_F(RTCStatsRtpLifetimeTest, InboundRtpForEarlyMedia) {
+  // Dummy m-section needed for DTLS to be established. Early media is not
+  // possible before then. Also exchange ICE candidates.
+  RtpTransceiverInit init;
+  init.direction = RtpTransceiverDirection::kSendOnly;
+  caller_->pc()->AddTransceiver(MediaType::VIDEO, init);
+  caller_->ListenForRemoteIceCandidates(callee_);
+  callee_->ListenForRemoteIceCandidates(caller_);
+  PeerConnectionTestWrapper::AwaitNegotiation(caller_.get(), callee_.get());
+  caller_->AwaitAddRemoteIceCandidates();
+  callee_->AwaitAddRemoteIceCandidates();
+
+  // In a follow-up exchange, offer to receive.
+  init.direction = RtpTransceiverDirection::kRecvOnly;
+  caller_->pc()->AddTransceiver(MediaType::VIDEO, init);
+  auto offer = caller_->AwaitCreateOffer();
+  caller_->AwaitSetLocalDescription(offer.get());
+  callee_->AwaitSetRemoteDescription(offer.get());
+  // Answer to send.
+  scoped_refptr<MediaStreamInterface> stream = callee_->GetUserMedia(
+      /*audio=*/false, {}, /*video=*/true);
+  scoped_refptr<VideoTrackInterface> track = stream->GetVideoTracks()[0];
+  auto transceivers = callee_->pc()->GetTransceivers();
+  ASSERT_EQ(transceivers.size(), 2u);
+  transceivers[1]->sender()->SetTrack(track.get());
+  EXPECT_THAT(transceivers[1]->SetDirectionWithError(
+                  RtpTransceiverDirection::kSendOnly),
+              IsRtcOk());
+  auto answer = callee_->AwaitCreateAnswer();
+  callee_->AwaitSetLocalDescription(answer.get());
+
+  // We never set the remote answer...
+  ASSERT_EQ(caller_->pc()->signaling_state(),
+            PeerConnectionInterface::SignalingState::kHaveLocalOffer);
+  // But because of early media, we're still able to receive packets.
+  // - Whether or not we unmute the track in response to this is outside the
+  //   scope of this stats test.
+  scoped_refptr<const RTCStatsReport> report;
+  std::vector<const RTCInboundRtpStreamStats*> inbound_rtps;
+  EXPECT_THAT(WaitUntil(
+                  [&] {
+                    report = GetStats(caller_->pc());
                     inbound_rtps =
                         report->GetStatsOfType<RTCInboundRtpStreamStats>();
                     return inbound_rtps.size() > 0;
