@@ -3259,13 +3259,11 @@ void SdpOfferAnswerHandler::RemoveStream(MediaStreamInterface* local_stream) {
     }
   }
   local_streams_->RemoveStream(local_stream);
-  stream_observers_.erase(
-      std::remove_if(
-          stream_observers_.begin(), stream_observers_.end(),
-          [local_stream](const std::unique_ptr<MediaStreamObserver>& observer) {
-            return observer->stream()->id().compare(local_stream->id()) == 0;
-          }),
-      stream_observers_.end());
+  std::erase_if(
+      stream_observers_,
+      [local_stream](const std::unique_ptr<MediaStreamObserver>& observer) {
+        return observer->stream()->id().compare(local_stream->id()) == 0;
+      });
 
   if (pc_->IsClosed()) {
     return;

@@ -10,7 +10,6 @@
 
 #include "pc/legacy_stats_collector.h"
 
-#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -624,13 +623,11 @@ void LegacyStatsCollector::RemoveLocalAudioTrack(
     AudioTrackInterface* audio_track,
     uint32_t ssrc) {
   RTC_DCHECK(audio_track != nullptr);
-  local_audio_tracks_.erase(
-      std::remove_if(
-          local_audio_tracks_.begin(), local_audio_tracks_.end(),
-          [audio_track, ssrc](const LocalAudioTrackVector::value_type& track) {
-            return track.first == audio_track && track.second == ssrc;
-          }),
-      local_audio_tracks_.end());
+  std::erase_if(
+      local_audio_tracks_,
+      [audio_track, ssrc](const LocalAudioTrackVector::value_type& track) {
+        return track.first == audio_track && track.second == ssrc;
+      });
 }
 
 void LegacyStatsCollector::GetStats(MediaStreamTrackInterface* track,
