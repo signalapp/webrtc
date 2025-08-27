@@ -28,13 +28,13 @@
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
-#include "rtc_base/callback_list.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/ip_address.h"
 #include "rtc_base/mdns_responder_interface.h"
 #include "rtc_base/network_constants.h"
 #include "rtc_base/network_monitor.h"
 #include "rtc_base/network_monitor_factory.h"
+#include "rtc_base/sigslot_trampoline.h"
 #include "rtc_base/socket_factory.h"
 #include "rtc_base/system/rtc_export.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
@@ -202,23 +202,10 @@ class RTC_EXPORT NetworkManager : public DefaultLocalAddressProvider,
   void NotifyError() { SignalError(); }
 
  private:
-  template <auto member_signal>
-  class SignalTrampoline : public sigslot::has_slots<> {
-   public:
-    explicit SignalTrampoline(NetworkManager* that) {
-      (that->*member_signal).connect(this, &SignalTrampoline::Notify);
-    }
-    void Notify() { callbacks_.Send(); }
-    void Subscribe(absl::AnyInvocable<void()> callback) {
-      callbacks_.AddReceiver(std::move(callback));
-    }
-
-   private:
-    CallbackList<> callbacks_;
-  };
-  SignalTrampoline<&NetworkManager::SignalNetworksChanged>
+  SignalTrampoline<NetworkManager, &NetworkManager::SignalNetworksChanged>
       networks_changed_trampoline_;
-  SignalTrampoline<&NetworkManager::SignalError> error_trampoline_;
+  SignalTrampoline<NetworkManager, &NetworkManager::SignalError>
+      error_trampoline_;
 };
 
 // Represents a Unix-type network interface, with a name and single address.
