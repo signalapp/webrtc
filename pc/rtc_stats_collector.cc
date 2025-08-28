@@ -1718,8 +1718,8 @@ void RTCStatsCollector::ProduceRTPStreamStats_n(
   RTC_DCHECK_RUN_ON(network_thread_);
   Thread::ScopedDisallowBlockingCalls no_blocking_calls;
 
-  bool spec_lifetime =
-      is_unified_plan_ && env_.field_trials().IsEnabled("WebRTC-RTP-Lifetime");
+  bool spec_lifetime = is_unified_plan_ &&
+                       !env_.field_trials().IsDisabled("WebRTC-RTP-Lifetime");
   for (const RtpTransceiverStatsInfo& stats : transceiver_stats_infos) {
     if (stats.media_type == MediaType::AUDIO) {
       ProduceAudioRTPStreamStats_n(timestamp, stats, spec_lifetime, report);
