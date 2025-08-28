@@ -99,14 +99,14 @@ TEST(RnnVadTest, ComputePitchPeriod48kHzBitExactness) {
                                          y_energy_view, cpu_features);
   // TODO(bugs.webrtc.org/8948): Add when the issue is fixed.
   // FloatingPointExceptionObserver fpe_observer;
-  EXPECT_EQ(
-      ComputePitchPeriod48kHz(test_data.PitchBuffer24kHzView(), y_energy_view,
-                              /*pitch_candidates=*/{280, 284}, cpu_features),
-      560);
-  EXPECT_EQ(
-      ComputePitchPeriod48kHz(test_data.PitchBuffer24kHzView(), y_energy_view,
-                              /*pitch_candidates=*/{260, 284}, cpu_features),
-      568);
+  EXPECT_EQ(ComputePitchPeriod48kHz(
+                test_data.PitchBuffer24kHzView(), y_energy_view,
+                /*pitch_candidates_24kHz=*/{280, 284}, cpu_features),
+            560);
+  EXPECT_EQ(ComputePitchPeriod48kHz(
+                test_data.PitchBuffer24kHzView(), y_energy_view,
+                /*pitch_candidates_24kHz=*/{260, 284}, cpu_features),
+            568);
 }
 
 struct PitchCandidatesParameters {

@@ -468,7 +468,7 @@ void PeerConnectionE2EQualityTest::OnTrackCallback(
   auto* video_track = static_cast<VideoTrackInterface*>(track.get());
   std::unique_ptr<VideoSinkInterface<VideoFrame>> video_sink =
       video_quality_analyzer_injection_helper_->CreateVideoSink(
-          peer_name, peer_subscription, /*report_infra_stats=*/false);
+          peer_name, peer_subscription, /*report_infra_metrics=*/false);
   video_track->AddOrUpdateSink(video_sink.get(), VideoSinkWants());
   output_video_sinks_.push_back(std::move(video_sink));
 }
