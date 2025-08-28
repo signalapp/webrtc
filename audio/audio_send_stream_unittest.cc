@@ -548,10 +548,10 @@ TEST(AudioSendStreamTest, SendCodecAppliesAudioNetworkAdaptor) {
                                  const SdpAudioFormat& format) {
           auto mock_encoder = SetupAudioEncoderMock(format);
           EXPECT_CALL(*mock_encoder,
-                      EnableAudioNetworkAdaptor(StrEq(kAnaConfigString), _))
+                      EnableAudioNetworkAdaptor(StrEq(kAnaConfigString)))
               .WillOnce(Return(true));
           EXPECT_CALL(*mock_encoder,
-                      EnableAudioNetworkAdaptor(StrEq(kAnaReconfigString), _))
+                      EnableAudioNetworkAdaptor(StrEq(kAnaReconfigString)))
               .WillOnce(Return(true));
           return mock_encoder;
         }));
@@ -580,7 +580,7 @@ TEST(AudioSendStreamTest, AudioNetworkAdaptorReceivesOverhead) {
               *mock_encoder,
               OnReceivedOverhead(Eq(kOverheadPerPacket.bytes<size_t>())));
           EXPECT_CALL(*mock_encoder,
-                      EnableAudioNetworkAdaptor(StrEq(kAnaConfigString), _))
+                      EnableAudioNetworkAdaptor(StrEq(kAnaConfigString)))
               .WillOnce(Return(true));
           // Note: Overhead is received AFTER ANA has been enabled.
           EXPECT_CALL(

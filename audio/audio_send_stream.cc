@@ -606,14 +606,8 @@ bool AudioSendStream::SetupSendCodec(const Config& new_config) {
 
   // Enable ANA if configured (currently only used by Opus).
   if (new_config.audio_network_adaptor_config) {
-// TODO: bugs.webrtc.org/42223992 - call non-deprecated variant of the
-// `EnableAudioNetworkAdaptor` when deprecated one is removed from the
-// interface.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     if (encoder->EnableAudioNetworkAdaptor(
-            *new_config.audio_network_adaptor_config, &env_.event_log())) {
-#pragma clang diagnostic pop
+            *new_config.audio_network_adaptor_config)) {
       RTC_LOG(LS_INFO) << "Audio network adaptor enabled on SSRC "
                        << new_config.rtp.ssrc;
     } else {
@@ -713,14 +707,8 @@ void AudioSendStream::ReconfigureANA(const Config& new_config) {
   if (new_config.audio_network_adaptor_config) {
     channel_send_->CallEncoder([&](AudioEncoder* encoder) {
       RTC_DCHECK_RUN_ON(&worker_thread_checker_);
-// TODO: bugs.webrtc.org/42223992 - call non-deprecated variant of the
-// `EnableAudioNetworkAdaptor` when deprecated one is removed from the
-// interface.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
       if (encoder->EnableAudioNetworkAdaptor(
-              *new_config.audio_network_adaptor_config, &env_.event_log())) {
-#pragma clang diagnostic pop
+              *new_config.audio_network_adaptor_config)) {
         RTC_LOG(LS_INFO) << "Audio network adaptor enabled on SSRC "
                          << new_config.rtp.ssrc;
         if (overhead_per_packet_ > 0) {
