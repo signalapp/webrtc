@@ -28,6 +28,15 @@ rtc_library("file_based_encoder") {
   ]
 }
 
+rtc_library("file_based_encoder_with_ivf_transform") {
+  testonly = true
+  sources = [ "file_based_encoder_with_ivf_transform.h" ]
+  deps = [
+    ":file_based_encoder",
+    "../../../api:rtc_error",
+  ]
+}
+
 rtc_library("picture_pair_provider") {
   testonly = true
   sources = [ "picture_pair_provider.h" ]
