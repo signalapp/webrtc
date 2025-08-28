@@ -1718,7 +1718,8 @@ void RTCStatsCollector::ProduceRTPStreamStats_n(
   RTC_DCHECK_RUN_ON(network_thread_);
   Thread::ScopedDisallowBlockingCalls no_blocking_calls;
 
-  bool spec_lifetime = env_.field_trials().IsEnabled("WebRTC-RTP-Lifetime");
+  bool spec_lifetime =
+      is_unified_plan_ && env_.field_trials().IsEnabled("WebRTC-RTP-Lifetime");
   for (const RtpTransceiverStatsInfo& stats : transceiver_stats_infos) {
     if (stats.media_type == MediaType::AUDIO) {
       ProduceAudioRTPStreamStats_n(timestamp, stats, spec_lifetime, report);
@@ -1805,8 +1806,7 @@ void RTCStatsCollector::ProduceAudioRTPStreamStats_n(
     if (!voice_sender_info.connected()) {
       continue;  // The SSRC is not known yet.
     }
-    if (spec_lifetime && is_unified_plan_ &&
-        !stats.current_direction.has_value()) {
+    if (spec_lifetime && !stats.current_direction.has_value()) {
       continue;  // The SSRC is known but the O/A has not completed.
     }
     auto outbound_audio = CreateOutboundRTPStreamStatsFromVoiceSenderInfo(
@@ -1912,8 +1912,7 @@ void RTCStatsCollector::ProduceVideoRTPStreamStats_n(
     if (!video_sender_info.connected()) {
       continue;  // The SSRC is not known yet.
     }
-    if (spec_lifetime && is_unified_plan_ &&
-        !stats.current_direction.has_value()) {
+    if (spec_lifetime && !stats.current_direction.has_value()) {
       continue;  // The SSRC is known but the O/A has not completed.
     }
     auto outbound_video = CreateOutboundRTPStreamStatsFromVideoSenderInfo(
