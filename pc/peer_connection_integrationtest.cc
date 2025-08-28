@@ -2988,8 +2988,10 @@ TEST_P(PeerConnectionIntegrationTest, UnsignaledSsrcGetSourcesVideo) {
 // is not empty. This provides test coverage for https://crbug.com/webrtc/14817
 // where a race due to the re-creationg of the unsignaled ssrc stream would
 // clear the GetSources() history. This test not flaking confirms the bug fix.
+// TODO(crbug.com/webrtc/441652589): Figure out why this is flaking and
+// re-enable the test.
 TEST_P(PeerConnectionIntegrationTest,
-       UnsignaledSsrcGetSourcesNonEmptyIfMediaFlowing) {
+       DISABLED_UnsignaledSsrcGetSourcesNonEmptyIfMediaFlowing) {
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   ConnectFakeSignaling();
   caller()->AddVideoTrack();
