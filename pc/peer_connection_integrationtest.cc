@@ -3249,7 +3249,9 @@ TEST_P(PeerConnectionIntegrationTest, DisableAndEnableAudioPlayout) {
 double GetAudioEnergyStat(PeerConnectionIntegrationWrapper* pc) {
   auto report = pc->NewGetStats();
   auto inbound_rtps = report->GetStatsOfType<RTCInboundRtpStreamStats>();
-  RTC_CHECK(!inbound_rtps.empty());
+  if (inbound_rtps.empty()) {
+    return 0.0;
+  }
   auto* inbound_rtp = inbound_rtps[0];
   if (!inbound_rtp->total_audio_energy.has_value()) {
     return 0.0;

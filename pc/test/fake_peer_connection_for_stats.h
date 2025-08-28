@@ -548,6 +548,8 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase {
         signaling_thread_, make_ref_counted<RtpTransceiver>(
                                context_->env(), media_type, context_.get(),
                                &codec_lookup_helper_));
+    transceiver->internal()->set_current_direction(
+        RtpTransceiverDirection::kSendRecv);
     transceivers_.push_back(transceiver);
     return transceiver;
   }
