@@ -226,8 +226,9 @@ class RTC_EXPORT Network {
           const IPAddress& prefix,
           int prefix_length,
           AdapterType type);
-
-  Network(const Network&);
+  // Copying a Network only works if signal listeners have not been set.
+  Network(const Network& o);
+  Network(Network&&) = default;
   ~Network();
 
   // This signal is fired whenever type() or underlying_type_for_vpn() changes.
