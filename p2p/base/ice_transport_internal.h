@@ -258,6 +258,12 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
   IceTransportInternal();
   ~IceTransportInternal() override;
 
+  // This class is uncopyable and immovable.
+  IceTransportInternal(const IceTransportInternal&) = delete;
+  IceTransportInternal& operator=(const IceTransportInternal&) = delete;
+  IceTransportInternal(IceTransportInternal&&) = delete;
+  IceTransportInternal& operator=(IceTransportInternal&&) = delete;
+
   // TODO(bugs.webrtc.org/9308): Remove GetState once all uses have been
   // migrated to GetIceTransportState.
   virtual IceTransportStateInternal GetState() const = 0;
