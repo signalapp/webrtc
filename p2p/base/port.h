@@ -276,8 +276,6 @@ class RTC_EXPORT Port : public PortInterface, public sigslot::has_slots<> {
   // callback list. The signal can be deleted once all downstream usages are
   // replaced with the new CallbackList implementation.
   sigslot::signal2<Port*, const Candidate&> SignalCandidateReady;
-  void SendCandidateReadyCallbackList(Port*, const Candidate&);
-
   // Provides all of the above information in one handy object.
   const std::vector<Candidate>& Candidates() const override;
   // Fired when candidate discovery failed using certain server.
@@ -515,6 +513,8 @@ class RTC_EXPORT Port : public PortInterface, public sigslot::has_slots<> {
       LocalNetworkAccessPermissionInterface* permission_query,
       absl::AnyInvocable<void(LocalNetworkAccessPermissionStatus)> callback,
       LocalNetworkAccessPermissionStatus status);
+
+  void SendCandidateReadyCallbackList(Port*, const Candidate&);
 
   const Environment env_;
   TaskQueueBase* const thread_;

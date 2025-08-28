@@ -920,12 +920,6 @@ void BasicPortAllocatorSession::AddAllocatedPort(Port* port,
   PortData data(port, seq);
   ports_.push_back(data);
 
-  // This is a temporary solution to support SignalCandidateReady signals from
-  // downstream. We also register a method to send the callbacks in callback
-  // list. This will no longer be needed once downstream stops using
-  // SignalCandidateReady.
-  port->SignalCandidateReady.connect(port,
-                                     &Port::SendCandidateReadyCallbackList);
   port->SubscribeCandidateReadyCallback(
       [this](Port* port, const Candidate& c) { OnCandidateReady(port, c); });
   port->SubscribeCandidateError(

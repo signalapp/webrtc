@@ -148,6 +148,12 @@ Port::Port(const PortParametersRef& args,
   PostDestroyIfDead(/*delayed=*/true);
   RTC_LOG(LS_INFO) << ToString() << ": Port created with network cost "
                    << network_cost_;
+
+  // This is a temporary solution to support SignalCandidateReady signals from
+  // downstream. We also register a method to send the callbacks in callback
+  // list. This will no longer be needed once downstream stops using
+  // SignalCandidateReady.
+  SignalCandidateReady.connect(this, &Port::SendCandidateReadyCallbackList);
 }
 
 Port::~Port() {
