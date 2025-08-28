@@ -1242,14 +1242,11 @@ TEST_F(RTCStatsIntegrationTest, ExperimentalPsnrStats) {
 class RTCStatsRtpLifetimeTest : public RTCStatsIntegrationTest {
  public:
   RTCStatsRtpLifetimeTest() : RTCStatsIntegrationTest() {
-    FieldTrials field_trials =
-        CreateTestFieldTrials("WebRTC-RTP-Lifetime/Enabled/");
+    // Field trial "WebRTC-RTP-Lifetime" is enabled-by-default.
     EXPECT_TRUE(caller_->CreatePc({}, CreateBuiltinAudioEncoderFactory(),
-                                  CreateBuiltinAudioDecoderFactory(),
-                                  std::make_unique<FieldTrials>(field_trials)));
+                                  CreateBuiltinAudioDecoderFactory()));
     EXPECT_TRUE(callee_->CreatePc({}, CreateBuiltinAudioEncoderFactory(),
-                                  CreateBuiltinAudioDecoderFactory(),
-                                  std::make_unique<FieldTrials>(field_trials)));
+                                  CreateBuiltinAudioDecoderFactory()));
   }
 };
 
