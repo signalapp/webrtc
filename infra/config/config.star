@@ -17,7 +17,7 @@ lucicfg.check_version("1.30.9")
 WEBRTC_GIT = "https://webrtc.googlesource.com/src"
 WEBRTC_GERRIT = "https://webrtc-review.googlesource.com/src"
 WEBRTC_TROOPER_EMAIL = "webrtc-troopers-robots@google.com"
-WEBRTC_XCODE = "15f31d"
+WEBRTC_XCODE = "17a5305f"
 DEFAULT_CPU = "x86-64"
 
 # Helpers:
