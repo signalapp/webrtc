@@ -225,6 +225,7 @@ class RTCStatsCollector : public RefCountInterface {
       Timestamp timestamp,
       const std::map<std::string, TransportStats>& transport_stats_by_name,
       const std::map<std::string, CertificateStatsPair>& transport_cert_stats,
+      const Call::Stats& call_stats,
       RTCStatsReport* report) const;
 
   // Helper function to stats-producing functions.

@@ -12,6 +12,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "absl/strings/string_view.h"
@@ -58,6 +59,7 @@ class Call {
     int recv_bandwidth_bps = 0;       // Estimated available receive bandwidth.
     int64_t pacer_delay_ms = 0;
     int64_t rtt_ms = -1;
+    std::optional<int64_t> ccfb_messages_received = std::nullopt;
   };
 
   static std::unique_ptr<Call> Create(CallConfig config);
@@ -156,9 +158,8 @@ class Call {
   // Decides which RTCP feedback type to use for congestion control.
   virtual void SetPreferredRtcpCcAckType(
       RtcpFeedbackType preferred_rtcp_cc_ack_type) = 0;
-
-  virtual int FeedbackAccordingToRfc8888Count() = 0;
-  virtual int FeedbackAccordingToTransportCcCount() = 0;
+  virtual std::optional<int> FeedbackAccordingToRfc8888Count() = 0;
+  virtual std::optional<int> FeedbackAccordingToTransportCcCount() = 0;
 
   virtual TaskQueueBase* network_thread() const = 0;
   virtual TaskQueueBase* worker_thread() const = 0;

@@ -1018,6 +1018,8 @@ class RTCStatsReportVerifier {
     verifier.TestAttributeIsDefined(transport.ice_role);
     verifier.TestAttributeIsDefined(transport.ice_local_username_fragment);
     verifier.TestAttributeIsDefined(transport.ice_state);
+    // TODO: bugs.webrtc.org/437303401 - Flip when enabling L4S by default.
+    verifier.TestAttributeIsUndefined(transport.ccfb_messages_received);
     return verifier.ExpectAllAttributesSuccessfullyTested();
   }
 
@@ -1235,6 +1237,22 @@ TEST_F(RTCStatsIntegrationTest, ExperimentalPsnrStats) {
         verifier.TestAttributeIsUndefined(outbound_stream.psnr_sum);
         verifier.TestAttributeIsUndefined(outbound_stream.psnr_measurements);
       }
+    }
+  }
+}
+
+TEST_F(RTCStatsIntegrationTest, ExperimentalTransportCcfbStats) {
+  StartCall("WebRTC-RFC8888CongestionControlFeedback/Enabled/");
+
+  // This assumes all other stats are ok and tests the stats which should be
+  // different under the field trial.
+  scoped_refptr<const RTCStatsReport> report = GetStatsFromCaller();
+  for (const RTCStats& stats : *report) {
+    if (stats.type() == RTCTransportStats::kType) {
+      const RTCTransportStats& transport(stats.cast_to<RTCTransportStats>());
+      RTCStatsVerifier verifier(report.get(), &transport);
+      verifier.TestAttributeIsNonNegative<int>(
+          transport.ccfb_messages_received);
     }
   }
 }

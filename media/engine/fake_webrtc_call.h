@@ -433,8 +433,8 @@ class FakeCall final : public Call, public PacketReceiver {
       const BitrateSettings& /* preferences */) override {}
   void SetPreferredRtcpCcAckType(
       RtcpFeedbackType preferred_rtcp_cc_ack_type) override {}
-  int FeedbackAccordingToRfc8888Count() { return 0; }
-  int FeedbackAccordingToTransportCcCount() { return 0; }
+  std::optional<int> FeedbackAccordingToRfc8888Count() { return 0; }
+  std::optional<int> FeedbackAccordingToTransportCcCount() { return 0; }
 
  private:
   AudioSendStream* CreateAudioSendStream(

@@ -280,8 +280,8 @@ class Call final : public webrtc::Call,
 
   void SetPreferredRtcpCcAckType(
       RtcpFeedbackType preferred_rtcp_cc_ack_type) override;
-  int FeedbackAccordingToRfc8888Count() override;
-  int FeedbackAccordingToTransportCcCount() override;
+  std::optional<int> FeedbackAccordingToRfc8888Count() override;
+  std::optional<int> FeedbackAccordingToTransportCcCount() override;
 
   TaskQueueBase* network_thread() const override;
   TaskQueueBase* worker_thread() const override;
@@ -1167,6 +1167,10 @@ Call::Stats Call::GetStats() const {
   stats.max_padding_bitrate_bps =
       configured_max_padding_bitrate_bps_.load(std::memory_order_relaxed);
 
+  // Congestion control feedback messages received.
+  stats.ccfb_messages_received =
+      transport_send_->ReceivedCongestionControlFeedbackCount();
+
   return stats;
 }
 
@@ -1178,11 +1182,11 @@ void Call::SetPreferredRtcpCcAckType(
   }  //  else default to transport CC if correct header extension is negotiated
 }
 
-int Call::FeedbackAccordingToRfc8888Count() {
+std::optional<int> Call::FeedbackAccordingToRfc8888Count() {
   return transport_send_->ReceivedCongestionControlFeedbackCount();
 }
 
-int Call::FeedbackAccordingToTransportCcCount() {
+std::optional<int> Call::FeedbackAccordingToTransportCcCount() {
   return transport_send_->ReceivedTransportCcFeedbackCount();
 }
 

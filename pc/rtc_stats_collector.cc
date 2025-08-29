@@ -1364,7 +1364,7 @@ void RTCStatsCollector::ProducePartialResultsOnNetworkThreadImpl(
   ProduceIceCandidateAndPairStats_n(timestamp, transport_stats_by_name,
                                     call_stats_, partial_report);
   ProduceTransportStats_n(timestamp, transport_stats_by_name,
-                          transport_cert_stats, partial_report);
+                          transport_cert_stats, call_stats_, partial_report);
   ProduceRTPStreamStats_n(timestamp, transceiver_stats_infos_, partial_report);
 }
 
@@ -1957,6 +1957,7 @@ void RTCStatsCollector::ProduceTransportStats_n(
     Timestamp timestamp,
     const std::map<std::string, TransportStats>& transport_stats_by_name,
     const std::map<std::string, CertificateStatsPair>& transport_cert_stats,
+    const Call::Stats& call_stats,
     RTCStatsReport* report) const {
   RTC_DCHECK_RUN_ON(network_thread_);
   Thread::ScopedDisallowBlockingCalls no_blocking_calls;
@@ -2059,6 +2060,8 @@ void RTCStatsCollector::ProduceTransportStats_n(
         channel_transport_stats->srtp_cipher =
             SrtpCryptoSuiteToName(channel_stats.srtp_crypto_suite);
       }
+      channel_transport_stats->ccfb_messages_received =
+          call_stats_.ccfb_messages_received;
       report->AddStats(std::move(channel_transport_stats));
     }
   }

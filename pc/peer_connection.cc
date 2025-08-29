@@ -3003,14 +3003,14 @@ void PeerConnection::RequestUsagePatternReportForTesting() {
 int PeerConnection::FeedbackAccordingToRfc8888CountForTesting() const {
   return worker_thread()->BlockingCall([this]() {
     RTC_DCHECK_RUN_ON(worker_thread());
-    return call_->FeedbackAccordingToRfc8888Count();
+    return call_->FeedbackAccordingToRfc8888Count().value_or(0);
   });
 }
 
 int PeerConnection::FeedbackAccordingToTransportCcCountForTesting() const {
   return worker_thread()->BlockingCall([this]() {
     RTC_DCHECK_RUN_ON(worker_thread());
-    return call_->FeedbackAccordingToTransportCcCount();
+    return call_->FeedbackAccordingToTransportCcCount().value_or(0);
   });
 }
 
