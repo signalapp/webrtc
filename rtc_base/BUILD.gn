@@ -1227,6 +1227,17 @@ rtc_source_set("sigslot_trampoline") {
   ]
 }
 
+rtc_library("sigslot_trampoline_unittest") {
+  testonly = true
+  sources = [ "sigslot_trampoline_unittest.cc" ]
+  deps = [
+    ":sigslot_trampoline",
+    "../test:test_support",
+    "third_party/sigslot",
+    "//third_party/abseil-cpp/absl/functional:any_invocable",
+  ]
+}
+
 rtc_library("socket_address_pair") {
   sources = [
     "socket_address_pair.cc",
