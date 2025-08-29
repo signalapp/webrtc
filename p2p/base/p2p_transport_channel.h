@@ -40,6 +40,8 @@
 #include "api/sequence_checker.h"
 #include "api/transport/enums.h"
 #include "api/transport/stun.h"
+#include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "logging/rtc_event_log/events/rtc_event_ice_candidate_pair_config.h"
 #include "logging/rtc_event_log/ice_logger.h"
 #include "p2p/base/active_ice_controller_factory_interface.h"
@@ -423,8 +425,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
     return const_cast<Connection*>(conn);
   }
 
-  int64_t ComputeEstimatedDisconnectedTimeMs(int64_t now,
-                                             Connection* old_connection);
+  TimeDelta ComputeEstimatedDisconnectedTime(Connection* old_connection);
 
   void ParseFieldTrials(const FieldTrialsView& field_trials);
 
@@ -482,7 +483,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
   IceGatheringState gathering_state_ RTC_GUARDED_BY(network_thread_);
   std::unique_ptr<BasicRegatheringController> regathering_controller_
       RTC_GUARDED_BY(network_thread_);
-  int64_t last_ping_sent_ms_ RTC_GUARDED_BY(network_thread_) = 0;
+  Timestamp last_ping_sent_ RTC_GUARDED_BY(network_thread_) = Timestamp::Zero();
   int weak_ping_interval_ RTC_GUARDED_BY(network_thread_) = WEAK_PING_INTERVAL;
   // TODO(jonasolsson): Remove state_ and rename standardized_state_ once state_
   // is no longer used to compute the ICE connection state.
@@ -523,7 +524,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
 
   // When was last data received on a existing connection,
   // from connection->last_data_received() that uses TimeMillis().
-  int64_t last_data_received_ms_ = 0;
+  Timestamp last_data_received_ = Timestamp::Zero();
 
   // Parsed field trials.
   IceFieldTrials ice_field_trials_;

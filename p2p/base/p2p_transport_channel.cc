@@ -40,6 +40,8 @@
 #include "api/sequence_checker.h"
 #include "api/transport/enums.h"
 #include "api/transport/stun.h"
+#include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "logging/rtc_event_log/events/rtc_event_ice_candidate_pair_config.h"
 #include "logging/rtc_event_log/ice_logger.h"
 #include "p2p/base/active_ice_controller_factory_interface.h"
@@ -64,16 +66,15 @@
 #include "rtc_base/ip_address.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/net_helper.h"
-#include "rtc_base/net_helpers.h"
 #include "rtc_base/network.h"
 #include "rtc_base/network/received_packet.h"
 #include "rtc_base/network/sent_packet.h"
 #include "rtc_base/network_constants.h"
 #include "rtc_base/network_route.h"
+#include "rtc_base/platform_thread_types.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/thread.h"
-#include "rtc_base/time_utils.h"
 #include "rtc_base/trace_event.h"
 #include "system_wrappers/include/metrics.h"
 
@@ -1714,7 +1715,7 @@ void P2PTransportChannel::RemoveConnectionForTest(Connection* connection) {
 // Monitor connection states.
 void P2PTransportChannel::UpdateConnectionStates() {
   RTC_DCHECK_RUN_ON(network_thread_);
-  int64_t now = TimeMillis();
+  Timestamp now = env_.clock().CurrentTime();
 
   // We need to copy the list of connections since some may delete themselves
   // when we call UpdateState.
@@ -1872,12 +1873,12 @@ void P2PTransportChannel::SwitchSelectedConnectionInternal(
     CandidatePairChangeEvent pair_change = {
         .transport_name = transport_name(),
         .selected_candidate_pair = *GetSelectedCandidatePair(),
-        .last_data_received_ms = selected_connection_->last_data_received(),
+        .last_data_received_ms = selected_connection_->LastDataReceived().ms(),
         .reason = IceSwitchReasonToString(reason),
         .estimated_disconnected_time_ms =
-            old_selected_connection ? ComputeEstimatedDisconnectedTimeMs(
-                                          TimeMillis(), old_selected_connection)
-                                    : 0};
+            old_selected_connection != nullptr
+                ? ComputeEstimatedDisconnectedTime(old_selected_connection).ms()
+                : 0};
     candidate_pair_change_callback_(pair_change);
   }
 
@@ -1886,14 +1887,14 @@ void P2PTransportChannel::SwitchSelectedConnectionInternal(
   ice_controller_->OnConnectionSwitched(selected_connection_);
 }
 
-int64_t P2PTransportChannel::ComputeEstimatedDisconnectedTimeMs(
-    int64_t now_ms,
+TimeDelta P2PTransportChannel::ComputeEstimatedDisconnectedTime(
     Connection* old_connection) {
+  Timestamp now = Connection::AlignTime(env_.clock().CurrentTime());
   // TODO(jonaso): nicer keeps estimate of how frequently data _should_ be
   // received, this could be used to give better estimate (if needed).
-  int64_t last_data_or_old_ping =
-      std::max(old_connection->last_received(), last_data_received_ms_);
-  return (now_ms - last_data_or_old_ping);
+  Timestamp last_data_or_old_ping =
+      std::max(old_connection->LastReceived(), last_data_received_);
+  return now - last_data_or_old_ping;
 }
 
 // Warning: UpdateTransportState should eventually be called whenever a
@@ -2044,7 +2045,7 @@ Connection* P2PTransportChannel::FindNextPingableConnection() {
 
 int64_t P2PTransportChannel::GetLastPingSentMs() const {
   RTC_DCHECK_RUN_ON(network_thread_);
-  return last_ping_sent_ms_;
+  return last_ping_sent_.ms();
 }
 
 void P2PTransportChannel::SendPingRequest(const Connection* connection) {
@@ -2085,8 +2086,8 @@ void P2PTransportChannel::PingConnection(Connection* conn) {
   }
   conn->set_nomination(nomination);
   conn->set_use_candidate_attr(use_candidate_attr);
-  last_ping_sent_ms_ = TimeMillis();
-  conn->Ping(last_ping_sent_ms_, stun_dict_writer_.CreateDelta());
+  last_ping_sent_ = Connection::AlignTime(env_.clock().CurrentTime());
+  conn->Ping(last_ping_sent_, stun_dict_writer_.CreateDelta());
 }
 
 uint32_t P2PTransportChannel::GetNominationAttr(Connection* conn) const {
@@ -2239,9 +2240,9 @@ void P2PTransportChannel::OnReadPacket(Connection* connection,
   // Let the client know of an incoming packet
   packets_received_++;
   bytes_received_ += packet.payload().size();
-  RTC_DCHECK(connection->last_data_received() >= last_data_received_ms_);
-  last_data_received_ms_ =
-      std::max(last_data_received_ms_, connection->last_data_received());
+  RTC_DCHECK_GE(connection->LastDataReceived(), last_data_received_);
+  last_data_received_ =
+      std::max(last_data_received_, connection->LastDataReceived());
 
   NotifyPacketReceived(packet);
 

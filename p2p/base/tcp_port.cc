@@ -82,6 +82,7 @@
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/transport/stun.h"
 #include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "p2p/base/connection.h"
 #include "p2p/base/connection_info.h"
 #include "p2p/base/p2p_constants.h"
@@ -98,7 +99,6 @@
 #include "rtc_base/rate_tracker.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
-#include "rtc_base/time_utils.h"
 #include "rtc_base/weak_ptr.h"
 
 namespace webrtc {
@@ -410,12 +410,12 @@ int TCPConnection::Send(const void* data,
   tcp_port()->CopyPortInformationToPacketInfo(
       &modified_options.info_signaled_after_sent);
   int sent = socket_->Send(data, size, modified_options);
-  int64_t now = TimeMillis();
+  Timestamp now = Connection::AlignTime(env().clock().CurrentTime());
   if (sent < 0) {
     mutable_stats().sent_discarded_packets++;
     error_ = socket_->GetError();
   } else {
-    send_rate_tracker().AddSamplesAtTime(now, sent);
+    send_rate_tracker().AddSamplesAtTime(now.ms(), sent);
   }
   set_last_send_data(now);
   return sent;
