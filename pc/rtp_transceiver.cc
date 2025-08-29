@@ -837,8 +837,13 @@ void RtpTransceiver::OnNegotiationUpdate(
     const MediaContentDescription* content) {
   RTC_DCHECK_RUN_ON(thread_);
   RTC_DCHECK(content);
-  if (sdp_type == SdpType::kAnswer)
+  if (sdp_type == SdpType::kAnswer) {
     negotiated_header_extensions_ = content->rtp_header_extensions();
+    if (context_->env().field_trials().IsEnabled(
+            "WebRTC-HeaderExtensionNegotiateMemory")) {
+      header_extensions_to_negotiate_ = GetNegotiatedHeaderExtensions();
+    }
+  }
 }
 
 void RtpTransceiver::SetPeerConnectionClosed() {
