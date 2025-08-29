@@ -724,6 +724,7 @@ if (rtc_build_dcsctp) {
       ":rtc_data_sctp_transport_internal",
       "../api:array_view",
       "../api:dtls_transport_interface",
+      "../api:field_trials_view",
       "../api:libjingle_peerconnection_api",
       "../api:priority",
       "../api:rtc_error",
