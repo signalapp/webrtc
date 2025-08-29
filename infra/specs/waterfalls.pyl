@@ -322,7 +322,7 @@
       'iOS64 Debug': {
         'mixins': [
           'ios-device-18', 'webrtc-xctest', 'chrome-tester-service-account',
-          'xcode_15_main', 'mac_toolchain', 'has_native_resultdb_integration',
+          'xcode_17_main', 'mac_toolchain', 'has_native_resultdb_integration',
           'out_dir_arg'
         ],
         'test_suites': {
@@ -332,7 +332,7 @@
       'iOS64 Perf': {
         'mixins': [
           'arm64', 'ios-device-perf', 'webrtc-xctest', 'timeout-3h',
-          'chrome-tester-service-account', 'xcode_15_main', 'mac_toolchain',
+          'chrome-tester-service-account', 'xcode_17_main', 'mac_toolchain',
           'has_native_resultdb_integration', 'out_dir_arg'
         ],
         'test_suites': {
@@ -345,7 +345,7 @@
       'iOS64 Release': {
         'mixins': [
           'ios-device-18', 'webrtc-xctest', 'chrome-tester-service-account',
-          'xcode_15_main', 'mac_toolchain', 'has_native_resultdb_integration',
+          'xcode_17_main', 'mac_toolchain', 'has_native_resultdb_integration',
           'out_dir_arg'
         ],
         'test_suites': {
