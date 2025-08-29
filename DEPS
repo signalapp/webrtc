@@ -10,7 +10,7 @@ vars = {
   # chromium waterfalls. More info at: crbug.com/570091.
   'checkout_configuration': 'default',
   'checkout_instrumented_libraries': 'checkout_linux and checkout_configuration == "default"',
-  'chromium_revision': '20846f7ed61ee678875734272879560e2761bb49',
+  'chromium_revision': '37c5b1150a1829f37f44dca139d579b05e608b07',
 
   # Fetch the prebuilt binaries for llvm-cov and llvm-profdata. Needed to
   # process the raw profiles produced by instrumented targets (built with
@@ -78,13 +78,13 @@ deps = {
     'condition': 'checkout_android',
   },
   'src/ios': {
-    'url': 'https://chromium.googlesource.com/chromium/src/ios@a244b5b0dbd3554f69356700c1e96c62c34c0e53',
+    'url': 'https://chromium.googlesource.com/chromium/src/ios@0b53c86e3ce1001d902f2ec4b64eb0b6cfbce9e2',
     'condition': 'checkout_ios',
   },
   'src/testing':
     'https://chromium.googlesource.com/chromium/src/testing@fc00cc434310e74cbd86f0dbdf74c3a02a9ab426',
   'src/third_party':
-    'https://chromium.googlesource.com/chromium/src/third_party@5073a6925c5a1cb37a4034bb4ecd74a19466356f',
+    'https://chromium.googlesource.com/chromium/src/third_party@ad5260d2033173cbfb3597cff9eba12cde1ca324',
 
   'src/buildtools/linux64': {
     'packages': [
@@ -331,13 +331,13 @@ deps = {
   'src/third_party/clang-format/script':
     'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/clang/tools/clang-format.git@37f6e68a107df43b7d7e044fd36a13cbae3413f2',
   'src/third_party/compiler-rt/src':
-    'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/compiler-rt.git@44970e10a774b2dbfba48820225baae8bfe8df1f',
+    'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/compiler-rt.git@781f4e850a9e2f20335c92dfb7f5dec1c8b7702f',
   'src/third_party/libc++/src':
     'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxx.git@3fbbed1e6ef9eefaa53408fcb4cab1165bef8c6b',
   'src/third_party/libc++abi/src':
     'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxxabi.git@f7f5a32b3e9582092d8a4511acec036a09ae8524',
   'src/third_party/llvm-libc/src':
-    'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libc.git@be4d290e463369439f0ec6b8677a0eb6d5036939',
+    'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libc.git@11725050a2e117625867ec45d70746bb78b170fd',
   'src/third_party/libunwind/src':
     'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libunwind.git@c948b3c916ac5c2369a3f9891342970d4dc252b9',
 
@@ -493,7 +493,7 @@ deps = {
   'src/third_party/crc32c/src':
     'https://chromium.googlesource.com/external/github.com/google/crc32c.git@d3d60ac6e0f16780bcfcc825385e1d338801a558',
   'src/third_party/depot_tools':
-    'https://chromium.googlesource.com/chromium/tools/depot_tools.git@6b19831e3cfb16884a36b8045383594955712892',
+    'https://chromium.googlesource.com/chromium/tools/depot_tools.git@0699a53d841453368d0ad17deb1c7d29b6db09a6',
   'src/third_party/ffmpeg':
     'https://chromium.googlesource.com/chromium/third_party/ffmpeg.git@9e751092c9498b84bbb77e2e0689ef9f50fe608f',
   'src/third_party/flatbuffers/src':
@@ -593,7 +593,7 @@ deps = {
       'condition': 'checkout_android',
   },
   'src/third_party/perfetto':
-    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + 'dba5db9ffa1ee3411ea57c809fa8a0b1e549a3bb',
+    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + '6dffc26f2442ba6b369ba8bacd6e37d400cd5b97',
   'src/third_party/protobuf-javascript/src':
     Var('chromium_git') + '/external/github.com/protocolbuffers/protobuf-javascript' + '@' + 'e6d763860001ba1a76a63adcff5efb12b1c96024',
   'src/third_party/libvpx/source/libvpx':
@@ -652,7 +652,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'src/tools':
-    'https://chromium.googlesource.com/chromium/src/tools@376c3fc785f2c7161f747cccd5119f21d04428fe',
+    'https://chromium.googlesource.com/chromium/src/tools@d93ba454ae71f310f9cb649d92036114fcdaf576',
 
   'src/third_party/espresso': {
       'packages': [
@@ -691,7 +691,7 @@ deps = {
     'packages': [
       {
           'package': 'chromium/third_party/androidx',
-          'version': 'wfQZVQH7OWe3VhjEZu-rI6m4rs3mnTlYNq2npfm6sOoC',
+          'version': 'qUQuh2ZDFphjAf6WRItMxW4fddM9DB5Jvj1YhOzbdg0C',
       },
     ],
     'condition': 'checkout_android and non_git_source',
