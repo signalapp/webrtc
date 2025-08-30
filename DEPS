@@ -10,7 +10,7 @@ vars = {
   # chromium waterfalls. More info at: crbug.com/570091.
   'checkout_configuration': 'default',
   'checkout_instrumented_libraries': 'checkout_linux and checkout_configuration == "default"',
-  'chromium_revision': '6a8ff236715a7dea3dd1674e317fa9ac0ab3c30c',
+  'chromium_revision': '44e568247cb830037c8fab005e94a5753c7925b0',
 
   # Fetch the prebuilt binaries for llvm-cov and llvm-profdata. Needed to
   # process the raw profiles produced by instrumented targets (built with
@@ -78,13 +78,13 @@ deps = {
     'condition': 'checkout_android',
   },
   'src/ios': {
-    'url': 'https://chromium.googlesource.com/chromium/src/ios@7e56eb8ff4670e664223c864b02129521e1f0563',
+    'url': 'https://chromium.googlesource.com/chromium/src/ios@bab455f1f2d52912f94a193c11414aa4d581d71a',
     'condition': 'checkout_ios',
   },
   'src/testing':
-    'https://chromium.googlesource.com/chromium/src/testing@512530147cf9342791d8752d472cf83349bd93eb',
+    'https://chromium.googlesource.com/chromium/src/testing@767e6402f2edd73cd5b584ec8eadf9a9cec22efe',
   'src/third_party':
-    'https://chromium.googlesource.com/chromium/src/third_party@a56282440d698af8a521ffbd8f3787e97b2a59f0',
+    'https://chromium.googlesource.com/chromium/src/third_party@3a2cbb7e04734afe05dee7072a5d6e3924787ec3',
 
   'src/buildtools/linux64': {
     'packages': [
@@ -331,7 +331,7 @@ deps = {
   'src/third_party/clang-format/script':
     'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/clang/tools/clang-format.git@37f6e68a107df43b7d7e044fd36a13cbae3413f2',
   'src/third_party/compiler-rt/src':
-    'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/compiler-rt.git@781f4e850a9e2f20335c92dfb7f5dec1c8b7702f',
+    'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/compiler-rt.git@361e87916c9c4822c77ea70d4723823e2b6574c1',
   'src/third_party/libc++/src':
     'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxx.git@70c21e34ea54ef13377bc6d8283453290e17c7b8',
   'src/third_party/libc++abi/src':
@@ -499,7 +499,7 @@ deps = {
   'src/third_party/flatbuffers/src':
     'https://chromium.googlesource.com/external/github.com/google/flatbuffers.git@8db59321d9f02cdffa30126654059c7d02f70c32',
   'src/third_party/grpc/src': {
-    'url': 'https://chromium.googlesource.com/external/github.com/grpc/grpc.git@1ae8da6748e1bb6c049ef3e015a55aa10f7e91e2',
+    'url': 'https://chromium.googlesource.com/external/github.com/grpc/grpc.git@bb96be017584c206eb3036eb7da14f5ccdc57e8d',
   },
   # Used for embedded builds. CrOS & Linux use the system version.
   'src/third_party/fontconfig/src': {
@@ -652,7 +652,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'src/tools':
-    'https://chromium.googlesource.com/chromium/src/tools@fb5a696a2ae6a866c2db9bdef62282cb46ac021f',
+    'https://chromium.googlesource.com/chromium/src/tools@6379922826121853c284f29ea12234852a245e8f',
 
   'src/third_party/espresso': {
       'packages': [
@@ -691,7 +691,7 @@ deps = {
     'packages': [
       {
           'package': 'chromium/third_party/androidx',
-          'version': '20SL-ACNp_rJ667VFaR5TMO-04lIR8x7wtuWd5ka2ZIC',
+          'version': '4Dvm_Lwh1WYLGG7yTaA2WxXITU0Wtv5mtUrRe4SYJgIC',
       },
     ],
     'condition': 'checkout_android and non_git_source',
@@ -789,15 +789,15 @@ deps = {
       'packages': [
         {
           'package': 'infra/tools/luci/cas/${{platform}}',
-          'version': 'git_revision:129260cb7597c1601e1fea08f0d2d672ae2330a6',
+          'version': 'git_revision:5482078f7d5948dab82fc4d4ab8e19a31536e6b0',
         },
         {
           'package': 'infra/tools/luci/isolate/${{platform}}',
-          'version': 'git_revision:129260cb7597c1601e1fea08f0d2d672ae2330a6',
+          'version': 'git_revision:5482078f7d5948dab82fc4d4ab8e19a31536e6b0',
         },
         {
           'package': 'infra/tools/luci/swarming/${{platform}}',
-          'version': 'git_revision:129260cb7597c1601e1fea08f0d2d672ae2330a6',
+          'version': 'git_revision:5482078f7d5948dab82fc4d4ab8e19a31536e6b0',
         }
       ],
       'dep_type': 'cipd',
