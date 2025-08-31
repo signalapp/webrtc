@@ -10,7 +10,7 @@ vars = {
   # chromium waterfalls. More info at: crbug.com/570091.
   'checkout_configuration': 'default',
   'checkout_instrumented_libraries': 'checkout_linux and checkout_configuration == "default"',
-  'chromium_revision': '44e568247cb830037c8fab005e94a5753c7925b0',
+  'chromium_revision': '1364fc40b0728b063fc78643a0a1178db22c2af9',
 
   # Fetch the prebuilt binaries for llvm-cov and llvm-profdata. Needed to
   # process the raw profiles produced by instrumented targets (built with
@@ -78,13 +78,13 @@ deps = {
     'condition': 'checkout_android',
   },
   'src/ios': {
-    'url': 'https://chromium.googlesource.com/chromium/src/ios@bab455f1f2d52912f94a193c11414aa4d581d71a',
+    'url': 'https://chromium.googlesource.com/chromium/src/ios@be52873d818a37944544bffa63d3698fdde1a358',
     'condition': 'checkout_ios',
   },
   'src/testing':
     'https://chromium.googlesource.com/chromium/src/testing@767e6402f2edd73cd5b584ec8eadf9a9cec22efe',
   'src/third_party':
-    'https://chromium.googlesource.com/chromium/src/third_party@3a2cbb7e04734afe05dee7072a5d6e3924787ec3',
+    'https://chromium.googlesource.com/chromium/src/third_party@5f621efb10e2d7c7503643da089145525ec62228',
 
   'src/buildtools/linux64': {
     'packages': [
@@ -331,7 +331,7 @@ deps = {
   'src/third_party/clang-format/script':
     'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/clang/tools/clang-format.git@37f6e68a107df43b7d7e044fd36a13cbae3413f2',
   'src/third_party/compiler-rt/src':
-    'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/compiler-rt.git@361e87916c9c4822c77ea70d4723823e2b6574c1',
+    'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/compiler-rt.git@c4d9ab5e7cf25d4a8dfe1159267036a6eb2648a4',
   'src/third_party/libc++/src':
     'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxx.git@70c21e34ea54ef13377bc6d8283453290e17c7b8',
   'src/third_party/libc++abi/src':
@@ -435,7 +435,7 @@ deps = {
       'packages': [
           {
                'package': 'chromium/third_party/android_build_tools/error_prone',
-               'version': 'R8e42R2txro2We-fzwv-mCywXVgBpacnAx2ln84t9ZkC',
+               'version': '47nFaUKq3UemCr0EHmMYPJ63Y9hRnNII7iNn5zYK9qsC',
           },
       ],
       'condition': 'checkout_android',
@@ -457,7 +457,7 @@ deps = {
       'packages': [
           {
                'package': 'chromium/third_party/android_build_tools/lint',
-               'version': 'Oz9g86ZQTZl8f7FpHv7iYW2rKpIsfz6CnI0td417x3EC',
+               'version': 'KBlDDgCi2ePqd60Cg-MkB6N_YRqkgcJ0ldkVj8OW_I4C',
           },
       ],
       'condition': 'checkout_android and non_git_source',
@@ -559,7 +559,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/third_party/kotlin_stdlib',
-              'version': 'MM50Ron8nItK5SmgAfdy5JZXPui-jkg_Fa8DgpTM4uYC',
+              'version': 'yvQWpghyvahxBY39Wf-J0BlhSCKm66GR8qatP1sh_-IC',
           },
       ],
       'condition': 'checkout_android',
