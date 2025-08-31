@@ -443,9 +443,9 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
   void GoogDeltaAckReceived(RTCErrorOr<const StunUInt64Attribute*>);
 
   const Environment env_;
-  std::string transport_name_ RTC_GUARDED_BY(network_thread_);
+  const std::string transport_name_ RTC_GUARDED_BY(network_thread_);
   int component_ RTC_GUARDED_BY(network_thread_);
-  PortAllocator* allocator_ RTC_GUARDED_BY(network_thread_);
+  PortAllocator* const allocator_ RTC_GUARDED_BY(network_thread_);
   AsyncDnsResolverFactoryInterface* const async_dns_resolver_factory_
       RTC_GUARDED_BY(network_thread_);
   const std::unique_ptr<AsyncDnsResolverFactoryInterface>
