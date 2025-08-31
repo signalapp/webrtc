@@ -2489,10 +2489,14 @@ TEST_P(PeerConnectionEncodingsIntegrationParameterizedTest, Simulcast) {
   // GetParameters() does not report any fallback.
   parameters = sender->GetParameters();
   ASSERT_THAT(parameters.encodings, SizeIs(3));
+
+  EXPECT_TRUE(parameters.encodings[0].scalability_mode.has_value());
   EXPECT_THAT(parameters.encodings[0].scalability_mode,
               Optional(std::string("L1T3")));
+  EXPECT_TRUE(parameters.encodings[1].scalability_mode.has_value());
   EXPECT_THAT(parameters.encodings[1].scalability_mode,
               Optional(std::string("L1T3")));
+  EXPECT_TRUE(parameters.encodings[2].scalability_mode.has_value());
   EXPECT_THAT(parameters.encodings[2].scalability_mode,
               Optional(std::string("L1T3")));
 
