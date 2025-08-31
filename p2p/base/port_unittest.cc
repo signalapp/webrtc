@@ -294,7 +294,7 @@ class TestChannel : public sigslot::has_slots<> {
  public:
   // Takes ownership of `p1` (but not `p2`).
   explicit TestChannel(std::unique_ptr<Port> p1) : port_(std::move(p1)) {
-    port_->SignalPortComplete.connect(this, &TestChannel::OnPortComplete);
+    port_->SubscribePortComplete([this](Port* port) { OnPortComplete(port); });
     port_->SignalUnknownAddress.connect(this, &TestChannel::OnUnknownAddress);
     port_->SubscribePortDestroyed(
         [this](PortInterface* port) { OnSrcPortDestroyed(port); });

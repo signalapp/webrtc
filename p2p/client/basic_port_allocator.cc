@@ -338,7 +338,7 @@ void BasicPortAllocatorSession::SetCandidateFilter(uint32_t filter) {
           found_signalable_candidate = true;
           port_data.set_state(PortData::STATE_INPROGRESS);
         }
-        port->SendCandidateReady(c);
+        port->SignalCandidateReady(port, c);
       }
 
       if (CandidatePairable(c, port)) {
@@ -924,12 +924,12 @@ void BasicPortAllocatorSession::AddAllocatedPort(Port* port,
       [this](Port* port, const IceCandidateErrorEvent& event) {
         OnCandidateError(port, event);
       });
-  port->SignalPortComplete.connect(this,
-                                   &BasicPortAllocatorSession::OnPortComplete);
+  port->SubscribePortComplete([this](Port* port) { OnPortComplete(port); });
   port->SubscribePortDestroyed(
       [this](PortInterface* port) { OnPortDestroyed(port); });
 
-  port->SignalPortError.connect(this, &BasicPortAllocatorSession::OnPortError);
+  port->SubscribePortError([this](Port* port) { OnPortError(port); });
+
   RTC_LOG(LS_INFO) << port->ToString() << ": Added port to allocator";
 
   port->PrepareAddress();
