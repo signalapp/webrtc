@@ -117,10 +117,7 @@ class RTC_EXPORT Connection : public CandidatePairInterface {
   bool connected() const;
   bool weak() const;
   bool active() const;
-  bool pending_delete() const {
-    RTC_DCHECK_RUN_ON(network_thread_);
-    return !port_;
-  }
+  bool pending_delete() const { return !port_; }
 
   // A connection is dead if it can be safely deleted.
   bool dead(Timestamp now) const;
@@ -394,14 +391,8 @@ class RTC_EXPORT Connection : public CandidatePairInterface {
   void SendResponseMessage(const StunMessage& response);
 
   // An accessor for unit tests.
-  PortInterface* PortForTest() {
-    RTC_DCHECK_RUN_ON(network_thread_);
-    return port_.get();
-  }
-  const PortInterface* PortForTest() const {
-    RTC_DCHECK_RUN_ON(network_thread_);
-    return port_.get();
-  }
+  PortInterface* PortForTest() { return port_.get(); }
+  const PortInterface* PortForTest() const { return port_.get(); }
 
   std::unique_ptr<IceMessage> BuildPingRequestForTest() {
     RTC_DCHECK_RUN_ON(network_thread_);
@@ -487,10 +478,7 @@ class RTC_EXPORT Connection : public CandidatePairInterface {
   void set_connected(bool value);
 
   // The local port where this connection sends and receives packets.
-  PortInterface* port() {
-    RTC_DCHECK_RUN_ON(network_thread_);
-    return port_.get();
-  }
+  PortInterface* port() { return port_.get(); }
 
   const Environment& env() { return env_; }
   ConnectionInfo& mutable_stats() { return stats_; }
@@ -523,7 +511,7 @@ class RTC_EXPORT Connection : public CandidatePairInterface {
   // TODO(tommi): This ^^^ should be fixed.
   TaskQueueBase* const network_thread_;
   const uint32_t id_;
-  WeakPtr<PortInterface> port_ RTC_GUARDED_BY(network_thread_);
+  WeakPtr<PortInterface> port_;
   Candidate local_candidate_ RTC_GUARDED_BY(network_thread_);
   Candidate remote_candidate_;
 

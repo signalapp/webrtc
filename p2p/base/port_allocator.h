@@ -303,9 +303,6 @@ class RTC_EXPORT PortAllocatorSession : public sigslot::has_slots<> {
                         int component,
                         absl::string_view ice_ufrag,
                         absl::string_view ice_pwd) {
-    RTC_DCHECK(pooled_);
-    RTC_DCHECK(!content_name.empty());
-    RTC_DCHECK(content_name_.empty());
     content_name_ = std::string(content_name);
     component_ = component;
     ice_ufrag_ = std::string(ice_ufrag);
@@ -313,12 +310,7 @@ class RTC_EXPORT PortAllocatorSession : public sigslot::has_slots<> {
     UpdateIceParametersInternal();
   }
 
-  void set_pooled(bool value) {
-    pooled_ = value;
-    if (pooled_) {
-      content_name_.clear();
-    }
-  }
+  void set_pooled(bool value) { pooled_ = value; }
 
   uint32_t flags_;
   uint32_t generation_;

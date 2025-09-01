@@ -201,12 +201,9 @@ class RTC_EXPORT BasicPortAllocatorSession : public PortAllocatorSession {
                          // interface. Only TURN ports may be pruned.
     };
 
-    PortData() = delete;
-    PortData(PortData&&) = default;
+    PortData() {}
     PortData(Port* port, AllocationSequence* seq)
         : port_(port), sequence_(seq) {}
-
-    PortData& operator=(PortData&&) = default;
 
     Port* port() const { return port_; }
     AllocationSequence* sequence() const { return sequence_; }
