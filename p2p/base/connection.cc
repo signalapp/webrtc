@@ -180,7 +180,8 @@ constexpr int kSupportGoogPingVersionResponseIndex = static_cast<int>(
 // A ConnectionRequest is a STUN binding used to determine writability.
 class Connection::ConnectionRequest : public StunRequest {
  public:
-  ConnectionRequest(StunRequestManager& manager,
+  ConnectionRequest(const Environment& env,
+                    StunRequestManager& manager,
                     Connection* connection,
                     std::unique_ptr<IceMessage> message);
   void OnResponse(StunMessage* response) override;
@@ -194,10 +195,11 @@ class Connection::ConnectionRequest : public StunRequest {
 };
 
 Connection::ConnectionRequest::ConnectionRequest(
+    const Environment& env,
     StunRequestManager& manager,
     Connection* connection,
     std::unique_ptr<IceMessage> message)
-    : StunRequest(manager, std::move(message)), connection_(connection) {}
+    : StunRequest(env, manager, std::move(message)), connection_(connection) {}
 
 void Connection::ConnectionRequest::OnResponse(StunMessage* response) {
   RTC_DCHECK_RUN_ON(connection_->network_thread_);
@@ -1103,19 +1105,20 @@ void Connection::Ping(Timestamp now,
 
   bool has_delta = delta != nullptr;
   auto req = std::make_unique<ConnectionRequest>(
-      requests_, this, BuildPingRequest(std::move(delta)));
+      env_, requests_, this, BuildPingRequest(std::move(delta)));
 
   if (!has_delta && ShouldSendGoogPing(req->msg())) {
     auto message = std::make_unique<IceMessage>(GOOG_PING_REQUEST, req->id());
     message->AddMessageIntegrity32(remote_candidate_.password());
-    req.reset(new ConnectionRequest(requests_, this, std::move(message)));
+    req = std::make_unique<ConnectionRequest>(env_, requests_, this,
+                                              std::move(message));
   }
 
   pings_since_last_response_.push_back(SentPing(req->id(), now, nomination));
   RTC_LOG(LS_VERBOSE) << ToString()
                       << ": Sending STUN ping, id=" << hex_encode(req->id())
                       << ", nomination=" << nomination_;
-  requests_.Send(req.release());
+  requests_.Send(std::move(req));
   state_ = IceCandidatePairState::IN_PROGRESS;
   num_pings_sent_++;
 }
@@ -1513,7 +1516,7 @@ void Connection::OnConnectionRequestResponse(StunRequest* request,
   // connection.
   LoggingSeverity sev = !writable() ? LS_INFO : LS_VERBOSE;
 
-  TimeDelta rtt = TimeDelta::Millis(request->Elapsed());
+  TimeDelta rtt = request->Elapsed();
 
   if (RTC_LOG_CHECK_LEVEL_V(sev)) {
     std::string pings;
