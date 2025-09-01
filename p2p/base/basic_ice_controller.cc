@@ -22,8 +22,6 @@
 #include "absl/algorithm/container.h"
 #include "api/candidate.h"
 #include "api/transport/enums.h"
-#include "api/units/time_delta.h"
-#include "api/units/timestamp.h"
 #include "p2p/base/connection.h"
 #include "p2p/base/connection_info.h"
 #include "p2p/base/ice_controller_factory_interface.h"
@@ -38,6 +36,7 @@
 #include "rtc_base/net_helper.h"
 #include "rtc_base/network.h"
 #include "rtc_base/network_constants.h"
+#include "rtc_base/time_utils.h"
 
 namespace {
 
@@ -87,8 +86,7 @@ int CompareCandidatePairsByNetworkPreference(
 namespace webrtc {
 
 BasicIceController::BasicIceController(const IceControllerFactoryArgs& args)
-    : env_(args.env),
-      ice_transport_state_func_(args.ice_transport_state_func),
+    : ice_transport_state_func_(args.ice_transport_state_func),
       ice_role_func_(args.ice_role_func),
       is_connection_pruned_func_(args.is_connection_pruned_func),
       field_trials_(args.ice_field_trials) {}
@@ -118,7 +116,7 @@ void BasicIceController::OnConnectionDestroyed(const Connection* connection) {
 }
 
 bool BasicIceController::HasPingableConnection() const {
-  Timestamp now = Connection::AlignTime(env_.clock().CurrentTime());
+  int64_t now = TimeMillis();
   return absl::c_any_of(connections_, [this, now](const Connection* c) {
     return IsPingable(c, now);
   });
@@ -139,8 +137,7 @@ IceControllerInterface::PingResult BasicIceController::SelectConnectionToPing(
                           : strong_ping_interval();
 
   const Connection* conn = nullptr;
-  if (Connection::AlignTime(env_.clock().CurrentTime()).ms() >=
-      last_ping_sent_ms + ping_interval) {
+  if (TimeMillis() >= last_ping_sent_ms + ping_interval) {
     conn = FindNextPingableConnection();
   }
   PingResult res(conn, std::min(ping_interval, check_receiving_interval()));
@@ -155,7 +152,7 @@ void BasicIceController::MarkConnectionPinged(const Connection* conn) {
 
 // Returns the next pingable connection to ping.
 const Connection* BasicIceController::FindNextPingableConnection() {
-  Timestamp now = Connection::AlignTime(env_.clock().CurrentTime());
+  int64_t now = TimeMillis();
 
   // Rule 1: Selected connection takes priority over non-selected ones.
   if (selected_connection_ && selected_connection_->connected() &&
@@ -241,7 +238,7 @@ const Connection* BasicIceController::FindNextPingableConnection() {
 // (last_ping_received > last_ping_sent).  But we shouldn't do
 // triggered checks if the connection is already writable.
 const Connection* BasicIceController::FindOldestConnectionNeedingTriggeredCheck(
-    Timestamp now) {
+    int64_t now) {
   const Connection* oldest_needing_triggered_check = nullptr;
   for (auto* conn : connections_) {
     if (!IsPingable(conn, now)) {
@@ -267,24 +264,24 @@ const Connection* BasicIceController::FindOldestConnectionNeedingTriggeredCheck(
 
 bool BasicIceController::WritableConnectionPastPingInterval(
     const Connection* conn,
-    Timestamp now) const {
-  TimeDelta interval = CalculateActiveWritablePingInterval(conn, now);
-  return conn->LastPingSent() + interval <= now;
+    int64_t now) const {
+  int interval = CalculateActiveWritablePingInterval(conn, now);
+  return conn->last_ping_sent() + interval <= now;
 }
 
-TimeDelta BasicIceController::CalculateActiveWritablePingInterval(
+int BasicIceController::CalculateActiveWritablePingInterval(
     const Connection* conn,
-    Timestamp now) const {
+    int64_t now) const {
   // Ping each connection at a higher rate at least
   // MIN_PINGS_AT_WEAK_PING_INTERVAL times.
   if (conn->num_pings_sent() < MIN_PINGS_AT_WEAK_PING_INTERVAL) {
-    return TimeDelta::Millis(weak_ping_interval());
+    return weak_ping_interval();
   }
 
-  TimeDelta stable_interval = TimeDelta::Millis(
-      config_.stable_writable_connection_ping_interval_or_default());
-  TimeDelta weak_or_stablizing_interval = std::min(
-      stable_interval, kWeakOrStabilizingWritableConnectionPingInterval);
+  int stable_interval =
+      config_.stable_writable_connection_ping_interval_or_default();
+  int weak_or_stablizing_interval = std::min(
+      stable_interval, WEAK_OR_STABILIZING_WRITABLE_CONNECTION_PING_INTERVAL);
   // If the channel is weak or the connection is not stable yet, use the
   // weak_or_stablizing_interval.
   return (!weak() && conn->stable(now)) ? stable_interval
@@ -294,8 +291,7 @@ TimeDelta BasicIceController::CalculateActiveWritablePingInterval(
 // Is the connection in a state for us to even consider pinging the other side?
 // We consider a connection pingable even if it's not connected because that's
 // how a TCP connection is kicked into reconnecting on the active side.
-bool BasicIceController::IsPingable(const Connection* conn,
-                                    Timestamp now) const {
+bool BasicIceController::IsPingable(const Connection* conn, int64_t now) const {
   const Candidate& remote = conn->remote_candidate();
   // We should never get this far with an empty remote ufrag.
   RTC_DCHECK(!remote.username().empty());
@@ -331,10 +327,8 @@ bool BasicIceController::IsPingable(const Connection* conn,
   // or not, but backup connections are pinged at a slower rate.
   if (IsBackupConnection(conn)) {
     return conn->rtt_samples() == 0 ||
-           (now >=
-            conn->LastPingResponseReceived() +
-                TimeDelta::Millis(
-                    config_.backup_connection_ping_interval_or_default()));
+           (now >= conn->last_ping_response_received() +
+                       config_.backup_connection_ping_interval_or_default());
   }
   // Don't ping inactive non-backup connections.
   if (!conn->active()) {
@@ -458,7 +452,7 @@ BasicIceController::HandleInitialSelectDampening(
     return {.connection = new_connection};
   }
 
-  Timestamp now = Connection::AlignTime(env_.clock().CurrentTime());
+  int64_t now = TimeMillis();
   int64_t max_delay = 0;
   if (new_connection->last_ping_received() > 0 &&
       field_trials_->initial_select_dampening_ping_received.has_value()) {
@@ -467,24 +461,26 @@ BasicIceController::HandleInitialSelectDampening(
     max_delay = *field_trials_->initial_select_dampening;
   }
 
-  Timestamp start_wait = initial_select_timestamp_.value_or(now);
-  Timestamp max_wait_until = start_wait + TimeDelta::Millis(max_delay);
+  int64_t start_wait =
+      initial_select_timestamp_ms_ == 0 ? now : initial_select_timestamp_ms_;
+  int64_t max_wait_until = start_wait + max_delay;
 
   if (now >= max_wait_until) {
     RTC_LOG(LS_INFO) << "reset initial_select_timestamp_ = "
-                     << initial_select_timestamp_.value_or(Timestamp::Zero())
-                     << " selection delayed by: " << (now - start_wait);
-    initial_select_timestamp_ = std::nullopt;
+                     << initial_select_timestamp_ms_
+                     << " selection delayed by: " << (now - start_wait) << "ms";
+    initial_select_timestamp_ms_ = 0;
     return {.connection = new_connection};
   }
 
   // We are not yet ready to select first connection...
-  if (!initial_select_timestamp_.has_value()) {
+  if (initial_select_timestamp_ms_ == 0) {
     // Set timestamp on first time...
     // but run the delayed invokation everytime to
     // avoid possibility that we miss it.
-    initial_select_timestamp_ = now;
-    RTC_LOG(LS_INFO) << "set initial_select_timestamp_ = " << now;
+    initial_select_timestamp_ms_ = now;
+    RTC_LOG(LS_INFO) << "set initial_select_timestamp_ms_ = "
+                     << initial_select_timestamp_ms_;
   }
 
   int min_delay = max_delay;
@@ -523,8 +519,7 @@ IceControllerInterface::SwitchResult BasicIceController::ShouldSwitchConnection(
 
   bool missed_receiving_unchanged_threshold = false;
   std::optional<int64_t> receiving_unchanged_threshold(
-      Connection::AlignTime(env_.clock().CurrentTime()).ms() -
-      config_.receiving_switching_delay_or_default());
+      TimeMillis() - config_.receiving_switching_delay_or_default());
   int cmp = CompareConnections(selected_connection_, new_connection,
                                receiving_unchanged_threshold,
                                &missed_receiving_unchanged_threshold);

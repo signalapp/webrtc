@@ -20,9 +20,6 @@
 #include <vector>
 
 #include "api/array_view.h"
-#include "api/environment/environment.h"
-#include "api/units/time_delta.h"
-#include "api/units/timestamp.h"
 #include "p2p/base/connection.h"
 #include "p2p/base/ice_controller_factory_interface.h"
 #include "p2p/base/ice_controller_interface.h"
@@ -94,7 +91,7 @@ class BasicIceController : public IceControllerInterface {
                     config_.receiving_timeout_or_default() / 10);
   }
 
-  const Connection* FindOldestConnectionNeedingTriggeredCheck(Timestamp now);
+  const Connection* FindOldestConnectionNeedingTriggeredCheck(int64_t now);
   // Between `conn1` and `conn2`, this function returns the one which should
   // be pinged first.
   const Connection* MorePingable(const Connection* conn1,
@@ -107,14 +104,14 @@ class BasicIceController : public IceControllerInterface {
   const Connection* LeastRecentlyPinged(const Connection* conn1,
                                         const Connection* conn2);
 
-  bool IsPingable(const Connection* conn, Timestamp now) const;
+  bool IsPingable(const Connection* conn, int64_t now) const;
   bool IsBackupConnection(const Connection* conn) const;
   // Whether a writable connection is past its ping interval and needs to be
   // pinged again.
   bool WritableConnectionPastPingInterval(const Connection* conn,
-                                          Timestamp now) const;
-  TimeDelta CalculateActiveWritablePingInterval(const Connection* conn,
-                                                Timestamp now) const;
+                                          int64_t now) const;
+  int CalculateActiveWritablePingInterval(const Connection* conn,
+                                          int64_t now) const;
 
   std::map<const Network*, const Connection*> GetBestConnectionByNetwork()
       const;
@@ -155,7 +152,6 @@ class BasicIceController : public IceControllerInterface {
   SwitchResult HandleInitialSelectDampening(IceSwitchReason reason,
                                             const Connection* new_connection);
 
-  const Environment env_;
   std::function<IceTransportStateInternal()> ice_transport_state_func_;
   std::function<IceRole()> ice_role_func_;
   std::function<bool(const Connection*)> is_connection_pruned_func_;
@@ -174,7 +170,7 @@ class BasicIceController : public IceControllerInterface {
   std::set<const Connection*> unpinged_connections_;
 
   // Timestamp for when we got the first selectable connection.
-  std::optional<Timestamp> initial_select_timestamp_;
+  int64_t initial_select_timestamp_ms_ = 0;
 };
 
 }  //  namespace webrtc

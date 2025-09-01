@@ -26,12 +26,23 @@
 #include "rtc_base/event.h"
 #include "rtc_base/fake_clock.h"
 #include "rtc_base/thread.h"
-#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
-namespace webrtc {
 namespace {
+
+using ::webrtc::Connection;
+using ::webrtc::IceConfig;
+using ::webrtc::IceControllerFactoryArgs;
+using ::webrtc::IceControllerInterface;
+using ::webrtc::IceMode;
+using ::webrtc::IceRecheckEvent;
+using ::webrtc::IceSwitchReason;
+using ::webrtc::MockIceAgent;
+using ::webrtc::MockIceController;
+using ::webrtc::MockIceControllerFactory;
+using ::webrtc::NominationMode;
+using ::webrtc::WrappingActiveIceController;
 
 using ::testing::_;
 using ::testing::ElementsAreArray;
@@ -40,6 +51,11 @@ using ::testing::NiceMock;
 using ::testing::Ref;
 using ::testing::Return;
 using ::testing::Sequence;
+
+using ::webrtc::AutoThread;
+using ::webrtc::Event;
+using ::webrtc::ScopedFakeClock;
+using ::webrtc::TimeDelta;
 
 using NiceMockIceController = NiceMock<MockIceController>;
 
@@ -56,7 +72,7 @@ constexpr TimeDelta kTick = TimeDelta::Millis(1);
 TEST(WrappingActiveIceControllerTest, CreateLegacyIceControllerFromFactory) {
   AutoThread main;
   MockIceAgent agent;
-  IceControllerFactoryArgs args = {.env = CreateTestEnvironment()};
+  IceControllerFactoryArgs args;
   MockIceControllerFactory legacy_controller_factory;
   EXPECT_CALL(legacy_controller_factory, RecordIceControllerCreated()).Times(1);
   WrappingActiveIceController controller(&agent, &legacy_controller_factory,
@@ -67,8 +83,7 @@ TEST(WrappingActiveIceControllerTest, PassthroughIceControllerInterface) {
   AutoThread main;
   MockIceAgent agent;
   std::unique_ptr<MockIceController> will_move =
-      std::make_unique<MockIceController>(
-          IceControllerFactoryArgs{.env = CreateTestEnvironment()});
+      std::make_unique<MockIceController>(IceControllerFactoryArgs{});
   MockIceController* wrapped = will_move.get();
   WrappingActiveIceController controller(&agent, std::move(will_move));
 
@@ -105,8 +120,7 @@ TEST(WrappingActiveIceControllerTest, HandlesImmediateSwitchRequest) {
   ScopedFakeClock clock;
   NiceMock<MockIceAgent> agent;
   std::unique_ptr<NiceMockIceController> will_move =
-      std::make_unique<NiceMockIceController>(
-          IceControllerFactoryArgs{.env = CreateTestEnvironment()});
+      std::make_unique<NiceMockIceController>(IceControllerFactoryArgs{});
   NiceMockIceController* wrapped = will_move.get();
   WrappingActiveIceController controller(&agent, std::move(will_move));
 
@@ -151,8 +165,7 @@ TEST(WrappingActiveIceControllerTest, HandlesImmediateSortAndSwitchRequest) {
   ScopedFakeClock clock;
   NiceMock<MockIceAgent> agent;
   std::unique_ptr<NiceMockIceController> will_move =
-      std::make_unique<NiceMockIceController>(
-          IceControllerFactoryArgs{.env = CreateTestEnvironment()});
+      std::make_unique<NiceMockIceController>(IceControllerFactoryArgs{});
   NiceMockIceController* wrapped = will_move.get();
   WrappingActiveIceController controller(&agent, std::move(will_move));
 
@@ -210,8 +223,7 @@ TEST(WrappingActiveIceControllerTest, HandlesSortAndSwitchRequest) {
 
   NiceMock<MockIceAgent> agent;
   std::unique_ptr<NiceMockIceController> will_move =
-      std::make_unique<NiceMockIceController>(
-          IceControllerFactoryArgs{.env = CreateTestEnvironment()});
+      std::make_unique<NiceMockIceController>(IceControllerFactoryArgs{});
   NiceMockIceController* wrapped = will_move.get();
   WrappingActiveIceController controller(&agent, std::move(will_move));
 
@@ -256,8 +268,7 @@ TEST(WrappingActiveIceControllerTest, StartPingingAfterSortAndSwitch) {
 
   NiceMock<MockIceAgent> agent;
   std::unique_ptr<NiceMockIceController> will_move =
-      std::make_unique<NiceMockIceController>(
-          IceControllerFactoryArgs{.env = CreateTestEnvironment()});
+      std::make_unique<NiceMockIceController>(IceControllerFactoryArgs{});
   NiceMockIceController* wrapped = will_move.get();
   WrappingActiveIceController controller(&agent, std::move(will_move));
 
@@ -308,4 +319,3 @@ TEST(WrappingActiveIceControllerTest, StartPingingAfterSortAndSwitch) {
 }
 
 }  // namespace
-}  // namespace webrtc
