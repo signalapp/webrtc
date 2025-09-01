@@ -215,6 +215,7 @@ P2PTransportChannel::P2PTransportChannel(
   ParseFieldTrials(env_.field_trials());
 
   IceControllerFactoryArgs args{
+      .env = env_,
       .ice_transport_state_func = [this] { return GetState(); },
       .ice_role_func = [this] { return GetIceRole(); },
       .is_connection_pruned_func =
