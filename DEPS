@@ -10,7 +10,7 @@ vars = {
   # chromium waterfalls. More info at: crbug.com/570091.
   'checkout_configuration': 'default',
   'checkout_instrumented_libraries': 'checkout_linux and checkout_configuration == "default"',
-  'chromium_revision': '8cc2538023ba369d647b80d7f9f955036a43faf1',
+  'chromium_revision': 'f91b69e16f755f190a344e2dcec3e9531a89a898',
 
   # Fetch the prebuilt binaries for llvm-cov and llvm-profdata. Needed to
   # process the raw profiles produced by instrumented targets (built with
@@ -71,20 +71,20 @@ deps = {
   'src/build':
     'https://chromium.googlesource.com/chromium/src/build@71f8022b66936bfe33b3e795de29a38ade96816b',
   'src/buildtools':
-    'https://chromium.googlesource.com/chromium/src/buildtools@2ca9a5b96fbf0a4947d626454781e333b28e275a',
+    'https://chromium.googlesource.com/chromium/src/buildtools@33de7fd438282eaccb48274a77f2903a05f372b3',
   # Gradle 6.6.1. Used for testing Android Studio project generation for WebRTC.
   'src/examples/androidtests/third_party/gradle': {
     'url': 'https://chromium.googlesource.com/external/github.com/gradle/gradle.git@f2d1fb54a951d8b11d25748e4711bec8d128d7e3',
     'condition': 'checkout_android',
   },
   'src/ios': {
-    'url': 'https://chromium.googlesource.com/chromium/src/ios@8b56edebcbe137792dde4d0080e5a50f896beed2',
+    'url': 'https://chromium.googlesource.com/chromium/src/ios@417f545c89aa96620a86ec47d95cff315030245d',
     'condition': 'checkout_ios',
   },
   'src/testing':
-    'https://chromium.googlesource.com/chromium/src/testing@1c01106921a36ef03694911f9fc38ac3aaa976b9',
+    'https://chromium.googlesource.com/chromium/src/testing@ab2b66c4285efe9b4d08af46aa37476191ecf2f0',
   'src/third_party':
-    'https://chromium.googlesource.com/chromium/src/third_party@75d337208257a84e4e2fafff284af52179174fc1',
+    'https://chromium.googlesource.com/chromium/src/third_party@d1133ad92f7c2ebe65c86b5c3b021c4b8c8420b3',
 
   'src/buildtools/linux64': {
     'packages': [
@@ -333,7 +333,7 @@ deps = {
   'src/third_party/compiler-rt/src':
     'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/compiler-rt.git@d1877a8622be9c5a692dc5ed9ea5a54a78c9360e',
   'src/third_party/libc++/src':
-    'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxx.git@70c21e34ea54ef13377bc6d8283453290e17c7b8',
+    'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxx.git@65a5746fb4cc5fd7fdd1773b0c50bc556ff8900a',
   'src/third_party/libc++abi/src':
     'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxxabi.git@f7f5a32b3e9582092d8a4511acec036a09ae8524',
   'src/third_party/llvm-libc/src':
@@ -499,7 +499,7 @@ deps = {
   'src/third_party/flatbuffers/src':
     'https://chromium.googlesource.com/external/github.com/google/flatbuffers.git@8db59321d9f02cdffa30126654059c7d02f70c32',
   'src/third_party/grpc/src': {
-    'url': 'https://chromium.googlesource.com/external/github.com/grpc/grpc.git@13199f994a9e1aafb7271a4a9fb84216fb001d51',
+    'url': 'https://chromium.googlesource.com/external/github.com/grpc/grpc.git@e18b0deb5ee83706d1b93d5929d871f8fe4b7583',
   },
   # Used for embedded builds. CrOS & Linux use the system version.
   'src/third_party/fontconfig/src': {
@@ -559,7 +559,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/third_party/kotlin_stdlib',
-              'version': 'yvQWpghyvahxBY39Wf-J0BlhSCKm66GR8qatP1sh_-IC',
+              'version': 'oWawDQgUnvOKIXGZEvlJh9_3V_8yrKEM1C3TH9si7QkC',
           },
       ],
       'condition': 'checkout_android',
@@ -599,7 +599,7 @@ deps = {
   'src/third_party/libvpx/source/libvpx':
     'https://chromium.googlesource.com/webm/libvpx.git@b122dc0932009e78f928386c5081bb69d3c2de5c',
   'src/third_party/libyuv':
-    'https://chromium.googlesource.com/libyuv/libyuv.git@d98915a654d3564e4802a0004add46221c4e4348',
+    'https://chromium.googlesource.com/libyuv/libyuv.git@36edc5fa8b2da5aa00b8c2c68b25ffd64219d0ba',
   'src/third_party/lss': {
     'url': 'https://chromium.googlesource.com/linux-syscall-support.git@ed31caa60f20a4f6569883b2d752ef7522de51e0',
     'condition': 'checkout_android or checkout_linux',
@@ -652,7 +652,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'src/tools':
-    'https://chromium.googlesource.com/chromium/src/tools@f72cb35179c79d93164b3ba14c192f791f4dd403',
+    'https://chromium.googlesource.com/chromium/src/tools@0df283e7b0333ce8cf8ba6337944c8fa52ac840f',
 
   'src/third_party/espresso': {
       'packages': [
@@ -691,7 +691,7 @@ deps = {
     'packages': [
       {
           'package': 'chromium/third_party/androidx',
-          'version': '4Dvm_Lwh1WYLGG7yTaA2WxXITU0Wtv5mtUrRe4SYJgIC',
+          'version': 'Pdur-c_OLbQjqm7uklSoQC-9_vy-QpccYALwodK22pIC',
       },
     ],
     'condition': 'checkout_android and non_git_source',
