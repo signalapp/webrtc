@@ -1722,6 +1722,7 @@ rtc_library("testclient") {
     ":timeutils",
     "../api/units:time_delta",
     "../api/units:timestamp",
+    "../test:wait_until",
     "network:received_packet",
     "synchronization:mutex",
     "third_party/sigslot",

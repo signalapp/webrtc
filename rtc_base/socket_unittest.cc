@@ -1266,13 +1266,15 @@ void SocketTest::UdpSocketRecvTimestampUseRtcEpoch(const IPAddress& loopback) {
 
   SocketAddress addr2;
   client2->SendTo("foo", 3, address);
-  std::unique_ptr<TestClient::Packet> packet_1 = client1->NextPacket(10000);
+  std::unique_ptr<TestClient::Packet> packet_1 =
+      client1->NextPacket(TimeDelta::Seconds(10));
   ASSERT_TRUE(packet_1 != nullptr);
   EXPECT_NEAR(packet_1->packet_time->us(), TimeMicros(), 1000'000);
 
   Thread::SleepMs(100);
   client2->SendTo("bar", 3, address);
-  std::unique_ptr<TestClient::Packet> packet_2 = client1->NextPacket(10000);
+  std::unique_ptr<TestClient::Packet> packet_2 =
+      client1->NextPacket(TimeDelta::Seconds(10));
   ASSERT_TRUE(packet_2 != nullptr);
   EXPECT_GT(packet_2->packet_time->us(), packet_1->packet_time->us());
   EXPECT_NEAR(packet_2->packet_time->us(), TimeMicros(), 1000'000);
