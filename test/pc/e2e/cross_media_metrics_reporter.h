@@ -31,9 +31,6 @@ namespace webrtc_pc_e2e {
 class CrossMediaMetricsReporter
     : public PeerConnectionE2EQualityTestFixture::QualityMetricsReporter {
  public:
-  [[deprecated("Use constructor with the injected clock")]]
-  explicit CrossMediaMetricsReporter(test::MetricsLogger* metrics_logger)
-      : CrossMediaMetricsReporter(*Clock::GetRealTimeClock(), metrics_logger) {}
   CrossMediaMetricsReporter(Clock& clock, test::MetricsLogger* metrics_logger);
   ~CrossMediaMetricsReporter() override = default;
 
