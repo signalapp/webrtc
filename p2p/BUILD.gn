@@ -439,6 +439,7 @@ rtc_library("ice_transport_internal") {
     "../rtc_base:checks",
     "../rtc_base:net_helper",
     "../rtc_base:network_constants",
+    "../rtc_base:sigslot_trampoline",
     "../rtc_base:timeutils",
     "../rtc_base/network:received_packet",
     "../rtc_base/system:rtc_export",
