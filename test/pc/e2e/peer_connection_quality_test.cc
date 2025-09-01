@@ -323,7 +323,8 @@ void PeerConnectionE2EQualityTest::Run(RunParams run_params) {
       std::make_unique<VideoQualityMetricsReporter>(time_controller_.GetClock(),
                                                     metrics_logger_));
   quality_metrics_reporters_.push_back(
-      std::make_unique<CrossMediaMetricsReporter>(metrics_logger_));
+      std::make_unique<CrossMediaMetricsReporter>(*time_controller_.GetClock(),
+                                                  metrics_logger_));
 
   video_quality_analyzer_injection_helper_->Start(
       test_case_name_,
