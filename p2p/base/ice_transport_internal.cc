@@ -145,48 +145,49 @@ IceConfig::IceConfig(const PeerConnectionInterface::RTCConfiguration& config)
 IceConfig::~IceConfig() = default;
 
 int IceConfig::receiving_timeout_or_default() const {
-  return receiving_timeout.value_or(RECEIVING_TIMEOUT);
+  return receiving_timeout.value_or(kReceivingTimeout.ms());
 }
 int IceConfig::backup_connection_ping_interval_or_default() const {
   return backup_connection_ping_interval.value_or(
-      BACKUP_CONNECTION_PING_INTERVAL);
+      kBackupConnectionPingInterval.ms());
 }
 int IceConfig::stable_writable_connection_ping_interval_or_default() const {
   return stable_writable_connection_ping_interval.value_or(
-      STRONG_AND_STABLE_WRITABLE_CONNECTION_PING_INTERVAL);
+      kStrongAndStableWritableConnectionPingInterval.ms());
 }
 int IceConfig::regather_on_failed_networks_interval_or_default() const {
   return regather_on_failed_networks_interval.value_or(
-      REGATHER_ON_FAILED_NETWORKS_INTERVAL);
+      kRegatherOnFailedNetworksInterval.ms());
 }
 int IceConfig::receiving_switching_delay_or_default() const {
-  return receiving_switching_delay.value_or(RECEIVING_SWITCHING_DELAY);
+  return receiving_switching_delay.value_or(kReceivingSwitchingDelay.ms());
 }
 int IceConfig::ice_check_interval_strong_connectivity_or_default() const {
-  return ice_check_interval_strong_connectivity.value_or(STRONG_PING_INTERVAL);
+  return ice_check_interval_strong_connectivity.value_or(
+      kStrongPingInterval.ms());
 }
 int IceConfig::ice_check_interval_weak_connectivity_or_default() const {
-  return ice_check_interval_weak_connectivity.value_or(WEAK_PING_INTERVAL);
+  return ice_check_interval_weak_connectivity.value_or(kWeakPingInterval.ms());
 }
 int IceConfig::ice_check_min_interval_or_default() const {
   return ice_check_min_interval.value_or(-1);
 }
 int IceConfig::ice_unwritable_timeout_or_default() const {
-  return ice_unwritable_timeout.value_or(CONNECTION_WRITE_CONNECT_TIMEOUT);
+  return ice_unwritable_timeout.value_or(kConnectionWriteConnectTimeout.ms());
 }
 int IceConfig::ice_unwritable_min_checks_or_default() const {
-  return ice_unwritable_min_checks.value_or(CONNECTION_WRITE_CONNECT_FAILURES);
+  return ice_unwritable_min_checks.value_or(kConnectionWriteConnectFailures);
 }
 int IceConfig::ice_inactive_timeout_or_default() const {
-  return ice_inactive_timeout.value_or(CONNECTION_WRITE_TIMEOUT);
+  return ice_inactive_timeout.value_or(kConnectionWriteTimeout.ms());
 }
 int IceConfig::stun_keepalive_interval_or_default() const {
-  return stun_keepalive_interval.value_or(STUN_KEEPALIVE_INTERVAL);
+  return stun_keepalive_interval.value_or(kStunKeepaliveInterval.ms());
 }
 
 RTCError IceConfig::IsValid() const {
   if (ice_check_interval_strong_connectivity_or_default() <
-      ice_check_interval_weak_connectivity.value_or(WEAK_PING_INTERVAL)) {
+      ice_check_interval_weak_connectivity.value_or(kWeakPingInterval.ms())) {
     return RTCError(RTCErrorType::INVALID_PARAMETER,
                     "Ping interval of candidate pairs is shorter when ICE is "
                     "strongly connected than that when ICE is weakly "

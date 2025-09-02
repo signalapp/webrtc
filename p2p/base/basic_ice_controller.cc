@@ -130,7 +130,7 @@ IceControllerInterface::PingResult BasicIceController::SelectConnectionToPing(
   bool need_more_pings_at_weak_interval =
       absl::c_any_of(connections_, [](const Connection* conn) {
         return conn->active() &&
-               conn->num_pings_sent() < MIN_PINGS_AT_WEAK_PING_INTERVAL;
+               conn->num_pings_sent() < kMinPingsAtWeakPingInterval;
       });
   int ping_interval = (weak() || need_more_pings_at_weak_interval)
                           ? weak_ping_interval()
@@ -273,15 +273,15 @@ int BasicIceController::CalculateActiveWritablePingInterval(
     const Connection* conn,
     int64_t now) const {
   // Ping each connection at a higher rate at least
-  // MIN_PINGS_AT_WEAK_PING_INTERVAL times.
-  if (conn->num_pings_sent() < MIN_PINGS_AT_WEAK_PING_INTERVAL) {
+  // kMinPingsAtWeakPingInterval times.
+  if (conn->num_pings_sent() < kMinPingsAtWeakPingInterval) {
     return weak_ping_interval();
   }
 
   int stable_interval =
       config_.stable_writable_connection_ping_interval_or_default();
-  int weak_or_stablizing_interval = std::min(
-      stable_interval, WEAK_OR_STABILIZING_WRITABLE_CONNECTION_PING_INTERVAL);
+  int weak_or_stablizing_interval = std::min<int>(
+      stable_interval, kWeakOrStabilizingWritableConnectionPingInterval.ms());
   // If the channel is weak or the connection is not stable yet, use the
   // weak_or_stablizing_interval.
   return (!weak() && conn->stable(now)) ? stable_interval

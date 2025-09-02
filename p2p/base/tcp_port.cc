@@ -340,7 +340,7 @@ void TCPPort::OnReadyToSend(AsyncPacketSocket* socket) {
   Port::OnReadyToSend();
 }
 
-// TODO(qingsi): `CONNECTION_WRITE_CONNECT_TIMEOUT` is overriden by
+// TODO(qingsi): `kConnectionWriteConnectTimeout` is overriden by
 // `ice_unwritable_timeout` in IceConfig when determining the writability state.
 // Replace this constant with the config parameter assuming the default value if
 // we decide it is also applicable here.
@@ -354,7 +354,7 @@ TCPConnection::TCPConnection(const Environment& env,
       outgoing_(socket == nullptr),
       connection_pending_(false),
       pretending_to_be_writable_(false),
-      reconnection_timeout_(CONNECTION_WRITE_CONNECT_TIMEOUT) {
+      reconnection_timeout_(kConnectionWriteConnectTimeout.ms()) {
   RTC_DCHECK_RUN_ON(network_thread());
   RTC_DCHECK_EQ(port()->GetProtocol(),
                 PROTO_TCP);  // Needs to be TCPPort.

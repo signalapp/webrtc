@@ -190,7 +190,7 @@ UDPPort::UDPPort(const PortParametersRef& args,
       socket_(socket),
       error_(0),
       ready_(false),
-      stun_keepalive_delay_(STUN_KEEPALIVE_INTERVAL),
+      stun_keepalive_delay_(kStunKeepaliveInterval.ms()),
       dscp_(DSCP_NO_CHANGE),
       emit_local_for_anyaddress_(emit_local_for_anyaddress) {}
 
@@ -208,7 +208,7 @@ UDPPort::UDPPort(const PortParametersRef& args,
       socket_(nullptr),
       error_(0),
       ready_(false),
-      stun_keepalive_delay_(STUN_KEEPALIVE_INTERVAL),
+      stun_keepalive_delay_(kStunKeepaliveInterval.ms()),
       dscp_(DSCP_NO_CHANGE),
       emit_local_for_anyaddress_(emit_local_for_anyaddress) {}
 
@@ -364,7 +364,7 @@ void UDPPort::GetStunStats(std::optional<StunStats>* stats) {
 }
 
 void UDPPort::set_stun_keepalive_delay(const std::optional<int>& delay) {
-  stun_keepalive_delay_ = delay.value_or(STUN_KEEPALIVE_INTERVAL);
+  stun_keepalive_delay_ = delay.value_or(kStunKeepaliveInterval.ms());
 }
 
 void UDPPort::OnLocalAddressReady(AsyncPacketSocket* /* socket */,

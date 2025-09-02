@@ -2763,7 +2763,7 @@ TEST_F(P2PTransportChannelMultihomedTest, TestFailoverWithManyConnections) {
   constexpr int SCHEDULING_DELAY = 200;
   EXPECT_LT(
       ping_interval1,
-      WEAK_OR_STABILIZING_WRITABLE_CONNECTION_PING_INTERVAL + SCHEDULING_DELAY);
+      kWeakOrStabilizingWritableConnectionPingInterval.ms() + SCHEDULING_DELAY);
 
   // It should switch over to use the cellular IPv6 addr on endpoint 1 before
   // it timed out on writing.
@@ -3849,8 +3849,8 @@ TEST_F(P2PTransportChannelPingTest, TestAllConnectionsPingedSufficiently) {
   conn1->ReceivedPingResponse(LOW_RTT, "id");
   EXPECT_TRUE(WaitUntil(
       [&] {
-        return conn1->num_pings_sent() >= MIN_PINGS_AT_WEAK_PING_INTERVAL &&
-               conn2->num_pings_sent() >= MIN_PINGS_AT_WEAK_PING_INTERVAL;
+        return conn1->num_pings_sent() >= kMinPingsAtWeakPingInterval &&
+               conn2->num_pings_sent() >= kMinPingsAtWeakPingInterval;
       },
       {.timeout = kDefaultTimeout}));
 }
@@ -3877,12 +3877,12 @@ TEST_F(P2PTransportChannelPingTest, TestStunPingIntervals) {
   // Initializing.
 
   int64_t start = clock.TimeNanos();
-  SIMULATED_WAIT(conn->num_pings_sent() >= MIN_PINGS_AT_WEAK_PING_INTERVAL,
+  SIMULATED_WAIT(conn->num_pings_sent() >= kMinPingsAtWeakPingInterval,
                  kDefaultTimeout.ms(), clock);
   int64_t ping_interval_ms = (clock.TimeNanos() - start) /
                              kNumNanosecsPerMillisec /
-                             (MIN_PINGS_AT_WEAK_PING_INTERVAL - 1);
-  EXPECT_EQ(ping_interval_ms, WEAK_PING_INTERVAL);
+                             (kMinPingsAtWeakPingInterval - 1);
+  EXPECT_EQ(ping_interval_ms, kWeakPingInterval.ms());
 
   // Stabilizing.
 
@@ -3895,10 +3895,10 @@ TEST_F(P2PTransportChannelPingTest, TestStunPingIntervals) {
                  kMediumTimeout.ms(), clock);
   ping_interval_ms = (clock.TimeNanos() - start) / kNumNanosecsPerMillisec;
   EXPECT_GE(ping_interval_ms,
-            WEAK_OR_STABILIZING_WRITABLE_CONNECTION_PING_INTERVAL);
+            kWeakOrStabilizingWritableConnectionPingInterval.ms());
   EXPECT_LE(
       ping_interval_ms,
-      WEAK_OR_STABILIZING_WRITABLE_CONNECTION_PING_INTERVAL + SCHEDULING_RANGE);
+      kWeakOrStabilizingWritableConnectionPingInterval.ms() + SCHEDULING_RANGE);
 
   // Stabilized.
 
@@ -3913,10 +3913,10 @@ TEST_F(P2PTransportChannelPingTest, TestStunPingIntervals) {
                  kMediumTimeout.ms(), clock);
   ping_interval_ms = (clock.TimeNanos() - start) / kNumNanosecsPerMillisec;
   EXPECT_GE(ping_interval_ms,
-            STRONG_AND_STABLE_WRITABLE_CONNECTION_PING_INTERVAL);
+            kStrongAndStableWritableConnectionPingInterval.ms());
   EXPECT_LE(
       ping_interval_ms,
-      STRONG_AND_STABLE_WRITABLE_CONNECTION_PING_INTERVAL + SCHEDULING_RANGE);
+      kStrongAndStableWritableConnectionPingInterval.ms() + SCHEDULING_RANGE);
 
   // Destabilized.
 
@@ -3935,17 +3935,17 @@ TEST_F(P2PTransportChannelPingTest, TestStunPingIntervals) {
   SIMULATED_WAIT(conn->num_pings_sent() == ping_sent_before + 1,
                  kMediumTimeout.ms(), clock);
   // The interval is expected to be
-  // WEAK_OR_STABILIZING_WRITABLE_CONNECTION_PING_INTERVAL.
+  // kWeakOrStabilizingWritableConnectionPingInterval.
   start = clock.TimeNanos();
   ping_sent_before = conn->num_pings_sent();
   SIMULATED_WAIT(conn->num_pings_sent() == ping_sent_before + 1,
                  kMediumTimeout.ms(), clock);
   ping_interval_ms = (clock.TimeNanos() - start) / kNumNanosecsPerMillisec;
   EXPECT_GE(ping_interval_ms,
-            WEAK_OR_STABILIZING_WRITABLE_CONNECTION_PING_INTERVAL);
+            kWeakOrStabilizingWritableConnectionPingInterval.ms());
   EXPECT_LE(
       ping_interval_ms,
-      WEAK_OR_STABILIZING_WRITABLE_CONNECTION_PING_INTERVAL + SCHEDULING_RANGE);
+      kWeakOrStabilizingWritableConnectionPingInterval.ms() + SCHEDULING_RANGE);
 }
 
 // Test that we start pinging as soon as we have a connection and remote ICE

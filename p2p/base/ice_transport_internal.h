@@ -169,12 +169,12 @@ struct RTC_EXPORT IceConfig {
   // The interval in milliseconds at which ICE checks (STUN pings) will be sent
   // for a candidate pair when it is both writable and receiving (strong
   // connectivity). This parameter overrides the default value given by
-  // `STRONG_PING_INTERVAL` in p2ptransport.h if set.
+  // `kStrongPingInterval` in p2ptransport.h if set.
   std::optional<int> ice_check_interval_strong_connectivity;
   // The interval in milliseconds at which ICE checks (STUN pings) will be sent
   // for a candidate pair when it is either not writable or not receiving (weak
   // connectivity). This parameter overrides the default value given by
-  // `WEAK_PING_INTERVAL` in p2ptransport.h if set.
+  // `kWeakPingInterval` in p2ptransport.h if set.
   std::optional<int> ice_check_interval_weak_connectivity;
   // ICE checks (STUN pings) will not be sent at higher rate (lower interval)
   // than this, no matter what other settings there are.
@@ -192,13 +192,13 @@ struct RTC_EXPORT IceConfig {
 
   // The min number of connectivity checks that a candidate pair must sent
   // without receiving response before it becomes unwritable. This parameter
-  // overrides the default value given by `CONNECTION_WRITE_CONNECT_FAILURES` in
+  // overrides the default value given by `kConnectionWriteConnectTimeout` in
   // port.h if set, when determining the writability of a candidate pair.
   std::optional<int> ice_unwritable_min_checks;
 
   // The min time period for which a candidate pair must wait for response to
   // connectivity checks it becomes inactive. This parameter overrides the
-  // default value given by `CONNECTION_WRITE_TIMEOUT` in port.h if set, when
+  // default value given by `kConnectionWriteTimeout` in port.h if set, when
   // determining the writability of a candidate pair.
   std::optional<int> ice_inactive_timeout;
 

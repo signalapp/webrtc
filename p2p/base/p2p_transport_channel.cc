@@ -97,7 +97,7 @@ uint32_t GetWeakPingIntervalInFieldTrial(const FieldTrialsView& field_trials) {
   if (weak_ping_interval) {
     return static_cast<int>(weak_ping_interval);
   }
-  return WEAK_PING_INTERVAL;
+  return kWeakPingInterval.ms();
 }
 
 RouteEndpoint CreateRouteEndpointFromCandidate(bool local,
@@ -187,14 +187,14 @@ P2PTransportChannel::P2PTransportChannel(
       ice_role_(ICEROLE_UNKNOWN),
       gathering_state_(kIceGatheringNew),
       weak_ping_interval_(GetWeakPingIntervalInFieldTrial(env_.field_trials())),
-      config_(RECEIVING_TIMEOUT,
-              BACKUP_CONNECTION_PING_INTERVAL,
+      config_(kReceivingTimeout.ms(),
+              kBackupConnectionPingInterval.ms(),
               GATHER_ONCE /* continual_gathering_policy */,
               false /* prioritize_most_likely_candidate_pairs */,
-              STRONG_AND_STABLE_WRITABLE_CONNECTION_PING_INTERVAL,
+              kStrongAndStableWritableConnectionPingInterval.ms(),
               true /* presume_writable_when_fully_relayed */,
-              REGATHER_ON_FAILED_NETWORKS_INTERVAL,
-              RECEIVING_SWITCHING_DELAY) {
+              kRegatherOnFailedNetworksInterval.ms(),
+              kReceivingSwitchingDelay.ms()) {
   TRACE_EVENT0("webrtc", "P2PTransportChannel::P2PTransportChannel");
   RTC_DCHECK(allocator_ != nullptr);
   RTC_DCHECK(!transport_name_.empty());
@@ -828,8 +828,8 @@ const Connection* P2PTransportChannel::selected_connection() const {
 
 int P2PTransportChannel::check_receiving_interval() const {
   RTC_DCHECK_RUN_ON(network_thread_);
-  return std::max(MIN_CHECK_RECEIVING_INTERVAL,
-                  config_.receiving_timeout_or_default() / 10);
+  return std::max<int>(kMinCheckReceivingInterval.ms(),
+                       config_.receiving_timeout_or_default() / 10);
 }
 
 void P2PTransportChannel::MaybeStartGathering() {

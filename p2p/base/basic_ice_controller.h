@@ -87,8 +87,8 @@ class BasicIceController : public IceControllerInterface {
   }
 
   int check_receiving_interval() const {
-    return std::max(MIN_CHECK_RECEIVING_INTERVAL,
-                    config_.receiving_timeout_or_default() / 10);
+    return std::max<int>(kMinCheckReceivingInterval.ms(),
+                         config_.receiving_timeout_or_default() / 10);
   }
 
   const Connection* FindOldestConnectionNeedingTriggeredCheck(int64_t now);
