@@ -287,16 +287,19 @@ const Candidate& Connection::remote_candidate() const {
 }
 
 const Network* Connection::network() const {
+  RTC_DCHECK_RUN_ON(network_thread_);
   RTC_DCHECK(port_) << ToDebugId() << ": port_ null in network()";
   return port()->Network();
 }
 
 int Connection::generation() const {
+  RTC_DCHECK_RUN_ON(network_thread_);
   RTC_DCHECK(port_) << ToDebugId() << ": port_ null in generation()";
   return port()->generation();
 }
 
 uint64_t Connection::priority() const {
+  RTC_DCHECK_RUN_ON(network_thread_);
   RTC_DCHECK(port_) << ToDebugId() << ": port_ null in priority()";
   if (!port_)
     return 0;
@@ -1391,6 +1394,7 @@ std::string Connection::ToDebugId() const {
 }
 
 uint32_t Connection::ComputeNetworkCost() const {
+  RTC_DCHECK_RUN_ON(network_thread_);
   // TODO(honghaiz): Will add rtt as part of the network cost.
   RTC_DCHECK(port_) << ToDebugId() << ": port_ null in ComputeNetworkCost()";
   return port()->network_cost() + remote_candidate_.network_cost();

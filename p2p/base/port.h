@@ -169,6 +169,7 @@ class RTC_EXPORT Port : public PortInterface, public sigslot::has_slots<> {
     const ::webrtc::Network* network;
     absl::string_view ice_username_fragment;
     absl::string_view ice_password;
+    absl::string_view content_name;
     LocalNetworkAccessPermissionFactoryInterface* lna_permission_factory =
         nullptr;
   };

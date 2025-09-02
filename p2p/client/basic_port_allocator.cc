@@ -567,6 +567,7 @@ bool BasicPortAllocatorSession::CandidatesAllocationDone() const {
 
 void BasicPortAllocatorSession::UpdateIceParametersInternal() {
   RTC_DCHECK_RUN_ON(network_thread_);
+  RTC_DCHECK(pooled());
   for (PortData& port : ports_) {
     port.port()->set_content_name(content_name());
     port.port()->SetIceParameters(component(), ice_ufrag(), ice_pwd());
@@ -907,18 +908,15 @@ void BasicPortAllocatorSession::DisableEquivalentPhases(
 void BasicPortAllocatorSession::AddAllocatedPort(Port* port,
                                                  AllocationSequence* seq) {
   RTC_DCHECK_RUN_ON(network_thread_);
-  if (!port)
-    return;
+  RTC_DCHECK_EQ(port->content_name(), content_name());
 
   RTC_LOG(LS_INFO) << "Adding allocated port for " << content_name();
-  port->set_content_name(content_name());
   port->set_component(component());
   port->set_generation(generation());
   port->set_send_retransmit_count_attribute(
       (flags() & PORTALLOCATOR_ENABLE_STUN_RETRANSMIT_ATTRIBUTE) != 0);
 
-  PortData data(port, seq);
-  ports_.push_back(data);
+  ports_.emplace_back(port, seq);
 
   port->SubscribeCandidateReadyCallback(
       [this](Port* port, const Candidate& c) { OnCandidateReady(port, c); });
@@ -1453,6 +1451,7 @@ void AllocationSequence::CreateUDPPorts() {
          .network = network_,
          .ice_username_fragment = session_->username(),
          .ice_password = session_->password(),
+         .content_name = session_->content_name(),
          .lna_permission_factory =
              session_->allocator()->lna_permission_factory()},
         udp_socket_.get(), emit_local_candidate_for_anyaddress,
@@ -1465,6 +1464,7 @@ void AllocationSequence::CreateUDPPorts() {
          .network = network_,
          .ice_username_fragment = session_->username(),
          .ice_password = session_->password(),
+         .content_name = session_->content_name(),
          .lna_permission_factory =
              session_->allocator()->lna_permission_factory()},
         session_->allocator()->min_port(), session_->allocator()->max_port(),
@@ -1480,7 +1480,6 @@ void AllocationSequence::CreateUDPPorts() {
       udp_port_ = port.get();
       port->SubscribePortDestroyed(
           [this](PortInterface* port) { OnPortDestroyed(port); });
-
       // If STUN is not disabled, setting stun server address to port.
       if (!IsFlagSet(PORTALLOCATOR_DISABLE_STUN)) {
         if (config_ && !config_->StunServers().empty()) {
@@ -1508,7 +1507,8 @@ void AllocationSequence::CreateTCPPorts() {
        .socket_factory = session_->socket_factory(),
        .network = network_,
        .ice_username_fragment = session_->username(),
-       .ice_password = session_->password()},
+       .ice_password = session_->password(),
+       .content_name = session_->content_name()},
       session_->allocator()->min_port(), session_->allocator()->max_port(),
       session_->allocator()->allow_tcp_listen());
   if (port) {
@@ -1542,6 +1542,7 @@ void AllocationSequence::CreateStunPorts() {
        .network = network_,
        .ice_username_fragment = session_->username(),
        .ice_password = session_->password(),
+       .content_name = session_->content_name(),
        .lna_permission_factory =
            session_->allocator()->lna_permission_factory()},
       session_->allocator()->min_port(), session_->allocator()->max_port(),
@@ -1611,6 +1612,7 @@ void AllocationSequence::CreateTurnPort(const RelayServerConfig& config,
     args.network = network_;
     args.username = session_->username();
     args.password = session_->password();
+    args.content_name = session_->content_name();
     args.server_address = &(*relay_port);
     args.config = &config;
     args.turn_customizer = session_->allocator()->turn_customizer();
@@ -1639,7 +1641,6 @@ void AllocationSequence::CreateTurnPort(const RelayServerConfig& config,
       // remove the entry from it's map.
       port->SubscribePortDestroyed(
           [this](PortInterface* port) { OnPortDestroyed(port); });
-
     } else {
       port = session_->allocator()->relay_port_factory()->Create(
           args, session_->allocator()->min_port(),

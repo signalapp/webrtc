@@ -865,17 +865,16 @@ void P2PTransportChannel::MaybeStartGathering() {
                                       ice_parameters_.ufrag,
                                       ice_parameters_.pwd);
     if (pooled_session) {
+      PortAllocatorSession* raw_session = pooled_session.get();
       AddAllocatorSession(std::move(pooled_session));
-      PortAllocatorSession* raw_pooled_session =
-          allocator_sessions_.back().get();
+      RTC_DCHECK_EQ(raw_session, allocator_sessions_.back().get());
       // Process the pooled session's existing candidates/ports, if they exist.
-      OnCandidatesReady(raw_pooled_session,
-                        raw_pooled_session->ReadyCandidates());
-      for (PortInterface* port : allocator_sessions_.back()->ReadyPorts()) {
-        OnPortReady(raw_pooled_session, port);
+      OnCandidatesReady(raw_session, raw_session->ReadyCandidates());
+      for (PortInterface* port : raw_session->ReadyPorts()) {
+        OnPortReady(raw_session, port);
       }
-      if (allocator_sessions_.back()->CandidatesAllocationDone()) {
-        OnCandidatesAllocationDone(raw_pooled_session);
+      if (raw_session->CandidatesAllocationDone()) {
+        OnCandidatesAllocationDone(raw_session);
       }
     } else {
       AddAllocatorSession(allocator_->CreateSession(
