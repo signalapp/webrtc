@@ -3222,7 +3222,7 @@ bool ParseMediaDescription(
 
 }  // namespace
 
-std::string SdpSerialize(const JsepSessionDescription& jdesc) {
+std::string SdpSerialize(const SessionDescriptionInterface& jdesc) {
   const SessionDescription* desc = jdesc.description();
   if (!desc) {
     return "";

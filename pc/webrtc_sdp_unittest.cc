@@ -1483,8 +1483,8 @@ class WebRtcSdpTest : public ::testing::Test {
     EXPECT_EQ(desc1.extmap_allow_mixed(), desc2.extmap_allow_mixed());
   }
 
-  bool CompareSessionDescription(const JsepSessionDescription& desc1,
-                                 const JsepSessionDescription& desc2) {
+  bool CompareSessionDescription(const SessionDescriptionInterface& desc1,
+                                 const SessionDescriptionInterface& desc2) {
     EXPECT_EQ(desc1.session_id(), desc2.session_id());
     EXPECT_EQ(desc1.session_version(), desc2.session_version());
     CompareSessionDescription(*desc1.description(), *desc2.description());
@@ -1517,7 +1517,7 @@ class WebRtcSdpTest : public ::testing::Test {
   }
 
   // Update the candidates in `jdesc` to use the given `ufrag` and `pwd`.
-  bool UpdateCandidateUfragPwd(JsepSessionDescription* jdesc,
+  bool UpdateCandidateUfragPwd(SessionDescriptionInterface* jdesc,
                                int mline_index,
                                const std::string& ufrag,
                                const std::string& pwd) {
@@ -1925,7 +1925,7 @@ class WebRtcSdpTest : public ::testing::Test {
   // no order. If deserializer has already been tested, serializing then
   // deserializing and comparing JsepSessionDescription will test
   // the serializer sufficiently.
-  void TestSerialize(const JsepSessionDescription& jdesc) {
+  void TestSerialize(const SessionDescriptionInterface& jdesc) {
     std::string message = SdpSerialize(jdesc);
     JsepSessionDescription jdesc_output_des(kDummyType);
     SdpParseError error;

@@ -36,12 +36,12 @@ namespace webrtc {
 class JsepSessionDescription;
 struct SdpParseError;
 
-// Serializes the passed in JsepSessionDescription.
+// Serializes the passed in SessionDescriptionInterface.
 // Serialize SessionDescription including candidates if
-// JsepSessionDescription has candidates.
-// jdesc - The JsepSessionDescription object to be serialized.
+// SessionDescriptionInterface has candidates.
+// jdesc - The SessionDescriptionInterface object to be serialized.
 // return - SDP string serialized from the arguments.
-std::string SdpSerialize(const JsepSessionDescription& jdesc);
+std::string SdpSerialize(const SessionDescriptionInterface& jdesc);
 
 // Serializes the passed in IceCandidate to a SDP string.
 // candidate - The candidate to be serialized.
