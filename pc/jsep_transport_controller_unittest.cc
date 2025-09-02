@@ -306,9 +306,9 @@ class JsepTransportControllerTest : public JsepTransportController::Observer,
         transport_controller_->GetDtlsTransport(kAudioMid1));
     auto fake_video_dtls = static_cast<FakeDtlsTransport*>(
         transport_controller_->GetDtlsTransport(kVideoMid1));
-    fake_audio_dtls->fake_ice_transport()->SignalCandidateGathered(
+    fake_audio_dtls->fake_ice_transport()->NotifyCandidateGathered(
         fake_audio_dtls->fake_ice_transport(), CreateCandidate());
-    fake_video_dtls->fake_ice_transport()->SignalCandidateGathered(
+    fake_video_dtls->fake_ice_transport()->NotifyCandidateGathered(
         fake_video_dtls->fake_ice_transport(), CreateCandidate());
     fake_audio_dtls->fake_ice_transport()->SetCandidatesGatheringComplete();
     fake_video_dtls->fake_ice_transport()->SetCandidatesGatheringComplete();
@@ -1118,7 +1118,7 @@ TEST_F(JsepTransportControllerTest, SignalCandidatesGathered) {
 
   auto fake_audio_dtls = static_cast<FakeDtlsTransport*>(
       transport_controller_->GetDtlsTransport(kAudioMid1));
-  fake_audio_dtls->fake_ice_transport()->SignalCandidateGathered(
+  fake_audio_dtls->fake_ice_transport()->NotifyCandidateGathered(
       fake_audio_dtls->fake_ice_transport(), CreateCandidate());
   EXPECT_THAT(
       WaitUntil([&] { return 1; }, ::testing::Eq(candidates_signal_count_),

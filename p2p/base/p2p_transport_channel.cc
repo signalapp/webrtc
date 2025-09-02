@@ -916,7 +916,7 @@ void P2PTransportChannel::OnPortReady(PortAllocatorSession* /* session */,
 
   port->SubscribePortDestroyed(
       [this](PortInterface* port) { OnPortDestroyed(port); });
-  port->SubscribeRoleConflict([this]() { NotifyRoleConflict(); });
+  port->SubscribeRoleConflict([this] { NotifyRoleConflictInternal(); });
 
   // Attempt to create a connection from this new port to all of the remote
   // candidates that we were given so far.
@@ -936,7 +936,7 @@ void P2PTransportChannel::OnCandidatesReady(
     const std::vector<Candidate>& candidates) {
   RTC_DCHECK_RUN_ON(network_thread_);
   for (size_t i = 0; i < candidates.size(); ++i) {
-    SignalCandidateGathered(this, candidates[i]);
+    NotifyCandidateGathered(this, candidates[i]);
   }
 }
 
@@ -1123,8 +1123,8 @@ void P2PTransportChannel::OnCandidateFilterChanged(uint32_t prev_filter,
   }
 }
 
-void P2PTransportChannel::NotifyRoleConflict() {
-  SignalRoleConflict(this);  // STUN ping will be sent when SetRole is called
+void P2PTransportChannel::NotifyRoleConflictInternal() {
+  NotifyRoleConflict(this);  // STUN ping will be sent when SetRole is called
                              // from Transport.
 }
 
@@ -1969,8 +1969,8 @@ void P2PTransportChannel::UpdateTransportState() {
     standardized_state_ = current_standardized_state;
     state_ = state;
     // Unconditionally signal change, no matter what changed.
-    // TODO: issues.webrtc.org/42234495 - rmeove nonstandard state_
-    SignalIceTransportStateChanged(this);
+    // TODO: issues.webrtc.org/42234495 - remove nonstandard state_
+    NotifyIceTransportStateChanged(this);
   }
 }
 

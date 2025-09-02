@@ -490,8 +490,10 @@ class P2PTransportChannelTestBase : public ::testing::Test,
                                                std::move(init));
     channel->SignalReadyToSend.connect(
         this, &P2PTransportChannelTestBase::OnReadyToSend);
-    channel->SignalCandidateGathered.connect(
-        this, &P2PTransportChannelTestBase::OnCandidateGathered);
+    channel->SubscribeCandidateGathered(
+        [this](IceTransportInternal* transport, const Candidate& candidate) {
+          OnCandidateGathered(transport, candidate);
+        });
     channel->SetCandidatesRemovedCallback(
         [this](IceTransportInternal* transport, const Candidates& candidates) {
           OnCandidatesRemoved(transport, candidates);
@@ -501,8 +503,8 @@ class P2PTransportChannelTestBase : public ::testing::Test,
                   const ReceivedIpPacket& packet) {
           OnReadPacket(transport, packet);
         });
-    channel->SignalRoleConflict.connect(
-        this, &P2PTransportChannelTestBase::OnRoleConflict);
+    channel->SubscribeRoleConflict(
+        [this](IceTransportInternal* transport) { OnRoleConflict(transport); });
     channel->SignalNetworkRouteChanged.connect(
         this, &P2PTransportChannelTestBase::OnNetworkRouteChanged);
     channel->SignalSentPacket.connect(
@@ -3585,8 +3587,10 @@ class P2PTransportChannelPingTest : public ::testing::Test,
         this, &P2PTransportChannelPingTest::OnNetworkRouteChanged);
     ch->SignalReadyToSend.connect(this,
                                   &P2PTransportChannelPingTest::OnReadyToSend);
-    ch->SignalIceTransportStateChanged.connect(
-        this, &P2PTransportChannelPingTest::OnChannelStateChanged);
+    ch->SubscribeIceTransportStateChanged(
+        [this](IceTransportInternal* transport) {
+          OnChannelStateChanged(transport);
+        });
     ch->SetCandidatePairChangeCallback(
         [this](const CandidatePairChangeEvent& event) {
           OnCandidatePairChanged(event);
