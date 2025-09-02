@@ -54,7 +54,7 @@ class StunServerTest : public ::testing::Test {
   StunMessage* Receive() {
     StunMessage* msg = nullptr;
     std::unique_ptr<TestClient::Packet> packet =
-        client_->NextPacket(TestClient::kTimeout);
+        client_->NextPacket(TestClient::kTimeoutMs);
     if (packet) {
       ByteBufferReader buf(packet->buf);
       msg = new StunMessage();

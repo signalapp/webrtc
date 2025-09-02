@@ -10,20 +10,22 @@
 
 #include "rtc_base/test_client.h"
 
+#include <cstdint>
 #include <cstring>
 #include <memory>
 #include <optional>
 #include <utility>
-#include <variant>
 
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "rtc_base/async_packet_socket.h"
+#include "rtc_base/fake_clock.h"
 #include "rtc_base/network/received_packet.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/synchronization/mutex.h"
-#include "test/wait_until.h"
+#include "rtc_base/thread.h"
+#include "rtc_base/time_utils.h"
 
 namespace webrtc {
 
@@ -32,11 +34,11 @@ namespace webrtc {
 //         NextPacket.
 
 TestClient::TestClient(std::unique_ptr<AsyncPacketSocket> socket)
-    : TestClient(std::move(socket), std::monostate()) {}
+    : TestClient(std::move(socket), nullptr) {}
 
 TestClient::TestClient(std::unique_ptr<AsyncPacketSocket> socket,
-                       ClockVariant clock)
-    : clock_(clock), socket_(std::move(socket)) {
+                       ThreadProcessingFakeClock* fake_clock)
+    : fake_clock_(fake_clock), socket_(std::move(socket)) {
   socket_->RegisterReceivedPacketCallback(
       [&](AsyncPacketSocket* socket, const ReceivedIpPacket& packet) {
         OnPacket(socket, packet);
@@ -48,8 +50,11 @@ TestClient::~TestClient() {}
 
 bool TestClient::CheckConnState(AsyncPacketSocket::State state) {
   // Wait for our timeout value until the socket reaches the desired state.
-  return WaitUntil([&]() { return socket_->GetState() == state; },
-                   {.clock = clock_});
+  int64_t end = TimeAfter(kTimeoutMs);
+  while (socket_->GetState() != state && TimeUntil(end) > 0) {
+    AdvanceTime(1);
+  }
+  return (socket_->GetState() == state);
 }
 
 int TestClient::Send(const char* buf, size_t size) {
@@ -64,7 +69,7 @@ int TestClient::SendTo(const char* buf,
   return socket_->SendTo(buf, size, dest, options);
 }
 
-std::unique_ptr<TestClient::Packet> TestClient::NextPacket(TimeDelta timeout) {
+std::unique_ptr<TestClient::Packet> TestClient::NextPacket(int timeout_ms) {
   // If no packets are currently available, we go into a get/dispatch loop for
   // at most timeout_ms.  If, during the loop, a packet arrives, then we can
   // stop early and return it.
@@ -76,20 +81,21 @@ std::unique_ptr<TestClient::Packet> TestClient::NextPacket(TimeDelta timeout) {
   // Pumping another thread's queue could lead to messages being dispatched from
   // the wrong thread to non-thread-safe objects.
 
-  bool packets_available = WaitUntil(
-      [&] {
-        MutexLock lock(&mutex_);
-        return !packets_.empty();
-      },
-      {
-          .timeout = timeout,
-          .clock = clock_,
-      });
+  int64_t end = TimeAfter(timeout_ms);
+  while (TimeUntil(end) > 0) {
+    {
+      MutexLock lock(&mutex_);
+      if (!packets_.empty()) {
+        break;
+      }
+    }
+    AdvanceTime(1);
+  }
 
   // Return the first packet placed in the queue.
   std::unique_ptr<Packet> packet;
   MutexLock lock(&mutex_);
-  if (packets_available) {
+  if (!packets_.empty()) {
     packet = std::move(packets_.front());
     packets_.erase(packets_.begin());
   }
@@ -101,7 +107,7 @@ bool TestClient::CheckNextPacket(const char* buf,
                                  size_t size,
                                  SocketAddress* addr) {
   bool res = false;
-  std::unique_ptr<Packet> packet = NextPacket(kTimeout);
+  std::unique_ptr<Packet> packet = NextPacket(kTimeoutMs);
   if (packet) {
     res = (packet->buf.size() == size &&
            memcmp(packet->buf.data(), buf, size) == 0 &&
@@ -126,8 +132,20 @@ bool TestClient::CheckTimestamp(std::optional<Timestamp> packet_timestamp) {
   return res;
 }
 
+void TestClient::AdvanceTime(int ms) {
+  // If the test is using a fake clock, we must advance the fake clock to
+  // advance time. Otherwise, ProcessMessages will work.
+  if (fake_clock_) {
+    for (int64_t start = TimeMillis(); TimeMillis() < start + ms;) {
+      fake_clock_->AdvanceTime(TimeDelta::Millis(1));
+    };
+  } else {
+    Thread::Current()->ProcessMessages(1);
+  }
+}
+
 bool TestClient::CheckNoPacket() {
-  return NextPacket(kNoPacketTimeout) == nullptr;
+  return NextPacket(kNoPacketTimeoutMs) == nullptr;
 }
 
 int TestClient::GetError() {
