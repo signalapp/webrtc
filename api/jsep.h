@@ -222,10 +222,7 @@ class RTC_EXPORT SessionDescriptionInterface {
 
   // Create a new SessionDescriptionInterface object
   // with the same values as the old object.
-  // TODO(bugs.webrtc.org:12215): Remove default implementation
-  virtual std::unique_ptr<SessionDescriptionInterface> Clone() const {
-    return nullptr;
-  }
+  virtual std::unique_ptr<SessionDescriptionInterface> Clone() const = 0;
 
   // Only for use internally.
   virtual SessionDescription* description() = 0;
@@ -238,9 +235,7 @@ class RTC_EXPORT SessionDescriptionInterface {
 
   // Returns the type of this session description as an SdpType. Descriptions of
   // the various types are found in the SdpType documentation.
-  // TODO(steveanton): Remove default implementation once Chromium has been
-  // updated.
-  virtual SdpType GetType() const;
+  virtual SdpType GetType() const = 0;
 
   // kOffer/kPrAnswer/kAnswer
   // TODO(steveanton): Remove this in favor of `GetType` that returns SdpType.

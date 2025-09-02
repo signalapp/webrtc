@@ -44,6 +44,14 @@ namespace {
 constexpr char kDummyAddress[] = "0.0.0.0";
 constexpr int kDummyPort = 9;
 
+// Remove this method when the deprecated constructor that calls it has been
+// removed.
+SdpType SdpTypeFromStringOrDie(const std::string& type) {
+  auto sdp_type = SdpTypeFromString(type);
+  RTC_CHECK(sdp_type.has_value());
+  return sdp_type.value();
+}
+
 // Update the connection address for the MediaContentDescription based on the
 // candidates.
 void UpdateConnectionAddress(
@@ -105,21 +113,6 @@ void UpdateConnectionAddress(
 }
 }  // namespace
 
-// TODO(steveanton): Remove this default implementation once Chromium has been
-// updated.
-SdpType SessionDescriptionInterface::GetType() const {
-  std::optional<SdpType> maybe_type = SdpTypeFromString(type());
-  if (maybe_type) {
-    return *maybe_type;
-  } else {
-    RTC_LOG(LS_WARNING) << "Default implementation of "
-                           "SessionDescriptionInterface::GetType does not "
-                           "recognize the result from type(), returning "
-                           "kOffer.";
-    return SdpType::kOffer;
-  }
-}
-
 SessionDescriptionInterface* CreateSessionDescription(const std::string& type,
                                                       const std::string& sdp,
                                                       SdpParseError* error) {
@@ -164,17 +157,8 @@ std::unique_ptr<SessionDescriptionInterface> CreateSessionDescription(
 
 JsepSessionDescription::JsepSessionDescription(SdpType type) : type_(type) {}
 
-JsepSessionDescription::JsepSessionDescription(const std::string& type) {
-  std::optional<SdpType> maybe_type = SdpTypeFromString(type);
-  if (maybe_type) {
-    type_ = *maybe_type;
-  } else {
-    RTC_LOG(LS_WARNING)
-        << "JsepSessionDescription constructed with invalid type string: "
-        << type << ". Assuming it is an offer.";
-    type_ = SdpType::kOffer;
-  }
-}
+JsepSessionDescription::JsepSessionDescription(const std::string& type)
+    : JsepSessionDescription(SdpTypeFromStringOrDie(type)) {}
 
 JsepSessionDescription::JsepSessionDescription(
     SdpType type,
