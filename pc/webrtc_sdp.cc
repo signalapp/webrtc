@@ -3376,6 +3376,46 @@ bool SdpDeserialize(absl::string_view message,
   return true;
 }
 
+std::unique_ptr<SessionDescriptionInterface> SdpDeserialize(
+    SdpType sdp_type,
+    absl::string_view message,
+    SdpParseError* absl_nullable error) {
+  std::string session_id;
+  std::string session_version;
+  TransportDescription session_td("", "");
+  RtpHeaderExtensions session_extmaps;
+  SocketAddress session_connection_addr;
+  auto desc = std::make_unique<SessionDescription>();
+  size_t current_pos = 0;
+
+  // Session Description
+  if (!ParseSessionDescription(message, &current_pos, &session_id,
+                               &session_version, &session_td, &session_extmaps,
+                               &session_connection_addr, desc.get(), error)) {
+    return nullptr;
+  }
+
+  // Media Description
+  std::vector<std::unique_ptr<IceCandidate>> candidates;
+  if (!ParseMediaDescription(message, session_td, session_extmaps, &current_pos,
+                             session_connection_addr, desc.get(), &candidates,
+                             error)) {
+    return nullptr;
+  }
+
+  std::unique_ptr<SessionDescriptionInterface> description =
+      CreateSessionDescription(sdp_type, session_id, session_version,
+                               std::move(desc));
+  if (!description) {
+    return nullptr;
+  }
+  for (const auto& candidate : candidates) {
+    description->AddCandidate(candidate.get());
+  }
+
+  return description;
+}
+
 bool SdpDeserializeCandidate(absl::string_view transport_name,
                              absl::string_view message,
                              Candidate* candidate,

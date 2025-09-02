@@ -148,11 +148,10 @@ std::unique_ptr<SessionDescriptionInterface> CreateSessionDescription(
     const std::string& session_id,
     const std::string& session_version,
     std::unique_ptr<SessionDescription> description) {
-  auto jsep_description = std::make_unique<JsepSessionDescription>(type);
-  bool initialize_success = jsep_description->Initialize(
-      std::move(description), session_id, session_version);
-  RTC_DCHECK(initialize_success);
-  return std::move(jsep_description);
+  if (!description)
+    return nullptr;
+  return std::make_unique<JsepSessionDescription>(type, std::move(description),
+                                                  session_id, session_version);
 }
 
 JsepSessionDescription::JsepSessionDescription(SdpType type) : type_(type) {}

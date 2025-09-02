@@ -43,6 +43,10 @@ class JsepSessionDescription final : public SessionDescriptionInterface {
   JsepSessionDescription& operator=(const JsepSessionDescription&) = delete;
 
   // Takes ownership of `description`.
+  // TODO(bugs.webrtc.org/442220720): Deprecate.
+  // [[deprecated(
+  //    "Use CreateSessionDescription() to construct
+  //    SessionDescriptionInterface objects.")]]
   bool Initialize(std::unique_ptr<SessionDescription> description,
                   const std::string& session_id,
                   const std::string& session_version);

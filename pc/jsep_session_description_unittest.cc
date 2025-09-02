@@ -91,9 +91,9 @@ class JsepSessionDescriptionTest : public ::testing::Test {
     candidate_ = candidate;
     const std::string session_id = absl::StrCat(CreateRandomId64());
     const std::string session_version = absl::StrCat(CreateRandomId());
-    jsep_desc_ = std::make_unique<JsepSessionDescription>(SdpType::kOffer);
-    ASSERT_TRUE(jsep_desc_->Initialize(CreateCricketSessionDescription(),
-                                       session_id, session_version));
+    jsep_desc_ =
+        CreateSessionDescription(SdpType::kOffer, session_id, session_version,
+                                 CreateCricketSessionDescription());
   }
 
   std::string Serialize(const SessionDescriptionInterface* desc) {
@@ -111,7 +111,7 @@ class JsepSessionDescriptionTest : public ::testing::Test {
   }
 
   Candidate candidate_;
-  std::unique_ptr<JsepSessionDescription> jsep_desc_;
+  std::unique_ptr<SessionDescriptionInterface> jsep_desc_;
 };
 
 TEST_F(JsepSessionDescriptionTest, CloneDefault) {
