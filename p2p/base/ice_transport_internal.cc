@@ -255,4 +255,25 @@ void IceTransportInternal::RemoveGatheringStateCallback(
   gathering_state_callback_list_.RemoveReceivers(removal_tag);
 }
 
+void IceTransportInternal::SubscribeCandidateGathered(
+    absl::AnyInvocable<void(IceTransportInternal*, const Candidate&)>
+        callback) {
+  candidate_gathered_trampoline_.Subscribe(std::move(callback));
+}
+
+void IceTransportInternal::SubscribeRoleConflict(
+    absl::AnyInvocable<void(IceTransportInternal*)> callback) {
+  role_conflict_trampoline_.Subscribe(std::move(callback));
+}
+
+void IceTransportInternal::SubscribeIceTransportStateChanged(
+    absl::AnyInvocable<void(IceTransportInternal*)> callback) {
+  ice_transport_state_changed_trampoline_.Subscribe(std::move(callback));
+}
+
+void IceTransportInternal::SubscribeDestroyed(
+    absl::AnyInvocable<void(IceTransportInternal*)> callback) {
+  destroyed_trampoline_.Subscribe(std::move(callback));
+}
+
 }  // namespace webrtc

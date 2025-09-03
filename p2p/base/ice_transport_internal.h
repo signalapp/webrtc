@@ -361,9 +361,7 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
   }
   void SubscribeCandidateGathered(
       absl::AnyInvocable<void(IceTransportInternal*, const Candidate&)>
-          callback) {
-    candidate_gathered_trampoline_.Subscribe(std::move(callback));
-  }
+          callback);
 
   void SetCandidateErrorCallback(
       absl::AnyInvocable<void(IceTransportInternal*,
@@ -400,9 +398,7 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
     SignalRoleConflict(transport);
   }
   void SubscribeRoleConflict(
-      absl::AnyInvocable<void(IceTransportInternal*)> callback) {
-    role_conflict_trampoline_.Subscribe(std::move(callback));
-  }
+      absl::AnyInvocable<void(IceTransportInternal*)> callback);
 
   // Emitted whenever the new standards-compliant transport state changed.
   sigslot::signal1<IceTransportInternal*> SignalIceTransportStateChanged;
@@ -410,9 +406,7 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
     SignalIceTransportStateChanged(transport);
   }
   void SubscribeIceTransportStateChanged(
-      absl::AnyInvocable<void(IceTransportInternal*)> callback) {
-    ice_transport_state_changed_trampoline_.Subscribe(std::move(callback));
-  }
+      absl::AnyInvocable<void(IceTransportInternal*)> callback);
 
   // Invoked when the transport is being destroyed.
   sigslot::signal1<IceTransportInternal*> SignalDestroyed;
@@ -420,9 +414,7 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
     SignalDestroyed(transport);
   }
   void SubscribeDestroyed(
-      absl::AnyInvocable<void(IceTransportInternal*)> callback) {
-    destroyed_trampoline_.Subscribe(std::move(callback));
-  }
+      absl::AnyInvocable<void(IceTransportInternal*)> callback);
 
   // Invoked when remote dictionary has been updated,
   // i.e. modifications to attributes from remote ice agent has
