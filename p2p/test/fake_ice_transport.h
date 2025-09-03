@@ -176,7 +176,7 @@ class FakeIceTransport : public IceTransportInternal {
   }
 
   // Convenience functions for accessing ICE config and other things.
-  int receiving_timeout() const {
+  TimeDelta receiving_timeout() const {
     RTC_DCHECK_RUN_ON(network_thread_);
     return ice_config_.receiving_timeout_or_default();
   }

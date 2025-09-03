@@ -249,7 +249,7 @@ class RTC_EXPORT PortAllocatorSession : public sigslot::has_slots<> {
   // The default value of the interval in implementation is restored if a null
   // optional value is passed.
   virtual void SetStunKeepaliveIntervalForReadyPorts(
-      const std::optional<int>& /* stun_keepalive_interval */) {}
+      const std::optional<TimeDelta>& /* stun_keepalive_interval */) {}
   // Another way of getting the information provided by the signals below.
   //
   // Ports and candidates are not guaranteed to be in the same order as the
@@ -396,7 +396,7 @@ class RTC_EXPORT PortAllocator : public sigslot::has_slots<> {
     return candidate_pool_size_;
   }
 
-  const std::optional<int>& stun_candidate_keepalive_interval() const {
+  const std::optional<TimeDelta>& stun_candidate_keepalive_interval() const {
     CheckRunOnValidThreadIfInitialized();
     return stun_candidate_keepalive_interval_;
   }
@@ -633,7 +633,7 @@ class RTC_EXPORT PortAllocator : public sigslot::has_slots<> {
   // all TurnPort(s) created.
   TurnCustomizer* turn_customizer_ = nullptr;
 
-  std::optional<int> stun_candidate_keepalive_interval_;
+  std::optional<TimeDelta> stun_candidate_keepalive_interval_;
 
   // If true, TakePooledSession() will only return sessions that has same ice
   // credentials as requested.

@@ -190,7 +190,7 @@ UDPPort::UDPPort(const PortParametersRef& args,
       socket_(socket),
       error_(0),
       ready_(false),
-      stun_keepalive_delay_(kStunKeepaliveInterval.ms()),
+      stun_keepalive_delay_(kStunKeepaliveInterval),
       dscp_(DSCP_NO_CHANGE),
       emit_local_for_anyaddress_(emit_local_for_anyaddress) {}
 
@@ -208,7 +208,7 @@ UDPPort::UDPPort(const PortParametersRef& args,
       socket_(nullptr),
       error_(0),
       ready_(false),
-      stun_keepalive_delay_(kStunKeepaliveInterval.ms()),
+      stun_keepalive_delay_(kStunKeepaliveInterval),
       dscp_(DSCP_NO_CHANGE),
       emit_local_for_anyaddress_(emit_local_for_anyaddress) {}
 
@@ -362,8 +362,8 @@ void UDPPort::GetStunStats(std::optional<StunStats>* stats) {
   *stats = stats_;
 }
 
-void UDPPort::set_stun_keepalive_delay(const std::optional<int>& delay) {
-  stun_keepalive_delay_ = delay.value_or(kStunKeepaliveInterval.ms());
+void UDPPort::set_stun_keepalive_delay(const std::optional<TimeDelta>& delay) {
+  stun_keepalive_delay_ = delay.value_or(kStunKeepaliveInterval);
 }
 
 void UDPPort::OnLocalAddressReady(AsyncPacketSocket* /* socket */,
@@ -650,7 +650,7 @@ std::unique_ptr<StunPort> StunPort::Create(
     uint16_t min_port,
     uint16_t max_port,
     const ServerAddresses& servers,
-    std::optional<int> stun_keepalive_interval) {
+    std::optional<TimeDelta> stun_keepalive_interval) {
   // Using `new` to access a non-public constructor.
   auto port = absl::WrapUnique(new StunPort(args, min_port, max_port, servers));
   port->set_stun_keepalive_delay(stun_keepalive_interval);

@@ -487,7 +487,7 @@ void BasicPortAllocatorSession::GetCandidateStatsFromReadyPorts(
 }
 
 void BasicPortAllocatorSession::SetStunKeepaliveIntervalForReadyPorts(
-    const std::optional<int>& stun_keepalive_interval) {
+    const std::optional<TimeDelta>& stun_keepalive_interval) {
   RTC_DCHECK_RUN_ON(network_thread_);
   auto ports = ReadyPorts();
   for (PortInterface* port : ports) {

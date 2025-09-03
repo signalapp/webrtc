@@ -176,9 +176,9 @@ const IceParameters kIceParams[4] = {{kIceUfrag[0], kIcePwd[0], false},
                                      {kIceUfrag[3], kIcePwd[3], false}};
 
 IceConfig CreateIceConfig(
-    int receiving_timeout,
+    TimeDelta receiving_timeout,
     ContinualGatheringPolicy continual_gathering_policy,
-    std::optional<int> backup_ping_interval = std::nullopt) {
+    std::optional<TimeDelta> backup_ping_interval = std::nullopt) {
   IceConfig config;
   config.receiving_timeout = receiving_timeout;
   config.continual_gathering_policy = continual_gathering_policy;
@@ -1363,7 +1363,7 @@ TEST_F(P2PTransportChannelTest, GetStatsSwitchConnection) {
   ScopedFakeClock clock;
   const Environment env = CreateEnvironment();
   IceConfig continual_gathering_config =
-      CreateIceConfig(1000, GATHER_CONTINUALLY);
+      CreateIceConfig(TimeDelta::Seconds(1), GATHER_CONTINUALLY);
 
   ConfigureEndpoints(env, OPEN, OPEN, kDefaultPortAllocatorFlags,
                      kDefaultPortAllocatorFlags);
@@ -1444,7 +1444,7 @@ TEST_F(P2PTransportChannelTest,
 
   // ep1 gathers continually but ep2 does not.
   IceConfig continual_gathering_config =
-      CreateIceConfig(1000, GATHER_CONTINUALLY);
+      CreateIceConfig(TimeDelta::Seconds(1), GATHER_CONTINUALLY);
   IceConfig default_config;
   CreateChannels(env, continual_gathering_config, default_config);
 
@@ -1484,10 +1484,11 @@ TEST_F(P2PTransportChannelTest,
   ConfigureEndpoints(env, OPEN, OPEN, kOnlyLocalPorts, kOnlyLocalPorts);
 
   // ep1 gathers continually but ep2 does not.
-  IceConfig config1 = CreateIceConfig(1000, GATHER_CONTINUALLY);
-  config1.regather_on_failed_networks_interval = 2000;
+  IceConfig config1 =
+      CreateIceConfig(TimeDelta::Seconds(1), GATHER_CONTINUALLY);
+  config1.regather_on_failed_networks_interval = TimeDelta::Seconds(2);
   IceConfig config2;
-  config2.regather_on_failed_networks_interval = 2000;
+  config2.regather_on_failed_networks_interval = TimeDelta::Seconds(2);
   CreateChannels(env, config1, config2);
 
   EXPECT_TRUE(WaitUntil([&] { return CheckConnected(ep1_ch1(), ep2_ch1()); },
@@ -2078,7 +2079,7 @@ TEST_F(P2PTransportChannelTest, TestContinualGathering) {
   SetAllocationStepDelay(0, kDefaultStepDelay);
   SetAllocationStepDelay(1, kDefaultStepDelay);
   IceConfig continual_gathering_config =
-      CreateIceConfig(1000, GATHER_CONTINUALLY);
+      CreateIceConfig(TimeDelta::Seconds(1), GATHER_CONTINUALLY);
   // By default, ep2 does not gather continually.
   IceConfig default_config;
   CreateChannels(env, continual_gathering_config, default_config);
@@ -2421,14 +2422,15 @@ TEST_F(P2PTransportChannelTest,
       "WebRTC-PiggybackIceCheckAcknowledgement/Enabled/"));
   ConfigureEndpoints(env, OPEN, OPEN, kOnlyLocalPorts, kOnlyLocalPorts);
   IceConfig ep1_config;
-  IceConfig ep2_config = CreateIceConfig(1000, GATHER_CONTINUALLY);
+  IceConfig ep2_config =
+      CreateIceConfig(TimeDelta::Seconds(1), GATHER_CONTINUALLY);
   // Let ep2 be tolerable of the loss of connectivity checks, so that it keeps
   // sending pings even after ep1 becomes unwritable as we configure the
   // firewall below.
-  ep2_config.receiving_timeout = 30 * 1000;
-  ep2_config.ice_unwritable_timeout = 30 * 1000;
+  ep2_config.receiving_timeout = TimeDelta::Seconds(30);
+  ep2_config.ice_unwritable_timeout = TimeDelta::Seconds(30);
   ep2_config.ice_unwritable_min_checks = 30;
-  ep2_config.ice_inactive_timeout = 60 * 1000;
+  ep2_config.ice_inactive_timeout = TimeDelta::Seconds(60);
 
   CreateChannels(env, ep1_config, ep2_config);
 
@@ -2597,7 +2599,7 @@ TEST_F(P2PTransportChannelMultihomedTest, TestFailoverControlledSide) {
   SetAllocatorFlags(1, kOnlyLocalPorts);
 
   // Make the receiving timeout shorter for testing.
-  IceConfig config = CreateIceConfig(1000, GATHER_ONCE);
+  IceConfig config = CreateIceConfig(TimeDelta::Seconds(1), GATHER_ONCE);
   // Create channels and let them go writable, as usual.
   CreateChannels(env, config, config);
 
@@ -2650,7 +2652,7 @@ TEST_F(P2PTransportChannelMultihomedTest, TestFailoverControllingSide) {
   SetAllocatorFlags(1, kOnlyLocalPorts);
 
   // Make the receiving timeout shorter for testing.
-  IceConfig config = CreateIceConfig(1000, GATHER_ONCE);
+  IceConfig config = CreateIceConfig(TimeDelta::Seconds(1), GATHER_ONCE);
   // Create channels and let them go writable, as usual.
   CreateChannels(env, config, config);
   EXPECT_TRUE(WaitUntil(
@@ -2718,7 +2720,7 @@ TEST_F(P2PTransportChannelMultihomedTest, TestFailoverWithManyConnections) {
   virtual_socket_server()->UpdateDelayDistribution();
 
   // Make the receiving timeout shorter for testing.
-  IceConfig config = CreateIceConfig(1000, GATHER_CONTINUALLY);
+  IceConfig config = CreateIceConfig(TimeDelta::Seconds(1), GATHER_CONTINUALLY);
   // Create channels and let them go writable, as usual.
   CreateChannels(env, config, config, true /* ice_renomination */);
   EXPECT_TRUE(WaitUntil(
@@ -2796,7 +2798,7 @@ TEST_F(P2PTransportChannelMultihomedTest, TestIceRenomination) {
   // We want it to set the remote ICE parameters when creating channels.
   set_remote_ice_parameter_source(FROM_SETICEPARAMETERS);
   // Make the receiving timeout shorter for testing.
-  IceConfig config = CreateIceConfig(1000, GATHER_ONCE);
+  IceConfig config = CreateIceConfig(TimeDelta::Seconds(1), GATHER_ONCE);
   // Create channels with ICE renomination and let them go writable as usual.
   CreateChannels(env, config, config, true);
   ASSERT_TRUE(WaitUntil([&] { return CheckConnected(ep1_ch1(), ep2_ch1()); },
@@ -2868,7 +2870,7 @@ TEST_F(P2PTransportChannelMultihomedTest,
       {.timeout = kMediumTimeout, .clock = &clock}));
 
   // Make the receiving timeout shorter for testing.
-  IceConfig config = CreateIceConfig(1000, GATHER_ONCE);
+  IceConfig config = CreateIceConfig(TimeDelta::Seconds(1), GATHER_ONCE);
   ep1_ch1()->SetIceConfig(config);
   ep2_ch1()->SetIceConfig(config);
   reset_selected_candidate_pair_switches();
@@ -2927,7 +2929,7 @@ TEST_F(P2PTransportChannelMultihomedTest,
       {.timeout = kMediumTimeout, .clock = &clock}));
 
   // Make the receiving timeout shorter for testing.
-  IceConfig config = CreateIceConfig(1000, GATHER_ONCE);
+  IceConfig config = CreateIceConfig(TimeDelta::Seconds(1), GATHER_ONCE);
   ep1_ch1()->SetIceConfig(config);
   ep2_ch1()->SetIceConfig(config);
   reset_selected_candidate_pair_switches();
@@ -2977,9 +2979,10 @@ TEST_F(P2PTransportChannelMultihomedTest, TestRemoteFailover) {
   CreateChannels(env);
   // Make the receiving timeout shorter for testing.
   // Set the backup connection ping interval to 25s.
-  IceConfig config = CreateIceConfig(1000, GATHER_ONCE, 25000);
+  IceConfig config = CreateIceConfig(TimeDelta::Seconds(1), GATHER_ONCE,
+                                     TimeDelta::Seconds(25));
   // Ping the best connection more frequently since we don't have traffic.
-  config.stable_writable_connection_ping_interval = 900;
+  config.stable_writable_connection_ping_interval = TimeDelta::Millis(900);
   ep1_ch1()->SetIceConfig(config);
   ep2_ch1()->SetIceConfig(config);
   // Need to wait to make sure the connections on both networks are writable.
@@ -3084,9 +3087,9 @@ TEST_F(P2PTransportChannelMultihomedTest, TestPingBackupConnectionRate) {
   // Create channels and let them go writable, as usual.
   CreateChannels(env);
   EXPECT_TRUE(WaitUntil([&] { return CheckConnected(ep1_ch1(), ep2_ch1()); }));
-  int backup_ping_interval = 2000;
-  ep2_ch1()->SetIceConfig(
-      CreateIceConfig(2000, GATHER_ONCE, backup_ping_interval));
+  TimeDelta backup_ping_interval = TimeDelta::Seconds(2);
+  ep2_ch1()->SetIceConfig(CreateIceConfig(TimeDelta::Seconds(2), GATHER_ONCE,
+                                          backup_ping_interval));
   // After the state becomes COMPLETED, the backup connection will be pinged
   // once every `backup_ping_interval` milliseconds.
   ASSERT_THAT(WaitUntil([&] { return ep2_ch1()->GetState(); },
@@ -3097,13 +3100,12 @@ TEST_F(P2PTransportChannelMultihomedTest, TestPingBackupConnectionRate) {
   Connection* backup_conn = GetBackupConnection(ep2_ch1());
   EXPECT_TRUE(WaitUntil([&] { return backup_conn->writable(); },
                         {.timeout = kMediumTimeout}));
-  int64_t last_ping_response_ms = backup_conn->last_ping_response_received();
-  EXPECT_THAT(
-      WaitUntil([&] { return backup_conn->last_ping_response_received(); },
-                Gt(last_ping_response_ms), {.timeout = kDefaultTimeout}),
-      IsRtcOk());
-  int time_elapsed =
-      backup_conn->last_ping_response_received() - last_ping_response_ms;
+  Timestamp last_ping_response = backup_conn->LastPingResponseReceived();
+  EXPECT_THAT(WaitUntil([&] { return backup_conn->LastPingResponseReceived(); },
+                        Gt(last_ping_response), {.timeout = kDefaultTimeout}),
+              IsRtcOk());
+  TimeDelta time_elapsed =
+      backup_conn->LastPingResponseReceived() - last_ping_response;
   RTC_LOG(LS_INFO) << "Time elapsed: " << time_elapsed;
   EXPECT_GE(time_elapsed, backup_ping_interval);
 
@@ -3129,12 +3131,12 @@ TEST_F(P2PTransportChannelMultihomedTest, TestStableWritableRate) {
   CreateChannels(env);
   EXPECT_TRUE(WaitUntil([&] { return CheckConnected(ep1_ch1(), ep2_ch1()); }));
   // Set a value larger than the default value of 2500 ms
-  int ping_interval_ms = 3456;
-  IceConfig config = CreateIceConfig(2 * ping_interval_ms, GATHER_ONCE);
-  config.stable_writable_connection_ping_interval = ping_interval_ms;
+  TimeDelta ping_interval = TimeDelta::Millis(3'456);
+  IceConfig config = CreateIceConfig(2 * ping_interval, GATHER_ONCE);
+  config.stable_writable_connection_ping_interval = ping_interval;
   ep2_ch1()->SetIceConfig(config);
   // After the state becomes COMPLETED and is stable and writable, the
-  // connection will be pinged once every `ping_interval_ms` milliseconds.
+  // connection will be pinged once every `ping_interval`.
   ASSERT_THAT(WaitUntil([&] { return ep2_ch1()->GetState(); },
                         Eq(IceTransportStateInternal::STATE_COMPLETED)),
               IsRtcOk());
@@ -3144,20 +3146,19 @@ TEST_F(P2PTransportChannelMultihomedTest, TestStableWritableRate) {
   EXPECT_TRUE(
       WaitUntil([&] { return conn->writable(); }, {.timeout = kMediumTimeout}));
 
-  int64_t last_ping_response_ms;
+  Timestamp last_ping_response = Timestamp::Zero();
   // Burn through some pings so the connection is stable.
   for (int i = 0; i < 5; i++) {
-    last_ping_response_ms = conn->last_ping_response_received();
-    EXPECT_THAT(
-        WaitUntil([&] { return conn->last_ping_response_received(); },
-                  Gt(last_ping_response_ms), {.timeout = kDefaultTimeout}),
-        IsRtcOk());
+    last_ping_response = conn->LastPingResponseReceived();
+    EXPECT_THAT(WaitUntil([&] { return conn->LastPingResponseReceived(); },
+                          Gt(last_ping_response), {.timeout = kDefaultTimeout}),
+                IsRtcOk());
   }
-  EXPECT_TRUE(conn->stable(last_ping_response_ms)) << "Connection not stable";
-  int time_elapsed =
-      conn->last_ping_response_received() - last_ping_response_ms;
+  EXPECT_TRUE(conn->stable(last_ping_response)) << "Connection not stable";
+  TimeDelta time_elapsed =
+      conn->LastPingResponseReceived() - last_ping_response;
   RTC_LOG(LS_INFO) << "Time elapsed: " << time_elapsed;
-  EXPECT_GE(time_elapsed, ping_interval_ms);
+  EXPECT_GE(time_elapsed, ping_interval);
 
   DestroyChannels();
 }
@@ -3195,8 +3196,9 @@ TEST_F(P2PTransportChannelMultihomedTest, TestNetworkBecomesInactive) {
   AddAddress(0, kPublicAddrs[0]);
   AddAddress(1, kPublicAddrs[1]);
   // Create channels and let them go writable, as usual.
-  IceConfig ep1_config = CreateIceConfig(2000, GATHER_CONTINUALLY);
-  IceConfig ep2_config = CreateIceConfig(2000, GATHER_ONCE);
+  IceConfig ep1_config =
+      CreateIceConfig(TimeDelta::Seconds(2), GATHER_CONTINUALLY);
+  IceConfig ep2_config = CreateIceConfig(TimeDelta::Seconds(2), GATHER_ONCE);
   CreateChannels(env, ep1_config, ep2_config);
 
   SetAllocatorFlags(0, kOnlyLocalPorts);
@@ -3242,7 +3244,7 @@ TEST_F(P2PTransportChannelMultihomedTest,
   AddAddress(1, cellular[1], "test_cell1", ADAPTER_TYPE_CELLULAR);
   // Set continual gathering policy.
   IceConfig continual_gathering_config =
-      CreateIceConfig(1000, GATHER_CONTINUALLY);
+      CreateIceConfig(TimeDelta::Seconds(1), GATHER_CONTINUALLY);
   CreateChannels(env, continual_gathering_config, continual_gathering_config);
   SetAllocatorFlags(0, kOnlyLocalPorts);
   SetAllocatorFlags(1, kOnlyLocalPorts);
@@ -3313,7 +3315,7 @@ TEST_F(P2PTransportChannelMultihomedTest,
 
   // Set continual gathering policy.
   IceConfig continual_gathering_config =
-      CreateIceConfig(1000, GATHER_CONTINUALLY);
+      CreateIceConfig(TimeDelta::Seconds(1), GATHER_CONTINUALLY);
   // Create channels and let them go writable, as usual.
   CreateChannels(env, continual_gathering_config, continual_gathering_config);
   EXPECT_TRUE(WaitUntil(
@@ -3365,8 +3367,8 @@ TEST_F(P2PTransportChannelMultihomedTest, TestRestoreBackupConnection) {
   SetAllocatorFlags(1, kOnlyLocalPorts);
 
   // Create channels and let them go writable, as usual.
-  IceConfig config = CreateIceConfig(1000, GATHER_CONTINUALLY);
-  config.regather_on_failed_networks_interval = 2000;
+  IceConfig config = CreateIceConfig(TimeDelta::Seconds(1), GATHER_CONTINUALLY);
+  config.regather_on_failed_networks_interval = TimeDelta::Seconds(2);
   CreateChannels(env, config, config);
   EXPECT_TRUE(WaitUntil(
       [&] {
@@ -4186,11 +4188,11 @@ TEST_F(P2PTransportChannelPingTest, TestReceivingStateChange) {
   PrepareChannel(&ch);
   // Default receiving timeout and checking receiving interval should not be too
   // small.
-  EXPECT_LE(1000, ch.config().receiving_timeout_or_default());
-  EXPECT_LE(200, ch.check_receiving_interval());
-  ch.SetIceConfig(CreateIceConfig(500, GATHER_ONCE));
-  EXPECT_EQ(500, ch.config().receiving_timeout_or_default());
-  EXPECT_EQ(50, ch.check_receiving_interval());
+  EXPECT_GE(ch.config().receiving_timeout_or_default(), TimeDelta::Seconds(1));
+  EXPECT_GE(ch.check_receiving_interval(), TimeDelta::Millis(200));
+  ch.SetIceConfig(CreateIceConfig(TimeDelta::Millis(500), GATHER_ONCE));
+  EXPECT_EQ(ch.config().receiving_timeout_or_default(), TimeDelta::Millis(500));
+  EXPECT_EQ(ch.check_receiving_interval(), TimeDelta::Millis(50));
   ch.MaybeStartGathering();
   ch.AddRemoteCandidate(
       CreateUdpCandidate(IceCandidateType::kHost, "1.1.1.1", 1, 1));
@@ -4921,7 +4923,7 @@ TEST_F(P2PTransportChannelPingTest, TestDontPruneWhenWeak) {
   EXPECT_TRUE(WaitUntil([&] { return conn1->pruned(); },
                         {.timeout = kMediumTimeout, .clock = &clock}));
 
-  ch.SetIceConfig(CreateIceConfig(500, GATHER_ONCE));
+  ch.SetIceConfig(CreateIceConfig(TimeDelta::Millis(500), GATHER_ONCE));
   // Wait until conn2 becomes not receiving.
   EXPECT_TRUE(WaitUntil([&] { return !conn2->receiving(); },
                         {.timeout = kMediumTimeout, .clock = &clock}));
@@ -5016,8 +5018,8 @@ TEST_F(P2PTransportChannelPingTest, TestConnectionPrunedAgain) {
   FakePortAllocator pa(env, ss());
   P2PTransportChannel ch(env, "test channel", 1, &pa);
   PrepareChannel(&ch);
-  IceConfig config = CreateIceConfig(1000, GATHER_ONCE);
-  config.receiving_switching_delay = 800;
+  IceConfig config = CreateIceConfig(TimeDelta::Seconds(1), GATHER_ONCE);
+  config.receiving_switching_delay = TimeDelta::Millis(800);
   ch.SetIceConfig(config);
   ch.MaybeStartGathering();
   ch.AddRemoteCandidate(
@@ -5115,7 +5117,7 @@ TEST_F(P2PTransportChannelPingTest, TestStopPortAllocatorSessions) {
   FakePortAllocator pa(env, ss());
   P2PTransportChannel ch(env, "test channel", 1, &pa);
   PrepareChannel(&ch);
-  ch.SetIceConfig(CreateIceConfig(2000, GATHER_ONCE));
+  ch.SetIceConfig(CreateIceConfig(TimeDelta::Seconds(2), GATHER_ONCE));
   ch.MaybeStartGathering();
   ch.AddRemoteCandidate(
       CreateUdpCandidate(IceCandidateType::kHost, "1.1.1.1", 1, 100));
@@ -5153,7 +5155,7 @@ TEST_F(P2PTransportChannelPingTest, TestIceRoleUpdatedOnRemovedPort) {
                          &pa);
   // Starts with ICEROLE_CONTROLLING.
   PrepareChannel(&ch);
-  IceConfig config = CreateIceConfig(1000, GATHER_CONTINUALLY);
+  IceConfig config = CreateIceConfig(TimeDelta::Seconds(1), GATHER_CONTINUALLY);
   ch.SetIceConfig(config);
   ch.MaybeStartGathering();
   ch.AddRemoteCandidate(
@@ -5288,7 +5290,7 @@ class P2PTransportChannelMostLikelyToWorkFirstTest
   P2PTransportChannel& StartTransportChannel(
       const Environment& env,
       bool prioritize_most_likely_to_work,
-      int stable_writable_connection_ping_interval) {
+      TimeDelta stable_writable_connection_ping_interval) {
     channel_ = std::make_unique<P2PTransportChannel>(env, "checks", 1,
                                                      port_allocator_.get());
     IceConfig config = channel_->config();
@@ -5333,7 +5335,7 @@ class P2PTransportChannelMostLikelyToWorkFirstTest
 TEST_F(P2PTransportChannelMostLikelyToWorkFirstTest,
        TestRelayRelayFirstWhenNothingPingedYet) {
   const Environment env = CreateEnvironment();
-  const int max_strong_interval = 500;
+  const TimeDelta max_strong_interval = TimeDelta::Millis(500);
   CreatePortAllocator(env);
   P2PTransportChannel& ch =
       StartTransportChannel(env, true, max_strong_interval);
@@ -5403,7 +5405,8 @@ TEST_F(P2PTransportChannelMostLikelyToWorkFirstTest,
        TestRelayRelayFirstWhenEverythingPinged) {
   const Environment env = CreateEnvironment();
   CreatePortAllocator(env);
-  P2PTransportChannel& ch = StartTransportChannel(env, true, 500);
+  P2PTransportChannel& ch =
+      StartTransportChannel(env, true, TimeDelta::Millis(500));
   EXPECT_THAT(WaitUntil([&] { return ch.ports().size(); }, Eq(2),
                         {.timeout = kDefaultTimeout}),
               IsRtcOk());
@@ -5449,7 +5452,8 @@ TEST_F(P2PTransportChannelMostLikelyToWorkFirstTest,
        TestNoStarvationOnNonRelayConnection) {
   const Environment env = CreateEnvironment();
   CreatePortAllocator(env);
-  P2PTransportChannel& ch = StartTransportChannel(env, true, 500);
+  P2PTransportChannel& ch =
+      StartTransportChannel(env, true, TimeDelta::Millis(500));
   EXPECT_THAT(WaitUntil([&] { return ch.ports().size(); }, Eq(2),
                         {.timeout = kDefaultTimeout}),
               IsRtcOk());
@@ -5498,7 +5502,8 @@ TEST_F(P2PTransportChannelMostLikelyToWorkFirstTest,
   const Environment env = CreateEnvironment(CreateTestFieldTrialsPtr(
       "WebRTC-IceFieldTrials/skip_relay_to_non_relay_connections:true/"));
   CreatePortAllocator(env);
-  P2PTransportChannel& ch = StartTransportChannel(env, true, 500);
+  P2PTransportChannel& ch =
+      StartTransportChannel(env, true, TimeDelta::Millis(500));
   EXPECT_THAT(WaitUntil([&] { return ch.ports().size(); }, Eq(2),
                         {.timeout = kDefaultTimeout}),
               IsRtcOk());
@@ -5531,7 +5536,8 @@ TEST_F(P2PTransportChannelMostLikelyToWorkFirstTest, TestTcpTurn) {
   config.ports.push_back(ProtocolAddress(kTurnTcpIntAddr, PROTO_TCP));
   CreatePortAllocator(env).AddTurnServerForTesting(config);
 
-  P2PTransportChannel& ch = StartTransportChannel(env, true, 500);
+  P2PTransportChannel& ch =
+      StartTransportChannel(env, true, TimeDelta::Millis(500));
   EXPECT_THAT(WaitUntil([&] { return ch.ports().size(); }, Eq(3),
                         {.timeout = kDefaultTimeout}),
               IsRtcOk());
@@ -6162,7 +6168,8 @@ TEST_F(P2PTransportChannelTest,
   ep2->allocator_->SetCandidateFilter(CF_RELAY);
   // Enable continual gathering and also resurfacing gathered candidates upon
   // the candidate filter changed in the ICE configuration.
-  IceConfig ice_config = CreateIceConfig(1000, GATHER_CONTINUALLY);
+  IceConfig ice_config =
+      CreateIceConfig(TimeDelta::Seconds(1), GATHER_CONTINUALLY);
   ice_config.surface_ice_candidates_on_ice_transport_type_changed = true;
   CreateChannels(env, ice_config, ice_config);
   ASSERT_THAT(
@@ -6237,7 +6244,8 @@ TEST_F(P2PTransportChannelTest,
   ep2->allocator_->SetCandidateFilter(CF_RELAY);
   // Enable continual gathering and also resurfacing gathered candidates upon
   // the candidate filter changed in the ICE configuration.
-  IceConfig ice_config = CreateIceConfig(1000, GATHER_CONTINUALLY);
+  IceConfig ice_config =
+      CreateIceConfig(TimeDelta::Seconds(1), GATHER_CONTINUALLY);
   ice_config.surface_ice_candidates_on_ice_transport_type_changed = true;
   CreateChannels(env, ice_config, ice_config);
   ASSERT_THAT(
@@ -6304,7 +6312,7 @@ TEST_F(P2PTransportChannelTest,
   ep1->allocator_->SetCandidateFilter(CF_RELAY);
   ep2->allocator_->SetCandidateFilter(CF_RELAY);
   // Only gather once.
-  IceConfig ice_config = CreateIceConfig(1000, GATHER_ONCE);
+  IceConfig ice_config = CreateIceConfig(TimeDelta::Seconds(1), GATHER_ONCE);
   ice_config.surface_ice_candidates_on_ice_transport_type_changed = true;
   CreateChannels(env, ice_config, ice_config);
   ASSERT_THAT(
@@ -6345,7 +6353,8 @@ TEST_F(P2PTransportChannelTest,
   ep2->allocator_->SetCandidateFilter(CF_ALL);
   // Enable continual gathering and also resurfacing gathered candidates upon
   // the candidate filter changed in the ICE configuration.
-  IceConfig ice_config = CreateIceConfig(1000, GATHER_CONTINUALLY);
+  IceConfig ice_config =
+      CreateIceConfig(TimeDelta::Seconds(1), GATHER_CONTINUALLY);
   ice_config.surface_ice_candidates_on_ice_transport_type_changed = true;
   // Pause candidates so we can gather all types of candidates. See
   // P2PTransportChannel::OnConnectionStateChange, where we would stop the
@@ -6426,7 +6435,8 @@ TEST_F(P2PTransportChannelTest, SurfaceRequiresCoordination) {
   ep2->allocator_->SetCandidateFilter(CF_ALL);
   // Enable continual gathering and also resurfacing gathered candidates upon
   // the candidate filter changed in the ICE configuration.
-  IceConfig ice_config = CreateIceConfig(1000, GATHER_CONTINUALLY);
+  IceConfig ice_config =
+      CreateIceConfig(TimeDelta::Seconds(1), GATHER_CONTINUALLY);
   ice_config.surface_ice_candidates_on_ice_transport_type_changed = true;
   // Pause candidates gathering so we can gather all types of candidates. See
   // P2PTransportChannel::OnConnectionStateChange, where we would stop the
@@ -6910,7 +6920,8 @@ TEST_P(GatherAfterConnectedTest, GatherAfterConnected) {
   int delay = 3000;
   SetAllocationStepDelay(0, delay);
   SetAllocationStepDelay(1, delay);
-  IceConfig ice_config = CreateIceConfig(1000, GATHER_CONTINUALLY);
+  IceConfig ice_config =
+      CreateIceConfig(TimeDelta::Seconds(1), GATHER_CONTINUALLY);
   CreateChannels(env, ice_config, ice_config);
 
   PauseCandidates(0);
@@ -6983,7 +6994,8 @@ TEST_P(GatherAfterConnectedTest, GatherAfterConnectedMultiHomed) {
   int delay = 3000;
   SetAllocationStepDelay(0, delay);
   SetAllocationStepDelay(1, delay);
-  IceConfig ice_config = CreateIceConfig(1000, GATHER_CONTINUALLY);
+  IceConfig ice_config =
+      CreateIceConfig(TimeDelta::Seconds(1), GATHER_CONTINUALLY);
   CreateChannels(env, ice_config, ice_config);
 
   PauseCandidates(0);
@@ -7040,7 +7052,7 @@ TEST_F(P2PTransportChannelTest, TestIceNoOldCandidatesAfterIceRestart) {
                      kDefaultPortAllocatorFlags);
 
   // gathers continually.
-  IceConfig config = CreateIceConfig(1000, GATHER_CONTINUALLY);
+  IceConfig config = CreateIceConfig(TimeDelta::Seconds(1), GATHER_CONTINUALLY);
   CreateChannels(env, config, config);
 
   EXPECT_TRUE(WaitUntil([&] { return CheckConnected(ep1_ch1(), ep2_ch1()); },

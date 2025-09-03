@@ -187,14 +187,14 @@ P2PTransportChannel::P2PTransportChannel(
       ice_role_(ICEROLE_UNKNOWN),
       gathering_state_(kIceGatheringNew),
       weak_ping_interval_(GetWeakPingIntervalInFieldTrial(env_.field_trials())),
-      config_(kReceivingTimeout.ms(),
-              kBackupConnectionPingInterval.ms(),
+      config_(kReceivingTimeout,
+              kBackupConnectionPingInterval,
               GATHER_ONCE /* continual_gathering_policy */,
               false /* prioritize_most_likely_candidate_pairs */,
-              kStrongAndStableWritableConnectionPingInterval.ms(),
+              kStrongAndStableWritableConnectionPingInterval,
               true /* presume_writable_when_fully_relayed */,
-              kRegatherOnFailedNetworksInterval.ms(),
-              kReceivingSwitchingDelay.ms()) {
+              kRegatherOnFailedNetworksInterval,
+              kReceivingSwitchingDelay) {
   TRACE_EVENT0("webrtc", "P2PTransportChannel::P2PTransportChannel");
   RTC_DCHECK(allocator_ != nullptr);
   RTC_DCHECK(!transport_name_.empty());
@@ -203,7 +203,7 @@ P2PTransportChannel::P2PTransportChannel(
   RTC_DCHECK(config_.IsValid().ok());
   BasicRegatheringController::Config regathering_config;
   regathering_config.regather_on_failed_networks_interval =
-      config_.regather_on_failed_networks_interval_or_default();
+      config_.regather_on_failed_networks_interval_or_default().ms();
   regathering_controller_ = std::make_unique<BasicRegatheringController>(
       regathering_config, this, network_thread_);
   // We populate the change in the candidate filter to the session taken by
@@ -279,10 +279,10 @@ void P2PTransportChannel::AddAllocatorSession(
 
 void P2PTransportChannel::AddConnection(Connection* connection) {
   RTC_DCHECK_RUN_ON(network_thread_);
-  connection->set_receiving_timeout(config_.receiving_timeout);
-  connection->set_unwritable_timeout(config_.ice_unwritable_timeout);
+  connection->SetReceivingTimeout(config_.receiving_timeout);
+  connection->SetUnwritableTimeout(config_.ice_unwritable_timeout);
   connection->set_unwritable_min_checks(config_.ice_unwritable_min_checks);
-  connection->set_inactive_timeout(config_.ice_inactive_timeout);
+  connection->SetInactiveTimeout(config_.ice_inactive_timeout);
   connection->RegisterReceivedPacketCallback(
       [&](Connection* connection, const ReceivedIpPacket& packet) {
         OnReadPacket(connection, packet);
@@ -554,7 +554,7 @@ void P2PTransportChannel::SetIceConfig(const IceConfig& config) {
   if (config_.receiving_timeout != config.receiving_timeout) {
     config_.receiving_timeout = config.receiving_timeout;
     for (Connection* connection : connections_) {
-      connection->set_receiving_timeout(config_.receiving_timeout);
+      connection->SetReceivingTimeout(config_.receiving_timeout);
     }
     RTC_LOG(LS_INFO) << "Set ICE receiving timeout to "
                      << config_.receiving_timeout_or_default()
@@ -645,7 +645,7 @@ void P2PTransportChannel::SetIceConfig(const IceConfig& config) {
   if (config_.ice_unwritable_timeout != config.ice_unwritable_timeout) {
     config_.ice_unwritable_timeout = config.ice_unwritable_timeout;
     for (Connection* conn : connections_) {
-      conn->set_unwritable_timeout(config_.ice_unwritable_timeout);
+      conn->SetUnwritableTimeout(config_.ice_unwritable_timeout);
     }
     RTC_LOG(LS_INFO) << "Set unwritable timeout to "
                      << config_.ice_unwritable_timeout_or_default();
@@ -663,7 +663,7 @@ void P2PTransportChannel::SetIceConfig(const IceConfig& config) {
   if (config_.ice_inactive_timeout != config.ice_inactive_timeout) {
     config_.ice_inactive_timeout = config.ice_inactive_timeout;
     for (Connection* conn : connections_) {
-      conn->set_inactive_timeout(config_.ice_inactive_timeout);
+      conn->SetInactiveTimeout(config_.ice_inactive_timeout);
     }
     RTC_LOG(LS_INFO) << "Set inactive timeout to "
                      << config_.ice_inactive_timeout_or_default();
@@ -692,7 +692,7 @@ void P2PTransportChannel::SetIceConfig(const IceConfig& config) {
 
   BasicRegatheringController::Config regathering_config;
   regathering_config.regather_on_failed_networks_interval =
-      config_.regather_on_failed_networks_interval_or_default();
+      config_.regather_on_failed_networks_interval_or_default().ms();
   regathering_controller_->SetConfig(regathering_config);
 
   config_.vpn_preference = config.vpn_preference;
@@ -826,10 +826,10 @@ const Connection* P2PTransportChannel::selected_connection() const {
   return selected_connection_;
 }
 
-int P2PTransportChannel::check_receiving_interval() const {
+TimeDelta P2PTransportChannel::check_receiving_interval() const {
   RTC_DCHECK_RUN_ON(network_thread_);
-  return std::max<int>(kMinCheckReceivingInterval.ms(),
-                       config_.receiving_timeout_or_default() / 10);
+  return std::max(kMinCheckReceivingInterval,
+                  config_.receiving_timeout_or_default() / 10);
 }
 
 void P2PTransportChannel::MaybeStartGathering() {

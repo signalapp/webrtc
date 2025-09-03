@@ -183,7 +183,10 @@ bool PortAllocator::SetConfiguration(
   // in future sessions. We also update the ready ports in the pooled sessions.
   // Ports in sessions that are taken and owned by P2PTransportChannel will be
   // updated there via IceConfig.
-  stun_candidate_keepalive_interval_ = stun_candidate_keepalive_interval;
+  stun_candidate_keepalive_interval_ =
+      stun_candidate_keepalive_interval.has_value()
+          ? std::optional(TimeDelta::Millis(*stun_candidate_keepalive_interval))
+          : std::nullopt;
   for (const auto& session : pooled_sessions_) {
     session->SetStunKeepaliveIntervalForReadyPorts(
         stun_candidate_keepalive_interval_);

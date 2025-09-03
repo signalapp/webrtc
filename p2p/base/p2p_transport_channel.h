@@ -197,7 +197,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
   }
 
   void PruneAllPorts();
-  int check_receiving_interval() const;
+  TimeDelta check_receiving_interval() const;
   std::optional<NetworkRoute> network_route() const override;
 
   void RemoveConnection(Connection* connection);
