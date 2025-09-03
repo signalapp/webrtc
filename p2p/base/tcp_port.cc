@@ -626,7 +626,8 @@ void TCPConnection::ConnectSocketSignals(AsyncPacketSocket* socket) {
   // Incoming connections register SignalSentPacket and SignalReadyToSend
   // directly on the port in TCPPort::OnNewConnection.
   if (outgoing_) {
-    socket->SignalConnect.connect(this, &TCPConnection::OnConnect);
+    socket->SubscribeConnect(
+        this, [this](AsyncPacketSocket* socket) { OnConnect(socket); });
     socket->SignalSentPacket.connect(this, &TCPConnection::OnSentPacket);
     socket->SignalReadyToSend.connect(this, &TCPConnection::OnReadyToSend);
   }
@@ -647,7 +648,7 @@ void TCPConnection::ConnectSocketSignals(AsyncPacketSocket* socket) {
 void TCPConnection::DisconnectSocketSignals(AsyncPacketSocket* socket) {
   if (outgoing_) {
     // Incoming connections do not register these signals in TCPConnection.
-    socket->SignalConnect.disconnect(this);
+    socket->UnsubscribeConnect(this);
     socket->SignalReadyToSend.disconnect(this);
     socket->SignalSentPacket.disconnect(this);
   }

@@ -179,7 +179,7 @@ void AsyncTCPSocketBase::AppendToOutBuffer(const void* pv, size_t cb) {
 }
 
 void AsyncTCPSocketBase::OnConnectEvent(Socket* socket) {
-  SignalConnect(this);
+  NotifyConnect(this);
 }
 
 void AsyncTCPSocketBase::OnReadEvent(Socket* socket) {

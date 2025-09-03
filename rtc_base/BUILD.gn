@@ -1349,6 +1349,7 @@ rtc_library("async_packet_socket") {
     ":checks",
     ":dscp",
     ":macromagic",
+    ":sigslot_trampoline",
     ":socket",
     ":socket_address",
     ":timeutils",

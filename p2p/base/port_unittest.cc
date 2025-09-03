@@ -1811,7 +1811,7 @@ TEST_F(PortTest, TestDisableInterfaceOfTcpPort) {
   Connection* lconn =
       lport->CreateConnection(rport->Candidates()[0], Port::ORIGIN_MESSAGE);
   ASSERT_NE(lconn, nullptr);
-  socket->SignalConnect(socket);
+  socket->NotifyConnect(socket);
   lconn->Ping(0);
 
   // Now disconnect the client socket...

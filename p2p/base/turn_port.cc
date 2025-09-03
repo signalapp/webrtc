@@ -490,7 +490,8 @@ bool TurnPort::CreateTurnClientSocket() {
   // while UDP port is ready to do so once the socket is created.
   if (server_address_.proto == PROTO_TCP ||
       server_address_.proto == PROTO_TLS) {
-    socket_->SignalConnect.connect(this, &TurnPort::OnSocketConnect);
+    socket_->SubscribeConnect(
+        [this](AsyncPacketSocket* socket) { OnSocketConnect(socket); });
     socket_->SubscribeCloseEvent(
         this, [this](AsyncPacketSocket* s, int err) { OnSocketClose(s, err); });
   } else {
