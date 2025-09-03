@@ -216,8 +216,10 @@ bool UDPPort::Init() {
   stun_keepalive_lifetime_ = GetStunKeepaliveLifetime();
   if (!SharedSocket()) {
     RTC_DCHECK(socket_ == nullptr);
-    socket_ = socket_factory()->CreateUdpSocket(
-        SocketAddress(Network()->GetBestIP(), 0), min_port(), max_port());
+    owned_socket_ = socket_factory()->CreateUdpSocket(
+        env(), SocketAddress(Network()->GetBestIP(), 0), min_port(),
+        max_port());
+    socket_ = owned_socket_.get();
     if (!socket_) {
       RTC_LOG(LS_WARNING) << ToString() << ": UDP socket creation failed";
       return false;
@@ -233,10 +235,7 @@ bool UDPPort::Init() {
   return true;
 }
 
-UDPPort::~UDPPort() {
-  if (!SharedSocket())
-    delete socket_;
-}
+UDPPort::~UDPPort() = default;
 
 void UDPPort::PrepareAddress() {
   RTC_DCHECK(request_manager_.empty());

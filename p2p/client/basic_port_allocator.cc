@@ -46,10 +46,10 @@
 #include "rtc_base/ip_address.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/net_helper.h"
-#include "rtc_base/net_helpers.h"
 #include "rtc_base/network.h"
 #include "rtc_base/network/received_packet.h"
 #include "rtc_base/network_constants.h"
+#include "rtc_base/platform_thread_types.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/thread.h"
@@ -1268,9 +1268,10 @@ AllocationSequence::AllocationSequence(
 
 void AllocationSequence::Init() {
   if (IsFlagSet(PORTALLOCATOR_ENABLE_SHARED_SOCKET)) {
-    udp_socket_.reset(session_->socket_factory()->CreateUdpSocket(
-        SocketAddress(network_->GetBestIP(), 0),
-        session_->allocator()->min_port(), session_->allocator()->max_port()));
+    BasicPortAllocator& allocator = *session_->allocator();
+    udp_socket_ = session_->socket_factory()->CreateUdpSocket(
+        allocator.env(), SocketAddress(network_->GetBestIP(), 0),
+        allocator.min_port(), allocator.max_port());
     if (udp_socket_) {
       udp_socket_->RegisterReceivedPacketCallback(
           [&](AsyncPacketSocket* socket, const ReceivedIpPacket& packet) {

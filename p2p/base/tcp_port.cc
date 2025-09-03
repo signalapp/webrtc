@@ -73,7 +73,6 @@
 #include <utility>
 
 #include "absl/algorithm/container.h"
-#include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "api/candidate.h"
 #include "api/environment/environment.h"
@@ -299,9 +298,9 @@ void TCPPort::OnNewConnection(AsyncListenSocket* socket,
 }
 
 void TCPPort::TryCreateServerSocket() {
-  listen_socket_ = absl::WrapUnique(socket_factory()->CreateServerTcpSocket(
-      SocketAddress(Network()->GetBestIP(), 0), min_port(), max_port(),
-      false /* ssl */));
+  listen_socket_ = socket_factory()->CreateServerTcpSocket(
+      env(), SocketAddress(Network()->GetBestIP(), 0), min_port(), max_port(),
+      /*opts=*/0);
   if (!listen_socket_) {
     RTC_LOG(LS_WARNING)
         << ToString()
@@ -599,9 +598,9 @@ void TCPConnection::CreateOutgoingTcpSocket() {
 
   PacketSocketTcpOptions tcp_opts;
   tcp_opts.opts = opts;
-  socket_.reset(port()->socket_factory()->CreateClientTcpSocket(
-      SocketAddress(port()->Network()->GetBestIP(), 0),
-      remote_candidate().address(), tcp_opts));
+  socket_ = port()->socket_factory()->CreateClientTcpSocket(
+      env(), SocketAddress(port()->Network()->GetBestIP(), 0),
+      remote_candidate().address(), tcp_opts);
   if (socket_) {
     RTC_LOG(LS_VERBOSE) << ToString() << ": Connecting from "
                         << socket_->GetLocalAddress().ToSensitiveString()
