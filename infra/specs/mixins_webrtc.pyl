@@ -251,20 +251,6 @@
       '--xctest',
     ],
   },
-  'xcode_17_main': {
-    'args': [
-      '--xcode-build-version',
-      '17a5305f',
-    ],
-    'swarming': {
-      'named_caches': [
-        {
-          'name': 'xcode_ios_17a5305f',
-          'path': 'Xcode.app',
-        },
-      ],
-    },
-  },
   'xcodebuild_sim_runner': {
     'args': ['--xcodebuild-sim-runner']
   }

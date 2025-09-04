@@ -15,7 +15,7 @@
       '17.5',
     ],
     'identifier': 'iPhone 14 17.5',
-    'mixins': ['xcode_17_main', 'ios_runtime_cache_17_5'],
+    'mixins': ['ios_runtime_cache_17_5'],
   },
   'SIM_IPHONE_15_18_2': {
     'args': [
@@ -25,6 +25,6 @@
       '18.2',
     ],
     'identifier': 'iPhone 15 18.2',
-    'mixins': ['xcode_17_main', 'ios_runtime_cache_18_2'],
+    'mixins': ['ios_runtime_cache_18_2'],
   },
 }
