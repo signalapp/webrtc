@@ -56,9 +56,9 @@ RTC_EXPORT std::string SdpSerializeCandidate(const Candidate& candidate);
 // jdesc - The JsepSessionDescription deserialized from the SDP string.
 // error - The detail error information when parsing fails.
 // return - true on success, false on failure.
-// TODO: bugs.webrtc.org/442220720 - Mark as deprecated and favour
-// SdpDeserialize() that accepts an SdpType and returns a session description
-// object.
+[[deprecated(
+    "Instead, use the SdpDeserialize() method that requires an SdpType and "
+    "returns std::unique_ptr<SessionDescriptionInterface>.")]]
 bool SdpDeserialize(absl::string_view message,
                     JsepSessionDescription* jdesc,
                     SdpParseError* error);

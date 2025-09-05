@@ -105,9 +105,10 @@ class JsepSessionDescriptionTest : public ::testing::Test {
 
   std::unique_ptr<SessionDescriptionInterface> DeSerialize(
       const std::string& sdp) {
-    auto jsep_desc = std::make_unique<JsepSessionDescription>(SdpType::kOffer);
-    EXPECT_TRUE(SdpDeserialize(sdp, jsep_desc.get(), nullptr));
-    return std::move(jsep_desc);
+    std::unique_ptr<SessionDescriptionInterface> jsep_desc =
+        SdpDeserialize(SdpType::kOffer, sdp);
+    EXPECT_THAT(jsep_desc, NotNull());
+    return jsep_desc;
   }
 
   Candidate candidate_;
