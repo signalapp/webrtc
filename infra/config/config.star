@@ -12,7 +12,7 @@
 
 """LUCI project configuration for WebRTC CQ and CI."""
 
-lucicfg.check_version("1.30.9")
+load("@chromium-luci//xcode.star", "xcode")
 
 WEBRTC_GIT = "https://webrtc.googlesource.com/src"
 WEBRTC_GERRIT = "https://webrtc-review.googlesource.com/src"
@@ -86,7 +86,6 @@ lucicfg.config(
         "project.cfg",
         "realms.cfg",
     ],
-    lint_checks = ["default"],
 )
 
 luci.project(
@@ -456,10 +455,10 @@ luci.tree_closer(
 
 # Recipe definitions:
 
-def recipe(recipe, pkg = "infra/recipe_bundles/chromium.googlesource.com/chromium/tools/build"):
+def recipe(recipe):
     return luci.recipe(
         name = recipe.split("/")[-1],
-        cipd_package = pkg,
+        cipd_package = "infra/recipe_bundles/chromium.googlesource.com/chromium/tools/build",
         cipd_version = "refs/heads/main",
         recipe = recipe,
     )
@@ -471,7 +470,7 @@ recipe("webrtc/ios_api_framework")
 recipe("webrtc/libfuzzer")
 recipe("webrtc/standalone")
 recipe("webrtc/update_webrtc_binary_version")
-recipe("lkgr_finder", pkg = "infra/recipe_bundles/chromium.googlesource.com/chromium/tools/build")
+recipe("lkgr_finder")
 
 # Console definitions:
 
@@ -728,11 +727,8 @@ def normal_builder_factory(**common_kwargs):
 # Mixins:
 
 ios_builder, ios_try_job = normal_builder_factory(
-    properties = {"xcode_build_version": WEBRTC_XCODE},
-    caches = [swarming.cache(
-        name = "xcode_ios_" + WEBRTC_XCODE,
-        path = "xcode_ios_" + WEBRTC_XCODE + ".app",
-    )],
+    properties = {"xcode_build_version": xcode.for_ios(WEBRTC_XCODE).version},
+    caches = [xcode.for_ios(WEBRTC_XCODE).cache],
 )
 
 # Actual builder configuration:
