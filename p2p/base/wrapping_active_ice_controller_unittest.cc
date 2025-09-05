@@ -26,23 +26,12 @@
 #include "rtc_base/event.h"
 #include "rtc_base/fake_clock.h"
 #include "rtc_base/thread.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
+namespace webrtc {
 namespace {
-
-using ::webrtc::Connection;
-using ::webrtc::IceConfig;
-using ::webrtc::IceControllerFactoryArgs;
-using ::webrtc::IceControllerInterface;
-using ::webrtc::IceMode;
-using ::webrtc::IceRecheckEvent;
-using ::webrtc::IceSwitchReason;
-using ::webrtc::MockIceAgent;
-using ::webrtc::MockIceController;
-using ::webrtc::MockIceControllerFactory;
-using ::webrtc::NominationMode;
-using ::webrtc::WrappingActiveIceController;
 
 using ::testing::_;
 using ::testing::ElementsAreArray;
@@ -51,11 +40,6 @@ using ::testing::NiceMock;
 using ::testing::Ref;
 using ::testing::Return;
 using ::testing::Sequence;
-
-using ::webrtc::AutoThread;
-using ::webrtc::Event;
-using ::webrtc::ScopedFakeClock;
-using ::webrtc::TimeDelta;
 
 using NiceMockIceController = NiceMock<MockIceController>;
 
@@ -72,7 +56,7 @@ constexpr TimeDelta kTick = TimeDelta::Millis(1);
 TEST(WrappingActiveIceControllerTest, CreateLegacyIceControllerFromFactory) {
   AutoThread main;
   MockIceAgent agent;
-  IceControllerFactoryArgs args;
+  IceControllerFactoryArgs args = {.env = CreateTestEnvironment()};
   MockIceControllerFactory legacy_controller_factory;
   EXPECT_CALL(legacy_controller_factory, RecordIceControllerCreated()).Times(1);
   WrappingActiveIceController controller(&agent, &legacy_controller_factory,
@@ -314,3 +298,4 @@ TEST(WrappingActiveIceControllerTest, StartPingingAfterSortAndSwitch) {
 }
 
 }  // namespace
+}  // namespace webrtc
