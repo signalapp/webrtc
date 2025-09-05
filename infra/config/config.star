@@ -73,23 +73,24 @@ luci.builder.defaults.test_presentation.set(
 )
 
 lucicfg.config(
-    config_dir = ".",
+    config_dir = "generated",
     tracked_files = [
-        "luci-analysis.cfg",
-        "commit-queue.cfg",
-        "cr-buildbucket.cfg",
-        "luci-logdog.cfg",
-        "luci-milo.cfg",
-        "luci-notify.cfg",
-        "luci-notify/**/*",
-        "luci-scheduler.cfg",
-        "project.cfg",
-        "realms.cfg",
+        "luci/commit-queue.cfg",
+        "luci/cr-buildbucket.cfg",
+        "luci/luci-analysis.cfg",
+        "luci/luci-logdog.cfg",
+        "luci/luci-milo.cfg",
+        "luci/luci-notify.cfg",
+        "luci/luci-notify/**/*",
+        "luci/luci-scheduler.cfg",
+        "luci/project.cfg",
+        "luci/realms.cfg",
     ],
 )
 
 luci.project(
     name = "webrtc",
+    config_dir = "luci",
     buildbucket = "cr-buildbucket.appspot.com",
     logdog = "luci-logdog.appspot.com",
     milo = "luci-milo.appspot.com",
@@ -155,7 +156,7 @@ luci.milo(
 ################################################################################
 
 lucicfg.emit(
-    dest = "luci-analysis.cfg",
+    dest = "luci/luci-analysis.cfg",
     data = io.read_file("luci-analysis.cfg"),
 )
 
@@ -400,7 +401,7 @@ luci.notifier(
     notify_blamelist = True,
     template = luci.notifier_template(
         name = "build_failure",
-        body = io.read_file("luci-notify/email-templates/build_failure.template"),
+        body = io.read_file("templates/build_failure.template"),
     ),
 )
 
@@ -410,7 +411,7 @@ luci.notifier(
     notify_emails = [WEBRTC_TROOPER_EMAIL],
     template = luci.notifier_template(
         name = "cron",
-        body = io.read_file("luci-notify/email-templates/cron.template"),
+        body = io.read_file("templates/cron.template"),
     ),
 )
 
@@ -420,7 +421,7 @@ luci.notifier(
     notify_emails = [WEBRTC_TROOPER_EMAIL],
     template = luci.notifier_template(
         name = "infra_failure",
-        body = io.read_file("luci-notify/email-templates/infra_failure.template"),
+        body = io.read_file("templates/infra_failure.template"),
     ),
 )
 

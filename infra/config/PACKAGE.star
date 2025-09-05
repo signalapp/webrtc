@@ -12,7 +12,7 @@
 
 pkg.declare(
     name = "@webrtc-project",
-    lucicfg = "1.30.9",
+    lucicfg = "1.45.6",
 )
 
 pkg.entrypoint("config.star")
@@ -35,5 +35,5 @@ pkg.depend(
 pkg.resources([
     "console-header.textpb",
     "luci-analysis.cfg",
-    "luci-notify/email-templates/*",
+    "templates/*",
 ])

@@ -6,11 +6,11 @@
 			"deps": [
 				"@chromium-luci"
 			],
-			"lucicfg": "1.30.9",
+			"lucicfg": "1.45.6",
 			"resources": [
 				"console-header.textpb",
 				"luci-analysis.cfg",
-				"luci-notify/email-templates/*"
+				"templates/*"
 			],
 			"entrypoints": [
 				"config.star"
