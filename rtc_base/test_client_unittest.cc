@@ -23,6 +23,7 @@
 #include "rtc_base/socket_address.h"
 #include "rtc_base/test_echo_server.h"
 #include "rtc_base/thread.h"
+#include "test/gmock.h"
 #include "test/gtest.h"
 
 #define MAYBE_SKIP_IPV4                        \
@@ -39,6 +40,8 @@
 
 namespace webrtc {
 namespace {
+
+using ::testing::NotNull;
 
 void TestUdpInternal(const SocketAddress& loopback) {
   PhysicalSocketServer socket_server;
@@ -59,10 +62,12 @@ void TestTcpInternal(const SocketAddress& loopback) {
   AutoSocketServerThread main_thread(&socket_server);
   TestEchoServer server(&main_thread, loopback);
 
-  Socket* socket = socket_server.CreateSocket(loopback.family(), SOCK_STREAM);
-  std::unique_ptr<AsyncTCPSocket> tcp_socket = absl::WrapUnique(
-      AsyncTCPSocket::Create(socket, loopback, server.address()));
-  ASSERT_TRUE(tcp_socket != nullptr);
+  std::unique_ptr<Socket> socket = absl::WrapUnique(
+      socket_server.CreateSocket(loopback.family(), SOCK_STREAM));
+  ASSERT_THAT(socket, NotNull());
+  ASSERT_EQ(socket->Bind(loopback), 0);
+  ASSERT_EQ(socket->Connect(server.address()), 0);
+  auto tcp_socket = std::make_unique<AsyncTCPSocket>(socket.release());
 
   TestClient client(std::move(tcp_socket));
   SocketAddress addr = client.address(), from;

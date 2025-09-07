@@ -49,22 +49,6 @@ static const size_t kMinimumRecvSize = 128;
 
 static const int kListenBacklog = 5;
 
-// Binds and connects `socket`
-Socket* AsyncTCPSocketBase::ConnectSocket(Socket* socket,
-                                          const SocketAddress& bind_address,
-                                          const SocketAddress& remote_address) {
-  std::unique_ptr<Socket> owned_socket(socket);
-  if (socket->Bind(bind_address) < 0) {
-    RTC_LOG(LS_ERROR) << "Bind() failed with error " << socket->GetError();
-    return nullptr;
-  }
-  if (socket->Connect(remote_address) < 0) {
-    RTC_LOG(LS_ERROR) << "Connect() failed with error " << socket->GetError();
-    return nullptr;
-  }
-  return owned_socket.release();
-}
-
 AsyncTCPSocketBase::AsyncTCPSocketBase(Socket* socket, size_t max_packet_size)
     : socket_(socket),
       max_insize_(max_packet_size),
@@ -242,17 +226,6 @@ void AsyncTCPSocketBase::OnWriteEvent(Socket* socket) {
 
 void AsyncTCPSocketBase::OnCloseEvent(Socket* socket, int error) {
   NotifyClosed(error);
-}
-
-// AsyncTCPSocket
-// Binds and connects `socket` and creates AsyncTCPSocket for
-// it. Takes ownership of `socket`. Returns null if bind() or
-// connect() fail (`socket` is destroyed in that case).
-AsyncTCPSocket* AsyncTCPSocket::Create(Socket* socket,
-                                       const SocketAddress& bind_address,
-                                       const SocketAddress& remote_address) {
-  return new AsyncTCPSocket(
-      AsyncTCPSocketBase::ConnectSocket(socket, bind_address, remote_address));
 }
 
 AsyncTCPSocket::AsyncTCPSocket(Socket* socket)

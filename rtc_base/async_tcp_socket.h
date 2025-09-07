@@ -57,12 +57,6 @@ class AsyncTCPSocketBase : public AsyncPacketSocket {
   void SetError(int error) override;
 
  protected:
-  // Binds and connects `socket` and creates AsyncTCPSocket for
-  // it. Takes ownership of `socket`. Returns null if bind() or
-  // connect() fail (`socket` is destroyed in that case).
-  static Socket* ConnectSocket(Socket* socket,
-                               const SocketAddress& bind_address,
-                               const SocketAddress& remote_address);
   int FlushOutBuffer();
   // Add data to `outbuf_`.
   void AppendToOutBuffer(const void* pv, size_t cb);
@@ -87,12 +81,6 @@ class AsyncTCPSocketBase : public AsyncPacketSocket {
 
 class AsyncTCPSocket : public AsyncTCPSocketBase {
  public:
-  // Binds and connects `socket` and creates AsyncTCPSocket for
-  // it. Takes ownership of `socket`. Returns null if bind() or
-  // connect() fail (`socket` is destroyed in that case).
-  static AsyncTCPSocket* Create(Socket* socket,
-                                const SocketAddress& bind_address,
-                                const SocketAddress& remote_address);
   explicit AsyncTCPSocket(Socket* socket);
   ~AsyncTCPSocket() override {}
 

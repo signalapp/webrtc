@@ -42,18 +42,6 @@ inline bool IsStunMessage(uint16_t msg_type) {
   return (msg_type & 0xC000) ? false : true;
 }
 
-// AsyncStunTCPSocket
-// Binds and connects `socket` and creates AsyncTCPSocket for
-// it. Takes ownership of `socket`. Returns NULL if bind() or
-// connect() fail (`socket` is destroyed in that case).
-AsyncStunTCPSocket* AsyncStunTCPSocket::Create(
-    Socket* socket,
-    const SocketAddress& bind_address,
-    const SocketAddress& remote_address) {
-  return new AsyncStunTCPSocket(
-      AsyncTCPSocketBase::ConnectSocket(socket, bind_address, remote_address));
-}
-
 AsyncStunTCPSocket::AsyncStunTCPSocket(Socket* socket)
     : AsyncTCPSocketBase(socket, kBufSize) {}
 

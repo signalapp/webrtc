@@ -18,19 +18,11 @@
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/async_tcp_socket.h"
 #include "rtc_base/socket.h"
-#include "rtc_base/socket_address.h"
 
 namespace webrtc {
 
 class AsyncStunTCPSocket : public AsyncTCPSocketBase {
  public:
-  // Binds and connects `socket` and creates AsyncTCPSocket for
-  // it. Takes ownership of `socket`. Returns NULL if bind() or
-  // connect() fail (`socket` is destroyed in that case).
-  static AsyncStunTCPSocket* Create(Socket* socket,
-                                    const SocketAddress& bind_address,
-                                    const SocketAddress& remote_address);
-
   explicit AsyncStunTCPSocket(Socket* socket);
 
   AsyncStunTCPSocket(const AsyncStunTCPSocket&) = delete;

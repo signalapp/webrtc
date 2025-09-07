@@ -29,9 +29,12 @@
 #include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/virtual_socket_server.h"
+#include "test/gmock.h"
 #include "test/gtest.h"
 
 namespace webrtc {
+
+using ::testing::NotNull;
 
 static unsigned char kStunMessageWithZeroLength[] = {
     0x00, 0x01, 0x00, 0x00,  // length of 0 (last 2 bytes)
@@ -91,12 +94,14 @@ class AsyncStunTCPSocketTest : public ::testing::Test,
     listen_socket_->SignalNewConnection.connect(
         this, &AsyncStunTCPSocketTest::OnNewConnection);
 
-    Socket* client = vss_->CreateSocket(kClientAddr.family(), SOCK_STREAM);
-    send_socket_.reset(AsyncStunTCPSocket::Create(
-        client, kClientAddr, listen_socket_->GetLocalAddress()));
+    std::unique_ptr<Socket> client =
+        absl::WrapUnique(vss_->CreateSocket(kClientAddr.family(), SOCK_STREAM));
+    ASSERT_THAT(client, NotNull());
+    ASSERT_EQ(client->Bind(kClientAddr), 0);
+    ASSERT_EQ(client->Connect(listen_socket_->GetLocalAddress()), 0);
+    send_socket_ = std::make_unique<AsyncStunTCPSocket>(client.release());
     send_socket_->SignalSentPacket.connect(
         this, &AsyncStunTCPSocketTest::OnSentPacket);
-    ASSERT_TRUE(send_socket_.get() != nullptr);
     vss_->ProcessMessagesUntilIdle();
   }
 
