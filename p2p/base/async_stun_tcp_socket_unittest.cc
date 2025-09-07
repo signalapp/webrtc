@@ -19,6 +19,7 @@
 
 #include "absl/memory/memory.h"
 #include "api/array_view.h"
+#include "api/environment/environment.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/async_tcp_socket.h"
 #include "rtc_base/buffer.h"
@@ -29,6 +30,7 @@
 #include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/virtual_socket_server.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -70,11 +72,16 @@ static const SocketAddress kServerAddr("22.22.22.22", 0);
 
 class AsyncStunServerTCPSocket : public AsyncTcpListenSocket {
  public:
-  explicit AsyncStunServerTCPSocket(std::unique_ptr<Socket> socket)
-      : AsyncTcpListenSocket(std::move(socket)) {}
+  AsyncStunServerTCPSocket(const Environment& env,
+                           std::unique_ptr<Socket> socket)
+      : AsyncTcpListenSocket(std::move(socket)), env_(env) {}
   void HandleIncomingConnection(Socket* socket) override {
-    SignalNewConnection(this, new AsyncStunTCPSocket(socket));
+    SignalNewConnection(this,
+                        new AsyncStunTCPSocket(env_, absl::WrapUnique(socket)));
   }
+
+ private:
+  const Environment env_;
 };
 
 class AsyncStunTCPSocketTest : public ::testing::Test,
@@ -86,20 +93,21 @@ class AsyncStunTCPSocketTest : public ::testing::Test,
   void SetUp() override { CreateSockets(); }
 
   void CreateSockets() {
+    const Environment env = CreateTestEnvironment();
     std::unique_ptr<Socket> server =
-        absl::WrapUnique(vss_->CreateSocket(kServerAddr.family(), SOCK_STREAM));
+        vss_->Create(kServerAddr.family(), SOCK_STREAM);
     server->Bind(kServerAddr);
     listen_socket_ =
-        std::make_unique<AsyncStunServerTCPSocket>(std::move(server));
+        std::make_unique<AsyncStunServerTCPSocket>(env, std::move(server));
     listen_socket_->SignalNewConnection.connect(
         this, &AsyncStunTCPSocketTest::OnNewConnection);
 
     std::unique_ptr<Socket> client =
-        absl::WrapUnique(vss_->CreateSocket(kClientAddr.family(), SOCK_STREAM));
+        vss_->Create(kClientAddr.family(), SOCK_STREAM);
     ASSERT_THAT(client, NotNull());
     ASSERT_EQ(client->Bind(kClientAddr), 0);
     ASSERT_EQ(client->Connect(listen_socket_->GetLocalAddress()), 0);
-    send_socket_ = std::make_unique<AsyncStunTCPSocket>(client.release());
+    send_socket_ = std::make_unique<AsyncStunTCPSocket>(env, std::move(client));
     send_socket_->SignalSentPacket.connect(
         this, &AsyncStunTCPSocketTest::OnSentPacket);
     vss_->ProcessMessagesUntilIdle();

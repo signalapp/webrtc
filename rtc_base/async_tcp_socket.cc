@@ -17,7 +17,10 @@
 #include <memory>
 #include <utility>
 
+#include "absl/base/nullability.h"
+#include "absl/memory/memory.h"
 #include "api/array_view.h"
+#include "api/environment/environment.h"
 #include "api/units/timestamp.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/byte_order.h"
@@ -49,8 +52,10 @@ static const size_t kMinimumRecvSize = 128;
 
 static const int kListenBacklog = 5;
 
-AsyncTCPSocketBase::AsyncTCPSocketBase(Socket* socket, size_t max_packet_size)
-    : socket_(socket),
+AsyncTCPSocketBase::AsyncTCPSocketBase(
+    absl_nonnull std::unique_ptr<Socket> socket,
+    size_t max_packet_size)
+    : socket_(std::move(socket)),
       max_insize_(max_packet_size),
       max_outsize_(max_packet_size) {
   inbuf_.EnsureCapacity(kMinimumRecvSize);
@@ -228,8 +233,12 @@ void AsyncTCPSocketBase::OnCloseEvent(Socket* socket, int error) {
   NotifyClosed(error);
 }
 
+AsyncTCPSocket::AsyncTCPSocket(const Environment& /*env*/,
+                               absl_nonnull std::unique_ptr<Socket> socket)
+    : AsyncTCPSocketBase(std::move(socket), kBufSize) {}
+
 AsyncTCPSocket::AsyncTCPSocket(Socket* socket)
-    : AsyncTCPSocketBase(socket, kBufSize) {}
+    : AsyncTCPSocketBase(absl::WrapUnique(socket), kBufSize) {}
 
 int AsyncTCPSocket::Send(const void* pv,
                          size_t cb,

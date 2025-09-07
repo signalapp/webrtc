@@ -50,6 +50,7 @@ rtc_library("async_stun_tcp_socket") {
   ]
   deps = [
     "../api:array_view",
+    "../api/environment",
     "../api/transport:stun_types",
     "../api/units:timestamp",
     "../rtc_base:async_packet_socket",
@@ -61,6 +62,8 @@ rtc_library("async_stun_tcp_socket") {
     "../rtc_base:timeutils",
     "../rtc_base/network:received_packet",
     "../rtc_base/network:sent_packet",
+    "//third_party/abseil-cpp/absl/base:nullability",
+    "//third_party/abseil-cpp/absl/memory",
   ]
 }
 
