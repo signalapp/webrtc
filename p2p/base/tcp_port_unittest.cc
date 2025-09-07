@@ -66,13 +66,14 @@ constexpr uint64_t kTiebreakerDefault = 44444;
 class ConnectionObserver : public sigslot::has_slots<> {
  public:
   explicit ConnectionObserver(Connection* conn) : conn_(conn) {
-    conn->SignalDestroyed.connect(this, &ConnectionObserver::OnDestroyed);
+    conn->SubscribeDestroyed(
+        this, [this](Connection* connection) { OnDestroyed(connection); });
   }
 
   ~ConnectionObserver() override {
     if (!connection_destroyed_) {
       RTC_DCHECK(conn_);
-      conn_->SignalDestroyed.disconnect(this);
+      conn_->UnsubscribeDestroyed(this);
     }
   }
 

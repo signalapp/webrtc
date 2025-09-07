@@ -1003,8 +1003,8 @@ class P2PTransportChannelTestBase : public ::testing::Test,
   void set_force_relay(bool relay) { force_relay_ = relay; }
 
   void ConnectSignalNominated(Connection* conn) {
-    conn->SignalNominated.connect(this,
-                                  &P2PTransportChannelTestBase::OnNominated);
+    conn->SubscribeNominated(
+        [this](Connection* connection) { OnNominated(connection); });
   }
 
   void OnNominated(Connection* conn) { nominated_ = true; }

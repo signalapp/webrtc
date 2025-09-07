@@ -314,11 +314,14 @@ class TestChannel : public sigslot::has_slots<> {
     IceMode remote_ice_mode =
         (ice_mode_ == ICEMODE_FULL) ? ICEMODE_LITE : ICEMODE_FULL;
     conn_->set_use_candidate_attr(remote_ice_mode == ICEMODE_FULL);
-    conn_->SignalStateChange.connect(this,
-                                     &TestChannel::OnConnectionStateChange);
-    conn_->SignalDestroyed.connect(this, &TestChannel::OnDestroyed);
-    conn_->SignalReadyToSend.connect(this,
-                                     &TestChannel::OnConnectionReadyToSend);
+    conn_->SubscribeStateChange([this](Connection* connection) {
+      OnConnectionStateChange(connection);
+    });
+    conn_->SubscribeDestroyed(
+        this, [this](Connection* connection) { OnDestroyed(connection); });
+    conn_->SubscribeReadyToSend([this](Connection* connection) {
+      OnConnectionReadyToSend(connection);
+    });
     connection_ready_to_send_ = false;
   }
 
@@ -330,14 +333,15 @@ class TestChannel : public sigslot::has_slots<> {
   }
   void AcceptConnection(const Candidate& remote_candidate) {
     if (conn_) {
-      conn_->SignalDestroyed.disconnect(this);
+      conn_->UnsubscribeDestroyed(this);
       conn_ = nullptr;
     }
     ASSERT_TRUE(remote_request_.get() != nullptr);
     Candidate c = remote_candidate;
     c.set_address(remote_address_);
     conn_ = port_->CreateConnection(c, Port::ORIGIN_MESSAGE);
-    conn_->SignalDestroyed.connect(this, &TestChannel::OnDestroyed);
+    conn_->SubscribeDestroyed(
+        this, [this](Connection* connection) { OnDestroyed(connection); });
     conn_->SendStunBindingResponse(remote_request_.get());
     remote_request_.reset();
   }
@@ -4096,8 +4100,9 @@ class ConnectionTest : public PortTest {
       conn = rport_->CreateConnection(lport_->Candidates()[0],
                                       Port::ORIGIN_MESSAGE);
     }
-    conn->SignalStateChange.connect(this,
-                                    &ConnectionTest::OnConnectionStateChange);
+    conn->SubscribeStateChange([this](Connection* connection) {
+      OnConnectionStateChange(connection);
+    });
     return conn;
   }
 

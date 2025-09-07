@@ -241,7 +241,7 @@ P2PTransportChannel::~P2PTransportChannel() {
   RTC_DCHECK_RUN_ON(network_thread_);
   std::vector<Connection*> copy(connections_.begin(), connections_.end());
   for (Connection* connection : copy) {
-    connection->SignalDestroyed.disconnect(this);
+    connection->UnsubscribeDestroyed(this);
     RemoveConnection(connection);
     connection->Destroy();
   }
@@ -306,13 +306,15 @@ void P2PTransportChannel::AddConnection(Connection* connection) {
       [&](Connection* connection, const ReceivedIpPacket& packet) {
         OnReadPacket(connection, packet);
       });
-  connection->SignalReadyToSend.connect(this,
-                                        &P2PTransportChannel::OnReadyToSend);
-  connection->SignalStateChange.connect(
-      this, &P2PTransportChannel::OnConnectionStateChange);
-  connection->SignalDestroyed.connect(
-      this, &P2PTransportChannel::OnConnectionDestroyed);
-  connection->SignalNominated.connect(this, &P2PTransportChannel::OnNominated);
+  connection->SubscribeReadyToSend(
+      [this](Connection* connection) { OnReadyToSend(connection); });
+  connection->SubscribeStateChange(
+      [this](Connection* connection) { OnConnectionStateChange(connection); });
+  connection->SubscribeDestroyed(this, [this](Connection* connection) {
+    OnConnectionDestroyed(connection);
+  });
+  connection->SubscribeNominated(
+      [this](Connection* connection) { OnNominated(connection); });
 
   had_connection_ = true;
 
@@ -1722,7 +1724,7 @@ ArrayView<Connection* const> P2PTransportChannel::connections() const {
 void P2PTransportChannel::RemoveConnectionForTest(Connection* connection) {
   RTC_DCHECK_RUN_ON(network_thread_);
   RTC_DCHECK(FindConnection(connection));
-  connection->SignalDestroyed.disconnect(this);
+  connection->UnsubscribeDestroyed(this);
   RemoveConnection(connection);
   RTC_DCHECK(!FindConnection(connection));
   if (selected_connection_ == connection)
@@ -2030,7 +2032,7 @@ void P2PTransportChannel::HandleAllTimedOut() {
       selected_connection_ = nullptr;
       update_selected_connection = true;
     }
-    connection->SignalDestroyed.disconnect(this);
+    connection->UnsubscribeDestroyed(this);
     RemoveConnection(connection);
     connection->Destroy();
   }

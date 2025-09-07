@@ -185,13 +185,14 @@ class TurnPortTestVirtualSocketServer : public VirtualSocketServer {
 class TestConnectionWrapper : public sigslot::has_slots<> {
  public:
   explicit TestConnectionWrapper(Connection* conn) : connection_(conn) {
-    conn->SignalDestroyed.connect(
-        this, &TestConnectionWrapper::OnConnectionDestroyed);
+    conn->SubscribeDestroyed(this, [this](Connection* connection) {
+      OnConnectionDestroyed(connection);
+    });
   }
 
   ~TestConnectionWrapper() override {
     if (connection_) {
-      connection_->SignalDestroyed.disconnect(this);
+      connection_->UnsubscribeDestroyed(this);
     }
   }
 
@@ -793,15 +794,18 @@ class TurnPortTest : public ::testing::Test,
           turn_packets_.push_back(
               Buffer(packet.payload().data(), packet.payload().size()));
         });
-    conn1->SignalDestroyed.connect(this,
-                                   &TurnPortTest::OnConnectionSignalDestroyed);
+
+    conn1->SubscribeDestroyed(this, [this](Connection* connection) {
+      OnConnectionSignalDestroyed(connection);
+    });
     conn2->RegisterReceivedPacketCallback(
         [&](Connection* connection, const ReceivedIpPacket& packet) {
           udp_packets_.push_back(
               Buffer(packet.payload().data(), packet.payload().size()));
         });
-    conn2->SignalDestroyed.connect(this,
-                                   &TurnPortTest::OnConnectionSignalDestroyed);
+    conn2->SubscribeDestroyed(this, [this](Connection* connection) {
+      OnConnectionSignalDestroyed(connection);
+    });
     conn1->Ping(0);
     EXPECT_THAT(WaitUntil([&] { return conn1->write_state(); },
                           Eq(Connection::STATE_WRITABLE),
@@ -866,15 +870,18 @@ class TurnPortTest : public ::testing::Test,
           turn_packets_.push_back(
               Buffer(packet.payload().data(), packet.payload().size()));
         });
-    conn1->SignalDestroyed.connect(this,
-                                   &TurnPortTest::OnConnectionSignalDestroyed);
+    conn1->SubscribeDestroyed(this, [this](Connection* connection) {
+      OnConnectionSignalDestroyed(connection);
+    });
+
     conn2->RegisterReceivedPacketCallback(
         [&](Connection* connection, const ReceivedIpPacket& packet) {
           udp_packets_.push_back(
               Buffer(packet.payload().data(), packet.payload().size()));
         });
-    conn2->SignalDestroyed.connect(this,
-                                   &TurnPortTest::OnConnectionSignalDestroyed);
+    conn2->SubscribeDestroyed(this, [this](Connection* connection) {
+      OnConnectionSignalDestroyed(connection);
+    });
 
     conn1->Ping(0);
     EXPECT_THAT(WaitUntil([&] { return conn1->write_state(); },
