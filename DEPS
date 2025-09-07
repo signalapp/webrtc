@@ -10,7 +10,7 @@ vars = {
   # chromium waterfalls. More info at: crbug.com/570091.
   'checkout_configuration': 'default',
   'checkout_instrumented_libraries': 'checkout_linux and checkout_configuration == "default"',
-  'chromium_revision': '52d007b2b77f8bffe3dceb71b39e3bcea5056b28',
+  'chromium_revision': 'b22e0146ab04c71b4aaf2ce6f85ddf838c3da981',
 
   # Fetch the prebuilt binaries for llvm-cov and llvm-profdata. Needed to
   # process the raw profiles produced by instrumented targets (built with
@@ -78,13 +78,13 @@ deps = {
     'condition': 'checkout_android',
   },
   'src/ios': {
-    'url': 'https://chromium.googlesource.com/chromium/src/ios@a9e4ec5ce2711d2e6dee0fc580c065203273eee8',
+    'url': 'https://chromium.googlesource.com/chromium/src/ios@8b13ba57af470bf9bc26935fc3415514fe603b51',
     'condition': 'checkout_ios',
   },
   'src/testing':
     'https://chromium.googlesource.com/chromium/src/testing@2936e399f82665f7aad6f71de0d934b8ef57b60e',
   'src/third_party':
-    'https://chromium.googlesource.com/chromium/src/third_party@0a651faa737d9696360d65f84b82b12fdeb92682',
+    'https://chromium.googlesource.com/chromium/src/third_party@ff200de5717fb93f39436b1387528b0f2b433808',
 
   'src/buildtools/linux64': {
     'packages': [
@@ -331,13 +331,13 @@ deps = {
   'src/third_party/clang-format/script':
     'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/clang/tools/clang-format.git@37f6e68a107df43b7d7e044fd36a13cbae3413f2',
   'src/third_party/compiler-rt/src':
-    'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/compiler-rt.git@e27cd227d8bfe7961dbdecfa0d61facac98ce3ff',
+    'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/compiler-rt.git@0c75031f1b7a0556a6cc07b6aa97a260278c5e0d',
   'src/third_party/libc++/src':
     'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxx.git@954086abf1216d110534fb3e21d8e86d6703cefb',
   'src/third_party/libc++abi/src':
     'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxxabi.git@f7f5a32b3e9582092d8a4511acec036a09ae8524',
   'src/third_party/llvm-libc/src':
-    'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libc.git@4e07ac808643d5eee8eec80eafd1a6761e530bd5',
+    'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libc.git@3601008ab24ea2791f9b3076231ae99af63dabed',
   'src/third_party/libunwind/src':
     'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libunwind.git@cf32009cc6080d61a09027c194f04be46d6aa236',
 
@@ -476,7 +476,7 @@ deps = {
   },
 
   'src/third_party/boringssl/src':
-    'https://boringssl.googlesource.com/boringssl.git@29cd444602d2153326db31b78d12b2a0f6c49e70',
+    'https://boringssl.googlesource.com/boringssl.git@b6b33a84ed7badd0441cec1324ba3ef7f1d897e2',
   'src/third_party/breakpad/breakpad':
     'https://chromium.googlesource.com/breakpad/breakpad.git@9ee62f8be56d632e2dcc91f652985f57de085088',
   'src/third_party/catapult':
@@ -499,7 +499,7 @@ deps = {
   'src/third_party/flatbuffers/src':
     'https://chromium.googlesource.com/external/github.com/google/flatbuffers.git@1c514626e83c20fffa8557e75641848e1e15cd5e',
   'src/third_party/grpc/src': {
-    'url': 'https://chromium.googlesource.com/external/github.com/grpc/grpc.git@36725b8b7e933a17d6a61bf3e1d92f8dbe6d11da',
+    'url': 'https://chromium.googlesource.com/external/github.com/grpc/grpc.git@88306ae1378bd8eb16e0dca20020e5db35b5769f',
   },
   # Used for embedded builds. CrOS & Linux use the system version.
   'src/third_party/fontconfig/src': {
@@ -599,7 +599,7 @@ deps = {
   'src/third_party/libvpx/source/libvpx':
     'https://chromium.googlesource.com/webm/libvpx.git@8d00aca60b951444582b1373e4e47f0ca6e0871c',
   'src/third_party/libyuv':
-    'https://chromium.googlesource.com/libyuv/libyuv.git@eb4e4736a4651dfed56d59465222851f71d42920',
+    'https://chromium.googlesource.com/libyuv/libyuv.git@06a1c004bbbca3cef3f468a8fe77704b855ca039',
   'src/third_party/lss': {
     'url': 'https://chromium.googlesource.com/linux-syscall-support.git@ed31caa60f20a4f6569883b2d752ef7522de51e0',
     'condition': 'checkout_android or checkout_linux',
