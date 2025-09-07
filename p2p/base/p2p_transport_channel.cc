@@ -255,16 +255,35 @@ void P2PTransportChannel::AddAllocatorSession(
   RTC_DCHECK_RUN_ON(network_thread_);
 
   session->set_generation(static_cast<uint32_t>(allocator_sessions_.size()));
-  session->SignalPortReady.connect(this, &P2PTransportChannel::OnPortReady);
-  session->SignalPortsPruned.connect(this, &P2PTransportChannel::OnPortsPruned);
-  session->SignalCandidatesReady.connect(
-      this, &P2PTransportChannel::OnCandidatesReady);
-  session->SignalCandidateError.connect(this,
-                                        &P2PTransportChannel::OnCandidateError);
-  session->SignalCandidatesRemoved.connect(
-      this, &P2PTransportChannel::OnCandidatesRemoved);
-  session->SignalCandidatesAllocationDone.connect(
-      this, &P2PTransportChannel::OnCandidatesAllocationDone);
+  session->SubscribePortReady(
+      [this](PortAllocatorSession* session, PortInterface* port) {
+        OnPortReady(session, port);
+      });
+
+  session->SubscribePortsPruned(
+      [this](PortAllocatorSession* session,
+             const std::vector<PortInterface*>& ports) {
+        OnPortsPruned(session, ports);
+      });
+
+  session->SubscribeCandidatesReady(
+      [this](PortAllocatorSession* session,
+             const std::vector<Candidate>& candidate) {
+        OnCandidatesReady(session, candidate);
+      });
+  session->SubscribeCandidateError([this](PortAllocatorSession* session,
+                                          const IceCandidateErrorEvent& event) {
+    OnCandidateError(session, event);
+  });
+  session->SubscribeCandidatesRemoved(
+      [this](PortAllocatorSession* session,
+             const std::vector<Candidate>& candidates) {
+        OnCandidatesRemoved(session, candidates);
+      });
+  session->SubscribeCandidatesAllocationDone(
+      [this](PortAllocatorSession* session) {
+        OnCandidatesAllocationDone(session);
+      });
   if (!allocator_sessions_.empty()) {
     allocator_session()->PruneAllPorts();
   }

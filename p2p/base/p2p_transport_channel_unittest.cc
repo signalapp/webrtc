@@ -465,10 +465,16 @@ class P2PTransportChannelTestBase : public ::testing::Test,
     ep2_.cd1_.ch_->SetIceConfig(ep2_config);
     ep1_.cd1_.ch_->MaybeStartGathering();
     ep2_.cd1_.ch_->MaybeStartGathering();
-    ep1_.cd1_.ch_->allocator_session()->SignalIceRegathering.connect(
-        &ep1_, &Endpoint::OnIceRegathering);
-    ep2_.cd1_.ch_->allocator_session()->SignalIceRegathering.connect(
-        &ep2_, &Endpoint::OnIceRegathering);
+    ep1_.cd1_.ch_->allocator_session()->SubscribeIceRegathering(
+        [this](PortAllocatorSession* allocator_session,
+               IceRegatheringReason reason) {
+          ep1_.OnIceRegathering(allocator_session, reason);
+        });
+    ep2_.cd1_.ch_->allocator_session()->SubscribeIceRegathering(
+        [this](PortAllocatorSession* allocator_session,
+               IceRegatheringReason reason) {
+          ep2_.OnIceRegathering(allocator_session, reason);
+        });
   }
 
   void CreateChannels(const Environment& env) {
