@@ -38,7 +38,6 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/random.h"
-#include "rtc_base/time_utils.h"
 
 namespace webrtc {
 namespace {
@@ -193,7 +192,7 @@ RtpPayloadParams::RtpPayloadParams(const uint32_t ssrc,
   chain_last_frame_id_.fill(-1);
   buffer_id_to_frame_id_.fill(-1);
 
-  Random random(TimeMicros());
+  Random random;
   state_.picture_id =
       state ? state->picture_id : (random.Rand<int16_t>() & 0x7FFF);
   state_.tl0_pic_idx = state ? state->tl0_pic_idx : (random.Rand<uint8_t>());
