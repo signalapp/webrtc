@@ -45,7 +45,7 @@ PacketSequencer::PacketSequencer(uint32_t media_ssrc,
       last_payload_type_(-1),
       last_rtp_timestamp_(0),
       last_packet_marker_bit_(false) {
-  Random random(clock_->TimeInMicroseconds());
+  Random random;
   // Random start, 16 bits. Upper half of range is avoided in order to prevent
   // SRTP wraparound issues during startup. See this unit test for details:
   // SrtpSessionTest.ProtectUnprotectWrapAroundRocMismatch
