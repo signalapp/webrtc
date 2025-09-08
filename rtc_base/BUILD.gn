@@ -251,6 +251,7 @@ rtc_library("random") {
   deps = [
     ":checks",
     ":safe_conversions",
+    "//third_party/abseil-cpp/absl/random",
   ]
 }
 
