@@ -3368,7 +3368,24 @@ bool SdpDeserialize(absl::string_view message,
     return false;
   }
 
+#if RTC_DCHECK_IS_ON
+  // The current implementation of JsepSessionDescription::Initialize()
+  // does not check if Initialize() has been called before on the same
+  // object. The side effect of that can be that while the number of
+  // media sections may get trimmed from a previous size, there might
+  // also be left-over candidates from previous use of the
+  // JsepSessionDescription object. The Initialize() method is being
+  // deprecated, but this check is meant to help with catching situations
+  // when pre-existing candidates exist just before the candidates from
+  // the media description get added.
+  for (size_t i = 0u; i < jdesc->number_of_mediasections(); ++i) {
+    RTC_DCHECK(jdesc->candidates(i)->empty());
+  }
+#endif
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   jdesc->Initialize(std::move(desc), session_id, session_version);
+#pragma clang diagnostic pop
 
   for (const auto& candidate : candidates) {
     jdesc->AddCandidate(candidate.get());

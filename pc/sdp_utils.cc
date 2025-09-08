@@ -36,7 +36,8 @@ std::unique_ptr<SessionDescriptionInterface> CloneSessionDescriptionAsType(
                                     sdesc->session_version(),
                                     sdesc->description()->Clone());
   }
-  return std::make_unique<JsepSessionDescription>(type);
+  RTC_DCHECK_EQ(type, SdpType::kRollback);
+  return std::make_unique<JsepSessionDescription>(type, nullptr, "", "");
 }
 
 bool SdpContentsAll(SdpContentPredicate pred, const SessionDescription* desc) {

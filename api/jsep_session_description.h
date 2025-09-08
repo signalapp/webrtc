@@ -29,6 +29,12 @@ class SessionDescription;
 // Implementation of SessionDescriptionInterface.
 class JsepSessionDescription final : public SessionDescriptionInterface {
  public:
+  // TODO: bugs.webrtc.org/442220720 - Remove this constructor and make sure
+  // that JsepSessionDescription can only be constructed with a valid
+  // SessionDescription object (with the exception of kRollback).
+  [[deprecated(
+      "JsepSessionDescription needs to be initialized with a valid description "
+      "object")]]
   explicit JsepSessionDescription(SdpType type);
   [[deprecated(
       "Use the CreateSessionDescription() method(s) to create an instance.")]]
@@ -43,10 +49,17 @@ class JsepSessionDescription final : public SessionDescriptionInterface {
   JsepSessionDescription& operator=(const JsepSessionDescription&) = delete;
 
   // Takes ownership of `description`.
-  // TODO(bugs.webrtc.org/442220720): Deprecate.
-  // [[deprecated(
-  //    "Use CreateSessionDescription() to construct
-  //    SessionDescriptionInterface objects.")]]
+  // TODO(bugs.webrtc.org/442220720): Remove and prefer raii traits, make state
+  // const where possible. The problem with the Initialize method is that it
+  // is an _optional_ 2-step initialization method that prevents the class from
+  // making state const and also has been used in tests (possibly elsewhere)
+  // to call Initialize() more than once on the same object and rely on the
+  // fact that the implementation did not reset part of the state when called
+  // (the candidate list could be partially, but not completely, trimmed),
+  // meaning that the pre and post state is indeterminate.
+  [[deprecated(
+      "Use CreateSessionDescription() to construct SessionDescriptionInterface "
+      "objects.")]]
   bool Initialize(std::unique_ptr<SessionDescription> description,
                   const std::string& session_id,
                   const std::string& session_version);
@@ -61,10 +74,8 @@ class JsepSessionDescription final : public SessionDescriptionInterface {
   std::string session_version() const override { return session_version_; }
   SdpType GetType() const override { return type_; }
   std::string type() const override { return SdpTypeToString(type_); }
-  // Allows changing the type. Used for testing.
   bool AddCandidate(const IceCandidate* candidate) override;
   bool RemoveCandidate(const IceCandidate* candidate) override;
-
   size_t number_of_mediasections() const override;
   const IceCandidateCollection* candidates(
       size_t mediasection_index) const override;
@@ -75,7 +86,7 @@ class JsepSessionDescription final : public SessionDescriptionInterface {
   std::string session_id_;
   std::string session_version_;
   const SdpType type_;
-  std::vector<JsepCandidateCollection> candidate_collection_;
+  std::vector<IceCandidateCollection> candidate_collection_;
 
   bool IsValidMLineIndex(int index) const;
   bool GetMediasectionIndex(const IceCandidate* candidate, size_t* index) const;

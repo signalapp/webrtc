@@ -128,9 +128,13 @@ TEST_F(JsepSessionDescriptionTest, CloneDefault) {
 }
 
 TEST_F(JsepSessionDescriptionTest, CloneRollback) {
-  auto jsep_desc = std::make_unique<JsepSessionDescription>(SdpType::kRollback);
+  auto jsep_desc = CreateRollbackSessionDescription(
+      absl::StrCat(CreateRandomId64()), absl::StrCat(CreateRandomId64()));
+  EXPECT_EQ(jsep_desc->GetType(), SdpType::kRollback);
   auto new_desc = jsep_desc->Clone();
   EXPECT_EQ(jsep_desc->type(), new_desc->type());
+  EXPECT_EQ(jsep_desc->session_id(), new_desc->session_id());
+  EXPECT_EQ(jsep_desc->session_version(), new_desc->session_version());
 }
 
 TEST_F(JsepSessionDescriptionTest, CloneWithCandidates) {
@@ -153,6 +157,18 @@ TEST_F(JsepSessionDescriptionTest, CloneWithCandidates) {
   ASSERT_TRUE(jsep_desc_->AddCandidate(&jice_v6_video));
   auto new_desc = jsep_desc_->Clone();
   EXPECT_EQ(jsep_desc_->type(), new_desc->type());
+  ASSERT_EQ(jsep_desc_->number_of_mediasections(),
+            new_desc->number_of_mediasections());
+  for (size_t i = 0; i < jsep_desc_->number_of_mediasections(); ++i) {
+    const IceCandidateCollection* old_collection = jsep_desc_->candidates(i);
+    const IceCandidateCollection* new_collection = new_desc->candidates(i);
+    ASSERT_EQ(old_collection->count(), new_collection->count());
+    for (size_t j = 0; j < old_collection->count(); ++j) {
+      const IceCandidate* old_candidate = old_collection->at(j);
+      const IceCandidate* new_candidate = new_collection->at(j);
+      EXPECT_EQ(old_candidate->ToString(), new_candidate->ToString());
+    }
+  }
   std::string old_desc_string;
   std::string new_desc_string;
   EXPECT_TRUE(jsep_desc_->ToString(&old_desc_string));

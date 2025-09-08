@@ -674,8 +674,7 @@ class PeerConnectionIntegrationWrapper : public PeerConnectionObserver,
     return WaitForDescriptionFromObserver(observer.get());
   }
   bool Rollback() {
-    return SetRemoteDescription(
-        CreateSessionDescription(SdpType::kRollback, ""));
+    return SetRemoteDescription(CreateRollbackSessionDescription());
   }
 
   // Functions for querying stats.

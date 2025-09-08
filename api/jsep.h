@@ -154,6 +154,9 @@ class IceCandidateCollection final {
   [[deprecated("Use unique_ptr version")]]
   void add(IceCandidate* candidate);
 
+  // Appends a collection of candidates.
+  void Append(IceCandidateCollection collection);
+
   // Removes the candidate that has a matching address and protocol.
   //
   // Returns the number of candidates that were removed.
@@ -313,6 +316,11 @@ std::unique_ptr<SessionDescriptionInterface> CreateSessionDescription(
     const std::string& session_id,
     const std::string& session_version,
     std::unique_ptr<SessionDescription> description);
+
+// Creates a rollback session description object (SdpType::kRollback).
+std::unique_ptr<SessionDescriptionInterface> CreateRollbackSessionDescription(
+    absl::string_view session_id = "",
+    absl::string_view session_version = "");
 
 // CreateOffer and CreateAnswer callback interface.
 class RTC_EXPORT CreateSessionDescriptionObserver : public RefCountInterface {

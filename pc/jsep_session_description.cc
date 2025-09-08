@@ -135,7 +135,7 @@ std::unique_ptr<SessionDescriptionInterface> CreateSessionDescription(
     const std::string& sdp,
     SdpParseError* error_out) {
   if (type == SdpType::kRollback) {
-    return std::make_unique<JsepSessionDescription>(type);
+    return CreateRollbackSessionDescription();
   }
   return SdpDeserialize(type, sdp, error_out);
 }
@@ -145,10 +145,17 @@ std::unique_ptr<SessionDescriptionInterface> CreateSessionDescription(
     const std::string& session_id,
     const std::string& session_version,
     std::unique_ptr<SessionDescription> description) {
-  if (!description)
+  if (!description && type != SdpType::kRollback)
     return nullptr;
   return std::make_unique<JsepSessionDescription>(type, std::move(description),
                                                   session_id, session_version);
+}
+
+std::unique_ptr<SessionDescriptionInterface> CreateRollbackSessionDescription(
+    absl::string_view session_id,
+    absl::string_view session_version) {
+  return std::make_unique<JsepSessionDescription>(
+      SdpType::kRollback, /*description=*/nullptr, session_id, session_version);
 }
 
 JsepSessionDescription::JsepSessionDescription(SdpType type) : type_(type) {}
@@ -165,7 +172,7 @@ JsepSessionDescription::JsepSessionDescription(
       session_id_(session_id),
       session_version_(session_version),
       type_(type) {
-  RTC_DCHECK(description_);
+  RTC_DCHECK(description_ || type == SdpType::kRollback);
   candidate_collection_.resize(number_of_mediasections());
 }
 
@@ -187,14 +194,15 @@ bool JsepSessionDescription::Initialize(
 
 std::unique_ptr<SessionDescriptionInterface> JsepSessionDescription::Clone()
     const {
-  auto new_description = std::make_unique<JsepSessionDescription>(type_);
-  new_description->session_id_ = session_id_;
-  new_description->session_version_ = session_version_;
-  if (description_) {
-    new_description->description_ = description_->Clone();
-  }
-  for (const auto& collection : candidate_collection_) {
-    new_description->candidate_collection_.push_back(collection.Clone());
+  auto new_description = std::make_unique<JsepSessionDescription>(
+      GetType(), description_.get() ? description_->Clone() : nullptr,
+      session_id_, session_version_);
+  RTC_DCHECK_EQ(new_description->candidate_collection_.size(),
+                candidate_collection_.size());
+  for (size_t i = 0; i < candidate_collection_.size(); ++i) {
+    RTC_DCHECK(new_description->candidate_collection_[i].empty());
+    new_description->candidate_collection_[i].Append(
+        candidate_collection_[i].Clone());
   }
   return new_description;
 }
