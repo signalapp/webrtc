@@ -157,6 +157,7 @@ RTPSender::RTPSender(const Environment& env,
                      RtpPacketHistory* packet_history,
                      RtpPacketSender* packet_sender)
     : clock_(&env.clock()),
+      random_(clock_->TimeInMicroseconds()),
       audio_configured_(config.audio),
       ssrc_(config.local_media_ssrc),
       rtx_ssrc_(config.rtx_send_ssrc),
