@@ -73,21 +73,6 @@ absl_nullable std::unique_ptr<SessionDescriptionInterface> SdpDeserialize(
     absl::string_view sdp,
     SdpParseError* absl_nullable error = nullptr);
 
-// Deserializes the passed in SDP string to a cricket Candidate.
-// The first line must be a=candidate line and only the first line will be
-// parsed.
-// transport_name - The transport name (MID) of the candidate.
-// message - The SDP string to be deserialized.
-// candidate - The cricket Candidate from the SDP string.
-// error - The detail error information when parsing fails.
-// return - true on success, false on failure.
-// TODO(bugs.webrtc.org/42233526): Remove.
-[[deprecated("Use IceCandidate::Create instead.")]]
-RTC_EXPORT bool SdpDeserializeCandidate(absl::string_view transport_name,
-                                        absl::string_view message,
-                                        Candidate* candidate,
-                                        SdpParseError* error);
-
 // Parses `message` according to the grammar defined in RFC 5245, Section 15.1
 // and, if successful, stores the result in `candidate` and returns true.
 // If unsuccessful, returns false and stores error information in `error` if

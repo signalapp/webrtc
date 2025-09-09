@@ -3433,21 +3433,6 @@ std::unique_ptr<SessionDescriptionInterface> SdpDeserialize(
   return description;
 }
 
-bool SdpDeserializeCandidate(absl::string_view transport_name,
-                             absl::string_view message,
-                             Candidate* candidate,
-                             SdpParseError* error) {
-  RTC_DCHECK(candidate != nullptr);
-  if (!ParseCandidate(message, candidate, error, true)) {
-    return false;
-  }
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-  candidate->set_transport_name(transport_name);
-#pragma clang diagnostic pop
-  return true;
-}
-
 bool ParseCandidate(absl::string_view message,
                     Candidate* candidate,
                     SdpParseError* error,
