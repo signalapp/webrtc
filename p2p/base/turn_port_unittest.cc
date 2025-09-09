@@ -659,7 +659,7 @@ class TurnPortTest : public ::testing::Test,
     Connection* conn1 = udp_port_->CreateConnection(turn_port_->Candidates()[0],
                                                     Port::ORIGIN_MESSAGE);
     ASSERT_TRUE(conn1 != nullptr);
-    conn1->Ping(0);
+    conn1->Ping();
     SIMULATED_WAIT(!turn_unknown_address_, kSimulatedRtt * 2, fake_clock_);
     EXPECT_FALSE(turn_unknown_address_);
     EXPECT_FALSE(conn1->receiving());
@@ -674,7 +674,7 @@ class TurnPortTest : public ::testing::Test,
                   {.timeout = TimeDelta::Millis(kSimulatedRtt),
                    .clock = &fake_clock_}),
         IsRtcOk());
-    conn2->Ping(0);
+    conn2->Ping();
 
     // Two hops from TURN port to UDP port through TURN server, thus two RTTs.
     EXPECT_THAT(WaitUntil([&] { return conn2->write_state(); },
@@ -687,7 +687,7 @@ class TurnPortTest : public ::testing::Test,
     EXPECT_EQ(Connection::STATE_WRITE_INIT, conn1->write_state());
 
     // Send another ping from UDP to TURN.
-    conn1->Ping(0);
+    conn1->Ping();
     EXPECT_THAT(WaitUntil([&] { return conn1->write_state(); },
                           Eq(Connection::STATE_WRITABLE),
                           {.timeout = TimeDelta::Millis(kSimulatedRtt * 2),
@@ -716,7 +716,7 @@ class TurnPortTest : public ::testing::Test,
                    .clock = &fake_clock_}),
         IsRtcOk());
     // Make sure turn connection can receive.
-    conn1->Ping(0);
+    conn1->Ping();
     EXPECT_THAT(WaitUntil([&] { return conn1->write_state(); },
                           Eq(Connection::STATE_WRITABLE),
                           {.timeout = TimeDelta::Millis(kSimulatedRtt * 2),
@@ -728,7 +728,7 @@ class TurnPortTest : public ::testing::Test,
     // the TURN port should still process a ping from an unknown address.
     turn_port_->DestroyConnection(conn2);
 
-    conn1->Ping(0);
+    conn1->Ping();
     EXPECT_THAT(WaitUntil([&] { return turn_unknown_address_; }, IsTrue(),
                           {.timeout = TimeDelta::Millis(kSimulatedRtt),
                            .clock = &fake_clock_}),
@@ -763,7 +763,7 @@ class TurnPortTest : public ::testing::Test,
     // Now restore the password before continuing.
     conn1->set_remote_password_for_test(pwd);
 
-    conn1->Ping(0);
+    conn1->Ping();
     EXPECT_THAT(WaitUntil([&] { return turn_unknown_address_; }, IsTrue(),
                           {.timeout = TimeDelta::Millis(kSimulatedRtt),
                            .clock = &fake_clock_}),
@@ -772,7 +772,7 @@ class TurnPortTest : public ::testing::Test,
     // If the connection is created again, it will start to receive pings.
     conn2 = turn_port_->CreateConnection(udp_port_->Candidates()[0],
                                          Port::ORIGIN_MESSAGE);
-    conn1->Ping(0);
+    conn1->Ping();
     EXPECT_THAT(WaitUntil([&] { return conn2->receiving(); }, IsTrue(),
                           {.timeout = TimeDelta::Millis(kSimulatedRtt),
                            .clock = &fake_clock_}),
@@ -806,13 +806,13 @@ class TurnPortTest : public ::testing::Test,
     conn2->SubscribeDestroyed(this, [this](Connection* connection) {
       OnConnectionSignalDestroyed(connection);
     });
-    conn1->Ping(0);
+    conn1->Ping();
     EXPECT_THAT(WaitUntil([&] { return conn1->write_state(); },
                           Eq(Connection::STATE_WRITABLE),
                           {.timeout = TimeDelta::Millis(kSimulatedRtt * 2),
                            .clock = &fake_clock_}),
                 IsRtcOk());
-    conn2->Ping(0);
+    conn2->Ping();
     EXPECT_THAT(WaitUntil([&] { return conn2->write_state(); },
                           Eq(Connection::STATE_WRITABLE),
                           {.timeout = TimeDelta::Millis(kSimulatedRtt * 2),
@@ -883,13 +883,13 @@ class TurnPortTest : public ::testing::Test,
       OnConnectionSignalDestroyed(connection);
     });
 
-    conn1->Ping(0);
+    conn1->Ping();
     EXPECT_THAT(WaitUntil([&] { return conn1->write_state(); },
                           Eq(Connection::STATE_WRITABLE),
                           {.timeout = TimeDelta::Millis(kSimulatedRtt * 2),
                            .clock = &fake_clock_}),
                 IsRtcOk());
-    conn2->Ping(0);
+    conn2->Ping();
     EXPECT_THAT(WaitUntil([&] { return conn2->write_state(); },
                           Eq(Connection::STATE_WRITABLE),
                           {.timeout = TimeDelta::Millis(kSimulatedRtt * 2),
@@ -1474,7 +1474,7 @@ TEST_F(TurnPortTest, TestStopProcessingPacketsAfterClosed) {
   ASSERT_TRUE(conn1 != nullptr);
   ASSERT_TRUE(conn2 != nullptr);
   // Make sure conn2 is writable.
-  conn2->Ping(0);
+  conn2->Ping();
   EXPECT_THAT(WaitUntil([&] { return conn2->write_state(); },
                         Eq(Connection::STATE_WRITABLE),
                         {.timeout = TimeDelta::Millis(kSimulatedRtt * 2),
@@ -1484,7 +1484,7 @@ TEST_F(TurnPortTest, TestStopProcessingPacketsAfterClosed) {
   turn_port_->CloseForTest();
   SIMULATED_WAIT(false, kSimulatedRtt, fake_clock_);
   turn_unknown_address_ = false;
-  conn2->Ping(0);
+  conn2->Ping();
   SIMULATED_WAIT(false, kSimulatedRtt, fake_clock_);
   // Since the turn port does not handle packets any more, it should not
   // SignalUnknownAddress.
@@ -1703,7 +1703,7 @@ TEST_F(TurnPortTest, TestChannelBindGetErrorResponse) {
                                                   Port::ORIGIN_MESSAGE);
 
   ASSERT_TRUE(conn2 != nullptr);
-  conn1->Ping(0);
+  conn1->Ping();
   EXPECT_THAT(WaitUntil([&] { return conn1->writable(); }, IsTrue(),
                         {.timeout = TimeDelta::Millis(kSimulatedRtt * 2),
                          .clock = &fake_clock_}),
