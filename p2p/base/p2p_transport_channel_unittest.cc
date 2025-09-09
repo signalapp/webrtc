@@ -40,6 +40,7 @@
 #include "api/transport/enums.h"
 #include "api/transport/stun.h"
 #include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "p2p/base/basic_ice_controller.h"
 #include "p2p/base/basic_packet_socket_factory.h"
 #include "p2p/base/candidate_pair_interface.h"
@@ -310,7 +311,6 @@ class P2PTransportChannelTestBase : public ::testing::Test,
         socket_factory_(new BasicPacketSocketFactory(ss_.get())),
         main_(ss_.get()),
         stun_server_(TestStunServer::Create(ss_.get(), kStunAddr, main_)),
-        turn_server_(&main_, ss_.get(), kTurnUdpIntAddr, kTurnUdpExtAddr),
         force_relay_(false) {
     ep1_.role_ = ICEROLE_CONTROLLING;
     ep2_.role_ = ICEROLE_CONTROLLED;
@@ -319,6 +319,8 @@ class P2PTransportChannelTestBase : public ::testing::Test,
   }
 
   void CreatePortAllocators(const Environment& env) {
+    turn_server_.emplace(env, &main_, ss_.get(), kTurnUdpIntAddr,
+                         kTurnUdpExtAddr);
     ServerAddresses stun_servers = {kStunAddr};
     ep1_.allocator_ = CreateBasicPortAllocator(
         env, &ep1_.network_manager_, socket_factory_.get(), stun_servers,
@@ -538,7 +540,10 @@ class P2PTransportChannelTestBase : public ::testing::Test,
   P2PTransportChannel* ep2_ch1() { return ep2_.cd1_.ch_.get(); }
   P2PTransportChannel* ep2_ch2() { return ep2_.cd2_.ch_.get(); }
 
-  TestTurnServer* test_turn_server() { return &turn_server_; }
+  TestTurnServer* test_turn_server() {
+    EXPECT_TRUE(turn_server_.has_value());
+    return &*turn_server_;
+  }
   VirtualSocketServer* virtual_socket_server() { return vss_.get(); }
 
   // Common results.
@@ -1020,7 +1025,7 @@ class P2PTransportChannelTestBase : public ::testing::Test,
   scoped_refptr<PendingTaskSafetyFlag> safety_ =
       PendingTaskSafetyFlag::Create();
   TestStunServer::StunServerPtr stun_server_;
-  TestTurnServer turn_server_;
+  std::optional<TestTurnServer> turn_server_;
   Endpoint ep1_;
   Endpoint ep2_;
   RemoteIceParameterSource remote_ice_parameter_source_ = FROM_CANDIDATE;
@@ -5274,15 +5279,13 @@ TEST_F(P2PTransportChannelPingTest, TestMaxOutstandingPingsFieldTrial) {
 class P2PTransportChannelMostLikelyToWorkFirstTest
     : public P2PTransportChannelPingTest {
  public:
-  P2PTransportChannelMostLikelyToWorkFirstTest()
-      : turn_server_(Thread::Current(),
-                     ss(),
-                     kTurnUdpIntAddr,
-                     kTurnUdpExtAddr) {
+  P2PTransportChannelMostLikelyToWorkFirstTest() {
     network_manager_.AddInterface(kPublicAddrs[0]);
   }
 
   BasicPortAllocator& CreatePortAllocator(const Environment& env) {
+    turn_server_.emplace(env, Thread::Current(), ss(), kTurnUdpIntAddr,
+                         kTurnUdpExtAddr);
     port_allocator_ = CreateBasicPortAllocator(
         env, &network_manager_, packet_socket_factory(), ServerAddresses(),
         kTurnUdpIntAddr, SocketAddress());
@@ -5310,7 +5313,10 @@ class P2PTransportChannelMostLikelyToWorkFirstTest
     return *channel_;
   }
 
-  TestTurnServer* turn_server() { return &turn_server_; }
+  TestTurnServer& turn_server() {
+    EXPECT_TRUE(turn_server_.has_value());
+    return *turn_server_;
+  }
 
   // This verifies the next pingable connection has the expected candidates'
   // types and, for relay local candidate, the expected relay protocol and ping
@@ -5331,7 +5337,7 @@ class P2PTransportChannelMostLikelyToWorkFirstTest
  private:
   std::unique_ptr<BasicPortAllocator> port_allocator_;
   FakeNetworkManager network_manager_{Thread::Current()};
-  TestTurnServer turn_server_;
+  std::optional<TestTurnServer> turn_server_;
   std::unique_ptr<P2PTransportChannel> channel_;
 };
 
@@ -5535,12 +5541,12 @@ TEST_F(P2PTransportChannelMostLikelyToWorkFirstTest,
 // followed by the rest.
 TEST_F(P2PTransportChannelMostLikelyToWorkFirstTest, TestTcpTurn) {
   const Environment env = CreateEnvironment();
-  // Add a Tcp Turn server.
-  turn_server()->AddInternalSocket(kTurnTcpIntAddr, PROTO_TCP);
   RelayServerConfig config;
   config.credentials = kRelayCredentials;
   config.ports.push_back(ProtocolAddress(kTurnTcpIntAddr, PROTO_TCP));
   CreatePortAllocator(env).AddTurnServerForTesting(config);
+  // Add a Tcp Turn server.
+  turn_server().AddInternalSocket(kTurnTcpIntAddr, PROTO_TCP);
 
   P2PTransportChannel& ch =
       StartTransportChannel(env, true, TimeDelta::Millis(500));

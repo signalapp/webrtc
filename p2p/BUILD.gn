@@ -1127,6 +1127,7 @@ if (rtc_include_tests) {
       "../api:sequence_checker",
       "../api:turn_customizer",
       "../api/crypto:options",
+      "../api/environment",
       "../api/transport:ecn_marking",
       "../api/transport:enums",
       "../api/transport:stun_types",
@@ -1159,6 +1160,7 @@ if (rtc_include_tests) {
       "../rtc_base/synchronization:mutex",
       "../rtc_base/third_party/sigslot",
       "../test:test_support",
+      "//third_party/abseil-cpp/absl/memory",
       "//third_party/abseil-cpp/absl/strings:string_view",
     ]
   }
@@ -1326,6 +1328,7 @@ rtc_library("p2p_server_utils") {
     "../api:array_view",
     "../api:packet_socket_factory",
     "../api:sequence_checker",
+    "../api/environment",
     "../api/task_queue",
     "../api/task_queue:pending_task_safety_flag",
     "../api/transport:stun_types",

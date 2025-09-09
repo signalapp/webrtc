@@ -1658,7 +1658,8 @@ class PeerConnectionIntegrationBaseTest : public ::testing::Test {
     std::unique_ptr<TestTurnServer> turn_server;
     SendTask(network_thread(), [&] {
       turn_server = std::make_unique<TestTurnServer>(
-          thread, socket_factory, internal_address, external_address, type,
+          CreateTestEnvironment(), thread, socket_factory, internal_address,
+          external_address, type,
           /*ignore_bad_certs=*/true, common_name);
     });
     turn_servers_.push_back(std::move(turn_server));
