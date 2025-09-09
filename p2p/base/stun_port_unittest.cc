@@ -21,6 +21,7 @@
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/candidate.h"
+#include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
 #include "api/field_trials.h"
 #include "api/field_trials_view.h"
@@ -57,6 +58,7 @@
 #include "rtc_base/thread.h"
 #include "rtc_base/virtual_socket_server.h"
 #include "system_wrappers/include/metrics.h"
+#include "test/create_test_environment.h"
 #include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
@@ -225,11 +227,13 @@ class StunPortTestBase : public ::testing::Test, public sigslot::has_slots<> {
       const webrtc::SocketAddress& server_addr,
       webrtc::AsyncPacketSocket* socket,
       const webrtc::FieldTrialsView* field_trials = nullptr) {
+    const Environment env =
+        CreateTestEnvironment({.field_trials = field_trials});
     if (socket) {
       socket_.reset(socket);
     } else {
-      socket_.reset(socket_factory()->CreateUdpSocket(
-          webrtc::SocketAddress(kPrivateIP.ipaddr(), 0), 0, 0));
+      socket_ = socket_factory()->CreateUdpSocket(
+          env, webrtc::SocketAddress(kPrivateIP.ipaddr(), 0), 0, 0);
     }
     ASSERT_TRUE(socket_ != nullptr);
     socket_->RegisterReceivedPacketCallback(
@@ -240,7 +244,7 @@ class StunPortTestBase : public ::testing::Test, public sigslot::has_slots<> {
     ServerAddresses stun_servers;
     stun_servers.insert(server_addr);
     stun_port_ = webrtc::UDPPort::Create(
-        {.env = CreateEnvironment(field_trials),
+        {.env = env,
          .network_thread = &thread_,
          .socket_factory = socket_factory(),
          .network = network_,

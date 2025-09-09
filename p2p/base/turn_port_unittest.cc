@@ -336,8 +336,8 @@ class TurnPortTest : public ::testing::Test,
     RTC_CHECK(server_address.proto == PROTO_UDP);
 
     if (!socket_) {
-      socket_.reset(socket_factory()->CreateUdpSocket(
-          SocketAddress(kLocalAddr1.ipaddr(), 0), 0, 0));
+      socket_ = socket_factory()->CreateUdpSocket(
+          env_, SocketAddress(kLocalAddr1.ipaddr(), 0), 0, 0);
       ASSERT_TRUE(socket_ != nullptr);
       socket_->RegisterReceivedPacketCallback(
           [&](AsyncPacketSocket* socket, const ReceivedIpPacket& packet) {
