@@ -149,6 +149,7 @@ DcSctpTransport::DcSctpTransport(
     : network_thread_(network_thread),
       transport_(transport),
       env_(env),
+      random_(env_.clock().TimeInMicroseconds()),
       socket_factory_(std::move(socket_factory)),
       task_queue_timeout_factory_(
           *network_thread,
