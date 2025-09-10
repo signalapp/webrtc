@@ -17,6 +17,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
@@ -111,7 +112,15 @@ class PortInterface {
                    const std::string&,
                    bool>
       SignalUnknownAddress;
-
+  virtual void SubscribeUnknownAddress(
+      absl::AnyInvocable<void(PortInterface*,
+                              const SocketAddress&,
+                              ProtocolType,
+                              IceMessage*,
+                              const std::string&,
+                              bool)> callback) {
+    unknown_address_trampoline_.Subscribe(std::move(callback));
+  }
   // Sends a response message (normal or error) to the given request.  One of
   // these methods should be called as a response to SignalUnknownAddress.
   virtual void SendBindingErrorResponse(StunMessage* message,
@@ -137,9 +146,19 @@ class PortInterface {
   virtual void EnablePortPackets() = 0;
   sigslot::signal4<PortInterface*, const char*, size_t, const SocketAddress&>
       SignalReadPacket;
+  virtual void SubscribeReadPacket(
+      absl::AnyInvocable<
+          void(PortInterface*, const char*, size_t, const SocketAddress&)>
+          callback) {
+    read_packet_trampoline_.Subscribe(std::move(callback));
+  }
 
   // Emitted each time a packet is sent on this port.
   sigslot::signal1<const SentPacketInfo&> SignalSentPacket;
+  virtual void SubscribeSentPacket(
+      absl::AnyInvocable<void(const SentPacketInfo&)> callback) {
+    sent_packet_trampoline_.Subscribe(std::move(callback));
+  }
 
   virtual std::string ToString() const = 0;
 
@@ -205,6 +224,14 @@ class PortInterface {
   // Connection and Port are entangled; functions exposed to Port only
   // should not be public.
   friend class Connection;
+
+ private:
+  SignalTrampoline<PortInterface, &PortInterface::SignalUnknownAddress>
+      unknown_address_trampoline_;
+  SignalTrampoline<PortInterface, &PortInterface::SignalReadPacket>
+      read_packet_trampoline_;
+  SignalTrampoline<PortInterface, &PortInterface::SignalSentPacket>
+      sent_packet_trampoline_;
 };
 
 }  //  namespace webrtc

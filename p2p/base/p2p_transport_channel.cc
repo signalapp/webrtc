@@ -931,9 +931,15 @@ void P2PTransportChannel::OnPortReady(PortAllocatorSession* /* session */,
   port->SetIceRole(ice_role_);
   port->SetIceTiebreaker(allocator_->ice_tiebreaker());
   ports_.push_back(port);
-  port->SignalUnknownAddress.connect(this,
-                                     &P2PTransportChannel::OnUnknownAddress);
-  port->SignalSentPacket.connect(this, &P2PTransportChannel::OnSentPacket);
+  port->SubscribeUnknownAddress(
+      [this](PortInterface* port, const SocketAddress& address,
+             ProtocolType proto, IceMessage* stun_msg,
+             const std::string& remote_username, bool port_muxed) {
+        OnUnknownAddress(port, address, proto, stun_msg, remote_username,
+                         port_muxed);
+      });
+  port->SubscribeSentPacket(
+      [this](const SentPacketInfo& sent_packet) { OnSentPacket(sent_packet); });
 
   port->SubscribePortDestroyed(
       [this](PortInterface* port) { OnPortDestroyed(port); });
