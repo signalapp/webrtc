@@ -36,9 +36,6 @@ class JsepSessionDescription final : public SessionDescriptionInterface {
       "JsepSessionDescription needs to be initialized with a valid description "
       "object")]]
   explicit JsepSessionDescription(SdpType type);
-  [[deprecated(
-      "Use the CreateSessionDescription() method(s) to create an instance.")]]
-  explicit JsepSessionDescription(const std::string& type);
   JsepSessionDescription(SdpType type,
                          std::unique_ptr<SessionDescription> description,
                          absl::string_view session_id,

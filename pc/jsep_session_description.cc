@@ -44,14 +44,6 @@ namespace {
 constexpr char kDummyAddress[] = "0.0.0.0";
 constexpr int kDummyPort = 9;
 
-// Remove this method when the deprecated constructor that calls it has been
-// removed.
-SdpType SdpTypeFromStringOrDie(const std::string& type) {
-  auto sdp_type = SdpTypeFromString(type);
-  RTC_CHECK(sdp_type.has_value());
-  return sdp_type.value();
-}
-
 // Update the connection address for the MediaContentDescription based on the
 // candidates.
 void UpdateConnectionAddress(
@@ -159,9 +151,6 @@ std::unique_ptr<SessionDescriptionInterface> CreateRollbackSessionDescription(
 }
 
 JsepSessionDescription::JsepSessionDescription(SdpType type) : type_(type) {}
-
-JsepSessionDescription::JsepSessionDescription(const std::string& type)
-    : JsepSessionDescription(SdpTypeFromStringOrDie(type)) {}
 
 JsepSessionDescription::JsepSessionDescription(
     SdpType type,
