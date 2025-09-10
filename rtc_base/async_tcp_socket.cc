@@ -293,8 +293,9 @@ size_t AsyncTCPSocket::ProcessInput(ArrayView<const uint8_t> data) {
   }
 }
 
-AsyncTcpListenSocket::AsyncTcpListenSocket(std::unique_ptr<Socket> socket)
-    : socket_(std::move(socket)) {
+AsyncTcpListenSocket::AsyncTcpListenSocket(const Environment& env,
+                                           std::unique_ptr<Socket> socket)
+    : env_(env), socket_(std::move(socket)) {
   RTC_DCHECK(socket_.get() != nullptr);
   socket_->SignalReadEvent.connect(this, &AsyncTcpListenSocket::OnReadEvent);
   if (socket_->Listen(kListenBacklog) < 0) {
@@ -330,14 +331,15 @@ void AsyncTcpListenSocket::OnReadEvent(Socket* socket) {
     return;
   }
 
-  HandleIncomingConnection(new_socket);
+  HandleIncomingConnection(absl::WrapUnique(new_socket));
 
   // Prime a read event in case data is waiting.
   new_socket->SignalReadEvent(new_socket);
 }
 
-void AsyncTcpListenSocket::HandleIncomingConnection(Socket* socket) {
-  SignalNewConnection(this, new AsyncTCPSocket(socket));
+void AsyncTcpListenSocket::HandleIncomingConnection(
+    std::unique_ptr<Socket> socket) {
+  SignalNewConnection(this, new AsyncTCPSocket(env_, std::move(socket)));
 }
 
 }  // namespace webrtc
