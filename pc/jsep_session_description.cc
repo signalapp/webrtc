@@ -178,20 +178,6 @@ JsepSessionDescription::JsepSessionDescription(
 
 JsepSessionDescription::~JsepSessionDescription() {}
 
-bool JsepSessionDescription::Initialize(
-    std::unique_ptr<SessionDescription> description,
-    const std::string& session_id,
-    const std::string& session_version) {
-  if (!description)
-    return false;
-
-  session_id_ = session_id;
-  session_version_ = session_version;
-  description_ = std::move(description);
-  candidate_collection_.resize(number_of_mediasections());
-  return true;
-}
-
 std::unique_ptr<SessionDescriptionInterface> JsepSessionDescription::Clone()
     const {
   auto new_description = std::make_unique<JsepSessionDescription>(
