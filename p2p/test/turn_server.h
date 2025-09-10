@@ -270,6 +270,9 @@ class TurnServer : public sigslot::has_slots<> {
   }
 
  private:
+  using ServerSocketMap =
+      std::map<std::unique_ptr<AsyncPacketSocket>, ProtocolType>;
+
   // All private member functions and variables should have access restricted to
   // thread_. But compile-time annotations are missing for members access from
   // TurnServerAllocation (via friend declaration).
@@ -279,9 +282,6 @@ class TurnServer : public sigslot::has_slots<> {
                         const ReceivedIpPacket& packet) RTC_RUN_ON(thread_);
 
   void OnNewInternalConnection(Socket* socket);
-
-  // Accept connections on this server socket.
-  void AcceptConnection(Socket* server_socket) RTC_RUN_ON(thread_);
   void OnInternalSocketClose(AsyncPacketSocket* socket, int err);
 
   void HandleStunMessage(TurnServerConnection* conn,
@@ -325,7 +325,8 @@ class TurnServer : public sigslot::has_slots<> {
   void Send(TurnServerConnection* conn, const ByteBufferWriter& buf);
 
   void DestroyAllocation(TurnServerAllocation* allocation) RTC_RUN_ON(thread_);
-  void DestroyInternalSocket(AsyncPacketSocket* socket) RTC_RUN_ON(thread_);
+  void DestroyInternalSocket(ServerSocketMap::iterator iter)
+      RTC_RUN_ON(thread_);
 
   struct ServerSocketInfo {
     ProtocolType proto;
@@ -348,12 +349,8 @@ class TurnServer : public sigslot::has_slots<> {
   // Check for permission when receiving an external packet.
   bool enable_permission_checks_ = true;
 
-  // `server_sockets_` and `server_listen_sockets_` use raw pointers as keys,
-  // but de-facto they should be unique_ptr. It is responsibility of the
-  // TurnServer to de-allocate keys when map entries are erased.
-  std::map<AsyncPacketSocket*, ProtocolType> server_sockets_
-      RTC_GUARDED_BY(thread_);
-  std::map<Socket*, ServerSocketInfo> server_listen_sockets_
+  ServerSocketMap server_sockets_ RTC_GUARDED_BY(thread_);
+  std::map<std::unique_ptr<Socket>, ServerSocketInfo> server_listen_sockets_
       RTC_GUARDED_BY(thread_);
   std::unique_ptr<PacketSocketFactory> external_socket_factory_
       RTC_GUARDED_BY(thread_);
