@@ -2136,9 +2136,12 @@ TEST_P(PeerConnectionIntegrationIceStatesTest, MAYBE_VerifyBestConnection) {
     EXPECT_METRIC_EQ(0, num_best_ipv6);
   }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   EXPECT_METRIC_EQ(
       0, metrics::NumEvents("WebRTC.PeerConnection.CandidatePairType_UDP",
                             kIceCandidatePairHostHost));
+#pragma clang diagnostic pop
   EXPECT_METRIC_EQ(
       1, metrics::NumEvents("WebRTC.PeerConnection.CandidatePairType_UDP",
                             kIceCandidatePairHostPublicHostPublic));
