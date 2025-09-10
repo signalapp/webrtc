@@ -157,7 +157,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
 
   // From IceAgentInterface
   void OnStartedPinging() override;
-  int64_t GetLastPingSentMs() const override;
+  Timestamp GetLastPingSent() const override;
   void UpdateConnectionStates() override;
   void UpdateState() override;
   void SendPingRequest(const Connection* connection) override;

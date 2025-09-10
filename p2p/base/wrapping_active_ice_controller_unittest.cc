@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "p2p/base/connection.h"
 #include "p2p/base/ice_controller_factory_interface.h"
 #include "p2p/base/ice_controller_interface.h"
@@ -253,21 +254,21 @@ TEST(WrappingActiveIceControllerTest, StartPingingAfterSortAndSwitch) {
 
   // Pinging does not start automatically, unless triggered through a sort.
   EXPECT_CALL(*wrapped, HasPingableConnection()).Times(0);
-  EXPECT_CALL(*wrapped, SelectConnectionToPing(_)).Times(0);
+  EXPECT_CALL(*wrapped, GetConnectionToPing).Times(0);
   EXPECT_CALL(agent, OnStartedPinging()).Times(0);
 
   controller.OnSortAndSwitchRequest(IceSwitchReason::DATA_RECEIVED);
 
   // Pinging does not start if no pingable connection.
   EXPECT_CALL(*wrapped, HasPingableConnection()).WillOnce(Return(false));
-  EXPECT_CALL(*wrapped, SelectConnectionToPing(_)).Times(0);
+  EXPECT_CALL(*wrapped, GetConnectionToPing).Times(0);
   EXPECT_CALL(agent, OnStartedPinging()).Times(0);
 
   // Unblock the init task.
   clock.AdvanceTime(init_delay);
 
-  int recheck_delay_ms = 10;
-  IceControllerInterface::PingResult ping_result(kConnection, recheck_delay_ms);
+  TimeDelta recheck_delay = TimeDelta::Millis(10);
+  IceControllerInterface::PingResult ping_result(kConnection, recheck_delay);
 
   // Pinging starts when there is a pingable connection.
   Sequence start_pinging;
@@ -275,10 +276,10 @@ TEST(WrappingActiveIceControllerTest, StartPingingAfterSortAndSwitch) {
       .InSequence(start_pinging)
       .WillOnce(Return(true));
   EXPECT_CALL(agent, OnStartedPinging()).InSequence(start_pinging);
-  EXPECT_CALL(agent, GetLastPingSentMs())
+  EXPECT_CALL(agent, GetLastPingSent)
       .InSequence(start_pinging)
-      .WillOnce(Return(123));
-  EXPECT_CALL(*wrapped, SelectConnectionToPing(123))
+      .WillOnce(Return(Timestamp::Millis(123)));
+  EXPECT_CALL(*wrapped, GetConnectionToPing(Timestamp::Millis(123)))
       .InSequence(start_pinging)
       .WillOnce(Return(ping_result));
   EXPECT_CALL(agent, SendPingRequest(kConnection)).InSequence(start_pinging);
@@ -288,13 +289,13 @@ TEST(WrappingActiveIceControllerTest, StartPingingAfterSortAndSwitch) {
 
   // ICE controller should recheck and ping after the recheck delay.
   // No ping should be sent if no connection selected to ping.
-  EXPECT_CALL(agent, GetLastPingSentMs()).WillOnce(Return(456));
-  EXPECT_CALL(*wrapped, SelectConnectionToPing(456))
+  EXPECT_CALL(agent, GetLastPingSent).WillOnce(Return(Timestamp::Millis(456)));
+  EXPECT_CALL(*wrapped, GetConnectionToPing(Timestamp::Millis(456)))
       .WillOnce(Return(IceControllerInterface::PingResult(
-          /* connection= */ nullptr, recheck_delay_ms)));
+          /* connection= */ nullptr, recheck_delay)));
   EXPECT_CALL(agent, SendPingRequest(kConnection)).Times(0);
 
-  clock.AdvanceTime(TimeDelta::Millis(recheck_delay_ms));
+  clock.AdvanceTime(recheck_delay);
 }
 
 }  // namespace

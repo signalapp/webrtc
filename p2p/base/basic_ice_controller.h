@@ -56,7 +56,7 @@ class BasicIceController : public IceControllerInterface {
 
   bool HasPingableConnection() const override;
 
-  PingResult SelectConnectionToPing(int64_t last_ping_sent_ms) override;
+  PingResult GetConnectionToPing(Timestamp last_ping_sent) override;
 
   bool GetUseCandidateAttr(const Connection* conn,
                            NominationMode mode,

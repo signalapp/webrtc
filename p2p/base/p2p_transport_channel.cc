@@ -2064,9 +2064,9 @@ Connection* P2PTransportChannel::FindNextPingableConnection() {
   }
 }
 
-int64_t P2PTransportChannel::GetLastPingSentMs() const {
+Timestamp P2PTransportChannel::GetLastPingSent() const {
   RTC_DCHECK_RUN_ON(network_thread_);
-  return last_ping_sent_.ms();
+  return last_ping_sent_;
 }
 
 void P2PTransportChannel::SendPingRequest(const Connection* connection) {

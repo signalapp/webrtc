@@ -124,8 +124,8 @@ bool BasicIceController::HasPingableConnection() const {
   });
 }
 
-IceControllerInterface::PingResult BasicIceController::SelectConnectionToPing(
-    int64_t last_ping_sent_ms) {
+IceControllerInterface::PingResult BasicIceController::GetConnectionToPing(
+    Timestamp last_ping_sent) {
   // When the selected connection is not receiving or not writable, or any
   // active connection has not been pinged enough times, use the weak ping
   // interval.
@@ -140,7 +140,7 @@ IceControllerInterface::PingResult BasicIceController::SelectConnectionToPing(
 
   const Connection* conn = nullptr;
   if (Connection::AlignTime(env_.clock().CurrentTime()) >=
-      Timestamp::Millis(last_ping_sent_ms) + ping_interval) {
+      last_ping_sent + ping_interval) {
     conn = FindNextPingableConnection();
   }
   return PingResult(conn, std::min(ping_interval, check_receiving_interval()));
