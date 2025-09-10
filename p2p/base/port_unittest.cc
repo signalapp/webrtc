@@ -296,12 +296,7 @@ class TestChannel : public sigslot::has_slots<> {
   // Takes ownership of `p1` (but not `p2`).
   explicit TestChannel(std::unique_ptr<Port> p1) : port_(std::move(p1)) {
     port_->SubscribePortComplete([this](Port* port) { OnPortComplete(port); });
-    port_->SubscribeUnknownAddress(
-        [this](PortInterface* port, const SocketAddress& address,
-               ProtocolType proto, IceMessage* msg, const std::string& rf,
-               bool port_muxed) {
-          OnUnknownAddress(port, address, proto, msg, rf, port_muxed);
-        });
+    port_->SignalUnknownAddress.connect(this, &TestChannel::OnUnknownAddress);
     port_->SubscribePortDestroyed(
         [this](PortInterface* port) { OnSrcPortDestroyed(port); });
   }
