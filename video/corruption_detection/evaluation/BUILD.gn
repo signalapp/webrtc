@@ -143,7 +143,7 @@ if (rtc_include_tests) {
       ":picture_pair_provider",
       ":utils",
       ":webrtc_picture_pair_provider",
-      "../../../api:field_trials_view",
+      "../../../api:field_trials",
       "../../../api:mock_video_codec_factory",
       "../../../api:mock_video_decoder",
       "../../../api:mock_video_encoder",
