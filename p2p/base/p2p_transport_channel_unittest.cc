@@ -1131,16 +1131,16 @@ class P2PTransportChannelTest : public P2PTransportChannelTestBase {
                           int allocator_flags1,
                           int allocator_flags2) {
     CreatePortAllocators(env);
-    ConfigureEndpoint(0, config1);
+    ConfigureEndpoint(env, 0, config1);
     SetAllocatorFlags(0, allocator_flags1);
     SetAllocationStepDelay(0, kMinimumStepDelay);
-    ConfigureEndpoint(1, config2);
+    ConfigureEndpoint(env, 1, config2);
     SetAllocatorFlags(1, allocator_flags2);
     SetAllocationStepDelay(1, kMinimumStepDelay);
 
     set_remote_ice_parameter_source(FROM_SETICEPARAMETERS);
   }
-  void ConfigureEndpoint(int endpoint, Config config) {
+  void ConfigureEndpoint(const Environment& env, int endpoint, Config config) {
     switch (config) {
       case OPEN:
         AddAddress(endpoint, kPublicAddrs[endpoint]);
@@ -1152,7 +1152,7 @@ class P2PTransportChannelTest : public P2PTransportChannelTestBase {
         AddAddress(endpoint, kPrivateAddrs[endpoint]);
         // Add a single NAT of the desired type
         nat()
-            ->AddTranslator(kPublicAddrs[endpoint], kNatAddrs[endpoint],
+            ->AddTranslator(env, kPublicAddrs[endpoint], kNatAddrs[endpoint],
                             static_cast<NATType>(config - NAT_FULL_CONE))
             ->AddClient(kPrivateAddrs[endpoint]);
         break;
@@ -1161,11 +1161,11 @@ class P2PTransportChannelTest : public P2PTransportChannelTestBase {
         AddAddress(endpoint, kCascadedPrivateAddrs[endpoint]);
         // Add a two cascaded NATs of the desired types
         nat()
-            ->AddTranslator(kPublicAddrs[endpoint], kNatAddrs[endpoint],
+            ->AddTranslator(env, kPublicAddrs[endpoint], kNatAddrs[endpoint],
                             (config == Config::NAT_DOUBLE_CONE)
                                 ? NATType::NAT_OPEN_CONE
                                 : NATType::NAT_SYMMETRIC)
-            ->AddTranslator(kPrivateAddrs[endpoint],
+            ->AddTranslator(env, kPrivateAddrs[endpoint],
                             kCascadedNatAddrs[endpoint], NAT_OPEN_CONE)
             ->AddClient(kCascadedPrivateAddrs[endpoint]);
         break;
@@ -2484,13 +2484,14 @@ class P2PTransportChannelSameNatTest : public P2PTransportChannelTestBase {
     RTC_CHECK_LE(nat_type, NAT_SYMMETRIC);
     CreatePortAllocators(env);
     NATSocketServer::Translator* outer_nat =
-        nat()->AddTranslator(kPublicAddrs[0], kNatAddrs[0],
+        nat()->AddTranslator(env, kPublicAddrs[0], kNatAddrs[0],
                              static_cast<NATType>(nat_type - NAT_FULL_CONE));
-    ConfigureEndpoint(outer_nat, 0, config1);
-    ConfigureEndpoint(outer_nat, 1, config2);
+    ConfigureEndpoint(env, outer_nat, 0, config1);
+    ConfigureEndpoint(env, outer_nat, 1, config2);
     set_remote_ice_parameter_source(FROM_SETICEPARAMETERS);
   }
-  void ConfigureEndpoint(NATSocketServer::Translator* nat,
+  void ConfigureEndpoint(const Environment& env,
+                         NATSocketServer::Translator* nat,
                          int endpoint,
                          Config config) {
     RTC_CHECK(config <= NAT_SYMMETRIC);
@@ -2499,7 +2500,8 @@ class P2PTransportChannelSameNatTest : public P2PTransportChannelTestBase {
       nat->AddClient(kPrivateAddrs[endpoint]);
     } else {
       AddAddress(endpoint, kCascadedPrivateAddrs[endpoint]);
-      nat->AddTranslator(kPrivateAddrs[endpoint], kCascadedNatAddrs[endpoint],
+      nat->AddTranslator(env, kPrivateAddrs[endpoint],
+                         kCascadedNatAddrs[endpoint],
                          static_cast<NATType>(config - NAT_FULL_CONE))
           ->AddClient(kCascadedPrivateAddrs[endpoint]);
     }

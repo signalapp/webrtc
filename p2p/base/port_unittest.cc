@@ -641,7 +641,7 @@ class PortTest : public ::testing::Test, public sigslot::has_slots<> {
 
   std::unique_ptr<NATServer> CreateNatServer(const SocketAddress& addr,
                                              NATType type) {
-    return std::make_unique<NATServer>(type, main_, ss_.get(), addr, addr,
+    return std::make_unique<NATServer>(env_, type, main_, ss_.get(), addr, addr,
                                        main_, ss_.get(), addr);
   }
   static const char* StunName(NATType type) {

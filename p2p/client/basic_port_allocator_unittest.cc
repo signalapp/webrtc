@@ -487,9 +487,9 @@ class BasicPortAllocatorTestBase : public ::testing::Test,
 
   void ResetWithStunServer(const SocketAddress& stun_server, bool with_nat) {
     if (with_nat) {
-      nat_server_.reset(new NATServer(
-          NAT_OPEN_CONE, thread_, vss_.get(), kNatUdpAddr, kNatTcpAddr, thread_,
-          vss_.get(), SocketAddress(kNatUdpAddr.ipaddr(), 0)));
+      nat_server_ = std::make_unique<NATServer>(
+          env_, NAT_OPEN_CONE, thread_, vss_.get(), kNatUdpAddr, kNatTcpAddr,
+          thread_, vss_.get(), SocketAddress(kNatUdpAddr.ipaddr(), 0));
     } else {
       nat_socket_factory_ =
           std::make_unique<BasicPacketSocketFactory>(fss_.get());
