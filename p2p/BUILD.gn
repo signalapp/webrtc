@@ -441,6 +441,7 @@ rtc_library("ice_transport_internal") {
     "../api:rtc_error",
     "../api/transport:enums",
     "../api/transport:stun_types",
+    "../api/units:time_delta",
     "../rtc_base:callback_list",
     "../rtc_base:checks",
     "../rtc_base:net_helper",

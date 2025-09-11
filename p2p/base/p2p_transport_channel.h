@@ -243,10 +243,6 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
     return stun_dict_writer_;
   }
 
-  const FieldTrialsView* field_trials() const override {
-    return &env_.field_trials();
-  }
-
   void ResetDtlsStunPiggybackCallbacks() override;
   void SetDtlsStunPiggybackCallbacks(
       DtlsStunPiggybackCallbacks&& callbacks) override;

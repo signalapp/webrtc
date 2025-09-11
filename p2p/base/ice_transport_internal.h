@@ -22,10 +22,10 @@
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/candidate.h"
-#include "api/field_trials_view.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
 #include "api/transport/enums.h"
+#include "api/units/time_delta.h"
 #include "p2p/base/candidate_pair_interface.h"
 #include "p2p/base/connection.h"
 #include "p2p/base/connection_info.h"
@@ -435,8 +435,6 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
   void RemoveDictionaryWriterSyncedCallback(const void* tag) {
     dictionary_writer_synced_callback_list_.RemoveReceivers(tag);
   }
-
-  virtual const FieldTrialsView* field_trials() const { return nullptr; }
 
   virtual void ResetDtlsStunPiggybackCallbacks() {}
   virtual void SetDtlsStunPiggybackCallbacks(
