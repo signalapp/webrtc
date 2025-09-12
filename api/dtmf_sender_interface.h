@@ -32,8 +32,7 @@ class DtmfSenderObserverInterface {
   // DEPRECATED: Older API without tone buffer.
   // TODO(bugs.webrtc.org/9725): Remove old API and default implementation
   // when old callers are gone.
-  [[deprecated("Use OnToneChange with tone_buffer")]] virtual void OnToneChange(
-      const std::string& /* tone */) {}
+  virtual void OnToneChange(const std::string& /* tone */) {}
 
  protected:
   virtual ~DtmfSenderObserverInterface() = default;

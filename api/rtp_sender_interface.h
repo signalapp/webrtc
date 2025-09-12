@@ -118,8 +118,9 @@ class RTC_EXPORT RtpSenderInterface : public RefCountInterface,
   // user. This can be used to update the state of the object.
   virtual scoped_refptr<FrameEncryptorInterface> GetFrameEncryptor() const = 0;
 
-  [[deprecated("Use SetFrameTransformer")]] virtual void
-  SetEncoderToPacketizerFrameTransformer(
+  // TODO: bugs.webrtc.org/15929 - add [[deprecated("Use SetFrameTransformer")]]
+  // when usage in Chrome is removed
+  virtual void SetEncoderToPacketizerFrameTransformer(
       scoped_refptr<FrameTransformerInterface> frame_transformer) {
     SetFrameTransformer(std::move(frame_transformer));
   }

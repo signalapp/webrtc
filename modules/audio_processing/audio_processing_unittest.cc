@@ -2875,10 +2875,7 @@ TEST(ApmStatistics, DoNotReportVoiceDetectedStat) {
                 StreamConfig(frame.sample_rate_hz, frame.num_channels()),
                 frame.data.data()),
             0);
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   EXPECT_FALSE(apm->GetStatistics().voice_detected.has_value());
-#pragma clang diagnostic pop
 }
 
 TEST(ApmStatistics, GetStatisticsReportsNoEchoDetectorStatsWhenDisabled) {
