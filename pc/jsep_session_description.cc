@@ -105,17 +105,6 @@ void UpdateConnectionAddress(
 }
 }  // namespace
 
-SessionDescriptionInterface* CreateSessionDescription(const std::string& type,
-                                                      const std::string& sdp,
-                                                      SdpParseError* error) {
-  std::optional<SdpType> maybe_type = SdpTypeFromString(type);
-  if (!maybe_type) {
-    return nullptr;
-  }
-
-  return CreateSessionDescription(*maybe_type, sdp, error).release();
-}
-
 std::unique_ptr<SessionDescriptionInterface> CreateSessionDescription(
     SdpType type,
     const std::string& sdp) {
