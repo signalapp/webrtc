@@ -37,7 +37,7 @@ namespace webrtc {
 struct DataChannelInit {
   // Deprecated. Reliability is assumed, and channel will be unreliable if
   // maxRetransmitTime or MaxRetransmits is set.
-  [[deprecated]] bool reliable = false;
+  bool reliable = false;
 
   // True if ordered delivery is required.
   bool ordered = true;
