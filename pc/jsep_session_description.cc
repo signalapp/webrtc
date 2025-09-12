@@ -103,6 +103,17 @@ void UpdateConnectionAddress(
   }
   media_desc->set_connection_address(connection_addr);
 }
+
+std::vector<IceCandidateCollection> CloneCandidateCollection(
+    const std::vector<IceCandidateCollection>& original) {
+  std::vector<IceCandidateCollection> ret;
+  ret.reserve(original.size());
+  for (const auto& collection : original) {
+    ret.push_back(collection.Clone());
+  }
+  return ret;
+}
+
 }  // namespace
 
 std::unique_ptr<SessionDescriptionInterface> CreateSessionDescription(
@@ -145,12 +156,16 @@ JsepSessionDescription::JsepSessionDescription(
     SdpType type,
     std::unique_ptr<SessionDescription> description,
     absl::string_view session_id,
-    absl::string_view session_version)
+    absl::string_view session_version,
+    std::vector<IceCandidateCollection> candidates)
     : description_(std::move(description)),
       session_id_(session_id),
       session_version_(session_version),
-      type_(type) {
+      type_(type),
+      candidate_collection_(std::move(candidates)) {
   RTC_DCHECK(description_ || type == SdpType::kRollback);
+  RTC_DCHECK(candidate_collection_.empty() ||
+             candidate_collection_.size() == number_of_mediasections());
   candidate_collection_.resize(number_of_mediasections());
 }
 
@@ -158,17 +173,10 @@ JsepSessionDescription::~JsepSessionDescription() {}
 
 std::unique_ptr<SessionDescriptionInterface> JsepSessionDescription::Clone()
     const {
-  auto new_description = std::make_unique<JsepSessionDescription>(
+  return std::make_unique<JsepSessionDescription>(
       GetType(), description_.get() ? description_->Clone() : nullptr,
-      session_id_, session_version_);
-  RTC_DCHECK_EQ(new_description->candidate_collection_.size(),
-                candidate_collection_.size());
-  for (size_t i = 0; i < candidate_collection_.size(); ++i) {
-    RTC_DCHECK(new_description->candidate_collection_[i].empty());
-    new_description->candidate_collection_[i].Append(
-        candidate_collection_[i].Clone());
-  }
-  return new_description;
+      session_id_, session_version_,
+      CloneCandidateCollection(candidate_collection_));
 }
 
 bool JsepSessionDescription::AddCandidate(const IceCandidate* candidate) {

@@ -39,7 +39,8 @@ class JsepSessionDescription final : public SessionDescriptionInterface {
   JsepSessionDescription(SdpType type,
                          std::unique_ptr<SessionDescription> description,
                          absl::string_view session_id,
-                         absl::string_view session_version);
+                         absl::string_view session_version,
+                         std::vector<IceCandidateCollection> candidates = {});
   ~JsepSessionDescription() override;
 
   JsepSessionDescription(const JsepSessionDescription&) = delete;
