@@ -191,17 +191,6 @@ class RTC_EXPORT Candidate {
   const std::string& tcptype() const { return tcptype_; }
   void set_tcptype(absl::string_view tcptype) { Assign(tcptype_, tcptype); }
 
-  // The name of the transport channel of this candidate.
-  // TODO(bugs.webrtc.org/42233526): remove.
-  [[deprecated("Use IceCandidate::sdp_mid")]]
-  const std::string& transport_name() const {
-    return transport_name_;
-  }
-  [[deprecated("Use the IceCandidate type for sdp_mid")]]
-  void set_transport_name(absl::string_view transport_name) {
-    Assign(transport_name_, transport_name);
-  }
-
   // The URL of the ICE server which this candidate is gathered from.
   const std::string& url() const { return url_; }
   void set_url(absl::string_view url) { Assign(url_, url); }
@@ -283,7 +272,6 @@ class RTC_EXPORT Candidate {
   std::string foundation_;
   SocketAddress related_address_;
   std::string tcptype_;
-  std::string transport_name_;
   uint16_t network_id_;
   uint16_t network_cost_;
   std::string url_;
