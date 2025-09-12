@@ -236,9 +236,7 @@ class RTC_EXPORT Candidate {
   // any remote ice parameters have been set.
   [[deprecated("Use variant with filter_ufrag")]] Candidate ToSanitizedCopy(
       bool use_hostname_address,
-      bool filter_related_address) const {
-    return ToSanitizedCopy(use_hostname_address, filter_related_address, false);
-  }
+      bool filter_related_address) const;
   Candidate ToSanitizedCopy(bool use_hostname_address,
                             bool filter_related_address,
                             bool filter_ufrag) const;

@@ -89,7 +89,6 @@ class RTC_EXPORT IceCandidate final {
   std::string ToString() const;
 
   // TODO: webrtc:406795492 - Deprecate and remove this method.
-  // [[deprecated("Use ToString()")]]
   bool ToString(std::string* out) const {
     if (!out)
       return false;

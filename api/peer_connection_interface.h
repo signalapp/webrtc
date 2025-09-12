@@ -1132,8 +1132,8 @@ class RTC_EXPORT PeerConnectionInterface : public RefCountInterface {
   // to the MID of the m= section that generated the candidate.
   // TODO(bugs.webrtc.org/8395): Use IceCandidate instead of
   // Candidate, which would avoid the transport_name oddity.
-  [[deprecated("Use IceCandidate version")]]
-  virtual bool RemoveIceCandidates(const std::vector<Candidate>& candidates);
+  [[deprecated("Use IceCandidate version")]] virtual bool RemoveIceCandidates(
+      const std::vector<Candidate>& candidates);
 
   // SetBitrate limits the bandwidth allocated for all RTP streams sent by
   // this PeerConnection. Other limitations might affect these limits and
