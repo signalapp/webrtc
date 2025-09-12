@@ -426,7 +426,7 @@ class PortTest : public ::testing::Test, public sigslot::has_slots<> {
         nat_factory2_(ss_.get(), kNatAddr2, SocketAddress()),
         nat_socket_factory1_(&nat_factory1_),
         nat_socket_factory2_(&nat_factory2_),
-        stun_server_(TestStunServer::Create(ss_.get(), kStunAddr, main_)),
+        stun_server_(TestStunServer::Create(env_, kStunAddr, *ss_, main_)),
         turn_server_(env_, &main_, ss_.get(), kTurnUdpIntAddr, kTurnUdpExtAddr),
         username_(CreateRandomString(ICE_UFRAG_LENGTH)),
         password_(CreateRandomString(ICE_PWD_LENGTH)),

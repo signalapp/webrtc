@@ -310,7 +310,6 @@ class P2PTransportChannelTestBase : public ::testing::Test,
         ss_(new FirewallSocketServer(nss_.get())),
         socket_factory_(new BasicPacketSocketFactory(ss_.get())),
         main_(ss_.get()),
-        stun_server_(TestStunServer::Create(ss_.get(), kStunAddr, main_)),
         force_relay_(false) {
     ep1_.role_ = ICEROLE_CONTROLLING;
     ep2_.role_ = ICEROLE_CONTROLLED;
@@ -319,6 +318,7 @@ class P2PTransportChannelTestBase : public ::testing::Test,
   }
 
   void CreatePortAllocators(const Environment& env) {
+    stun_server_ = TestStunServer::Create(env, kStunAddr, *ss_, main_);
     turn_server_.emplace(env, &main_, ss_.get(), kTurnUdpIntAddr,
                          kTurnUdpExtAddr);
     ServerAddresses stun_servers = {kStunAddr};
