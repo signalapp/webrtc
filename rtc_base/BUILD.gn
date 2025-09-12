@@ -1414,6 +1414,7 @@ if (rtc_include_tests) {
       ":net_helpers",
       ":rtc_base_tests_utils",
       ":socket",
+      "../test:create_test_environment",
       "../test:test_support",
       "third_party/sigslot",
     ]
@@ -1817,6 +1818,7 @@ rtc_library("rtc_base_tests_utils") {
     "../api:refcountedbase",
     "../api:scoped_refptr",
     "../api:sequence_checker",
+    "../api/environment",
     "../api/task_queue",
     "../api/task_queue:pending_task_safety_flag",
     "../api/units:time_delta",

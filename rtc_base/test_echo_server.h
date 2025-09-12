@@ -16,9 +16,11 @@
 
 #include <list>
 #include <memory>
+#include <utility>
 
 #include "absl/algorithm/container.h"
 #include "absl/memory/memory.h"
+#include "api/environment/environment.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/async_tcp_socket.h"
 #include "rtc_base/network/received_packet.h"
@@ -33,7 +35,9 @@ namespace webrtc {
 // Useful for unit tests.
 class TestEchoServer : public sigslot::has_slots<> {
  public:
-  TestEchoServer(Thread* thread, const SocketAddress& addr);
+  TestEchoServer(const Environment& env,
+                 Thread* thread,
+                 const SocketAddress& addr);
   ~TestEchoServer() override;
 
   TestEchoServer(const TestEchoServer&) = delete;
@@ -43,16 +47,18 @@ class TestEchoServer : public sigslot::has_slots<> {
 
  private:
   void OnAccept(Socket* socket) {
-    Socket* raw_socket = socket->Accept(nullptr);
+    std::unique_ptr<Socket> raw_socket =
+        absl::WrapUnique(socket->Accept(nullptr));
     if (raw_socket) {
-      AsyncTCPSocket* packet_socket = new AsyncTCPSocket(raw_socket);
+      auto packet_socket =
+          std::make_unique<AsyncTCPSocket>(env_, std::move(raw_socket));
       packet_socket->RegisterReceivedPacketCallback(
           [&](AsyncPacketSocket* socket, const ReceivedIpPacket& packet) {
             OnPacket(socket, packet);
           });
       packet_socket->SubscribeCloseEvent(
           this, [this](AsyncPacketSocket* s, int err) { OnClose(s, err); });
-      client_sockets_.push_back(packet_socket);
+      client_sockets_.push_back(packet_socket.release());
     }
   }
   void OnPacket(AsyncPacketSocket* socket, const ReceivedIpPacket& packet) {
@@ -68,6 +74,7 @@ class TestEchoServer : public sigslot::has_slots<> {
   }
 
   typedef std::list<AsyncTCPSocket*> ClientList;
+  const Environment env_;
   std::unique_ptr<Socket> server_socket_;
   ClientList client_sockets_;
 };

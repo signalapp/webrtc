@@ -237,9 +237,6 @@ AsyncTCPSocket::AsyncTCPSocket(const Environment& /*env*/,
                                absl_nonnull std::unique_ptr<Socket> socket)
     : AsyncTCPSocketBase(std::move(socket), kBufSize) {}
 
-AsyncTCPSocket::AsyncTCPSocket(Socket* socket)
-    : AsyncTCPSocketBase(absl::WrapUnique(socket), kBufSize) {}
-
 int AsyncTCPSocket::Send(const void* pv,
                          size_t cb,
                          const AsyncSocketPacketOptions& options) {
