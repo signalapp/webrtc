@@ -45,7 +45,6 @@
 #include "rtc_base/ssl_adapter.h"
 #include "rtc_base/string_encode.h"
 #include "rtc_base/strings/string_builder.h"
-#include "rtc_base/time_utils.h"
 
 namespace webrtc {
 namespace {
@@ -419,7 +418,8 @@ bool TurnServer::ValidateNonce(absl::string_view nonce) const {
   }
 
   // Validate the timestamp.
-  return TimeDelta::Millis(TimeMillis() - then) < kNonceTimeout;
+  return TimeDelta::Millis(env_.clock().TimeInMilliseconds() - then) <
+         kNonceTimeout;
 }
 
 TurnServerAllocation* TurnServer::FindAllocation(TurnServerConnection* conn) {
@@ -465,7 +465,7 @@ void TurnServer::SendErrorResponseWithRealmAndNonce(TurnServerConnection* conn,
   TurnMessage resp(GetStunErrorResponseTypeOrZero(*msg), msg->transaction_id());
   InitErrorResponse(code, reason, &resp);
 
-  int64_t timestamp = TimeMillis();
+  int64_t timestamp = env_.clock().TimeInMilliseconds();
   if (ts_for_next_nonce_) {
     timestamp = ts_for_next_nonce_;
     ts_for_next_nonce_ = 0;
