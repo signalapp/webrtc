@@ -1581,13 +1581,6 @@ bool PeerConnection::RemoveIceCandidate(const IceCandidate* candidate) {
   return sdp_handler_->RemoveIceCandidate(candidate);
 }
 
-bool PeerConnection::RemoveIceCandidates(
-    const std::vector<Candidate>& candidates) {
-  TRACE_EVENT0("webrtc", "PeerConnection::RemoveIceCandidates");
-  RTC_DCHECK_RUN_ON(signaling_thread());
-  return sdp_handler_->RemoveIceCandidates(candidates);
-}
-
 RTCError PeerConnection::SetBitrate(const BitrateSettings& bitrate) {
   if (!worker_thread()->IsCurrent()) {
     return worker_thread()->BlockingCall([&]() { return SetBitrate(bitrate); });

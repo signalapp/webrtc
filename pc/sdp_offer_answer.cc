@@ -3001,27 +3001,6 @@ bool SdpOfferAnswerHandler::RemoveIceCandidate(const IceCandidate* candidate) {
   return removed;
 }
 
-bool SdpOfferAnswerHandler::RemoveIceCandidates(
-    const std::vector<Candidate>& candidates) {
-  TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::RemoveIceCandidates");
-  RTC_DCHECK_RUN_ON(signaling_thread());
-
-  for (const auto& c : candidates) {
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-    IceCandidate candidate(c.transport_name(), /*sdp_mline_index=*/-1, c);
-#pragma clang diagnostic pop
-    if (!RemoveIceCandidate(&candidate)) {
-      RTC_LOG(LS_ERROR) << "RemoveIceCandidates: Failed to remove candidate: "
-                        << c.ToSensitiveString();
-    }
-  }
-
-  // Technically it would be more correct to return `number_removed != 0u` here,
-  // but some downstream code needs to be updated first.
-  return true;
-}
-
 void SdpOfferAnswerHandler::AddLocalIceCandidate(
     const IceCandidate* candidate) {
   RTC_DCHECK_RUN_ON(signaling_thread());

@@ -1126,15 +1126,6 @@ class RTC_EXPORT PeerConnectionInterface : public RefCountInterface {
                                std::function<void(RTCError)> callback) {}
   virtual bool RemoveIceCandidate(const IceCandidate* candidate) = 0;
 
-  // Removes a group of remote candidates from the ICE agent. Needed mainly for
-  // continual gathering, to avoid an ever-growing list of candidates as
-  // networks come and go. Note that the candidates' transport_name must be set
-  // to the MID of the m= section that generated the candidate.
-  // TODO(bugs.webrtc.org/8395): Use IceCandidate instead of
-  // Candidate, which would avoid the transport_name oddity.
-  [[deprecated("Use IceCandidate version")]] virtual bool RemoveIceCandidates(
-      const std::vector<Candidate>& candidates);
-
   // SetBitrate limits the bandwidth allocated for all RTP streams sent by
   // this PeerConnection. Other limitations might affect these limits and
   // are respected (for example "b=AS" in SDP).
