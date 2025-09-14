@@ -1301,26 +1301,38 @@ class CreateSessionDescriptionObserverOperationWrapper
 
 // Wraps a session description observer so a Clone of the last created
 // offer/answer can be stored.
+// This object can be used only once.
 class CreateDescriptionObserverWrapperWithCreationCallback
     : public CreateSessionDescriptionObserver {
  public:
   CreateDescriptionObserverWrapperWithCreationCallback(
-      std::function<void(const SessionDescriptionInterface* desc)> callback,
+      absl::AnyInvocable<void(std::unique_ptr<SessionDescriptionInterface>) &&>
+          callback,
       scoped_refptr<CreateSessionDescriptionObserver> observer)
-      : callback_(callback), observer_(observer) {
+      : callback_(std::move(callback)), observer_(observer) {
     RTC_DCHECK(observer_);
   }
   void OnSuccess(SessionDescriptionInterface* desc) override {
-    callback_(desc);
-    observer_->OnSuccess(desc);
+    // `OnSuccess` will be called on the signaling thread. That's what we want
+    // for SdpOfferAnswerHandler since that's where public methods are called.
+    // The wrapped observer might have different threading needs. Calling the
+    // `Clone()` method will require accessing internal state of `desc` and
+    // therefore will (at least semantically) attach its state to the current
+    // thread. So, since we need to call Clone(), keep `desc` as the copy that
+    // SdpOfferAnswerHandler will own, and give a pristine clone to the
+    // observer.
+    auto clone = desc->Clone();
+    std::move(callback_)(absl::WrapUnique(desc));
+    observer_->OnSuccess(clone.release());
   }
   void OnFailure(RTCError error) override {
-    callback_(nullptr);
+    std::move(callback_)(nullptr);
     observer_->OnFailure(std::move(error));
   }
 
  private:
-  std::function<void(const SessionDescriptionInterface* desc)> callback_;
+  absl::AnyInvocable<void(std::unique_ptr<SessionDescriptionInterface>) &&>
+      callback_;
   scoped_refptr<CreateSessionDescriptionObserver> observer_;
 };
 
@@ -2665,13 +2677,9 @@ void SdpOfferAnswerHandler::DoCreateOffer(
   GetOptionsForOffer(options, &session_options);
   auto observer_wrapper =
       make_ref_counted<CreateDescriptionObserverWrapperWithCreationCallback>(
-          [this](const SessionDescriptionInterface* desc) {
+          [this](std::unique_ptr<SessionDescriptionInterface> desc) {
             RTC_DCHECK_RUN_ON(signaling_thread());
-            if (desc) {
-              last_created_offer_ = desc->Clone();
-            } else {
-              last_created_offer_.reset(nullptr);
-            }
+            last_created_offer_ = std::move(desc);
           },
           std::move(observer));
   webrtc_session_desc_factory_->CreateOffer(observer_wrapper.get(), options,
@@ -2763,13 +2771,9 @@ void SdpOfferAnswerHandler::DoCreateAnswer(
   GetOptionsForAnswer(options, &session_options);
   auto observer_wrapper =
       make_ref_counted<CreateDescriptionObserverWrapperWithCreationCallback>(
-          [this](const SessionDescriptionInterface* desc) {
+          [this](std::unique_ptr<SessionDescriptionInterface> desc) {
             RTC_DCHECK_RUN_ON(signaling_thread());
-            if (desc) {
-              last_created_answer_ = desc->Clone();
-            } else {
-              last_created_answer_.reset(nullptr);
-            }
+            last_created_answer_ = std::move(desc);
           },
           std::move(observer));
   webrtc_session_desc_factory_->CreateAnswer(observer_wrapper.get(),
