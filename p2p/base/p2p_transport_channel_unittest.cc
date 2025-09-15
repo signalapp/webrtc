@@ -496,8 +496,10 @@ class P2PTransportChannelTestBase : public ::testing::Test,
         GetEndpoint(endpoint)->async_dns_resolver_factory_);
     auto channel = P2PTransportChannel::Create("test content name", component,
                                                std::move(init));
-    channel->SignalReadyToSend.connect(
-        this, &P2PTransportChannelTestBase::OnReadyToSend);
+    channel->SubscribeReadyToSend(this,
+                                  [this](PacketTransportInternal* transport) {
+                                    OnReadyToSend(transport);
+                                  });
     channel->SubscribeCandidateGathered(
         [this](IceTransportInternal* transport, const Candidate& candidate) {
           OnCandidateGathered(transport, candidate);
@@ -513,8 +515,10 @@ class P2PTransportChannelTestBase : public ::testing::Test,
         });
     channel->SubscribeRoleConflict(
         [this](IceTransportInternal* transport) { OnRoleConflict(transport); });
-    channel->SignalNetworkRouteChanged.connect(
-        this, &P2PTransportChannelTestBase::OnNetworkRouteChanged);
+    channel->SubscribeNetworkRouteChanged(
+        this, [this](std::optional<NetworkRoute> network_route) {
+          OnNetworkRouteChanged(network_route);
+        });
     channel->SignalSentPacket.connect(
         this, &P2PTransportChannelTestBase::OnSentPacket);
     channel->SetIceParameters(local_ice);
@@ -3597,10 +3601,13 @@ class P2PTransportChannelPingTest : public ::testing::Test,
     ch->SetIceRole(ICEROLE_CONTROLLING);
     ch->SetIceParameters(kIceParams[0]);
     ch->SetRemoteIceParameters(kIceParams[1]);
-    ch->SignalNetworkRouteChanged.connect(
-        this, &P2PTransportChannelPingTest::OnNetworkRouteChanged);
-    ch->SignalReadyToSend.connect(this,
-                                  &P2PTransportChannelPingTest::OnReadyToSend);
+    ch->SubscribeNetworkRouteChanged(
+        this, [this](std::optional<NetworkRoute> network_route) {
+          OnNetworkRouteChanged(network_route);
+        });
+    ch->SubscribeReadyToSend(this, [this](PacketTransportInternal* transport) {
+      OnReadyToSend(transport);
+    });
     ch->SubscribeIceTransportStateChanged(
         [this](IceTransportInternal* transport) {
           OnChannelStateChanged(transport);

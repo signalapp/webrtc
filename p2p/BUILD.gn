@@ -565,6 +565,7 @@ rtc_library("packet_transport_internal") {
     "../rtc_base:checks",
     "../rtc_base:macromagic",
     "../rtc_base:network_route",
+    "../rtc_base:sigslot_trampoline",
     "../rtc_base:socket",
     "../rtc_base/network:received_packet",
     "../rtc_base/network:sent_packet",

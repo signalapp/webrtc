@@ -1872,7 +1872,7 @@ void P2PTransportChannel::SwitchSelectedConnectionInternal(
     // has been disallowed to send.
     if (selected_connection_->writable() ||
         PresumedWritable(selected_connection_)) {
-      SignalReadyToSend(this);
+      NotifyReadyToSend(this);
     }
 
     network_route_.emplace(ConfigureNetworkRoute(selected_connection_));
@@ -1887,7 +1887,7 @@ void P2PTransportChannel::SwitchSelectedConnectionInternal(
     SendPingRequestInternal(conn);
   }
 
-  SignalNetworkRouteChanged(network_route_);
+  NotifyNetworkRouteChanged(network_route_);
 
   // Create event for candidate pair change.
   if (selected_connection_ && candidate_pair_change_callback_) {
@@ -2284,7 +2284,7 @@ void P2PTransportChannel::OnSentPacket(const SentPacketInfo& sent_packet) {
 void P2PTransportChannel::OnReadyToSend(Connection* connection) {
   RTC_DCHECK_RUN_ON(network_thread_);
   if (connection == selected_connection_ && writable()) {
-    SignalReadyToSend(this);
+    NotifyReadyToSend(this);
   }
 }
 
@@ -2297,9 +2297,9 @@ void P2PTransportChannel::SetWritable(bool writable) {
   writable_ = writable;
   if (writable_) {
     has_been_writable_ = true;
-    SignalReadyToSend(this);
+    NotifyReadyToSend(this);
   }
-  SignalWritableState(this);
+  NotifyWritableState(this);
 }
 
 void P2PTransportChannel::SetReceiving(bool receiving) {
@@ -2308,7 +2308,7 @@ void P2PTransportChannel::SetReceiving(bool receiving) {
     return;
   }
   receiving_ = receiving;
-  SignalReceivingState(this);
+  NotifyReceivingState(this);
 }
 
 Candidate P2PTransportChannel::SanitizeLocalCandidate(
