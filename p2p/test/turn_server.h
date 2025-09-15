@@ -32,6 +32,7 @@
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/byte_buffer.h"
 #include "rtc_base/ip_address.h"
+#include "rtc_base/memory/less_unique_ptr.h"
 #include "rtc_base/network/received_packet.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
@@ -270,8 +271,8 @@ class TurnServer : public sigslot::has_slots<> {
   }
 
  private:
-  using ServerSocketMap =
-      std::map<std::unique_ptr<AsyncPacketSocket>, ProtocolType>;
+  using ServerSocketMap = std::
+      map<std::unique_ptr<AsyncPacketSocket>, ProtocolType, less_unique_ptr>;
 
   // All private member functions and variables should have access restricted to
   // thread_. But compile-time annotations are missing for members access from
@@ -350,8 +351,8 @@ class TurnServer : public sigslot::has_slots<> {
   bool enable_permission_checks_ = true;
 
   ServerSocketMap server_sockets_ RTC_GUARDED_BY(thread_);
-  std::map<std::unique_ptr<Socket>, ServerSocketInfo> server_listen_sockets_
-      RTC_GUARDED_BY(thread_);
+  std::map<std::unique_ptr<Socket>, ServerSocketInfo, less_unique_ptr>
+      server_listen_sockets_ RTC_GUARDED_BY(thread_);
   std::unique_ptr<PacketSocketFactory> external_socket_factory_
       RTC_GUARDED_BY(thread_);
   SocketAddress external_addr_ RTC_GUARDED_BY(thread_);

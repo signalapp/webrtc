@@ -27,11 +27,6 @@ TestEchoServer::TestEchoServer(const Environment& env,
   server_socket_->SignalReadEvent.connect(this, &TestEchoServer::OnAccept);
 }
 
-TestEchoServer::~TestEchoServer() {
-  for (ClientList::iterator it = client_sockets_.begin();
-       it != client_sockets_.end(); ++it) {
-    delete *it;
-  }
-}
+TestEchoServer::~TestEchoServer() = default;
 
 }  // namespace webrtc
