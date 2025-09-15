@@ -428,7 +428,7 @@ void TCPConnection::OnSentPacket(AsyncPacketSocket* socket,
                                  const SentPacketInfo& sent_packet) {
   RTC_DCHECK_RUN_ON(network_thread());
   if (port()) {
-    port()->SignalSentPacket(sent_packet);
+    port()->NotifySentPacket(sent_packet);
   }
 }
 
