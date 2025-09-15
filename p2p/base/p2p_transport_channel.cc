@@ -410,7 +410,7 @@ std::optional<int> P2PTransportChannel::GetRttEstimate() {
   RTC_DCHECK_RUN_ON(network_thread_);
   if (selected_connection_ != nullptr &&
       selected_connection_->rtt_samples() > 0) {
-    return selected_connection_->rtt();
+    return selected_connection_->Rtt().ms();
   } else {
     return std::nullopt;
   }
