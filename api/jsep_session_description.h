@@ -54,7 +54,8 @@ class JsepSessionDescription final : public SessionDescriptionInterface {
   bool ToString(std::string* out) const override;
 
  private:
-  std::vector<IceCandidateCollection> candidate_collection_;
+  std::vector<IceCandidateCollection> candidate_collection_
+      RTC_GUARDED_BY(sequence_checker());
 
   bool IsValidMLineIndex(int index) const;
   bool GetMediasectionIndex(const IceCandidate* candidate, size_t* index) const;

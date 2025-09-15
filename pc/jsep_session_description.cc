@@ -169,6 +169,12 @@ size_t SessionDescriptionInternal::mediasection_count() const {
 }
 
 void SessionDescriptionInternal::RelinquishThreadOwnership() {
+  // Ideally we should require that the method can only be called from the
+  // thread that the sequence checker is currently attached to. However that's
+  // not compatible with some cases outside of webrtc where initializations
+  // happens on one thread and then the object is moved to a second thread (e.g.
+  // signaling) where a call is made into webrtc. At that point we'd hit a
+  // dcheck like this in webrtc: RTC_DCHECK_RUN_ON(&sequence_checker_);
   sequence_checker_.Detach();
 }
 
@@ -203,22 +209,23 @@ JsepSessionDescription::~JsepSessionDescription() {}
 
 std::unique_ptr<SessionDescriptionInterface> JsepSessionDescription::Clone()
     const {
+  RTC_DCHECK_RUN_ON(sequence_checker());
   return std::make_unique<JsepSessionDescription>(
       sdp_type(), description() ? description()->Clone() : nullptr, id(),
       version(), CloneCandidateCollection(candidate_collection_));
 }
 
 bool JsepSessionDescription::AddCandidate(const IceCandidate* candidate) {
+  RTC_DCHECK_RUN_ON(sequence_checker());
   if (!candidate)
     return false;
-  size_t mediasection_index = 0;
-  if (!GetMediasectionIndex(candidate, &mediasection_index)) {
+  size_t index = 0;
+  if (!GetMediasectionIndex(candidate, &index)) {
     return false;
   }
-  const std::string& mediasection_mid =
-      description()->contents()[mediasection_index].mid();
+  ContentInfo& content = description()->contents()[index];
   const TransportInfo* transport_info =
-      description()->GetTransportInfoByName(mediasection_mid);
+      description()->GetTransportInfoByName(content.mid());
   if (!transport_info) {
     return false;
   }
@@ -231,45 +238,43 @@ bool JsepSessionDescription::AddCandidate(const IceCandidate* candidate) {
     updated_candidate.set_password(transport_info->description.ice_pwd);
   }
 
-  // Use `mediasection_mid` as the mid for the updated candidate. The
+  // Use `content.mid()` as the mid for the updated candidate. The
   // `candidate->sdp_mid()` property *should* be the same. However, in some
   // cases specifying an empty mid but a valid index is a way to add a candidate
   // without knowing (or caring about) the mid. This is done in several tests.
   RTC_DCHECK(candidate->sdp_mid().empty() ||
-             candidate->sdp_mid() == mediasection_mid)
-      << "sdp_mid='" << candidate->sdp_mid() << "' mediasection_mid='"
-      << mediasection_mid << "'";
+             candidate->sdp_mid() == content.mid())
+      << "sdp_mid='" << candidate->sdp_mid() << "' content.mid()='"
+      << content.mid() << "'";
   auto updated_candidate_wrapper = std::make_unique<IceCandidate>(
-      mediasection_mid, static_cast<int>(mediasection_index),
-      updated_candidate);
-  if (!candidate_collection_[mediasection_index].HasCandidate(
-          updated_candidate_wrapper.get())) {
-    candidate_collection_[mediasection_index].add(
-        std::move(updated_candidate_wrapper));
-    UpdateConnectionAddress(
-        candidate_collection_[mediasection_index],
-        description()->contents()[mediasection_index].media_description());
+      content.mid(), static_cast<int>(index), updated_candidate);
+  IceCandidateCollection& candidates = candidate_collection_[index];
+  if (!candidates.HasCandidate(updated_candidate_wrapper.get())) {
+    candidates.add(std::move(updated_candidate_wrapper));
+    UpdateConnectionAddress(candidates, content.media_description());
   }
 
   return true;
 }
 
 bool JsepSessionDescription::RemoveCandidate(const IceCandidate* candidate) {
-  size_t mediasection_index = 0u;
-  if (!GetMediasectionIndex(candidate, &mediasection_index)) {
+  RTC_DCHECK_RUN_ON(sequence_checker());
+  size_t index = 0u;
+  if (!GetMediasectionIndex(candidate, &index)) {
     return false;
   }
-  if (!candidate_collection_[mediasection_index].remove(candidate)) {
+  IceCandidateCollection& candidates = candidate_collection_[index];
+  if (!candidates.remove(candidate)) {
     return false;
   }
-  UpdateConnectionAddress(
-      candidate_collection_[mediasection_index],
-      description()->contents()[mediasection_index].media_description());
+  UpdateConnectionAddress(candidates,
+                          description()->contents()[index].media_description());
   return true;
 }
 
 const IceCandidateCollection* JsepSessionDescription::candidates(
     size_t mediasection_index) const {
+  RTC_DCHECK_RUN_ON(sequence_checker());
   if (mediasection_index >= candidate_collection_.size())
     return nullptr;
   return &candidate_collection_[mediasection_index];

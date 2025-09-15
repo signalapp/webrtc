@@ -966,14 +966,8 @@ class SdpOfferAnswerHandler::RemoteDescriptionOperation {
         desc_(std::move(desc)),
         observer_(std::move(observer)),
         operations_chain_callback_(std::move(operations_chain_callback)),
-        unified_plan_(handler_->IsUnifiedPlan()) {
-    if (!desc_) {
-      type_ = static_cast<SdpType>(-1);
-      InvalidParam("SessionDescription is NULL.");
-    } else {
-      type_ = desc_->GetType();
-    }
-  }
+        type_(desc_->GetType()),
+        unified_plan_(handler_->IsUnifiedPlan()) {}
 
   ~RemoteDescriptionOperation() {
     RTC_DCHECK_RUN_ON(handler_->signaling_thread());
@@ -1190,7 +1184,7 @@ class SdpOfferAnswerHandler::RemoteDescriptionOperation {
   std::function<void()> operations_chain_callback_;
   RTCError error_ = RTCError::OK();
   std::map<std::string, const ContentGroup*> bundle_groups_by_mid_;
-  SdpType type_;
+  const SdpType type_;
   const bool unified_plan_;
 };
 // Used by parameterless SetLocalDescription() to create an offer or answer.
@@ -1279,6 +1273,7 @@ class CreateSessionDescriptionObserverOperationWrapper
     // Completing the operation before invoking the observer allows the observer
     // to execute SetLocalDescription() without delay.
     operation_complete_callback_();
+    desc->RelinquishThreadOwnership();
     observer_->OnSuccess(desc);
   }
 
@@ -1637,6 +1632,8 @@ void SdpOfferAnswerHandler::SetLocalDescription(
     SetSessionDescriptionObserver* observer,
     SessionDescriptionInterface* desc_ptr) {
   RTC_DCHECK_RUN_ON(signaling_thread());
+  RTC_DCHECK(desc_ptr);
+  RTC_DCHECK(observer);
   // Chain this operation. If asynchronous operations are pending on the chain,
   // this operation will be queued to be invoked, otherwise the contents of the
   // lambda will execute immediately.
@@ -1672,6 +1669,8 @@ void SdpOfferAnswerHandler::SetLocalDescription(
     std::unique_ptr<SessionDescriptionInterface> desc,
     scoped_refptr<SetLocalDescriptionObserverInterface> observer) {
   RTC_DCHECK_RUN_ON(signaling_thread());
+  RTC_DCHECK(desc);
+  RTC_DCHECK(observer);
   // Chain this operation. If asynchronous operations are pending on the chain,
   // this operation will be queued to be invoked, otherwise the contents of the
   // lambda will execute immediately.
@@ -1698,6 +1697,7 @@ void SdpOfferAnswerHandler::SetLocalDescription(
 void SdpOfferAnswerHandler::SetLocalDescription(
     SetSessionDescriptionObserver* observer) {
   RTC_DCHECK_RUN_ON(signaling_thread());
+  RTC_DCHECK(observer);
   SetLocalDescription(make_ref_counted<SetSessionDescriptionObserverAdapter>(
       weak_ptr_factory_.GetWeakPtr(),
       scoped_refptr<SetSessionDescriptionObserver>(observer)));
@@ -1706,6 +1706,7 @@ void SdpOfferAnswerHandler::SetLocalDescription(
 void SdpOfferAnswerHandler::SetLocalDescription(
     scoped_refptr<SetLocalDescriptionObserverInterface> observer) {
   RTC_DCHECK_RUN_ON(signaling_thread());
+  RTC_DCHECK(observer);
   // The `create_sdp_observer` handles performing DoSetLocalDescription() with
   // the resulting description as well as completing the operation.
   auto create_sdp_observer =
@@ -2015,6 +2016,8 @@ void SdpOfferAnswerHandler::SetRemoteDescription(
     SetSessionDescriptionObserver* observer,
     SessionDescriptionInterface* desc_ptr) {
   RTC_DCHECK_RUN_ON(signaling_thread());
+  RTC_DCHECK(observer);
+  RTC_DCHECK(desc_ptr);
   // Chain this operation. If asynchronous operations are pending on the chain,
   // this operation will be queued to be invoked, otherwise the contents of the
   // lambda will execute immediately.
@@ -2046,6 +2049,8 @@ void SdpOfferAnswerHandler::SetRemoteDescription(
     std::unique_ptr<SessionDescriptionInterface> desc,
     scoped_refptr<SetRemoteDescriptionObserverInterface> observer) {
   RTC_DCHECK_RUN_ON(signaling_thread());
+  RTC_DCHECK(desc);
+  RTC_DCHECK(observer);
   // Chain this operation. If asynchronous operations are pending on the chain,
   // this operation will be queued to be invoked, otherwise the contents of the
   // lambda will execute immediately.
@@ -2053,12 +2058,6 @@ void SdpOfferAnswerHandler::SetRemoteDescription(
       [this_weak_ptr = weak_ptr_factory_.GetWeakPtr(), observer,
        desc = std::move(desc)](
           std::function<void()> operations_chain_callback) mutable {
-        if (!observer) {
-          RTC_DLOG(LS_ERROR) << "SetRemoteDescription - observer is NULL.";
-          operations_chain_callback();
-          return;
-        }
-
         // Abort early if `this_weak_ptr` is no longer valid.
         if (!this_weak_ptr) {
           observer->OnSetRemoteDescriptionComplete(RTCError(
@@ -2431,17 +2430,8 @@ void SdpOfferAnswerHandler::DoSetLocalDescription(
     scoped_refptr<SetLocalDescriptionObserverInterface> observer) {
   RTC_DCHECK_RUN_ON(signaling_thread());
   TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::DoSetLocalDescription");
-
-  if (!observer) {
-    RTC_LOG(LS_ERROR) << "SetLocalDescription - observer is NULL.";
-    return;
-  }
-
-  if (!desc) {
-    observer->OnSetLocalDescriptionComplete(
-        RTCError(RTCErrorType::INTERNAL_ERROR, "SessionDescription is NULL."));
-    return;
-  }
+  RTC_DCHECK(desc);
+  RTC_DCHECK(observer);
 
   // If a session error has occurred the PeerConnection is in a possibly
   // inconsistent state so fail right away.

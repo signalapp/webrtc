@@ -249,12 +249,11 @@ class SessionDescriptionInternal {
   // This method is necessarily `protected`, and not private, while
   // the SessionDescriptionInterface implementation is being consolidated
   // into a single class.
-  SequenceChecker& sequence_checker() { return sequence_checker_; }
+  const SequenceChecker* sequence_checker() const { return &sequence_checker_; }
 
  private:
   RTC_NO_UNIQUE_ADDRESS SequenceChecker sequence_checker_{
       SequenceChecker::kDetached};
-
   const SdpType sdp_type_;
   const std::string id_;
   const std::string version_;

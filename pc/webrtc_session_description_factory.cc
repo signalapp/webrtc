@@ -401,6 +401,7 @@ void WebRtcSessionDescriptionFactory::PostCreateSessionDescriptionFailed(
 void WebRtcSessionDescriptionFactory::PostCreateSessionDescriptionSucceeded(
     CreateSessionDescriptionObserver* observer,
     std::unique_ptr<SessionDescriptionInterface> description) {
+  description->RelinquishThreadOwnership();
   Post([observer = scoped_refptr<CreateSessionDescriptionObserver>(observer),
         description = std::move(description)]() mutable {
     observer->OnSuccess(description.release());
