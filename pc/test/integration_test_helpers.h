@@ -692,7 +692,7 @@ class PeerConnectionIntegrationWrapper : public PeerConnectionObserver,
     std::string sdp;
     EXPECT_TRUE(desc->ToString(&sdp));
     RTC_LOG(LS_INFO) << debug_name_
-                     << ": SetRemoteDescription SDP: type=" << desc->type()
+                     << ": SetRemoteDescription SDP: type=" << desc->GetType()
                      << " contents=\n"
                      << sdp;
     pc()->SetRemoteDescription(std::move(desc), observer);  // desc.release());
@@ -778,7 +778,7 @@ class PeerConnectionIntegrationWrapper : public PeerConnectionObserver,
     SdpType type = desc->GetType();
     std::string sdp;
     EXPECT_TRUE(desc->ToString(&sdp));
-    RTC_LOG(LS_INFO) << debug_name_ << ": local SDP type=" << desc->type()
+    RTC_LOG(LS_INFO) << debug_name_ << ": local SDP type=" << desc->GetType()
                      << " contents=\n"
                      << sdp;
     pc()->SetLocalDescription(observer.get(), desc.release());

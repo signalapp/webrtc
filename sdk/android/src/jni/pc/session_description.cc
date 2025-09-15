@@ -53,9 +53,11 @@ std::unique_ptr<SessionDescriptionInterface> JavaToNativeSessionDescription(
 ScopedJavaLocalRef<jobject> NativeToJavaSessionDescription(
     JNIEnv* jni,
     const std::string& sdp,
-    const std::string& type) {
+    SdpType type) {
   return Java_SessionDescription_Constructor(
-      jni, Java_Type_fromCanonicalForm(jni, NativeToJavaString(jni, type)),
+      jni,
+      Java_Type_fromCanonicalForm(
+          jni, NativeToJavaString(jni, SdpTypeToString(type))),
       NativeToJavaString(jni, sdp));
 }
 
