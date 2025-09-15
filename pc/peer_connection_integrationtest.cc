@@ -100,6 +100,7 @@ namespace webrtc {
 namespace {
 
 using ::testing::AtLeast;
+using ::testing::Contains;
 using ::testing::Eq;
 using ::testing::Field;
 using ::testing::Gt;
@@ -108,6 +109,7 @@ using ::testing::Invoke;
 using ::testing::IsTrue;
 using ::testing::MockFunction;
 using ::testing::NiceMock;
+using ::testing::Not;
 using ::testing::NotNull;
 using ::testing::Return;
 using ::testing::WithParamInterface;
@@ -5026,6 +5028,49 @@ TEST_P(PeerConnectionIntegrationTest, DtlsPqcFieldTrial) {
 }
 
 #endif  // WEBRTC_HAVE_SCTP
+
+TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
+       PerPeerConnectionHeaderExtensions) {
+  SetFieldTrials("caller", "WebRTC-VideoFrameTrackingIdAdvertised/Enabled/");
+  SetFieldTrials("callee", "WebRTC-VideoFrameTrackingIdAdvertised/Disabled/");
+  PeerConnectionInterface::RTCConfiguration config;
+  PeerConnectionFactoryInterface::Options options;
+  options.ssl_max_version = SSL_PROTOCOL_DTLS_13;
+
+  const bool create_media_engine = true;
+  SetCallerPcWrapperAndReturnCurrent(CreatePeerConnectionWrapper(
+      "caller", &options, &config, PeerConnectionDependencies(nullptr),
+      /* event_log_factory= */ nullptr,
+      /* reset_encoder_factory= */ false,
+      /* reset_decoder_factory= */ false, create_media_engine));
+  SetCalleePcWrapperAndReturnCurrent(CreatePeerConnectionWrapper(
+      "callee", &options, &config, PeerConnectionDependencies(nullptr),
+      /* event_log_factory= */ nullptr,
+      /* reset_encoder_factory= */ false,
+      /* reset_decoder_factory= */ false, create_media_engine));
+
+  const std::string uri =
+      "http://www.webrtc.org/experiments/rtp-hdrext/video-frame-tracking-id";
+  {
+    caller()->pc()->AddTransceiver(MediaType::VIDEO);
+    auto session_description = caller()->CreateOfferAndWait();
+    EXPECT_THAT(session_description->description()
+                    ->contents()[0]
+                    .media_description()
+                    ->rtp_header_extensions(),
+                Contains(Field(&RtpExtension::uri, uri)));
+  }
+
+  {
+    callee()->pc()->AddTransceiver(MediaType::VIDEO);
+    auto session_description = callee()->CreateOfferAndWait();
+    EXPECT_THAT(session_description->description()
+                    ->contents()[0]
+                    .media_description()
+                    ->rtp_header_extensions(),
+                Not(Contains(Field(&RtpExtension::uri, uri))));
+  }
+}
 
 }  // namespace
 
