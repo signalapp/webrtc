@@ -106,6 +106,7 @@ specific_include_rules = {
   "jsep\.h": [
     "+absl/strings/has_absl_stringify.h",
     "+absl/strings/str_format.h",
+    "+rtc_base/system/no_unique_address.h",
   ],
 
   "local_network_access_permission\.h": [

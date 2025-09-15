@@ -17,6 +17,7 @@
 #include <type_traits>
 
 #include "api/jsep.h"
+#include "pc/session_description.h"
 #include "test/gmock.h"
 
 namespace webrtc {
@@ -27,7 +28,8 @@ class [[deprecated(
     "interface.")]] MockSessionDescriptionInterface
     : public SessionDescriptionInterface {
  public:
-  MockSessionDescriptionInterface() = default;
+  MockSessionDescriptionInterface()
+      : SessionDescriptionInterface(SdpType::kRollback, nullptr, "", "") {}
   MOCK_METHOD(std::unique_ptr<SessionDescriptionInterface>,
               Clone,
               (),

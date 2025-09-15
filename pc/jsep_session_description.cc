@@ -150,20 +150,50 @@ std::unique_ptr<SessionDescriptionInterface> CreateRollbackSessionDescription(
       SdpType::kRollback, /*description=*/nullptr, session_id, session_version);
 }
 
-JsepSessionDescription::JsepSessionDescription(SdpType type) : type_(type) {}
+SessionDescriptionInternal::SessionDescriptionInternal(
+    SdpType type,
+    std::unique_ptr<SessionDescription> description,
+    absl::string_view id,
+    absl::string_view version)
+    : sdp_type_(type),
+      id_(id),
+      version_(version),
+      description_(std::move(description)) {
+  RTC_DCHECK(description_ || sdp_type_ == SdpType::kRollback);
+}
+
+SessionDescriptionInternal::~SessionDescriptionInternal() = default;
+
+size_t SessionDescriptionInternal::mediasection_count() const {
+  return description_ ? description_->contents().size() : 0u;
+}
+
+void SessionDescriptionInternal::RelinquishThreadOwnership() {
+  sequence_checker_.Detach();
+}
+
+SessionDescriptionInterface::SessionDescriptionInterface(
+    SdpType type,
+    std::unique_ptr<SessionDescription> description,
+    absl::string_view id,
+    absl::string_view version)
+    : SessionDescriptionInternal(type, std::move(description), id, version) {}
+
+JsepSessionDescription::JsepSessionDescription(SdpType type)
+    : SessionDescriptionInterface(type, nullptr, "", "") {}
 
 JsepSessionDescription::JsepSessionDescription(
     SdpType type,
-    std::unique_ptr<SessionDescription> description,
+    std::unique_ptr<SessionDescription> desc,
     absl::string_view session_id,
     absl::string_view session_version,
     std::vector<IceCandidateCollection> candidates)
-    : description_(std::move(description)),
-      session_id_(session_id),
-      session_version_(session_version),
-      type_(type),
+    : SessionDescriptionInterface(type,
+                                  std::move(desc),
+                                  session_id,
+                                  session_version),
       candidate_collection_(std::move(candidates)) {
-  RTC_DCHECK(description_ || type == SdpType::kRollback);
+  RTC_DCHECK(description() || type == SdpType::kRollback);
   RTC_DCHECK(candidate_collection_.empty() ||
              candidate_collection_.size() == number_of_mediasections());
   candidate_collection_.resize(number_of_mediasections());
@@ -174,9 +204,8 @@ JsepSessionDescription::~JsepSessionDescription() {}
 std::unique_ptr<SessionDescriptionInterface> JsepSessionDescription::Clone()
     const {
   return std::make_unique<JsepSessionDescription>(
-      GetType(), description_.get() ? description_->Clone() : nullptr,
-      session_id_, session_version_,
-      CloneCandidateCollection(candidate_collection_));
+      sdp_type(), description() ? description()->Clone() : nullptr, id(),
+      version(), CloneCandidateCollection(candidate_collection_));
 }
 
 bool JsepSessionDescription::AddCandidate(const IceCandidate* candidate) {
@@ -187,9 +216,9 @@ bool JsepSessionDescription::AddCandidate(const IceCandidate* candidate) {
     return false;
   }
   const std::string& mediasection_mid =
-      description_->contents()[mediasection_index].mid();
+      description()->contents()[mediasection_index].mid();
   const TransportInfo* transport_info =
-      description_->GetTransportInfoByName(mediasection_mid);
+      description()->GetTransportInfoByName(mediasection_mid);
   if (!transport_info) {
     return false;
   }
@@ -219,7 +248,7 @@ bool JsepSessionDescription::AddCandidate(const IceCandidate* candidate) {
         std::move(updated_candidate_wrapper));
     UpdateConnectionAddress(
         candidate_collection_[mediasection_index],
-        description_->contents()[mediasection_index].media_description());
+        description()->contents()[mediasection_index].media_description());
   }
 
   return true;
@@ -235,14 +264,8 @@ bool JsepSessionDescription::RemoveCandidate(const IceCandidate* candidate) {
   }
   UpdateConnectionAddress(
       candidate_collection_[mediasection_index],
-      description_->contents()[mediasection_index].media_description());
+      description()->contents()[mediasection_index].media_description());
   return true;
-}
-
-size_t JsepSessionDescription::number_of_mediasections() const {
-  if (!description_)
-    return 0;
-  return description_->contents().size();
 }
 
 const IceCandidateCollection* JsepSessionDescription::candidates(
@@ -253,7 +276,7 @@ const IceCandidateCollection* JsepSessionDescription::candidates(
 }
 
 bool JsepSessionDescription::ToString(std::string* out) const {
-  if (!description_ || !out) {
+  if (!description() || !out) {
     return false;
   }
   *out = SdpSerialize(*this);
@@ -261,14 +284,14 @@ bool JsepSessionDescription::ToString(std::string* out) const {
 }
 
 bool JsepSessionDescription::IsValidMLineIndex(int index) const {
-  RTC_DCHECK(description_);
+  RTC_DCHECK(description());
   return index >= 0 &&
-         index < static_cast<int>(description_->contents().size());
+         index < static_cast<int>(description()->contents().size());
 }
 
 bool JsepSessionDescription::GetMediasectionIndex(const IceCandidate* candidate,
                                                   size_t* index) const {
-  if (!candidate || !index || !description_) {
+  if (!candidate || !index || !description()) {
     return false;
   }
 
@@ -283,7 +306,7 @@ bool JsepSessionDescription::GetMediasectionIndex(const IceCandidate* candidate,
 }
 
 int JsepSessionDescription::GetMediasectionIndex(absl::string_view mid) const {
-  const auto& contents = description_->contents();
+  const auto& contents = description()->contents();
   auto it =
       std::find_if(contents.begin(), contents.end(),
                    [&](const auto& content) { return mid == content.mid(); });
