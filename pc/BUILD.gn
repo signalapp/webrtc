@@ -377,6 +377,7 @@ rtc_library("media_session") {
     "../rtc_base:checks",
     "../rtc_base:logging",
     "../rtc_base:unique_id_generator",
+    "../rtc_base/experiments:field_trial_parser",
     "../rtc_base/memory:always_valid_pointer",
     "//third_party/abseil-cpp/absl/algorithm:container",
     "//third_party/abseil-cpp/absl/strings",
