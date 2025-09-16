@@ -1053,6 +1053,38 @@ rtc_source_set("sequence_checker") {
   ]
 }
 
+rtc_library("datagram_connection") {
+  visibility = [ "*" ]
+  sources = [ "datagram_connection.h" ]
+  deps = [
+    ":array_view",
+    ":candidate",
+    ":ref_count",
+    "../p2p:transport_description",
+    "../rtc_base:macromagic",
+    "../rtc_base/system:rtc_export",
+    "environment",
+    "//third_party/abseil-cpp/absl/functional:any_invocable",
+  ]
+}
+
+rtc_library("datagram_connection_factory") {
+  visibility = [ "*" ]
+  sources = [
+    "datagram_connection_factory.cc",
+    "datagram_connection_factory.h",
+  ]
+  deps = [
+    ":datagram_connection",
+    ":ref_count",
+    "../p2p:port_allocator",
+    "../pc:datagram_connection_internal",
+    "../rtc_base:macromagic",
+    "../rtc_base/system:rtc_export",
+    "environment",
+  ]
+}
+
 if (rtc_include_tests) {
   if (rtc_enable_protobuf && !build_with_chromium) {
     rtc_library("audioproc_f_api") {
@@ -1577,6 +1609,17 @@ if (rtc_include_tests) {
       "../rtc_base:refcount",
       "../test:test_support",
       "video:video_frame",
+    ]
+  }
+
+  rtc_library("mock_datagram_connection_observer") {
+    visibility = [ "*" ]
+    testonly = true
+    sources = [ "test/mock_datagram_connection_observer.h" ]
+    deps = [
+      "../api:datagram_connection",
+      "//test:test_support",
+      "//testing/gmock",
     ]
   }
 

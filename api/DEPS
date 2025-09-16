@@ -95,6 +95,14 @@ specific_include_rules = {
     "+rtc_base/copy_on_write_buffer.h",
   ],
 
+  "datagram_connection\.h": [
+    "+p2p/base/transport_description.h",
+  ],
+
+  "datagram_connection_factory\.h": [
+    "+p2p/base/port_allocator.h",
+  ],
+
   "dtls_transport_interface\.h": [
     "+rtc_base/ssl_certificate.h",
   ],
