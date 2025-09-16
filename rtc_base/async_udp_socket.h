@@ -41,23 +41,8 @@ class AsyncUDPSocket : public AsyncPacketSocket {
       const SocketAddress& bind_address,
       SocketFactory& factory);
 
-  // TODO: bugs.webrtc.org/42223992 - Delete or deprecate 2 factory functions
-  // below when WebRTC is updated to use factory that provides Environment.
-  // Binds `socket` and creates AsyncUDPSocket for it. Takes ownership
-  // of `socket`. Returns null if bind() fails (`socket` is destroyed
-  // in that case).
-  static AsyncUDPSocket* Create(Socket* socket,
-                                const SocketAddress& bind_address);
-  // Creates a new socket for sending asynchronous UDP packets using an
-  // asynchronous socket from the given factory.
-  static AsyncUDPSocket* Create(SocketFactory* factory,
-                                const SocketAddress& bind_address);
-
   AsyncUDPSocket(const Environment& env,
                  absl_nonnull std::unique_ptr<Socket> socket);
-  // TODO: bugs.webrtc.org/42223992 - Delete or deprecate constructor below when
-  // WebRTC is updated to use constructor that provides Environment.
-  explicit AsyncUDPSocket(Socket* socket);
   ~AsyncUDPSocket() = default;
 
   SocketAddress GetLocalAddress() const override;
