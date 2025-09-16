@@ -19,6 +19,7 @@
 #include "api/audio_codecs/audio_encoder_factory_template.h"
 #include "api/audio_codecs/opus/audio_decoder_opus.h"
 #include "api/audio_codecs/opus/audio_encoder_opus.h"
+#include "api/create_modular_peer_connection_factory.h"
 #include "api/create_peerconnection_factory.h"
 #include "api/enable_media.h"
 #include "api/environment/environment_factory.h"
@@ -46,20 +47,20 @@ void CreateSomeMediaDeps(PeerConnectionFactoryDependencies& media_deps) {
   media_deps.adm =
       CreateAudioDeviceModule(*media_deps.env, AudioDeviceModule::kDummyAudio);
   media_deps.audio_encoder_factory =
-      webrtc::CreateAudioEncoderFactory<webrtc::AudioEncoderOpus>();
+      CreateAudioEncoderFactory<AudioEncoderOpus>();
   media_deps.audio_decoder_factory =
-      webrtc::CreateAudioDecoderFactory<webrtc::AudioDecoderOpus>();
+      CreateAudioDecoderFactory<AudioDecoderOpus>();
   // RingRTC change to exclude av1 and h264 factories
   media_deps.video_encoder_factory =
       std::make_unique<VideoEncoderFactoryTemplate<
           LibvpxVp8EncoderTemplateAdapter,
 #if defined(WEBRTC_USE_H264)
-          webrtc::OpenH264EncoderTemplateAdapter,
+          OpenH264EncoderTemplateAdapter,
 #endif
 #if defined(RTC_USE_LIBAOM_AV1_ENCODER)
-          webrtc::LibaomAv1EncoderTemplateAdapter,
+          LibaomAv1EncoderTemplateAdapter,
 #endif
-          webrtc::LibvpxVp9EncoderTemplateAdapter>>();
+          LibvpxVp9EncoderTemplateAdapter>>();
   // RingRTC change to exclude av1 and h264 factories
   media_deps.video_decoder_factory =
       std::make_unique<VideoDecoderFactoryTemplate<
@@ -76,12 +77,12 @@ void CreateSomeMediaDeps(PeerConnectionFactoryDependencies& media_deps) {
 }
 
 webrtc::PeerConnectionFactoryDependencies CreateSomePcfDeps() {
-  webrtc::PeerConnectionFactoryDependencies pcf_deps;
+  PeerConnectionFactoryDependencies pcf_deps;
   pcf_deps.env = CreateEnvironment();
-  pcf_deps.signaling_thread = webrtc::Thread::Current();
-  pcf_deps.network_thread = webrtc::Thread::Current();
-  pcf_deps.worker_thread = webrtc::Thread::Current();
-  pcf_deps.event_log_factory = std::make_unique<webrtc::RtcEventLogFactory>();
+  pcf_deps.signaling_thread = Thread::Current();
+  pcf_deps.network_thread = Thread::Current();
+  pcf_deps.worker_thread = Thread::Current();
+  pcf_deps.event_log_factory = std::make_unique<RtcEventLogFactory>();
   CreateSomeMediaDeps(pcf_deps);
   EnableMedia(pcf_deps);
   return pcf_deps;
@@ -94,8 +95,8 @@ webrtc::PeerConnectionFactoryDependencies CreateSomePcfDeps() {
 void TestCase1ModularFactory() {
   auto pcf_deps = CreateSomePcfDeps();
   auto peer_connection_factory =
-      webrtc::CreateModularPeerConnectionFactory(std::move(pcf_deps));
-  webrtc::PeerConnectionInterface::RTCConfiguration rtc_config;
+      CreateModularPeerConnectionFactory(std::move(pcf_deps));
+  PeerConnectionInterface::RTCConfiguration rtc_config;
   auto result = peer_connection_factory->CreatePeerConnectionOrError(
       rtc_config, PeerConnectionDependencies(nullptr));
   // Creation will fail because of null observer, but that's OK.
@@ -107,14 +108,13 @@ void TestCase2RegularFactory() {
   media_deps.env = CreateEnvironment();
   CreateSomeMediaDeps(media_deps);
 
-  auto peer_connection_factory = webrtc::CreatePeerConnectionFactory(
-      webrtc::Thread::Current(), webrtc::Thread::Current(),
-      webrtc::Thread::Current(), std::move(media_deps.adm),
-      std::move(media_deps.audio_encoder_factory),
+  auto peer_connection_factory = CreatePeerConnectionFactory(
+      Thread::Current(), Thread::Current(), Thread::Current(),
+      std::move(media_deps.adm), std::move(media_deps.audio_encoder_factory),
       std::move(media_deps.audio_decoder_factory),
       std::move(media_deps.video_encoder_factory),
       std::move(media_deps.video_decoder_factory), nullptr, nullptr);
-  webrtc::PeerConnectionInterface::RTCConfiguration rtc_config;
+  PeerConnectionInterface::RTCConfiguration rtc_config;
   auto result = peer_connection_factory->CreatePeerConnectionOrError(
       rtc_config, PeerConnectionDependencies(nullptr));
   // Creation will fail because of null observer, but that's OK.
