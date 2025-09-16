@@ -19,6 +19,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "api/candidate.h"
 #include "api/jsep.h"
@@ -137,17 +138,29 @@ std::unique_ptr<SessionDescriptionInterface> CreateSessionDescription(
     const std::string& session_id,
     const std::string& session_version,
     std::unique_ptr<SessionDescription> description) {
-  if (!description && type != SdpType::kRollback)
-    return nullptr;
-  return std::make_unique<JsepSessionDescription>(type, std::move(description),
-                                                  session_id, session_version);
+  return SessionDescriptionInterface::Create(type, std::move(description),
+                                             session_id, session_version);
 }
 
 std::unique_ptr<SessionDescriptionInterface> CreateRollbackSessionDescription(
     absl::string_view session_id,
     absl::string_view session_version) {
-  return std::make_unique<JsepSessionDescription>(
+  return SessionDescriptionInterface::Create(
       SdpType::kRollback, /*description=*/nullptr, session_id, session_version);
+}
+
+// static
+std::unique_ptr<SessionDescriptionInterface>
+SessionDescriptionInterface::Create(
+    SdpType type,
+    std::unique_ptr<SessionDescription> description,
+    absl::string_view id,
+    absl::string_view version,
+    std::vector<IceCandidateCollection> candidates) {
+  if (!description && type != SdpType::kRollback)
+    return nullptr;
+  return absl::WrapUnique(new SessionDescriptionInterface(
+      type, std::move(description), id, version, std::move(candidates)));
 }
 
 SessionDescriptionInternal::SessionDescriptionInternal(
@@ -180,10 +193,17 @@ void SessionDescriptionInternal::RelinquishThreadOwnership() {
 
 SessionDescriptionInterface::SessionDescriptionInterface(
     SdpType type,
-    std::unique_ptr<SessionDescription> description,
+    std::unique_ptr<SessionDescription> desc,
     absl::string_view id,
-    absl::string_view version)
-    : SessionDescriptionInternal(type, std::move(description), id, version) {}
+    absl::string_view version,
+    std::vector<IceCandidateCollection> candidates)
+    : SessionDescriptionInternal(type, std::move(desc), id, version),
+      candidate_collection_(std::move(candidates)) {
+  RTC_DCHECK(description() || type == SdpType::kRollback);
+  RTC_DCHECK(candidate_collection_.empty() ||
+             candidate_collection_.size() == number_of_mediasections());
+  candidate_collection_.resize(number_of_mediasections());
+}
 
 JsepSessionDescription::JsepSessionDescription(SdpType type)
     : SessionDescriptionInterface(type, nullptr, "", "") {}
@@ -197,25 +217,20 @@ JsepSessionDescription::JsepSessionDescription(
     : SessionDescriptionInterface(type,
                                   std::move(desc),
                                   session_id,
-                                  session_version),
-      candidate_collection_(std::move(candidates)) {
-  RTC_DCHECK(description() || type == SdpType::kRollback);
-  RTC_DCHECK(candidate_collection_.empty() ||
-             candidate_collection_.size() == number_of_mediasections());
-  candidate_collection_.resize(number_of_mediasections());
-}
+                                  session_version,
+                                  std::move(candidates)) {}
 
 JsepSessionDescription::~JsepSessionDescription() {}
 
-std::unique_ptr<SessionDescriptionInterface> JsepSessionDescription::Clone()
-    const {
+std::unique_ptr<SessionDescriptionInterface>
+SessionDescriptionInterface::Clone() const {
   RTC_DCHECK_RUN_ON(sequence_checker());
-  return std::make_unique<JsepSessionDescription>(
+  return SessionDescriptionInterface::Create(
       sdp_type(), description() ? description()->Clone() : nullptr, id(),
       version(), CloneCandidateCollection(candidate_collection_));
 }
 
-bool JsepSessionDescription::AddCandidate(const IceCandidate* candidate) {
+bool SessionDescriptionInterface::AddCandidate(const IceCandidate* candidate) {
   RTC_DCHECK_RUN_ON(sequence_checker());
   if (!candidate)
     return false;
@@ -257,7 +272,8 @@ bool JsepSessionDescription::AddCandidate(const IceCandidate* candidate) {
   return true;
 }
 
-bool JsepSessionDescription::RemoveCandidate(const IceCandidate* candidate) {
+bool SessionDescriptionInterface::RemoveCandidate(
+    const IceCandidate* candidate) {
   RTC_DCHECK_RUN_ON(sequence_checker());
   size_t index = 0u;
   if (!GetMediasectionIndex(candidate, &index)) {
@@ -272,7 +288,7 @@ bool JsepSessionDescription::RemoveCandidate(const IceCandidate* candidate) {
   return true;
 }
 
-const IceCandidateCollection* JsepSessionDescription::candidates(
+const IceCandidateCollection* SessionDescriptionInterface::candidates(
     size_t mediasection_index) const {
   RTC_DCHECK_RUN_ON(sequence_checker());
   if (mediasection_index >= candidate_collection_.size())
@@ -280,7 +296,7 @@ const IceCandidateCollection* JsepSessionDescription::candidates(
   return &candidate_collection_[mediasection_index];
 }
 
-bool JsepSessionDescription::ToString(std::string* out) const {
+bool SessionDescriptionInterface::ToString(std::string* out) const {
   if (!description() || !out) {
     return false;
   }
@@ -288,14 +304,15 @@ bool JsepSessionDescription::ToString(std::string* out) const {
   return !out->empty();
 }
 
-bool JsepSessionDescription::IsValidMLineIndex(int index) const {
+bool SessionDescriptionInterface::IsValidMLineIndex(int index) const {
   RTC_DCHECK(description());
   return index >= 0 &&
          index < static_cast<int>(description()->contents().size());
 }
 
-bool JsepSessionDescription::GetMediasectionIndex(const IceCandidate* candidate,
-                                                  size_t* index) const {
+bool SessionDescriptionInterface::GetMediasectionIndex(
+    const IceCandidate* candidate,
+    size_t* index) const {
   if (!candidate || !index || !description()) {
     return false;
   }
@@ -310,7 +327,8 @@ bool JsepSessionDescription::GetMediasectionIndex(const IceCandidate* candidate,
   return IsValidMLineIndex(*index);
 }
 
-int JsepSessionDescription::GetMediasectionIndex(absl::string_view mid) const {
+int SessionDescriptionInterface::GetMediasectionIndex(
+    absl::string_view mid) const {
   const auto& contents = description()->contents();
   auto it =
       std::find_if(contents.begin(), contents.end(),

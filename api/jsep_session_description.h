@@ -45,21 +45,6 @@ class JsepSessionDescription final : public SessionDescriptionInterface {
 
   JsepSessionDescription(const JsepSessionDescription&) = delete;
   JsepSessionDescription& operator=(const JsepSessionDescription&) = delete;
-
-  std::unique_ptr<SessionDescriptionInterface> Clone() const override;
-  bool AddCandidate(const IceCandidate* candidate) override;
-  bool RemoveCandidate(const IceCandidate* candidate) override;
-  const IceCandidateCollection* candidates(
-      size_t mediasection_index) const override;
-  bool ToString(std::string* out) const override;
-
- private:
-  std::vector<IceCandidateCollection> candidate_collection_
-      RTC_GUARDED_BY(sequence_checker());
-
-  bool IsValidMLineIndex(int index) const;
-  bool GetMediasectionIndex(const IceCandidate* candidate, size_t* index) const;
-  int GetMediasectionIndex(absl::string_view mid) const;
 };
 
 }  // namespace webrtc
