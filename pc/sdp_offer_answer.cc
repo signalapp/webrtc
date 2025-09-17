@@ -1424,9 +1424,11 @@ class SdpOfferAnswerHandler::LocalIceCredentialsToReplace {
   std::set<std::pair<std::string, std::string>> ice_credentials_;
 };
 
-SdpOfferAnswerHandler::SdpOfferAnswerHandler(PeerConnectionSdpMethods* pc,
+SdpOfferAnswerHandler::SdpOfferAnswerHandler(const Environment& env,
+                                             PeerConnectionSdpMethods* pc,
                                              ConnectionContext* context)
-    : pc_(pc),
+    : env_(env),
+      pc_(pc),
       context_(context),
       local_streams_(StreamCollection::Create()),
       remote_streams_(StreamCollection::Create()),
@@ -1446,6 +1448,7 @@ SdpOfferAnswerHandler::~SdpOfferAnswerHandler() {}
 
 // Static
 std::unique_ptr<SdpOfferAnswerHandler> SdpOfferAnswerHandler::Create(
+    const Environment& env,
     PeerConnectionSdpMethods* pc,
     const PeerConnectionInterface::RTCConfiguration& configuration,
     std::unique_ptr<RTCCertificateGeneratorInterface> cert_generator,
@@ -1453,7 +1456,7 @@ std::unique_ptr<SdpOfferAnswerHandler> SdpOfferAnswerHandler::Create(
         video_bitrate_allocator_factory,
     ConnectionContext* context,
     CodecLookupHelper* codec_lookup_helper) {
-  auto handler = absl::WrapUnique(new SdpOfferAnswerHandler(pc, context));
+  auto handler = absl::WrapUnique(new SdpOfferAnswerHandler(env, pc, context));
   handler->Initialize(configuration, std::move(cert_generator),
                       std::move(video_bitrate_allocator_factory), context,
                       codec_lookup_helper);
@@ -4390,8 +4393,7 @@ void SdpOfferAnswerHandler::GetOptionsForPlanBOffer(
           MediaType::AUDIO, GetDefaultMidForPlanB(MediaType::AUDIO),
           RtpTransceiverDirectionFromSendRecv(send_audio, recv_audio), false);
       options.header_extensions =
-          media_engine()->voice().GetRtpHeaderExtensions(
-              &context_->env().field_trials());
+          media_engine()->voice().GetRtpHeaderExtensions(&env_.field_trials());
       session_options->media_description_options.push_back(options);
       audio_index = session_options->media_description_options.size() - 1;
     }
@@ -4400,8 +4402,7 @@ void SdpOfferAnswerHandler::GetOptionsForPlanBOffer(
           MediaType::VIDEO, GetDefaultMidForPlanB(MediaType::VIDEO),
           RtpTransceiverDirectionFromSendRecv(send_video, recv_video), false);
       options.header_extensions =
-          media_engine()->video().GetRtpHeaderExtensions(
-              &context_->env().field_trials());
+          media_engine()->video().GetRtpHeaderExtensions(&env_.field_trials());
       session_options->media_description_options.push_back(options);
       video_index = session_options->media_description_options.size() - 1;
     }
@@ -5535,8 +5536,7 @@ void SdpOfferAnswerHandler::GenerateMediaDescriptionOptions(
         *audio_index = session_options->media_description_options.size() - 1;
       }
       session_options->media_description_options.back().header_extensions =
-          media_engine()->voice().GetRtpHeaderExtensions(
-              &context_->env().field_trials());
+          media_engine()->voice().GetRtpHeaderExtensions(&env_.field_trials());
     } else if (IsVideoContent(&content)) {
       // If we already have an video m= section, reject this extra one.
       if (*video_index) {
@@ -5552,8 +5552,7 @@ void SdpOfferAnswerHandler::GenerateMediaDescriptionOptions(
         *video_index = session_options->media_description_options.size() - 1;
       }
       session_options->media_description_options.back().header_extensions =
-          media_engine()->video().GetRtpHeaderExtensions(
-              &context_->env().field_trials());
+          media_engine()->video().GetRtpHeaderExtensions(&env_.field_trials());
     } else if (IsUnsupportedContent(&content)) {
       session_options->media_description_options.push_back(
           MediaDescriptionOptions(MediaType::UNSUPPORTED, content.mid(),

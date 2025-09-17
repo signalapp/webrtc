@@ -622,7 +622,7 @@ PeerConnection::PeerConnection(
   }
 
   sdp_handler_ = SdpOfferAnswerHandler::Create(
-      this, configuration_, std::move(dependencies.cert_generator),
+      env_, this, configuration_, std::move(dependencies.cert_generator),
       std::move(dependencies.video_bitrate_allocator_factory), context_.get(),
       codec_lookup_helper_.get());
   rtp_manager_ = std::make_unique<RtpTransmissionManager>(
