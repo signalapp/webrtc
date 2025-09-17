@@ -4393,7 +4393,7 @@ void SdpOfferAnswerHandler::GetOptionsForPlanBOffer(
           MediaType::AUDIO, GetDefaultMidForPlanB(MediaType::AUDIO),
           RtpTransceiverDirectionFromSendRecv(send_audio, recv_audio), false);
       options.header_extensions =
-          media_engine()->voice().GetRtpHeaderExtensions(&env_.field_trials());
+          media_engine()->voice().GetRtpHeaderExtensions(&pc_->trials());
       session_options->media_description_options.push_back(options);
       audio_index = session_options->media_description_options.size() - 1;
     }
@@ -4402,7 +4402,7 @@ void SdpOfferAnswerHandler::GetOptionsForPlanBOffer(
           MediaType::VIDEO, GetDefaultMidForPlanB(MediaType::VIDEO),
           RtpTransceiverDirectionFromSendRecv(send_video, recv_video), false);
       options.header_extensions =
-          media_engine()->video().GetRtpHeaderExtensions(&env_.field_trials());
+          media_engine()->video().GetRtpHeaderExtensions(&pc_->trials());
       session_options->media_description_options.push_back(options);
       video_index = session_options->media_description_options.size() - 1;
     }
@@ -5536,7 +5536,7 @@ void SdpOfferAnswerHandler::GenerateMediaDescriptionOptions(
         *audio_index = session_options->media_description_options.size() - 1;
       }
       session_options->media_description_options.back().header_extensions =
-          media_engine()->voice().GetRtpHeaderExtensions(&env_.field_trials());
+          media_engine()->voice().GetRtpHeaderExtensions(&pc_->trials());
     } else if (IsVideoContent(&content)) {
       // If we already have an video m= section, reject this extra one.
       if (*video_index) {
@@ -5552,7 +5552,7 @@ void SdpOfferAnswerHandler::GenerateMediaDescriptionOptions(
         *video_index = session_options->media_description_options.size() - 1;
       }
       session_options->media_description_options.back().header_extensions =
-          media_engine()->video().GetRtpHeaderExtensions(&env_.field_trials());
+          media_engine()->video().GetRtpHeaderExtensions(&pc_->trials());
     } else if (IsUnsupportedContent(&content)) {
       session_options->media_description_options.push_back(
           MediaDescriptionOptions(MediaType::UNSUPPORTED, content.mid(),
