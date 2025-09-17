@@ -320,12 +320,12 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
   // RingRTC change to support ICE forking
   // Start gathering with the same IceGatherer on many ICE transports to get
   // ICE forking behavior.  For example, like so:
-  // rtc::scoped_refptr<IceGathererInterface> gatherer = ...;
+  // scoped_refptr<IceGathererInterface> gatherer = ...;
   // transport1->StartGatheringWithSharedGatherer(gatherer);
   // transport2->StartGatheringWithSharedGatherer(gatherer);
   // Can only be called once.
   virtual void StartGatheringWithSharedGatherer(
-      rtc::scoped_refptr<IceGathererInterface> gatherer) {}
+      scoped_refptr<IceGathererInterface> gatherer) {}
   // Just for tests.
   virtual IceGathererInterface* shared_gatherer() { return nullptr; }
 

@@ -1115,14 +1115,14 @@ class AndroidAudioDeviceModuleOboe : public AudioDeviceModule {
 
 }  // namespace
 
-rtc::scoped_refptr<AudioDeviceModule> CreateAudioDeviceModuleOboe(
+scoped_refptr<AudioDeviceModule> CreateAudioDeviceModuleOboe(
     bool use_software_acoustic_echo_canceler,
     bool use_software_noise_suppressor,
     bool use_exclusive_sharing_mode,
     bool use_input_low_latency,
     bool use_input_voice_comm_preset) {
   RTC_LOG(LS_WARNING) << "CreateAudioDeviceModuleOboe";
-  return rtc::make_ref_counted<AndroidAudioDeviceModuleOboe>(
+  return make_ref_counted<AndroidAudioDeviceModuleOboe>(
       use_software_acoustic_echo_canceler, use_software_noise_suppressor,
       use_exclusive_sharing_mode, use_input_low_latency,
       use_input_voice_comm_preset);

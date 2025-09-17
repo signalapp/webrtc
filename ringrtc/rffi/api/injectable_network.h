@@ -35,13 +35,13 @@ class InjectableNetwork {
   // This is what the network stack sees.
   // The PacketSocketFactory and NetworkManager are referenced by the
   // PortAllocator.
-  virtual std::unique_ptr<webrtc::PortAllocator> CreatePortAllocator() = 0;
+  virtual std::unique_ptr<PortAllocator> CreatePortAllocator() = 0;
 
   // This is what the "driver" of the network sees: control of packets,
   // network interfaces, etc.
   virtual void SetSender(const InjectableNetworkSender* sender) = 0;
   virtual void AddInterface(const char* name,
-                            rtc::AdapterType type,
+                            AdapterType type,
                             Ip ip,
                             uint16_t preference) = 0;
   virtual void RemoveInterface(const char* name) = 0;
@@ -52,16 +52,16 @@ class InjectableNetwork {
 
   // These are more for internal use, not external, which is why the types
   // aren't the external types.
-  virtual int SendUdp(const rtc::SocketAddress& local_address,
-                      const rtc::SocketAddress& remote_address,
+  virtual int SendUdp(const SocketAddress& local_address,
+                      const SocketAddress& remote_address,
                       const uint8_t* data,
                       size_t size) = 0;
-  virtual void ForgetUdp(const rtc::SocketAddress& local_address) = 0;
+  virtual void ForgetUdp(const SocketAddress& local_address) = 0;
 };
 
 std::unique_ptr<InjectableNetwork> CreateInjectableNetwork(
-    const webrtc::Environment& env,
-    rtc::Thread* network_thread);
+    const Environment& env,
+    Thread* network_thread);
 
 RUSTEXPORT void Rust_InjectableNetwork_SetSender(
     InjectableNetwork* network_borrowed,
@@ -70,7 +70,7 @@ RUSTEXPORT void Rust_InjectableNetwork_SetSender(
 RUSTEXPORT void Rust_InjectableNetwork_AddInterface(
     InjectableNetwork* network_borrowed,
     const char* name_borrowed,
-    rtc::AdapterType type,
+    AdapterType type,
     Ip ip,
     uint16_t preference);
 

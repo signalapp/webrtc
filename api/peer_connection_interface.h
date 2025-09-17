@@ -331,10 +331,10 @@ class RTC_EXPORT PeerConnectionInterface : public RefCountInterface {
     int min_port = 0;
     int max_port = 0;
     // RingRTC change to default flags
-    uint32_t flags = webrtc::PORTALLOCATOR_ENABLE_SHARED_SOCKET
-      | webrtc::PORTALLOCATOR_ENABLE_IPV6
-      | webrtc::PORTALLOCATOR_ENABLE_IPV6_ON_WIFI
-      | webrtc::PORTALLOCATOR_ENABLE_ANY_ADDRESS_PORTS;
+    uint32_t flags = PORTALLOCATOR_ENABLE_SHARED_SOCKET
+      | PORTALLOCATOR_ENABLE_IPV6
+      | PORTALLOCATOR_ENABLE_IPV6_ON_WIFI
+      | PORTALLOCATOR_ENABLE_ANY_ADDRESS_PORTS;
   };
 
   enum class RTCConfigurationType {
@@ -1175,7 +1175,7 @@ class RTC_EXPORT PeerConnectionInterface : public RefCountInterface {
 
   // RingRTC change to support ICE forking
   // Creates an IceGatherer that can be shared/used with UseSharedIceGatherer
-  virtual rtc::scoped_refptr<webrtc::IceGathererInterface>
+  virtual scoped_refptr<IceGathererInterface>
   CreateSharedIceGatherer();
 
   // RingRTC change to support ICE forking
@@ -1188,7 +1188,7 @@ class RTC_EXPORT PeerConnectionInterface : public RefCountInterface {
   // Note that the given IceGatherer must be running on the same network thread
   // as the PeerConnnection.
   virtual bool UseSharedIceGatherer(
-      rtc::scoped_refptr<webrtc::IceGathererInterface> shared_ice_gatherer);
+      scoped_refptr<IceGathererInterface> shared_ice_gatherer);
 
   // RingRTC change to explicitly control when incoming packets can be processed
   virtual bool SetIncomingRtpEnabled(bool enabled);
@@ -1202,7 +1202,7 @@ class RTC_EXPORT PeerConnectionInterface : public RefCountInterface {
   // Packets will go to the PeerConnectionObserver
   virtual bool ReceiveRtp(uint8_t pt, bool enable_incoming);
 
-  virtual void ConfigureAudioEncoders(const webrtc::AudioEncoder::Config& config) {
+  virtual void ConfigureAudioEncoders(const AudioEncoder::Config& config) {
     RTC_LOG(LS_WARNING) << "Default PeerConnectionInterface::ConfigureAudioEncoders(...) does nothing!";
   }
 

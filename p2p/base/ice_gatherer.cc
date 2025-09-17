@@ -18,7 +18,7 @@
 namespace webrtc {
 
 BasicIceGatherer::BasicIceGatherer(
-    rtc::Thread* network_thread,
+    Thread* network_thread,
     std::unique_ptr<PortAllocator> port_allocator,
     std::unique_ptr<PortAllocatorSession> port_allocator_session)
     : network_thread_(network_thread),

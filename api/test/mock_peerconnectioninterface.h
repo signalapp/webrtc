@@ -247,10 +247,10 @@ class MockPeerConnectionInterface : public PeerConnectionInterface {
               (),
               (override));
   // RingRTC changes for added methods
-  MOCK_METHOD(rtc::scoped_refptr<webrtc::IceGathererInterface>,
+  MOCK_METHOD(scoped_refptr<IceGathererInterface>,
       CreateSharedIceGatherer, (), (override));
   MOCK_METHOD(bool, UseSharedIceGatherer,
-      (rtc::scoped_refptr<webrtc::IceGathererInterface>), (override));
+      (scoped_refptr<IceGathererInterface>), (override));
   MOCK_METHOD(bool, SendRtp, (std::unique_ptr<RtpPacket>), (override));
   MOCK_METHOD(bool, ReceiveRtp, (uint8_t, bool), (override));
   MOCK_METHOD(bool, SetIncomingRtpEnabled, (bool), (override));

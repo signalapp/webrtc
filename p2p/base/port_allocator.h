@@ -423,7 +423,7 @@ class RTC_EXPORT PortAllocator : public sigslot::has_slots<> {
   // is destroyed.  It can also be shared, which is useful for ICE forking.
   // The name is only used for debugging.  The config is based on the
   // existing PortAllocator config.
-  virtual rtc::scoped_refptr<webrtc::IceGathererInterface> CreateIceGatherer(
+  virtual scoped_refptr<IceGathererInterface> CreateIceGatherer(
       const std::string& name) {
     // This default means the PortAllocator does not support creating
     // IceGatherers.

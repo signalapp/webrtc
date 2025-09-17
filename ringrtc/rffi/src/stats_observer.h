@@ -30,7 +30,7 @@ class StatsObserverRffi : public RTCStatsCollectorCallback {
 
  protected:
   void OnStatsDelivered(
-      const rtc::scoped_refptr<const RTCStatsReport>& report) override;
+      const scoped_refptr<const RTCStatsReport>& report) override;
 
  private:
   void* stats_observer_;

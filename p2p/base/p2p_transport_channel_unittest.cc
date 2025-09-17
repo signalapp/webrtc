@@ -7024,7 +7024,7 @@ TEST(P2PTransportChannel, InjectActiveIceController) {
 
 // RingRTC change to support ICE forking
 TEST_F(P2PTransportChannelPingTest, Forking) {
-  rtc::ScopedFakeClock clock;
+  ScopedFakeClock clock;
   const Environment env = CreateEnvironment();
 
   // Prepare two transports with a shared gatherer

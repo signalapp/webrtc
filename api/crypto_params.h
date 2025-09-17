@@ -34,9 +34,9 @@ struct CryptoParams {
     return *this;
   }
 
-  int crypto_suite = rtc::kSrtpInvalidCryptoSuite;
+  int crypto_suite = kSrtpInvalidCryptoSuite;
   // Key and salt.
-  rtc::ZeroOnFreeBuffer<uint8_t> key_params;
+  ZeroOnFreeBuffer<uint8_t> key_params;
 };
 
 }  // namespace webrtc

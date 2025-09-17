@@ -13,14 +13,15 @@
 #include "third_party/libyuv/include/libyuv/convert.h"
 #include "third_party/libyuv/include/libyuv/convert_argb.h"
 #include "third_party/libyuv/include/libyuv/convert_from.h"
+
 namespace webrtc {
 namespace rffi {
 
-VideoSource::VideoSource() : rtc::AdaptedVideoTrackSource() {}
+VideoSource::VideoSource() : AdaptedVideoTrackSource() {}
 
 VideoSource::~VideoSource() {}
 
-void VideoSource::PushVideoFrame(const webrtc::VideoFrame& frame) {
+void VideoSource::PushVideoFrame(const VideoFrame& frame) {
   int adapted_width;
   int adapted_height;
   int crop_width;
@@ -38,7 +39,7 @@ void VideoSource::PushVideoFrame(const webrtc::VideoFrame& frame) {
     return;
   }
 
-  rtc::scoped_refptr<VideoFrameBuffer> adapted_buffer =
+  scoped_refptr<VideoFrameBuffer> adapted_buffer =
       frame.video_frame_buffer()->CropAndScale(crop_x, crop_y, crop_width,
                                                crop_height, adapted_width,
                                                adapted_height);
@@ -76,30 +77,29 @@ std::optional<bool> VideoSource::needs_denoising() const {
 }
 
 RUSTEXPORT void Rust_setAudioTrackEnabled(
-    webrtc::AudioTrackInterface* track_borrowed_rc,
+    AudioTrackInterface* track_borrowed_rc,
     bool enabled) {
   track_borrowed_rc->set_enabled(enabled);
 }
 
 RUSTEXPORT void Rust_setVideoTrackEnabled(
-    webrtc::VideoTrackInterface* track_borrowed_rc,
+    VideoTrackInterface* track_borrowed_rc,
     bool enabled) {
   track_borrowed_rc->set_enabled(enabled);
 }
 
 RUSTEXPORT void Rust_setVideoTrackContentHint(
-    webrtc::VideoTrackInterface* track_borrowed_rc,
+    VideoTrackInterface* track_borrowed_rc,
     bool is_screenshare) {
   track_borrowed_rc->set_content_hint(
       is_screenshare ? VideoTrackInterface::ContentHint::kText
                      : VideoTrackInterface::ContentHint::kNone);
 }
 
-RUSTEXPORT void Rust_pushVideoFrame(
-    webrtc::rffi::VideoSource* source_borrowed_rc,
-    VideoFrameBuffer* buffer_borrowed_rc) {
-  auto timestamp_us = rtc::TimeMicros();
-  auto frame = webrtc::VideoFrame::Builder()
+RUSTEXPORT void Rust_pushVideoFrame(rffi::VideoSource* source_borrowed_rc,
+                                    VideoFrameBuffer* buffer_borrowed_rc) {
+  auto timestamp_us = TimeMicros();
+  auto frame = VideoFrame::Builder()
                    .set_video_frame_buffer(inc_rc(buffer_borrowed_rc))
                    .set_timestamp_us(timestamp_us)
                    .build();
@@ -107,7 +107,7 @@ RUSTEXPORT void Rust_pushVideoFrame(
 }
 
 RUSTEXPORT void Rust_adaptOutputVideoFormat(
-    webrtc::rffi::VideoSource* source_borrowed_rc,
+    rffi::VideoSource* source_borrowed_rc,
     uint16_t width,
     uint16_t height,
     uint8_t fps) {
@@ -215,8 +215,7 @@ RUSTEXPORT VideoFrameBuffer* Rust_scaleVideoFrameBuffer(
 RUSTEXPORT VideoFrameBuffer* Rust_copyAndRotateVideoFrameBuffer(
     const VideoFrameBuffer* buffer_borrowed_rc,
     VideoRotation rotation) {
-  return take_rc(
-      webrtc::I420Buffer::Rotate(*buffer_borrowed_rc->GetI420(), rotation));
+  return take_rc(I420Buffer::Rotate(*buffer_borrowed_rc->GetI420(), rotation));
 }
 
 }  // namespace rffi

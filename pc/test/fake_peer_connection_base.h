@@ -238,12 +238,12 @@ class FakePeerConnectionBase : public PeerConnectionInternal {
   }
 
   // RingRTC change to add methods (see interface header)
-  rtc::scoped_refptr<webrtc::IceGathererInterface> CreateSharedIceGatherer()
+  scoped_refptr<IceGathererInterface> CreateSharedIceGatherer()
       override {
     return nullptr;
   }
 
-  bool UseSharedIceGatherer(rtc::scoped_refptr<webrtc::IceGathererInterface>
+  bool UseSharedIceGatherer(scoped_refptr<IceGathererInterface>
                                 shared_ice_gatherer) override {
     return false;
   }

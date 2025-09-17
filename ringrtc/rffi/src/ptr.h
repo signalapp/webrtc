@@ -12,19 +12,19 @@ namespace webrtc {
 namespace rffi {
 
 // This just makes it easier to read.
-// Calling the rtc::scoped_refptr constructor doesn't make it very clear that
+// Calling the scoped_refptr constructor doesn't make it very clear that
 // it increments the ref count.
 template <typename T>
-rtc::scoped_refptr<T> inc_rc(T* borrowed_rc) {
-  return rtc::scoped_refptr<T>(borrowed_rc);
+scoped_refptr<T> inc_rc(T* borrowed_rc) {
+  return scoped_refptr<T>(borrowed_rc);
 }
 
 // This just makes it easier to read.
-// Calling the rtc::scoped_refptr::release() doesn't make it very clear that
+// Calling the scoped_refptr::release() doesn't make it very clear that
 // it prevents decrementing the RC.
 // The caller now owns an RC.
 template <typename T>
-T* take_rc(rtc::scoped_refptr<T> scoped) {
+T* take_rc(scoped_refptr<T> scoped) {
   return scoped.release();
 }
 

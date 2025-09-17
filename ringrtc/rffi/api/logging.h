@@ -10,25 +10,25 @@
 #include "rtc_base/logging.h"
 
 typedef struct {
-  void (*onLogMessage)(rtc::LoggingSeverity severity,
+  void (*onLogMessage)(webrtc::LoggingSeverity severity,
                        const char* message_borrowed);
 } LoggerCallbacks;
 
 namespace webrtc {
 namespace rffi {
 
-// As simple implementation of rtc::LogSink that just passes the message
+// As simple implementation of LogSink that just passes the message
 // to Rust.
-class Logger : public rtc::LogSink {
+class Logger : public LogSink {
  public:
   Logger(LoggerCallbacks* cbs) : cbs_(*cbs) {}
 
   void OnLogMessage(const std::string& message) override {
-    OnLogMessage(message, rtc::LS_NONE);
+    OnLogMessage(message, LS_NONE);
   }
 
   void OnLogMessage(const std::string& message,
-                    rtc::LoggingSeverity severity) override {
+                    webrtc::LoggingSeverity severity) override {
     cbs_.onLogMessage(severity, message.c_str());
   }
 
@@ -38,7 +38,7 @@ class Logger : public rtc::LogSink {
 
 // Should only be called once.
 RUSTEXPORT void Rust_setLogger(LoggerCallbacks* cbs_borrowed,
-                               rtc::LoggingSeverity min_sev);
+                               webrtc::LoggingSeverity min_sev);
 
 }  // namespace rffi
 }  // namespace webrtc

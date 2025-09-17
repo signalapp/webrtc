@@ -2750,7 +2750,7 @@ TEST_F(BasicPortAllocatorTest, TestCreateIceGathererForForking) {
   allocator_->set_candidate_filter(5);
   allocator_->set_max_ipv6_networks(6);
   allocator_->SetNetworkIgnoreMask(7);
-  AddTurnServers(kTurnUdpIntAddr, rtc::SocketAddress());
+  AddTurnServers(kTurnUdpIntAddr, SocketAddress());
   allocator_->SetConfiguration(allocator_->stun_servers(),
                                allocator_->turn_servers(), 0,
                                webrtc::PRUNE_BASED_ON_PRIORITY,

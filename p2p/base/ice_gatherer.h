@@ -24,7 +24,7 @@ namespace webrtc {
 class BasicIceGatherer : public IceGathererInterface {
  public:
   BasicIceGatherer(
-      rtc::Thread* network_thread,
+      Thread* network_thread,
       std::unique_ptr<PortAllocator> port_allocator,
       std::unique_ptr<PortAllocatorSession> port_allocator_session);
   ~BasicIceGatherer() override;
@@ -35,7 +35,7 @@ class BasicIceGatherer : public IceGathererInterface {
   PortAllocator* port_allocator() { return port_allocator_.get(); }
 
  private:
-  rtc::Thread* network_thread_;
+  Thread* network_thread_;
   std::unique_ptr<PortAllocator> port_allocator_;
   std::unique_ptr<PortAllocatorSession> port_allocator_session_;
 };

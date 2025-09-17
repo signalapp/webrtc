@@ -1831,7 +1831,7 @@ void PeerConnection::Close() {
   }
 
   // RingRTC change to receive RTP data
-  RtpPacketSinkInterface* sink = Observer();
+  RtpPacketSinkInterface* sink = this->observer_;
 
   network_thread()->BlockingCall([this, sink] {
     RTC_DCHECK_RUN_ON(network_thread());
@@ -3123,7 +3123,7 @@ bool PeerConnection::SendRtp(std::unique_ptr<RtpPacket> rtp_packet) {
 bool PeerConnection::ReceiveRtp(uint8_t pt, bool enable_incoming) {
   RtpDemuxerCriteria demux_criteria;
   demux_criteria.payload_types().insert(pt);
-  RtpPacketSinkInterface* sink = Observer();
+  RtpPacketSinkInterface* sink = this->observer_;
   return network_thread()->BlockingCall([this, demux_criteria, sink, enable_incoming] {
     JsepTransportController* transport_controller = this->transport_controller_n();
     RtpTransportInternal* rtp_transport = transport_controller->GetBundledRtpTransport();

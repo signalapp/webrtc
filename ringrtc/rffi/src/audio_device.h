@@ -25,7 +25,7 @@ class RingRTCAudioDeviceModule : public AudioDeviceModule {
   ~RingRTCAudioDeviceModule() override;
 
   // Creates an ADM for usage in production code.
-  static rtc::scoped_refptr<RingRTCAudioDeviceModule> Create(
+  static scoped_refptr<RingRTCAudioDeviceModule> Create(
       void* adm_borrowed,
       const AudioDeviceCallbacks* callbacks);
 

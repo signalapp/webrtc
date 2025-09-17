@@ -48,11 +48,11 @@ bool SrtpKeyCarrier::SetAnswer(const CryptoParams& answer_params,
   const CryptoParams& new_recv_params =
       (source == CS_REMOTE) ? answer_params : offer_params_.value();
 
-  if (new_send_params.crypto_suite == rtc::kSrtpInvalidCryptoSuite) {
+  if (new_send_params.crypto_suite == kSrtpInvalidCryptoSuite) {
     RTC_LOG(LS_WARNING) << "Invalid crypto suite(s) received for send";
     return false;
   }
-  if (new_recv_params.crypto_suite == rtc::kSrtpInvalidCryptoSuite) {
+  if (new_recv_params.crypto_suite == kSrtpInvalidCryptoSuite) {
     RTC_LOG(LS_WARNING) << "Invalid crypto suite(s) received for recv";
     return false;
   }

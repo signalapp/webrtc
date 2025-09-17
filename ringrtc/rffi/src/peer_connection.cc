@@ -57,7 +57,7 @@ int ULPFEC_PT = 122;
 const uint32_t DISABLED_DEMUX_ID = 0;
 
 RUSTEXPORT bool Rust_updateTransceivers(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
+    PeerConnectionInterface* peer_connection_borrowed_rc,
     uint32_t* remote_demux_ids_data_borrowed,
     size_t length) {
   std::vector<uint32_t> remote_demux_ids;
@@ -99,7 +99,7 @@ RUSTEXPORT bool Rust_updateTransceivers(
     // The same demux ID is used for both the audio and video transceiver, and
     // audio is added first. So only advance to the next demux ID after seeing
     // a video transceiver.
-    if (transceiver->media_type() == webrtc::MediaType::VIDEO) {
+    if (transceiver->media_type() == MediaType::VIDEO) {
       remote_demux_ids_i++;
     }
   }
@@ -112,15 +112,15 @@ RUSTEXPORT bool Rust_updateTransceivers(
     init.direction = RtpTransceiverDirection::kRecvOnly;
     init.stream_ids = {absl::StrCat(remote_demux_id)};
 
-    auto result = peer_connection_borrowed_rc->AddTransceiver(
-        webrtc::MediaType::AUDIO, init);
+    auto result =
+        peer_connection_borrowed_rc->AddTransceiver(MediaType::AUDIO, init);
     if (!result.ok()) {
       RTC_LOG(LS_ERROR) << "Failed to PeerConnection::AddTransceiver(audio)";
       return false;
     }
 
-    result = peer_connection_borrowed_rc->AddTransceiver(
-        webrtc::MediaType::VIDEO, init);
+    result =
+        peer_connection_borrowed_rc->AddTransceiver(MediaType::VIDEO, init);
     if (!result.ok()) {
       RTC_LOG(LS_ERROR) << "Failed to PeerConnection::AddTransceiver(video)";
       return false;
@@ -188,7 +188,7 @@ RUSTEXPORT SessionDescriptionInterface* Rust_offerFromSdp(
 }
 
 RUSTEXPORT bool Rust_disableDtlsAndSetSrtpKey(
-    webrtc::SessionDescriptionInterface* session_description_borrowed,
+    SessionDescriptionInterface* session_description_borrowed,
     int crypto_suite,
     const char* key_borrowed,
     size_t key_len,
@@ -240,7 +240,7 @@ static int codecPriority(const RffiVideoCodec c) {
 }
 
 RUSTEXPORT RffiConnectionParametersV4* Rust_sessionDescriptionToV4(
-    const webrtc::SessionDescriptionInterface* session_description_borrowed,
+    const SessionDescriptionInterface* session_description_borrowed,
     bool enable_vp9) {
   if (!session_description_borrowed) {
     return nullptr;
@@ -267,9 +267,9 @@ RUSTEXPORT RffiConnectionParametersV4* Rust_sessionDescriptionToV4(
   auto* video = GetFirstVideoContentDescription(session);
   if (video) {
     for (const auto& codec : video->codecs()) {
-      auto codec_type = webrtc::PayloadStringToCodecType(codec.name);
+      auto codec_type = PayloadStringToCodecType(codec.name);
 
-      if (codec_type == webrtc::kVideoCodecVP9) {
+      if (codec_type == kVideoCodecVP9) {
         if (enable_vp9) {
           auto profile = ParseSdpForVP9Profile(codec.params);
           std::string profile_id_string;
@@ -291,7 +291,7 @@ RUSTEXPORT RffiConnectionParametersV4* Rust_sessionDescriptionToV4(
           vp9.type = kRffiVideoCodecVp9;
           v4->receive_video_codecs.push_back(vp9);
         }
-      } else if (codec_type == webrtc::kVideoCodecVP8) {
+      } else if (codec_type == kVideoCodecVP8) {
         RffiVideoCodec vp8;
         vp8.type = kRffiVideoCodecVp8;
         v4->receive_video_codecs.push_back(vp8);
@@ -324,7 +324,7 @@ RUSTEXPORT void Rust_deleteV4(RffiConnectionParametersV4* v4_owned) {
 }
 
 // Returns an owned pointer.
-RUSTEXPORT webrtc::SessionDescriptionInterface* Rust_sessionDescriptionFromV4(
+RUSTEXPORT SessionDescriptionInterface* Rust_sessionDescriptionFromV4(
     bool offer,
     const RffiConnectionParametersV4* v4_borrowed,
     bool enable_tcc_audio,
@@ -364,7 +364,7 @@ RUSTEXPORT webrtc::SessionDescriptionInterface* Rust_sessionDescriptionFromV4(
     media->set_protocol(kMediaProtocolSavpf);
     media->set_manually_specify_keys(true);
     media->set_rtcp_mux(true);
-    media->set_direction(webrtc::RtpTransceiverDirection::kSendRecv);
+    media->set_direction(RtpTransceiverDirection::kSendRecv);
   };
 
   auto audio = std::make_unique<AudioContentDescription>();
@@ -445,20 +445,20 @@ RUSTEXPORT webrtc::SessionDescriptionInterface* Rust_sessionDescriptionFromV4(
   video->AddCodec(red_rtx);
   video->AddCodec(ulpfec);
 
-  auto transport_cc1 = webrtc::RtpExtension(
-      webrtc::TransportSequenceNumber::Uri(), TRANSPORT_CC1_EXT_ID);
+  auto transport_cc1 =
+      RtpExtension(TransportSequenceNumber::Uri(), TRANSPORT_CC1_EXT_ID);
   // TransportCC V2 is now enabled by default, but the difference is that V2
   // doesn't send periodic updates and instead waits for feedback requests.
   // Since the existing clients don't send feedback requests, we can't enable
   // V2. We'd have to add it to signaling to move from V1 to V2.
-  auto video_orientation = webrtc::RtpExtension(
-      webrtc::VideoOrientation ::Uri(), VIDEO_ORIENTATION_EXT_ID);
+  auto video_orientation =
+      RtpExtension(VideoOrientation ::Uri(), VIDEO_ORIENTATION_EXT_ID);
   // abs_send_time and tx_time_offset are used for more accurate REMB messages
   // from the receiver, which are used by googcc in some small ways. So, keep
   // it enabled. But it doesn't make sense to enable both abs_send_time and
   // tx_time_offset, so only use abs_send_time.
-  auto abs_send_time = webrtc::RtpExtension(webrtc::AbsoluteSendTime::Uri(),
-                                            ABS_SEND_TIME_EXT_ID);
+  auto abs_send_time =
+      RtpExtension(AbsoluteSendTime::Uri(), ABS_SEND_TIME_EXT_ID);
 
   // Note: Using transport-cc with audio is still experimental in WebRTC.
   // And don't add abs_send_time because it's only used for video.
@@ -516,10 +516,10 @@ RUSTEXPORT webrtc::SessionDescriptionInterface* Rust_sessionDescriptionFromV4(
   session->set_msid_signaling(kMsidSignalingMediaSection);
 
   auto typ = offer ? SdpType::kOffer : SdpType::kAnswer;
-  return new webrtc::JsepSessionDescription(typ, std::move(session), "1", "1");
+  return new JsepSessionDescription(typ, std::move(session), "1", "1");
 }
 
-webrtc::JsepSessionDescription* CreateSessionDescriptionForGroupCall(
+JsepSessionDescription* CreateSessionDescriptionForGroupCall(
     bool local,
     const std::string& ice_ufrag,
     const std::string& ice_pwd,
@@ -660,8 +660,8 @@ webrtc::JsepSessionDescription* CreateSessionDescriptionForGroupCall(
     remote_video->AddCodec(red_rtx);
   }
 
-  auto audio_level = webrtc::RtpExtension(webrtc::AudioLevelExtension::Uri(),
-                                          AUDIO_LEVEL_EXT_ID);
+  auto audio_level =
+      RtpExtension(AudioLevelExtension::Uri(), AUDIO_LEVEL_EXT_ID);
   // Note: Do not add transport-cc for audio.  Using transport-cc with audio is
   // still experimental in WebRTC. And don't add abs_send_time because it's only
   // used for video.
@@ -670,24 +670,22 @@ webrtc::JsepSessionDescription* CreateSessionDescriptionForGroupCall(
     remote_audio->AddRtpHeaderExtension(audio_level);
   }
 
-  auto transport_cc1 = webrtc::RtpExtension(
-      webrtc::TransportSequenceNumber::Uri(), TRANSPORT_CC1_EXT_ID);
+  auto transport_cc1 =
+      RtpExtension(TransportSequenceNumber::Uri(), TRANSPORT_CC1_EXT_ID);
   // TransportCC V2 is now enabled by default, but the difference is that V2
   // doesn't send periodic updates and instead waits for feedback requests.
   // Since the SFU doesn't currently send feedback requests, we can't enable V2.
   // We'd have to add it to the SFU to move from V1 to V2.
-  auto video_orientation = webrtc::RtpExtension(webrtc::VideoOrientation::Uri(),
-                                                VIDEO_ORIENTATION_EXT_ID);
-  auto dependency_descriptor =
-      webrtc::RtpExtension(webrtc::RtpDependencyDescriptorExtension::Uri(),
-                           DEPENDENCY_DESCRIPTOR_EXT_ID);
+  auto video_orientation =
+      RtpExtension(VideoOrientation::Uri(), VIDEO_ORIENTATION_EXT_ID);
+  auto dependency_descriptor = RtpExtension(
+      RtpDependencyDescriptorExtension::Uri(), DEPENDENCY_DESCRIPTOR_EXT_ID);
   // abs_send_time and tx_time_offset are used for more accurate REMB messages
   // from the receiver, but the SFU doesn't process REMB messages anyway, nor
   // does it send or receive these header extensions. So, don't waste bytes on
   // them.
-  auto video_layers_allocation =
-      webrtc::RtpExtension(webrtc::RtpVideoLayersAllocationExtension::Uri(),
-                           VIDEO_LAYERS_ALLOCATION_EXT_ID);
+  auto video_layers_allocation = RtpExtension(
+      RtpVideoLayersAllocationExtension::Uri(), VIDEO_LAYERS_ALLOCATION_EXT_ID);
   local_video->AddRtpHeaderExtension(transport_cc1);
   local_video->AddRtpHeaderExtension(video_orientation);
   local_video->AddRtpHeaderExtension(dependency_descriptor);
@@ -838,17 +836,17 @@ webrtc::JsepSessionDescription* CreateSessionDescriptionForGroupCall(
   auto typ = local ? SdpType::kOffer : SdpType::kAnswer;
   // The session ID and session version (both "1" here) go into SDP, but are not
   // used at all.
-  return new webrtc::JsepSessionDescription(typ, std::move(session), "1", "1");
+  return new JsepSessionDescription(typ, std::move(session), "1", "1");
 }
 
 // Returns an owned pointer.
-RUSTEXPORT webrtc::SessionDescriptionInterface*
-Rust_localDescriptionForGroupCall(const char* ice_ufrag_borrowed,
-                                  const char* ice_pwd_borrowed,
-                                  RffiSrtpKey client_srtp_key,
-                                  uint32_t local_demux_id,
-                                  uint32_t* remote_demux_ids_borrowed,
-                                  size_t remote_demux_ids_len) {
+RUSTEXPORT SessionDescriptionInterface* Rust_localDescriptionForGroupCall(
+    const char* ice_ufrag_borrowed,
+    const char* ice_pwd_borrowed,
+    RffiSrtpKey client_srtp_key,
+    uint32_t local_demux_id,
+    uint32_t* remote_demux_ids_borrowed,
+    size_t remote_demux_ids_len) {
   std::vector<uint32_t> remote_demux_ids;
   remote_demux_ids.assign(remote_demux_ids_borrowed,
                           remote_demux_ids_borrowed + remote_demux_ids_len);
@@ -859,13 +857,13 @@ Rust_localDescriptionForGroupCall(const char* ice_ufrag_borrowed,
 }
 
 // Returns an owned pointer.
-RUSTEXPORT webrtc::SessionDescriptionInterface*
-Rust_remoteDescriptionForGroupCall(const char* ice_ufrag_borrowed,
-                                   const char* ice_pwd_borrowed,
-                                   RffiSrtpKey server_srtp_key,
-                                   uint32_t local_demux_id,
-                                   uint32_t* remote_demux_ids_borrowed,
-                                   size_t remote_demux_ids_len) {
+RUSTEXPORT SessionDescriptionInterface* Rust_remoteDescriptionForGroupCall(
+    const char* ice_ufrag_borrowed,
+    const char* ice_pwd_borrowed,
+    RffiSrtpKey server_srtp_key,
+    uint32_t local_demux_id,
+    uint32_t* remote_demux_ids_borrowed,
+    size_t remote_demux_ids_len) {
   std::vector<uint32_t> remote_demux_ids;
   remote_demux_ids.assign(remote_demux_ids_borrowed,
                           remote_demux_ids_borrowed + remote_demux_ids_len);
@@ -926,14 +924,14 @@ RUSTEXPORT bool Rust_setIncomingMediaEnabled(
 }
 
 RUSTEXPORT void Rust_setAudioPlayoutEnabled(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
+    PeerConnectionInterface* peer_connection_borrowed_rc,
     bool enabled) {
   RTC_LOG(LS_INFO) << "Rust_setAudioPlayoutEnabled(" << enabled << ")";
   peer_connection_borrowed_rc->SetAudioPlayout(enabled);
 }
 
 RUSTEXPORT void Rust_setAudioRecordingEnabled(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
+    PeerConnectionInterface* peer_connection_borrowed_rc,
     bool enabled) {
   RTC_LOG(LS_INFO) << "Rust_setAudioRecordingEnabled(" << enabled << ")";
   peer_connection_borrowed_rc->SetAudioRecording(enabled);
@@ -953,30 +951,46 @@ RUSTEXPORT bool Rust_removeIceCandidates(
     PeerConnectionInterface* pc_borrowed_rc,
     IpPort* removed_addresses_data_borrowed,
     size_t removed_addresses_len) {
-  std::vector<IpPort> removed_addresses;
-  removed_addresses.assign(
-      removed_addresses_data_borrowed,
-      removed_addresses_data_borrowed + removed_addresses_len);
+  if (removed_addresses_len == 0) {
+    RTC_LOG(LS_ERROR) << "Rust_removeIceCandidates: no candidates to remove";
+    return false;
+  } else {
+    std::vector<IpPort> removed_addresses;
+    removed_addresses.assign(
+        removed_addresses_data_borrowed,
+        removed_addresses_data_borrowed + removed_addresses_len);
 
-  std::vector<Candidate> candidates_removed;
-  for (const auto& address_removed : removed_addresses) {
-    // This only needs to contain the correct transport_name, component,
-    // protocol, and address. SeeCandidate::MatchesForRemoval and
-    // JsepTransportController::RemoveRemoteCandidates and
-    // JsepTransportController::RemoveRemoteCandidates. But we know (because we
-    // bundle/rtcp-mux everything) that the transport name is "audio", and the
-    // component is 1. We also know (because we don't use TCP candidates) that
-    // the protocol is UDP. So we only need to know the address.
-    Candidate candidate_removed;
-    candidate_removed.set_transport_name("audio");
-    candidate_removed.set_component(ICE_CANDIDATE_COMPONENT_RTP);
-    candidate_removed.set_protocol(UDP_PROTOCOL_NAME);
-    candidate_removed.set_address(IpPortToRtcSocketAddress(address_removed));
+    size_t number_removed = 0;
+    for (const auto& address_removed : removed_addresses) {
+      // This only needs to contain the correct transport_name, component,
+      // protocol, and address. SeeCandidate::MatchesForRemoval and
+      // JsepTransportController::RemoveRemoteCandidates and
+      // JsepTransportController::RemoveRemoteCandidates. But we know (because
+      // we bundle/rtcp-mux everything) that the transport name is "audio", and
+      // the component is 1. We also know (because we don't use TCP candidates)
+      // that the protocol is UDP. So we only need to know the address.
+      Candidate candidate_removed;
+      candidate_removed.set_transport_name("audio");
+      candidate_removed.set_component(ICE_CANDIDATE_COMPONENT_RTP);
+      candidate_removed.set_protocol(UDP_PROTOCOL_NAME);
+      candidate_removed.set_address(IpPortToRtcSocketAddress(address_removed));
 
-    candidates_removed.push_back(candidate_removed);
+      IceCandidate candidate("audio", /*sdp_mline_index=*/-1,
+                             candidate_removed);
+      if (pc_borrowed_rc->RemoveIceCandidate(&candidate)) {
+        number_removed++;
+      }
+    }
+
+    if (number_removed != removed_addresses.size()) {
+      RTC_LOG(LS_ERROR)
+          << "Rust_removeIceCandidates: Failed to remove candidates: Requested "
+          << removed_addresses.size() << " but only " << number_removed
+          << " are removed.";
+    }
+
+    return true;
   }
-
-  return pc_borrowed_rc->RemoveIceCandidates(candidates_removed);
 }
 
 RUSTEXPORT bool Rust_addIceCandidateFromServer(
@@ -1007,15 +1021,15 @@ RUSTEXPORT bool Rust_addIceCandidateFromServer(
   // local candidates (see rtc_base::IPAddressPrecedence). So we leave the
   // priority unset to allow the local candidate preference to break the tie.
   candidate.set_component(ICE_CANDIDATE_COMPONENT_RTP);
-  candidate.set_type(webrtc::IceCandidateType::kHost);
+  candidate.set_type(IceCandidateType::kHost);
 
   if (tcp && hostname != NULL) {
-    rtc::SocketAddress addr = rtc::SocketAddress(std::string(hostname), port);
+    SocketAddress addr = SocketAddress(std::string(hostname), port);
     addr.SetResolvedIP(IpToRtcIp(ip));
     candidate.set_address(addr);
     candidate.set_protocol(TLS_PROTOCOL_NAME);
   } else {
-    candidate.set_address(rtc::SocketAddress(IpToRtcIp(ip), port));
+    candidate.set_address(SocketAddress(IpToRtcIp(ip), port));
     candidate.set_protocol(tcp ? TCP_PROTOCOL_NAME : UDP_PROTOCOL_NAME);
   }
 
@@ -1080,7 +1094,7 @@ RUSTEXPORT void Rust_setSendBitrates(
 // while holding a lock, especially a lock also taken in a callback
 // from the network thread.
 RUSTEXPORT bool Rust_sendRtp(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
+    PeerConnectionInterface* peer_connection_borrowed_rc,
     uint8_t pt,
     uint16_t seqnum,
     uint32_t timestamp,
@@ -1104,23 +1118,23 @@ RUSTEXPORT bool Rust_sendRtp(
 // while holding a lock, especially a lock also taken in a callback
 // from the network thread.
 RUSTEXPORT bool Rust_receiveRtp(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
+    PeerConnectionInterface* peer_connection_borrowed_rc,
     uint8_t pt,
     bool enable_incoming) {
   return peer_connection_borrowed_rc->ReceiveRtp(pt, enable_incoming);
 }
 
 RUSTEXPORT void Rust_configureAudioEncoders(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
-    const webrtc::AudioEncoder::Config* config_borrowed) {
+    PeerConnectionInterface* peer_connection_borrowed_rc,
+    const AudioEncoder::Config* config_borrowed) {
   RTC_LOG(LS_INFO) << "Rust_configureAudioEncoders(...)";
   peer_connection_borrowed_rc->ConfigureAudioEncoders(*config_borrowed);
 }
 
 RUSTEXPORT void Rust_getAudioLevels(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
+    PeerConnectionInterface* peer_connection_borrowed_rc,
     uint16_t* captured_out,
-    webrtc::ReceivedAudioLevel* received_out,
+    ReceivedAudioLevel* received_out,
     size_t received_out_size,
     size_t* received_size_out) {
   RTC_LOG(LS_VERBOSE) << "Rust_getAudioLevels(...)";
@@ -1129,7 +1143,7 @@ RUSTEXPORT void Rust_getAudioLevels(
 }
 
 RUSTEXPORT uint32_t Rust_getLastBandwidthEstimateBps(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc) {
+    PeerConnectionInterface* peer_connection_borrowed_rc) {
   RTC_LOG(LS_VERBOSE) << "Rust_getLastBandwidthEstimateBps(...)";
   return peer_connection_borrowed_rc->GetLastBandwidthEstimateBps();
 }

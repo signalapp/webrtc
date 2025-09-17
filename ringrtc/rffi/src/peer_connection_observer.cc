@@ -8,6 +8,7 @@
 #include "pc/webrtc_sdp.h"
 #include "rffi/src/ptr.h"
 #include "rtc_base/net_helper.h"
+#include "rtc_base/string_encode.h"
 
 namespace webrtc {
 namespace rffi {
@@ -41,13 +42,11 @@ void PeerConnectionObserverRffi::OnIceCandidate(
   rust_candidate.is_relayed =
       (candidate->candidate().type() == IceCandidateType::kRelay);
   rust_candidate.relay_protocol = TransportProtocol::kUnknown;
-  if (candidate->candidate().relay_protocol() == cricket::UDP_PROTOCOL_NAME) {
+  if (candidate->candidate().relay_protocol() == UDP_PROTOCOL_NAME) {
     rust_candidate.relay_protocol = TransportProtocol::kUdp;
-  } else if (candidate->candidate().relay_protocol() ==
-             cricket::TCP_PROTOCOL_NAME) {
+  } else if (candidate->candidate().relay_protocol() == TCP_PROTOCOL_NAME) {
     rust_candidate.relay_protocol = TransportProtocol::kTcp;
-  } else if (candidate->candidate().relay_protocol() ==
-             cricket::TLS_PROTOCOL_NAME) {
+  } else if (candidate->candidate().relay_protocol() == TLS_PROTOCOL_NAME) {
     rust_candidate.relay_protocol = TransportProtocol::kTls;
   }
 
@@ -55,7 +54,7 @@ void PeerConnectionObserverRffi::OnIceCandidate(
 }
 
 void PeerConnectionObserverRffi::OnIceCandidatesRemoved(
-    const std::vector<cricket::Candidate>& candidates) {
+    const std::vector<Candidate>& candidates) {
   std::vector<IpPort> removed_addresses;
   for (const auto& candidate : candidates) {
     removed_addresses.push_back(RtcSocketAddressToIpPort(candidate.address()));
@@ -98,7 +97,7 @@ void PeerConnectionObserverRffi::OnIceConnectionReceivingChange(
 }
 
 void PeerConnectionObserverRffi::OnIceSelectedCandidatePairChanged(
-    const cricket::CandidatePairChangeEvent& event) {
+    const CandidatePairChangeEvent& event) {
   auto& local = event.selected_candidate_pair.local_candidate();
   auto& remote = event.selected_candidate_pair.remote_candidate();
   auto local_adapter_type = local.network_type();
@@ -106,17 +105,17 @@ void PeerConnectionObserverRffi::OnIceSelectedCandidatePairChanged(
   bool local_relayed = (local.type() == IceCandidateType::kRelay) ||
                        !local.relay_protocol().empty();
   TransportProtocol local_relay_protocol = TransportProtocol::kUnknown;
-  if (local.relay_protocol() == cricket::UDP_PROTOCOL_NAME) {
+  if (local.relay_protocol() == UDP_PROTOCOL_NAME) {
     local_relay_protocol = TransportProtocol::kUdp;
-  } else if (local.relay_protocol() == cricket::TCP_PROTOCOL_NAME) {
+  } else if (local.relay_protocol() == TCP_PROTOCOL_NAME) {
     local_relay_protocol = TransportProtocol::kTcp;
-  } else if (local.relay_protocol() == cricket::TLS_PROTOCOL_NAME) {
+  } else if (local.relay_protocol() == TLS_PROTOCOL_NAME) {
     local_relay_protocol = TransportProtocol::kTls;
   }
   bool remote_relayed = (remote.type() == IceCandidateType::kRelay);
-  auto network_route = webrtc::rffi::NetworkRoute{
-      local_adapter_type, local_adapter_type_under_vpn, local_relayed,
-      local_relay_protocol, remote_relayed};
+  auto network_route =
+      rffi::NetworkRoute{local_adapter_type, local_adapter_type_under_vpn,
+                         local_relayed, local_relay_protocol, remote_relayed};
 
   callbacks_.onIceNetworkRouteChange(observer_, network_route,
                                      SdpSerializeCandidate(local).c_str(),
@@ -129,14 +128,14 @@ void PeerConnectionObserverRffi::OnIceGatheringChange(
 }
 
 void PeerConnectionObserverRffi::OnAddStream(
-    rtc::scoped_refptr<MediaStreamInterface> stream) {
+    scoped_refptr<MediaStreamInterface> stream) {
   RTC_LOG(LS_INFO) << "OnAddStream()";
 
   callbacks_.onAddStream(observer_, take_rc(stream));
 }
 
 void PeerConnectionObserverRffi::OnRemoveStream(
-    rtc::scoped_refptr<MediaStreamInterface> stream) {
+    scoped_refptr<MediaStreamInterface> stream) {
   RTC_LOG(LS_INFO) << "OnRemoveStream()";
 }
 
@@ -160,24 +159,24 @@ void PeerConnectionObserverRffi::OnRenegotiationNeeded() {
 }
 
 void PeerConnectionObserverRffi::OnAddTrack(
-    rtc::scoped_refptr<RtpReceiverInterface> receiver,
-    const std::vector<rtc::scoped_refptr<MediaStreamInterface>>& streams) {
+    scoped_refptr<RtpReceiverInterface> receiver,
+    const std::vector<scoped_refptr<MediaStreamInterface>>& streams) {
   RTC_LOG(LS_INFO) << "OnAddTrack()";
 }
 
 void PeerConnectionObserverRffi::OnTrack(
-    rtc::scoped_refptr<RtpTransceiverInterface> transceiver) {
+    scoped_refptr<RtpTransceiverInterface> transceiver) {
   auto receiver = transceiver->receiver();
   auto streams = receiver->streams();
 
   // Ownership is transferred to the rust call back
   // handler.  Someone must call RefCountInterface::Release()
   // eventually.
-  if (receiver->media_type() == webrtc::MediaType::AUDIO) {
+  if (receiver->media_type() == MediaType::AUDIO) {
     if (enable_frame_encryption_) {
       uint32_t id = 0;
       if (receiver->stream_ids().size() > 0) {
-        rtc::FromString(receiver->stream_ids()[0], &id);
+        FromString(receiver->stream_ids()[0], &id);
       }
       if (id != 0) {
         receiver->SetFrameDecryptor(CreateDecryptor(id));
@@ -190,17 +189,16 @@ void PeerConnectionObserverRffi::OnTrack(
     } else {
       callbacks_.onAddAudioRtpReceiver(observer_, take_rc(receiver->track()));
     }
-  } else if (receiver->media_type() == webrtc::MediaType::VIDEO) {
+  } else if (receiver->media_type() == MediaType::VIDEO) {
     if (enable_frame_encryption_) {
       uint32_t id = 0;
       if (receiver->stream_ids().size() > 0) {
-        rtc::FromString(receiver->stream_ids()[0], &id);
+        FromString(receiver->stream_ids()[0], &id);
       }
       if (id != 0) {
         receiver->SetFrameDecryptor(CreateDecryptor(id));
-        AddVideoSink(
-            static_cast<webrtc::VideoTrackInterface*>(receiver->track().get()),
-            id);
+        AddVideoSink(static_cast<VideoTrackInterface*>(receiver->track().get()),
+                     id);
         callbacks_.onAddVideoRtpReceiver(observer_, take_rc(receiver->track()),
                                          id);
       } else {
@@ -209,16 +207,15 @@ void PeerConnectionObserverRffi::OnTrack(
             << receiver->track()->id();
       }
     } else {
-      AddVideoSink(
-          static_cast<webrtc::VideoTrackInterface*>(receiver->track().get()),
-          0);
+      AddVideoSink(static_cast<VideoTrackInterface*>(receiver->track().get()),
+                   0);
       callbacks_.onAddVideoRtpReceiver(observer_, take_rc(receiver->track()),
                                        0);
     }
   }
 }
 
-class Encryptor : public webrtc::FrameEncryptorInterface {
+class Encryptor : public FrameEncryptorInterface {
  public:
   // Passed-in observer must live at least as long as the Encryptor,
   // which likely means as long as the PeerConnection.
@@ -227,10 +224,10 @@ class Encryptor : public webrtc::FrameEncryptorInterface {
 
   // This is called just before Encrypt to get the size of the ciphertext
   // buffer that will be given to Encrypt.
-  size_t GetMaxCiphertextByteSize(webrtc::MediaType media_type,
+  size_t GetMaxCiphertextByteSize(MediaType media_type,
                                   size_t plaintext_size) override {
-    bool is_audio = (media_type == webrtc::MediaType::AUDIO);
-    bool is_video = (media_type == webrtc::MediaType::VIDEO);
+    bool is_audio = (media_type == MediaType::AUDIO);
+    bool is_video = (media_type == MediaType::VIDEO);
     if (!is_audio && !is_video) {
       RTC_LOG(LS_WARNING)
           << "GetMaxCiphertextByteSize called with weird media type: "
@@ -241,17 +238,17 @@ class Encryptor : public webrtc::FrameEncryptorInterface {
                                                     plaintext_size);
   }
 
-  int Encrypt(webrtc::MediaType media_type,
+  int Encrypt(MediaType media_type,
               // Our encryption mechanism is the same regardless of SSRC
               uint32_t _ssrc,
               // This is not supported by our SFU currently, so don't bother
               // trying to use it.
-              rtc::ArrayView<const uint8_t> _generic_video_header,
-              rtc::ArrayView<const uint8_t> plaintext,
-              rtc::ArrayView<uint8_t> ciphertext_buffer,
+              ArrayView<const uint8_t> _generic_video_header,
+              ArrayView<const uint8_t> plaintext,
+              ArrayView<uint8_t> ciphertext_buffer,
               size_t* ciphertext_size) override {
-    bool is_audio = (media_type == webrtc::MediaType::AUDIO);
-    bool is_video = (media_type == webrtc::MediaType::VIDEO);
+    bool is_audio = (media_type == MediaType::AUDIO);
+    bool is_video = (media_type == MediaType::VIDEO);
     if (!is_audio && !is_video) {
       RTC_LOG(LS_WARNING) << "Encrypt called with weird media type: "
                           << media_type;
@@ -270,12 +267,12 @@ class Encryptor : public webrtc::FrameEncryptorInterface {
   PeerConnectionObserverCallbacks* callbacks_;
 };
 
-rtc::scoped_refptr<FrameEncryptorInterface>
+scoped_refptr<FrameEncryptorInterface>
 PeerConnectionObserverRffi::CreateEncryptor() {
   // The PeerConnectionObserverRffi outlives the Encryptor because it outlives
   // the PeerConnection, which outlives the RtpSender, which owns the Encryptor.
   // So we know the PeerConnectionObserverRffi outlives the Encryptor.
-  return rtc::make_ref_counted<Encryptor>(observer_, &callbacks_);
+  return make_ref_counted<Encryptor>(observer_, &callbacks_);
 }
 
 void PeerConnectionObserverRffi::AddVideoSink(VideoTrackInterface* track,
@@ -286,7 +283,7 @@ void PeerConnectionObserverRffi::AddVideoSink(VideoTrackInterface* track,
 
   auto sink = std::make_unique<VideoSink>(demux_id, this);
 
-  rtc::VideoSinkWants wants;
+  VideoSinkWants wants;
   // Note: this causes frames to be dropped, not rotated.
   // So don't set it to true, even if it seems to make sense!
   wants.rotation_applied = false;
@@ -301,12 +298,12 @@ void PeerConnectionObserverRffi::AddVideoSink(VideoTrackInterface* track,
 VideoSink::VideoSink(uint32_t demux_id, PeerConnectionObserverRffi* pc_observer)
     : demux_id_(demux_id), pc_observer_(pc_observer) {}
 
-void VideoSink::OnFrame(const webrtc::VideoFrame& frame) {
+void VideoSink::OnFrame(const VideoFrame& frame) {
   pc_observer_->OnVideoFrame(demux_id_, frame);
 }
 
 void PeerConnectionObserverRffi::OnVideoFrame(uint32_t demux_id,
-                                              const webrtc::VideoFrame& frame) {
+                                              const VideoFrame& frame) {
   RffiVideoFrameMetadata metadata = {};
   metadata.width = frame.width();
   metadata.height = frame.height();
@@ -332,7 +329,7 @@ void PeerConnectionObserverRffi::OnVideoFrame(uint32_t demux_id,
   callbacks_.onVideoFrame(observer_, demux_id, metadata, buffer_owned_rc);
 }
 
-class Decryptor : public webrtc::FrameDecryptorInterface {
+class Decryptor : public FrameDecryptorInterface {
  public:
   // Passed-in observer must live at least as long as the Decryptor,
   // which likely means as long as the PeerConnection.
@@ -343,10 +340,10 @@ class Decryptor : public webrtc::FrameDecryptorInterface {
 
   // This is called just before Decrypt to get the size of the plaintext
   // buffer that will be given to Decrypt.
-  size_t GetMaxPlaintextByteSize(webrtc::MediaType media_type,
+  size_t GetMaxPlaintextByteSize(MediaType media_type,
                                  size_t ciphertext_size) override {
-    bool is_audio = (media_type == webrtc::MediaType::AUDIO);
-    bool is_video = (media_type == webrtc::MediaType::VIDEO);
+    bool is_audio = (media_type == MediaType::AUDIO);
+    bool is_video = (media_type == MediaType::VIDEO);
     if (!is_audio && !is_video) {
       RTC_LOG(LS_WARNING)
           << "GetMaxPlaintextByteSize called with weird media type: "
@@ -358,16 +355,16 @@ class Decryptor : public webrtc::FrameDecryptorInterface {
   }
 
   FrameDecryptorInterface::Result Decrypt(
-      webrtc::MediaType media_type,
+      MediaType media_type,
       // Our encryption mechanism is the same regardless of CSRCs
       const std::vector<uint32_t>& _csrcs,
       // This is not supported by our SFU currently, so don't bother trying to
       // use it.
-      rtc::ArrayView<const uint8_t> _generic_video_header,
-      rtc::ArrayView<const uint8_t> ciphertext,
-      rtc::ArrayView<uint8_t> plaintext_buffer) override {
-    bool is_audio = (media_type == webrtc::MediaType::AUDIO);
-    bool is_video = (media_type == webrtc::MediaType::VIDEO);
+      ArrayView<const uint8_t> _generic_video_header,
+      ArrayView<const uint8_t> ciphertext,
+      ArrayView<uint8_t> plaintext_buffer) override {
+    bool is_audio = (media_type == MediaType::AUDIO);
+    bool is_video = (media_type == MediaType::VIDEO);
     if (!is_audio && !is_video) {
       RTC_LOG(LS_WARNING) << "Decrypt called with weird media type: "
                           << media_type;
@@ -391,13 +388,13 @@ class Decryptor : public webrtc::FrameDecryptorInterface {
   PeerConnectionObserverCallbacks* callbacks_;
 };
 
-rtc::scoped_refptr<FrameDecryptorInterface>
+scoped_refptr<FrameDecryptorInterface>
 PeerConnectionObserverRffi::CreateDecryptor(uint32_t track_id) {
   // The PeerConnectionObserverRffi outlives the Decryptor because it outlives
   // the PeerConnection, which outlives the RtpReceiver, which owns the
   // Decryptor. So we know the PeerConnectionObserverRffi outlives the
   // Decryptor.
-  return rtc::make_ref_counted<Decryptor>(track_id, observer_, &callbacks_);
+  return make_ref_counted<Decryptor>(track_id, observer_, &callbacks_);
 }
 
 // Returns an owned pointer.

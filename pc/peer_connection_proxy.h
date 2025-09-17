@@ -164,11 +164,11 @@ PROXY_METHOD1(bool, RemoveIceCandidate, const IceCandidate*)
 PROXY_METHOD1(bool, RemoveIceCandidates, const std::vector<Candidate>&)
 #pragma clang diagnostic pop
 // RingRTC change to support ICE forking
-PROXY_METHOD0(rtc::scoped_refptr<webrtc::IceGathererInterface>,
+PROXY_METHOD0(scoped_refptr<IceGathererInterface>,
               CreateSharedIceGatherer)
 PROXY_METHOD1(bool,
               UseSharedIceGatherer,
-              rtc::scoped_refptr<webrtc::IceGathererInterface>)
+              scoped_refptr<IceGathererInterface>)
 PROXY_METHOD1(bool,
               SendRtp,
               std::unique_ptr<RtpPacket>)
@@ -178,7 +178,7 @@ PROXY_METHOD2(bool,
               bool)
 PROXY_METHOD1(void,
               ConfigureAudioEncoders,
-              const webrtc::AudioEncoder::Config&)
+              const AudioEncoder::Config&)
 // RingRTC change to get audio levels
 PROXY_METHOD4(void,
               GetAudioLevels,
