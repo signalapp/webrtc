@@ -19,7 +19,6 @@
 #include "api/environment/environment.h"
 #include "api/sequence_checker.h"
 #include "api/units/time_delta.h"
-#include "api/units/timestamp.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
@@ -28,7 +27,6 @@
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/socket_factory.h"
-#include "rtc_base/time_utils.h"
 
 namespace webrtc {
 
@@ -48,9 +46,10 @@ absl_nullable std::unique_ptr<AsyncUDPSocket> AsyncUDPSocket::Create(
   return std::make_unique<AsyncUDPSocket>(env, std::move(socket));
 }
 
-AsyncUDPSocket::AsyncUDPSocket(const Environment& /*env*/,
+AsyncUDPSocket::AsyncUDPSocket(const Environment& env,
                                absl_nonnull std::unique_ptr<Socket> socket)
-    : sequence_checker_(SequenceChecker::kDetached),
+    : env_(env),
+      sequence_checker_(SequenceChecker::kDetached),
       socket_(std::move(socket)) {
   // The socket should start out readable but not writable.
   socket_->SignalReadEvent.connect(this, &AsyncUDPSocket::OnReadEvent);
@@ -68,7 +67,8 @@ SocketAddress AsyncUDPSocket::GetRemoteAddress() const {
 int AsyncUDPSocket::Send(const void* pv,
                          size_t cb,
                          const AsyncSocketPacketOptions& options) {
-  SentPacketInfo sent_packet(options.packet_id, TimeMillis(),
+  SentPacketInfo sent_packet(options.packet_id,
+                             env_.clock().TimeInMilliseconds(),
                              options.info_signaled_after_sent);
   CopySocketInformationToPacketInfo(cb, *this, &sent_packet.info);
   int ret = socket_->Send(pv, cb);
@@ -80,7 +80,8 @@ int AsyncUDPSocket::SendTo(const void* pv,
                            size_t cb,
                            const SocketAddress& addr,
                            const AsyncSocketPacketOptions& options) {
-  SentPacketInfo sent_packet(options.packet_id, TimeMillis(),
+  SentPacketInfo sent_packet(options.packet_id,
+                             env_.clock().TimeInMilliseconds(),
                              options.info_signaled_after_sent);
   CopySocketInformationToPacketInfo(cb, *this, &sent_packet.info);
   if (has_set_ect1_options_ != options.ecn_1) {
@@ -144,12 +145,12 @@ void AsyncUDPSocket::OnReadEvent(Socket* socket) {
 
   if (!receive_buffer.arrival_time) {
     // Timestamp from socket is not available.
-    receive_buffer.arrival_time = Timestamp::Micros(TimeMicros());
+    receive_buffer.arrival_time = env_.clock().CurrentTime();
   } else {
     if (!socket_time_offset_) {
       // Estimate timestamp offset from first packet arrival time.
       socket_time_offset_ =
-          Timestamp::Micros(TimeMicros()) - *receive_buffer.arrival_time;
+          env_.clock().CurrentTime() - *receive_buffer.arrival_time;
     }
     *receive_buffer.arrival_time += *socket_time_offset_;
   }

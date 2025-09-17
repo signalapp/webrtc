@@ -68,6 +68,7 @@ class AsyncUDPSocket : public AsyncPacketSocket {
   // Called when the underlying socket is ready to send.
   void OnWriteEvent(Socket* socket);
 
+  const Environment env_;
   RTC_NO_UNIQUE_ADDRESS SequenceChecker sequence_checker_;
   std::unique_ptr<Socket> socket_;
   bool has_set_ect1_options_ = false;
