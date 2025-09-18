@@ -1254,6 +1254,7 @@ if (rtc_include_tests) {
       "../api:local_network_access_permission",
       "../api:mock_async_dns_resolver",
       "../api:mock_local_network_access_permission",
+      "../api:mock_packet_socket_factory",
       "../api:network_emulation_manager_api",
       "../api:packet_socket_factory",
       "../api:rtc_error",

@@ -1366,6 +1366,7 @@ if (rtc_include_tests) {
       "../rtc_base:async_packet_socket",
       "../rtc_base:socket_address",
       "../test:test_support",
+      "environment",
     ]
   }
 
