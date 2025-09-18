@@ -3698,7 +3698,7 @@ class P2PTransportChannelPingTest : public ::testing::Test,
 
   void NominateConnection(Connection* conn, uint32_t remote_nomination = 1U) {
     conn->set_remote_nomination(remote_nomination);
-    conn->SignalNominated(conn);
+    conn->NotifyNominatedForTesting(conn);
   }
 
   void OnNetworkRouteChanged(std::optional<NetworkRoute> network_route) {

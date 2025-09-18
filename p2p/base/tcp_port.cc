@@ -358,7 +358,8 @@ TCPConnection::TCPConnection(const Environment& env,
   RTC_DCHECK_EQ(port()->GetProtocol(),
                 PROTO_TCP);  // Needs to be TCPPort.
 
-  SignalDestroyed.connect(this, &TCPConnection::OnDestroyed);
+  SubscribeDestroyed(
+      this, [this](Connection* connection) { OnDestroyed(connection); });
 
   if (outgoing_) {
     CreateOutgoingTcpSocket();
