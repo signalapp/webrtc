@@ -8690,6 +8690,95 @@ TEST_F(VideoStreamEncoderTest, EncoderResetAccordingToParameterChange) {
   video_stream_encoder_->Stop();
 }
 
+TEST_F(VideoStreamEncoderTest, EncoderResetAccordingToCodecChange) {
+  const float downscale_factors[] = {4.0, 2.0, 1.0};
+  const int number_layers =
+      sizeof(downscale_factors) / sizeof(downscale_factors[0]);
+  VideoEncoderConfig config;
+  test::FillEncoderConfiguration(kVideoCodecVP8, number_layers, &config);
+  for (int i = 0; i < number_layers; ++i) {
+    config.simulcast_layers[i].scale_resolution_down_by = downscale_factors[i];
+    config.simulcast_layers[i].active = true;
+  }
+  config.video_stream_factory = nullptr;
+  video_stream_encoder_->OnBitrateUpdatedAndWaitForManagedResources(
+      kSimulcastTargetBitrate, kSimulcastTargetBitrate, 0, 0, 0);
+
+  // First initialization.
+  // Encoder should be initialized. Next frame should be key frame.
+  video_stream_encoder_->ConfigureEncoder(config.Copy(), kMaxPayloadLength);
+  sink_.SetNumExpectedLayers(number_layers);
+  int64_t timestamp_ms = kFrameIntervalMs;
+  video_source_.IncomingCapturedFrame(CreateFrame(timestamp_ms, 1280, 720));
+  WaitForEncodedFrame(timestamp_ms);
+  EXPECT_EQ(1, fake_encoder_.GetNumInitializations());
+  EXPECT_THAT(fake_encoder_.LastFrameTypes(),
+              ::testing::ElementsAreArray({VideoFrameType::kVideoFrameKey,
+                                           VideoFrameType::kVideoFrameKey,
+                                           VideoFrameType::kVideoFrameKey}));
+
+  // Set VP8 format
+  // Encoder should be re-initialized. Next frame should be key frame.
+  config.video_format = SdpVideoFormat::VP8();
+  video_stream_encoder_->ConfigureEncoder(config.Copy(), kMaxPayloadLength);
+  sink_.SetNumExpectedLayers(number_layers);
+  timestamp_ms += kFrameIntervalMs;
+  video_source_.IncomingCapturedFrame(CreateFrame(timestamp_ms, 1280, 720));
+  WaitForEncodedFrame(timestamp_ms);
+  EXPECT_EQ(2, fake_encoder_.GetNumInitializations());
+  EXPECT_THAT(fake_encoder_.LastFrameTypes(),
+              ::testing::ElementsAreArray({VideoFrameType::kVideoFrameKey,
+                                           VideoFrameType::kVideoFrameKey,
+                                           VideoFrameType::kVideoFrameKey}));
+
+  // No changes format
+  // Encoder shouldn't be re-initialized. Next frame should be delta frame.
+  video_stream_encoder_->ConfigureEncoder(config.Copy(), kMaxPayloadLength);
+  sink_.SetNumExpectedLayers(number_layers);
+  timestamp_ms += kFrameIntervalMs;
+  video_source_.IncomingCapturedFrame(CreateFrame(timestamp_ms, 1280, 720));
+  WaitForEncodedFrame(timestamp_ms);
+  EXPECT_EQ(2, fake_encoder_.GetNumInitializations());
+  EXPECT_THAT(fake_encoder_.LastFrameTypes(),
+              ::testing::ElementsAreArray({VideoFrameType::kVideoFrameDelta,
+                                           VideoFrameType::kVideoFrameDelta,
+                                           VideoFrameType::kVideoFrameDelta}));
+
+  // Set VP8 and VP9 format for layers
+  // Encoder should be re-initialized. Next frame should be key frame.
+  for (int i = 0; i < number_layers - 1; i++) {
+    config.simulcast_layers[i].video_format = SdpVideoFormat::VP8();
+  }
+  config.simulcast_layers[number_layers - 1].video_format =
+      SdpVideoFormat::VP9Profile0();
+  video_stream_encoder_->ConfigureEncoder(config.Copy(), kMaxPayloadLength);
+  sink_.SetNumExpectedLayers(number_layers);
+  timestamp_ms += kFrameIntervalMs;
+  video_source_.IncomingCapturedFrame(CreateFrame(timestamp_ms, 1280, 720));
+  WaitForEncodedFrame(timestamp_ms);
+  EXPECT_EQ(3, fake_encoder_.GetNumInitializations());
+  EXPECT_THAT(fake_encoder_.LastFrameTypes(),
+              ::testing::ElementsAreArray({VideoFrameType::kVideoFrameKey,
+                                           VideoFrameType::kVideoFrameKey,
+                                           VideoFrameType::kVideoFrameKey}));
+
+  // Set VP9 format for layer 0
+  // Encoder should be re-initialized. Next frame should be key frame.
+  config.simulcast_layers[0].video_format = SdpVideoFormat::VP9Profile0();
+  video_stream_encoder_->ConfigureEncoder(config.Copy(), kMaxPayloadLength);
+  sink_.SetNumExpectedLayers(number_layers);
+  timestamp_ms += kFrameIntervalMs;
+  video_source_.IncomingCapturedFrame(CreateFrame(timestamp_ms, 1280, 720));
+  WaitForEncodedFrame(timestamp_ms);
+  EXPECT_EQ(4, fake_encoder_.GetNumInitializations());
+  EXPECT_THAT(fake_encoder_.LastFrameTypes(),
+              ::testing::ElementsAreArray({VideoFrameType::kVideoFrameKey,
+                                           VideoFrameType::kVideoFrameKey,
+                                           VideoFrameType::kVideoFrameKey}));
+
+  video_stream_encoder_->Stop();
+}
+
 TEST_F(VideoStreamEncoderTest, EncoderResolutionsExposedInSinglecast) {
   const int kFrameWidth = 1280;
   const int kFrameHeight = 720;
