@@ -410,7 +410,7 @@ int TCPConnection::Send(const void* data,
   tcp_port()->CopyPortInformationToPacketInfo(
       &modified_options.info_signaled_after_sent);
   int sent = socket_->Send(data, size, modified_options);
-  Timestamp now = Connection::AlignTime(env().clock().CurrentTime());
+  Timestamp now = env().clock().CurrentTime();
   if (sent < 0) {
     mutable_stats().sent_discarded_packets++;
     error_ = socket_->GetError();

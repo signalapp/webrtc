@@ -41,13 +41,12 @@
 #include "p2p/base/transport_description.h"
 #include "p2p/dtls/dtls_stun_piggyback_callbacks.h"
 #include "rtc_base/async_packet_socket.h"
+#include "rtc_base/callback_list.h"
 #include "rtc_base/network.h"
 #include "rtc_base/network/received_packet.h"
 #include "rtc_base/numerics/event_based_exponential_moving_average.h"
 #include "rtc_base/rate_tracker.h"
-#include "rtc_base/sigslot_trampoline.h"
 #include "rtc_base/system/rtc_export.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread_annotations.h"
 #include "rtc_base/weak_ptr.h"
 
@@ -453,16 +452,6 @@ class RTC_EXPORT Connection : public CandidatePairInterface {
 
   void DeregisterDtlsPiggyback() { dtls_stun_piggyback_callbacks_.reset(); }
 
-  // TODO: bugs.webrtc.org/439515766 - Make this helper an identity or remove it
-  // when all users provide time queried from `Clock` and passed around with
-  // 'Timestamp' type. Connection class is sensative to current time rounding.
-  // While users pass in `TimeMillis()` as current time, use the same rounding.
-  // At the same time steer users into passing time using `Timestamp` type
-  // queried from a Clock.
-  static constexpr Timestamp AlignTime(Timestamp time) {
-    return Timestamp::Millis(time.us() / 1000);
-  }
-
   void NotifyNominatedForTesting(Connection* connection) {
     NotifyNominated(connection);
   }
@@ -513,7 +502,7 @@ class RTC_EXPORT Connection : public CandidatePairInterface {
   const Environment& env() { return env_; }
   ConnectionInfo& mutable_stats() { return stats_; }
   RateTracker& send_rate_tracker() { return send_rate_tracker_; }
-  void set_last_send_data(Timestamp now) { last_send_data_ = AlignTime(now); }
+  void set_last_send_data(Timestamp now) { last_send_data_ = now; }
 
  private:
   // Update the local candidate based on the mapped address attribute.
