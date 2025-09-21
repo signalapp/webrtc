@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "absl/strings/match.h"
+#include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/audio/audio_processing.h"
 #include "api/audio/builtin_audio_processing_builder.h"
@@ -252,9 +253,9 @@ class FakeAudioSource : public webrtc::AudioSource {
 
 class WebRtcVoiceEngineTestFake : public ::testing::TestWithParam<bool> {
  public:
-  WebRtcVoiceEngineTestFake()
+  explicit WebRtcVoiceEngineTestFake(absl::string_view field_trials_string = "")
       : use_null_apm_(GetParam()),
-        field_trials_(CreateTestFieldTrials()),
+        field_trials_(CreateTestFieldTrials(field_trials_string)),
         env_(CreateEnvironment(&field_trials_)),
         adm_(webrtc::test::MockAudioDeviceModule::CreateStrict()),
         apm_(use_null_apm_
@@ -1323,11 +1324,22 @@ TEST_P(WebRtcVoiceEngineTestFake,
             GetAudioNetworkAdaptorConfig(kSsrcX));
 }
 
-TEST_P(WebRtcVoiceEngineTestFake, AdaptivePtimeFieldTrial) {
-  field_trials_.Set("WebRTC-Audio-AdaptivePtime", "enabled:true");
+class WebRtcVoiceEngineTestWithAdaptivePtime
+    : public WebRtcVoiceEngineTestFake {
+ public:
+  WebRtcVoiceEngineTestWithAdaptivePtime()
+      : WebRtcVoiceEngineTestFake("WebRTC-Audio-AdaptivePtime/enabled:true/") {}
+};
+
+TEST_P(WebRtcVoiceEngineTestWithAdaptivePtime, AdaptivePtimeFieldTrial) {
+  // field_trials_.Set("WebRTC-Audio-AdaptivePtime", "enabled:true");
   EXPECT_TRUE(SetupSendStream());
   EXPECT_TRUE(GetAudioNetworkAdaptorConfig(kSsrcX));
 }
+
+INSTANTIATE_TEST_SUITE_P(TestBothWithAndWithoutNullApm,
+                         WebRtcVoiceEngineTestWithAdaptivePtime,
+                         ::testing::Values(false, true));
 
 // Test that SetRtpSendParameters configures the correct encoding channel for
 // each SSRC.

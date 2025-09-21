@@ -1662,6 +1662,7 @@ if (rtc_include_tests) {
       ":array_view",
       ":candidate",
       ":field_trials",
+      ":field_trials_view",
       ":function_view",
       ":libjingle_peerconnection_api",
       ":rtc_error",
@@ -1787,6 +1788,7 @@ rtc_library("field_trials") {
   ]
   deps = [
     ":field_trials_registry",
+    ":field_trials_view",
     "../rtc_base:checks",
     "../rtc_base/containers:flat_map",
     "//third_party/abseil-cpp/absl/base:nullability",
