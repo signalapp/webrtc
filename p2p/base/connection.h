@@ -41,11 +41,11 @@
 #include "p2p/base/transport_description.h"
 #include "p2p/dtls/dtls_stun_piggyback_callbacks.h"
 #include "rtc_base/async_packet_socket.h"
+#include "rtc_base/bitrate_tracker.h"
 #include "rtc_base/callback_list.h"
 #include "rtc_base/network.h"
 #include "rtc_base/network/received_packet.h"
 #include "rtc_base/numerics/event_based_exponential_moving_average.h"
-#include "rtc_base/rate_tracker.h"
 #include "rtc_base/system/rtc_export.h"
 #include "rtc_base/thread_annotations.h"
 #include "rtc_base/weak_ptr.h"
@@ -438,7 +438,10 @@ class RTC_EXPORT Connection : public CandidatePairInterface {
 
   const Environment& env() { return env_; }
   ConnectionInfo& mutable_stats() { return stats_; }
-  RateTracker& send_rate_tracker() { return send_rate_tracker_; }
+  void AddSentBytesToStats(int size, Timestamp now) {
+    send_rate_tracker_.Update(size, now);
+    stats_.sent_total_bytes += size;
+  }
   void set_last_send_data(Timestamp now) { last_send_data_ = now; }
 
  private:
@@ -485,8 +488,8 @@ class RTC_EXPORT Connection : public CandidatePairInterface {
   Candidate remote_candidate_;
 
   ConnectionInfo stats_;
-  RateTracker recv_rate_tracker_;
-  RateTracker send_rate_tracker_;
+  BitrateTracker recv_rate_tracker_;
+  BitrateTracker send_rate_tracker_;
   Timestamp last_send_data_;
 
   WriteState write_state_ RTC_GUARDED_BY(network_thread_);

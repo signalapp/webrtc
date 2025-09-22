@@ -11,7 +11,6 @@
 #include "p2p/base/connection.h"
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -30,6 +29,7 @@
 #include "api/sequence_checker.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/transport/stun.h"
+#include "api/units/data_rate.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "logging/rtc_event_log/events/rtc_event_ice_candidate_pair.h"
@@ -239,8 +239,8 @@ Connection::Connection(const Environment& env,
       port_(std::move(port)),
       local_candidate_(port_->Candidates()[index]),
       remote_candidate_(remote_candidate),
-      recv_rate_tracker_(100, 10u),
-      send_rate_tracker_(100, 10u),
+      recv_rate_tracker_(/*max_window_size=*/TimeDelta::Seconds(1)),
+      send_rate_tracker_(/*max_window_size=*/TimeDelta::Seconds(1)),
       last_send_data_(Timestamp::Zero()),
       write_state_(STATE_WRITE_INIT),
       receiving_(false),
@@ -504,7 +504,8 @@ void Connection::OnReadPacket(const ReceivedIpPacket& packet) {
     // This is a data packet, pass it along.
     last_data_received_ = env_.clock().CurrentTime();
     UpdateReceiving(last_data_received_);
-    recv_rate_tracker_.AddSamples(packet.payload().size());
+    recv_rate_tracker_.Update(packet.payload().size(), last_data_received_);
+    stats_.recv_total_bytes += packet.payload().size();
     stats_.packets_received++;
     if (received_packet_callback_) {
       received_packet_callback_(this, packet);
@@ -1727,10 +1728,11 @@ uint32_t Connection::prflx_priority() const {
 
 ConnectionInfo Connection::stats() {
   RTC_DCHECK_RUN_ON(network_thread_);
-  stats_.recv_bytes_second = round(recv_rate_tracker_.ComputeRate());
-  stats_.recv_total_bytes = recv_rate_tracker_.TotalSampleCount();
-  stats_.sent_bytes_second = round(send_rate_tracker_.ComputeRate());
-  stats_.sent_total_bytes = send_rate_tracker_.TotalSampleCount();
+  Timestamp now = env_.clock().CurrentTime();
+  stats_.recv_bytes_second =
+      recv_rate_tracker_.Rate(now).value_or(DataRate::Zero()).bps<size_t>();
+  stats_.sent_bytes_second =
+      send_rate_tracker_.Rate(now).value_or(DataRate::Zero()).bps<size_t>();
   stats_.receiving = receiving_;
   stats_.writable = write_state_ == STATE_WRITABLE;
   stats_.timeout = write_state_ == STATE_WRITE_TIMEOUT;
@@ -1919,7 +1921,7 @@ int ProxyConnection::Send(const void* data,
     mutable_stats().sent_discarded_packets++;
     mutable_stats().sent_discarded_bytes += size;
   } else {
-    send_rate_tracker().AddSamplesAtTime(now.ms(), sent);
+    AddSentBytesToStats(sent, now);
   }
   set_last_send_data(now);
   return sent;
