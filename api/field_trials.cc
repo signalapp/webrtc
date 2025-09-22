@@ -74,6 +74,10 @@ FieldTrials::FieldTrials(const FieldTrials& other)
   key_value_map_ = other.key_value_map_;
 }
 
+FieldTrials::FieldTrials(FieldTrials&& other) : FieldTrialsRegistry(other) {
+  key_value_map_ = std::move(other.key_value_map_);
+}
+
 FieldTrials& FieldTrials::operator=(const FieldTrials& other) {
   if (this != &other) {
     AssertGetValueNotCalled();

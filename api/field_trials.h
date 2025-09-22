@@ -11,6 +11,7 @@
 #ifndef API_FIELD_TRIALS_H_
 #define API_FIELD_TRIALS_H_
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <utility>
@@ -52,7 +53,7 @@ class FieldTrials : public FieldTrialsRegistry {
   explicit FieldTrials(absl::string_view s);
 
   FieldTrials(const FieldTrials&);
-  FieldTrials(FieldTrials&&) = default;
+  FieldTrials(FieldTrials&&);
   FieldTrials& operator=(const FieldTrials&);
   FieldTrials& operator=(FieldTrials&&);
 
@@ -97,7 +98,7 @@ class FieldTrials : public FieldTrialsRegistry {
   // This is used to enforce immutability by DCHECK:ing
   // that modification are performed once get_value_called_
   // is true.
-  mutable bool get_value_called_ = false;
+  mutable std::atomic<bool> get_value_called_ = false;
 #endif
 
   flat_map<std::string, std::string> key_value_map_;
