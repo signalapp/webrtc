@@ -8,6 +8,21 @@
 
 import("../../../webrtc.gni")
 
+rtc_library("av1_qp_parser") {
+  testonly = true
+  sources = [
+    "av1_qp_parser.cc",
+    "av1_qp_parser.h",
+  ]
+  deps = [
+    "../../../api:array_view",
+    "../../../api/video:video_frame",
+    "../../../api/video:video_frame_type",
+    "//third_party/libgav1:libgav1_parser",
+  ]
+  public_configs = [ "//third_party/libgav1:libgav1_public_config" ]
+}
+
 rtc_library("file_based_decoder") {
   testonly = true
   sources = [ "file_based_decoder.h" ]
@@ -116,6 +131,16 @@ rtc_library("webrtc_picture_pair_provider") {
 }
 
 if (rtc_include_tests) {
+  rtc_library("av1_qp_parser_unittest") {
+    testonly = true
+    sources = [ "av1_qp_parser_unittest.cc" ]
+    deps = [
+      ":av1_qp_parser",
+      "../../../api/video:video_frame",
+      "../../../test:test_support",
+    ]
+  }
+
   rtc_library("test_clip_unittest") {
     testonly = true
     sources = [ "test_clip_unittest.cc" ]
@@ -186,6 +211,7 @@ if (rtc_include_tests) {
     testonly = true
     sources = []
     deps = [
+      ":av1_qp_parser_unittest",
       ":test_clip_unittest",
       ":utils_unittest",
       ":webrtc_picture_pair_provider_unittest",
