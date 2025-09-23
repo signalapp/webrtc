@@ -8,13 +8,15 @@
  * be found in the AUTHORS file in the root of the source tree.
  */
 
-#include "video/corruption_detection/frame_instrumentation_generator.h"
+#include "api/video/corruption_detection/frame_instrumentation_generator.h"
 
-#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
+#include <map>
+#include <memory>
 #include <optional>
+#include <queue>
 #include <utility>
 #include <vector>
 
@@ -31,8 +33,10 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/thread_annotations.h"
 #include "video/corruption_detection/generic_mapping_functions.h"
 #include "video/corruption_detection/halton_frame_sampler.h"
+#include "video/corruption_detection/utils.h"
 
 namespace webrtc {
 namespace {
@@ -72,11 +76,45 @@ std::optional<CorruptionDetectionFilterSettings> GetCorruptionFilterSettings(
 
 }  // namespace
 
-FrameInstrumentationGenerator::FrameInstrumentationGenerator(
+class FrameInstrumentationGeneratorImpl : public FrameInstrumentationGenerator {
+ public:
+  explicit FrameInstrumentationGeneratorImpl(VideoCodecType video_codec_type);
+
+  FrameInstrumentationGeneratorImpl(const FrameInstrumentationGeneratorImpl&) =
+      delete;
+  FrameInstrumentationGeneratorImpl& operator=(
+      const FrameInstrumentationGeneratorImpl&) = delete;
+
+  ~FrameInstrumentationGeneratorImpl() override = default;
+
+  void OnCapturedFrame(VideoFrame frame) override RTC_LOCKS_EXCLUDED(mutex_);
+  std::optional<FrameInstrumentationData> OnEncodedImage(
+      const EncodedImage& encoded_image) override RTC_LOCKS_EXCLUDED(mutex_);
+
+  std::optional<int> GetHaltonSequenceIndex(int layer_id) const override
+      RTC_LOCKS_EXCLUDED(mutex_);
+  void SetHaltonSequenceIndex(int index, int layer_id) override
+      RTC_LOCKS_EXCLUDED(mutex_);
+
+ private:
+  struct Context {
+    HaltonFrameSampler frame_sampler;
+    uint32_t rtp_timestamp_of_last_key_frame = 0;
+  };
+
+  // Incoming video frames in capture order.
+  std::queue<VideoFrame> captured_frames_ RTC_GUARDED_BY(mutex_);
+  // Map from spatial or simulcast index to sampling context.
+  std::map<int, Context> contexts_ RTC_GUARDED_BY(mutex_);
+  const VideoCodecType video_codec_type_;
+  mutable Mutex mutex_;
+};
+
+FrameInstrumentationGeneratorImpl::FrameInstrumentationGeneratorImpl(
     VideoCodecType video_codec_type)
     : video_codec_type_(video_codec_type) {}
 
-void FrameInstrumentationGenerator::OnCapturedFrame(VideoFrame frame) {
+void FrameInstrumentationGeneratorImpl::OnCapturedFrame(VideoFrame frame) {
   MutexLock lock(&mutex_);
   while (captured_frames_.size() >= kMaxPendingFrames) {
     captured_frames_.pop();
@@ -85,7 +123,7 @@ void FrameInstrumentationGenerator::OnCapturedFrame(VideoFrame frame) {
 }
 
 std::optional<FrameInstrumentationData>
-FrameInstrumentationGenerator::OnEncodedImage(
+FrameInstrumentationGeneratorImpl::OnEncodedImage(
     const EncodedImage& encoded_image) {
   uint32_t rtp_timestamp_encoded_image = encoded_image.RtpTimestamp();
   std::optional<VideoFrame> captured_frame;
@@ -107,7 +145,7 @@ FrameInstrumentationGenerator::OnEncodedImage(
     }
     captured_frame = captured_frames_.front();
 
-    layer_id = GetLayerId(encoded_image);
+    layer_id = GetSpatialLayerId(encoded_image);
 
     bool is_key_frame =
         encoded_image.FrameType() == VideoFrameType::kVideoFrameKey;
@@ -196,7 +234,7 @@ FrameInstrumentationGenerator::OnEncodedImage(
   return data;
 }
 
-std::optional<int> FrameInstrumentationGenerator::GetHaltonSequenceIndex(
+std::optional<int> FrameInstrumentationGeneratorImpl::GetHaltonSequenceIndex(
     int layer_id) const {
   MutexLock lock(&mutex_);
   auto it = contexts_.find(layer_id);
@@ -206,8 +244,8 @@ std::optional<int> FrameInstrumentationGenerator::GetHaltonSequenceIndex(
   return it->second.frame_sampler.GetCurrentIndex();
 }
 
-void FrameInstrumentationGenerator::SetHaltonSequenceIndex(int index,
-                                                           int layer_id) {
+void FrameInstrumentationGeneratorImpl::SetHaltonSequenceIndex(int index,
+                                                               int layer_id) {
   MutexLock lock(&mutex_);
   if (index <= 0x3FFF) {
     contexts_[layer_id].frame_sampler.SetCurrentIndex(index);
@@ -215,9 +253,9 @@ void FrameInstrumentationGenerator::SetHaltonSequenceIndex(int index,
   RTC_DCHECK_LE(index, 0x3FFF) << "Index must not be larger than 0x3FFF";
 }
 
-int FrameInstrumentationGenerator::GetLayerId(
-    const EncodedImage& encoded_image) const {
-  return std::max(encoded_image.SpatialIndex().value_or(0),
-                  encoded_image.SimulcastIndex().value_or(0));
+std::unique_ptr<FrameInstrumentationGenerator>
+FrameInstrumentationGenerator::Create(VideoCodecType video_codec_type) {
+  return std::make_unique<FrameInstrumentationGeneratorImpl>(video_codec_type);
 }
+
 }  // namespace webrtc
