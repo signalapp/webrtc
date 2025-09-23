@@ -10,7 +10,6 @@
 
 #include "api/jsep_ice_candidate.h"
 
-#include <cstddef>
 #include <memory>
 #include <string>
 
@@ -18,6 +17,7 @@
 #include "absl/strings/string_view.h"
 #include "api/candidate.h"
 #include "api/jsep.h"
+#include "api/sequence_checker.h"
 #include "pc/webrtc_sdp.h"
 
 // This file contains IceCandidate-related functions that are not
@@ -60,6 +60,8 @@ std::unique_ptr<IceCandidate> IceCandidate::Create(absl::string_view mid,
 
 IceCandidateCollection IceCandidateCollection::Clone() const {
   IceCandidateCollection new_collection;
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
+  RTC_DCHECK_RUN_ON(&new_collection.sequence_checker_);
   new_collection.candidates_.reserve(candidates_.size());
   for (const auto& candidate : candidates_) {
     new_collection.candidates_.push_back(std::make_unique<IceCandidate>(

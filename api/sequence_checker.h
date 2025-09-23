@@ -10,6 +10,8 @@
 #ifndef API_SEQUENCE_CHECKER_H_
 #define API_SEQUENCE_CHECKER_H_
 
+#include <utility>
+
 #include "api/task_queue/task_queue_base.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/synchronization/sequence_checker_internal.h"
@@ -70,6 +72,53 @@ class RTC_LOCKABLE SequenceChecker
   // to do a check with this checker will result in attaching this checker
   // to the sequence on which check was performed.
   void Detach() { Impl::Detach(); }
+};
+
+// A variant of SequenceChecker where moving and copying is allowed,
+// and will automatically detach from the current thread.
+// This allows a SequenceChecker to be used in objects that are used
+// with standard classes such as std::vector.
+//
+// The behavior of AutoDetachingSequenceChecker is:
+// - When created on its own, it is detached.
+// - When created using the copy constructor, the new object is attached
+//   to the same thread as the original (which may be different from
+//   the thread that invokes the copy operator).
+// - When copied using the copy operator, the new object is attached
+//   to the same thread as the original (which may be different from
+//   the thread that invokes the copy operator).
+// - When created using the move constructor, it is detached.
+// - When moved using the move operator, both the original object and
+//   the moved-into object will be detached.
+
+class RTC_LOCKABLE AutoDetachingSequenceChecker
+#if RTC_DCHECK_IS_ON
+    : public webrtc_sequence_checker_internal::
+          AutoDetachingSequenceCheckerImpl {
+  using Impl =
+      webrtc_sequence_checker_internal::AutoDetachingSequenceCheckerImpl;
+#else
+    : public webrtc_sequence_checker_internal::
+          AutoDetachingSequenceCheckerDoNothing {
+  using Impl =
+      webrtc_sequence_checker_internal::AutoDetachingSequenceCheckerDoNothing;
+#endif
+ public:
+  AutoDetachingSequenceChecker() : Impl() {}
+  AutoDetachingSequenceChecker(const AutoDetachingSequenceChecker& o)
+      : Impl(o) {}
+  AutoDetachingSequenceChecker& operator=(
+      const AutoDetachingSequenceChecker& o) {
+    Impl::operator=(o);
+    return *this;
+  }
+
+  AutoDetachingSequenceChecker(AutoDetachingSequenceChecker&& o)
+      : Impl(std::move(o)) {}
+  AutoDetachingSequenceChecker& operator=(AutoDetachingSequenceChecker&& o) {
+    Impl::operator=(std::move(o));
+    return *this;
+  }
 };
 
 }  // namespace webrtc

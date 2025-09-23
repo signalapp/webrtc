@@ -12,6 +12,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <limits>
 #include <memory>
 #include <string>
@@ -22,6 +23,7 @@
 #include "absl/strings/string_view.h"
 #include "api/candidate.h"
 #include "api/jsep.h"
+#include "api/sequence_checker.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 
@@ -51,24 +53,30 @@ IceCandidate::IceCandidate(absl::string_view sdp_mid,
 }
 
 void IceCandidateCollection::add(std::unique_ptr<IceCandidate> candidate) {
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
   candidates_.push_back(std::move(candidate));
 }
 
 void IceCandidateCollection::add(IceCandidate* candidate) {
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
   candidates_.push_back(absl::WrapUnique(candidate));
 }
 
 void IceCandidateCollection::Append(IceCandidateCollection collection) {
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
+  RTC_DCHECK_RUN_ON(&collection.sequence_checker_);
   candidates_.insert(candidates_.end(),
                      std::make_move_iterator(collection.candidates_.begin()),
                      std::make_move_iterator(collection.candidates_.end()));
 }
 
 const IceCandidate* IceCandidateCollection::at(size_t index) const {
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
   return candidates_[index].get();
 }
 
 bool IceCandidateCollection::HasCandidate(const IceCandidate* candidate) const {
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
   const auto sdp_mid = candidate->sdp_mid();  // avoid string copy per entry.
   return absl::c_any_of(
       candidates_, [&](const std::unique_ptr<IceCandidate>& entry) {
@@ -84,7 +92,8 @@ bool IceCandidateCollection::HasCandidate(const IceCandidate* candidate) const {
       });
 }
 
-size_t JsepCandidateCollection::remove(const IceCandidate* candidate) {
+size_t IceCandidateCollection::remove(const IceCandidate* candidate) {
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
   RTC_DCHECK(candidate);
   auto iter =
       absl::c_find_if(candidates_, [&](const std::unique_ptr<IceCandidate>& c) {
@@ -95,6 +104,10 @@ size_t JsepCandidateCollection::remove(const IceCandidate* candidate) {
     return 1u;
   }
   return 0u;
+}
+
+void IceCandidateCollection::RelinquishThreadOwnership() {
+  sequence_checker_.Detach();
 }
 
 }  // namespace webrtc
