@@ -79,6 +79,7 @@
 #include "pc/rtp_transmission_manager.h"
 #include "pc/rtp_transport_internal.h"
 #include "pc/sdp_offer_answer.h"
+#include "pc/sdp_state_provider.h"
 #include "pc/session_description.h"
 #include "pc/transceiver_list.h"
 #include "pc/transport_stats.h"

@@ -87,7 +87,6 @@
 #include "api/audio_codecs/audio_decoder_factory.h"
 #include "api/audio_codecs/audio_encoder_factory.h"
 #include "api/audio_options.h"
-#include "api/candidate.h"
 #include "api/crypto/crypto_options.h"
 #include "api/data_channel_event_observer_interface.h"
 #include "api/data_channel_interface.h"
