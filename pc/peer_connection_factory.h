@@ -126,9 +126,7 @@ class PeerConnectionFactory : public PeerConnectionFactoryInterface {
 
   std::unique_ptr<Call> CreateCall_w(
       const Environment& env,
-      const PeerConnectionInterface::RTCConfiguration& configuration,
-      std::unique_ptr<NetworkControllerFactoryInterface>
-          network_controller_factory);
+      const PeerConnectionInterface::RTCConfiguration& configuration);
 
   scoped_refptr<ConnectionContext> context_;
   PeerConnectionFactoryInterface::Options options_

@@ -1227,10 +1227,6 @@ class RTC_EXPORT PeerConnectionInterface : public RefCountInterface {
   // pointers.
   virtual Thread* signaling_thread() const = 0;
 
-  // NetworkController instance being used by this PeerConnection, to be used
-  // to identify instances when using a custom NetworkControllerFactory.
-  virtual NetworkControllerInterface* GetNetworkController() = 0;
-
  protected:
   // Dtor protected as objects shouldn't be deleted via this interface.
   ~PeerConnectionInterface() override = default;
@@ -1387,9 +1383,6 @@ struct RTC_EXPORT PeerConnectionDependencies final {
   std::unique_ptr<RTCCertificateGeneratorInterface> cert_generator;
   std::unique_ptr<SSLCertificateVerifier> tls_cert_verifier;
   std::unique_ptr<VideoBitrateAllocatorFactory> video_bitrate_allocator_factory;
-  // Optional network controller factory to use.
-  // Overrides that set in PeerConnectionFactoryDependencies.
-  std::unique_ptr<NetworkControllerFactoryInterface> network_controller_factory;
 
   // Optional permission factory to request Local Network Access permission.
   std::unique_ptr<LocalNetworkAccessPermissionFactoryInterface>
