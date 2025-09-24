@@ -184,7 +184,6 @@ class AudioProcessingImpl : public AudioProcessing {
   const Environment env_;
   const std::unique_ptr<ApmDataDumper> data_dumper_;
   static std::atomic<int> instance_count_;
-  const bool use_setup_specific_default_aec3_config_;
 
   SwapQueue<RuntimeSetting> capture_runtime_settings_;
   SwapQueue<RuntimeSetting> render_runtime_settings_;

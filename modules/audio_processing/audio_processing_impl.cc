@@ -30,6 +30,7 @@
 #include "api/audio/audio_view.h"
 #include "api/audio/echo_canceller3_config.h"
 #include "api/audio/echo_control.h"
+#include "api/audio/neural_residual_echo_estimator.h"
 #include "api/environment/environment.h"
 #include "api/field_trials_view.h"
 #include "api/scoped_refptr.h"
@@ -84,14 +85,6 @@ bool SampleRateSupportsMultiBand(int sample_rate_hz) {
 // Checks whether the high-pass filter should be done in the full-band.
 bool EnforceSplitBandHpf(const FieldTrialsView& field_trials) {
   return field_trials.IsEnabled("WebRTC-FullBandHpfKillSwitch");
-}
-
-// Checks whether AEC3 should be allowed to decide what the default
-// configuration should be based on the render and capture channel configuration
-// at hand.
-bool UseSetupSpecificDefaultAec3Congfig(const FieldTrialsView& field_trials) {
-  return !field_trials.IsEnabled(
-      "WebRTC-Aec3SetupSpecificDefaultConfigDefaultsKillSwitch");
 }
 
 // Identify the native processing rate that best handles a sample rate.
@@ -460,8 +453,6 @@ AudioProcessingImpl::AudioProcessingImpl(
     std::unique_ptr<NeuralResidualEchoEstimator> neural_residual_echo_estimator)
     : env_(env),
       data_dumper_(new ApmDataDumper(instance_count_.fetch_add(1) + 1)),
-      use_setup_specific_default_aec3_config_(
-          UseSetupSpecificDefaultAec3Congfig(env.field_trials())),
       capture_runtime_settings_(RuntimeSettingQueueSize()),
       render_runtime_settings_(RuntimeSettingQueueSize()),
       capture_runtime_settings_enqueuer_(&capture_runtime_settings_),
@@ -1925,11 +1916,8 @@ void AudioProcessingImpl::InitializeEchoController() {
       RTC_DCHECK(submodules_.echo_controller);
     } else {
       EchoCanceller3Config config;
-      std::optional<EchoCanceller3Config> multichannel_config;
-      if (use_setup_specific_default_aec3_config_) {
-        multichannel_config =
-            EchoCanceller3Config::CreateDefaultMultichannelConfig();
-      }
+      std::optional<EchoCanceller3Config> multichannel_config =
+          EchoCanceller3Config::CreateDefaultMultichannelConfig();
       submodules_.echo_controller = std::make_unique<EchoCanceller3>(
           env_, config, multichannel_config,
           submodules_.neural_residual_echo_estimator.get(),
