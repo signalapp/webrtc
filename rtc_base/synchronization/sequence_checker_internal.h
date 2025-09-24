@@ -41,23 +41,10 @@ class RTC_EXPORT SequenceCheckerImpl {
   // used exclusively on another thread.
   void Detach();
 
-  // Makes the task queue or thread that is checked for in `this`.IsCurrent()
-  // be the same as in `o`.IsCurrent().
-  void AssignStateFrom(const SequenceCheckerImpl& o);
-
   // Returns a string that is formatted to match with the error string printed
   // by RTC_CHECK() when a condition is not met.
   // This is used in conjunction with the RTC_DCHECK_RUN_ON() macro.
   std::string ExpectationToString() const;
-
-  // Returns whether or not the checker is attached.
-  // Exists only in the SequenceChecker that is used when RTC_DCHECK_IS_ON
-  // is set, so tests using it must check that flag.
-  bool IsAttachedForTesting() const;
-
-  // Returns true if the two sequence checkers are either both detached
-  // or attached to the same thread.
-  bool HasSameAttachmentForTesting(const SequenceCheckerImpl& o) const;
 
  private:
   mutable Mutex lock_;
@@ -97,55 +84,6 @@ std::enable_if_t<!std::is_base_of_v<SequenceCheckerImpl, ThreadLikeObject>,
 ExpectationToString(const ThreadLikeObject*) {
   return std::string();
 }
-
-class AutoDetachingSequenceCheckerImpl : public SequenceCheckerImpl {
- public:
-  enum InitialState : bool { kDetached = false, kAttached = true };
-
-  AutoDetachingSequenceCheckerImpl() : SequenceCheckerImpl(kDetached) {}
-
-  AutoDetachingSequenceCheckerImpl(const AutoDetachingSequenceCheckerImpl& o)
-      : SequenceCheckerImpl(kDetached) {
-    AssignStateFrom(o);
-  }
-
-  AutoDetachingSequenceCheckerImpl& operator=(
-      const AutoDetachingSequenceCheckerImpl& o) {
-    AssignStateFrom(o);
-    return *this;
-  }
-
-  AutoDetachingSequenceCheckerImpl(AutoDetachingSequenceCheckerImpl&& o)
-      : SequenceCheckerImpl(kDetached) {
-    o.Detach();
-  }
-
-  AutoDetachingSequenceCheckerImpl& operator=(
-      AutoDetachingSequenceCheckerImpl&& o) {
-    Detach();
-    o.Detach();
-    return *this;
-  }
-};
-
-class AutoDetachingSequenceCheckerDoNothing {
- public:
-  AutoDetachingSequenceCheckerDoNothing() {}
-  AutoDetachingSequenceCheckerDoNothing(
-      const AutoDetachingSequenceCheckerDoNothing& o) {}
-  AutoDetachingSequenceCheckerDoNothing& operator=(
-      const AutoDetachingSequenceCheckerDoNothing& o) {
-    return *this;
-  }
-  AutoDetachingSequenceCheckerDoNothing(
-      AutoDetachingSequenceCheckerDoNothing&& o) {}
-  AutoDetachingSequenceCheckerDoNothing& operator=(
-      AutoDetachingSequenceCheckerDoNothing&& o) {
-    return *this;
-  }
-  bool IsCurrent() const { return true; }
-  void Detach() {}
-};
 
 }  // namespace webrtc_sequence_checker_internal
 }  // namespace webrtc

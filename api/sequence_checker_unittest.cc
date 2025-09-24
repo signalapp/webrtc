@@ -12,7 +12,6 @@
 
 #include <functional>
 #include <memory>
-#include <utility>
 
 #include "absl/functional/any_invocable.h"
 #include "api/function_view.h"
@@ -26,7 +25,6 @@
 #include "test/gmock.h"
 #include "test/gtest.h"
 
-using testing::Eq;
 using testing::HasSubstr;
 
 namespace webrtc {
@@ -234,121 +232,4 @@ TEST(SequenceCheckerTest, TestAnnotationsOnWrongQueueRelease) {
 }
 #endif
 #endif  // GTEST_HAS_DEATH_TEST
-
-// This class is a helper for verifying that AutoDetachingSequenceChecker
-// can be made a member of a class with default copy and move operations.
-class MovableObject {
- public:
-  MovableObject() = default;
-  // Copy operators
-  MovableObject(const MovableObject& o) = default;
-  MovableObject& operator=(const MovableObject& o) = default;
-  // Move operators
-  MovableObject(MovableObject&& o) = default;
-  MovableObject& operator=(MovableObject&& o) = default;
-
-  int any_member RTC_GUARDED_BY(sequence_checker_) = 4711;
-  AutoDetachingSequenceChecker sequence_checker_;
-};
-
-TEST(AutoDetachingSequenceCheckerTest, CanDeclareMovableObject) {
-  MovableObject foo;
-  RTC_DCHECK_RUN_ON(&foo.sequence_checker_);
-  EXPECT_THAT(foo.any_member, Eq(4711));
-}
-
-TEST(AutoDetachingSequenceCheckerTest, CanCopyMovableObject) {
-  MovableObject foo;
-  RTC_DCHECK_RUN_ON(&foo.sequence_checker_);
-  foo.any_member = 12;
-  MovableObject bar = foo;
-  RTC_DCHECK_RUN_ON(&bar.sequence_checker_);
-  EXPECT_THAT(bar.any_member, Eq(12));
-}
-
-#if RTC_DCHECK_IS_ON
-// The tests below use the helper functions IsAttachedForTesting and
-// HasSameAttachmentForTesting, which are only present on the
-// AutoDetachingSequenceChecker when compiled with DCHECK on.
-TEST(AutoDetachingSequenceCheckerTest, InitialStateIsDetached) {
-  AutoDetachingSequenceChecker foo;
-  EXPECT_FALSE(foo.IsAttachedForTesting());
-}
-
-TEST(AutoDetachingSequenceCheckerTest, CopyConstructorKeepsAttachment) {
-  AutoDetachingSequenceChecker foo;
-  EXPECT_FALSE(foo.IsAttachedForTesting());
-  AutoDetachingSequenceChecker bar(foo);
-  EXPECT_FALSE(bar.IsAttachedForTesting());
-  RTC_DCHECK_RUN_ON(&foo);
-  EXPECT_TRUE(foo.IsAttachedForTesting());
-  AutoDetachingSequenceChecker baz(foo);
-  EXPECT_TRUE(baz.IsAttachedForTesting());
-  EXPECT_TRUE(baz.HasSameAttachmentForTesting(foo));
-}
-
-TEST(AutoDetachingSequenceCheckerTest, MoveDetachesFromCurrentThread) {
-  TaskQueueForTest queue;
-  AutoDetachingSequenceChecker foo;
-  EXPECT_FALSE(foo.IsAttachedForTesting());
-  RTC_DCHECK_RUN_ON(&foo);
-  EXPECT_TRUE(foo.IsAttachedForTesting());
-  AutoDetachingSequenceChecker bar = std::move(foo);
-  EXPECT_FALSE(bar.IsAttachedForTesting());
-  EXPECT_FALSE(foo.IsAttachedForTesting());
-}
-
-TEST(AutoDetachingSequenceCheckerTest, MoveDetachesFromCurrentThreadInCapture) {
-  TaskQueueForTest queue;
-  AutoDetachingSequenceChecker foo;
-  RTC_DCHECK_RUN_ON(&foo);
-  queue.SendTask([bar = std::move(foo)]() {
-    EXPECT_FALSE(bar.IsAttachedForTesting());
-    RTC_DCHECK_RUN_ON(&bar);
-    EXPECT_TRUE(bar.IsAttachedForTesting());
-  });
-  EXPECT_FALSE(foo.IsAttachedForTesting());
-}
-
-TEST(AutoDetachingSequenceCheckerTest, CopyOperatorKeepsOldThread) {
-  TaskQueueForTest queue;
-  AutoDetachingSequenceChecker object1;
-  AutoDetachingSequenceChecker object2;
-  // Attach object1 to current thread.
-  RTC_DCHECK_RUN_ON(&object1);
-  queue.SendTask([&]() {
-    // Attach object2 to this task queue
-    RTC_DCHECK_RUN_ON(&object2);
-    // Overwriting will attach object2 to object1's bound thread.
-    object2 = object1;
-  });
-  EXPECT_TRUE(object1.HasSameAttachmentForTesting(object2));
-}
-#endif  // RTC_DCHECK_IS_ON
-
-#if GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID) && RTC_DCHECK_IS_ON
-TEST(AutoDetachingSequenceCheckerDeathTest, NotMovingCrashes) {
-  TaskQueueForTest queue;
-  AutoDetachingSequenceChecker unmoved_object;
-  // Attach `unmoved_object` to the queue, not the main thread
-  queue.SendTask([&unmoved_object]() { RTC_DCHECK_RUN_ON(&unmoved_object); });
-  ASSERT_DEATH({RTC_DCHECK_RUN_ON(&unmoved_object)}, "IsCurrent");
-}
-
-TEST(AutoDetachingSequenceCheckerDeathTest,
-     CopyOperatorKeepsOldThreadAndCrashes) {
-  TaskQueueForTest queue;
-  AutoDetachingSequenceChecker object1;
-  AutoDetachingSequenceChecker object2;
-  // Attach object2 to current thread.
-  RTC_DCHECK_RUN_ON(&object2);
-  queue.SendTask([&]() {
-    RTC_DCHECK_RUN_ON(&object1);
-    object2 = object1;  // This assignment overwrites the attachment.
-  });
-  // object2 is now attached to the task queue.
-  ASSERT_DEATH({RTC_DCHECK_RUN_ON(&object2)}, "IsCurrent");
-}
-
-#endif
 }  // namespace webrtc

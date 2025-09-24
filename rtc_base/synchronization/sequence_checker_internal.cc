@@ -54,14 +54,6 @@ void SequenceCheckerImpl::Detach() {
 }
 
 #if RTC_DCHECK_IS_ON
-void SequenceCheckerImpl::AssignStateFrom(const SequenceCheckerImpl& o) {
-  MutexLock this_lock(&lock_);
-  MutexLock that_lock(&o.lock_);
-  attached_ = o.attached_;
-  valid_thread_ = o.valid_thread_;
-  valid_queue_ = o.valid_queue_;
-}
-
 std::string SequenceCheckerImpl::ExpectationToString() const {
   const TaskQueueBase* const current_queue = TaskQueueBase::Current();
   const PlatformThreadRef current_thread = CurrentThreadRef();
@@ -91,26 +83,6 @@ std::string SequenceCheckerImpl::ExpectationToString() const {
 
   return message.Release();
 }
-
-bool SequenceCheckerImpl::IsAttachedForTesting() const {
-  MutexLock scoped_lock(&lock_);
-  return attached_;
-}
-
-bool SequenceCheckerImpl::HasSameAttachmentForTesting(
-    const SequenceCheckerImpl& o) const {
-  MutexLock scoped_lock_1(&lock_);
-  MutexLock scoped_lock_2(&o.lock_);
-  if (attached_ != o.attached_) {
-    return false;
-  }
-  if (attached_ &&
-      (valid_queue_ != o.valid_queue_ || valid_thread_ != o.valid_thread_)) {
-    return false;
-  }
-  return true;
-}
-
 #endif  // RTC_DCHECK_IS_ON
 
 }  // namespace webrtc_sequence_checker_internal

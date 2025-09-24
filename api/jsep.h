@@ -37,7 +37,6 @@
 #include "api/sequence_checker.h"
 #include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/system/rtc_export.h"
-#include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
 
@@ -147,14 +146,8 @@ class IceCandidateCollection final {
   IceCandidateCollection(const IceCandidateCollection&) = delete;
   IceCandidateCollection& operator=(const IceCandidateCollection&) = delete;
 
-  size_t count() const {
-    RTC_DCHECK_RUN_ON(&sequence_checker_);
-    return candidates_.size();
-  }
-  bool empty() const {
-    RTC_DCHECK_RUN_ON(&sequence_checker_);
-    return candidates_.empty();
-  }
+  size_t count() const { return candidates_.size(); }
+  bool empty() const { return candidates_.empty(); }
   const IceCandidate* at(size_t index) const;
 
   // Adds and takes ownership of the IceCandidate.
@@ -178,12 +171,9 @@ class IceCandidateCollection final {
   bool HasCandidate(const IceCandidate* candidate) const;
 
   IceCandidateCollection Clone() const;
-  void RelinquishThreadOwnership();
 
  private:
-  RTC_NO_UNIQUE_ADDRESS AutoDetachingSequenceChecker sequence_checker_;
-  std::vector<std::unique_ptr<IceCandidate>> candidates_
-      RTC_GUARDED_BY(sequence_checker_);
+  std::vector<std::unique_ptr<IceCandidate>> candidates_;
 };
 
 // TODO: webrtc:406795492 - Deprecate.
@@ -240,6 +230,12 @@ class SessionDescriptionInternal {
 
   ~SessionDescriptionInternal();
 
+  // Resets the internal sequence_checker_ to not be attached to a particular
+  // thread. Used when transfering object ownership between threads. Must be
+  // called by the thread that currently owns the object before transferring the
+  // ownership.
+  void RelinquishThreadOwnership();
+
  protected:
   // Only meant for the SessionDescriptionInterface implementation.
   SdpType sdp_type() const { return sdp_type_; }
@@ -249,8 +245,15 @@ class SessionDescriptionInternal {
   SessionDescription* description() { return description_.get(); }
   size_t mediasection_count() const;
 
+ protected:
+  // This method is necessarily `protected`, and not private, while
+  // the SessionDescriptionInterface implementation is being consolidated
+  // into a single class.
+  const SequenceChecker* sequence_checker() const { return &sequence_checker_; }
 
  private:
+  RTC_NO_UNIQUE_ADDRESS SequenceChecker sequence_checker_{
+      SequenceChecker::kDetached};
   const SdpType sdp_type_;
   const std::string id_;
   const std::string version_;
@@ -353,12 +356,6 @@ class RTC_EXPORT SessionDescriptionInterface
     sink.Append("--- END SDP ---\n");
   }
 
-  // Resets the internal sequence_checker_ to not be attached to a particular
-  // thread. Used when transfering object ownership between threads. Must be
-  // called by the thread that currently owns the object before transferring the
-  // ownership.
-  void RelinquishThreadOwnership();
-
  protected:
   explicit SessionDescriptionInterface(
       SdpType type,
@@ -367,19 +364,11 @@ class RTC_EXPORT SessionDescriptionInterface
       absl::string_view version,
       std::vector<IceCandidateCollection> candidates = {});
 
- protected:
-  // This method is necessarily `protected`, and not private, while
-  // the SessionDescriptionInterface implementation is being consolidated
-  // into a single class.
-  const SequenceChecker* sequence_checker() const { return &sequence_checker_; }
-
  private:
   bool IsValidMLineIndex(int index) const;
   bool GetMediasectionIndex(const IceCandidate* candidate, size_t* index) const;
   int GetMediasectionIndex(absl::string_view mid) const;
 
-  RTC_NO_UNIQUE_ADDRESS SequenceChecker sequence_checker_{
-      SequenceChecker::kDetached};
   std::vector<IceCandidateCollection> candidate_collection_
       RTC_GUARDED_BY(sequence_checker());
 };
