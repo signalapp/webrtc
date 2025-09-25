@@ -1912,7 +1912,8 @@ void AudioProcessingImpl::InitializeEchoController() {
     if (echo_control_factory_) {
       submodules_.echo_controller = echo_control_factory_->Create(
           env_, proc_sample_rate_hz(), num_reverse_channels(),
-          num_proc_channels());
+          num_proc_channels(),
+          submodules_.neural_residual_echo_estimator.get());
       RTC_DCHECK(submodules_.echo_controller);
     } else {
       EchoCanceller3Config config;
