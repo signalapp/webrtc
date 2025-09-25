@@ -28,7 +28,6 @@
 #include "api/audio/audio_processing.h"
 #include "api/audio/builtin_audio_processing_builder.h"
 #include "api/audio/echo_canceller3_config.h"
-#include "api/audio/echo_canceller3_factory.h"
 #include "api/audio/echo_detector_creator.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
@@ -789,29 +788,26 @@ EchoCanceller3Config ReadAec3ConfigFromJsonFile(absl::string_view filename) {
 
 void SetDependencies(const SimulationSettings& settings,
                      BuiltinAudioProcessingBuilder& builder) {
-  // Create and set an EchoCanceller3Factory if needed.
-  if (settings.use_aec && *settings.use_aec) {
-    EchoCanceller3Config cfg;
-    if (settings.aec_settings_filename) {
-      if (settings.use_verbose_logging) {
-        std::cout << "Reading AEC Parameters from JSON input." << std::endl;
-      }
-      cfg = ReadAec3ConfigFromJsonFile(*settings.aec_settings_filename);
+  EchoCanceller3Config aec3_config;
+  if (settings.aec_settings_filename) {
+    if (settings.use_verbose_logging) {
+      std::cout << "Reading AEC Parameters from JSON input." << std::endl;
     }
-
-    if (settings.linear_aec_output_filename) {
-      cfg.filter.export_linear_aec_output = true;
-    }
-
-    if (settings.print_aec_parameter_values) {
-      if (!settings.use_quiet_output) {
-        std::cout << "AEC settings:" << std::endl;
-      }
-      std::cout << Aec3ConfigToJsonString(cfg) << std::endl;
-    }
-
-    builder.SetEchoControlFactory(std::make_unique<EchoCanceller3Factory>(cfg));
+    aec3_config = ReadAec3ConfigFromJsonFile(*settings.aec_settings_filename);
   }
+
+  if (settings.linear_aec_output_filename) {
+    aec3_config.filter.export_linear_aec_output = true;
+  }
+
+  if (settings.print_aec_parameter_values) {
+    if (!settings.use_quiet_output) {
+      std::cout << "AEC settings:" << std::endl;
+    }
+    std::cout << Aec3ConfigToJsonString(aec3_config) << std::endl;
+  }
+  builder.SetEchoCancellerConfig(
+      aec3_config, /*echo_canceller_multichannel_config=*/std::nullopt);
 
   if (settings.neural_echo_residual_estimator_model) {
     auto model_runner = NeuralResidualEchoEstimatorImpl::LoadTfLiteModel(

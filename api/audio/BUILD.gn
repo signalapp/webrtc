@@ -106,6 +106,7 @@ rtc_library("builtin_audio_processing_builder") {
     "builtin_audio_processing_builder.h",
   ]
   deps = [
+    ":aec3_config",
     ":audio_processing",
     ":echo_control",
     ":neural_residual_echo_estimator_api",
