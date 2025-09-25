@@ -34,6 +34,7 @@
 #include "api/array_view.h"
 #include "api/candidate.h"
 #include "api/crypto/crypto_options.h"
+#include "api/environment/environment.h"
 #include "api/jsep.h"
 #include "api/make_ref_counted.h"
 #include "api/media_stream_interface.h"
@@ -4330,6 +4331,8 @@ void SdpOfferAnswerHandler::GetOptionsForOffer(
   // the default in `options` is false.
   session_options->use_obsolete_sctp_sdp =
       offer_answer_options.use_obsolete_sctp_sdp;
+  // draft-hancke-tsvwg-snap.
+  session_options->use_sctp_snap = pc_->trials().IsEnabled("WebRTC-Sctp-Snap");
 }
 
 void SdpOfferAnswerHandler::GetOptionsForPlanBOffer(
@@ -4604,6 +4607,8 @@ void SdpOfferAnswerHandler::GetOptionsForAnswer(
   session_options->pooled_ice_credentials =
       context_->network_thread()->BlockingCall(
           [this] { return port_allocator()->GetPooledIceCredentials(); });
+  // draft-hancke-tsvwg-snap.
+  session_options->use_sctp_snap = pc_->trials().IsEnabled("WebRTC-Sctp-Snap");
 }
 
 void SdpOfferAnswerHandler::GetOptionsForPlanBAnswer(
