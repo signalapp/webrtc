@@ -705,7 +705,7 @@ TEST(FrameInstrumentationGeneratorTest, QueuesAtMostThreeInputFrames) {
             .build());
   }
 
-  EXPECT_THAT(frames_destroyed, ElementsAre(true, false, false, false));
+  EXPECT_THAT(frames_destroyed, ElementsAre(true, true, false, false));
 
   generator.reset();
   EXPECT_THAT(frames_destroyed, ElementsAre(true, true, true, true));

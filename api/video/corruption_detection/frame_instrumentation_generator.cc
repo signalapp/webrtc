@@ -43,7 +43,9 @@ namespace {
 
 // Avoid holding on to frames that might have been dropped by encoder, as that
 // can lead to frame buffer pools draining.
-constexpr size_t kMaxPendingFrames = 3;
+// TODO: bugs.webrtc.org/358039777 - Once we have a reliable signal for dropped
+// and completed frames, update this logic with a smarter culling logic.
+constexpr size_t kMaxPendingFrames = 2;
 
 std::optional<CorruptionDetectionFilterSettings> GetCorruptionFilterSettings(
     const EncodedImage& encoded_image,
@@ -204,6 +206,7 @@ FrameInstrumentationGeneratorImpl::OnEncodedImage(
       if (!is_key_frame) {
         return std::nullopt;
       }
+      // Sync message only.
       return data;
     }
   }
