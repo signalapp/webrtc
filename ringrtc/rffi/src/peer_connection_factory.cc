@@ -81,6 +81,20 @@ class RingRTCVideoEncoderFactory : public VideoEncoderFactory {
       factory_;
 };
 
+// Cleanup class for ADM. Will drop a reference on the rust side, potentially
+// invoking the destructor.
+class AudioDeviceModuleCleanup {
+ public:
+  AudioDeviceModuleCleanup(void (*free_adm_cb)(const void*), void* rust_adm)
+      : free_adm_cb_(free_adm_cb), adm_(rust_adm) {}
+
+  ~AudioDeviceModuleCleanup() { free_adm_cb_(adm_); }
+
+ private:
+  void (*free_adm_cb_)(const void*);
+  void* adm_;
+};
+
 class PeerConnectionFactoryWithOwnedThreads
     : public PeerConnectionFactoryOwner {
  public:
@@ -165,7 +179,9 @@ class PeerConnectionFactoryWithOwnedThreads
     auto factory = CreateModularPeerConnectionFactory(std::move(dependencies));
     return make_ref_counted<PeerConnectionFactoryWithOwnedThreads>(
         std::move(factory), std::move(network_thread), std::move(worker_thread),
-        std::move(signaling_thread), std::move(injectable_network), adm.get());
+        std::move(signaling_thread), std::move(injectable_network), adm.get(),
+        audio_config_borrowed->free_adm_cb,
+        audio_config_borrowed->rust_adm_borrowed);
   }
 
   ~PeerConnectionFactoryWithOwnedThreads() override {
@@ -268,8 +284,11 @@ class PeerConnectionFactoryWithOwnedThreads
       std::unique_ptr<Thread> owned_worker_thread,
       std::unique_ptr<Thread> owned_signaling_thread,
       std::unique_ptr<rffi::InjectableNetwork> injectable_network,
-      AudioDeviceModule* audio_device_module)
-      : owned_network_thread_(std::move(owned_network_thread)),
+      AudioDeviceModule* audio_device_module,
+      void (*free_adm_cb)(const void*),
+      void* rust_adm_borrowed)
+      : adm_cleanup_(free_adm_cb, rust_adm_borrowed),
+        owned_network_thread_(std::move(owned_network_thread)),
         owned_worker_thread_(std::move(owned_worker_thread)),
         owned_signaling_thread_(std::move(owned_signaling_thread)),
         injectable_network_(std::move(injectable_network)),
@@ -292,6 +311,8 @@ class PeerConnectionFactoryWithOwnedThreads
     return thread;
   }
 
+  // This must be destroyed last.
+  AudioDeviceModuleCleanup adm_cleanup_;
   const std::unique_ptr<Thread> owned_network_thread_;
   const std::unique_ptr<Thread> owned_worker_thread_;
   const std::unique_ptr<Thread> owned_signaling_thread_;

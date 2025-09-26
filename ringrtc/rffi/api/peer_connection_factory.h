@@ -88,6 +88,7 @@ typedef struct {
   bool agc_enabled;
   void* rust_adm_borrowed;
   AudioDeviceCallbacks* rust_audio_device_callbacks;
+  void (*free_adm_cb)(const void*);
 } RffiAudioConfig;
 
 typedef struct {
