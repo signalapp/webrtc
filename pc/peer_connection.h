@@ -332,6 +332,9 @@ class PeerConnection : public PeerConnectionInternal,
   // Functions needed by DataChannelController
   void NoteDataAddedEvent() override { NoteUsageEvent(UsageEvent::DATA_ADDED); }
 
+  // RingRTC change to receive RTP data
+  PeerConnectionObserver* Observer() const;
+
   void RunWithObserver(
       absl::AnyInvocable<void(webrtc::PeerConnectionObserver*) &&>) override
       RTC_RUN_ON(signaling_thread());
