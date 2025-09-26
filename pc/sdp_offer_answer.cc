@@ -1525,7 +1525,7 @@ void SdpOfferAnswerHandler::Initialize(
 
 // ==================================================================
 // Access to pc_ variables
-MediaEngineInterface* SdpOfferAnswerHandler::media_engine() const {
+const MediaEngineInterface* SdpOfferAnswerHandler::media_engine() const {
   RTC_DCHECK(context_);
   return context_->media_engine();
 }

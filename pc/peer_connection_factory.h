@@ -104,7 +104,7 @@ class PeerConnectionFactory : public PeerConnectionFactoryInterface {
 
   const FieldTrialsView& field_trials() const { return env_.field_trials(); }
 
-  MediaEngineInterface* media_engine() const;
+  const MediaEngineInterface* media_engine() const;
   CodecVendor& CodecVendorForTesting() { return codec_vendor_; }
 
  protected:

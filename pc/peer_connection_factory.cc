@@ -101,10 +101,7 @@ PeerConnectionFactory::PeerConnectionFactory(
     : env_(env),
       context_(context ? context
                        : ConnectionContext::Create(env_, dependencies)),
-      codec_vendor_(context_->media_engine(),
-                    context_->use_rtx(),
-                    env_.field_trials()),
-
+      codec_vendor_(media_engine(), context_->use_rtx(), env_.field_trials()),
       event_log_factory_(std::move(dependencies->event_log_factory)),
       fec_controller_factory_(std::move(dependencies->fec_controller_factory)),
       network_state_predictor_factory_(
@@ -193,16 +190,16 @@ scoped_refptr<AudioSourceInterface> PeerConnectionFactory::CreateAudioSource(
 
 bool PeerConnectionFactory::StartAecDump(FILE* file, int64_t max_size_bytes) {
   RTC_DCHECK_RUN_ON(worker_thread());
-  return media_engine()->voice().StartAecDump(FileWrapper(file),
-                                              max_size_bytes);
+  return context_->media_engine()->voice().StartAecDump(FileWrapper(file),
+                                                        max_size_bytes);
 }
 
 void PeerConnectionFactory::StopAecDump() {
   RTC_DCHECK_RUN_ON(worker_thread());
-  media_engine()->voice().StopAecDump();
+  context_->media_engine()->voice().StopAecDump();
 }
 
-MediaEngineInterface* PeerConnectionFactory::media_engine() const {
+const MediaEngineInterface* PeerConnectionFactory::media_engine() const {
   RTC_DCHECK(context_);
   return context_->media_engine();
 }
