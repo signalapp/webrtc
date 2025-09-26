@@ -61,7 +61,7 @@
 #include "rtc_base/experiments/field_trial_parser.h"
 #include "rtc_base/string_utils.h"
 #include "rtc_base/win32.h"
-#elif !defined(__native_client__)
+#else
 #include "rtc_base/ifaddrs_converter.h"
 #endif
 // IWYU pragma: end_keep
@@ -164,7 +164,6 @@ uint16_t ComputeNetworkCostByType(int type,
   }
 }
 
-#if !defined(__native_client__)
 bool IsIgnoredIPv6(bool allow_mac_based_ipv6, const InterfaceAddress& ip) {
   if (ip.family() != AF_INET6) {
     return false;
@@ -192,7 +191,6 @@ bool IsIgnoredIPv6(bool allow_mac_based_ipv6, const InterfaceAddress& ip) {
 
   return false;
 }
-#endif  // !defined(__native_client__)
 
 // Note: consider changing to const Network* as arguments
 // if/when considering other changes that should not trigger
@@ -207,15 +205,14 @@ bool ShouldAdapterChangeTriggerNetworkChange(AdapterType old_type,
 }
 
 #if defined(WEBRTC_WIN)
-bool IpAddressAttributesEnabled(const webrtc::FieldTrialsView* field_trials) {
+bool IpAddressAttributesEnabled(const FieldTrialsView* field_trials) {
   // Field trial key reserved in bugs.webrtc.org/14334
   if (field_trials &&
       field_trials->IsEnabled("WebRTC-IPv6NetworkResolutionFixes")) {
-    webrtc::FieldTrialParameter<bool> ip_address_attributes_enabled(
+    FieldTrialParameter<bool> ip_address_attributes_enabled(
         "IpAddressAttributesEnabled", false);
-    webrtc::ParseFieldTrial(
-        {&ip_address_attributes_enabled},
-        field_trials->Lookup("WebRTC-IPv6NetworkResolutionFixes"));
+    ParseFieldTrial({&ip_address_attributes_enabled},
+                    field_trials->Lookup("WebRTC-IPv6NetworkResolutionFixes"));
     return ip_address_attributes_enabled;
   }
   return false;
@@ -592,17 +589,7 @@ void BasicNetworkManager::OnNetworksChanged() {
   UpdateNetworksOnce();
 }
 
-#if defined(__native_client__)
-
-bool BasicNetworkManager::CreateNetworks(
-    bool include_ignored,
-    std::vector<std::unique_ptr<Network>>* networks) const {
-  RTC_DCHECK_NOTREACHED();
-  RTC_LOG(LS_WARNING) << "BasicNetworkManager doesn't work on NaCl yet";
-  return false;
-}
-
-#elif defined(WEBRTC_POSIX)
+#if defined(WEBRTC_POSIX)
 NetworkMonitorInterface::InterfaceInfo BasicNetworkManager::GetInterfaceInfo(
     struct ifaddrs* cursor) const {
   if (cursor->ifa_flags & IFF_LOOPBACK) {
@@ -663,7 +650,7 @@ void BasicNetworkManager::ConvertIfAddrs(
       continue;
     }
     // Convert to InterfaceAddress.
-    // TODO(webrtc:13114): Convert ConvertIfAddrs to use webrtc::Netmask.
+    // TODO(webrtc:13114): Convert ConvertIfAddrs to use Netmask.
     if (!ifaddrs_converter->ConvertIfAddrsToIPAddress(cursor, &ip, &mask)) {
       continue;
     }
@@ -922,7 +909,7 @@ bool BasicNetworkManager::CreateNetworks(
             adapter_type = ADAPTER_TYPE_VPN;
           }
           if (adapter_type != ADAPTER_TYPE_VPN &&
-              IsVpnMacAddress(webrtc::ArrayView<const uint8_t>(
+              IsVpnMacAddress(ArrayView<const uint8_t>(
                   reinterpret_cast<const uint8_t*>(
                       adapter_addrs->PhysicalAddress),
                   adapter_addrs->PhysicalAddressLength))) {

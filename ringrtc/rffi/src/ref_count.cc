@@ -12,20 +12,19 @@ namespace rffi {
 
 // Decrements the ref count of a ref-counted object.
 // If the ref count goes to zero, the object is deleted.
-RUSTEXPORT void Rust_decRc(webrtc::RefCountInterface* owned_rc) {
+RUSTEXPORT void Rust_decRc(RefCountInterface* owned_rc) {
   if (!owned_rc) {
     return;
   }
 
   auto result = owned_rc->Release();
   RTC_LOG(LS_VERBOSE) << "Did it get deleted? "
-                      << (result ==
-                          webrtc::RefCountReleaseStatus::kDroppedLastRef);
+                      << (result == RefCountReleaseStatus::kDroppedLastRef);
 }
 
 // Increments the ref count of a ref-counted object.
 // The borrowed RC becomes an owned RC.
-RUSTEXPORT void Rust_incRc(webrtc::RefCountInterface* borrowed_rc) {
+RUSTEXPORT void Rust_incRc(RefCountInterface* borrowed_rc) {
   if (!borrowed_rc) {
     return;
   }

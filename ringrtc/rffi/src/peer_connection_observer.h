@@ -35,17 +35,16 @@ class PeerConnectionObserverRffi : public PeerConnectionObserver {
   bool enable_frame_encryption() { return enable_frame_encryption_; }
   // These will be a passed into RtpSenders and will be implemented
   // with callbacks to PeerConnectionObserverCallbacks.
-  rtc::scoped_refptr<FrameEncryptorInterface> CreateEncryptor();
+  scoped_refptr<FrameEncryptorInterface> CreateEncryptor();
   // These will be a passed into RtpReceivers and will be implemented
   // with callbacks to PeerConnectionObserverCallbacks.
-  rtc::scoped_refptr<FrameDecryptorInterface> CreateDecryptor(
-      uint32_t track_id);
+  scoped_refptr<FrameDecryptorInterface> CreateDecryptor(uint32_t track_id);
 
   // Implementation of PeerConnectionObserver interface, which propagates
   // the callbacks to the Rust observer.
   void OnIceCandidate(const IceCandidateInterface* candidate) override;
   void OnIceCandidatesRemoved(
-      const std::vector<cricket::Candidate>& candidates) override;
+      const std::vector<Candidate>& candidates) override;
   void OnIceCandidateError(const std::string& address,
                            int port,
                            const std::string& url,
@@ -61,18 +60,16 @@ class PeerConnectionObserverRffi : public PeerConnectionObserver {
   void OnIceGatheringChange(
       PeerConnectionInterface::IceGatheringState new_state) override;
   void OnIceSelectedCandidatePairChanged(
-      const cricket::CandidatePairChangeEvent& event) override;
-  void OnAddStream(rtc::scoped_refptr<MediaStreamInterface> stream) override;
-  void OnRemoveStream(rtc::scoped_refptr<MediaStreamInterface> stream) override;
-  void OnDataChannel(
-      rtc::scoped_refptr<DataChannelInterface> channel) override {}
+      const CandidatePairChangeEvent& event) override;
+  void OnAddStream(scoped_refptr<MediaStreamInterface> stream) override;
+  void OnRemoveStream(scoped_refptr<MediaStreamInterface> stream) override;
+  void OnDataChannel(scoped_refptr<DataChannelInterface> channel) override {}
   void OnRtpPacket(const RtpPacketReceived& rtp_packet) override;
   void OnRenegotiationNeeded() override;
-  void OnAddTrack(rtc::scoped_refptr<RtpReceiverInterface> receiver,
-                  const std::vector<rtc::scoped_refptr<MediaStreamInterface>>&
-                      streams) override;
-  void OnTrack(
-      rtc::scoped_refptr<RtpTransceiverInterface> transceiver) override;
+  void OnAddTrack(
+      scoped_refptr<RtpReceiverInterface> receiver,
+      const std::vector<scoped_refptr<MediaStreamInterface>>& streams) override;
+  void OnTrack(scoped_refptr<RtpTransceiverInterface> transceiver) override;
 
   // Called by the VideoSinks in video_sinks_.
   void OnVideoFrame(uint32_t demux_id, const webrtc::VideoFrame& frame);
@@ -92,7 +89,7 @@ class PeerConnectionObserverRffi : public PeerConnectionObserver {
 
 // A simple implementation of a VideoSinkInterface which passes video frames
 // back to the PeerConnectionObserver with a demux_id.
-class VideoSink : public rtc::VideoSinkInterface<webrtc::VideoFrame> {
+class VideoSink : public VideoSinkInterface<webrtc::VideoFrame> {
  public:
   VideoSink(uint32_t demux_id, PeerConnectionObserverRffi*);
   ~VideoSink() override = default;

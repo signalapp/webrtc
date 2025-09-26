@@ -24,8 +24,8 @@ class PeerConnectionObserverRffi;
 
 /* NetworkRoute structure passed between Rust and C++ */
 typedef struct {
-  rtc::AdapterType local_adapter_type;
-  rtc::AdapterType local_adapter_type_under_vpn;
+  AdapterType local_adapter_type;
+  AdapterType local_adapter_type_under_vpn;
   bool local_relayed;
   TransportProtocol local_relay_protocol;
   bool remote_relayed;

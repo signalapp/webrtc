@@ -15,7 +15,10 @@ namespace rffi {
 // E.g. before the peer connection factory is constructed.
 // Note: field_trials_string must never be destroyed.
 RUSTEXPORT void Rust_setFieldTrials(const char* field_trials_string) {
-  webrtc::field_trial::InitFieldTrialsFromString(field_trials_string);
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+  field_trial::InitFieldTrialsFromString(field_trials_string);
+#pragma clang diagnostic pop
 }
 
 }  // namespace rffi

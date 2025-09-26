@@ -25,6 +25,7 @@ rtc_library("oboe") {
     "-Wno-exit-time-destructors",
     "-Wno-header-hygiene",
     "-Wno-sign-compare",
+    "-Wno-thread-safety-analysis",
   ]
 
   include_dirs = [

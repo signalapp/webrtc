@@ -123,8 +123,8 @@ public class OboeAudioDeviceModule implements AudioDeviceModule {
   }
 
   @Override
-  public long getNativeAudioDeviceModulePointer() {
-    Logging.w(TAG, "getNativeAudioDeviceModulePointer");
+  public long getNative(long webrtcEnvRef) {
+    Logging.w(TAG, "getNative");
     synchronized (nativeLock) {
       if (nativeAudioDeviceModule == 0) {
         Logging.w(TAG, "calling nativeCreateAudioDeviceModule");

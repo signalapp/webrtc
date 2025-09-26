@@ -30,7 +30,7 @@ void StatsObserverRffi::SetCollectRawStatsReport(
 }
 
 void StatsObserverRffi::OnStatsDelivered(
-    const rtc::scoped_refptr<const RTCStatsReport>& report) {
+    const scoped_refptr<const RTCStatsReport>& report) {
   this->audio_sender_statistics_.clear();
   this->video_sender_statistics_.clear();
   this->audio_receiver_statistics_.clear();
@@ -213,12 +213,12 @@ void StatsObserverRffi::OnStatsDelivered(
 RUSTEXPORT StatsObserverRffi* Rust_createStatsObserver(
     void* stats_observer_borrowed,
     const StatsObserverCallbacks* stats_observer_cbs_borrowed) {
-  return take_rc(rtc::make_ref_counted<StatsObserverRffi>(
+  return take_rc(make_ref_counted<StatsObserverRffi>(
       stats_observer_borrowed, stats_observer_cbs_borrowed));
 }
 
 RUSTEXPORT void Rust_setCollectRawStatsReport(
-    webrtc::rffi::StatsObserverRffi* stats_observer_borrowed,
+    rffi::StatsObserverRffi* stats_observer_borrowed,
     bool collect_raw_stats_report) {
   stats_observer_borrowed->SetCollectRawStatsReport(collect_raw_stats_report);
 }

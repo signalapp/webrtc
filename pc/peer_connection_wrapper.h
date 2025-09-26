@@ -143,13 +143,13 @@ class PeerConnectionWrapper {
       const RtpTransceiverInit& init);
 
   // RingRTC change to add methods (see interface header)
-  rtc::scoped_refptr<DtlsTransportInterface> LookupDtlsTransportByMid(
+  scoped_refptr<DtlsTransportInterface> LookupDtlsTransportByMid(
       const std::string& mid);
 
-  rtc::scoped_refptr<webrtc::IceGathererInterface> CreateSharedIceGatherer();
+  scoped_refptr<IceGathererInterface> CreateSharedIceGatherer();
 
   bool UseSharedIceGatherer(
-      rtc::scoped_refptr<webrtc::IceGathererInterface> shared_ice_gatherer);
+      scoped_refptr<IceGathererInterface> shared_ice_gatherer);
 
   bool SetIncomingRtpEnabled(bool enabled);
 

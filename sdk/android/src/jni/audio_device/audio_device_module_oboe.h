@@ -12,7 +12,7 @@ namespace webrtc {
 namespace jni {
 
 // Create the Oboe-based AudioDeviceModule.
-rtc::scoped_refptr<AudioDeviceModule> CreateAudioDeviceModuleOboe(
+scoped_refptr<AudioDeviceModule> CreateAudioDeviceModuleOboe(
     bool use_software_acoustic_echo_canceler,
     bool use_software_noise_suppressor,
     bool use_exclusive_sharing_mode,

@@ -23,12 +23,12 @@ namespace rffi {
 // An implementation of a VideoTrackSource which pushes frames into an outgoing
 // video track for encoding by calling Rust_pushVideoFrame. The resolution of
 // the frames will be adapted based on network conditions.
-class VideoSource : public rtc::AdaptedVideoTrackSource {
+class VideoSource : public AdaptedVideoTrackSource {
  public:
   VideoSource();
   ~VideoSource() override;
 
-  void PushVideoFrame(const webrtc::VideoFrame& frame);
+  void PushVideoFrame(const VideoFrame& frame);
 
   void OnOutputFormatRequest(int width, int height, int fps);
 

@@ -42,7 +42,7 @@ Rust_createCreateSessionDescriptionObserver(
     void* csd_observer_borrowed,
     const CreateSessionDescriptionObserverCallbacks*
         csd_observer_cbs_borrowed) {
-  return take_rc(rtc::make_ref_counted<CreateSessionDescriptionObserverRffi>(
+  return take_rc(make_ref_counted<CreateSessionDescriptionObserverRffi>(
       csd_observer_borrowed, csd_observer_cbs_borrowed));
 }
 
@@ -77,7 +77,7 @@ RUSTEXPORT SetSessionDescriptionObserverRffi*
 Rust_createSetSessionDescriptionObserver(
     void* ssd_observer_borrowed,
     const SetSessionDescriptionObserverCallbacks* ssd_observer_cbs_borrowed) {
-  return take_rc(rtc::make_ref_counted<SetSessionDescriptionObserverRffi>(
+  return take_rc(make_ref_counted<SetSessionDescriptionObserverRffi>(
       ssd_observer_borrowed, ssd_observer_cbs_borrowed));
 }
 
