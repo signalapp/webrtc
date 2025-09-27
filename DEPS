@@ -10,7 +10,7 @@ vars = {
   # chromium waterfalls. More info at: crbug.com/570091.
   'checkout_configuration': 'default',
   'checkout_instrumented_libraries': 'checkout_linux and checkout_configuration == "default"',
-  'chromium_revision': '29f9dd25f2149a7e62e6e6dca8f094465272fc75',
+  'chromium_revision': 'fc430836806da2d5d0de5653c210efb0d6dd5287',
 
   # Fetch the prebuilt binaries for llvm-cov and llvm-profdata. Needed to
   # process the raw profiles produced by instrumented targets (built with
@@ -33,7 +33,7 @@ vars = {
 
   # By default, download the fuchsia sdk from the public sdk directory.
   'fuchsia_sdk_cipd_prefix': 'fuchsia/sdk/core/',
-  'fuchsia_version': 'version:29.20250911.3.1',
+  'fuchsia_version': 'version:29.20250927.0.1',
   # By default, download the fuchsia images from the fuchsia GCS bucket.
   'fuchsia_images_bucket': 'fuchsia',
   'checkout_fuchsia': False,
@@ -78,13 +78,13 @@ deps = {
     'condition': 'checkout_android',
   },
   'src/ios': {
-    'url': 'https://chromium.googlesource.com/chromium/src/ios@a2c65108a92ac86bb9a8cd3954cf63fe8ff525c6',
+    'url': 'https://chromium.googlesource.com/chromium/src/ios@0e7dbbcbf8a25d02fe69ac297bd5d83b8b0aa2c5',
     'condition': 'checkout_ios',
   },
   'src/testing':
-    'https://chromium.googlesource.com/chromium/src/testing@d7ccb6d3f0b4cac73d9f53e2f9f4195f83457235',
+    'https://chromium.googlesource.com/chromium/src/testing@830906050e04a9a5326f9a676cb4ece6e01a21fb',
   'src/third_party':
-    'https://chromium.googlesource.com/chromium/src/third_party@2e02d02c31ba9cd05b3970aeef57c82809eb1412',
+    'https://chromium.googlesource.com/chromium/src/third_party@de698f2026f4e8415c4d3dfb24ef76b74bf0a886',
 
   'src/buildtools/linux64': {
     'packages': [
@@ -337,7 +337,7 @@ deps = {
   'src/third_party/libc++abi/src':
     'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxxabi.git@864f61dc9253d56586ada34c388278565ef513f6',
   'src/third_party/llvm-libc/src':
-    'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libc.git@0388350fe90308d6c274af8f9ee2f1d6bcd28054',
+    'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libc.git@7b45735a2b2c0c11c7c4e02fc6bae12ea95aec48',
   'src/third_party/libunwind/src':
     'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libunwind.git@322be580a5a193a921c349a15747eeeb9a716ad1',
 
@@ -511,7 +511,7 @@ deps = {
   'src/third_party/flatbuffers/src':
     'https://chromium.googlesource.com/external/github.com/google/flatbuffers.git@1c514626e83c20fffa8557e75641848e1e15cd5e',
   'src/third_party/grpc/src': {
-    'url': 'https://chromium.googlesource.com/external/github.com/grpc/grpc.git@74232c6bd3c0f4bc35bad035dbeecf5cbc834a11',
+    'url': 'https://chromium.googlesource.com/external/github.com/grpc/grpc.git@bac84b1cf85ba8495ea1734e1ad6d0bb908bd9b3',
   },
   # Used for embedded builds. CrOS & Linux use the system version.
   'src/third_party/fontconfig/src': {
@@ -668,7 +668,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'src/tools':
-    'https://chromium.googlesource.com/chromium/src/tools@0c5eca9cd6bced933b08c368603a59e8c6fbc616',
+    'https://chromium.googlesource.com/chromium/src/tools@51d9d7d9eeeeaac3ec4acf20c5dcc1d59cd3b54b',
 
   'src/third_party/espresso': {
       'packages': [
@@ -707,7 +707,7 @@ deps = {
     'packages': [
       {
           'package': 'chromium/third_party/androidx',
-          'version': 'kXHCKhozeKgZX3RuKfFLykfzLHxvi2ILhzY3mKtRtAAC',
+          'version': 'M5giEmh4O2ZmwKQvQ47NVgpAf3i59Cf3wx4ZMipqnp4C',
       },
     ],
     'condition': 'checkout_android and non_git_source',
