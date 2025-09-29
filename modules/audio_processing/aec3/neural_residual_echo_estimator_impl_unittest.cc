@@ -57,6 +57,11 @@ class MockModelRunner : public NeuralResidualEchoEstimatorImpl::ModelRunner {
  public:
   explicit MockModelRunner(const ModelConstants& model_constants)
       : constants_(model_constants),
+        metadata_([]() {
+          audioproc::ReeModelMetadata metadata;
+          metadata.set_version(1);
+          return metadata;
+        }()),
         input_mic_(constants_.frame_size),
         input_linear_aec_output_(constants_.frame_size),
         input_aec_ref_(constants_.frame_size),
@@ -89,11 +94,14 @@ class MockModelRunner : public NeuralResidualEchoEstimatorImpl::ModelRunner {
                                           constants_.frame_size_by_2_plus_1);
   }
 
-  MOCK_METHOD(audioproc::ReeModelMetadata, GetMetadata, (), (const, override));
+  const audioproc::ReeModelMetadata& GetMetadata() const override {
+    return metadata_;
+  }
+
   MOCK_METHOD(bool, Invoke, (), (override));
 
   const ModelConstants constants_;
-
+  const audioproc::ReeModelMetadata metadata_;
   std::vector<float> input_mic_;
   std::vector<float> input_linear_aec_output_;
   std::vector<float> input_aec_ref_;

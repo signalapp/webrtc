@@ -25,6 +25,7 @@
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
+#include "modules/audio_processing/aec3/neural_feature_extractor.h"
 #ifdef WEBRTC_ANDROID_PLATFORM_BUILD
 #include "external/webrtc/webrtc/modules/audio_processing/aec3/neural_residual_echo_estimator.pb.h"
 #else
@@ -92,9 +93,11 @@ class TfLiteModelRunner : public NeuralResidualEchoEstimatorImpl::ModelRunner {
                     std::unique_ptr<tflite::Interpreter> tflite_interpreter,
                     audioproc::ReeModelMetadata metadata)
       : model_data_(std::move(model_data)),
-        frame_size_(static_cast<int>(
+        input_tensor_size_(static_cast<int>(
             tflite::NumElements(tflite_interpreter->input_tensor(
                 static_cast<int>(ModelInputEnum::kMic))))),
+        frame_size_(metadata.version() == 1 ? input_tensor_size_
+                                            : (input_tensor_size_ - 1) * 2),
         step_size_(frame_size_ / 2),
         frame_size_by_2_plus_1_(frame_size_ / 2 + 1),
         metadata_(metadata),
@@ -109,17 +112,17 @@ class TfLiteModelRunner : public NeuralResidualEchoEstimatorImpl::ModelRunner {
       webrtc::ArrayView<float> input_tensor(
           tflite_interpreter_->typed_input_tensor<float>(
               static_cast<int>(input_enum)),
-          frame_size_);
+          input_tensor_size_);
       std::fill(input_tensor.begin(), input_tensor.end(), 0.0f);
     }
 
     RTC_CHECK_EQ(frame_size_ % kBlockSize, 0);
     RTC_CHECK_EQ(tflite::NumElements(tflite_interpreter_->input_tensor(
                      static_cast<int>(ModelInputEnum::kLinearAecOutput))),
-                 frame_size_);
+                 input_tensor_size_);
     RTC_CHECK_EQ(tflite::NumElements(tflite_interpreter_->input_tensor(
                      static_cast<int>(ModelInputEnum::kAecRef))),
-                 frame_size_);
+                 input_tensor_size_);
     RTC_CHECK_EQ(tflite::NumElements(tflite_interpreter_->input_tensor(
                      static_cast<int>(ModelInputEnum::kModelState))),
                  tflite::NumElements(tflite_interpreter_->output_tensor(
@@ -139,7 +142,7 @@ class TfLiteModelRunner : public NeuralResidualEchoEstimatorImpl::ModelRunner {
       case ModelInputEnum::kMic:              // fall-through
       case ModelInputEnum::kLinearAecOutput:  // fall-through
       case ModelInputEnum::kAecRef:
-        tensor_size = frame_size_;
+        tensor_size = input_tensor_size_;
         break;
       case ModelInputEnum::kModelState:
         tensor_size = static_cast<int>(model_state_.size());
@@ -160,7 +163,9 @@ class TfLiteModelRunner : public NeuralResidualEchoEstimatorImpl::ModelRunner {
         frame_size_by_2_plus_1_);
   }
 
-  audioproc::ReeModelMetadata GetMetadata() const override { return metadata_; }
+  const audioproc::ReeModelMetadata& GetMetadata() const override {
+    return metadata_;
+  }
 
   bool Invoke() override {
     auto input_state = GetInput(ModelInputEnum::kModelState);
@@ -197,6 +202,9 @@ class TfLiteModelRunner : public NeuralResidualEchoEstimatorImpl::ModelRunner {
   // data is destroyed after the tflite model.
   const std::string model_data_;
 
+  // Size of the input tensors.
+  const int input_tensor_size_;
+
   // Frame size of the model.
   const int frame_size_;
 
@@ -223,19 +231,6 @@ class TfLiteModelRunner : public NeuralResidualEchoEstimatorImpl::ModelRunner {
   int processing_error_log_counter_ = 0;
 };
 
-void PushFrameToModelInput(std::vector<float>& frame,
-                           webrtc::ArrayView<float> input) {
-  // Shift down overlap from previous frames.
-  std::copy(input.begin() + frame.size(), input.end(), input.begin());
-
-  // The model expects [-1,1]-scaled signals while AEC3 and APM scale floating
-  // point signals up by 32768 to match 16-bit fixed-point formats, so we
-  // convert to [-1,1] scale here.
-  constexpr float kScale = 1.0f / 32768;
-  std::transform(frame.begin(), frame.end(), input.end() - frame.size(),
-                 [](float x) { return x * kScale; });
-  frame.clear();
-}
 }  // namespace
 
 std::unique_ptr<NeuralResidualEchoEstimatorImpl::ModelRunner>
@@ -277,12 +272,11 @@ NeuralResidualEchoEstimatorImpl::LoadTfLiteModel(
     RTC_LOG(LS_ERROR) << "Error reading model metadata";
     return nullptr;
   }
-  if (metadata->version() != 1) {
+  if (metadata->version() < 1 || metadata->version() > 2) {
     RTC_LOG(LS_ERROR) << "Model version mismatch, got " << metadata->version()
-                      << " expected 1";
+                      << " expected 1 or 2.";
     return nullptr;
   }
-
   return std::make_unique<TfLiteModelRunner>(std::move(model_data),
                                              std::move(model),
                                              std::move(interpreter), *metadata);
@@ -298,6 +292,12 @@ NeuralResidualEchoEstimatorImpl::NeuralResidualEchoEstimatorImpl(
   input_linear_aec_output_buffer_.reserve(model_runner_->StepSize());
   input_aec_ref_buffer_.reserve(model_runner_->StepSize());
   output_mask_.fill(0.0f);
+  if (model_runner_->GetMetadata().version() == 1) {
+    feature_extractor_ = std::make_unique<TimeDomainFeatureExtractor>();
+  } else {
+    feature_extractor_ = std::make_unique<FrequencyDomainFeatureExtractor>(
+        /*step_size=*/model_runner_->StepSize());
+  }
 }
 
 void NeuralResidualEchoEstimatorImpl::Estimate(
@@ -327,14 +327,14 @@ void NeuralResidualEchoEstimatorImpl::Estimate(
 
   if (static_cast<int>(input_mic_buffer_.size()) == model_runner_->StepSize()) {
     DumpInputs();
-    PushFrameToModelInput(input_mic_buffer_,
-                          model_runner_->GetInput(ModelInputEnum::kMic));
-    PushFrameToModelInput(
+    feature_extractor_->PushFeaturesToModelInput(
+        input_mic_buffer_, model_runner_->GetInput(ModelInputEnum::kMic));
+    feature_extractor_->PushFeaturesToModelInput(
         input_linear_aec_output_buffer_,
         model_runner_->GetInput(ModelInputEnum::kLinearAecOutput));
-    PushFrameToModelInput(input_aec_ref_buffer_,
-                          model_runner_->GetInput(ModelInputEnum::kAecRef));
-
+    feature_extractor_->PushFeaturesToModelInput(
+        input_aec_ref_buffer_,
+        model_runner_->GetInput(ModelInputEnum::kAecRef));
     if (model_runner_->Invoke()) {
       // Downsample output mask to match the AEC3 frequency resolution.
       webrtc::ArrayView<const float> output_mask =
