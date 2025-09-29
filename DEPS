@@ -10,7 +10,7 @@ vars = {
   # chromium waterfalls. More info at: crbug.com/570091.
   'checkout_configuration': 'default',
   'checkout_instrumented_libraries': 'checkout_linux and checkout_configuration == "default"',
-  'chromium_revision': '1ea7c9f1ac977f2d326865e95cf64c384069753f',
+  'chromium_revision': '6da4010a623148651c081aac49c112dff7c8e9c0',
 
   # Fetch the prebuilt binaries for llvm-cov and llvm-profdata. Needed to
   # process the raw profiles produced by instrumented targets (built with
@@ -50,7 +50,7 @@ vars = {
   # reclient CIPD package version
   'reclient_version': 're_client_version:0.183.0.3b3097cd-gomaip',
   # siso CIPD package version.
-  'siso_version': 'git_revision:acfc39d4c923834851300e8676daf8fc47e53a2d',
+  'siso_version': 'git_revision:f7020b54462c37f1b10a16e68563c338c9f14371',
 
   # ninja CIPD package.
   'ninja_package': 'infra/3pp/tools/ninja/',
@@ -78,13 +78,13 @@ deps = {
     'condition': 'checkout_android',
   },
   'src/ios': {
-    'url': 'https://chromium.googlesource.com/chromium/src/ios@bc047d44a2a8d88f79967206c0085fa2348b97c1',
+    'url': 'https://chromium.googlesource.com/chromium/src/ios@f5319342594f3a98636bace820002e00c8612f99',
     'condition': 'checkout_ios',
   },
   'src/testing':
-    'https://chromium.googlesource.com/chromium/src/testing@830906050e04a9a5326f9a676cb4ece6e01a21fb',
+    'https://chromium.googlesource.com/chromium/src/testing@6d914f364e23232b935ac9fb3a615065b716da13',
   'src/third_party':
-    'https://chromium.googlesource.com/chromium/src/third_party@2c1e14ef96023b3a6483102169d6b8e25e435846',
+    'https://chromium.googlesource.com/chromium/src/third_party@4551ac1606ae40e2c92a7eb9f149c7ce2c5de408',
 
   'src/buildtools/linux64': {
     'packages': [
@@ -337,7 +337,7 @@ deps = {
   'src/third_party/libc++abi/src':
     'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxxabi.git@864f61dc9253d56586ada34c388278565ef513f6',
   'src/third_party/llvm-libc/src':
-    'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libc.git@7b45735a2b2c0c11c7c4e02fc6bae12ea95aec48',
+    'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libc.git@0c61a55402c6a0d9d6ca2aeb3c6a2613a8bc8c55',
   'src/third_party/libunwind/src':
     'https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libunwind.git@322be580a5a193a921c349a15747eeeb9a716ad1',
 
@@ -505,13 +505,13 @@ deps = {
   'src/third_party/crc32c/src':
     'https://chromium.googlesource.com/external/github.com/google/crc32c.git@d3d60ac6e0f16780bcfcc825385e1d338801a558',
   'src/third_party/depot_tools':
-    'https://chromium.googlesource.com/chromium/tools/depot_tools.git@73e46667ed3a1326cf564747737b4e11137d7f29',
+    'https://chromium.googlesource.com/chromium/tools/depot_tools.git@675a3a9ccd7cf9367bb4caa58c30f08b56d45ef5',
   'src/third_party/ffmpeg':
     'https://chromium.googlesource.com/chromium/third_party/ffmpeg.git@9e751092c9498b84bbb77e2e0689ef9f50fe608f',
   'src/third_party/flatbuffers/src':
     'https://chromium.googlesource.com/external/github.com/google/flatbuffers.git@1c514626e83c20fffa8557e75641848e1e15cd5e',
   'src/third_party/grpc/src': {
-    'url': 'https://chromium.googlesource.com/external/github.com/grpc/grpc.git@bac84b1cf85ba8495ea1734e1ad6d0bb908bd9b3',
+    'url': 'https://chromium.googlesource.com/external/github.com/grpc/grpc.git@f7dd7f4b4186049d104aa2c88ad4432f58c19ede',
   },
   # Used for embedded builds. CrOS & Linux use the system version.
   'src/third_party/fontconfig/src': {
@@ -668,7 +668,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'src/tools':
-    'https://chromium.googlesource.com/chromium/src/tools@e47a08ecd70e0a291ad1696b1a82b7acddeba241',
+    'https://chromium.googlesource.com/chromium/src/tools@fb6d3a1328e49a8062e8f4a5fae62a433b8c60e2',
 
   'src/third_party/espresso': {
       'packages': [
