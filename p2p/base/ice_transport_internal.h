@@ -352,9 +352,11 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
   void RemoveGatheringStateCallback(const void* removal_tag);
 
   // Handles sending and receiving of candidates.
+  sigslot::signal2<IceTransportInternal*, const Candidate&>
+      SignalCandidateGathered;
   void NotifyCandidateGathered(IceTransportInternal* transport,
                                const Candidate& candidate) {
-    candidate_gathered_callbacks_.Send(transport, candidate);
+    SignalCandidateGathered(transport, candidate);
   }
   void SubscribeCandidateGathered(
       absl::AnyInvocable<void(IceTransportInternal*, const Candidate&)>
@@ -462,8 +464,9 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
       candidate_pair_change_callback_;
 
  private:
-  CallbackList<IceTransportInternal*, const Candidate&>
-      candidate_gathered_callbacks_;
+  SignalTrampoline<IceTransportInternal,
+                   &IceTransportInternal::SignalCandidateGathered>
+      candidate_gathered_trampoline_;
   SignalTrampoline<IceTransportInternal,
                    &IceTransportInternal::SignalRoleConflict>
       role_conflict_trampoline_;
