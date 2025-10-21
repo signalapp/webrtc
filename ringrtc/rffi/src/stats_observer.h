@@ -41,6 +41,7 @@ class StatsObserverRffi : public RTCStatsCollectorCallback {
   std::vector<VideoSenderStatistics> video_sender_statistics_;
   std::vector<AudioReceiverStatistics> audio_receiver_statistics_;
   std::vector<VideoReceiverStatistics> video_receiver_statistics_;
+  std::vector<ConnectionStatistics> connection_statistics_;
 };
 
 }  // namespace rffi

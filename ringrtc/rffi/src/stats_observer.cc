@@ -35,6 +35,7 @@ void StatsObserverRffi::OnStatsDelivered(
   this->video_sender_statistics_.clear();
   this->audio_receiver_statistics_.clear();
   this->video_receiver_statistics_.clear();
+  this->connection_statistics_.clear();
 
   auto outbound_stream_stats =
       report->GetStatsOfType<RTCOutboundRtpStreamStats>();
@@ -142,6 +143,10 @@ void StatsObserverRffi::OnStatsDelivered(
           stat->jitter_buffer_delay.value_or(0.0);
       audio_receiver.jitter_buffer_emitted_count =
           stat->jitter_buffer_emitted_count.value_or(0);
+      audio_receiver.jitter_buffer_flushes =
+          stat->jitter_buffer_flushes.value_or(0);
+      audio_receiver.estimated_playout_timestamp =
+          stat->estimated_playout_timestamp.value_or(0.0);
 
       this->audio_receiver_statistics_.push_back(audio_receiver);
     } else if (*stat->kind == "video" &&
@@ -153,31 +158,53 @@ void StatsObserverRffi::OnStatsDelivered(
       video_receiver.packets_received = stat->packets_received.value_or(0);
       video_receiver.packets_lost = stat->packets_lost.value_or(0);
       video_receiver.bytes_received = stat->bytes_received.value_or(0);
+      video_receiver.frames_received = stat->frames_received.value_or(0);
       video_receiver.frames_decoded = stat->frames_decoded.value_or(0);
       video_receiver.key_frames_decoded = stat->key_frames_decoded.value_or(0);
       video_receiver.total_decode_time = stat->total_decode_time.value_or(0.0);
       video_receiver.frame_width = stat->frame_width.value_or(0);
       video_receiver.frame_height = stat->frame_height.value_or(0);
+      video_receiver.jitter = stat->jitter.value_or(0.0);
+      video_receiver.jitter_buffer_delay =
+          stat->jitter_buffer_delay.value_or(0.0);
+      video_receiver.jitter_buffer_emitted_count =
+          stat->jitter_buffer_emitted_count.value_or(0);
+      video_receiver.jitter_buffer_flushes =
+          stat->jitter_buffer_flushes.value_or(0);
+      video_receiver.freeze_count = stat->freeze_count.value_or(0);
+      video_receiver.total_freezes_duration =
+          stat->total_freezes_duration.value_or(0.0);
+      video_receiver.estimated_playout_timestamp =
+          stat->estimated_playout_timestamp.value_or(0.0);
 
       this->video_receiver_statistics_.push_back(video_receiver);
     }
   }
 
-  ConnectionStatistics connection_statistics = {0};
+  ConnectionStatistics nominated_connection_statistics = {0};
   uint64_t highest_priority = 0;
-
   for (const auto& stat : candidate_pair_stats) {
+    ConnectionStatistics connection_stats = {0};
+    connection_stats.raw_candidate_pair_id = stat->id().c_str();
+    connection_stats.current_round_trip_time =
+        stat->current_round_trip_time.value_or(0.0);
+    connection_stats.available_outgoing_bitrate =
+        stat->available_outgoing_bitrate.value_or(0.0);
+    connection_stats.requests_sent = stat->requests_sent.value_or(0);
+    connection_stats.responses_received = stat->responses_received.value_or(0);
+    connection_stats.requests_received = stat->requests_received.value_or(0);
+    connection_stats.responses_sent = stat->responses_sent.value_or(0);
+
     // We'll only look at the pair that is nominated with the highest priority,
     // usually that has useful values (there does not seem to be a 'in_use' type
     // of flag).
     uint64_t current_priority = stat->priority.value_or(0);
     if (*stat->nominated && stat->priority.value_or(0) > highest_priority) {
       highest_priority = current_priority;
-      connection_statistics.current_round_trip_time =
-          stat->current_round_trip_time.value_or(0.0);
-      connection_statistics.available_outgoing_bitrate =
-          stat->available_outgoing_bitrate.value_or(0.0);
+      nominated_connection_statistics = connection_stats;
     }
+
+    this->connection_statistics_.push_back(connection_stats);
   }
 
   MediaStatistics media_statistics;
@@ -194,11 +221,15 @@ void StatsObserverRffi::OnStatsDelivered(
       this->audio_receiver_statistics_.size();
   media_statistics.audio_receiver_statistics =
       this->audio_receiver_statistics_.data();
-  media_statistics.video_receiver_statistics_count =
+  media_statistics.video_receiver_statistics_size =
       this->video_receiver_statistics_.size();
   media_statistics.video_receiver_statistics =
       this->video_receiver_statistics_.data();
-  media_statistics.connection_statistics = connection_statistics;
+  media_statistics.nominated_connection_statistics =
+      nominated_connection_statistics;
+  media_statistics.connection_statistics_size =
+      this->connection_statistics_.size();
+  media_statistics.connection_statistics = this->connection_statistics_.data();
 
   std::string report_json =
       this->collect_raw_stats_report_.load() ? report->ToJson() : "";
