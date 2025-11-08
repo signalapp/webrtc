@@ -106,6 +106,22 @@ RUSTEXPORT webrtc::SessionDescriptionInterface* Rust_sessionDescriptionFromV4(
     bool enable_tcc_audio,
     bool enable_vp9);
 
+RUSTEXPORT webrtc::SessionDescriptionInterface*
+Rust_localDescriptionForGroupCall(const char* ice_ufrag_borrowed,
+                                  const char* ice_pwd_borrowed,
+                                  RffiSrtpKey client_srtp_key,
+                                  uint32_t local_demux_id,
+                                  uint32_t* remote_demux_ids_borrowed,
+                                  size_t remote_demux_ids_len);
+
+RUSTEXPORT webrtc::SessionDescriptionInterface*
+Rust_remoteDescriptionForGroupCall(const char* ice_ufrag_borrowed,
+                                   const char* ice_pwd_borrowed,
+                                   RffiSrtpKey server_srtp_key,
+                                   uint32_t local_demux_id,
+                                   uint32_t* remote_demux_ids_borrowed,
+                                   size_t remote_demux_ids_len);
+
 RUSTEXPORT void Rust_createAnswer(
     webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
     webrtc::rffi::CreateSessionDescriptionObserverRffi*
@@ -194,6 +210,9 @@ RUSTEXPORT void Rust_getAudioLevels(
     size_t* received_size_out);
 
 RUSTEXPORT uint32_t Rust_getLastBandwidthEstimateBps(
+    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc);
+
+RUSTEXPORT void Rust_closePeerConnection(
     webrtc::PeerConnectionInterface* peer_connection_borrowed_rc);
 
 #endif /* RFFI_API_PEER_CONNECTION_INTF_H__ */

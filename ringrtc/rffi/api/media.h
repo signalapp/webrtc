@@ -59,10 +59,6 @@ RUSTEXPORT void Rust_setVideoTrackContentHint(
     webrtc::VideoTrackInterface* track_borrowed_rc,
     bool);
 
-// Gets the first video track from the stream, or nullptr if there is none.
-RUSTEXPORT webrtc::VideoTrackInterface* Rust_getFistVideoTrack(
-    webrtc::MediaStreamInterface* track_borrowed_rc);
-
 // Same as VideoSource::PushVideoFrame, to get frames from Rust to C++.
 RUSTEXPORT void Rust_pushVideoFrame(
     webrtc::rffi::VideoSource* source_borrowed_rc,

@@ -337,7 +337,7 @@ RUSTEXPORT PeerConnectionFactoryOwner* Rust_createPeerConnectionFactory(
 
 // Returns an owned RC.
 RUSTEXPORT PeerConnectionFactoryOwner* Rust_createPeerConnectionFactoryWrapper(
-    PeerConnectionFactoryInterface* pcf_borrowed_rc) {
+    PeerConnectionFactoryInterface* factory_borrowed_rc) {
   class PeerConnectionFactoryWrapper : public PeerConnectionFactoryOwner {
    public:
     PeerConnectionFactoryInterface* peer_connection_factory() override {
@@ -352,8 +352,8 @@ RUSTEXPORT PeerConnectionFactoryOwner* Rust_createPeerConnectionFactoryWrapper(
     const scoped_refptr<PeerConnectionFactoryInterface> factory_;
   };
 
-  return take_rc(
-      make_ref_counted<PeerConnectionFactoryWrapper>(inc_rc(pcf_borrowed_rc)));
+  return take_rc(make_ref_counted<PeerConnectionFactoryWrapper>(
+      inc_rc(factory_borrowed_rc)));
 }
 
 // Returns an owned RC.

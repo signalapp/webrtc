@@ -385,11 +385,11 @@ RUSTEXPORT void Rust_InjectableNetwork_RemoveInterface(
 
 RUSTEXPORT void Rust_InjectableNetwork_ReceiveUdp(
     InjectableNetwork* network_borrowed,
-    IpPort local,
-    IpPort remote,
+    IpPort source,
+    IpPort dest,
     const uint8_t* data_borrowed,
     size_t size) {
-  network_borrowed->ReceiveUdp(local, remote, data_borrowed, size);
+  network_borrowed->ReceiveUdp(source, dest, data_borrowed, size);
 }
 
 }  // namespace rffi
