@@ -389,27 +389,15 @@ bool CoreAudioBase::Init() {
     }
   }
 
-  // RingRTC change to get the mix_format keep it in scope for multi-channel.
-  WAVEFORMATPCMEX mix_format;
-  HRESULT res = core_audio_utility::GetSharedModeMixFormat(
-      audio_client.Get(), &mix_format);
-  if (FAILED(res)) {
-    return false;
-  }
-
-  RTC_LOG(LS_WARNING) << (IsInput() ? "input " : "output ")
-                      << "mix_format: "
-                      << core_audio_utility::WaveFormatToString(&mix_format);
-
   // Retrieve preferred audio input or output parameters for the given client
   // and the specified client properties. Override the preferred rate if sample
   // rate has been defined by the user. Rate conversion will be performed by
   // the audio engine to match the client if needed.
   AudioParameters params;
-  res = sample_rate_ ? core_audio_utility::GetPreferredAudioParameters(
-                           audio_client.Get(), &params, &mix_format, *sample_rate_)
-                     : core_audio_utility::GetPreferredAudioParameters(
-                           audio_client.Get(), &params, &mix_format);
+  HRESULT res = sample_rate_ ? core_audio_utility::GetPreferredAudioParameters(
+                                   audio_client.Get(), &params, *sample_rate_)
+                             : core_audio_utility::GetPreferredAudioParameters(
+                                   audio_client.Get(), &params);
   if (FAILED(res)) {
     return false;
   }
@@ -427,7 +415,9 @@ bool CoreAudioBase::Init() {
     // TODO(henrika): ensure that this approach works on different multi-channel
     // devices. Verified on:
     // - Corsair VOID PRO Surround USB Adapter (supports 7.1)
-    // Try the first multi-channel format clamped to 2 (stereo).
+    RTC_LOG(LS_WARNING)
+        << "Using channel upmixing in WASAPI audio engine (2 => "
+        << params.channels() << ")";
     format->nChannels = 2;
   }
   format->nSamplesPerSec = params.sample_rate();
@@ -451,27 +441,7 @@ bool CoreAudioBase::Init() {
   if (!sample_rate_) {
     if (!core_audio_utility::IsFormatSupported(
             audio_client.Get(), AUDCLNT_SHAREMODE_SHARED, &format_)) {
-      // RingRTC change to try again to match a format for multi-channel.
-      if (params.channels() > 2) {
-        format->nChannels = params.channels();
-        format->nBlockAlign = (format->wBitsPerSample / 8) * format->nChannels;
-        format->nAvgBytesPerSec = format->nSamplesPerSec * format->nBlockAlign;
-
-        // Maintain the channel mask for multi-channel from the mix_format.
-        format_.dwChannelMask = mix_format.dwChannelMask;
-
-        RTC_LOG(LS_WARNING) << "Trying again with: "
-                            << core_audio_utility::WaveFormatToString(&format_);
-
-        if (!core_audio_utility::IsFormatSupported(
-            audio_client.Get(), AUDCLNT_SHAREMODE_SHARED, &format_)) {
-          RTC_LOG(LS_ERROR) << "No multi-channel format matched";
-          return false;
-        }
-      } else {
-        RTC_LOG(LS_ERROR) << "No format matched";
-        return false;
-      }
+      return false;
     }
   }
 
@@ -791,8 +761,8 @@ AudioSessionState CoreAudioBase::GetAudioSessionState() const {
   RTC_DCHECK(audio_session_control_.Get());
   _com_error error = audio_session_control_->GetState(&state);
   if (FAILED(error.Error())) {
-    RTC_LOG(LS_ERROR) << "IAudioSessionControl::GetState failed: "
-                      << core_audio_utility::ErrorToString(error);
+    RTC_DLOG(LS_ERROR) << "IAudioSessionControl::GetState failed: "
+                       << core_audio_utility::ErrorToString(error);
   }
   return state;
 }

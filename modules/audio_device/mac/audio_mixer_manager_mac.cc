@@ -539,8 +539,7 @@ int32_t AudioMixerManagerMac::StereoPlayoutIsAvailable(bool& available) {
     return -1;
   }
 
-  // RingRTC change to allow output to stereo if more than 2 channels
-  available = (_noOutputChannels >= 2);
+  available = (_noOutputChannels == 2);
   return 0;
 }
 
