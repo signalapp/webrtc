@@ -8,7 +8,6 @@ import("//webrtc.gni")
 # C++ source files common to all platforms
 common_sources = [
   "src/audio_device.cc",
-  "src/field_trial.cc",
   "src/injectable_network.cc",
   "src/logging.cc",
   "src/media.cc",
@@ -89,7 +88,12 @@ if (is_linux || is_mac || is_win) {
 
     configs += [ ":ringrtc_rffi_config" ]
 
+    # Need to create field trials (and environment)
+    # Without this, we cannot depend on //api:field_trials.
+    allow_poison = [ "environment_construction" ]
+
     deps = [
+      "//api:field_trials",
       "//sdk:media_constraints",
       "//media:rtc_simulcast_encoder_adapter",
     ]

@@ -103,7 +103,8 @@ typedef struct {
 // you want to test separate endpoints that are as independent as possible.
 RUSTEXPORT webrtc::PeerConnectionFactoryOwner* Rust_createPeerConnectionFactory(
     const RffiAudioConfig* audio_config_borrowed,
-    bool use_injectable_network);
+    bool use_injectable_network,
+    const char* field_trials_string);
 
 // Returns an owned RC.
 RUSTEXPORT webrtc::PeerConnectionFactoryOwner*

@@ -14,6 +14,7 @@
 #include "api/enable_media.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
+#include "api/field_trials.h"
 #include "api/rtc_event_log/rtc_event_log_factory.h"
 #include "api/task_queue/default_task_queue_factory.h"
 #include "api/video_codecs/video_decoder_factory_template.h"
@@ -100,7 +101,8 @@ class PeerConnectionFactoryWithOwnedThreads
  public:
   static scoped_refptr<PeerConnectionFactoryWithOwnedThreads> Create(
       const RffiAudioConfig* audio_config_borrowed,
-      bool use_injectable_network) {
+      bool use_injectable_network,
+      const char* field_trials_string) {
     // Creating a PeerConnectionFactory is a little complex.  To make sure we're
     // doing it right, we read several examples: Android SDK:
     //  https://cs.chromium.org/chromium/src/third_party/webrtc/sdk/android/src/jni/pc/peer_connection_factory.cc
@@ -120,7 +122,8 @@ class PeerConnectionFactoryWithOwnedThreads
     auto network_thread = CreateAndStartNetworkThread("Network-Thread");
     auto worker_thread = CreateAndStartNonNetworkThread("Worker-Thread");
     auto signaling_thread = CreateAndStartNonNetworkThread("Signaling-Thread");
-    auto env = CreateEnvironment();
+    auto env = CreateEnvironment(
+        std::make_unique<webrtc::FieldTrials>(field_trials_string));
     std::unique_ptr<InjectableNetwork> injectable_network;
     if (use_injectable_network) {
       injectable_network = CreateInjectableNetwork(env, network_thread.get());
@@ -325,10 +328,11 @@ class PeerConnectionFactoryWithOwnedThreads
 // Returns an owned RC.
 RUSTEXPORT PeerConnectionFactoryOwner* Rust_createPeerConnectionFactory(
     const RffiAudioConfig* audio_config_borrowed,
-    bool use_injectable_network) {
+    bool use_injectable_network,
+    const char* field_trials_string) {
 #if !defined(WEBRTC_IOS) && !defined(WEBRTC_ANDROID)
   auto factory_owner = PeerConnectionFactoryWithOwnedThreads::Create(
-      audio_config_borrowed, use_injectable_network);
+      audio_config_borrowed, use_injectable_network, field_trials_string);
   return take_rc(std::move(factory_owner));
 #else
   return nullptr;
