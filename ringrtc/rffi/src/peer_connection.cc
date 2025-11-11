@@ -20,6 +20,7 @@
 #include "pc/session_description.h"
 #include "rffi/api/peer_connection_intf.h"
 #include "rffi/src/ptr.h"
+#include "rffi/src/rtp_observer.h"
 #include "rffi/src/sdp_observer.h"
 #include "rffi/src/stats_observer.h"
 #include "rtc_base/message_digest.h"
@@ -1146,6 +1147,13 @@ RUSTEXPORT uint32_t Rust_getLastBandwidthEstimateBps(
     PeerConnectionInterface* peer_connection_borrowed_rc) {
   RTC_LOG(LS_VERBOSE) << "Rust_getLastBandwidthEstimateBps(...)";
   return peer_connection_borrowed_rc->GetLastBandwidthEstimateBps();
+}
+
+RUSTEXPORT void Rust_setRtpPacketObserver(
+    PeerConnectionInterface* peer_connection_borrowed_rc,
+    RtpObserverRffi* rtp_observer_borrowed) {
+  RTC_LOG(LS_INFO) << "Rust_setRtpPacketObserver";
+  peer_connection_borrowed_rc->SetRtpPacketObserver(rtp_observer_borrowed);
 }
 
 RUSTEXPORT void Rust_closePeerConnection(

@@ -8,6 +8,7 @@
 
 #include "api/peer_connection_interface.h"
 #include "rffi/api/network.h"
+#include "rffi/api/rtp_observer_intf.h"
 #include "rffi/api/sdp_observer_intf.h"
 #include "rffi/api/stats_observer_intf.h"
 
@@ -211,6 +212,10 @@ RUSTEXPORT void Rust_getAudioLevels(
 
 RUSTEXPORT uint32_t Rust_getLastBandwidthEstimateBps(
     webrtc::PeerConnectionInterface* peer_connection_borrowed_rc);
+
+RUSTEXPORT void Rust_setRtpPacketObserver(
+    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
+    webrtc::rffi::RtpObserverRffi* rtp_observer_borrowed);
 
 RUSTEXPORT void Rust_closePeerConnection(
     webrtc::PeerConnectionInterface* peer_connection_borrowed_rc);

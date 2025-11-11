@@ -1199,8 +1199,9 @@ class RTC_EXPORT PeerConnectionInterface : public RefCountInterface {
   virtual bool SendRtp(std::unique_ptr<RtpPacket> rtp_packet);
 
   // RingRTC change to receive RTP data
-  // Packets will go to the PeerConnectionObserver
+  // Packets will go to the RtpPacketSinkInterface set by SetRtpPacketObserver()
   virtual bool ReceiveRtp(uint8_t pt, bool enable_incoming);
+  virtual void SetRtpPacketObserver(RtpPacketSinkInterface* observer) = 0;
 
   virtual void ConfigureAudioEncoders(const AudioEncoder::Config& config) {
     RTC_LOG(LS_WARNING) << "Default PeerConnectionInterface::ConfigureAudioEncoders(...) does nothing!";
@@ -1328,8 +1329,7 @@ class RTC_EXPORT PeerConnectionInterface : public RefCountInterface {
 
 // PeerConnection callback interface, used for RTCPeerConnection events.
 // Application should implement these methods.
-// RingRTC change to receive RTP data
-class PeerConnectionObserver : public RtpPacketSinkInterface {
+class PeerConnectionObserver {
  public:
   virtual ~PeerConnectionObserver() = default;
 
@@ -1448,9 +1448,6 @@ class PeerConnectionObserver : public RtpPacketSinkInterface {
   // The heuristics for defining what constitutes "interesting" are
   // implementation-defined.
   virtual void OnInterestingUsage(int /* usage_pattern */) {}
-
-  // RingRTC change to receive RTP data
-  void OnRtpPacket(const RtpPacketReceived& rtp_packet) override {}
 };
 
 // PeerConnectionDependencies holds all of PeerConnections dependencies.

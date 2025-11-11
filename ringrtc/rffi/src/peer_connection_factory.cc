@@ -33,6 +33,7 @@
 #include "rffi/src/audio_device.h"
 #include "rffi/src/peer_connection_observer.h"
 #include "rffi/src/ptr.h"
+#include "rffi/src/rtp_observer.h"
 #include "rtc_base/log_sinks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/message_digest.h"

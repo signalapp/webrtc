@@ -1709,6 +1709,15 @@ void PeerConnection::SetDataChannelEventObserver(
       }));
 }
 
+// RingRTC change to receive RTP data
+void PeerConnection::SetRtpPacketObserver(RtpPacketSinkInterface* observer) {
+  network_thread()->PostTask(SafeTask(
+      network_thread_safety_, [this, observer]() {
+        RTC_DCHECK_RUN_ON(network_thread());
+        rtp_packet_observer_ = observer;
+      }));
+}
+
 scoped_refptr<DtlsTransportInterface> PeerConnection::LookupDtlsTransportByMid(
     const std::string& mid) {
   RTC_DCHECK_RUN_ON(network_thread());
@@ -1830,17 +1839,15 @@ void PeerConnection::Close() {
     rtp_manager_->Close();
   }
 
-  // RingRTC change to receive RTP data
-  RtpPacketSinkInterface* sink = Observer();
-
-  network_thread()->BlockingCall([this, sink] {
+  network_thread()->BlockingCall([this] {
     RTC_DCHECK_RUN_ON(network_thread());
 
     // RingRTC change to receive RTP data
-    if (rtp_demuxer_sink_registered_) {
+    if (rtp_packet_observer_) {
       JsepTransportController *transport_controller = this->transport_controller_n();
       RtpTransportInternal *rtp_transport = transport_controller->GetBundledRtpTransport();
-      rtp_transport->UnregisterRtpDemuxerSink(sink);
+      rtp_transport->UnregisterRtpDemuxerSink(rtp_packet_observer_);
+      rtp_packet_observer_ = nullptr;
     }
 
     TeardownDataChannelTransport_n({});
@@ -2963,13 +2970,6 @@ bool PeerConnection::OnTransportChanged(
   return ret;
 }
 
-// RingRTC change to receive RTP data
-PeerConnectionObserver* PeerConnection::Observer() const {
-  RTC_DCHECK_RUN_ON(signaling_thread());
-  RTC_DCHECK(observer_);
-  return observer_;
-}
-
 void PeerConnection::RunWithObserver(
     absl::AnyInvocable<void(webrtc::PeerConnectionObserver*) &&> task) {
   RTC_DCHECK_RUN_ON(signaling_thread());
@@ -3130,8 +3130,12 @@ bool PeerConnection::SendRtp(std::unique_ptr<RtpPacket> rtp_packet) {
 bool PeerConnection::ReceiveRtp(uint8_t pt, bool enable_incoming) {
   RtpDemuxerCriteria demux_criteria;
   demux_criteria.payload_types().insert(pt);
-  RtpPacketSinkInterface* sink = Observer();
-  return network_thread()->BlockingCall([this, demux_criteria, sink, enable_incoming] {
+  return network_thread()->BlockingCall([this, demux_criteria, enable_incoming] {
+    RTC_DCHECK_RUN_ON(network_thread());
+    if (!rtp_packet_observer_) {
+      RTC_LOG(LS_ERROR) << "PeerConnection::ReceiveRtp() RTP packet observer not set";
+      return false;
+    }
     JsepTransportController* transport_controller = this->transport_controller_n();
     RtpTransportInternal* rtp_transport = transport_controller->GetBundledRtpTransport();
     if (!rtp_transport) {
@@ -3140,8 +3144,7 @@ bool PeerConnection::ReceiveRtp(uint8_t pt, bool enable_incoming) {
     if (enable_incoming) {
       rtp_transport->SetIncomingRtpEnabled(true);
     }
-    rtp_demuxer_sink_registered_ = rtp_transport->RegisterRtpDemuxerSink(demux_criteria, sink);
-    return rtp_demuxer_sink_registered_;
+    return rtp_transport->RegisterRtpDemuxerSink(demux_criteria, rtp_packet_observer_);
   });
 }
 

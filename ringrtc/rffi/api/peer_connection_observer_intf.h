@@ -64,18 +64,6 @@ typedef struct {
                        RffiVideoFrameMetadata metadata,
                        webrtc::VideoFrameBuffer* frame_buffer_owned_rc);
 
-  // RTP data events
-  // Warning: this runs on the WebRTC network thread, so doing anything that
-  // would block is dangerous, especially taking a lock that is also taken
-  // while calling something that blocks on the network thread.
-  void (*onRtpReceived)(void* observer_borrowed,
-                        uint8_t,
-                        uint16_t,
-                        uint32_t,
-                        uint32_t,
-                        const uint8_t* payload_borrowed,
-                        size_t);
-
   // Frame encryption
   size_t (*getMediaCiphertextBufferSize)(void* observer_borrowed, bool, size_t);
   bool (*encryptMedia)(void* observer_borrowed,

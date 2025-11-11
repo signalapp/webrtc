@@ -9,6 +9,7 @@
 #include "rffi/api/audio_device_intf.h"
 #include "rffi/api/injectable_network.h"
 #include "rffi/api/peer_connection_intf.h"
+#include "rffi/api/rtp_observer_intf.h"
 #include "rtc_base/ref_count.h"
 
 namespace rtc {

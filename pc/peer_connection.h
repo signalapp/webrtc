@@ -284,6 +284,9 @@ class PeerConnection : public PeerConnectionInternal,
   void SetDataChannelEventObserver(
       std::unique_ptr<DataChannelEventObserverInterface> observer) override;
 
+  // RingRTC change to receive RTP data
+  void SetRtpPacketObserver(RtpPacketSinkInterface* observer) override;
+
   void Close() override;
 
   Thread* signaling_thread() const final {
@@ -331,9 +334,6 @@ class PeerConnection : public PeerConnectionInternal,
 
   // Functions needed by DataChannelController
   void NoteDataAddedEvent() override { NoteUsageEvent(UsageEvent::DATA_ADDED); }
-
-  // RingRTC change to receive RTP data
-  PeerConnectionObserver* Observer() const;
 
   void RunWithObserver(
       absl::AnyInvocable<void(webrtc::PeerConnectionObserver*) &&>) override
@@ -766,7 +766,7 @@ class PeerConnection : public PeerConnectionInternal,
   scoped_refptr<IceGathererInterface> shared_ice_gatherer_;
 
   // RingRTC change to receive RTP data
-  bool rtp_demuxer_sink_registered_ = false;
+  RtpPacketSinkInterface* rtp_packet_observer_ RTC_GUARDED_BY(network_thread()) = nullptr;
 
   std::unique_ptr<CodecLookupHelper> codec_lookup_helper_;
 

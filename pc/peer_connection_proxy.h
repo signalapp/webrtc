@@ -221,6 +221,8 @@ PROXY_METHOD0(void, StopRtcEventLog)
 PROXY_METHOD1(void,
               SetDataChannelEventObserver,
               std::unique_ptr<DataChannelEventObserverInterface>)
+// RingRTC change to receive RTP data
+PROXY_METHOD1(void, SetRtpPacketObserver, RtpPacketSinkInterface*)
 PROXY_METHOD0(void, Close)
 PROXY_METHOD0(NetworkControllerInterface*, GetNetworkController)
 BYPASS_PROXY_CONSTMETHOD0(Thread*, signaling_thread)

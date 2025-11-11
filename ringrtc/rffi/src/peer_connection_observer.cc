@@ -139,21 +139,6 @@ void PeerConnectionObserverRffi::OnRemoveStream(
   RTC_LOG(LS_INFO) << "OnRemoveStream()";
 }
 
-void PeerConnectionObserverRffi::OnRtpPacket(
-    const RtpPacketReceived& rtp_packet) {
-  uint8_t pt = rtp_packet.PayloadType();
-  uint16_t seqnum = rtp_packet.SequenceNumber();
-  uint32_t timestamp = rtp_packet.Timestamp();
-  uint32_t ssrc = rtp_packet.Ssrc();
-  const uint8_t* payload_data = rtp_packet.payload().data();
-  size_t payload_size = rtp_packet.payload().size();
-  RTC_LOG(LS_VERBOSE) << "OnRtpReceived() << pt: " << pt
-                      << " seqnum: " << seqnum << " timestamp: " << timestamp
-                      << " ssrc: " << ssrc << " size: " << payload_size;
-  callbacks_.onRtpReceived(observer_, pt, seqnum, timestamp, ssrc, payload_data,
-                           payload_size);
-}
-
 void PeerConnectionObserverRffi::OnRenegotiationNeeded() {
   RTC_LOG(LS_INFO) << "OnRenegotiationNeeded()";
 }

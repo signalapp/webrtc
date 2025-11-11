@@ -16,6 +16,7 @@ common_sources = [
   "src/peer_connection.cc",
   "src/peer_connection_observer.cc",
   "src/ref_count.cc",
+  "src/rtp_observer.cc",
   "src/sdp_observer.cc",
   "src/stats_observer.cc",
 ]

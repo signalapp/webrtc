@@ -64,7 +64,6 @@ class PeerConnectionObserverRffi : public PeerConnectionObserver {
   void OnAddStream(scoped_refptr<MediaStreamInterface> stream) override;
   void OnRemoveStream(scoped_refptr<MediaStreamInterface> stream) override;
   void OnDataChannel(scoped_refptr<DataChannelInterface> channel) override {}
-  void OnRtpPacket(const RtpPacketReceived& rtp_packet) override;
   void OnRenegotiationNeeded() override;
   void OnAddTrack(
       scoped_refptr<RtpReceiverInterface> receiver,
