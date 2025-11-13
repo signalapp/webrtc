@@ -766,6 +766,7 @@ class PeerConnection : public PeerConnectionInternal,
   scoped_refptr<IceGathererInterface> shared_ice_gatherer_;
 
   // RingRTC change to receive RTP data
+  bool rtp_demuxer_sink_registered_ = false;
   RtpPacketSinkInterface* rtp_packet_observer_ RTC_GUARDED_BY(network_thread()) = nullptr;
 
   std::unique_ptr<CodecLookupHelper> codec_lookup_helper_;

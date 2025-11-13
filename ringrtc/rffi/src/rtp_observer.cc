@@ -14,11 +14,11 @@ namespace rffi {
 RtpObserverRffi::RtpObserverRffi(void* observer,
                                  const RtpObserverCallbacks* callbacks)
     : observer_(observer), callbacks_(*callbacks) {
-  RTC_LOG(LS_WARNING) << "RtpObserverRffi:ctor(): " << this->observer_;
+  RTC_LOG(LS_INFO) << "RtpObserverRffi:ctor(): " << this->observer_;
 }
 
 RtpObserverRffi::~RtpObserverRffi() {
-  RTC_LOG(LS_WARNING) << "RtpObserverRffi:dtor(): " << this->observer_;
+  RTC_LOG(LS_INFO) << "RtpObserverRffi:dtor(): " << this->observer_;
 }
 
 void RtpObserverRffi::OnRtpPacket(const RtpPacketReceived& rtp_packet) {
