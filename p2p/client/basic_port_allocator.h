@@ -174,7 +174,7 @@ class RTC_EXPORT BasicPortAllocatorSession : public PortAllocatorSession {
   void GetCandidateStatsFromReadyPorts(
       CandidateStatsList* candidate_stats_list) const override;
   void SetStunKeepaliveIntervalForReadyPorts(
-      const std::optional<int>& stun_keepalive_interval) override;
+      const std::optional<TimeDelta>& stun_keepalive_interval) override;
   void PruneAllPorts() override;
   static std::vector<const Network*> SelectIPv6Networks(
       std::vector<const Network*>& all_ipv6_networks,
@@ -205,9 +205,12 @@ class RTC_EXPORT BasicPortAllocatorSession : public PortAllocatorSession {
                          // interface. Only TURN ports may be pruned.
     };
 
-    PortData() {}
+    PortData() = delete;
+    PortData(PortData&&) = default;
     PortData(Port* port, AllocationSequence* seq)
         : port_(port), sequence_(seq) {}
+
+    PortData& operator=(PortData&&) = default;
 
     Port* port() const { return port_; }
     AllocationSequence* sequence() const { return sequence_; }
@@ -251,7 +254,7 @@ class RTC_EXPORT BasicPortAllocatorSession : public PortAllocatorSession {
   void OnConfigStop();
   void AllocatePorts();
   void OnAllocate(int allocation_epoch);
-  void DoAllocate(bool disable_equivalent_phases);
+  void DoAllocate();
   void OnNetworksChanged();
   void OnAllocationSequenceObjectsCreated();
   void DisableEquivalentPhases(const Network* network,
@@ -270,7 +273,6 @@ class RTC_EXPORT BasicPortAllocatorSession : public PortAllocatorSession {
   std::vector<const Network*> GetNetworks();
   std::vector<const Network*> GetFailedNetworks();
   void Regather(const std::vector<const Network*>& networks,
-                bool disable_equivalent_phases,
                 IceRegatheringReason reason);
 
   bool CheckCandidateFilter(const Candidate& c) const;
