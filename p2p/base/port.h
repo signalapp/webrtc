@@ -298,8 +298,9 @@ class RTC_EXPORT Port : public PortInterface, public sigslot::has_slots<> {
   // replaced with the new CallbackList implementation.
   sigslot::signal1<Port*> SignalPortError;
 
-  // RingRTC change to support ICE forking (code removed)
-
+  void SubscribePortDestroyed(
+      std::function<void(PortInterface*)> callback) override;
+  void SendPortDestroyed(Port* port);
   // Returns a map containing all of the connections of this port, keyed by the
   // remote address.
   typedef std::map<SocketAddress, Connection*> AddressMap;

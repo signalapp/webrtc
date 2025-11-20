@@ -249,6 +249,12 @@ P2PTransportChannel::~P2PTransportChannel() {
   resolvers_.clear();
 
   // RingRTC change to support ICE forking
+  // With shared gatherers (ICE forking), the ports may stay alive
+  // after the P2pTransportChannel, so we need to make sure we disconnect
+  // from the signals that we listen to in OnPortReady.
+  safety_flag_->SetNotAlive();
+
+  // RingRTC change to support ICE forking
   if (shared_gatherer_) {
     shared_gatherer_->port_allocator_session()->SignalPortReady.disconnect(
         this);
@@ -262,23 +268,6 @@ P2PTransportChannel::~P2PTransportChannel() {
         ->SignalCandidatesRemoved.disconnect(this);
     shared_gatherer_->port_allocator_session()
         ->SignalCandidatesAllocationDone.disconnect(this);
-
-    // With shared gatherers (ICE forking), the ports may stay alive
-    // after the P2pTransportChannel, so we need to make sure we disconnect
-    // from the signals that we listen to in OnPortReady.
-    for (auto* port : ports_) {
-      port->SignalDestroyed.disconnect(this);
-      port->SignalSentPacket.disconnect(this);
-      port->SignalRoleConflict.disconnect(this);
-      port->SignalUnknownAddress.disconnect(this);
-    }
-    // And make sure you do it for pruned ports as well.
-    for (auto* port : pruned_ports_) {
-      port->SignalDestroyed.disconnect(this);
-      port->SignalSentPacket.disconnect(this);
-      port->SignalRoleConflict.disconnect(this);
-      port->SignalUnknownAddress.disconnect(this);
-    }
   }
 }
 
@@ -1016,36 +1005,59 @@ void P2PTransportChannel::OnPortReady(PortAllocatorSession* session,
   port->SetIceRole(ice_role_);
   port->SetIceTiebreaker(allocator_->ice_tiebreaker());
   // RingRTC change to support ICE forking
+  scoped_refptr<PendingTaskSafetyFlag> flag = safety_flag_;
   if (IsSharedSession(session)) {
     // Handling role conflicts at the port level breaks badly when sharing
     // a port between many transports.  So disable it until we have
     // role conflict handling that works with ICE forking.
     port->SubscribeUnknownAddress(
-        [this](PortInterface* port, const SocketAddress& address,
-          ProtocolType proto, IceMessage* stun_msg,
-          const std::string& remote_username, bool port_muxed) {
-        OnUnknownAddressFromSharedSession(port, address, proto, stun_msg, remote_username,
-            port_muxed);
+        [flag = std::move(flag), this](
+            PortInterface* port, const SocketAddress& address,
+            ProtocolType proto, IceMessage* stun_msg,
+            const std::string& remote_username, bool port_muxed) {
+          if (!flag->alive()) {
+            return;
+          }
+          OnUnknownAddressFromSharedSession(port, address, proto, stun_msg,
+                                            remote_username, port_muxed);
         });
-    port->SubscribeRoleConflict([this] { OnRoleConflictIgnored(); });
+    port->SubscribeRoleConflict(
+        SafeInvocable(safety_flag_, [this] { OnRoleConflictIgnored(); }));
   } else {
     port->SubscribeUnknownAddress(
-        [this](PortInterface* port, const SocketAddress& address,
-          ProtocolType proto, IceMessage* stun_msg,
-          const std::string& remote_username, bool port_muxed) {
-        OnUnknownAddress(port, address, proto, stun_msg, remote_username,
-            port_muxed);
+        [flag = std::move(flag), this](
+            PortInterface* port, const SocketAddress& address,
+            ProtocolType proto, IceMessage* stun_msg,
+            const std::string& remote_username, bool port_muxed) {
+          if (!flag->alive()) {
+            return;
+          }
+          OnUnknownAddressFromOwnedSession(port, address, proto, stun_msg,
+                                           remote_username, port_muxed);
         });
-    port->SubscribeRoleConflict([this] { NotifyRoleConflictInternal(); });
+    port->SubscribeRoleConflict(
+        SafeInvocable(safety_flag_, [this] { NotifyRoleConflictInternal(); }));
   }
 
   ports_.push_back(port);
-  // RingRTC change to support ICE forking (code moved up)
+  // RingRTC change to support ICE forking (code moved up *and* added)
+  flag = safety_flag_;
   port->SubscribeSentPacket(
-      [this](const SentPacketInfo& sent_packet) { OnSentPacket(sent_packet); });
+      [flag = std::move(flag), this](const SentPacketInfo& sent_packet) {
+        if (!flag->alive()) {
+          return;
+        }
+        OnSentPacket(sent_packet);
+      });
 
+  flag = safety_flag_;
   port->SubscribePortDestroyed(
-      [this](PortInterface* port) { OnPortDestroyed(port); });
+      [flag = std::move(flag), this](PortInterface* port) {
+        if (!flag->alive()) {
+          return;
+        }
+        OnPortDestroyed(port);
+      });
 
   // Attempt to create a connection from this new port to all of the remote
   // candidates that we were given so far.
@@ -1292,7 +1304,7 @@ void P2PTransportChannel::NotifyRoleConflictInternal() {
 }
 
 // RingRTC change to support ICE forking
-void P2PTransportChannel::OnRoleConflictIgnored(PortInterface* port) {
+void P2PTransportChannel::OnRoleConflictIgnored() {
   RTC_LOG(LS_ERROR) << "Ignored conflict. This is bad.";
 }
 
@@ -2018,11 +2030,11 @@ void P2PTransportChannel::SwitchSelectedConnectionInternal(
       RTC_LOG(LS_WARNING) << "Previous selected connection: is_receiving="
         << old_selected_connection->receiving()
         << ", write_state=" << old_selected_connection->write_state()
-        << ", rtt=" << old_selected_connection->rtt() << "ms"
+        << ", rtt=" << old_selected_connection->Rtt().ms() << "ms"
         << ". New selected connection: is_receiving="
         << selected_connection_->receiving()
         << ", write_state=" << selected_connection_->write_state()
-        << ", rtt=" << selected_connection_->rtt() << "ms"
+        << ", rtt=" << selected_connection_->Rtt().ms() << "ms"
         << ", ice_switch_reason='" << IceSwitchReasonToString(reason) << "'";
     }
     RTC_LOG(LS_INFO) << ToString() << ": New selected connection: "

@@ -133,16 +133,16 @@ class PortInterface {
                                         int error_code,
                                         absl::string_view reason) = 0;
 
-  // RingRTC change to support ICE forking (code removed)
+  // Signaled when this port decides to delete itself because it no longer has
+  // any usefulness.
+  virtual void SubscribePortDestroyed(
+      std::function<void(PortInterface*)> callback) = 0;
 
   // Signaled when Port discovers ice role conflict with the peer.
   // TODO: bugs.webrtc.org/42222066 - remove slot.
   sigslot::signal1<PortInterface*> SignalRoleConflict;
   virtual void SubscribeRoleConflict(absl::AnyInvocable<void()> callback) = 0;
   virtual void NotifyRoleConflict() = 0;
-
-  // RingRTC change to support ICE forking
-  sigslot::signal1<PortInterface*> SignalDestroyed;
 
   // Normally, packets arrive through a connection (or they result signaling of
   // unknown address).  Calling this method turns off delivery of packets

@@ -6666,12 +6666,12 @@ TEST_F(P2PTransportChannelPingTest, Forking) {
   // Prepare two transports with a shared gatherer
   FakePortAllocator fake_port_allocator1(env, ss());
   auto transport1 = std::make_unique<P2PTransportChannel>(
-      "transport1", 1, &fake_port_allocator1);
+      env, "transport1", 1, &fake_port_allocator1);
   PrepareChannel(transport1.get());
 
   FakePortAllocator fake_port_allocator2(env, ss());
   auto transport2 = std::make_unique<P2PTransportChannel>(
-      "transport2", 1, &fake_port_allocator2);
+      env, "transport2", 1, &fake_port_allocator2);
   PrepareChannel(transport2.get());
 
   auto shared_pa =
@@ -6682,7 +6682,7 @@ TEST_F(P2PTransportChannelPingTest, Forking) {
   transport1->StartGatheringWithSharedGatherer(gatherer);
   SIMULATED_WAIT(
       IceGatheringState::kIceGatheringComplete == transport1->gathering_state(),
-      kShortTimeout, clock);
+      kShortTimeout.ms(), clock);
   transport1->SetRemoteIceParameters(kIceParams[1]);
   transport1->AddRemoteCandidate(
       CreateUdpCandidate(IceCandidateType::kHost, "1.1.1.1", 1, 1));
@@ -6703,7 +6703,7 @@ TEST_F(P2PTransportChannelPingTest, Forking) {
   transport2->StartGatheringWithSharedGatherer(gatherer);
   SIMULATED_WAIT(
       IceGatheringState::kIceGatheringComplete == transport1->gathering_state(),
-      kShortTimeout, clock);
+      kShortTimeout.ms(), clock);
   transport2->SetRemoteIceParameters(kIceParams[2]);
   transport2->AddRemoteCandidate(
       CreateUdpCandidate(IceCandidateType::kHost, "2.2.2.2", 2, 2));

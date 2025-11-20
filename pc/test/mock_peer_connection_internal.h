@@ -381,6 +381,8 @@ class MockPeerConnectionInternal : public PeerConnectionInternal {
               (int channel_id, DataChannelInterface::DataState),
               (override));
   MOCK_METHOD(PayloadTypePicker&, payload_type_picker, (), (override));
+  // RingRTC change to add new methods
+  MOCK_METHOD(void, SetRtpPacketObserver, (RtpPacketSinkInterface*), (override));
 };
 
 }  // namespace webrtc

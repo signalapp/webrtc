@@ -38,9 +38,8 @@ typedef struct {
   // ICE events
   void (*onIceCandidate)(void* observer_borrowed,
                          const RustIceCandidate* candidate_borrowed);
-  void (*onIceCandidatesRemoved)(void* observer_borrowed,
-                                 const webrtc::rffi::IpPort* addresses_borrowed,
-                                 size_t);
+  void (*onIceCandidateRemoved)(void* observer_borrowed,
+                                const webrtc::rffi::IpPort address_borrowed);
   void (*onIceConnectionChange)(
       void* observer_borrowed,
       webrtc::PeerConnectionInterface::IceConnectionState);

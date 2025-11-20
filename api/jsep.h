@@ -87,6 +87,9 @@ class RTC_EXPORT IceCandidate final {
   // TODO: webrtc:406795492 - string_view.
   std::string server_url() const { return candidate_.url(); }
 
+  // RingRTC change to access an ICE candidate's address
+  const SocketAddress& address() const { return candidate_.address(); }
+
   // Creates a SDP-ized form of this candidate.
   std::string ToString() const;
 

@@ -26,6 +26,12 @@ rtc_library("oboe") {
     "-Wno-header-hygiene",
     "-Wno-sign-compare",
     "-Wno-thread-safety-analysis",
+    # LinearResampler.cpp is missing this
+    "-include",
+    "string.h",
+    # FlowGraphNode.h is missing this
+    "-include",
+    "functional",
   ]
 
   include_dirs = [

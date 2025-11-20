@@ -38,6 +38,8 @@
 #include "api/local_network_access_permission.h"
 #include "api/rtc_error.h"
 #include "api/sequence_checker.h"
+// RingRTC change to support ICE forking
+#include "api/task_queue/pending_task_safety_flag.h"
 #include "api/transport/enums.h"
 #include "api/transport/stun.h"
 #include "api/units/time_delta.h"
@@ -131,8 +133,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
   void MaybeStartGathering() override;
   // RingRTC change to support ICE forking
   void StartGatheringWithSharedGatherer(
-      scoped_refptr<IceGathererInterface> shared_gatherer)
-      override;
+      scoped_refptr<IceGathererInterface> shared_gatherer) override;
   IceGathererInterface* shared_gatherer() override {
     return shared_gatherer_.get();
   }
@@ -389,7 +390,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
   bool PrunePort(PortInterface* port);
   void NotifyRoleConflictInternal();
   // RingRTC change to support ICE forking
-  void OnRoleConflictIgnored(PortInterface* port);
+  void OnRoleConflictIgnored();
 
   void OnConnectionStateChange(Connection* connection);
   void OnReadPacket(Connection* connection, const ReceivedIpPacket& packet);
@@ -571,6 +572,10 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
 
   // DTLS-STUN piggybacking callbacks.
   DtlsStunPiggybackCallbacks dtls_stun_piggyback_callbacks_;
+
+  // RingRTC change to support ICE forking
+  scoped_refptr<PendingTaskSafetyFlag> safety_flag_ =
+      PendingTaskSafetyFlag::Create();
 };
 
 }  //  namespace webrtc

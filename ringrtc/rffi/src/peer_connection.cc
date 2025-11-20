@@ -942,7 +942,7 @@ RUSTEXPORT bool Rust_addIceCandidateFromSdp(
     PeerConnectionInterface* peer_connection_borrowed_rc,
     const char* sdp_borrowed) {
   // Since we always use bundle, we can always use index 0 and ignore the mid
-  std::unique_ptr<IceCandidateInterface> ice_candidate(
+  std::unique_ptr<IceCandidate> ice_candidate(
       CreateIceCandidate("", 0, std::string(sdp_borrowed), nullptr));
 
   return peer_connection_borrowed_rc->AddIceCandidate(ice_candidate.get());
@@ -971,7 +971,6 @@ RUSTEXPORT bool Rust_removeIceCandidates(
       // the component is 1. We also know (because we don't use TCP candidates)
       // that the protocol is UDP. So we only need to know the address.
       Candidate candidate_removed;
-      candidate_removed.set_transport_name("audio");
       candidate_removed.set_component(ICE_CANDIDATE_COMPONENT_RTP);
       candidate_removed.set_protocol(UDP_PROTOCOL_NAME);
       candidate_removed.set_address(IpPortToRtcSocketAddress(address_removed));
@@ -1035,7 +1034,7 @@ RUSTEXPORT bool Rust_addIceCandidateFromServer(
   }
 
   // Since we always use bundle, we can always use index 0 and ignore the mid
-  std::unique_ptr<IceCandidateInterface> ice_candidate(
+  std::unique_ptr<IceCandidate> ice_candidate(
       CreateIceCandidate("", 0, candidate));
 
   return pc_borrowed_rc->AddIceCandidate(ice_candidate.get());

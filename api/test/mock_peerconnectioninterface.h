@@ -245,6 +245,7 @@ class MockPeerConnectionInterface : public PeerConnectionInterface {
   MOCK_METHOD(bool, ReceiveRtp, (uint8_t, bool), (override));
   MOCK_METHOD(bool, SetIncomingRtpEnabled, (bool), (override));
   MOCK_METHOD(uint32_t, GetLastBandwidthEstimateBps, (), (override));
+  MOCK_METHOD(void, SetRtpPacketObserver, (RtpPacketSinkInterface*), (override));
 };
 
 static_assert(

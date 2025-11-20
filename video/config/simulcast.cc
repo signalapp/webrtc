@@ -98,7 +98,6 @@ constexpr const SimulcastFormat kSimulcastFormatsVP8[] = {
      .max_bitrate = DataRate::KilobitsPerSec(1200),
      .target_bitrate = DataRate::KilobitsPerSec(1200),
      .min_bitrate = DataRate::KilobitsPerSec(350)},
-     DataRate::KilobitsPerSec(150)},
     {.width = 640,
      .height = 360,
      // RingRTC change to allow for 3 spatial layers when the highest layer is 640x480

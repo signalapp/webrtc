@@ -1785,8 +1785,8 @@ void PeerConnection::SetDataChannelEventObserver(
 
 // RingRTC change to receive RTP data
 void PeerConnection::SetRtpPacketObserver(RtpPacketSinkInterface* observer) {
-  network_thread()->PostTask(SafeTask(
-      network_thread_safety_, [this, observer]() {
+  network_thread()->PostTask(
+      SafeTask(network_thread_safety_, [this, observer]() {
         RTC_DCHECK_RUN_ON(network_thread());
         rtp_packet_observer_ = observer;
       }));
@@ -1922,9 +1922,12 @@ void PeerConnection::Close() {
 
     // RingRTC change to receive RTP data
     if (rtp_demuxer_sink_registered_ && rtp_packet_observer_ != nullptr) {
-      JsepTransportController *transport_controller = this->transport_controller_n();
-      RtpTransportInternal *rtp_transport = transport_controller->GetBundledRtpTransport();
-      rtp_demuxer_sink_registered_ = !rtp_transport->UnregisterRtpDemuxerSink(rtp_packet_observer_);
+      JsepTransportController* transport_controller =
+          this->transport_controller_n();
+      RtpTransportInternal* rtp_transport =
+          transport_controller->GetBundledRtpTransport();
+      rtp_demuxer_sink_registered_ =
+          !rtp_transport->UnregisterRtpDemuxerSink(rtp_packet_observer_);
     }
     rtp_packet_observer_ = nullptr;
 
@@ -3145,14 +3148,11 @@ bool PeerConnection::CanAttemptDtlsStunPiggybacking() {
 }
 
 // RingRTC change to add methods (see interface header)
-scoped_refptr<IceGathererInterface>
-PeerConnection::CreateSharedIceGatherer() {
-  return network_thread()
-      ->BlockingCall(
-          [this] {
-            RTC_DCHECK_RUN_ON(network_thread());
-            return port_allocator_->CreateIceGatherer("shared");
-          });
+scoped_refptr<IceGathererInterface> PeerConnection::CreateSharedIceGatherer() {
+  return network_thread()->BlockingCall([this] {
+    RTC_DCHECK_RUN_ON(network_thread());
+    return port_allocator_->CreateIceGatherer("shared");
+  });
 }
 
 bool PeerConnection::UseSharedIceGatherer(
@@ -3165,7 +3165,8 @@ bool PeerConnection::UseSharedIceGatherer(
 // RingRTC change to explicitly control when incoming packets can be processed
 bool PeerConnection::SetIncomingRtpEnabled(bool enabled) {
   return network_thread()->BlockingCall([this, enabled] {
-    JsepTransportController* transport_controller = this->transport_controller_n();
+    JsepTransportController* transport_controller =
+        this->transport_controller_n();
     return transport_controller->SetIncomingRtpEnabled(enabled);
   });
 }
@@ -3176,8 +3177,10 @@ bool PeerConnection::SendRtp(std::unique_ptr<RtpPacket> rtp_packet) {
   // Is there a better way to std::move the unique_ptr?
   RtpPacket* raw_rtp_packet = rtp_packet.release();
   return network_thread()->BlockingCall([this, raw_rtp_packet] {
-    JsepTransportController* transport_controller = this->transport_controller_n();
-    RtpTransportInternal* rtp_transport = transport_controller->GetBundledRtpTransport();
+    JsepTransportController* transport_controller =
+        this->transport_controller_n();
+    RtpTransportInternal* rtp_transport =
+        transport_controller->GetBundledRtpTransport();
     if (!rtp_transport) {
       return false;
     }
@@ -3197,26 +3200,32 @@ bool PeerConnection::SendRtp(std::unique_ptr<RtpPacket> rtp_packet) {
 bool PeerConnection::ReceiveRtp(uint8_t pt, bool enable_incoming) {
   RtpDemuxerCriteria demux_criteria;
   demux_criteria.payload_types().insert(pt);
-  return network_thread()->BlockingCall([this, demux_criteria, enable_incoming] {
-    RTC_DCHECK_RUN_ON(network_thread());
-    if (!rtp_packet_observer_) {
-      RTC_LOG(LS_ERROR) << "PeerConnection::ReceiveRtp() RTP packet observer not set";
-      return false;
-    }
-    JsepTransportController* transport_controller = this->transport_controller_n();
-    RtpTransportInternal* rtp_transport = transport_controller->GetBundledRtpTransport();
-    if (!rtp_transport) {
-      return false;
-    }
-    if (enable_incoming) {
-      rtp_transport->SetIncomingRtpEnabled(true);
-    }
-    rtp_demuxer_sink_registered_ = rtp_transport->RegisterRtpDemuxerSink(demux_criteria, rtp_packet_observer_);
-    return rtp_demuxer_sink_registered_;
-  });
+  return network_thread()->BlockingCall(
+      [this, demux_criteria, enable_incoming] {
+        RTC_DCHECK_RUN_ON(network_thread());
+        if (!rtp_packet_observer_) {
+          RTC_LOG(LS_ERROR)
+              << "PeerConnection::ReceiveRtp() RTP packet observer not set";
+          return false;
+        }
+        JsepTransportController* transport_controller =
+            this->transport_controller_n();
+        RtpTransportInternal* rtp_transport =
+            transport_controller->GetBundledRtpTransport();
+        if (!rtp_transport) {
+          return false;
+        }
+        if (enable_incoming) {
+          rtp_transport->SetIncomingRtpEnabled(true);
+        }
+        rtp_demuxer_sink_registered_ = rtp_transport->RegisterRtpDemuxerSink(
+            demux_criteria, rtp_packet_observer_);
+        return rtp_demuxer_sink_registered_;
+      });
 }
 
-void PeerConnection::ConfigureAudioEncoders(const AudioEncoder::Config& config) {
+void PeerConnection::ConfigureAudioEncoders(
+    const AudioEncoder::Config& config) {
   std::vector<VoiceChannel*> sending_voice_channels;
   for (const auto& transceiver : rtp_manager()->transceivers()->List()) {
     if (transceiver->media_type() != MediaType::AUDIO) {
@@ -3225,7 +3234,8 @@ void PeerConnection::ConfigureAudioEncoders(const AudioEncoder::Config& config) 
 
     if (transceiver->direction() == RtpTransceiverDirection::kSendRecv ||
         transceiver->direction() == RtpTransceiverDirection::kSendOnly) {
-      auto* voice_channel = static_cast<VoiceChannel*>(transceiver->internal()->channel());
+      auto* voice_channel =
+          static_cast<VoiceChannel*>(transceiver->internal()->channel());
       if (voice_channel) {
         sending_voice_channels.push_back(voice_channel);
       }
@@ -3238,7 +3248,8 @@ void PeerConnection::ConfigureAudioEncoders(const AudioEncoder::Config& config) 
     }
 
     if (sending_voice_channels.size() == 0) {
-      RTC_LOG(LS_WARNING) << "PeerConnection::ConfigureAudioEncoders(...) changed no transceivers!";
+      RTC_LOG(LS_WARNING) << "PeerConnection::ConfigureAudioEncoders(...) "
+                             "changed no transceivers!";
     } else {
       RTC_LOG(LS_INFO) << "PeerConnection::ConfigureAudioEncoders(...) changed "
                        << sending_voice_channels.size() << " transceivers.";
@@ -3262,15 +3273,20 @@ void PeerConnection::GetAudioLevels(uint16_t* captured_out,
       continue;
     }
 
-    auto is_send_recv = transceiver->direction() == RtpTransceiverDirection::kSendRecv;
-    if (is_send_recv || transceiver->direction() == RtpTransceiverDirection::kSendOnly) {
-      auto* voice_channel = static_cast<VoiceChannel*>(transceiver->internal()->channel());
+    auto is_send_recv =
+        transceiver->direction() == RtpTransceiverDirection::kSendRecv;
+    if (is_send_recv ||
+        transceiver->direction() == RtpTransceiverDirection::kSendOnly) {
+      auto* voice_channel =
+          static_cast<VoiceChannel*>(transceiver->internal()->channel());
       if (voice_channel) {
         sending_voice_channels.push_back(voice_channel);
       }
     }
-    if (is_send_recv || transceiver->direction() == RtpTransceiverDirection::kRecvOnly) {
-      auto* voice_channel = static_cast<VoiceChannel*>(transceiver->internal()->channel());
+    if (is_send_recv ||
+        transceiver->direction() == RtpTransceiverDirection::kRecvOnly) {
+      auto* voice_channel =
+          static_cast<VoiceChannel*>(transceiver->internal()->channel());
       if (voice_channel) {
         receiving_voice_channels.push_back(voice_channel);
       }
@@ -3283,22 +3299,23 @@ void PeerConnection::GetAudioLevels(uint16_t* captured_out,
     }
   });
 
-  *received_size_out = worker_thread()->BlockingCall([received_out, received_out_size, receiving_voice_channels] {
-    size_t received_size = 0;
+  *received_size_out = worker_thread()->BlockingCall(
+      [received_out, received_out_size, receiving_voice_channels] {
+        size_t received_size = 0;
 
-    for (auto voice_channel : receiving_voice_channels) {
-      if (received_size == received_out_size) {
-        break;
-      }
+        for (auto voice_channel : receiving_voice_channels) {
+          if (received_size == received_out_size) {
+            break;
+          }
 
-      auto audio_level = voice_channel->GetReceivedAudioLevel();
-      if (audio_level) {
-        received_out[received_size++] = *audio_level;
-      }
-    }
+          auto audio_level = voice_channel->GetReceivedAudioLevel();
+          if (audio_level) {
+            received_out[received_size++] = *audio_level;
+          }
+        }
 
-    return received_size;
-  });
+        return received_size;
+      });
 }
 
 // RingRTC change to get upload bandwidth estimate
@@ -3307,6 +3324,7 @@ uint32_t PeerConnection::GetLastBandwidthEstimateBps() {
     RTC_DCHECK_RUN_ON(worker_thread());
     return this->call_->GetLastBandwidthEstimateBps();
   });
+}
 
 void PeerConnection::RunOnSignalingThread(absl::AnyInvocable<void() &&> task) {
   if (signaling_thread()->IsCurrent()) {

@@ -244,8 +244,8 @@ PortAllocatorSession* BasicPortAllocator::CreateSessionInternal(
 }
 
 // RingRTC change to support ICE forking
-scoped_refptr<IceGathererInterface>
-BasicPortAllocator::CreateIceGatherer(const std::string& name) {
+scoped_refptr<IceGathererInterface> BasicPortAllocator::CreateIceGatherer(
+    const std::string& name) {
   CheckRunOnValidThreadAndInitialized();
   // We follow the order that PeerConnectionFactory::CreatePeerConnection
   // + PeerConnection::InitializePortAllocator_n does:
@@ -263,11 +263,8 @@ BasicPortAllocator::CreateIceGatherer(const std::string& name) {
   // for IceGatherers.
 
   // 1. Create with NetworkManager, PacketSocketFactory, and RelayPortFactory.
-  auto new_allocator = std::make_unique<BasicPortAllocator>(env_,
-                                                            network_manager(),
-                                                            socket_factory_,
-                                                            nullptr,
-                                                            nullptr);
+  auto new_allocator = std::make_unique<BasicPortAllocator>(
+      env_, network_manager(), socket_factory_, nullptr, nullptr);
 
   // 2. SetNetworkIgnoreMask().
   new_allocator->SetNetworkIgnoreMask(network_ignore_mask_);
@@ -284,10 +281,13 @@ BasicPortAllocator::CreateIceGatherer(const std::string& name) {
   new_allocator->set_candidate_filter(candidate_filter());
 
   // 5. SetConfiguration
-  new_allocator->SetConfiguration(stun_servers(), turn_servers(),
-                                  0 /* candidate_pool_size */,
-                                  turn_port_prune_policy(), turn_customizer(),
-                                  stun_candidate_keepalive_interval());
+  std::optional<int> interval = std::nullopt;
+  if (stun_candidate_keepalive_interval().has_value()) {
+    interval = stun_candidate_keepalive_interval()->ms();
+  }
+  new_allocator->SetConfiguration(
+      stun_servers(), turn_servers(), 0 /* candidate_pool_size */,
+      turn_port_prune_policy(), turn_customizer(), interval);
 
   IceParameters parameters =
       IceCredentialsIterator::CreateRandomIceCredentials();
@@ -1102,9 +1102,15 @@ bool BasicPortAllocatorSession::PruneNewlyPairableTurnPort(
         data.port()->Type() == IceCandidateType::kRelay && data.ready() &&
         &data != newly_pairable_port_data) {
       // RingRTC change to prune ports on a per-server basis
-      auto existing_addr = static_cast<TurnPort*>(data.port())->server_address().address.ipaddr();
-      auto newly_pairable_addr = static_cast<TurnPort*>(newly_pairable_port_data->port())->server_address().address.ipaddr();
-      if (existing_addr.family() == newly_pairable_addr.family() && existing_addr != newly_pairable_addr) {
+      auto existing_addr = static_cast<TurnPort*>(data.port())
+                               ->server_address()
+                               .address.ipaddr();
+      auto newly_pairable_addr =
+          static_cast<TurnPort*>(newly_pairable_port_data->port())
+              ->server_address()
+              .address.ipaddr();
+      if (existing_addr.family() == newly_pairable_addr.family() &&
+          existing_addr != newly_pairable_addr) {
         RTC_LOG(LS_INFO) << "Port pruned: "
                          << newly_pairable_port_data->port()->ToString();
         newly_pairable_port_data->Prune();

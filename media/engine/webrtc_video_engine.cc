@@ -861,10 +861,13 @@ std::vector<Codec> WebRtcVideoEngine::LegacyRecvCodecs(bool include_rtx) const {
 std::vector<RtpHeaderExtensionCapability>
 WebRtcVideoEngine::GetRtpHeaderExtensions(
     const webrtc::FieldTrialsView* field_trials) const {
+  // RingRTC change to disable unused header extensions
+#if 0
   // Use field trials from PeerConnection `field_trials` or from
   // PeerConnectionFactory `trials_`.
   const webrtc::FieldTrialsView& trials =
       (field_trials != nullptr ? *field_trials : trials_);
+#endif
 
   std::vector<RtpHeaderExtensionCapability> result;
   // id is *not* incremented for non-default extensions, UsedIds needs to

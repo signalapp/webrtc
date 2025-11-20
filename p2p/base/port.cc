@@ -906,8 +906,16 @@ void Port::DestroyIfDead() {
   }
 }
 
-// RingRTC change to support ICE forking (code removed)
+void Port::SubscribePortDestroyed(
+    std::function<void(PortInterface*)> callback) {
+  RTC_DCHECK_RUN_ON(thread_);
+  port_destroyed_callback_list_.AddReceiver(std::move(callback));
+}
 
+void Port::SendPortDestroyed(Port* port) {
+  RTC_DCHECK_RUN_ON(thread_);
+  port_destroyed_callback_list_.Send(port);
+}
 void Port::OnNetworkTypeChanged(const ::webrtc::Network* network) {
   RTC_DCHECK(network == network_);
 
@@ -996,8 +1004,7 @@ void Port::Destroy() {
   RTC_DCHECK_RUN_ON(thread_);
   RTC_DCHECK(connections_.empty());
   RTC_LOG(LS_INFO) << ToString() << ": Port deleted";
-  // RingRTC change to support ICE forking
-  SignalDestroyed(this);
+  SendPortDestroyed(this);
   delete this;
 }
 
@@ -1062,6 +1069,10 @@ void Port::OnRequestLocalNetworkAccessPermission(
 void Port::SubscribeRoleConflict(absl::AnyInvocable<void()> callback) {
   RTC_DCHECK_RUN_ON(thread_);
   RTC_DCHECK(callback);
+  // RingRTC change to support ICE forking
+  if (role_conflict_callback_) {
+    return;
+  }
   RTC_DCHECK(!role_conflict_callback_);
   RTC_DCHECK(SignalRoleConflict.is_empty());
   role_conflict_callback_ = std::move(callback);
