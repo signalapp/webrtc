@@ -31,8 +31,7 @@ PeerConnectionObserverRffi::~PeerConnectionObserverRffi() {
   RTC_LOG(LS_INFO) << "PeerConnectionObserverRffi:dtor(): " << this->observer_;
 }
 
-void PeerConnectionObserverRffi::OnIceCandidate(
-    const IceCandidateInterface* candidate) {
+void PeerConnectionObserverRffi::OnIceCandidate(const IceCandidate* candidate) {
   RustIceCandidate rust_candidate;
 
   std::string sdp;
@@ -53,17 +52,6 @@ void PeerConnectionObserverRffi::OnIceCandidate(
   callbacks_.onIceCandidate(observer_, &rust_candidate);
 }
 
-void PeerConnectionObserverRffi::OnIceCandidatesRemoved(
-    const std::vector<Candidate>& candidates) {
-  std::vector<IpPort> removed_addresses;
-  for (const auto& candidate : candidates) {
-    removed_addresses.push_back(RtcSocketAddressToIpPort(candidate.address()));
-  }
-
-  callbacks_.onIceCandidatesRemoved(observer_, removed_addresses.data(),
-                                    removed_addresses.size());
-}
-
 void PeerConnectionObserverRffi::OnIceCandidateError(
     const std::string& address,
     int port,
@@ -78,6 +66,12 @@ void PeerConnectionObserverRffi::OnIceCandidateError(
                         << address << ":" << port << " to " << url << "; error "
                         << error_code << ": " << error_text;
   }
+}
+
+void PeerConnectionObserverRffi::OnIceCandidateRemoved(
+    const IceCandidate* candidate) {
+  callbacks_.onIceCandidateRemoved(
+      observer_, RtcSocketAddressToIpPort(candidate->address()));
 }
 
 void PeerConnectionObserverRffi::OnSignalingChange(

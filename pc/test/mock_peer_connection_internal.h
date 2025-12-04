@@ -45,7 +45,6 @@
 #include "api/stats/rtc_stats_collector_callback.h"
 #include "api/transport/bandwidth_estimation_settings.h"
 #include "api/transport/bitrate_settings.h"
-#include "api/transport/network_control.h"
 #include "call/call.h"
 #include "call/payload_type_picker.h"
 #include "p2p/base/port.h"
@@ -214,10 +213,6 @@ class MockPeerConnectionInternal : public PeerConnectionInternal {
               RemoveIceCandidate,
               (const IceCandidate* candidate),
               (override));
-  MOCK_METHOD(bool,
-              RemoveIceCandidates,
-              (const std::vector<webrtc::Candidate>&),
-              (override));
   // RingRTC change to get unit tests building.
   MOCK_METHOD(uint32_t, GetLastBandwidthEstimateBps, (), (override));
   MOCK_METHOD(RTCError, SetBitrate, (const BitrateSettings&), (override));
@@ -385,11 +380,9 @@ class MockPeerConnectionInternal : public PeerConnectionInternal {
               OnSctpDataChannelStateChanged,
               (int channel_id, DataChannelInterface::DataState),
               (override));
-  MOCK_METHOD(NetworkControllerInterface*,
-              GetNetworkController,
-              (),
-              (override));
   MOCK_METHOD(PayloadTypePicker&, payload_type_picker, (), (override));
+  // RingRTC change to add new methods
+  MOCK_METHOD(void, SetRtpPacketObserver, (RtpPacketSinkInterface*), (override));
 };
 
 }  // namespace webrtc

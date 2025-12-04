@@ -42,14 +42,13 @@ class PeerConnectionObserverRffi : public PeerConnectionObserver {
 
   // Implementation of PeerConnectionObserver interface, which propagates
   // the callbacks to the Rust observer.
-  void OnIceCandidate(const IceCandidateInterface* candidate) override;
-  void OnIceCandidatesRemoved(
-      const std::vector<Candidate>& candidates) override;
+  void OnIceCandidate(const IceCandidate* candidate) override;
   void OnIceCandidateError(const std::string& address,
                            int port,
                            const std::string& url,
                            int error_code,
                            const std::string& error_text) override;
+  void OnIceCandidateRemoved(const IceCandidate* candidate) override;
   void OnSignalingChange(
       PeerConnectionInterface::SignalingState new_state) override;
   void OnIceConnectionChange(

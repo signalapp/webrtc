@@ -10,6 +10,7 @@
 #include "api/audio/create_audio_device_module.h"
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
+#include "api/create_modular_peer_connection_factory.h"
 #include "api/create_peerconnection_factory.h"
 #include "api/enable_media.h"
 #include "api/environment/environment.h"
@@ -410,9 +411,9 @@ RUSTEXPORT PeerConnectionInterface* Rust_createPeerConnection(
 
   config.crypto_options = CryptoOptions{};
   if (observer_borrowed->enable_frame_encryption()) {
-    config.crypto_options->sframe.require_frame_encryption = true;
+    config.crypto_options.sframe.require_frame_encryption = true;
   }
-  config.crypto_options->srtp.enable_gcm_crypto_suites = true;
+  config.crypto_options.srtp.enable_gcm_crypto_suites = true;
   config.continual_gathering_policy =
       PeerConnectionInterface::ContinualGatheringPolicy::GATHER_CONTINUALLY;
 

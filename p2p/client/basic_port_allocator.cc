@@ -46,10 +46,10 @@
 #include "rtc_base/ip_address.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/net_helper.h"
-#include "rtc_base/net_helpers.h"
 #include "rtc_base/network.h"
 #include "rtc_base/network/received_packet.h"
 #include "rtc_base/network_constants.h"
+#include "rtc_base/platform_thread_types.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/thread.h"
@@ -244,8 +244,8 @@ PortAllocatorSession* BasicPortAllocator::CreateSessionInternal(
 }
 
 // RingRTC change to support ICE forking
-scoped_refptr<IceGathererInterface>
-BasicPortAllocator::CreateIceGatherer(const std::string& name) {
+scoped_refptr<IceGathererInterface> BasicPortAllocator::CreateIceGatherer(
+    const std::string& name) {
   CheckRunOnValidThreadAndInitialized();
   // We follow the order that PeerConnectionFactory::CreatePeerConnection
   // + PeerConnection::InitializePortAllocator_n does:
@@ -263,11 +263,8 @@ BasicPortAllocator::CreateIceGatherer(const std::string& name) {
   // for IceGatherers.
 
   // 1. Create with NetworkManager, PacketSocketFactory, and RelayPortFactory.
-  auto new_allocator = std::make_unique<BasicPortAllocator>(env_,
-                                                            network_manager(),
-                                                            socket_factory_,
-                                                            nullptr,
-                                                            nullptr);
+  auto new_allocator = std::make_unique<BasicPortAllocator>(
+      env_, network_manager(), socket_factory_, nullptr, nullptr);
 
   // 2. SetNetworkIgnoreMask().
   new_allocator->SetNetworkIgnoreMask(network_ignore_mask_);
@@ -284,10 +281,13 @@ BasicPortAllocator::CreateIceGatherer(const std::string& name) {
   new_allocator->set_candidate_filter(candidate_filter());
 
   // 5. SetConfiguration
-  new_allocator->SetConfiguration(stun_servers(), turn_servers(),
-                                  0 /* candidate_pool_size */,
-                                  turn_port_prune_policy(), turn_customizer(),
-                                  stun_candidate_keepalive_interval());
+  std::optional<int> interval = std::nullopt;
+  if (stun_candidate_keepalive_interval().has_value()) {
+    interval = stun_candidate_keepalive_interval()->ms();
+  }
+  new_allocator->SetConfiguration(
+      stun_servers(), turn_servers(), 0 /* candidate_pool_size */,
+      turn_port_prune_policy(), turn_customizer(), interval);
 
   IceParameters parameters =
       IceCredentialsIterator::CreateRandomIceCredentials();
@@ -328,8 +328,8 @@ BasicPortAllocatorSession::BasicPortAllocatorSession(
       turn_port_prune_policy_(allocator->turn_port_prune_policy()) {
   TRACE_EVENT0("webrtc",
                "BasicPortAllocatorSession::BasicPortAllocatorSession");
-  allocator_->network_manager()->SignalNetworksChanged.connect(
-      this, &BasicPortAllocatorSession::OnNetworksChanged);
+  allocator_->network_manager()->SubscribeNetworksChanged(
+      SafeInvocable(network_safety_.flag(), [this] { OnNetworksChanged(); }));
   allocator_->network_manager()->StartUpdating();
 }
 
@@ -480,15 +480,11 @@ std::vector<const Network*> BasicPortAllocatorSession::GetFailedNetworks() {
     }
   }
 
-  networks.erase(
-      std::remove_if(networks.begin(), networks.end(),
-                     [networks_with_connection](const Network* network) {
-                       // If a network does not have any connection, it is
-                       // considered failed.
-                       return networks_with_connection.find(network->name()) !=
-                              networks_with_connection.end();
-                     }),
-      networks.end());
+  std::erase_if(networks, [networks_with_connection](const Network* network) {
+    // If a network does not have any connection, it is
+    // considered failed.
+    return networks_with_connection.contains(network->name());
+  });
   return networks;
 }
 
@@ -513,14 +509,11 @@ void BasicPortAllocatorSession::RegatherOnFailedNetworks() {
     }
   }
 
-  bool disable_equivalent_phases = true;
-  Regather(failed_networks, disable_equivalent_phases,
-           IceRegatheringReason::NETWORK_FAILURE);
+  Regather(failed_networks, IceRegatheringReason::NETWORK_FAILURE);
 }
 
 void BasicPortAllocatorSession::Regather(
     const std::vector<const Network*>& networks,
-    bool disable_equivalent_phases,
     IceRegatheringReason reason) {
   RTC_DCHECK_RUN_ON(network_thread_);
   // Remove ports from being used locally and send signaling to remove
@@ -534,7 +527,7 @@ void BasicPortAllocatorSession::Regather(
   if (allocation_started_ && network_manager_started_ && !IsStopped()) {
     SignalIceRegathering(this, reason);
 
-    DoAllocate(disable_equivalent_phases);
+    DoAllocate();
   }
 }
 
@@ -554,7 +547,7 @@ void BasicPortAllocatorSession::GetCandidateStatsFromReadyPorts(
 }
 
 void BasicPortAllocatorSession::SetStunKeepaliveIntervalForReadyPorts(
-    const std::optional<int>& stun_keepalive_interval) {
+    const std::optional<TimeDelta>& stun_keepalive_interval) {
   RTC_DCHECK_RUN_ON(network_thread_);
   auto ports = ReadyPorts();
   for (PortInterface* port : ports) {
@@ -634,6 +627,7 @@ bool BasicPortAllocatorSession::CandidatesAllocationDone() const {
 
 void BasicPortAllocatorSession::UpdateIceParametersInternal() {
   RTC_DCHECK_RUN_ON(network_thread_);
+  RTC_DCHECK(pooled());
   for (PortData& port : ports_) {
     port.port()->set_content_name(content_name());
     port.port()->SetIceParameters(component(), ice_ufrag(), ice_pwd());
@@ -722,8 +716,7 @@ void BasicPortAllocatorSession::OnAllocate(int allocation_epoch) {
     return;
 
   if (network_manager_started_ && !IsStopped()) {
-    bool disable_equivalent_phases = true;
-    DoAllocate(disable_equivalent_phases);
+    DoAllocate();
   }
 
   allocation_started_ = true;
@@ -858,7 +851,7 @@ std::vector<const Network*> BasicPortAllocatorSession::SelectIPv6Networks(
 
 // For each network, see if we have a sequence that covers it already.  If not,
 // create a new sequence to create the appropriate ports.
-void BasicPortAllocatorSession::DoAllocate(bool disable_equivalent) {
+void BasicPortAllocatorSession::DoAllocate() {
   RTC_DCHECK_RUN_ON(network_thread_);
   bool done_signal_needed = false;
   std::vector<const Network*> networks = GetNetworks();
@@ -897,15 +890,13 @@ void BasicPortAllocatorSession::DoAllocate(bool disable_equivalent) {
         continue;
       }
 
-      if (disable_equivalent) {
-        // Disable phases that would only create ports equivalent to
-        // ones that we have already made.
-        DisableEquivalentPhases(networks[i], config, &sequence_flags);
+      // Disable phases that would only create ports equivalent to
+      // ones that we have already made.
+      DisableEquivalentPhases(networks[i], config, &sequence_flags);
 
-        if ((sequence_flags & DISABLE_ALL_PHASES) == DISABLE_ALL_PHASES) {
-          // New AllocationSequence would have nothing to do, so don't make it.
-          continue;
-        }
+      if ((sequence_flags & DISABLE_ALL_PHASES) == DISABLE_ALL_PHASES) {
+        // New AllocationSequence would have nothing to do, so don't make it.
+        continue;
       }
 
       AllocationSequence* sequence =
@@ -952,8 +943,8 @@ void BasicPortAllocatorSession::OnNetworksChanged() {
       // If the network manager has started, it must be regathering.
       SignalIceRegathering(this, IceRegatheringReason::NETWORK_CHANGE);
     }
-    bool disable_equivalent_phases = true;
-    DoAllocate(disable_equivalent_phases);
+
+    DoAllocate();
   }
 
   if (!network_manager_started_) {
@@ -977,29 +968,28 @@ void BasicPortAllocatorSession::DisableEquivalentPhases(
 void BasicPortAllocatorSession::AddAllocatedPort(Port* port,
                                                  AllocationSequence* seq) {
   RTC_DCHECK_RUN_ON(network_thread_);
-  if (!port)
-    return;
+  RTC_DCHECK_EQ(port->content_name(), content_name());
 
   RTC_LOG(LS_INFO) << "Adding allocated port for " << content_name();
-  port->set_content_name(content_name());
   port->set_component(component());
   port->set_generation(generation());
   port->set_send_retransmit_count_attribute(
       (flags() & PORTALLOCATOR_ENABLE_STUN_RETRANSMIT_ATTRIBUTE) != 0);
 
-  PortData data(port, seq);
-  ports_.push_back(data);
+  ports_.emplace_back(port, seq);
 
-  port->SignalCandidateReady.connect(
-      this, &BasicPortAllocatorSession::OnCandidateReady);
-  port->SignalCandidateError.connect(
-      this, &BasicPortAllocatorSession::OnCandidateError);
-  port->SignalPortComplete.connect(this,
-                                   &BasicPortAllocatorSession::OnPortComplete);
-  // RingRTC change to support ICE forking
-  port->SignalDestroyed.connect(this, &BasicPortAllocatorSession::OnPortDestroyed);
+  port->SubscribeCandidateReadyCallback(
+      [this](Port* port, const Candidate& c) { OnCandidateReady(port, c); });
+  port->SubscribeCandidateError(
+      [this](Port* port, const IceCandidateErrorEvent& event) {
+        OnCandidateError(port, event);
+      });
+  port->SubscribePortComplete([this](Port* port) { OnPortComplete(port); });
+  port->SubscribePortDestroyed(
+      [this](PortInterface* port) { OnPortDestroyed(port); });
 
-  port->SignalPortError.connect(this, &BasicPortAllocatorSession::OnPortError);
+  port->SubscribePortError([this](Port* port) { OnPortError(port); });
+
   RTC_LOG(LS_INFO) << port->ToString() << ": Added port to allocator";
 
   port->PrepareAddress();
@@ -1112,9 +1102,15 @@ bool BasicPortAllocatorSession::PruneNewlyPairableTurnPort(
         data.port()->Type() == IceCandidateType::kRelay && data.ready() &&
         &data != newly_pairable_port_data) {
       // RingRTC change to prune ports on a per-server basis
-      auto existing_addr = static_cast<TurnPort*>(data.port())->server_address().address.ipaddr();
-      auto newly_pairable_addr = static_cast<TurnPort*>(newly_pairable_port_data->port())->server_address().address.ipaddr();
-      if (existing_addr.family() == newly_pairable_addr.family() && existing_addr != newly_pairable_addr) {
+      auto existing_addr = static_cast<TurnPort*>(data.port())
+                               ->server_address()
+                               .address.ipaddr();
+      auto newly_pairable_addr =
+          static_cast<TurnPort*>(newly_pairable_port_data->port())
+              ->server_address()
+              .address.ipaddr();
+      if (existing_addr.family() == newly_pairable_addr.family() &&
+          existing_addr != newly_pairable_addr) {
         RTC_LOG(LS_INFO) << "Port pruned: "
                          << newly_pairable_port_data->port()->ToString();
         newly_pairable_port_data->Prune();
@@ -1344,9 +1340,10 @@ AllocationSequence::AllocationSequence(
 
 void AllocationSequence::Init() {
   if (IsFlagSet(PORTALLOCATOR_ENABLE_SHARED_SOCKET)) {
-    udp_socket_.reset(session_->socket_factory()->CreateUdpSocket(
-        SocketAddress(network_->GetBestIP(), 0),
-        session_->allocator()->min_port(), session_->allocator()->max_port()));
+    BasicPortAllocator& allocator = *session_->allocator();
+    udp_socket_ = session_->socket_factory()->CreateUdpSocket(
+        allocator.env(), SocketAddress(network_->GetBestIP(), 0),
+        allocator.min_port(), allocator.max_port());
     if (udp_socket_) {
       udp_socket_->RegisterReceivedPacketCallback(
           [&](AsyncPacketSocket* socket, const ReceivedIpPacket& packet) {
@@ -1527,6 +1524,7 @@ void AllocationSequence::CreateUDPPorts() {
          .network = network_,
          .ice_username_fragment = session_->username(),
          .ice_password = session_->password(),
+         .content_name = session_->content_name(),
          .lna_permission_factory =
              session_->allocator()->lna_permission_factory()},
         udp_socket_.get(), emit_local_candidate_for_anyaddress,
@@ -1539,6 +1537,7 @@ void AllocationSequence::CreateUDPPorts() {
          .network = network_,
          .ice_username_fragment = session_->username(),
          .ice_password = session_->password(),
+         .content_name = session_->content_name(),
          .lna_permission_factory =
              session_->allocator()->lna_permission_factory()},
         session_->allocator()->min_port(), session_->allocator()->max_port(),
@@ -1552,9 +1551,8 @@ void AllocationSequence::CreateUDPPorts() {
     // UDPPort.
     if (IsFlagSet(PORTALLOCATOR_ENABLE_SHARED_SOCKET)) {
       udp_port_ = port.get();
-      // RingRTC change to support ICE forking
-      port->SignalDestroyed.connect(this, &AllocationSequence::OnPortDestroyed);
-
+      port->SubscribePortDestroyed(
+          [this](PortInterface* port) { OnPortDestroyed(port); });
       // If STUN is not disabled, setting stun server address to port.
       if (!IsFlagSet(PORTALLOCATOR_DISABLE_STUN)) {
         if (config_ && !config_->StunServers().empty()) {
@@ -1582,7 +1580,8 @@ void AllocationSequence::CreateTCPPorts() {
        .socket_factory = session_->socket_factory(),
        .network = network_,
        .ice_username_fragment = session_->username(),
-       .ice_password = session_->password()},
+       .ice_password = session_->password(),
+       .content_name = session_->content_name()},
       session_->allocator()->min_port(), session_->allocator()->max_port(),
       session_->allocator()->allow_tcp_listen());
   if (port) {
@@ -1616,6 +1615,7 @@ void AllocationSequence::CreateStunPorts() {
        .network = network_,
        .ice_username_fragment = session_->username(),
        .ice_password = session_->password(),
+       .content_name = session_->content_name(),
        .lna_permission_factory =
            session_->allocator()->lna_permission_factory()},
       session_->allocator()->min_port(), session_->allocator()->max_port(),
@@ -1685,6 +1685,7 @@ void AllocationSequence::CreateTurnPort(const RelayServerConfig& config,
     args.network = network_;
     args.username = session_->username();
     args.password = session_->password();
+    args.content_name = session_->content_name();
     args.server_address = &(*relay_port);
     args.config = &config;
     args.turn_customizer = session_->allocator()->turn_customizer();
@@ -1711,8 +1712,8 @@ void AllocationSequence::CreateTurnPort(const RelayServerConfig& config,
       relay_ports_.push_back(port.get());
       // Listen to the port destroyed signal, to allow AllocationSequence to
       // remove the entry from it's map.
-      // RingRTC change to support ICE forking
-      port->SignalDestroyed.connect(this, &AllocationSequence::OnPortDestroyed);
+      port->SubscribePortDestroyed(
+          [this](PortInterface* port) { OnPortDestroyed(port); });
     } else {
       port = session_->allocator()->relay_port_factory()->Create(
           args, session_->allocator()->min_port(),

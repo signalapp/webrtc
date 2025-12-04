@@ -140,8 +140,8 @@ class FakePortAllocatorSession : public PortAllocatorSession {
                                       0, 0, false));
       RTC_DCHECK(port_);
       port_->SetIceTiebreaker(allocator_->ice_tiebreaker());
-      // RingRTC change to support ICE forking
-      port_->SignalDestroyed.connect(this, &FakePortAllocatorSession::OnPortDestroyed);
+      port_->SubscribePortDestroyed(
+          [this](PortInterface* port) { OnPortDestroyed(port); });
       AddPort(port_.get());
     }
     ++port_config_count_;
@@ -191,8 +191,7 @@ class FakePortAllocatorSession : public PortAllocatorSession {
   void AddPort(Port* port) {
     port->set_component(component());
     port->set_generation(generation());
-    port->SignalPortComplete.connect(this,
-                                     &FakePortAllocatorSession::OnPortComplete);
+    port->SubscribePortComplete([this](Port* port) { OnPortComplete(port); });
     port->PrepareAddress();
     ready_ports_.push_back(port);
     SignalPortReady(this, port);

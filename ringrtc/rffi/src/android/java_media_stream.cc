@@ -11,6 +11,7 @@
 
 #include "rffi/api/android/media_stream_intf.h"
 #include "rffi/src/ptr.h"
+#include "sdk/android/native_api/jni/jvm.h"
 #include "sdk/android/src/jni/pc/peer_connection.h"
 
 namespace webrtc {
