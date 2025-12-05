@@ -1074,11 +1074,7 @@ if (is_mac || is_ios) {
 
     action_foreach("create_bracket_include_headers_$target_name") {
       script = "//tools_webrtc/apple/copy_framework_header.py"
-      if (is_mac) {
-        sources = invoker.sources
-      } else {
-        sources = invoker.public_headers
-      }
+      sources = invoker.sources
       output_name = invoker.output_name
       outputs = [
         "$target_gen_dir/$output_name.framework/Headers/{{source_file_part}}",

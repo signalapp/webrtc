@@ -1422,7 +1422,6 @@ if (is_ios || is_mac) {
         }
 
         sources = common_objc_headers
-        public_headers = common_objc_headers
 
         ldflags = [
           "-all_load",
