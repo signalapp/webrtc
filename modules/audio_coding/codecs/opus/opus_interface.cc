@@ -185,6 +185,13 @@ int WebRtcOpus_Encode(OpusEncInst* inst,
     }
   }
 
+  // RingRTC change to fix 400ms clicking during DTX
+  // Skip sending the DTX refresh packets, which will be just the packets >= 2
+  // bytes during DTX
+  if (inst->in_dtx_mode && WebRtcOpus_GetInDtx(inst)) {
+    return 0;
+  }
+
   inst->in_dtx_mode = 0;
   return res;
 }
