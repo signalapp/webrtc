@@ -77,7 +77,6 @@ scoped_refptr<RingRTCAudioDeviceModule> RingRTCAudioDeviceModule::Create(
     void* adm_borrowed,
     const AudioDeviceCallbacks* callbacks) {
   TRACE_LOG;
-  RTC_DCHECK(adm_borrowed);
   RTC_DCHECK(callbacks);
   return make_ref_counted<RingRTCAudioDeviceModule>(adm_borrowed, callbacks);
 }
