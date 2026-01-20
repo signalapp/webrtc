@@ -73,16 +73,7 @@ enum class RffiPeerConnectionKind : uint8_t {
   kGroupCall,
 };
 
-enum RffiAudioDeviceModuleType {
-  // 0 used to represent the "test-only" webrtc ADMs but is no longer used.
-  kRffiAudioDeviceModuleFile = 1,
-  kRffiAudioDeviceModuleRingRtc = 2,
-};
-
 typedef struct {
-  RffiAudioDeviceModuleType audio_device_module_type;
-  const char* input_file_borrowed;
-  const char* output_file_borrowed;
   bool high_pass_filter_enabled;
   bool aec_enabled;
   bool ns_enabled;

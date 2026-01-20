@@ -25,7 +25,6 @@
 #include "api/video_codecs/video_encoder_factory_template_libvpx_vp8_adapter.h"
 #include "api/video_codecs/video_encoder_factory_template_libvpx_vp9_adapter.h"
 #include "media/engine/simulcast_encoder_adapter.h"
-#include "modules/audio_device/dummy/file_audio_device_factory.h"
 #include "modules/audio_mixer/audio_mixer_impl.h"
 #include "rffi/api/injectable_network.h"
 #include "rffi/api/media.h"
@@ -143,18 +142,9 @@ class PeerConnectionFactoryWithOwnedThreads
     // because the PeerConnectionFactory keeps its own reference.
     auto adm =
         worker_thread->BlockingCall([&]() -> scoped_refptr<AudioDeviceModule> {
-          switch (audio_config_borrowed->audio_device_module_type) {
-            case kRffiAudioDeviceModuleFile:
-              FileAudioDeviceFactory::SetFilenamesToUse(
-                  audio_config_borrowed->input_file_borrowed,
-                  audio_config_borrowed->output_file_borrowed);
-              return CreateAudioDeviceModule(env,
-                                             AudioDeviceModule::kDummyAudio);
-            case kRffiAudioDeviceModuleRingRtc:
-              return RingRTCAudioDeviceModule::Create(
-                  audio_config_borrowed->rust_adm_borrowed,
-                  audio_config_borrowed->rust_audio_device_callbacks);
-          }
+          return RingRTCAudioDeviceModule::Create(
+              audio_config_borrowed->rust_adm_borrowed,
+              audio_config_borrowed->rust_audio_device_callbacks);
         });
 
     dependencies.adm = adm;
