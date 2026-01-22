@@ -98,7 +98,8 @@ class AndroidAudioDeviceModule : public AudioDeviceModule {
   }
 
   int32_t Init() override {
-    RTC_DLOG(LS_INFO) << __FUNCTION__;
+    // RingRTC change to make some audio operations more visible
+    RTC_LOG(LS_WARNING) << __FUNCTION__;
     RTC_DCHECK(thread_checker_.IsCurrent());
     audio_device_buffer_ = std::make_unique<AudioDeviceBuffer>(env_);
     AttachAudioBuffer();
@@ -126,7 +127,8 @@ class AndroidAudioDeviceModule : public AudioDeviceModule {
   }
 
   int32_t Terminate() override {
-    RTC_DLOG(LS_INFO) << __FUNCTION__;
+    // RingRTC change to make some audio operations more visible
+    RTC_LOG(LS_WARNING) << __FUNCTION__;
     if (!initialized_)
       return 0;
     RTC_DCHECK(thread_checker_.IsCurrent());
@@ -200,7 +202,8 @@ class AndroidAudioDeviceModule : public AudioDeviceModule {
   }
 
   int32_t InitPlayout() override {
-    RTC_DLOG(LS_INFO) << __FUNCTION__;
+    // RingRTC change to make some audio operations more visible
+    RTC_LOG(LS_WARNING) << __FUNCTION__;
     if (!initialized_)
       return -1;
     if (PlayoutIsInitialized()) {
@@ -226,7 +229,8 @@ class AndroidAudioDeviceModule : public AudioDeviceModule {
   }
 
   int32_t InitRecording() override {
-    RTC_DLOG(LS_INFO) << __FUNCTION__;
+    // RingRTC change to make some audio operations more visible
+    RTC_LOG(LS_WARNING) << __FUNCTION__;
     if (!initialized_)
       return -1;
     if (RecordingIsInitialized()) {
@@ -245,7 +249,8 @@ class AndroidAudioDeviceModule : public AudioDeviceModule {
   }
 
   int32_t StartPlayout() override {
-    RTC_DLOG(LS_INFO) << __FUNCTION__;
+    // RingRTC change to make some audio operations more visible
+    RTC_LOG(LS_WARNING) << __FUNCTION__;
     if (!initialized_)
       return -1;
     if (Playing()) {
@@ -264,7 +269,8 @@ class AndroidAudioDeviceModule : public AudioDeviceModule {
   }
 
   int32_t StopPlayout() override {
-    RTC_DLOG(LS_INFO) << __FUNCTION__;
+    // RingRTC change to make some audio operations more visible
+    RTC_LOG(LS_WARNING) << __FUNCTION__;
     if (!initialized_)
       return -1;
     if (!Playing())
@@ -284,7 +290,8 @@ class AndroidAudioDeviceModule : public AudioDeviceModule {
   }
 
   int32_t StartRecording() override {
-    RTC_DLOG(LS_INFO) << __FUNCTION__;
+    // RingRTC change to make some audio operations more visible
+    RTC_LOG(LS_WARNING) << __FUNCTION__;
     if (!initialized_)
       return -1;
     if (Recording()) {
@@ -303,7 +310,8 @@ class AndroidAudioDeviceModule : public AudioDeviceModule {
   }
 
   int32_t StopRecording() override {
-    RTC_DLOG(LS_INFO) << __FUNCTION__;
+    // RingRTC change to make some audio operations more visible
+    RTC_LOG(LS_WARNING) << __FUNCTION__;
     if (!initialized_)
       return -1;
     audio_device_buffer_->StopRecording();
@@ -454,7 +462,8 @@ class AndroidAudioDeviceModule : public AudioDeviceModule {
   }
 
   int32_t SetStereoPlayout(bool enable) override {
-    RTC_DLOG(LS_INFO) << __FUNCTION__ << "(" << enable << ")";
+    // RingRTC change to make some audio operations more visible
+    RTC_LOG(LS_WARNING) << __FUNCTION__ << "(" << enable << ")";
     // Android does not support changes between mono and stero on the fly. The
     // use of stereo or mono is determined by the audio layer. It is allowed
     // to call this method if that same state is not modified.
@@ -481,7 +490,8 @@ class AndroidAudioDeviceModule : public AudioDeviceModule {
   }
 
   int32_t SetStereoRecording(bool enable) override {
-    RTC_DLOG(LS_INFO) << __FUNCTION__ << "(" << enable << ")";
+    // RingRTC change to make some audio operations more visible
+    RTC_LOG(LS_WARNING) << __FUNCTION__ << "(" << enable << ")";
     // Android does not support changes between mono and stero on the fly. The
     // use of stereo or mono is determined by the audio layer. It is allowed
     // to call this method if that same state is not modified.
@@ -550,7 +560,8 @@ class AndroidAudioDeviceModule : public AudioDeviceModule {
 
   // TODO(henrika): add implementation for OpenSL ES based audio as well.
   int32_t EnableBuiltInAEC(bool enable) override {
-    RTC_DLOG(LS_INFO) << __FUNCTION__ << "(" << enable << ")";
+    // RingRTC change to make some audio operations more visible
+    RTC_LOG(LS_WARNING) << __FUNCTION__ << "(" << enable << ")";
     if (!initialized_)
       return -1;
     RTC_CHECK(BuiltInAECIsAvailable()) << "HW AEC is not available";
@@ -566,7 +577,8 @@ class AndroidAudioDeviceModule : public AudioDeviceModule {
 
   // TODO(henrika): add implementation for OpenSL ES based audio as well.
   int32_t EnableBuiltInNS(bool enable) override {
-    RTC_DLOG(LS_INFO) << __FUNCTION__ << "(" << enable << ")";
+    // RingRTC change to make some audio operations more visible
+    RTC_LOG(LS_WARNING) << __FUNCTION__ << "(" << enable << ")";
     if (!initialized_)
       return -1;
     RTC_CHECK(BuiltInNSIsAvailable()) << "HW NS is not available";
