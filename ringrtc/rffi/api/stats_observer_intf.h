@@ -21,6 +21,13 @@ class StatsObserverRffi;
 }  // namespace rffi
 }  // namespace webrtc
 
+// Used for stats
+enum StatsVideoCodecType {
+  kStatsInvalidVideoCodec = 0,
+  kStatsVideoCodecVp8 = 8,
+  kStatsVideoCodecVp9 = 9,
+};
+
 typedef struct {
   uint32_t ssrc;
   uint32_t packets_sent;
@@ -51,6 +58,7 @@ typedef struct {
   int32_t remote_packets_lost;
   double remote_jitter;
   double remote_round_trip_time;
+  StatsVideoCodecType codec;
 } VideoSenderStatistics;
 
 typedef struct {
@@ -84,6 +92,7 @@ typedef struct {
   uint64_t jitter_buffer_emitted_count;
   uint64_t jitter_buffer_flushes;
   double estimated_playout_timestamp;
+  StatsVideoCodecType codec;
 } VideoReceiverStatistics;
 
 typedef struct {

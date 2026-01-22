@@ -9,6 +9,19 @@
 #include "rffi/api/stats_observer_intf.h"
 #include "rffi/src/ptr.h"
 
+namespace {
+StatsVideoCodecType MimeTypeToCodec(std::string mime_type) {
+  if (mime_type == "video/VP9") {
+    return kStatsVideoCodecVp9;
+  } else if (mime_type == "video/VP8") {
+    return kStatsVideoCodecVp8;
+  } else {
+    RTC_LOG(LS_ERROR) << "unknown mime type " << mime_type;
+    return kStatsInvalidVideoCodec;
+  }
+}
+}  // namespace
+
 namespace webrtc {
 namespace rffi {
 
@@ -43,6 +56,13 @@ void StatsObserverRffi::OnStatsDelivered(
       report->GetStatsOfType<RTCInboundRtpStreamStats>();
   auto candidate_pair_stats =
       report->GetStatsOfType<RTCIceCandidatePairStats>();
+  auto codec_stats = report->GetStatsOfType<RTCCodecStats>();
+  std::map<std::string, std::string> codec_id_to_mime;
+  for (const auto& stat : codec_stats) {
+    if (stat->mime_type.has_value()) {
+      codec_id_to_mime[stat->id()] = *stat->mime_type;
+    }
+  }
 
   for (const auto& stat : outbound_stream_stats) {
     if (*stat->kind == "audio" &&
@@ -97,6 +117,11 @@ void StatsObserverRffi::OnStatsDelivered(
           stat->total_packet_send_delay.value_or(0.0);
       video_sender.nack_count = stat->nack_count.value_or(0);
       video_sender.pli_count = stat->pli_count.value_or(0);
+      if (stat->codec_id) {
+        video_sender.codec = MimeTypeToCodec(codec_id_to_mime[*stat->codec_id]);
+      } else {
+        video_sender.codec = kStatsInvalidVideoCodec;
+      }
       if (stat->quality_limitation_reason.has_value()) {
         // "none" = 0 (the default)
         if (*stat->quality_limitation_reason == "cpu") {
@@ -176,6 +201,12 @@ void StatsObserverRffi::OnStatsDelivered(
           stat->total_freezes_duration.value_or(0.0);
       video_receiver.estimated_playout_timestamp =
           stat->estimated_playout_timestamp.value_or(0.0);
+      if (stat->codec_id) {
+        video_receiver.codec =
+            MimeTypeToCodec(codec_id_to_mime[*stat->codec_id]);
+      } else {
+        video_receiver.codec = kStatsInvalidVideoCodec;
+      }
 
       this->video_receiver_statistics_.push_back(video_receiver);
     }
