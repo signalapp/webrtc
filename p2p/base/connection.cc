@@ -800,8 +800,9 @@ void Connection::SendStunBindingResponse(const StunMessage* message) {
     response.AddAttribute(std::make_unique<StunUInt32Attribute>(
         STUN_ATTR_RETRANSMIT_COUNT, retransmit_attr->value()));
 
+    // RingRTC change to log at LS_WARNING
     if (retransmit_attr->value() > kConnectionWriteConnectFailures) {
-      RTC_LOG(LS_INFO)
+      RTC_LOG(LS_WARNING)
           << ToString()
           << ": Received a remote ping with high retransmit count: "
           << retransmit_attr->value();
@@ -1517,9 +1518,10 @@ void Connection::LogCandidatePairEvent(IceCandidatePairEventType type,
 void Connection::OnConnectionRequestResponse(StunRequest* request,
                                              StunMessage* response) {
   RTC_DCHECK_RUN_ON(network_thread_);
+  // RingRTC change to log ICE/request/response at LS_WARNING if weak, selected connection
   // Log at LS_INFO if we receive a ping response on an unwritable
   // connection.
-  LoggingSeverity sev = !writable() ? LS_INFO : LS_VERBOSE;
+  LoggingSeverity sev = weak() && selected() ? LS_WARNING : LS_VERBOSE;
 
   TimeDelta rtt = request->Elapsed();
 
@@ -1639,8 +1641,9 @@ void Connection::OnConnectionRequestErrorResponse(ConnectionRequest* request,
 }
 
 void Connection::OnConnectionRequestTimeout(ConnectionRequest* request) {
+  // RingRTC change to log at LS_WARNING if strong and selected connection
   // Log at LS_INFO if we miss a ping on a writable connection.
-  LoggingSeverity sev = writable() ? LS_INFO : LS_VERBOSE;
+  LoggingSeverity sev = !weak() && selected() ? LS_WARNING : LS_VERBOSE;
   RTC_LOG_V(sev) << ToString() << ": Timing-out STUN ping "
                  << hex_encode(request->id()) << " after " << request->Elapsed()
                  << " ms";
@@ -1648,8 +1651,9 @@ void Connection::OnConnectionRequestTimeout(ConnectionRequest* request) {
 
 void Connection::OnConnectionRequestSent(ConnectionRequest* request) {
   RTC_DCHECK_RUN_ON(network_thread_);
+  // RingRTC change to log at LS_WARNING if it's weak, selected connection
   // Log at LS_INFO if we send a ping on an unwritable connection.
-  LoggingSeverity sev = !writable() ? LS_INFO : LS_VERBOSE;
+  LoggingSeverity sev = weak() && selected() ? LS_WARNING : LS_VERBOSE;
   RTC_LOG_V(sev) << ToString() << ": Sent "
                  << StunMethodToString(request->msg()->type())
                  << ", id=" << hex_encode(request->id())
