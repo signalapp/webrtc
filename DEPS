@@ -70,7 +70,7 @@ vars = {
 deps = {
   # RingRTC change to use a the upstream xiph opus
   'src/ringrtc/opus/src':
-    'https://github.com/xiph/opus.git@55513e81d8f606bd75d0ff773d2144e5f2a732f5',
+    'https://github.com/xiph/opus.git@22244de5a79bd1d6d623c32e72bf1954b56235be',
 
   # RingRTC change to support Oboe for audio on Android
   'src/ringrtc/oboe/src': {
