@@ -240,6 +240,8 @@
   nativeConfig->max_ipv6_networks = _maxIPv6Networks;
   nativeConfig->disable_link_local_networks = _disableLinkLocalNetworks;
   nativeConfig->audio_jitter_buffer_max_packets = _audioJitterBufferMaxPackets;
+  // RingRTC change to smooth CPU load estimation
+  nativeConfig->set_experiment_cpu_load_estimator(true);
   // RingRTC change to configure the jitter buffer's max target delay.
   nativeConfig->set_audio_jitter_buffer_max_target_delay_ms(_audioJitterBufferMaxTargetDelayMs);
   nativeConfig->audio_jitter_buffer_fast_accelerate =

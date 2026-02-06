@@ -221,6 +221,8 @@ void JavaToNativeRTCConfiguration(
   rtc_config->servers = JavaToNativeIceServers(jni, j_ice_servers);
   rtc_config->audio_jitter_buffer_max_packets =
       Java_RTCConfiguration_getAudioJitterBufferMaxPackets(jni, j_rtc_config);
+  // RingRTC change to smooth CPU load estimation
+  rtc_config->set_experiment_cpu_load_estimator(true);
   // RingRTC change to configure the jitter buffer's max target delay.
   rtc_config->set_audio_jitter_buffer_max_target_delay_ms(
       Java_RTCConfiguration_getAudioJitterBufferMaxTargetDelayMs(jni,

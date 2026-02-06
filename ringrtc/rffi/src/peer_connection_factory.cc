@@ -365,6 +365,7 @@ RUSTEXPORT PeerConnectionInterface* Rust_createPeerConnection(
   auto factory = factory_owner_borrowed_rc->peer_connection_factory();
 
   PeerConnectionInterface::RTCConfiguration config;
+  config.set_experiment_cpu_load_estimator(true);
   config.bundle_policy = PeerConnectionInterface::kBundlePolicyMaxBundle;
   config.rtcp_mux_policy = PeerConnectionInterface::kRtcpMuxPolicyRequire;
   config.tcp_candidate_policy =
