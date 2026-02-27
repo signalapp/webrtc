@@ -338,6 +338,71 @@ rtc_library("rate_statistics") {
   ]
 }
 
+if (rtc_rust) {
+  rtc_rust_library("rate_tracker_rust") {
+    crate_root = "rate_tracker.rs"
+    sources = [ "rate_tracker.rs" ]
+    deps = [
+      ":checks",
+      "../api/units:time_delta",
+      "../api/units:time_delta_rs",
+      "../api/units:timestamp",
+      "../api/units:timestamp_rs",
+      "//build/rust:cxx_rustdeps",
+    ]
+    visibility = [ "*" ]
+  }
+
+  rtc_rust_library("rate_tracker_ffi_rust") {
+    allow_unsafe = true
+    crate_root = "rate_tracker_ffi.rs"
+    sources = [ "rate_tracker_ffi.rs" ]
+    deps = [
+      ":rate_tracker_rust",
+      "../api/units:time_delta_rs",
+      "../api/units:timestamp_rs",
+      "//build/rust:cxx_rustdeps",
+    ]
+  }
+
+  rtc_rust_cxx_bridge("rate_tracker_ffi") {
+    allow_unsafe = true
+    source = "rate_tracker_ffi.rs"
+    deps = [
+      ":rate_tracker_ffi_rust",
+      ":rate_tracker_rust",
+      "../api/units:time_delta",
+      "../api/units:time_delta_ffi",
+      "../api/units:time_delta_rs",
+      "../api/units:timestamp",
+      "../api/units:timestamp_ffi",
+      "../api/units:timestamp_rs",
+      "//build/rust:cxx_rustdeps",
+    ]
+  }
+
+  rtc_rust_unittest("rate_tracker_rust_tests") {
+    crate_root = "rate_tracker.rs"
+    sources = [ "rate_tracker.rs" ]
+    deps = [
+      ":checks",
+      "../api/units:time_delta",
+      "../api/units:time_delta_rs",
+      "../api/units:timestamp",
+      "../api/units:timestamp_rs",
+    ]
+  }
+
+  rtc_rust_test_suite("rust_unit_tests") {
+    deps = [ ":rate_tracker_rust_tests" ]
+  }
+} else {
+  # This target is required for the bot configuration as it is always
+  # present in the more_configs_tests test suite even if Rust is disabled.
+  group("rust_unit_tests") {
+  }
+}
+
 rtc_library("rate_tracker") {
   visibility = [ "*" ]
   sources = [
@@ -2194,6 +2259,13 @@ if (rtc_include_tests) {
 
       if (is_win) {
         deps += [ "win:windows_version_unittest" ]
+      }
+      if (rtc_rust) {
+        sources += [ "rate_tracker_comparison_unittest.cc" ]
+        deps += [
+          ":rate_tracker_ffi",
+          "//third_party/abseil-cpp/absl/random",
+        ]
       }
     }
 

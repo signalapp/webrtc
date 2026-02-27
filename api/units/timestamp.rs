@@ -24,19 +24,19 @@ unsafe impl ExternType for Timestamp {
 }
 
 impl Timestamp {
-    pub fn ms(&self) -> i64 {
+    pub const fn ms(&self) -> i64 {
         self.microseconds / 1000
     }
 
-    pub fn us(&self) -> i64 {
+    pub const fn us(&self) -> i64 {
         self.microseconds
     }
 
-    pub fn from_millis(value: i64) -> Self {
+    pub const fn from_millis(value: i64) -> Self {
         Self { microseconds: value * 1000 }
     }
 
-    pub fn from_micros(value: i64) -> Self {
+    pub const fn from_micros(value: i64) -> Self {
         Self { microseconds: value }
     }
 }

@@ -26,27 +26,27 @@ impl Default for TimeDelta {
 }
 
 impl TimeDelta {
-    pub fn ms(&self) -> i64 {
+    pub const fn ms(&self) -> i64 {
         self.microseconds / 1000
     }
 
-    pub fn us(&self) -> i64 {
+    pub const fn us(&self) -> i64 {
         self.microseconds
     }
 
-    pub fn from_millis(value: i64) -> Self {
+    pub const fn from_millis(value: i64) -> Self {
         Self { microseconds: value * 1000 }
     }
 
-    pub fn from_micros(value: i64) -> Self {
+    pub const fn from_micros(value: i64) -> Self {
         Self { microseconds: value }
     }
 
-    pub fn zero() -> Self {
+    pub const fn zero() -> Self {
         Self { microseconds: 0 }
     }
 
-    pub fn seconds_f64(&self) -> f64 {
+    pub const fn seconds_f64(&self) -> f64 {
         self.microseconds as f64 / 1_000_000.0
     }
 }

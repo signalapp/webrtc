@@ -1439,6 +1439,9 @@ template("rtc_rust_library") {
   assert(
       !defined(invoker.crate_name),
       "Custom crate_name is not allowed in WebRTC. Use webrtc::import! instead.")
+  assert(
+      !defined(invoker.cxx_bindings),
+      "cxx_bindings are not allowed in rtc_rust_library. Use rtc_rust_cxx_bridge instead.")
   rust_static_library(target_name) {
     forward_variables_from(invoker,
                            "*",
@@ -1464,6 +1467,9 @@ template("rtc_rust_library") {
 # Defines a Rust unit test.
 template("rtc_rust_unittest") {
   if (can_build_rust_unit_tests) {
+    assert(
+        !defined(invoker.crate_name),
+        "Custom crate_name is not allowed in WebRTC. Use webrtc::import! instead.")
     rust_unit_test(target_name) {
       forward_variables_from(invoker,
                              "*",
@@ -1498,6 +1504,15 @@ template("rtc_rust_cxx_bridge") {
   assert(defined(invoker.source), "source must be specified")
   assert(!defined(invoker.sources), "Use source instead of sources")
 
+  # Explicitly assert that //build/rust:cxx_rustdeps is listed in deps.
+  assert(defined(invoker.deps) &&
+             filter_labels_include(invoker.deps,
+                                   [ "//build/rust:cxx_rustdeps" ]) != [],
+         "rtc_rust_cxx_bridge requires //build/rust:cxx_rustdeps in deps.")
+  assert(
+      !defined(invoker.crate_name),
+      "Custom crate_name is not allowed in WebRTC. Use webrtc::import! instead.")
+
   rust_static_library(target_name) {
     forward_variables_from(invoker,
                            [
@@ -1505,23 +1520,43 @@ template("rtc_rust_cxx_bridge") {
                              "features",
                              "edition",
                              "crate_root",
-                             "crate_name",
                              "testonly",
                              "visibility",
+                             "deps",
                            ])
     rustenv = [ "WEBRTC_GN_PREFIX=$webrtc_root" ]
     if (defined(invoker.rustenv)) {
       rustenv += invoker.rustenv
     }
-    deps = [ "$webrtc_root/rust/webrtc_import" ]
-    if (defined(invoker.deps)) {
-      deps += invoker.deps
+    if (!defined(deps)) {
+      deps = []
     }
+    deps += [ "$webrtc_root/rust/webrtc_import" ]
     if (!defined(crate_root)) {
       crate_root = invoker.source
     }
     sources = [ invoker.source ]
     cxx_bindings = [ invoker.source ]
+
+    # WebRTC and Abseil include paths/defines are explicitly populated so that
+    # auto-generated bridge C++ source files (.cc) can safely locate required
+    # headers during compilation, and propagate header visibility cleanly via public_configs.
+    if (defined(invoker.configs)) {
+      configs += invoker.configs
+    }
+    configs += [
+      rtc_common_inherited_config,
+      absl_include_config,
+      absl_define_config,
+    ]
+    public_configs = [
+      rtc_common_inherited_config,
+      absl_include_config,
+      absl_define_config,
+    ]
+    if (defined(invoker.public_configs)) {
+      public_configs += invoker.public_configs
+    }
   }
 }
 

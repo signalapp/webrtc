@@ -107,20 +107,25 @@ if (rtc_include_tests) {
       "../../test:test_support",
       "//third_party/abseil-cpp/absl/strings",
     ]
-    if (rtc_rust) {
-      deps += [ ":units_rs_bridge_unittests" ]
-    }
   }
 }
 
 if (rtc_rust) {
-  rtc_rust_cxx_bridge("units_ffi") {
-    source = "units_ffi.rs"
+  rtc_rust_library("time_delta_ffi_rust") {
+    crate_root = "time_delta_ffi.rs"
+    sources = [ "time_delta_ffi.rs" ]
     deps = [
       ":time_delta",
       ":time_delta_rs",
-      ":timestamp",
-      ":timestamp_rs",
+      "//build/rust:cxx_rustdeps",
+    ]
+  }
+  rtc_rust_cxx_bridge("time_delta_ffi") {
+    source = "time_delta_ffi.rs"
+    deps = [
+      ":time_delta",
+      ":time_delta_ffi_rust",
+      ":time_delta_rs",
       "//build/rust:cxx_rustdeps",
     ]
   }
@@ -131,6 +136,27 @@ if (rtc_rust) {
     sources = [ "time_delta.rs" ]
     deps = [
       ":time_delta",
+      "//build/rust:cxx_rustdeps",
+    ]
+  }
+
+  rtc_rust_library("timestamp_ffi_rust") {
+    allow_unsafe = true
+    crate_root = "timestamp_ffi.rs"
+    sources = [ "timestamp_ffi.rs" ]
+    deps = [
+      ":timestamp",
+      ":timestamp_rs",
+      "//build/rust:cxx_rustdeps",
+    ]
+  }
+
+  rtc_rust_cxx_bridge("timestamp_ffi") {
+    source = "timestamp_ffi.rs"
+    deps = [
+      ":timestamp",
+      ":timestamp_ffi_rust",
+      ":timestamp_rs",
       "//build/rust:cxx_rustdeps",
     ]
   }
@@ -174,41 +200,6 @@ if (rtc_rust) {
       deps = [
         ":time_delta_rs_unittests",
         ":timestamp_rs_unittests",
-      ]
-    }
-
-    rtc_rust_library("demo_unit_interop_impl") {
-      allow_unsafe = true
-      crate_root = "demo_unit_interop.rs"
-      sources = [ "demo_unit_interop.rs" ]
-      deps = [
-        ":time_delta_rs",
-        ":timestamp_rs",
-        "//build/rust:cxx_rustdeps",
-      ]
-    }
-
-    rtc_rust_cxx_bridge("demo_unit_interop") {
-      allow_unsafe = true
-      source = "demo_unit_interop.rs"
-      deps = [
-        ":demo_unit_interop_impl",
-        ":time_delta",
-        ":time_delta_rs",
-        ":timestamp",
-        ":timestamp_rs",
-        "//third_party/abseil-cpp/absl/strings",
-      ]
-    }
-
-    rtc_library("units_rs_bridge_unittests") {
-      testonly = true
-      sources = [ "units_rs_bridge_unittest.cc" ]
-      deps = [
-        ":demo_unit_interop",
-        ":time_delta",
-        ":timestamp",
-        "../../test:test_support",
       ]
     }
   }
