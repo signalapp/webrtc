@@ -18,6 +18,7 @@
 #include "api/test/create_frame_generator.h"
 #include "api/test/frame_generator_interface.h"
 #include "api/test/mock_video_encoder.h"
+#include "api/video/i420_buffer.h"
 #include "api/video/video_codec_type.h"
 #include "api/video/video_frame.h"
 #include "api/video_codecs/video_codec.h"
@@ -135,6 +136,31 @@ TEST(H264EncoderImplTest, OnFrameDropped) {
             .build();
     encoder.Encode(frame, nullptr);
   }
+}
+
+TEST(H264EncoderImplTest, RejectsFramesWithUnequalChromaStrides) {
+  H264EncoderImpl encoder(CreateEnvironment(), {});
+  VideoCodec codec_settings;
+  SetDefaultSettings(&codec_settings);
+  MockEncodedImageCallback callback;
+  EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK,
+            encoder.InitEncode(&codec_settings, kSettings));
+  EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK,
+            encoder.RegisterEncodeCompleteCallback(&callback));
+  // Create a VideoFrame where the U and V strides are different.
+  auto buffer = I420Buffer::Create(
+      /*width=*/codec_settings.width,
+      /*height=*/codec_settings.height,
+      /*stride_y=*/codec_settings.width,
+      /*stride_u=*/(codec_settings.width + 1) / 2,
+      /*stride_v=*/(codec_settings.width + 1) / 2 + 1);
+
+  VideoFrame frame = VideoFrame::Builder()
+                         .set_video_frame_buffer(buffer)
+                         .set_rtp_timestamp(0)
+                         .build();
+
+  EXPECT_EQ(WEBRTC_VIDEO_CODEC_ENCODER_FAILURE, encoder.Encode(frame, nullptr));
 }
 
 }  // anonymous namespace
