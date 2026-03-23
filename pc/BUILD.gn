@@ -1453,6 +1453,7 @@ rtc_library("legacy_stats_collector") {
     "../rtc_base:timeutils",
     "../system_wrappers",
     "//third_party/abseil-cpp/absl/base:nullability",
+    "//third_party/abseil-cpp/absl/container:flat_hash_set",
     "//third_party/abseil-cpp/absl/functional:any_invocable",
     "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
