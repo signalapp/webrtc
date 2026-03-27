@@ -8,6 +8,7 @@
 #include "api/stats/rtcstats_objects.h"
 #include "rffi/api/stats_observer_intf.h"
 #include "rffi/src/ptr.h"
+#include "rtc_base/string_utils.h"
 
 namespace {
 StatsVideoCodecType MimeTypeToCodec(std::string mime_type) {
@@ -24,6 +25,8 @@ StatsVideoCodecType MimeTypeToCodec(std::string mime_type) {
 
 namespace webrtc {
 namespace rffi {
+
+constexpr char kNoCodecLibraryPresent[] = "NoCodecLibrary";
 
 StatsObserverRffi::StatsObserverRffi(
     void* stats_observer,
@@ -117,6 +120,14 @@ void StatsObserverRffi::OnStatsDelivered(
           stat->total_packet_send_delay.value_or(0.0);
       video_sender.nack_count = stat->nack_count.value_or(0);
       video_sender.pli_count = stat->pli_count.value_or(0);
+
+      if (stat->encoder_implementation.has_value()) {
+        video_sender.encoder_implementation =
+            stat->encoder_implementation->c_str();
+      } else {
+        video_sender.encoder_implementation = kNoCodecLibraryPresent;
+      }
+
       if (stat->codec_id) {
         video_sender.codec = MimeTypeToCodec(codec_id_to_mime[*stat->codec_id]);
       } else {
@@ -201,6 +212,14 @@ void StatsObserverRffi::OnStatsDelivered(
           stat->total_freezes_duration.value_or(0.0);
       video_receiver.estimated_playout_timestamp =
           stat->estimated_playout_timestamp.value_or(0.0);
+
+      if (stat->decoder_implementation.has_value()) {
+        video_receiver.decoder_implementation =
+            stat->decoder_implementation->c_str();
+      } else {
+        video_receiver.decoder_implementation = kNoCodecLibraryPresent;
+      }
+
       if (stat->codec_id) {
         video_receiver.codec =
             MimeTypeToCodec(codec_id_to_mime[*stat->codec_id]);

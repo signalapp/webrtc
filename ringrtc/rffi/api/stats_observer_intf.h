@@ -59,6 +59,7 @@ typedef struct {
   double remote_jitter;
   double remote_round_trip_time;
   StatsVideoCodecType codec;
+  const char* encoder_implementation;
 } VideoSenderStatistics;
 
 typedef struct {
@@ -93,6 +94,7 @@ typedef struct {
   uint64_t jitter_buffer_flushes;
   double estimated_playout_timestamp;
   StatsVideoCodecType codec;
+  const char* decoder_implementation;
 } VideoReceiverStatistics;
 
 typedef struct {
