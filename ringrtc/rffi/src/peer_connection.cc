@@ -998,11 +998,11 @@ RUSTEXPORT bool Rust_addIceCandidateFromServer(
     Ip ip,
     uint16_t port,
     bool tcp,
-    const char* hostname) {
+    const char* hostname,
+    uint32_t generation) {
   Candidate candidate;
   // The default foundation is "", which is fine because we bundle.
-  // The default generation is 0, which is fine because we don't do ICE
-  // restarts. The default username and password are "", which is fine because
+  // The default username and password are "", which is fine because
   // P2PTransportChannel::AddRemoteCandidate looks up the ICE ufrag and pwd
   // from the remote description when the candidate's copy is empty.
   // Unset network ID, network cost, and network type are fine because they are
@@ -1018,19 +1018,28 @@ RUSTEXPORT bool Rust_addIceCandidateFromServer(
   //
   // The priority is also important for controlling whether we prefer IPv4 or
   // IPv6 when both are available. WebRTC generally prefers IPv6 over IPv4 for
-  // local candidates (see rtc_base::IPAddressPrecedence). So we leave the
-  // priority unset to allow the local candidate preference to break the tie.
+  // local candidates (see rtc_base::IPAddressPrecedence). We set priority
+  // to prefer UDP over TCP, and TCP over TCP+TLS, but allow local candidate
+  // preference to break the tie when IPv4 and IPv6 are both viable.
   candidate.set_component(ICE_CANDIDATE_COMPONENT_RTP);
   candidate.set_type(IceCandidateType::kHost);
+  candidate.set_generation(generation);
 
   if (tcp && hostname != NULL) {
     SocketAddress addr = SocketAddress(std::string(hostname), port);
     addr.SetResolvedIP(IpToRtcIp(ip));
     candidate.set_address(addr);
     candidate.set_protocol(TLS_PROTOCOL_NAME);
+    candidate.set_priority(1);
   } else {
     candidate.set_address(SocketAddress(IpToRtcIp(ip), port));
-    candidate.set_protocol(tcp ? TCP_PROTOCOL_NAME : UDP_PROTOCOL_NAME);
+    if (tcp) {
+      candidate.set_protocol(TCP_PROTOCOL_NAME);
+      candidate.set_priority(100);
+    } else {
+      candidate.set_protocol(UDP_PROTOCOL_NAME);
+      candidate.set_priority(200);
+    }
   }
 
   // Since we always use bundle, we can always use index 0 and ignore the mid

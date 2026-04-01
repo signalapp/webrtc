@@ -161,7 +161,8 @@ RUSTEXPORT bool Rust_addIceCandidateFromServer(
     webrtc::rffi::Ip,
     uint16_t port,
     bool tcp,
-    const char* hostname);
+    const char* hostname,
+    uint32_t generation);
 
 RUSTEXPORT bool Rust_removeIceCandidates(
     webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
