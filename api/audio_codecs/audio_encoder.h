@@ -117,7 +117,7 @@ class AudioEncoder {
     std::vector<EncodedInfoLeaf> redundant;
   };
 
-  // RingRTC change to enable configuring OPUS
+  // RingRTC change to configure opus
   // Very OPUS-specific
   struct Config {
     // AKA ptime or frame size
@@ -154,6 +154,12 @@ class AudioEncoder {
 
     // In-band FEC is enabled by default
     bool enable_fec = true;
+
+    // DRED duration (1 to 100), 0 to disable
+    int32_t dred_duration = 0;
+
+    // Minimum packet loss percentage (0-100)
+    int32_t min_packet_loss_percent = 0;
   };
 
   virtual ~AudioEncoder() = default;

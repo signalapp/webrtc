@@ -48,6 +48,10 @@ struct RTC_EXPORT AudioEncoderOpusConfig {
   std::optional<int> bitrate_bps = 32'000;
 
   bool fec_enabled = false;
+
+  // RingRTC change to support Opus DRED
+  int dred_duration = 0;
+
   bool cbr_enabled = false;
   int max_playback_rate_hz = 48'000;
 

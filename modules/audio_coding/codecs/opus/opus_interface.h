@@ -334,6 +334,22 @@ int32_t WebRtcOpus_GetBandwidth(OpusEncInst* inst);
  */
 int16_t WebRtcOpus_SetBandwidth(OpusEncInst* inst, int32_t bandwidth);
 
+// RingRTC change to support Opus DRED
+/*
+ * WebRtcOpus_SetDredDuration(...)
+ *
+ * Enable Deep Redundancy (DRED) and use the specified maximum number of 10
+ * millisecond redundant frames.
+ *
+ * Input:
+ *      - inst               : Encoder context
+ *      - dred_duration      : DRED duration in 10ms units (0-100)
+ *
+ * Return value              :  0 - Success
+ *                             -1 - Error
+ */
+int16_t WebRtcOpus_SetDredDuration(OpusEncInst* inst, int32_t duration);
+
 /*
  * WebRtcOpus_SetForceChannels(...)
  *

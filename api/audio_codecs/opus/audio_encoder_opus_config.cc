@@ -36,6 +36,10 @@ bool AudioEncoderOpusConfig::IsOk() const {
     return false;
   if (low_rate_complexity < 0 || low_rate_complexity > 10)
     return false;
+  // RingRTC change to support Opus DRED
+  if (dred_duration < 0 || dred_duration > 100)
+    return false;
+  // end RingRTC change to support Opus DRED
   return true;
 }
 }  // namespace webrtc

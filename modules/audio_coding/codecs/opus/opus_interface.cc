@@ -206,7 +206,7 @@ int16_t WebRtcOpus_SetBitRate(OpusEncInst* inst, int32_t rate) {
 
 int16_t WebRtcOpus_SetPacketLossRate(OpusEncInst* inst, int32_t loss_rate) {
   // RingRTC change to log opus setters
-  RTC_LOG(LS_INFO) << "WebRtcOpus_SetPacketLossRate " << loss_rate;
+  RTC_LOG(LS_WARNING) << "WebRtcOpus_SetPacketLossRate " << loss_rate;
   if (inst) {
     return ENCODER_CTL(inst, OPUS_SET_PACKET_LOSS_PERC(loss_rate));
   } else {
@@ -388,6 +388,16 @@ int16_t WebRtcOpus_SetBandwidth(OpusEncInst* inst, int32_t bandwidth) {
   RTC_LOG(LS_INFO) << "WebRtcOpus_SetBandwidth " << bandwidth;
   if (inst) {
     return ENCODER_CTL(inst, OPUS_SET_BANDWIDTH(bandwidth));
+  } else {
+    return -1;
+  }
+}
+
+// RingRTC change to support Opus DRED
+int16_t WebRtcOpus_SetDredDuration(OpusEncInst* inst, int32_t duration) {
+  RTC_LOG(LS_INFO) << "WebRtcOpus_SetDredDuration " << duration;
+  if (inst) {
+    return ENCODER_CTL(inst, OPUS_SET_DRED_DURATION(duration));
   } else {
     return -1;
   }

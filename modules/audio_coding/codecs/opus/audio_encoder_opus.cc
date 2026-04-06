@@ -82,7 +82,10 @@ constexpr std::array kOpusSupportedFrameLengths = {10, 20, 40, 60};
 // PacketLossFractionSmoother uses an exponential filter with a time constant
 // of -1.0 / ln(0.9999) = 10000 ms.
 constexpr float kAlphaForPacketLossFractionSmoother = 0.9999f;
-constexpr float kMaxPacketLossFraction = 0.2f;
+// RingRTC change to support Opus DRED
+// For DRED and FEC, allow for more headroom since Opus clamps loss at 25%.
+constexpr float kMaxPacketLossFraction = 0.25f;
+// end RingRTC change to support Opus DRED
 
 int CalculateDefaultBitrate(int max_playback_rate, size_t num_channels) {
   const int bitrate = [&] {
@@ -388,6 +391,8 @@ AudioEncoderOpusImpl::AudioEncoderOpusImpl(
       bitrate_changed_(true),
       bitrate_multipliers_(GetBitrateMultipliers(env_.field_trials())),
       packet_loss_rate_(0.0),
+      // RingRTC change to support Opus DRED
+      min_packet_loss_rate_(0.0),
       inst_(nullptr),
       packet_loss_fraction_smoother_(
           std::make_unique<PacketLossFractionSmoother>(
@@ -682,6 +687,8 @@ bool AudioEncoderOpusImpl::RecreateEncoderInstance() {
   } else {
     RTC_CHECK_EQ(0, WebRtcOpus_DisableFec(inst_));
   }
+// RingRTC change to support Opus DRED
+  RTC_CHECK_EQ(0, WebRtcOpus_SetDredDuration(inst_, config_.dred_duration));
   RTC_CHECK_EQ(
       0, WebRtcOpus_SetMaxPlaybackRate(inst_, config_.max_playback_rate_hz));
   // Use the default complexity if the start bitrate is within the hysteresis
@@ -729,7 +736,8 @@ void AudioEncoderOpusImpl::SetNumChannelsToEncode(
 }
 
 void AudioEncoderOpusImpl::SetProjectedPacketLossRate(float fraction) {
-  fraction = std::min(std::max(fraction, 0.0f), kMaxPacketLossFraction);
+  // RingRTC change to support Opus DRED
+  fraction = std::min(std::max(fraction, min_packet_loss_rate_), kMaxPacketLossFraction);
   if (packet_loss_rate_ != fraction) {
     packet_loss_rate_ = fraction;
     RTC_CHECK_EQ(
@@ -828,13 +836,19 @@ bool AudioEncoderOpusImpl::Configure(const webrtc::AudioEncoder::Config& config)
   // It needs to be delayed to avoid a CHECK in Encode.
   SetFrameLength(config.initial_packet_size_ms);
 
-  // I don't think any of the below are necessary, but the above is, so we might as well set these.
   config_.bitrate_bps = config.initial_bitrate_bps;
   config_.fec_enabled = config.enable_fec;
   config_.cbr_enabled = config.enable_cbr;
   config_.complexity = config.complexity;
   config_.low_rate_complexity = config.complexity;
   config_.dtx_enabled = config.enable_dtx;
+  config_.dred_duration = config.dred_duration;
+
+  min_packet_loss_rate_ = config.min_packet_loss_percent / 100.0f;
+  if (config.min_packet_loss_percent > 0) {
+    // Start with the given minimum packet loss rate.
+    SetProjectedPacketLossRate(min_packet_loss_rate_);
+  }
 
   if (config.adaptation > 0) {
     RTC_LOG(LS_WARNING) << "ringrtc_adapt!,audio,0," << config.initial_bitrate_bps
@@ -896,6 +910,12 @@ bool AudioEncoderOpusImpl::Configure(const webrtc::AudioEncoder::Config& config)
       return false;
     }
   }
+
+    if (WebRtcOpus_SetDredDuration(inst_, config.dred_duration) == -1) {
+      RTC_LOG(LS_WARNING) << "Failed to configure OPUS DRED, ignoring...";
+    } else {
+      RTC_LOG(LS_INFO) << "Successfully configured OPUS DRED=" << config.dred_duration;
+    }
 
   return true;
 }
