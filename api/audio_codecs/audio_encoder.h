@@ -160,6 +160,10 @@ class AudioEncoder {
 
     // Minimum packet loss percentage (0-100)
     int32_t min_packet_loss_percent = 0;
+
+    // DNN weights blob
+    const void* dnn_weights_data = nullptr;
+    int32_t dnn_weights_length = 0;
   };
 
   virtual ~AudioEncoder() = default;

@@ -403,6 +403,18 @@ int16_t WebRtcOpus_SetDredDuration(OpusEncInst* inst, int32_t duration) {
   }
 }
 
+// RingRTC change to support Opus DNN features
+int16_t WebRtcOpus_SetDnnBlob(OpusEncInst* inst, const void* data, int length) {
+  RTC_LOG(LS_INFO) << "WebRtcOpus_SetDnnBlob with length " << length;
+  if (!data || length <= 0)
+    return 0;
+  if (inst) {
+    return ENCODER_CTL(inst, OPUS_SET_DNN_BLOB(data, length));
+  } else {
+    return -1;
+  }
+}
+
 int16_t WebRtcOpus_SetForceChannels(OpusEncInst* inst, size_t num_channels) {
   if (!inst)
     return -1;
@@ -519,6 +531,18 @@ int16_t WebRtcOpus_DecoderSetComplexity(OpusDecInst* inst, int32_t complexity) {
     return -1;
   int res = opus_decoder_ctl(inst->decoder, OPUS_SET_COMPLEXITY(complexity));
   return (res == OPUS_OK) ? 0 : -1;
+}
+
+// RingRTC change to support Opus DNN features
+int16_t WebRtcOpus_DecoderSetDnnBlob(OpusDecInst* inst, const void* data, int length) {
+  RTC_LOG(LS_INFO) << "WebRtcOpus_DecoderSetDnnBlob with length " << length;
+  if (!data || length <= 0)
+    return 0;
+  if (!inst || !inst->decoder)
+    return -1;
+  int res = opus_decoder_ctl(inst->decoder, OPUS_SET_DNN_BLOB(data, length));
+  return (res == OPUS_OK) ? 0 : -1;
+
 }
 
 /* For decoder to determine if it is to output speech or comfort noise. */

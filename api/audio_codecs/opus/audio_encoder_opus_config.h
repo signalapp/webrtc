@@ -52,6 +52,11 @@ struct RTC_EXPORT AudioEncoderOpusConfig {
   // RingRTC change to support Opus DRED
   int dred_duration = 0;
 
+  // RingRTC change to support Opus DNN features
+  const void* dnn_weights_data = nullptr; // Pointer is borrowed; the buffer must outlive the encoder.
+  int dnn_weights_length = 0;
+  // end RingRTC change to support Opus DNN features
+
   bool cbr_enabled = false;
   int max_playback_rate_hz = 48'000;
 

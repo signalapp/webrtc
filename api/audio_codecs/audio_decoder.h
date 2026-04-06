@@ -181,7 +181,16 @@ class AudioDecoder {
   // RingRTC change to configure opus
   // Very OPUS-specific
   struct Config {
-    // Decoder complexity (-1 = NetEq, 0 = Legacy PLC, 5 = Deep PLC)
+    // DNN weights blob
+    const void* dnn_weights_data = nullptr;
+    int32_t dnn_weights_length = 0;
+    // Decoder complexity:
+    // -1: Use NetEq PLC (default)
+    //  0: Use Opus PLC
+    //  4: Use Opus BWE (not supported)
+    //  5: Use Opus Deep PLC
+    //  6: Use Opus Deep PLC and LACE (not supported)
+    //  7: Use Opus Deep PLC and NoLACE (not supported)
     int32_t complexity = -1;
   };
 

@@ -687,8 +687,13 @@ bool AudioEncoderOpusImpl::RecreateEncoderInstance() {
   } else {
     RTC_CHECK_EQ(0, WebRtcOpus_DisableFec(inst_));
   }
-// RingRTC change to support Opus DRED
-  RTC_CHECK_EQ(0, WebRtcOpus_SetDredDuration(inst_, config_.dred_duration));
+  // RingRTC change to support Opus DNN features
+  if (config_.dnn_weights_data && config_.dnn_weights_length > 0) {
+    RTC_CHECK_EQ(0, WebRtcOpus_SetDnnBlob(inst_, config_.dnn_weights_data,
+                                          config_.dnn_weights_length));
+    // RingRTC change to support Opus DRED
+    RTC_CHECK_EQ(0, WebRtcOpus_SetDredDuration(inst_, config_.dred_duration));
+  }
   RTC_CHECK_EQ(
       0, WebRtcOpus_SetMaxPlaybackRate(inst_, config_.max_playback_rate_hz));
   // Use the default complexity if the start bitrate is within the hysteresis
@@ -842,7 +847,15 @@ bool AudioEncoderOpusImpl::Configure(const webrtc::AudioEncoder::Config& config)
   config_.complexity = config.complexity;
   config_.low_rate_complexity = config.complexity;
   config_.dtx_enabled = config.enable_dtx;
-  config_.dred_duration = config.dred_duration;
+  if (config.dnn_weights_data && config.dnn_weights_length > 0) {
+    config_.dred_duration = config.dred_duration;
+    config_.dnn_weights_data = config.dnn_weights_data;
+    config_.dnn_weights_length = config.dnn_weights_length;
+  } else {
+    config_.dred_duration = 0;
+    config_.dnn_weights_data = nullptr;
+    config_.dnn_weights_length = 0;
+  }
 
   min_packet_loss_rate_ = config.min_packet_loss_percent / 100.0f;
   if (config.min_packet_loss_percent > 0) {
@@ -911,11 +924,25 @@ bool AudioEncoderOpusImpl::Configure(const webrtc::AudioEncoder::Config& config)
     }
   }
 
+  // RingRTC change to support Opus DNN features
+  if (config.dnn_weights_data && config.dnn_weights_length > 0) {
+    if (WebRtcOpus_SetDnnBlob(inst_, config.dnn_weights_data,
+                              config.dnn_weights_length) == -1) {
+      RTC_LOG(LS_ERROR) << "Failed to configure OPUS DNN blob for encoder";
+      // Reset the DNN weights configuration so RecreateEncoderInstance() can succeed.
+      config_.dnn_weights_data = nullptr;
+      config_.dnn_weights_length = 0;
+      return false;
+    }
+    RTC_LOG(LS_INFO) << "Successfully configured OPUS DNN blob for encoder: "
+                     << config.dnn_weights_length << " bytes";
+    // RingRTC change to support Opus DRED
     if (WebRtcOpus_SetDredDuration(inst_, config.dred_duration) == -1) {
       RTC_LOG(LS_WARNING) << "Failed to configure OPUS DRED, ignoring...";
     } else {
       RTC_LOG(LS_INFO) << "Successfully configured OPUS DRED=" << config.dred_duration;
     }
+  }
 
   return true;
 }
