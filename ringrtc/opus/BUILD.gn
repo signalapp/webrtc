@@ -4,6 +4,7 @@
 
 import("//build/config/arm.gni")
 import("//testing/test.gni")
+import("//ringrtc/opus/build_args.gni")
 
 # If ARM optimizations shall be used to accelerate performance.
 use_opus_arm_optimization = current_cpu == "arm" || current_cpu == "arm64"
@@ -30,6 +31,7 @@ config("opus_private_config") {
   include_dirs = [
     "src",
     "src/celt",
+    "src/dnn",
     "src/silk",
     "src/silk/fixed",
     "src/silk/float",
@@ -37,12 +39,19 @@ config("opus_private_config") {
 
   cflags = []
 
+  if (rtc_opus_support_dred || rtc_opus_support_deep_plc) {
+    defines += [ "ENABLE_DEEP_PLC" ]
+    defines += [ "USE_WEIGHTS_FILE" ]
+  }
+  if (rtc_opus_support_dred) {
+    defines += [ "ENABLE_DRED" ]
+  }
+
   if (is_win) {
     defines += [ "inline=__inline" ]
 
     cflags += [
-      "/wd4305",  # Disable truncation warning in celt/pitch.c .
-      "/wd4334",  # Disable 32-bit shift warning in src/opus_encoder.c .
+      "-Wno-sometimes-uninitialized",  # Disable uninitialized warning in dnn/dred_encoder.c .
     ]
   } else {
     defines += [
@@ -97,6 +106,7 @@ config("opus_private_config") {
     }
 
     defines += [
+      "FLOAT_APPROX",
       "OPUS_ARM_MAY_HAVE_NEON",
       "OPUS_ARM_MAY_HAVE_NEON_INTR",
       "OPUS_ARM_PRESUME_NEON",
@@ -105,6 +115,14 @@ config("opus_private_config") {
 
     if (current_cpu == "arm64") {
       defines += [ "OPUS_ARM_PRESUME_AARCH64_NEON_INTR" ]
+      if (is_mac) {
+        defines += [ "OPUS_ARM_PRESUME_DOTPROD" ]
+      } else {
+        defines += [
+          "OPUS_ARM_MAY_HAVE_DOTPROD",
+          "OPUS_HAVE_RTCD",
+        ]
+      }
     }
   }
 }
@@ -148,6 +166,11 @@ if (use_opus_x86_optimization) {
       "src/silk/x86/VAD_sse4_1.c",
       "src/silk/x86/VQ_WMat_EC_sse4_1.c",
     ]
+    if (rtc_opus_support_dred || rtc_opus_support_deep_plc) {
+      sources += [
+        "src/dnn/x86/nnet_sse4_1.c",
+      ]
+    }
 
     configs -= [ "//build/config/compiler:chromium_code" ]
     configs += [ "//build/config/compiler:no_chromium_code" ]
@@ -172,6 +195,11 @@ if (use_opus_x86_optimization) {
       "src/silk/x86/NSQ_del_dec_avx2.c",
       "src/silk/float/x86/inner_product_FLP_avx2.c",
     ]
+    if (rtc_opus_support_dred || rtc_opus_support_deep_plc) {
+      sources += [
+        "src/dnn/x86/nnet_avx2.c",
+      ]
+    }
 
     configs -= [ "//build/config/compiler:chromium_code" ]
     configs += [ "//build/config/compiler:no_chromium_code" ]
@@ -188,6 +216,26 @@ if (use_opus_x86_optimization) {
     if (!is_win || is_clang) {
       cflags = [ "-mavx", "-mfma", "-mavx2" ]
     }
+  }
+}
+
+if (current_cpu == "arm64" && (rtc_opus_support_dred || rtc_opus_support_deep_plc)) {
+  source_set("opus_arm_dotprod") {
+    sources = [ "src/dnn/arm/nnet_dotprod.c" ]
+
+    configs -= [ "//build/config/compiler:chromium_code" ]
+    configs += [ "//build/config/compiler:no_chromium_code" ]
+    configs += [
+      ":opus_private_config",
+      ":opus_config",
+    ]
+
+    if (!is_debug) {
+      configs -= [ "//build/config/compiler:default_optimization" ]
+      configs += [ "//build/config/compiler:optimize_speed" ]
+    }
+
+    cflags = [ "-march=armv8.2-a+dotprod" ]
   }
 }
 
@@ -401,6 +449,38 @@ static_library("opus") {
     "src/silk/float/wrappers_FLP.c",
   ]
 
+  if (rtc_opus_support_dred || rtc_opus_support_deep_plc) {
+    sources += [
+      "src/dnn/burg.c",
+      "src/dnn/freq.c",
+      "src/dnn/fargan.c",
+      "src/dnn/fargan_data.c",
+      "src/dnn/lpcnet_enc.c",
+      "src/dnn/lpcnet_plc.c",
+      "src/dnn/lpcnet_tables.c",
+      "src/dnn/nnet.c",
+      "src/dnn/plc_data.c",
+      "src/dnn/parse_lpcnet_weights.c",
+      "src/dnn/pitchdnn.c",
+      "src/dnn/nnet_arch.h",
+      "src/dnn/nnet_default.c",
+      "src/dnn/pitchdnn_data.c",
+      "src/dnn/pitchdnn_data.h",
+    ]
+  }
+  if (rtc_opus_support_dred) {
+    sources += [
+      "src/dnn/dred_rdovae_enc.c",
+      "src/dnn/dred_rdovae_enc_data.c",
+      "src/dnn/dred_rdovae_dec.c",
+      "src/dnn/dred_rdovae_dec_data.c",
+      "src/dnn/dred_rdovae_stats_data.c",
+      "src/dnn/dred_encoder.c",
+      "src/dnn/dred_coding.c",
+      "src/dnn/dred_decoder.c",
+    ]
+  }
+
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [
     "//build/config/compiler:no_chromium_code",
@@ -434,6 +514,12 @@ static_library("opus") {
       "src/silk/x86/main_sse.h",
       "src/silk/x86/x86_silk_map.c",
     ]
+    if (rtc_opus_support_dred || rtc_opus_support_deep_plc) {
+      sources += [
+        "src/dnn/x86/x86_dnn_map.c",
+        "src/dnn/x86/nnet_sse2.c",
+      ]
+    }
     deps += [ ":opus_sse41" ]
     deps += [ ":opus_avx2" ]
   }
@@ -462,6 +548,21 @@ static_library("opus") {
       "src/silk/arm/macros_armv4.h",
       "src/silk/arm/macros_armv5e.h",
     ]
+    if (rtc_opus_support_dred || rtc_opus_support_deep_plc) {
+      sources += [
+        "src/dnn/arm/arm_dnn_map.c",
+        "src/dnn/arm/nnet_neon.c",
+      ]
+      if (current_cpu == "arm64") {
+        deps += [ ":opus_arm_dotprod" ]
+        if (!is_mac) {
+          sources += [
+            "src/celt/arm/armcpu.c",
+            "src/celt/arm/armcpu.h",
+          ]
+        }
+      }
+    }
   }
 }
 

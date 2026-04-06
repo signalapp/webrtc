@@ -1,0 +1,12 @@
+# Copyright 2026 Signal Messenger, LLC
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Shared args between the Opus build and WebRTC.
+
+declare_args() {
+  # Enable Opus Deep PLC (neural-network-based packet loss concealment).
+  rtc_opus_support_deep_plc = false
+
+  # Enable Opus DRED (deep redundancy). Implies Deep PLC support.
+  rtc_opus_support_dred = false
+}

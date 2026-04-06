@@ -687,13 +687,17 @@ bool AudioEncoderOpusImpl::RecreateEncoderInstance() {
   } else {
     RTC_CHECK_EQ(0, WebRtcOpus_DisableFec(inst_));
   }
-  // RingRTC change to support Opus DNN features
+// RingRTC change to support Opus DNN features
+#if WEBRTC_OPUS_SUPPORT_DEEP_PLC || WEBRTC_OPUS_SUPPORT_DRED
   if (config_.dnn_weights_data && config_.dnn_weights_length > 0) {
     RTC_CHECK_EQ(0, WebRtcOpus_SetDnnBlob(inst_, config_.dnn_weights_data,
                                           config_.dnn_weights_length));
-    // RingRTC change to support Opus DRED
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
     RTC_CHECK_EQ(0, WebRtcOpus_SetDredDuration(inst_, config_.dred_duration));
+#endif
   }
+#endif
   RTC_CHECK_EQ(
       0, WebRtcOpus_SetMaxPlaybackRate(inst_, config_.max_playback_rate_hz));
   // Use the default complexity if the start bitrate is within the hysteresis
@@ -924,7 +928,8 @@ bool AudioEncoderOpusImpl::Configure(const webrtc::AudioEncoder::Config& config)
     }
   }
 
-  // RingRTC change to support Opus DNN features
+// RingRTC change to support Opus DNN features
+#if WEBRTC_OPUS_SUPPORT_DEEP_PLC || WEBRTC_OPUS_SUPPORT_DRED
   if (config.dnn_weights_data && config.dnn_weights_length > 0) {
     if (WebRtcOpus_SetDnnBlob(inst_, config.dnn_weights_data,
                               config.dnn_weights_length) == -1) {
@@ -936,13 +941,16 @@ bool AudioEncoderOpusImpl::Configure(const webrtc::AudioEncoder::Config& config)
     }
     RTC_LOG(LS_INFO) << "Successfully configured OPUS DNN blob for encoder: "
                      << config.dnn_weights_length << " bytes";
-    // RingRTC change to support Opus DRED
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
     if (WebRtcOpus_SetDredDuration(inst_, config.dred_duration) == -1) {
       RTC_LOG(LS_WARNING) << "Failed to configure OPUS DRED, ignoring...";
     } else {
       RTC_LOG(LS_INFO) << "Successfully configured OPUS DRED=" << config.dred_duration;
     }
+#endif
   }
+#endif
 
   return true;
 }

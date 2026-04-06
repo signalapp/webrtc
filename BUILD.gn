@@ -328,6 +328,20 @@ config("common_config") {
     defines += [ "RTC_DAV1D_IN_INTERNAL_DECODER_FACTORY" ]
   }
 
+  # RingRTC change to support Opus DNN features
+  if (rtc_opus_support_dred || rtc_opus_support_deep_plc) {
+    defines += [ "WEBRTC_OPUS_SUPPORT_DEEP_PLC=1" ]
+  } else {
+    defines += [ "WEBRTC_OPUS_SUPPORT_DEEP_PLC=0" ]
+  }
+
+  # RingRTC change to support Opus DRED
+  if (rtc_opus_support_dred) {
+    defines += [ "WEBRTC_OPUS_SUPPORT_DRED=1" ]
+  } else {
+    defines += [ "WEBRTC_OPUS_SUPPORT_DRED=0" ]
+  }
+
   if (rtc_enable_sctp) {
     defines += [ "WEBRTC_HAVE_SCTP" ]
   }

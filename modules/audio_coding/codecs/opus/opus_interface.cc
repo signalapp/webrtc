@@ -394,6 +394,7 @@ int16_t WebRtcOpus_SetBandwidth(OpusEncInst* inst, int32_t bandwidth) {
 }
 
 // RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
 int16_t WebRtcOpus_SetDredDuration(OpusEncInst* inst, int32_t duration) {
   RTC_LOG(LS_INFO) << "WebRtcOpus_SetDredDuration " << duration;
   if (inst) {
@@ -402,8 +403,10 @@ int16_t WebRtcOpus_SetDredDuration(OpusEncInst* inst, int32_t duration) {
     return -1;
   }
 }
+#endif
 
 // RingRTC change to support Opus DNN features
+#if WEBRTC_OPUS_SUPPORT_DEEP_PLC || WEBRTC_OPUS_SUPPORT_DRED
 int16_t WebRtcOpus_SetDnnBlob(OpusEncInst* inst, const void* data, int length) {
   RTC_LOG(LS_INFO) << "WebRtcOpus_SetDnnBlob with length " << length;
   if (!data || length <= 0)
@@ -414,6 +417,7 @@ int16_t WebRtcOpus_SetDnnBlob(OpusEncInst* inst, const void* data, int length) {
     return -1;
   }
 }
+#endif
 
 int16_t WebRtcOpus_SetForceChannels(OpusEncInst* inst, size_t num_channels) {
   if (!inst)
@@ -534,6 +538,7 @@ int16_t WebRtcOpus_DecoderSetComplexity(OpusDecInst* inst, int32_t complexity) {
 }
 
 // RingRTC change to support Opus DNN features
+#if WEBRTC_OPUS_SUPPORT_DEEP_PLC || WEBRTC_OPUS_SUPPORT_DRED
 int16_t WebRtcOpus_DecoderSetDnnBlob(OpusDecInst* inst, const void* data, int length) {
   RTC_LOG(LS_INFO) << "WebRtcOpus_DecoderSetDnnBlob with length " << length;
   if (!data || length <= 0)
@@ -542,8 +547,8 @@ int16_t WebRtcOpus_DecoderSetDnnBlob(OpusDecInst* inst, const void* data, int le
     return -1;
   int res = opus_decoder_ctl(inst->decoder, OPUS_SET_DNN_BLOB(data, length));
   return (res == OPUS_OK) ? 0 : -1;
-
 }
+#endif
 
 /* For decoder to determine if it is to output speech or comfort noise. */
 static int16_t DetermineAudioType(OpusDecInst* inst, size_t encoded_bytes) {

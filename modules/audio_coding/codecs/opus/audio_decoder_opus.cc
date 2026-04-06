@@ -162,7 +162,8 @@ bool AudioDecoderOpusImpl::Configure(const AudioDecoder::Config& config) {
     WebRtcOpus_DecoderSetComplexity(dec_state_, config.complexity);
   }
 
-  // RingRTC change to support Opus DNN features
+// RingRTC change to support Opus DNN features
+#if WEBRTC_OPUS_SUPPORT_DEEP_PLC || WEBRTC_OPUS_SUPPORT_DRED
   if (config.dnn_weights_data && config.dnn_weights_length > 0) {
     if (WebRtcOpus_DecoderSetDnnBlob(dec_state_, config.dnn_weights_data,
                                      config.dnn_weights_length) == -1) {
@@ -172,6 +173,7 @@ bool AudioDecoderOpusImpl::Configure(const AudioDecoder::Config& config) {
     RTC_LOG(LS_INFO) << "Successfully configured OPUS DNN blob for decoder: "
                      << config.dnn_weights_length << " bytes";
   }
+#endif
 
   return true;
 }

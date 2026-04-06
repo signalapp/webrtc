@@ -335,6 +335,7 @@ int32_t WebRtcOpus_GetBandwidth(OpusEncInst* inst);
 int16_t WebRtcOpus_SetBandwidth(OpusEncInst* inst, int32_t bandwidth);
 
 // RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
 /*
  * WebRtcOpus_SetDredDuration(...)
  *
@@ -349,8 +350,10 @@ int16_t WebRtcOpus_SetBandwidth(OpusEncInst* inst, int32_t bandwidth);
  *                             -1 - Error
  */
 int16_t WebRtcOpus_SetDredDuration(OpusEncInst* inst, int32_t duration);
+#endif
 
 // RingRTC change to support Opus DNN features
+#if WEBRTC_OPUS_SUPPORT_DEEP_PLC || WEBRTC_OPUS_SUPPORT_DRED
 /*
  * WebRtcOpus_SetDnnBlob(...)
  *
@@ -366,6 +369,7 @@ int16_t WebRtcOpus_SetDredDuration(OpusEncInst* inst, int32_t duration);
  *                             -1 - Error
  */
 int16_t WebRtcOpus_SetDnnBlob(OpusEncInst* inst, const void* data, int length);
+#endif
 
 /*
  * WebRtcOpus_SetForceChannels(...)
@@ -457,12 +461,12 @@ void WebRtcOpus_DecoderInit(OpusDecInst* inst);
 int16_t WebRtcOpus_DecoderSetComplexity(OpusDecInst* inst, int32_t complexity);
 
 // RingRTC change to support Opus DNN features
+#if WEBRTC_OPUS_SUPPORT_DEEP_PLC || WEBRTC_OPUS_SUPPORT_DRED
 /*
  * WebRtcOpus_DecoderSetDnnBlob(...)
  *
  * Provide external DNN weights blob for the Opus decoder.
  * No-op if data is null or length is 0.
-
  *
  * Input:
  *      - inst               : Decoder context
@@ -473,7 +477,7 @@ int16_t WebRtcOpus_DecoderSetComplexity(OpusDecInst* inst, int32_t complexity);
  *                             -1 - Error
  */
 int16_t WebRtcOpus_DecoderSetDnnBlob(OpusDecInst* inst, const void* data, int length);
-
+#endif
 
 /****************************************************************************
  * WebRtcOpus_Decode(...)

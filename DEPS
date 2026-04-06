@@ -68,7 +68,7 @@ vars = {
 }
 
 deps = {
-  # RingRTC change to use a the upstream xiph opus
+  # RingRTC change to use the upstream xiph opus
   'src/ringrtc/opus/src':
     'https://github.com/xiph/opus.git@22244de5a79bd1d6d623c32e72bf1954b56235be',
 
@@ -1344,6 +1344,25 @@ hooks = [
         'src/third_party/test_fonts/test_fonts.tar.gz', # Remove after 20240901
     ],
   },
+  # RingRTC change to download Opus DNN models
+  {
+    'name': 'download_opus_models_linux',
+    'pattern': '.',
+    'condition': 'host_os != "win"',
+    'action': ['bash',
+               'src/ringrtc/opus/src/dnn/download_model.sh',
+               'a5177ec6fb7d15058e99e57029746100121f68e4890b1467d4094aa336b6013e'
+               ],
+  },
+  {
+    'name': 'download_opus_models_win',
+    'pattern': '.',
+    'condition': 'host_os == "win"',
+    'action': ['src/ringrtc/opus/src/dnn/download_model.bat',
+               'a5177ec6fb7d15058e99e57029746100121f68e4890b1467d4094aa336b6013e'
+               ],
+  },
+  # end RingRTC change to download Opus DNN models
 ]
 
 recursedeps = [
