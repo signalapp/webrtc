@@ -425,10 +425,13 @@ class VoiceChannel : public BaseChannel {
 
   // RingRTC change to configure opus
   void ConfigureEncoders(const webrtc::AudioEncoder::Config& config);
+  void ConfigureDecoders(const webrtc::AudioDecoder::Config& config);
+  // end RingRTC change to configure opus
 
   // RingRTC change to get audio levels
   void GetCapturedAudioLevel(uint16_t* captured_out);
   std::optional<ReceivedAudioLevel> GetReceivedAudioLevel();
+  // end RingRTC change to get audio levels
 
  private:
   // overrides from BaseChannel

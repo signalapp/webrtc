@@ -180,9 +180,14 @@ PROXY_METHOD2(bool,
               ReceiveRtp,
               uint8_t,
               bool)
+// RingRTC change to configure opus
 PROXY_METHOD1(void,
               ConfigureAudioEncoders,
               const AudioEncoder::Config&)
+// RingRTC change to configure opus
+PROXY_METHOD1(void,
+              ConfigureAudioDecoders,
+              const AudioDecoder::Config&)
 // RingRTC change to get audio levels
 PROXY_METHOD4(void,
               GetAudioLevels,

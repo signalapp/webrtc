@@ -187,6 +187,9 @@ class DecoderDatabase {
   // registered in the database. Otherwise, returns kDecoderNotFound.
   int CheckPayloadTypes(const PacketList& packet_list) const;
 
+  // RingRTC change to configure opus
+  void ConfigureDecoders(const AudioDecoder::Config& config);
+
  private:
   typedef std::map<uint8_t, DecoderInfo> DecoderMap;
 

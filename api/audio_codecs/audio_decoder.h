@@ -21,6 +21,8 @@
 #include "api/array_view.h"
 #include "api/audio/audio_view.h"
 #include "rtc_base/buffer.h"
+// RingRTC Change to configure opus
+#include "rtc_base/logging.h"
 
 namespace webrtc {
 
@@ -175,6 +177,19 @@ class AudioDecoder {
 
   // The maximum number of audio channels supported by WebRTC decoders.
   static constexpr int kMaxNumberOfChannels = kMaxNumberOfAudioChannels;
+
+  // RingRTC change to configure opus
+  // Very OPUS-specific
+  struct Config {
+    // Decoder complexity (-1 = NetEq, 0 = Legacy PLC, 5 = Deep PLC)
+    int32_t complexity = -1;
+  };
+
+  virtual bool Configure(const Config& config) {
+    RTC_LOG(LS_WARNING) << "Default AudioDecoder::Configure(...) does nothing!";
+    return false;
+  }
+  // end RingRTC change to configure opus
 
  protected:
   static SpeechType ConvertSpeechType(int16_t type);

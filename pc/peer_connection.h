@@ -253,7 +253,10 @@ class PeerConnection : public PeerConnectionInternal,
   bool SendRtp(std::unique_ptr<RtpPacket> rtp_packet) override;
   bool ReceiveRtp(uint8_t pt, bool enable_incoming) override;
 
+  // RingRTC change to configure opus
   void ConfigureAudioEncoders(const AudioEncoder::Config& config) override;
+  void ConfigureAudioDecoders(const AudioDecoder::Config& config) override;
+  // end RingRTC change to configure opus
 
   // RingRTC change to get audio levels
   void GetAudioLevels(
@@ -261,6 +264,7 @@ class PeerConnection : public PeerConnectionInternal,
       ReceivedAudioLevel* received_out,
       size_t received_out_size,
       size_t* received_size_out) override;
+  // end RingRTC change to get audio levels
 
   // RingRTC change to get upload bandwidth estimate
   uint32_t GetLastBandwidthEstimateBps() override;

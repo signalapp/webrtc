@@ -623,6 +623,11 @@ int NetEqImpl::SyncBufferSizeMs() const {
                             CheckedDivExact(fs_hz_, 1000));
 }
 
+// RingRTC Change to configure opus
+void NetEqImpl::ConfigureDecoders(const AudioDecoder::Config& config) {
+  decoder_database_->ConfigureDecoders(config);
+}
+
 const SyncBuffer* NetEqImpl::sync_buffer_for_test() const {
   return sync_buffer_.get();
 }

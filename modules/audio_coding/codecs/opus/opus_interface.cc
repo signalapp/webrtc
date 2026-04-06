@@ -502,6 +502,15 @@ void WebRtcOpus_DecoderInit(OpusDecInst* inst) {
   inst->in_dtx_mode = 0;
 }
 
+// RingRTC change to set Opus decoder complexity
+int16_t WebRtcOpus_DecoderSetComplexity(OpusDecInst* inst, int32_t complexity) {
+  RTC_LOG(LS_INFO) << "WebRtcOpus_DecoderSetComplexity " << complexity;
+  if (!inst || !inst->decoder)
+    return -1;
+  int res = opus_decoder_ctl(inst->decoder, OPUS_SET_COMPLEXITY(complexity));
+  return (res == OPUS_OK) ? 0 : -1;
+}
+
 /* For decoder to determine if it is to output speech or comfort noise. */
 static int16_t DetermineAudioType(OpusDecInst* inst, size_t encoded_bytes) {
   // Audio type becomes comfort noise if `encoded_byte` is 1 and keeps

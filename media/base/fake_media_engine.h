@@ -519,6 +519,9 @@ class FakeVoiceMediaReceiveChannel
   bool SetBaseMinimumPlayoutDelayMs(uint32_t ssrc, int delay_ms) override;
   std::optional<int> GetBaseMinimumPlayoutDelayMs(uint32_t ssrc) const override;
 
+  // RingRTC change to configure opus
+  void ConfigureDecoders(const webrtc::AudioDecoder::Config& config) override {}
+
   // RingRTC change to get audio levels
   std::optional<ReceivedAudioLevel> GetReceivedAudioLevel() override {
     return std::nullopt;

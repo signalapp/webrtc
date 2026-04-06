@@ -46,6 +46,9 @@ class AudioDecoderOpusImpl final : public AudioDecoder {
   void GeneratePlc(size_t requested_samples_per_channel,
                    BufferT<int16_t>* concealment_audio) override;
 
+  // RingRTC change to configure opus
+  bool Configure(const Config& config) override;
+
  protected:
   int DecodeInternal(const uint8_t* encoded,
                      size_t encoded_len,
@@ -62,7 +65,8 @@ class AudioDecoderOpusImpl final : public AudioDecoder {
   OpusDecInst* dec_state_;
   const size_t channels_;
   const int sample_rate_hz_;
-  const bool generate_plc_;
+  // RingRTC change to configure opus
+  bool generate_plc_;
 };
 
 }  // namespace webrtc

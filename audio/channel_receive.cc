@@ -217,6 +217,9 @@ class ChannelReceive : public ChannelReceiveInterface,
 
   void OnLocalSsrcChange(uint32_t local_ssrc) override;
 
+  // RingRTC change to configure opus
+  void ConfigureDecoder(const AudioDecoder::Config& config) override;
+
   void RtcpPacketTypesCounterUpdated(
       uint32_t ssrc,
       const RtcpPacketTypeCounter& packet_counter) override;
@@ -1214,6 +1217,13 @@ int ChannelReceive::GetRtpTimestampRateHz() const {
 std::vector<RtpSource> ChannelReceive::GetSources() const {
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);
   return source_tracker_.GetSources();
+}
+
+// RingRTC change to configure opus
+void ChannelReceive::ConfigureDecoder(const AudioDecoder::Config& config) {
+  RTC_DCHECK_RUN_ON(&worker_thread_checker_);
+  MutexLock lock(&neteq_mutex_);
+  neteq_->ConfigureDecoders(config);
 }
 
 }  // namespace

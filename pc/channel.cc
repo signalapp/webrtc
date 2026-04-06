@@ -1098,6 +1098,12 @@ void VoiceChannel::ConfigureEncoders(const webrtc::AudioEncoder::Config& config)
   voice_media_send_channel()->ConfigureEncoders(config);
 }
 
+// RingRTC change to configure opus
+void VoiceChannel::ConfigureDecoders(const webrtc::AudioDecoder::Config& config) {
+  RTC_DCHECK_RUN_ON(worker_thread());
+  voice_media_receive_channel()->ConfigureDecoders(config);
+}
+
 // RingRTC change to get audio levels
 void VoiceChannel::GetCapturedAudioLevel(uint16_t* captured_out) {
   RTC_DCHECK_RUN_ON(worker_thread());

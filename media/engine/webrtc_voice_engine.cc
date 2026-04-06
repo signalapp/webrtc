@@ -2056,6 +2056,7 @@ RTCError WebRtcVoiceSendChannel::SetRtpSendParameters(
   return it->second->SetRtpParameters(reduced_params, std::move(callback));
 }
 
+// RingRTC change to configure opus
 void WebRtcVoiceSendChannel::ConfigureEncoders(const AudioEncoder::Config& config) {
   RTC_DCHECK_RUN_ON(worker_thread_);
   int count = 0;
@@ -2067,7 +2068,7 @@ void WebRtcVoiceSendChannel::ConfigureEncoders(const AudioEncoder::Config& confi
   if (count == 0) {
     RTC_LOG(LS_WARNING) << "WebRtcVoiceMediaChannel::ConfigureEncoders(...) changed no send streams!";
   } else {
-    RTC_LOG(LS_INFO) << "WebRtcVoiceMediaChannel::ConfigureEncoders(...) changed " << count << " transceivers.";
+    RTC_LOG(LS_INFO) << "WebRtcVoiceMediaChannel::ConfigureEncoders(...) changed " << count << " streams.";
   }
 }
 
@@ -2200,8 +2201,15 @@ class WebRtcVoiceReceiveChannel::WebRtcAudioReceiveStream {
     stream_->SetDepacketizerToDecoderFrameTransformer(frame_transformer);
   }
 
+  // RingRTC change to configure opus
+  void ConfigureDecoder(const AudioDecoder::Config& config) {
+    RTC_DCHECK_RUN_ON(&worker_thread_checker_);
+    stream_->ConfigureDecoder(config);
+  }
+
   // RingRTC change to get audio levels
   uint16_t GetAudioLevel() {
+    RTC_DCHECK_RUN_ON(&worker_thread_checker_);
     return stream_->GetAudioLevel();
   }
 
@@ -2993,6 +3001,22 @@ bool WebRtcVoiceReceiveChannel::MaybeDeregisterUnsignaledRecvStream(
     return true;
   }
   return false;
+}
+
+// RingRTC change to configure opus
+void WebRtcVoiceReceiveChannel::ConfigureDecoders(const AudioDecoder::Config& config) {
+  RTC_DCHECK_RUN_ON(worker_thread_);
+  int count = 0;
+  for (auto& it : recv_streams_) {
+    it.second->ConfigureDecoder(config);
+    count++;
+  }
+
+  if (count == 0) {
+    RTC_LOG(LS_WARNING) << "WebRtcVoiceReceiveChannel::ConfigureDecoders(...) changed no receive streams!";
+  } else {
+    RTC_LOG(LS_INFO) << "WebRtcVoiceReceiveChannel::ConfigureDecoders(...) changed " << count << " streams.";
+  }
 }
 
 // RingRTC change to get audio levels

@@ -1133,6 +1133,13 @@ RUSTEXPORT void Rust_configureAudioEncoders(
   peer_connection_borrowed_rc->ConfigureAudioEncoders(*config_borrowed);
 }
 
+RUSTEXPORT void Rust_configureAudioDecoders(
+    PeerConnectionInterface* peer_connection_borrowed_rc,
+    const AudioDecoder::Config* config_borrowed) {
+  RTC_LOG(LS_INFO) << "Rust_configureAudioDecoders(...)";
+  peer_connection_borrowed_rc->ConfigureAudioDecoders(*config_borrowed);
+}
+
 RUSTEXPORT void Rust_getAudioLevels(
     PeerConnectionInterface* peer_connection_borrowed_rc,
     uint16_t* captured_out,

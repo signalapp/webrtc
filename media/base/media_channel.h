@@ -26,6 +26,8 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "api/audio/audio_processing_statistics.h"
+// RingRTC change to configure opus
+#include "api/audio_codecs/audio_decoder.h"
 #include "api/audio_codecs/audio_encoder.h"
 #include "api/audio_options.h"
 #include "api/call/audio_sink.h"
@@ -944,6 +946,9 @@ class VoiceMediaReceiveChannelInterface : public MediaReceiveChannelInterface {
                                std::unique_ptr<AudioSinkInterface> sink) = 0;
   virtual void SetDefaultRawAudioSink(
       std::unique_ptr<AudioSinkInterface> sink) = 0;
+
+  // RingRTC change to configure opus
+  virtual void ConfigureDecoders(const webrtc::AudioDecoder::Config& config) = 0;
 
   // RingRTC change to get audio levels
   virtual std::optional<ReceivedAudioLevel> GetReceivedAudioLevel() = 0;

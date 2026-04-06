@@ -3296,6 +3296,7 @@ bool PeerConnection::ReceiveRtp(uint8_t pt, bool enable_incoming) {
       });
 }
 
+// RingRTC change to configure opus
 void PeerConnection::ConfigureAudioEncoders(
     const AudioEncoder::Config& config) {
   std::vector<VoiceMediaSendChannelInterface*> sending_voice_channels;
@@ -3313,19 +3314,52 @@ void PeerConnection::ConfigureAudioEncoders(
     }
   }
 
-  worker_thread()->BlockingCall([&config, sending_voice_channels] {
-    for (auto voice_channel : sending_voice_channels) {
-      voice_channel->ConfigureEncoders(config);
-    }
+  if (sending_voice_channels.size() == 0) {
+    RTC_LOG(LS_WARNING) << "PeerConnection::ConfigureAudioEncoders(...) "
+                           "changed no transceivers!";
+  } else {
+    worker_thread()->BlockingCall([&config, sending_voice_channels] {
+      for (auto voice_channel : sending_voice_channels) {
+        voice_channel->ConfigureEncoders(config);
+      }
 
-    if (sending_voice_channels.size() == 0) {
-      RTC_LOG(LS_WARNING) << "PeerConnection::ConfigureAudioEncoders(...) "
-                             "changed no transceivers!";
-    } else {
       RTC_LOG(LS_INFO) << "PeerConnection::ConfigureAudioEncoders(...) changed "
                        << sending_voice_channels.size() << " transceivers.";
+    });
+  }
+}
+
+// RingRTC change to configure opus
+void PeerConnection::ConfigureAudioDecoders(
+    const AudioDecoder::Config& config) {
+  std::vector<VoiceMediaReceiveChannelInterface*> receiving_voice_channels;
+  for (const auto& transceiver : rtp_manager()->transceivers()->List()) {
+    if (transceiver->media_type() != MediaType::AUDIO) {
+      continue;
     }
-  });
+
+    if (transceiver->direction() == RtpTransceiverDirection::kSendRecv ||
+        transceiver->direction() == RtpTransceiverDirection::kRecvOnly) {
+      if(auto* voice_channel =
+            static_cast<VoiceMediaReceiveChannelInterface*>(transceiver->internal()->voice_media_receive_channel())) {
+        receiving_voice_channels.push_back(voice_channel);
+      }
+    }
+  }
+
+  if (receiving_voice_channels.size() == 0) {
+    RTC_LOG(LS_WARNING) << "PeerConnection::ConfigureAudioDecoders(...) "
+                           "changed no transceivers!";
+  } else {
+    worker_thread()->BlockingCall([&config, receiving_voice_channels] {
+      for (auto voice_channel : receiving_voice_channels) {
+        voice_channel->ConfigureDecoders(config);
+      }
+
+      RTC_LOG(LS_INFO) << "PeerConnection::ConfigureAudioDecoders(...) changed "
+                       << receiving_voice_channels.size() << " transceivers.";
+    });
+  }
 }
 
 // RingRTC change to get audio levels

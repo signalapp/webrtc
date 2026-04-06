@@ -20,6 +20,8 @@
 #include <vector>
 
 #include "api/array_view.h"
+// RingRTC change to configure opus
+#include "api/audio_codecs/audio_decoder.h"
 #include "api/audio_codecs/audio_format.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_packet_info.h"
@@ -337,6 +339,9 @@ class NetEq {
   GetNackList(int64_t round_trip_time_ms) const {
     return {};
   }
+
+  // RingRTC change to configure opus
+  virtual void ConfigureDecoders(const AudioDecoder::Config& config) {}
 
   // Returns the length of the audio yet to play in the sync buffer.
   // Mainly intended for testing.

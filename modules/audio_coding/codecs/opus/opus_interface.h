@@ -408,6 +408,21 @@ size_t WebRtcOpus_DecoderChannels(OpusDecInst* inst);
  */
 void WebRtcOpus_DecoderInit(OpusDecInst* inst);
 
+// RingRTC change to set Opus decoder complexity
+/*
+ * WebRtcOpus_DecoderSetComplexity(...)
+ *
+ * This function adjusts the decoder complexity.
+ *
+ * Input:
+ *      - inst               : Decoder context
+ *      - complexity         : New target complexity (0-10, inclusive)
+ *
+ * Return value              :  0 - Success
+ *                             -1 - Error
+ */
+int16_t WebRtcOpus_DecoderSetComplexity(OpusDecInst* inst, int32_t complexity);
+
 /****************************************************************************
  * WebRtcOpus_Decode(...)
  *

@@ -197,6 +197,9 @@ class NetEqImpl : public NetEq {
 
   int SyncBufferSizeMs() const override;
 
+  // RingRTC change to configure opus
+  void ConfigureDecoders(const AudioDecoder::Config& config) override;
+
   // This accessor method is only intended for testing purposes.
   const SyncBuffer* sync_buffer_for_test() const;
   Operation last_operation_for_test() const;

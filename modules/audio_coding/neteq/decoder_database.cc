@@ -280,4 +280,18 @@ int DecoderDatabase::CheckPayloadTypes(const PacketList& packet_list) const {
   return kOK;
 }
 
+// RingRTC change to configure opus
+void DecoderDatabase::ConfigureDecoders(const AudioDecoder::Config& config) {
+  int count = 0;
+  for (auto& [_key, decoderInfo] : decoders_) {
+    auto* decoder = decoderInfo.GetDecoder();
+    if (decoder) {
+      decoder->Configure(config);
+      count++;
+    }
+  }
+  RTC_LOG(LS_INFO) << "DecoderDatabase::ConfigureDecoders configured " << count
+                   << " decoders";
+}
+
 }  // namespace webrtc

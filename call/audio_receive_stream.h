@@ -223,6 +223,11 @@ class AudioReceiveStreamInterface : public MediaReceiveStreamInterface {
   // Returns current value of base minimum delay in milliseconds.
   virtual int GetBaseMinimumPlayoutDelayMs() const = 0;
 
+  // RingRTC change to configure opus
+  virtual void ConfigureDecoder(const AudioDecoder::Config& config) {
+    RTC_LOG(LS_WARNING) << "Default AudioReceiveStream::ConfigureDecoder(...) does nothing!";
+  }
+
   // RingRTC change to get audio levels
   virtual uint16_t GetAudioLevel() {
     RTC_LOG(LS_WARNING) << "Default AudioReceiveStream::GetAudioLevel() does nothing!";

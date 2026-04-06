@@ -193,8 +193,15 @@ void AudioReceiveStreamImpl::ReconfigureForTesting(
   config_ = config;
 }
 
+// RingRTC change to configure opus
+void AudioReceiveStreamImpl::ConfigureDecoder(const AudioDecoder::Config& config) {
+  RTC_DCHECK_RUN_ON(&worker_thread_checker_);
+  channel_receive_->ConfigureDecoder(config);
+}
+
 // RingRTC change to get audio levels
 uint16_t AudioReceiveStreamImpl::GetAudioLevel() {
+  RTC_DCHECK_RUN_ON(&worker_thread_checker_);
   return channel_receive_->GetSpeechOutputLevelFullRange();
 }
 

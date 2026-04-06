@@ -23,6 +23,8 @@
 #include "modules/audio_coding/codecs/opus/opus_interface.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/checks.h"
+// RingRTC Change to configure opus
+#include "rtc_base/logging.h"
 
 namespace webrtc {
 
@@ -150,6 +152,17 @@ void AudioDecoderOpusImpl::GeneratePlc(
     }
     return ret;
   });
+}
+
+// RingRTC change to configure opus
+bool AudioDecoderOpusImpl::Configure(const AudioDecoder::Config& config) {
+  if (config.complexity >= 0) {
+    // Make sure the decoder will generate PLC when requested by NetEq.
+    generate_plc_ = true;
+    WebRtcOpus_DecoderSetComplexity(dec_state_, config.complexity);
+  }
+
+  return true;
 }
 
 }  // namespace webrtc

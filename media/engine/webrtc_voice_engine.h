@@ -405,6 +405,9 @@ class WebRtcVoiceReceiveChannel final
   void SetReceiveNackEnabled(bool enabled) override;
   void SetReceiveNonSenderRttEnabled(bool enabled) override;
 
+  // RingRTC change to configure opus
+  void ConfigureDecoders(const webrtc::AudioDecoder::Config& config) override;
+
   // RingRTC change to get audio levels
   std::optional<ReceivedAudioLevel> GetReceivedAudioLevel() override;
 

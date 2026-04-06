@@ -1169,8 +1169,14 @@ class RTC_EXPORT PeerConnectionInterface : public RefCountInterface {
   virtual bool ReceiveRtp(uint8_t pt, bool enable_incoming);
   virtual void SetRtpPacketObserver(RtpPacketSinkInterface* observer) = 0;
 
+  // RingRTC change to configure opus
   virtual void ConfigureAudioEncoders(const AudioEncoder::Config& config) {
     RTC_LOG(LS_WARNING) << "Default PeerConnectionInterface::ConfigureAudioEncoders(...) does nothing!";
+  }
+
+  // RingRTC change to configure opus
+  virtual void ConfigureAudioDecoders(const AudioDecoder::Config& config) {
+    RTC_LOG(LS_WARNING) << "Default PeerConnectionInterface::ConfigureAudioDecoders(...) does nothing!";
   }
 
   // RingRTC change to get audio levels

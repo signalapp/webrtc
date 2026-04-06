@@ -203,6 +203,10 @@ RUSTEXPORT void Rust_configureAudioEncoders(
     webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
     const webrtc::AudioEncoder::Config* config_borrowed);
 
+RUSTEXPORT void Rust_configureAudioDecoders(
+    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
+    const webrtc::AudioDecoder::Config* config_borrowed);
+
 RUSTEXPORT void Rust_getAudioLevels(
     webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
     uint16_t* captured_out,
