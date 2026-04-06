@@ -8,7 +8,7 @@
 
 #include "api/ice_gatherer_interface.h"
 #include "api/ice_transport_interface.h"
-#include "api/jsep_session_description.h"
+#include "api/jsep.h"
 #include "api/peer_connection_interface.h"
 #include "api/video_codecs/vp9_profile.h"
 #include "modules/rtp_rtcp/source/rtp_dependency_descriptor_extension.h"
@@ -517,10 +517,11 @@ RUSTEXPORT SessionDescriptionInterface* Rust_sessionDescriptionFromV4(
   session->set_msid_signaling(kMsidSignalingMediaSection);
 
   auto typ = offer ? SdpType::kOffer : SdpType::kAnswer;
-  return new JsepSessionDescription(typ, std::move(session), "1", "1");
+  return SessionDescriptionInterface::Create(typ, std::move(session), "1", "1")
+      .release();
 }
 
-JsepSessionDescription* CreateSessionDescriptionForGroupCall(
+SessionDescriptionInterface* CreateSessionDescriptionForGroupCall(
     bool local,
     const std::string& ice_ufrag,
     const std::string& ice_pwd,
@@ -837,7 +838,8 @@ JsepSessionDescription* CreateSessionDescriptionForGroupCall(
   auto typ = local ? SdpType::kOffer : SdpType::kAnswer;
   // The session ID and session version (both "1" here) go into SDP, but are not
   // used at all.
-  return new JsepSessionDescription(typ, std::move(session), "1", "1");
+  return SessionDescriptionInterface::Create(typ, std::move(session), "1", "1")
+      .release();
 }
 
 // Returns an owned pointer.

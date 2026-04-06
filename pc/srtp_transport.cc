@@ -15,6 +15,7 @@
 #include <utility>
 #include <vector>
 
+#include "api/array_view.h"
 #include "api/field_trials_view.h"
 #include "api/units/timestamp.h"
 #include "call/rtp_demuxer.h"
@@ -89,7 +90,7 @@ bool SrtpTransport::SendRtpPacket(CopyOnWriteBuffer* packet,
     return false;
   }
 
-  return SendPacket(/*rtcp=*/false, packet, updated_options, flags);
+  return RtpTransport::SendRtpPacket(packet, updated_options, flags);
 }
 
 bool SrtpTransport::SendRtcpPacket(CopyOnWriteBuffer* packet,
@@ -111,7 +112,7 @@ bool SrtpTransport::SendRtcpPacket(CopyOnWriteBuffer* packet,
     return false;
   }
 
-  return SendPacket(/*rtcp=*/true, packet, options, flags);
+  return RtpTransport::SendRtcpPacket(packet, options, flags);
 }
 
 void SrtpTransport::OnRtpPacketReceived(const ReceivedIpPacket& packet) {
@@ -160,8 +161,8 @@ void SrtpTransport::OnRtcpPacketReceived(const ReceivedIpPacket& packet) {
                       << payload.size() << ", type=" << type;
     return;
   }
-  SendRtcpPacketReceived(
-      &payload, packet.arrival_time() ? packet.arrival_time()->us() : -1);
+  SendRtcpPacketReceived(std::move(payload), packet.arrival_time(),
+                         packet.ecn());
 }
 
 void SrtpTransport::OnNetworkRouteChanged(
@@ -402,4 +403,36 @@ bool SrtpTransport::UnregisterRtpDemuxerSink(RtpPacketSinkInterface* sink) {
   return RtpTransport::UnregisterRtpDemuxerSink(sink);
 }
 
+// RingRTC change, copied from  DtlsSrtpTransport, Allow out-of-band / "manual" key negotiation.
+void SrtpTransport::UpdateSendEncryptedHeaderExtensionIds(
+  const std::vector<int>& send_extension_ids) {
+  if (send_extension_ids_ == send_extension_ids) {
+    return;
+  }
+  send_extension_ids_.emplace(send_extension_ids);
+}
+
+void SrtpTransport::UpdateRecvEncryptedHeaderExtensionIds(
+    const std::vector<int>& recv_extension_ids) {
+  if (recv_extension_ids_ == recv_extension_ids) {
+    return;
+  }
+  recv_extension_ids_.emplace(recv_extension_ids);
+}
+
+bool SrtpTransport::CustomSetRtpParams(int send_crypto_suite,
+                    const ZeroOnFreeBuffer<uint8_t>& send_key,
+                    int recv_crypto_suite,
+                    const ZeroOnFreeBuffer<uint8_t>& recv_key) {
+  RTC_DCHECK(send_extension_ids_);
+  RTC_DCHECK(recv_extension_ids_);
+  return SetRtpParams(
+      send_crypto_suite,
+      send_key,
+      *(send_extension_ids_),
+      recv_crypto_suite,
+      recv_key,
+      *(recv_extension_ids_));
+}
+// end RingRTC change
 }  // namespace webrtc

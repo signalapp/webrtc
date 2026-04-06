@@ -201,6 +201,8 @@ enum SdpMungingType {
   kRtcpMux = 30,
   kIceOptionsTrickle = 31,
   kIceCandidateCount = 32,
+  kBundle = 33,
+  kBandwidth = 34,
   // RTP header extension munging.
   kRtpHeaderExtensionRemoved = 40,
   kRtpHeaderExtensionAdded = 41,
@@ -231,6 +233,10 @@ enum SdpMungingType {
   kVideoCodecsAddedWithRawPacketization = 87,
   kVideoCodecsModifiedWithRawPacketization = 88,
   kVideoCodecsRtcpReducedSize = 89,
+  // DataChannel-related munging.
+  kDataChannelSctpInit = 100,
+  kDataChannelMaxMessageSize = 101,
+  kDataChannelSctpPort = 101,
   kMaxValue,
 };
 

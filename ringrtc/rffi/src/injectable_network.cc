@@ -60,7 +60,7 @@ class InjectableUdpSocket : public AsyncPacketSocket {
 
     // Ends up going to Call::OnSentPacket for congestion control purposes.
     SentPacketInfo sent_packet(options.packet_id, TimeMillis());
-    SignalSentPacket(this, sent_packet);
+    NotifySentPacket(this, sent_packet);
     return result;
   }
 
@@ -178,7 +178,7 @@ class InjectableNetworkImpl : public InjectableNetwork,
       interface->AddIP(IpToRtcIp(ip));
       interface->set_preference(preference);
       interface_by_name_.insert({std::move(name), std::move(interface)});
-      SignalNetworksChanged();
+      NotifyNetworksChanged();
     });
   }
 
@@ -248,7 +248,7 @@ class InjectableNetworkImpl : public InjectableNetwork,
     //       have failed (gone away)
     // Documentation says this must be called by StartUpdating() once the
     // network list is available.
-    SignalNetworksChanged();
+    NotifyNetworksChanged();
   }
 
   // As NetworkManager
@@ -297,7 +297,8 @@ class InjectableNetworkImpl : public InjectableNetwork,
   }
 
   // As PacketSocketFactory
-  AsyncPacketSocket* CreateUdpSocket(
+  std::unique_ptr<AsyncPacketSocket> CreateUdpSocket(
+      const Environment& env,
       const SocketAddress& local_address_without_port,
       uint16_t min_port,
       uint16_t max_port) override {
@@ -310,25 +311,27 @@ class InjectableNetworkImpl : public InjectableNetwork,
     // And the local_address is supposed to have a port of 0.
     uint16_t local_port = next_udp_port_++;
     SocketAddress local_address(local_ip, local_port);
-    auto udp_socket = new InjectableUdpSocket(this, local_address);
-    udp_socket_by_local_address_.insert({local_address, udp_socket});
-    // This really should return a std::unique_ptr because callers all take
-    // ownership.
+    auto udp_socket =
+        std::make_unique<InjectableUdpSocket>(this, local_address);
+    udp_socket_by_local_address_.insert({local_address, udp_socket.get()});
     return udp_socket;
   }
 
   // As PacketSocketFactory
-  AsyncListenSocket* CreateServerTcpSocket(const SocketAddress& local_address,
-                                           uint16_t min_port,
-                                           uint16_t max_port,
-                                           int opts) override {
+  std::unique_ptr<AsyncListenSocket> CreateServerTcpSocket(
+      const Environment& env,
+      const SocketAddress& local_address,
+      uint16_t min_port,
+      uint16_t max_port,
+      int opts) override {
     // We never plan to support TCP ICE (other than through TURN),
     // So we'll never implement this.
     return nullptr;
   }
 
   // As PacketSocketFactory
-  AsyncPacketSocket* CreateClientTcpSocket(
+  std::unique_ptr<AsyncPacketSocket> CreateClientTcpSocket(
+      const Environment& env,
       const SocketAddress& local_address,
       const SocketAddress& remote_address,
       const PacketSocketTcpOptions& tcp_options) override {

@@ -11,8 +11,7 @@
 #ifndef CALL_FAKE_PAYLOAD_TYPE_SUGGESTER_H_
 #define CALL_FAKE_PAYLOAD_TYPE_SUGGESTER_H_
 
-#include <string>
-
+#include "absl/strings/string_view.h"
 #include "api/rtc_error.h"
 #include "call/payload_type.h"
 #include "call/payload_type_picker.h"
@@ -25,12 +24,12 @@ namespace webrtc {
 class FakePayloadTypeSuggester : public webrtc::PayloadTypeSuggester {
  public:
   webrtc::RTCErrorOr<webrtc::PayloadType> SuggestPayloadType(
-      const std::string& mid,
-      Codec codec) override {
+      absl::string_view mid,
+      const Codec& codec) override {
     // Ignores mid argument.
     return pt_picker_.SuggestMapping(codec, nullptr);
   }
-  webrtc::RTCError AddLocalMapping(const std::string& mid,
+  webrtc::RTCError AddLocalMapping(absl::string_view,
                                    webrtc::PayloadType payload_type,
                                    const Codec& codec) override {
     return webrtc::RTCError::OK();

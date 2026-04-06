@@ -17,15 +17,18 @@
 #include <utility>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/candidate.h"
 #include "api/transport/enums.h"
+#include "api/units/time_delta.h"
 #include "p2p/base/ice_credentials_iterator.h"
 #include "p2p/base/port.h"
 #include "p2p/base/port_interface.h"
 #include "p2p/base/transport_description.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/crypto_random.h"
+#include "rtc_base/net_helper.h"
 #include "rtc_base/socket_address.h"
 
 // RingRTC change to default flags
@@ -80,14 +83,7 @@ PortAllocatorSession::PortAllocatorSession(absl::string_view content_name,
       content_name_(content_name),
       component_(component),
       ice_ufrag_(ice_ufrag),
-      ice_pwd_(ice_pwd),
-      port_ready_trampoline_(this),
-      ports_pruned_trampoline_(this),
-      candidates_ready_trampoline_(this),
-      candidate_error_trampoline_(this),
-      candidates_removed_trampoline_(this),
-      candidates_allocation_done_trampoline_(this),
-      ice_regathering_trampoline_(this) {
+      ice_pwd_(ice_pwd) {
   // Pooled sessions are allowed to be created with empty content name,
   // component, ufrag and password.
   RTC_DCHECK(ice_ufrag.empty() == ice_pwd.empty());
@@ -299,7 +295,7 @@ void PortAllocator::SetCandidateFilter(uint32_t filter) {
   }
   uint32_t prev_filter = candidate_filter_;
   candidate_filter_ = filter;
-  SignalCandidateFilterChanged(prev_filter, filter);
+  NotifyCandidateFilterChanged(prev_filter, filter);
 }
 
 void PortAllocator::GetCandidateStatsFromPooledSessions(
@@ -343,6 +339,17 @@ Candidate PortAllocator::SanitizeCandidate(const Candidate& c) const {
        (c.is_prflx() && filter_prflx_related_address));
   return c.ToSanitizedCopy(use_hostname_address, filter_related_address,
                            /*filter_ufrag=*/false);
+}
+
+void PortAllocatorSession::SubscribePortReady(
+    absl::AnyInvocable<void(PortAllocatorSession*, PortInterface*)> callback) {
+  port_ready_callbacks_.AddReceiver(std::move(callback));
+}
+
+void PortAllocatorSession::SubscribePortReady(
+    void* tag,
+    absl::AnyInvocable<void(PortAllocatorSession*, PortInterface*)> callback) {
+  port_ready_callbacks_.AddReceiver(tag, std::move(callback));
 }
 
 }  // namespace webrtc

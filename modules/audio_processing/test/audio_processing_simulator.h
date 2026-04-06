@@ -32,6 +32,7 @@
 #include "modules/audio_processing/test/test_utils.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/task_queue_for_test.h"
+#include "third_party/tflite/src/tensorflow/lite/model_builder.h"
 
 namespace webrtc {
 namespace test {
@@ -98,7 +99,6 @@ struct SimulationSettings {
   std::optional<std::string> artificial_nearend_filename;
   std::optional<std::string> linear_aec_output_filename;
   std::optional<bool> use_aec;
-  std::optional<bool> use_aecm;
   std::optional<bool> use_ed;  // Residual Echo Detector.
   std::optional<std::string> ed_graph_output_filename;
   std::optional<bool> use_agc;
@@ -159,8 +159,14 @@ struct SimulationSettings {
   std::optional<int> dump_end_frame;
   std::optional<int> init_to_process;
   std::optional<std::string> neural_echo_residual_estimator_model;
+  std::optional<bool> use_adaptive_stereo_downmixing_for_aec;
 };
 
+// State used by the audio processor, but not owned by it.
+// This state must outlive the audio processor.
+struct AudioProcessingBuilderState {
+  std::unique_ptr<tflite::FlatBufferModel> model;
+};
 // Provides common functionality for performing audioprocessing simulations.
 class AudioProcessingSimulator {
  public:

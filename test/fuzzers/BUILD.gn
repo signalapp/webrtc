@@ -488,7 +488,7 @@ webrtc_fuzzer_test("residual_echo_detector_fuzzer") {
 webrtc_fuzzer_test("sdp_parser_fuzzer") {
   sources = [ "sdp_parser_fuzzer.cc" ]
   deps = [
-    "../../api:libjingle_peerconnection_api",
+    "../../api:jsep",
     "../../pc:libjingle_peerconnection",
   ]
   seed_corpus = "corpora/sdp-corpus"
@@ -503,8 +503,9 @@ if (!build_with_chromium) {
     sources = [ "sdp_integration_fuzzer.cc" ]
     deps = [
       "..:wait_until",
-      "../../api:libjingle_peerconnection_api",
+      "../../api:jsep",
       "../../api:make_ref_counted",
+      "../../api:peer_connection_interface",
       "../../api:rtc_error_matchers",
       "../../pc:integration_test_helpers",
       "../../pc:libjingle_peerconnection",
@@ -731,8 +732,7 @@ webrtc_fuzzer_test("string_to_number_fuzzer") {
 webrtc_fuzzer_test("sctp_utils_fuzzer") {
   sources = [ "sctp_utils_fuzzer.cc" ]
   deps = [
-    "../../api:libjingle_peerconnection_api",
-    "../../pc:libjingle_peerconnection",
+    "../../api:data_channel_interface",
     "../../pc:sctp_utils",
     "../../rtc_base:copy_on_write_buffer",
   ]

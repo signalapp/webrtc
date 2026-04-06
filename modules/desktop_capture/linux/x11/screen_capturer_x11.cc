@@ -17,13 +17,16 @@
 #include <X11/extensions/Xrandr.h>
 #include <X11/extensions/damagewire.h>
 #include <X11/extensions/randr.h>
+// X11 creates a CurrentTime macro, which causes compilation errors when
+// including webrtc::Clock.
+#undef CurrentTime
 #include <dlfcn.h>
 
 #include <cstdint>
-#include <cstring>
 #include <memory>
 #include <utility>
 
+#include "media/base/video_common.h"
 #include "modules/desktop_capture/desktop_capture_options.h"
 #include "modules/desktop_capture/desktop_capture_types.h"
 #include "modules/desktop_capture/desktop_capturer.h"
@@ -307,7 +310,8 @@ bool ScreenCapturerX11::GetSourceList(SourceList* sources) {
     char* monitor_title = XGetAtomName(display(), m.name);
 
     // Note name is an X11 Atom used to id the monitor.
-    sources->push_back({static_cast<SourceId>(m.name), monitor_title});
+    sources->push_back(
+        {.id = static_cast<SourceId>(m.name), .title = monitor_title});
     XFree(monitor_title);
   }
 
@@ -511,13 +515,12 @@ std::unique_ptr<DesktopCapturer> ScreenCapturerX11::CreateRawScreenCapturer(
   if (!options.x_display())
     return nullptr;
 
-  RTC_LOG(LS_INFO)
-      << "video capture: ScreenCapturerX11::CreateRawScreenCapturer creates "
-         "DesktopCapturer of type ScreenCapturerX11";
+  RTC_LOG(LS_INFO) << "ScreenCapturerX11::CreateRawScreenCapturer creates "
+                      "DesktopCapturer of type ScreenCapturerX11";
   std::unique_ptr<ScreenCapturerX11> capturer(new ScreenCapturerX11());
   if (!capturer->Init(options)) {
     RTC_LOG(LS_INFO)
-        << "video capture: ScreenCapturerX11::CreateRawScreenCapturer "
+        << "ScreenCapturerX11::CreateRawScreenCapturer "
            "DesktopCapturer is null because it can not be initiated";
     return nullptr;
   }

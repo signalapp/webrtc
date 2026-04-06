@@ -39,7 +39,10 @@ class SrtpTransport : public RtpTransport {
  public:
   SrtpTransport(bool rtcp_mux_enabled, const FieldTrialsView& field_trials);
 
-  virtual ~SrtpTransport() = default;
+  ~SrtpTransport() override = default;
+
+  // RingRTC: Allow out-of-band / "manual" key negotiation.
+  SrtpTransport* AsCustomSrtpTransport() override { return this; }
 
   bool SendRtpPacket(CopyOnWriteBuffer* packet,
                      const AsyncSocketPacketOptions& options,
@@ -106,10 +109,30 @@ class SrtpTransport : public RtpTransport {
   // disassociates all SSRCs of the sink from libSRTP.
   bool UnregisterRtpDemuxerSink(RtpPacketSinkInterface* sink) override;
 
+  // RingRTC change, copied from  DtlsSrtpTransport, Allow out-of-band / "manual" key negotiation.
+  // Set the header extension ids that should be encrypted.
+  void UpdateSendEncryptedHeaderExtensionIds(
+      const std::vector<int>& send_extension_ids);
+
+  void UpdateRecvEncryptedHeaderExtensionIds(
+      const std::vector<int>& recv_extension_ids);
+
+  // Create new send/recv sessions and set the negotiated crypto keys for RTP
+  // packet encryption.
+  bool CustomSetRtpParams(int send_crypto_suite,
+                    const ZeroOnFreeBuffer<uint8_t>& send_key,
+                    int recv_crypto_suite,
+                    const ZeroOnFreeBuffer<uint8_t>& recv_key);
+  // end RingRTC change
  protected:
   // If the writable state changed, fire the SignalWritableState.
   void MaybeUpdateWritableState();
 
+  // RingRTC, moved from  DtlsSrtpTransport, Allow out-of-band / "manual" key negotiation.
+  // The encrypted header extension IDs.
+  std::optional<std::vector<int>> send_extension_ids_;
+  std::optional<std::vector<int>> recv_extension_ids_;
+  // end RingRTC change
  private:
   void ConnectToRtpTransport();
   void CreateSrtpSessions();

@@ -30,15 +30,17 @@
 #include "api/scoped_refptr.h"
 #include "api/stats/rtc_stats_report.h"
 #include "api/test/rtc_error_matchers.h"
+#include "api/units/time_delta.h"
 #include "pc/peer_connection.h"
 #include "pc/peer_connection_proxy.h"
-#include "pc/sdp_utils.h"
 #include "pc/test/fake_video_track_source.h"
 #include "pc/test/mock_peer_connection_observers.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/event.h"
 #include "rtc_base/logging.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/run_loop.h"
 #include "test/wait_until.h"
 
 namespace webrtc {
@@ -110,7 +112,7 @@ PeerConnectionWrapper::CreateOfferAndSetAsLocal(
   if (!offer) {
     return nullptr;
   }
-  EXPECT_TRUE(SetLocalDescription(CloneSessionDescription(offer.get())));
+  EXPECT_TRUE(SetLocalDescription(offer->Clone()));
   return offer;
 }
 
@@ -142,7 +144,7 @@ PeerConnectionWrapper::CreateAnswerAndSetAsLocal(
   if (!answer) {
     return nullptr;
   }
-  EXPECT_TRUE(SetLocalDescription(CloneSessionDescription(answer.get())));
+  EXPECT_TRUE(SetLocalDescription(answer->Clone()));
   return answer;
 }
 
@@ -154,11 +156,21 @@ PeerConnectionWrapper::CreateRollback() {
 std::unique_ptr<SessionDescriptionInterface> PeerConnectionWrapper::CreateSdp(
     FunctionView<void(CreateSessionDescriptionObserver*)> fn,
     std::string* error_out) {
-  auto observer = make_ref_counted<MockCreateSessionDescriptionObserver>();
+  // Tests in SdpMungingTest call this method from outside the signaling thread.
+  const bool signaling_is_current =
+      GetInternalPeerConnection()->signaling_thread()->IsCurrent();
+  Event done;
+  auto observer = make_ref_counted<MockCreateSessionDescriptionObserver>(
+      [&]() { done.Set(); });
   fn(observer.get());
-  EXPECT_THAT(
-      WaitUntil([&] { return observer->called(); }, ::testing::IsTrue()),
-      IsRtcOk());
+  if (signaling_is_current) {
+    EXPECT_THAT(
+        WaitUntil([&] { return observer->called(); }, ::testing::IsTrue()),
+        IsRtcOk());
+  } else {
+    done.Wait(Event::kForever);
+    EXPECT_TRUE(observer->called());
+  }
   if (error_out && !observer->result()) {
     *error_out = observer->error();
   }
@@ -248,8 +260,7 @@ bool PeerConnectionWrapper::ExchangeOfferAnswerWith(
   if (!offer) {
     return false;
   }
-  bool set_local_offer =
-      SetLocalDescription(CloneSessionDescription(offer.get()));
+  bool set_local_offer = SetLocalDescription(offer->Clone());
   EXPECT_TRUE(set_local_offer);
   if (!set_local_offer) {
     return false;
@@ -265,8 +276,7 @@ bool PeerConnectionWrapper::ExchangeOfferAnswerWith(
   if (!answer) {
     return false;
   }
-  bool set_local_answer =
-      answerer->SetLocalDescription(CloneSessionDescription(answer.get()));
+  bool set_local_answer = answerer->SetLocalDescription(answer->Clone());
   EXPECT_TRUE(set_local_answer);
   if (!set_local_answer) {
     return false;
@@ -422,6 +432,20 @@ scoped_refptr<const RTCStatsReport> PeerConnectionWrapper::GetStats() {
       WaitUntil([&] { return callback->called(); }, ::testing::IsTrue()),
       IsRtcOk());
   return callback->report();
+}
+
+bool PeerConnectionWrapper::RunUntilIceGatheringDone(test::RunLoop& run_loop,
+                                                     TimeDelta timeout) {
+  if (observer()->ice_gathering_complete()) {
+    return true;
+  }
+  observer()->SetIceGatheringCompleteCallback(run_loop.QuitClosure());
+  run_loop.RunFor(timeout);
+
+  // Clear the callback just in case the timeout happened before it fired.
+  observer()->SetIceGatheringCompleteCallback(nullptr);
+
+  return observer()->ice_gathering_complete();
 }
 
 }  // namespace webrtc

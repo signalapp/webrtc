@@ -16,6 +16,7 @@
 #include <optional>
 #include <vector>
 
+#include "api/transport/ecn_marking.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "rtc_base/async_packet_socket.h"
@@ -24,14 +25,13 @@
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/synchronization/mutex.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "test/wait_until.h"
 
 namespace webrtc {
 
 // A simple client that can send TCP or UDP data and check that it receives
 // what it expects to receive. Useful for testing server functionality.
-class TestClient : public sigslot::has_slots<> {
+class TestClient {
  public:
   // Records the contents of a packet that was received.
   struct Packet {
@@ -40,6 +40,7 @@ class TestClient : public sigslot::has_slots<> {
 
     SocketAddress addr;
     Buffer buf;
+    EcnMarking ecn;
     std::optional<Timestamp> packet_time;
   };
 
@@ -53,7 +54,7 @@ class TestClient : public sigslot::has_slots<> {
   // for a packet to be received, and thus it needs to advance the fake clock
   // if the test is using one, rather than just sleeping.
   TestClient(std::unique_ptr<AsyncPacketSocket> socket, ClockVariant clock);
-  ~TestClient() override;
+  ~TestClient();
 
   TestClient(const TestClient&) = delete;
   TestClient& operator=(const TestClient&) = delete;
@@ -77,7 +78,7 @@ class TestClient : public sigslot::has_slots<> {
 
   // Returns the next packet received by the client or null if none is received
   // within the specified timeout.
-  std::unique_ptr<Packet> NextPacket(int timeout_ms);
+  std::unique_ptr<Packet> NextPacket(int timeout_ms = kTimeoutMs);
 
   // Checks that the next packet has the given contents. Returns the remote
   // address that the packet was sent from.

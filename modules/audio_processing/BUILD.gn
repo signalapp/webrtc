@@ -64,6 +64,7 @@ rtc_library("audio_buffer") {
     "../../common_audio:common_audio_c",
     "../../rtc_base:checks",
     "../../rtc_base:gtest_prod",
+    "capture_mixer",
   ]
 }
 
@@ -157,8 +158,6 @@ rtc_library("audio_processing") {
   sources = [
     "audio_processing_impl.cc",
     "audio_processing_impl.h",
-    "echo_control_mobile_impl.cc",
-    "echo_control_mobile_impl.h",
     "gain_control_impl.cc",
     "gain_control_impl.h",
     "render_queue_item_verifier.h",
@@ -210,7 +209,6 @@ rtc_library("audio_processing") {
     "../../system_wrappers:metrics",
     "aec3",
     "aec_dump",
-    "aecm:aecm_core",
     "agc",
     "agc:gain_control_interface",
     "agc:legacy_agc",
@@ -347,7 +345,6 @@ if (rtc_include_tests) {
       sources = [
         "audio_buffer_unittest.cc",
         "audio_frame_view_unittest.cc",
-        "echo_control_mobile_unittest.cc",
         "gain_controller2_unittest.cc",
         "splitting_filter_unittest.cc",
         "test/echo_canceller3_config_json_unittest.cc",
@@ -425,6 +422,7 @@ if (rtc_include_tests) {
         "agc2/rnn_vad:unittests",
         "capture_levels_adjuster",
         "capture_levels_adjuster:capture_levels_adjuster_unittests",
+        "capture_mixer:capture_mixer_unittests",
         "test/conversational_speech:unittest",
         "utility:cascaded_biquad_filter_unittest",
         "utility:legacy_delay_estimator_unittest",
@@ -435,12 +433,6 @@ if (rtc_include_tests) {
       ]
 
       defines = []
-
-      if (rtc_prefer_fixed_point) {
-        defines += [ "WEBRTC_AUDIOPROC_FIXED_PROFILE" ]
-      } else {
-        defines += [ "WEBRTC_AUDIOPROC_FLOAT_PROFILE" ]
-      }
 
       if (rtc_enable_protobuf) {
         defines += [ "WEBRTC_AUDIOPROC_DEBUG_DUMP" ]
@@ -464,7 +456,6 @@ if (rtc_include_tests) {
           "audio_processing_impl_locking_unittest.cc",
           "audio_processing_impl_unittest.cc",
           "audio_processing_unittest.cc",
-          "echo_control_mobile_bit_exact_unittest.cc",
           "echo_detector/circular_buffer_unittest.cc",
           "echo_detector/mean_variance_estimator_unittest.cc",
           "echo_detector/moving_max_unittest.cc",
@@ -535,7 +526,10 @@ if (rtc_include_tests) {
   if (rtc_enable_protobuf && !build_with_chromium) {
     rtc_library("audioproc_f_impl") {
       testonly = true
-      configs += [ ":apm_debug_dump" ]
+      configs += [
+        ":apm_debug_dump",
+        "//third_party/tflite:tflite_config_no_undef",
+      ]
       sources = [
         "test/aec_dump_based_simulator.cc",
         "test/aec_dump_based_simulator.h",
@@ -564,6 +558,8 @@ if (rtc_include_tests) {
         "../../api/audio:audio_processing",
         "../../api/audio:builtin_audio_processing_builder",
         "../../api/audio:echo_detector_creator",
+        "../../api/audio:neural_residual_echo_estimator_api",
+        "../../api/audio:neural_residual_echo_estimator_creator",
         "../../api/environment",
         "../../api/environment:environment_factory",
         "../../common_audio",
@@ -574,12 +570,13 @@ if (rtc_include_tests) {
         "../../rtc_base:task_queue_for_test",
         "../../rtc_base:timeutils",
         "../../rtc_base/system:file_wrapper",
-        "aec3:neural_residual_echo_estimator_impl",
         "aec_dump",
         "//third_party/abseil-cpp/absl/base:nullability",
         "//third_party/abseil-cpp/absl/flags:flag",
         "//third_party/abseil-cpp/absl/flags:parse",
         "//third_party/abseil-cpp/absl/strings:string_view",
+        "//third_party/tflite:tflite_builtin_op_resolver_standalone",
+        "//third_party/tflite:tflite_standalone",
       ]
     }  # audioproc_f_impl
   }

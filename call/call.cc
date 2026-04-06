@@ -29,7 +29,6 @@
 #include "api/environment/environment.h"
 #include "api/fec_controller.h"
 #include "api/media_types.h"
-#include "api/rtc_error.h"
 #include "api/rtc_event_log/rtc_event_log.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_parameters.h"
@@ -53,8 +52,6 @@
 #include "call/flexfec_receive_stream.h"
 #include "call/flexfec_receive_stream_impl.h"
 #include "call/packet_receiver.h"
-#include "call/payload_type.h"
-#include "call/payload_type_picker.h"
 #include "call/receive_stream.h"
 #include "call/receive_time_calculator.h"
 #include "call/rtp_config.h"
@@ -69,7 +66,6 @@
 #include "logging/rtc_event_log/events/rtc_event_video_receive_stream_config.h"
 #include "logging/rtc_event_log/events/rtc_event_video_send_stream_config.h"
 #include "logging/rtc_event_log/rtc_stream_config.h"
-#include "media/base/codec.h"
 #include "modules/congestion_controller/include/receive_side_congestion_controller.h"
 #include "modules/rtp_rtcp/include/flexfec_receiver.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
@@ -103,26 +99,6 @@
 namespace webrtc {
 
 namespace {
-
-// In normal operation, the PTS comes from the PeerConnection.
-// However, it is too much of a bother to insert it in all tests,
-// so defaulting here.
-class PayloadTypeSuggesterForTests : public PayloadTypeSuggester {
- public:
-  PayloadTypeSuggesterForTests() = default;
-  RTCErrorOr<PayloadType> SuggestPayloadType(const std::string& /* mid */,
-                                             Codec codec) override {
-    return payload_type_picker_.SuggestMapping(codec, nullptr);
-  }
-  RTCError AddLocalMapping(const std::string& /* mid */,
-                           PayloadType /* payload_type */,
-                           const Codec& /* codec */) override {
-    return RTCError::OK();
-  }
-
- private:
-  PayloadTypePicker payload_type_picker_;
-};
 
 const int* FindKeyByValue(const std::map<int, int>& m, int v) {
   for (const auto& kv : m) {
@@ -272,9 +248,6 @@ class Call final : public webrtc::Call,
   void AddAdaptationResource(scoped_refptr<Resource> resource) override;
 
   RtpTransportControllerSendInterface* GetTransportControllerSend() override;
-
-  PayloadTypeSuggester* GetPayloadTypeSuggester() override;
-  void SetPayloadTypeSuggester(PayloadTypeSuggester* suggester) override;
 
   Stats GetStats() const override;
 
@@ -500,10 +473,6 @@ class Call final : public webrtc::Call,
       RTC_GUARDED_BY(send_transport_sequence_checker_);
 
   bool is_started_ RTC_GUARDED_BY(worker_thread_) = false;
-
-  // Mechanism for proposing payload types in RTP mappings.
-  PayloadTypeSuggester* pt_suggester_ = nullptr;
-  std::unique_ptr<PayloadTypeSuggesterForTests> owned_pt_suggester_;
 
   // Sequence checker for outgoing network traffic. Could be the network thread.
   // Could also be a pacer owned thread or TQ such as the TaskQueueSender.
@@ -1128,24 +1097,6 @@ RtpTransportControllerSendInterface* Call::GetTransportControllerSend() {
   return transport_send_.get();
 }
 
-PayloadTypeSuggester* Call::GetPayloadTypeSuggester() {
-  // TODO: https://issues.webrtc.org/360058654 - make mandatory at
-  // initialization. Currently, only some channels use it.
-  RTC_DCHECK_RUN_ON(worker_thread_);
-  if (!pt_suggester_) {
-    // Make something that will work most of the time for testing.
-    owned_pt_suggester_ = std::make_unique<PayloadTypeSuggesterForTests>();
-    SetPayloadTypeSuggester(owned_pt_suggester_.get());
-  }
-  return pt_suggester_;
-}
-
-void Call::SetPayloadTypeSuggester(PayloadTypeSuggester* suggester) {
-  RTC_CHECK(!pt_suggester_)
-      << "SetPayloadTypeSuggester can be called only once";
-  pt_suggester_ = suggester;
-}
-
 Call::Stats Call::GetStats() const {
   RTC_DCHECK_RUN_ON(worker_thread_);
 
@@ -1168,6 +1119,11 @@ Call::Stats Call::GetStats() const {
   stats.ccfb_messages_received =
       transport_send_->ReceivedCongestionControlFeedbackCount();
 
+  stats.sent_ccfb_stats_per_ssrc =
+      receive_side_cc_.GetCongestionControllerStatsPerSsrc();
+  stats.received_ccfb_stats_per_ssrc =
+      transport_send_->GetCongestionControlFeedbackStatsPerSsrc();
+
   return stats;
 }
 
@@ -1178,10 +1134,8 @@ uint32_t Call::GetLastBandwidthEstimateBps() const {
 
 void Call::SetPreferredRtcpCcAckType(
     RtcpFeedbackType preferred_rtcp_cc_ack_type) {
-  if (preferred_rtcp_cc_ack_type == RtcpFeedbackType::CCFB) {
-    receive_side_cc_.EnableSendCongestionControlFeedbackAccordingToRfc8888();
-    transport_send_->EnableCongestionControlFeedbackAccordingToRfc8888();
-  }  //  else default to transport CC if correct header extension is negotiated
+  receive_side_cc_.SetPreferredRtcpCcAckType(preferred_rtcp_cc_ack_type);
+  transport_send_->SetPreferredRtcpCcAckType(preferred_rtcp_cc_ack_type);
 }
 
 std::optional<int> Call::FeedbackAccordingToRfc8888Count() {
@@ -1454,8 +1408,10 @@ void Call::DeliverRtpPacket(
 
   NotifyBweOfReceivedPacket(packet, media_type);
 
-  env_.event_log().Log(std::make_unique<RtcEventRtpPacketIncoming>(packet));
+  // Packets that are successfully demuxed are logged by their respective
+  // streams. Packets that fail to demux are logged here.
   if (media_type != MediaType::AUDIO && media_type != MediaType::VIDEO) {
+    env_.event_log().Log(std::make_unique<RtcEventRtpPacketIncoming>(packet));
     return;
   }
 
@@ -1474,9 +1430,11 @@ void Call::DeliverRtpPacket(
     // Note that we dont want to call NotifyBweOfReceivedPacket twice per
     // packet.
     if (!undemuxable_packet_handler(packet)) {
+      env_.event_log().Log(std::make_unique<RtcEventRtpPacketIncoming>(packet));
       return;
     }
     if (!receiver_controller.OnRtpPacket(packet)) {
+      env_.event_log().Log(std::make_unique<RtcEventRtpPacketIncoming>(packet));
       RTC_LOG(LS_INFO) << "Failed to demux packet " << packet.Ssrc();
       return;
     }

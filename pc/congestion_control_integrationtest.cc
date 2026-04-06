@@ -24,6 +24,7 @@
 #include "api/test/rtc_error_matchers.h"
 #include "pc/session_description.h"
 #include "pc/test/integration_test_helpers.h"
+#include "system_wrappers/include/metrics.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/wait_until.h"
@@ -358,8 +359,56 @@ TEST_F(PeerConnectionCongestionControlTest, CcfbGetsUsed) {
               Eq(0));
 }
 
+TEST_F(PeerConnectionCongestionControlTest, CcfbGetsUsedWithPrAnswer) {
+  SetFieldTrials("WebRTC-RFC8888CongestionControlFeedback/Enabled,offer:true/");
+  metrics::Reset();
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignaling();
+  caller()->AddAudioVideoTracks();
+  callee()->SetGeneratedSdpMunger(
+      [](std::unique_ptr<SessionDescriptionInterface>& sdp) {
+        SetSdpType(sdp, SdpType::kPrAnswer);
+      });
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(WaitUntil(
+                  [&] {
+                    return caller()->pc()->signaling_state() ==
+                           PeerConnectionInterface::kHaveRemotePrAnswer;
+                  },
+                  IsTrue()),
+              IsRtcOk());
+  MediaExpectations media_expectations;
+  media_expectations.CalleeExpectsSomeAudio();
+  media_expectations.CalleeExpectsSomeVideo();
+  ASSERT_TRUE(ExpectNewFrames(media_expectations));
+  auto pc_internal = caller()->pc_internal();
+  EXPECT_THAT(
+      WaitUntil(
+          [&] {
+            return pc_internal->FeedbackAccordingToRfc8888CountForTesting();
+          },
+          Gt(0)),
+      IsRtcOk());
+  // There should be no transport-cc generated.
+  EXPECT_THAT(pc_internal->FeedbackAccordingToTransportCcCountForTesting(),
+              Eq(0));
+  // Note that metrics are picked up from both PCs, so the number
+  // of metric counts is 2.
+  EXPECT_METRIC_EQ(
+      metrics::NumSamples("WebRTC.PeerConnection.NegotiatedFeedbackType"), 2);
+  EXPECT_METRIC_EQ(
+      metrics::NumEvents("WebRTC.PeerConnection.NegotiatedFeedbackType",
+                         static_cast<int>(RtcpFeedbackType::CCFB)),
+      2);
+  EXPECT_METRIC_EQ(
+      metrics::NumEvents("WebRTC.PeerConnection.NegotiatedFeedbackType",
+                         static_cast<int>(RtcpFeedbackType::TRANSPORT_CC)),
+      0);
+}
+
 TEST_F(PeerConnectionCongestionControlTest, TransportCcGetsUsed) {
   SetFieldTrials("WebRTC-RFC8888CongestionControlFeedback/Disabled/");
+  metrics::Reset();
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   ConnectFakeSignaling();
   caller()->AddAudioVideoTracks();
@@ -380,6 +429,18 @@ TEST_F(PeerConnectionCongestionControlTest, TransportCcGetsUsed) {
       IsRtcOk());
   // Test that RFC 8888 feedback is NOT generated when field trial disabled.
   EXPECT_THAT(pc_internal->FeedbackAccordingToRfc8888CountForTesting(), Eq(0));
+  // Note that metrics are picked up from both PCs, so the number
+  // of metric counts is 2.
+  EXPECT_METRIC_EQ(
+      metrics::NumSamples("WebRTC.PeerConnection.NegotiatedFeedbackType"), 2);
+  EXPECT_METRIC_EQ(
+      metrics::NumEvents("WebRTC.PeerConnection.NegotiatedFeedbackType",
+                         static_cast<int>(RtcpFeedbackType::CCFB)),
+      0);
+  EXPECT_METRIC_EQ(
+      metrics::NumEvents("WebRTC.PeerConnection.NegotiatedFeedbackType",
+                         static_cast<int>(RtcpFeedbackType::TRANSPORT_CC)),
+      2);
 }
 
 TEST_F(PeerConnectionCongestionControlTest,

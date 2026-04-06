@@ -28,11 +28,11 @@
 #include "api/ice_transport_interface.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
+#include "api/task_queue/task_queue_base.h"
 #include "api/transport/enums.h"
 #include "api/transport/stun.h"
 #include "api/units/time_delta.h"
 #include "p2p/base/candidate_pair_interface.h"
-#include "p2p/base/connection.h"
 #include "p2p/base/connection_info.h"
 #include "p2p/base/ice_transport_internal.h"
 #include "p2p/base/port.h"
@@ -48,34 +48,32 @@
 #include "rtc_base/network_route.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/task_queue_for_test.h"
-#include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
 #include "rtc_base/time_utils.h"
 #include "test/create_test_field_trials.h"
 
 namespace webrtc {
-using ::webrtc::SafeTask;
-using ::webrtc::TimeDelta;
 
 // All methods must be called on the network thread (which is either the thread
 // calling the constructor, or the separate thread explicitly passed to the
 // constructor).
-class FakeIceTransport : public IceTransportInternal {
+class FakeIceTransportInternal : public IceTransportInternal {
  public:
-  explicit FakeIceTransport(absl::string_view name,
-                            int component,
-                            Thread* network_thread = nullptr,
-                            absl::string_view field_trials_string = "")
+  explicit FakeIceTransportInternal(absl::string_view name,
+                                    int component,
+                                    TaskQueueBase* network_thread = nullptr,
+                                    absl::string_view field_trials_string = "")
       : name_(name),
         component_(component),
-        network_thread_(network_thread ? network_thread : Thread::Current()),
+        network_thread_(network_thread ? network_thread
+                                       : TaskQueueBase::Current()),
         field_trials_(CreateTestFieldTrials(field_trials_string)) {
     RTC_DCHECK(network_thread_);
   }
 
   // Must be called either on the network thread, or after the network thread
   // has been shut down.
-  ~FakeIceTransport() override {
+  ~FakeIceTransportInternal() override {
     if (dest_ && dest_->dest_ == this) {
       dest_->dest_ = nullptr;
     }
@@ -104,9 +102,9 @@ class FakeIceTransport : public IceTransportInternal {
   }
 
   // Simulates the two transports connecting to each other.
-  // If `asymmetric` is true this method only affects this FakeIceTransport.
-  // If false, it affects `dest` as well.
-  void SetDestination(FakeIceTransport* dest, bool asymmetric = false) {
+  // If `asymmetric` is true this method only affects this
+  // FakeIceTransportInternal. If false, it affects `dest` as well.
+  void SetDestination(FakeIceTransportInternal* dest, bool asymmetric = false) {
     RTC_DCHECK_RUN_ON(network_thread_);
     if (dest == dest_) {
       return;
@@ -127,7 +125,7 @@ class FakeIceTransport : public IceTransportInternal {
     }
   }
 
-  void SetDestinationNotWritable(FakeIceTransport* dest) {
+  void SetDestinationNotWritable(FakeIceTransportInternal* dest) {
     RTC_DCHECK_RUN_ON(network_thread_);
     if (dest == dest_) {
       return;
@@ -196,11 +194,11 @@ class FakeIceTransport : public IceTransportInternal {
     RTC_DCHECK_RUN_ON(network_thread_);
     return remote_ice_mode_;
   }
-  const IceParameters* local_ice_parameters() const override {
+  const IceParameters* local_ice_parameters() const {
     RTC_DCHECK_RUN_ON(network_thread_);
     return &ice_parameters_;
   }
-  const IceParameters* remote_ice_parameters() const override {
+  const IceParameters* remote_ice_parameters() const {
     RTC_DCHECK_RUN_ON(network_thread_);
     return &remote_ice_parameters_;
   }
@@ -314,7 +312,6 @@ class FakeIceTransport : public IceTransportInternal {
 
   std::optional<int> GetRttEstimate() override { return rtt_estimate_; }
 
-  const Connection* selected_connection() const override { return nullptr; }
   std::optional<const CandidatePair> GetSelectedCandidatePair() const override {
     return std::nullopt;
   }
@@ -352,7 +349,7 @@ class FakeIceTransport : public IceTransportInternal {
     }
 
     SentPacketInfo sent_packet(options.packet_id, TimeMillis());
-    SignalSentPacket(this, sent_packet);
+    NotifySentPacket(this, sent_packet);
     return static_cast<int>(len);
   }
 
@@ -624,7 +621,7 @@ class FakeIceTransport : public IceTransportInternal {
 
   const std::string name_;
   const int component_;
-  FakeIceTransport* dest_ RTC_GUARDED_BY(network_thread_) = nullptr;
+  FakeIceTransportInternal* dest_ RTC_GUARDED_BY(network_thread_) = nullptr;
   bool async_ RTC_GUARDED_BY(network_thread_) = false;
   int async_delay_ms_ RTC_GUARDED_BY(network_thread_) = 0;
   Candidates remote_candidates_ RTC_GUARDED_BY(network_thread_);
@@ -648,7 +645,7 @@ class FakeIceTransport : public IceTransportInternal {
   std::optional<NetworkRoute> network_route_ RTC_GUARDED_BY(network_thread_);
   std::map<Socket::Option, int> socket_options_ RTC_GUARDED_BY(network_thread_);
   CopyOnWriteBuffer last_sent_packet_ RTC_GUARDED_BY(network_thread_);
-  Thread* const network_thread_;
+  TaskQueueBase* const network_thread_;
   ScopedTaskSafetyDetached task_safety_;
   std::optional<int> rtt_estimate_;
   std::optional<int64_t> last_sent_ping_timestamp_;
@@ -667,15 +664,15 @@ class FakeIceTransport : public IceTransportInternal {
   bool drop_non_stun_unless_writable_ = false;
 };
 
-class FakeIceTransportWrapper : public IceTransportInterface {
+class FakeIceTransport : public IceTransportInterface {
  public:
-  explicit FakeIceTransportWrapper(std::unique_ptr<FakeIceTransport> internal)
+  explicit FakeIceTransport(std::unique_ptr<IceTransportInternal> internal)
       : internal_(std::move(internal)) {}
 
   IceTransportInternal* internal() override { return internal_.get(); }
 
  private:
-  std::unique_ptr<FakeIceTransport> internal_;
+  std::unique_ptr<IceTransportInternal> internal_;
 };
 
 }  //  namespace webrtc

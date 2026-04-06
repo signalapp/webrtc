@@ -49,6 +49,10 @@ std::string VideoStream::ToString() const {
   ss << ", bitrate_priority: " << bitrate_priority.value_or(0);
   ss << ", active: " << active;
   ss << ", scale_down_by: " << scale_resolution_down_by;
+  if (scale_resolution_down_to.has_value()) {
+    ss << ", scale_down_to: " << scale_resolution_down_to->width << "x"
+       << scale_resolution_down_to->height;
+  }
   ss << '}';
   return ss.str();
 }
@@ -102,6 +106,15 @@ std::string VideoEncoderConfig::ToString() const {
 bool VideoEncoderConfig::HasScaleResolutionDownTo() const {
   for (const VideoStream& simulcast_layer : simulcast_layers) {
     if (simulcast_layer.scale_resolution_down_to.has_value()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool VideoEncoderConfig::HasScaleResolutionDownBy() const {
+  for (const VideoStream& simulcast_layer : simulcast_layers) {
+    if (simulcast_layer.scale_resolution_down_by >= 1.0) {
       return true;
     }
   }

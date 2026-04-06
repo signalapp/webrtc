@@ -14,8 +14,10 @@
 #include <array>
 
 #include "api/array_view.h"
+#include "api/audio/echo_canceller3_config.h"
 
 namespace webrtc {
+class Block;
 
 // Interface for a neural residual echo estimator module injected into the echo
 // canceller.
@@ -24,13 +26,14 @@ namespace webrtc {
 class NeuralResidualEchoEstimator {
  public:
   virtual ~NeuralResidualEchoEstimator() {}
+
   // Estimates residual echo power spectrum in the signal after linear AEC
   // subtraction. Returns two estimates:
   //   * R2: A conservative estimate.
   //   * R2_unbounded: A less conservative estimate.
   //
   // Input signals:
-  //   * x: Render signal (time-domain)
+  //   * render: Render block (time-domain)
   //   * y: Microphone signal (time-domain)
   //   * e: Output from linear subtraction stage (time-domain)
   //
@@ -38,14 +41,24 @@ class NeuralResidualEchoEstimator {
   //   * S2: Linear echo estimate
   //   * Y2: Microphone input
   //   * E2: Output of linear stage
-  virtual void Estimate(ArrayView<const float> x,
+  //
+  // Other inputs:
+  //   * dominant_nearend: True if dominant nearend is active
+  virtual void Estimate(const Block& render,
                         ArrayView<const std::array<float, 64>> y,
                         ArrayView<const std::array<float, 64>> e,
                         ArrayView<const std::array<float, 65>> S2,
                         ArrayView<const std::array<float, 65>> Y2,
                         ArrayView<const std::array<float, 65>> E2,
+                        bool dominant_nearend,
                         ArrayView<std::array<float, 65>> R2,
                         ArrayView<std::array<float, 65>> R2_unbounded) = 0;
+
+  // Returns a recommended AEC3 configuration for this estimator.
+  virtual EchoCanceller3Config GetConfiguration(bool multi_channel) const = 0;
+
+  // Resets the internal state of the estimator.
+  virtual void Reset() = 0;
 };
 }  // namespace webrtc
 

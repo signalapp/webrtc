@@ -64,7 +64,7 @@ class AsyncTCPSocketBase : public AsyncPacketSocket {
   void AppendToOutBuffer(const void* pv, size_t cb);
 
   // Helper methods for `outpos_`.
-  bool IsOutBufferEmpty() const { return outbuf_.size() == 0; }
+  bool IsOutBufferEmpty() const { return outbuf_.empty(); }
   void ClearOutBuffer() { outbuf_.Clear(); }
 
  private:
@@ -85,7 +85,6 @@ class AsyncTCPSocket : public AsyncTCPSocketBase {
  public:
   AsyncTCPSocket(const Environment& env,
                  absl_nonnull std::unique_ptr<Socket> socket);
-  ~AsyncTCPSocket() override = default;
 
   AsyncTCPSocket(const AsyncTCPSocket&) = delete;
   AsyncTCPSocket& operator=(const AsyncTCPSocket&) = delete;
@@ -119,6 +118,5 @@ class AsyncTcpListenSocket : public AsyncListenSocket {
 };
 
 }  //  namespace webrtc
-
 
 #endif  // RTC_BASE_ASYNC_TCP_SOCKET_H_

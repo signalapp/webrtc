@@ -44,7 +44,6 @@
 #include "p2p/base/p2p_constants.h"
 #include "p2p/base/transport_info.h"
 #include "p2p/test/fake_port_allocator.h"
-#include "pc/channel_interface.h"
 #include "pc/media_session.h"
 #include "pc/peer_connection_wrapper.h"
 #include "pc/rtp_media_utils.h"
@@ -88,13 +87,13 @@ RtpTransceiver* RtpTransceiverInternal(
 MediaSendChannelInterface* SendChannelInternal(
     scoped_refptr<RtpTransceiverInterface> transceiver) {
   auto transceiver_internal = RtpTransceiverInternal(transceiver);
-  return transceiver_internal->channel()->media_send_channel();
+  return transceiver_internal->media_send_channel();
 }
 
 MediaReceiveChannelInterface* ReceiveChannelInternal(
     scoped_refptr<RtpTransceiverInterface> transceiver) {
   auto transceiver_internal = RtpTransceiverInternal(transceiver);
-  return transceiver_internal->channel()->media_receive_channel();
+  return transceiver_internal->media_receive_channel();
 }
 
 FakeVideoMediaSendChannel* VideoMediaSendChannel(
@@ -1045,7 +1044,7 @@ TEST_P(PeerConnectionMediaInvalidMediaTest, FailToSetLocalAnswer) {
 void RemoveVideoContentAndUnbundle(SessionDescription* desc) {
   // Removing BUNDLE is easier than removing the content in there.
   desc->RemoveGroupByName("BUNDLE");
-  auto content_name = GetFirstVideoContent(desc)->mid();
+  std::string content_name = GetFirstVideoContent(desc)->mid();
   desc->RemoveContentByName(content_name);
   desc->RemoveTransportInfoByName(content_name);
 }
@@ -1065,7 +1064,7 @@ void ReverseMediaContent(SessionDescription* desc) {
 }
 
 void ChangeMediaTypeAudioToVideo(SessionDescription* desc) {
-  auto audio_mid = GetFirstAudioContent(desc)->mid();
+  std::string audio_mid = GetFirstAudioContent(desc)->mid();
   desc->RemoveContentByName(audio_mid);
   auto* video_content = GetFirstVideoContent(desc);
   desc->AddContent(audio_mid, video_content->type,

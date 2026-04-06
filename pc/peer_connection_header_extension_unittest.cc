@@ -37,6 +37,7 @@
 #include "rtc_base/socket_server.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/thread.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -44,6 +45,7 @@ namespace webrtc {
 
 using ::testing::Combine;
 using ::testing::ElementsAre;
+using ::testing::Eq;
 using ::testing::Field;
 using ::testing::IsEmpty;
 using ::testing::Return;
@@ -65,10 +67,14 @@ class PeerConnectionHeaderExtensionTest
              RtpHeaderExtensionCapability("uri3",
                                           3,
                                           RtpTransceiverDirection::kRecvOnly),
-             RtpHeaderExtensionCapability(
-                 "uri4",
-                 4,
-                 RtpTransceiverDirection::kSendRecv)}) {}
+             RtpHeaderExtensionCapability("uri4",
+                                          4,
+                                          RtpTransceiverDirection::kSendRecv),
+             RtpHeaderExtensionCapability("encrypted_uri",
+                                          5,
+                                          /* preferred_encrypt= */ true,
+                                          RtpTransceiverDirection::kStopped)}) {
+  }
 
   std::unique_ptr<PeerConnectionWrapper> CreatePeerConnection(
       MediaType media_type,
@@ -258,6 +264,8 @@ TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
                           Field(&RtpHeaderExtensionCapability::direction,
                                 RtpTransceiverDirection::kSendRecv),
                           Field(&RtpHeaderExtensionCapability::direction,
+                                RtpTransceiverDirection::kStopped),
+                          Field(&RtpHeaderExtensionCapability::direction,
                                 RtpTransceiverDirection::kStopped)));
 }
 
@@ -354,7 +362,9 @@ TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
                           Field(&RtpHeaderExtensionCapability::direction,
                                 RtpTransceiverDirection::kSendRecv),
                           Field(&RtpHeaderExtensionCapability::direction,
-                                RtpTransceiverDirection::kSendRecv)));
+                                RtpTransceiverDirection::kSendRecv),
+                          Field(&RtpHeaderExtensionCapability::direction,
+                                RtpTransceiverDirection::kStopped)));
 }
 
 TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
@@ -729,7 +739,7 @@ TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
 }
 
 TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
-       TransceiversAddedAfterFirstTransceiverCopyExtensions) {
+       TransceiversAddedAfterFirstTransceiverDoNotCopyExtensionsFromStopped) {
   MediaType media_type;
   SdpSemantics semantics;
   std::tie(media_type, semantics) = GetParam();
@@ -739,22 +749,127 @@ TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
   auto modified_extensions = transceiver1->GetHeaderExtensionsToNegotiate();
   modified_extensions[3].direction = RtpTransceiverDirection::kStopped;
   transceiver1->SetHeaderExtensionsToNegotiate(modified_extensions);
-  auto transceiver2 = pc1->AddTransceiver(media_type);
-
+  // Create a description with two sections, and set it as local.
   auto session_description = pc1->CreateOffer();
+  pc1->SetLocalDescription(std::move(session_description));
+  // Stop the transceiver. That should make it ignored for copying purposes.
+  transceiver1->StopStandard();
+  auto transceiver2 = pc1->AddTransceiver(media_type);
+  session_description = pc1->CreateOffer();
+
+  ASSERT_THAT(session_description->description()->contents().size(), Eq(2));
   EXPECT_THAT(session_description->description()
                   ->contents()[0]
                   .media_description()
                   ->rtp_header_extensions(),
               ElementsAre(Field(&RtpExtension::uri, "uri2"),
                           Field(&RtpExtension::uri, "uri3")));
-  // the uri4 extension is disabled in the newly added transceiver too
+  // the uri4 extension is enabled in the newly added transceiver
   EXPECT_THAT(session_description->description()
                   ->contents()[1]
                   .media_description()
                   ->rtp_header_extensions(),
               ElementsAre(Field(&RtpExtension::uri, "uri2"),
+                          Field(&RtpExtension::uri, "uri3"),
+                          Field(&RtpExtension::uri, "uri4")));
+}
+
+TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
+       NegotiatingOffThenOnWorks) {
+  MediaType media_type;
+  SdpSemantics semantics;
+  std::tie(media_type, semantics) = GetParam();
+  std::unique_ptr<PeerConnectionWrapper> pc1 = CreatePeerConnection(
+      media_type, semantics, "WebRTC-HeaderExtensionNegotiateMemory/Enabled/");
+  std::unique_ptr<PeerConnectionWrapper> pc2 = CreatePeerConnection(
+      media_type, semantics, "WebRTC-HeaderExtensionNegotiateMemory/Enabled/");
+  auto transceiver1 = pc1->AddTransceiver(media_type);
+  auto modified_extensions = transceiver1->GetHeaderExtensionsToNegotiate();
+  modified_extensions[3].direction = RtpTransceiverDirection::kStopped;
+  transceiver1->SetHeaderExtensionsToNegotiate(modified_extensions);
+
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      pc1->CreateOfferAndSetAsLocal();
+  pc2->SetRemoteDescription(std::move(offer));
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      pc2->CreateAnswerAndSetAsLocal();
+  EXPECT_THAT(answer->description()
+                  ->contents()[0]
+                  .media_description()
+                  ->rtp_header_extensions(),
+              ElementsAre(Field(&RtpExtension::uri, "uri2"),
                           Field(&RtpExtension::uri, "uri3")));
+  pc1->SetRemoteDescription(std::move(answer));
+  modified_extensions = transceiver1->GetHeaderExtensionsToNegotiate();
+  EXPECT_THAT(modified_extensions[3].direction,
+              Eq(RtpTransceiverDirection::kStopped));
+  modified_extensions[3].direction = RtpTransceiverDirection::kSendRecv;
+  transceiver1->SetHeaderExtensionsToNegotiate(modified_extensions);
+  offer = pc1->CreateOfferAndSetAsLocal();
+  EXPECT_THAT(offer->description()
+                  ->contents()[0]
+                  .media_description()
+                  ->rtp_header_extensions(),
+              ElementsAre(Field(&RtpExtension::uri, "uri2"),
+                          Field(&RtpExtension::uri, "uri3"),
+                          Field(&RtpExtension::uri, "uri4")));
+  pc2->SetRemoteDescription(std::move(offer));
+  answer = pc2->CreateAnswerAndSetAsLocal();
+  EXPECT_THAT(answer->description()
+                  ->contents()[0]
+                  .media_description()
+                  ->rtp_header_extensions(),
+              ElementsAre(Field(&RtpExtension::uri, "uri2"),
+                          Field(&RtpExtension::uri, "uri3"),
+                          Field(&RtpExtension::uri, "uri4")));
+  pc1->SetRemoteDescription(std::move(answer));
+}
+
+TEST_P(PeerConnectionHeaderExtensionUnifiedPlanTest,
+       EncryptedHeaderExtensionsWorkWhenMemoryEnabled) {
+  MediaType media_type;
+  SdpSemantics semantics;
+  std::tie(media_type, semantics) = GetParam();
+  std::unique_ptr<PeerConnectionWrapper> pc1 = CreatePeerConnection(
+      media_type, semantics, "WebRTC-HeaderExtensionNegotiateMemory/Enabled/");
+  std::unique_ptr<PeerConnectionWrapper> pc2 = CreatePeerConnection(
+      media_type, semantics, "WebRTC-HeaderExtensionNegotiateMemory/Enabled/");
+  auto transceiver1 = pc1->AddTransceiver(media_type);
+  auto modified_extensions = transceiver1->GetHeaderExtensionsToNegotiate();
+  // this just verifies that setup is correct
+  ASSERT_THAT(modified_extensions[4].preferred_encrypt, Eq(true));
+  ASSERT_THAT(modified_extensions[4].uri, Eq("encrypted_uri"));
+  modified_extensions[4].direction = RtpTransceiverDirection::kSendRecv;
+  transceiver1->SetHeaderExtensionsToNegotiate(modified_extensions);
+
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      pc1->CreateOfferAndSetAsLocal();
+  EXPECT_THAT(offer->description()
+                  ->contents()[0]
+                  .media_description()
+                  ->rtp_header_extensions(),
+              Contains(Field(&RtpExtension::uri, "encrypted_uri")));
+  pc2->SetRemoteDescription(std::move(offer));
+  EXPECT_THAT(pc2->pc()
+                  ->remote_description()
+                  ->description()
+                  ->contents()[0]
+                  .media_description()
+                  ->rtp_header_extensions(),
+              Contains(Field(&RtpExtension::uri, "encrypted_uri")));
+  auto answerer_extensions =
+      pc2->pc()->GetTransceivers()[0]->GetHeaderExtensionsToNegotiate();
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      pc2->CreateAnswerAndSetAsLocal();
+  EXPECT_THAT(answer->description()
+                  ->contents()[0]
+                  .media_description()
+                  ->rtp_header_extensions(),
+              Contains(Field("uri", &RtpExtension::uri, "encrypted_uri")));
+  pc1->SetRemoteDescription(std::move(answer));
+  modified_extensions = transceiver1->GetNegotiatedHeaderExtensions();
+  EXPECT_THAT(modified_extensions[4].direction,
+              Eq(RtpTransceiverDirection::kSendRecv));
 }
 
 INSTANTIATE_TEST_SUITE_P(

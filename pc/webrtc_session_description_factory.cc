@@ -23,9 +23,9 @@
 #include "absl/algorithm/container.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/str_cat.h"
-#include "api/field_trials_view.h"
+#include "absl/strings/string_view.h"
+#include "api/environment/environment.h"
 #include "api/jsep.h"
-#include "api/jsep_session_description.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
 #include "api/scoped_refptr.h"
@@ -42,6 +42,7 @@
 #include "rtc_base/rtc_certificate_generator.h"
 #include "rtc_base/ssl_identity.h"
 #include "rtc_base/ssl_stream_adapter.h"
+#include "rtc_base/thread.h"
 
 namespace webrtc {
 namespace {
@@ -76,7 +77,7 @@ bool ValidMediaSessionOptions(const MediaSessionOptions& session_options) {
 // static
 void WebRtcSessionDescriptionFactory::CopyCandidatesFromSessionDescription(
     const SessionDescriptionInterface* source_desc,
-    const std::string& content_name,
+    absl::string_view content_name,
     SessionDescriptionInterface* dest_desc) {
   if (!source_desc) {
     return;
@@ -113,13 +114,15 @@ WebRtcSessionDescriptionFactory::WebRtcSessionDescriptionFactory(
     std::function<void(const scoped_refptr<RTCCertificate>&)>
         on_certificate_ready,
     CodecLookupHelper* codec_lookup_helper,
-    const FieldTrialsView& field_trials)
+    const Environment& env)
     : signaling_thread_(context->signaling_thread()),
-      transport_desc_factory_(field_trials),
-      session_desc_factory_(context->media_engine(),
+      transport_desc_factory_(env.field_trials()),
+      session_desc_factory_(env,
+                            context->media_engine(),
                             context->use_rtx(),
                             context->ssrc_generator(),
                             &transport_desc_factory_,
+                            context->sctp_transport_factory(),
                             codec_lookup_helper),
       // RFC 4566 suggested a Network Time Protocol (NTP) format timestamp
       // as the session id and session version. To simplify, it should be fine
@@ -180,6 +183,7 @@ WebRtcSessionDescriptionFactory::WebRtcSessionDescriptionFactory(
 
 WebRtcSessionDescriptionFactory::~WebRtcSessionDescriptionFactory() {
   RTC_DCHECK_RUN_ON(signaling_thread_);
+  RTC_DCHECK_DISALLOW_THREAD_BLOCKING_CALLS();
 
   // Fail any requests that were asked for before identity generation completed.
   FailPendingRequests(kFailedDueToSessionShutdown);
@@ -199,6 +203,7 @@ void WebRtcSessionDescriptionFactory::CreateOffer(
     CreateSessionDescriptionObserver* observer,
     const PeerConnectionInterface::RTCOfferAnswerOptions& options,
     const MediaSessionOptions& session_options) {
+  RTC_LOG_THREAD_BLOCK_COUNT();
   RTC_DCHECK_RUN_ON(signaling_thread_);
   std::string error = "CreateOffer";
   if (certificate_request_state_ == CERTIFICATE_FAILED) {
@@ -229,6 +234,7 @@ void WebRtcSessionDescriptionFactory::CreateOffer(
 void WebRtcSessionDescriptionFactory::CreateAnswer(
     CreateSessionDescriptionObserver* observer,
     const MediaSessionOptions& session_options) {
+  RTC_LOG_THREAD_BLOCK_COUNT();
   std::string error = "CreateAnswer";
   if (certificate_request_state_ == CERTIFICATE_FAILED) {
     error += kFailedDueToIdentityFailed;

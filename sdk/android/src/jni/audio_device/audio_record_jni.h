@@ -17,6 +17,7 @@
 #include <cstdint>
 
 #include "api/audio/audio_device_defines.h"
+#include "api/environment/environment.h"
 #include "api/sequence_checker.h"
 #include "modules/audio_device/audio_device_buffer.h"
 #include "sdk/android/src/jni/audio_device/audio_device_module.h"
@@ -52,6 +53,7 @@ class AudioRecordJni : public AudioInput {
       const jni_zero::JavaRef<jobject>& j_audio_manager);
 
   AudioRecordJni(JNIEnv* env,
+                 const Environment& webrtc_env,
                  const AudioParameters& audio_parameters,
                  int total_delay_ms,
                  const jni_zero::JavaRef<jobject>& j_webrtc_audio_record);
@@ -80,10 +82,9 @@ class AudioRecordJni : public AudioInput {
   // is also stored in `direct_buffer_capacity_in_bytes_`.
   // This method will be called by the WebRtcAudioRecord constructor, i.e.,
   // on the same thread that this object is created on.
-  void CacheDirectBufferAddress(
-      JNIEnv* env,
-      const jni_zero::JavaParamRef<jobject>& j_caller,
-      const jni_zero::JavaParamRef<jobject>& byte_buffer);
+  void CacheDirectBufferAddress(JNIEnv* env,
+                                const jni_zero::JavaRef<jobject>& j_caller,
+                                const jni_zero::JavaRef<jobject>& byte_buffer);
 
   // Called periodically by the Java based WebRtcAudioRecord object when
   // recording has started. Each call indicates that there are `length` new
@@ -92,11 +93,12 @@ class AudioRecordJni : public AudioInput {
   // This method is called on a high-priority thread from Java. The name of
   // the thread is 'AudioRecordThread'.
   void DataIsRecorded(JNIEnv* env,
-                      const jni_zero::JavaParamRef<jobject>& j_caller,
+                      const jni_zero::JavaRef<jobject>& j_caller,
                       int length,
                       int64_t capture_timestamp_ns);
 
  private:
+  const Environment webrtc_env_;
   // Stores thread ID in constructor.
   SequenceChecker thread_checker_;
 

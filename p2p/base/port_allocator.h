@@ -18,20 +18,23 @@
 #include <utility>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/candidate.h"
 #include "api/ice_gatherer_interface.h"
 #include "api/sequence_checker.h"
 #include "api/transport/enums.h"
+#include "api/units/time_delta.h"
 #include "p2p/base/port.h"
 #include "p2p/base/port_interface.h"
 #include "p2p/base/transport_description.h"
+#include "rtc_base/callback_list.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/net_helper.h"
 #include "rtc_base/network.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/system/rtc_export.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 
 namespace webrtc {
 
@@ -187,7 +190,7 @@ struct RTC_EXPORT RelayServerConfig {
   std::string turn_logging_id;
 };
 
-class RTC_EXPORT PortAllocatorSession : public sigslot::has_slots<> {
+class RTC_EXPORT PortAllocatorSession {
  public:
   // Content name passed in mostly for logging and debugging.
   PortAllocatorSession(absl::string_view content_name,
@@ -197,7 +200,7 @@ class RTC_EXPORT PortAllocatorSession : public sigslot::has_slots<> {
                        uint32_t flags);
 
   // Subclasses should clean up any ports created.
-  ~PortAllocatorSession() override;
+  virtual ~PortAllocatorSession();
 
   uint32_t flags() const { return flags_; }
   void set_flags(uint32_t flags) { flags_ = flags; }
@@ -263,59 +266,122 @@ class RTC_EXPORT PortAllocatorSession : public sigslot::has_slots<> {
   // destroyed if no connection is using them.
   virtual void PruneAllPorts() {}
 
-  sigslot::signal2<PortAllocatorSession*, PortInterface*> SignalPortReady;
-  void SubscribePortReady(absl::AnyInvocable<void(PortAllocatorSession*,
-                                                  PortInterface*)> callback) {
-    port_ready_trampoline_.Subscribe(std::move(callback));
+  // This function has to be non-inlined due to usage in Chrome.
+  [[deprecated]] void SubscribePortReady(
+      absl::AnyInvocable<void(PortAllocatorSession*, PortInterface*)> callback);
+  void SubscribePortReady(
+      void* tag,
+      absl::AnyInvocable<void(PortAllocatorSession*, PortInterface*)> callback);
+  void NotifyPortReady(PortAllocatorSession* session, PortInterface* port) {
+    port_ready_callbacks_.Send(session, port);
   }
 
   // Fires this signal when the network of the ports failed (either because the
   // interface is down, or because there is no connection on the interface),
   // or when TURN ports are pruned because a higher-priority TURN port becomes
   // ready(pairable).
-  sigslot::signal2<PortAllocatorSession*, const std::vector<PortInterface*>&>
-      SignalPortsPruned;
-  void SubscribePortsPruned(
+  [[deprecated]] void SubscribePortsPruned(
       absl::AnyInvocable<void(PortAllocatorSession*,
                               const std::vector<PortInterface*>&)> callback) {
-    ports_pruned_trampoline_.Subscribe(std::move(callback));
+    ports_pruned_callbacks_.AddReceiver(std::move(callback));
+  }
+  void SubscribePortsPruned(
+      void* tag,
+      absl::AnyInvocable<void(PortAllocatorSession*,
+                              const std::vector<PortInterface*>&)> callback) {
+    ports_pruned_callbacks_.AddReceiver(tag, std::move(callback));
+  }
+  void NotifyPortsPruned(PortAllocatorSession* session,
+                         const std::vector<PortInterface*>& ports) {
+    ports_pruned_callbacks_.Send(session, ports);
   }
 
-  sigslot::signal2<PortAllocatorSession*, const std::vector<Candidate>&>
-      SignalCandidatesReady;
-  void SubscribeCandidatesReady(
+  [[deprecated]] void SubscribeCandidatesReady(
       absl::AnyInvocable<void(PortAllocatorSession*,
                               const std::vector<Candidate>&)> callback) {
-    candidates_ready_trampoline_.Subscribe(std::move(callback));
+    candidates_ready_callbacks_.AddReceiver(std::move(callback));
   }
-  sigslot::signal2<PortAllocatorSession*, const IceCandidateErrorEvent&>
-      SignalCandidateError;
-  void SubscribeCandidateError(
+  void SubscribeCandidatesReady(
+      void* tag,
+      absl::AnyInvocable<void(PortAllocatorSession*,
+                              const std::vector<Candidate>&)> callback) {
+    candidates_ready_callbacks_.AddReceiver(tag, std::move(callback));
+  }
+  void NotifyCandidatesReady(PortAllocatorSession* session,
+                             const std::vector<Candidate>& candidates) {
+    candidates_ready_callbacks_.Send(session, candidates);
+  }
+
+  [[deprecated]] void SubscribeCandidateError(
       absl::AnyInvocable<void(PortAllocatorSession*,
                               const IceCandidateErrorEvent&)> callback) {
-    candidate_error_trampoline_.Subscribe(std::move(callback));
+    candidate_error_callbacks_.AddReceiver(std::move(callback));
+  }
+  void SubscribeCandidateError(
+      void* tag,
+      absl::AnyInvocable<void(PortAllocatorSession*,
+                              const IceCandidateErrorEvent&)> callback) {
+    candidate_error_callbacks_.AddReceiver(tag, std::move(callback));
+  }
+  void NotifyCandidateError(PortAllocatorSession* session,
+                            const IceCandidateErrorEvent& event) {
+    candidate_error_callbacks_.Send(session, event);
   }
   // Candidates should be signaled to be removed when the port that generated
   // the candidates is removed.
-  sigslot::signal2<PortAllocatorSession*, const std::vector<Candidate>&>
-      SignalCandidatesRemoved;
-  void SubscribeCandidatesRemoved(
+  [[deprecated]] void SubscribeCandidatesRemoved(
       absl::AnyInvocable<void(PortAllocatorSession*,
                               const std::vector<Candidate>&)> callback) {
-    candidates_removed_trampoline_.Subscribe(std::move(callback));
+    candidates_removed_callbacks_.AddReceiver(std::move(callback));
   }
-  sigslot::signal1<PortAllocatorSession*> SignalCandidatesAllocationDone;
-  void SubscribeCandidatesAllocationDone(
+  void SubscribeCandidatesRemoved(
+      void* tag,
+      absl::AnyInvocable<void(PortAllocatorSession*,
+                              const std::vector<Candidate>&)> callback) {
+    candidates_removed_callbacks_.AddReceiver(tag, std::move(callback));
+  }
+  void NotifyCandidatesRemoved(PortAllocatorSession* session,
+                               const std::vector<Candidate>& candidates) {
+    candidates_removed_callbacks_.Send(session, candidates);
+  }
+  [[deprecated]] void SubscribeCandidatesAllocationDone(
       absl::AnyInvocable<void(PortAllocatorSession*)> callback) {
-    candidates_allocation_done_trampoline_.Subscribe(std::move(callback));
+    candidates_allocation_done_callbacks_.AddReceiver(std::move(callback));
+  }
+  void SubscribeCandidatesAllocationDone(
+      void* tag,
+      absl::AnyInvocable<void(PortAllocatorSession*)> callback) {
+    candidates_allocation_done_callbacks_.AddReceiver(tag, std::move(callback));
+  }
+  void NotifyCandidatesAllocationDone(PortAllocatorSession* session) {
+    candidates_allocation_done_callbacks_.Send(session);
   }
 
-  sigslot::signal2<PortAllocatorSession*, IceRegatheringReason>
-      SignalIceRegathering;
+  [[deprecated("Use SubscribeIceRegathering(void* tag, ...)")]]
   void SubscribeIceRegathering(
       absl::AnyInvocable<void(PortAllocatorSession*, IceRegatheringReason)>
           callback) {
-    ice_regathering_trampoline_.Subscribe(std::move(callback));
+    ice_regathering_callbacks_.AddReceiver(std::move(callback));
+  }
+  void SubscribeIceRegathering(
+      void* tag,
+      absl::AnyInvocable<void(PortAllocatorSession*, IceRegatheringReason)>
+          callback) {
+    ice_regathering_callbacks_.AddReceiver(tag, std::move(callback));
+  }
+  void NotifyIceRegathering(PortAllocatorSession* session,
+                            IceRegatheringReason reason) {
+    ice_regathering_callbacks_.Send(session, reason);
+  }
+
+  // RingRTC change to support ICE forking
+  void UnsubscribeAll(void* tag) {
+    port_ready_callbacks_.RemoveReceivers(tag);
+    ports_pruned_callbacks_.RemoveReceivers(tag);
+    candidates_ready_callbacks_.RemoveReceivers(tag);
+    candidate_error_callbacks_.RemoveReceivers(tag);
+    candidates_removed_callbacks_.RemoveReceivers(tag);
+    candidates_allocation_done_callbacks_.RemoveReceivers(tag);
   }
 
   virtual uint32_t generation();
@@ -369,27 +435,20 @@ class RTC_EXPORT PortAllocatorSession : public sigslot::has_slots<> {
   // SetIceParameters is an implementation detail which only PortAllocator
   // should be able to call.
   friend class PortAllocator;
-  SignalTrampoline<PortAllocatorSession, &PortAllocatorSession::SignalPortReady>
-      port_ready_trampoline_;
-  SignalTrampoline<PortAllocatorSession,
-                   &PortAllocatorSession::SignalPortsPruned>
-      ports_pruned_trampoline_;
-  SignalTrampoline<PortAllocatorSession,
-                   &PortAllocatorSession::SignalCandidatesReady>
-      candidates_ready_trampoline_;
-  SignalTrampoline<PortAllocatorSession,
-                   &PortAllocatorSession::SignalCandidateError>
-      candidate_error_trampoline_;
-  SignalTrampoline<PortAllocatorSession,
-                   &PortAllocatorSession::SignalCandidatesRemoved>
-      candidates_removed_trampoline_;
-  SignalTrampoline<PortAllocatorSession,
-                   &PortAllocatorSession::SignalCandidatesAllocationDone>
-      candidates_allocation_done_trampoline_;
 
-  SignalTrampoline<PortAllocatorSession,
-                   &PortAllocatorSession::SignalIceRegathering>
-      ice_regathering_trampoline_;
+  // Callback lists (used to be called signals)
+  CallbackList<PortAllocatorSession*, PortInterface*> port_ready_callbacks_;
+  CallbackList<PortAllocatorSession*, const std::vector<PortInterface*>&>
+      ports_pruned_callbacks_;
+  CallbackList<PortAllocatorSession*, const std::vector<Candidate>&>
+      candidates_ready_callbacks_;
+  CallbackList<PortAllocatorSession*, const IceCandidateErrorEvent&>
+      candidate_error_callbacks_;
+  CallbackList<PortAllocatorSession*, const std::vector<Candidate>&>
+      candidates_removed_callbacks_;
+  CallbackList<PortAllocatorSession*> candidates_allocation_done_callbacks_;
+  CallbackList<PortAllocatorSession*, IceRegatheringReason>
+      ice_regathering_callbacks_;
 };
 
 // Every method of PortAllocator (including the destructor) must be called on
@@ -397,10 +456,10 @@ class RTC_EXPORT PortAllocatorSession : public sigslot::has_slots<> {
 //
 // This allows a PortAllocator subclass to be constructed and configured on one
 // thread, and passed into an object that uses it on a different thread.
-class RTC_EXPORT PortAllocator : public sigslot::has_slots<> {
+class RTC_EXPORT PortAllocator {
  public:
   PortAllocator();
-  ~PortAllocator() override;
+  virtual ~PortAllocator();
 
   // This MUST be called on the PortAllocator's thread after finishing
   // constructing and configuring the PortAllocator subclasses.
@@ -514,7 +573,7 @@ class RTC_EXPORT PortAllocator : public sigslot::has_slots<> {
       const IceParameters* ice_credentials = nullptr) const;
 
   // Discard any remaining pooled sessions.
-  void DiscardCandidatePool();
+  virtual void DiscardCandidatePool();
 
   // Clears the address and the related address fields of a local candidate to
   // avoid IP leakage. This is applicable in several scenarios:
@@ -651,8 +710,14 @@ class RTC_EXPORT PortAllocator : public sigslot::has_slots<> {
   std::vector<IceParameters> GetPooledIceCredentials();
 
   // Fired when `candidate_filter_` changes.
-  sigslot::signal2<uint32_t /* prev_filter */, uint32_t /* cur_filter */>
-      SignalCandidateFilterChanged;
+  void SubscribeCandidateFilterChanged(
+      void* tag,
+      absl::AnyInvocable<void(uint32_t, uint32_t)> callback) {
+    candidate_filter_callbacks_.AddReceiver(tag, std::move(callback));
+  }
+  void UnsubscribeCandidateFilterChanged(void* tag) {
+    candidate_filter_callbacks_.RemoveReceivers(tag);
+  }
 
  protected:
   // TODO(webrtc::13579): Remove std::string version once downstream users have
@@ -714,12 +779,15 @@ class RTC_EXPORT PortAllocator : public sigslot::has_slots<> {
   // if ice_credentials is nullptr.
   std::vector<std::unique_ptr<PortAllocatorSession>>::const_iterator
   FindPooledSession(const IceParameters* ice_credentials = nullptr) const;
+  void NotifyCandidateFilterChanged(uint32_t prev_filter, uint32_t cur_filter) {
+    candidate_filter_callbacks_.Send(prev_filter, cur_filter);
+  }
 
+  CallbackList<uint32_t, uint32_t> candidate_filter_callbacks_;
   // ICE tie breaker.
   uint64_t tiebreaker_;
 };
 
 }  //  namespace webrtc
-
 
 #endif  // P2P_BASE_PORT_ALLOCATOR_H_

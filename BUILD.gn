@@ -47,6 +47,7 @@ if (!build_with_chromium) {
     }
     if (rtc_include_tests) {
       deps += [
+        ":audio_engine_tests",
         ":rtc_p2p_unittests",
         ":rtc_unittests",
         ":video_engine_tests",
@@ -66,6 +67,7 @@ if (!build_with_chromium) {
         "modules/video_capture:video_capture_internal_impl",
         "modules/video_coding:video_codec_perf_tests",
         "net/dcsctp:dcsctp_unittests",
+        "p2p:dtls_ice_integration_bench",
         "pc:peerconnection_unittests",
         "pc:rtc_pc_unittests",
         "pc:slow_peer_connection_unittests",
@@ -78,6 +80,7 @@ if (!build_with_chromium) {
         "video:screenshare_loopback",
         "video:sv_loopback",
         "video:video_loopback",
+        "video/timing:video_timing_tests",
       ]
       if (use_libfuzzer) {
         deps += [ "test/fuzzers" ]
@@ -129,6 +132,14 @@ config("absl_flags_configs") {
   defines = [ "ABSL_FLAGS_STRIP_NAMES=0" ]
 }
 
+config("suppress_plan_b_deprecation") {
+  if (is_clang) {
+    cflags = [ "-Wno-deprecated-declarations" ]
+  } else if (is_win && !is_clang) {
+    cflags = [ "/wd4996" ]
+  }
+}
+
 config("library_impl_config") {
   # Build targets that contain WebRTC implementation need this macro to
   # be defined in order to correctly export symbols when is_component_build
@@ -173,6 +184,10 @@ config("common_inherited_config") {
 
   if (rtc_enable_win_wgc) {
     defines += [ "RTC_ENABLE_WIN_WGC" ]
+  }
+
+  if (deprecate_plan_b) {
+    defines += [ "WEBRTC_DEPRECATE_PLAN_B" ]
   }
 
   if (!rtc_use_perfetto) {
@@ -268,34 +283,6 @@ config("rtc_prod_config") {
     cflags = [
       "-Wexit-time-destructors",
       "-Wglobal-constructors",
-    ]
-  }
-}
-
-group("tracing") {
-  all_dependent_configs = [ "//third_party/perfetto/gn:public_config" ]
-  if (rtc_use_perfetto) {
-    if (build_with_chromium) {
-      public_deps =  # no-presubmit-check TODO(webrtc:8603)
-          [ "//third_party/perfetto:libperfetto" ]
-    } else {
-      public_deps = [  # no-presubmit-check TODO(webrtc:8603)
-        ":webrtc_libperfetto",
-        "//third_party/perfetto/include/perfetto/tracing",
-      ]
-    }
-  } else {
-      # RingRTC change to disable perfetto linking and save on library size.
-      # public_deps =  # no-presubmit-check TODO(webrtc:8603)
-      #      [ "//third_party/perfetto/include/perfetto/tracing" ]
-  }
-}
-
-if (rtc_use_perfetto) {
-  rtc_library("webrtc_libperfetto") {
-    deps = [
-      "//third_party/perfetto/src/tracing:client_api_without_backends",
-      "//third_party/perfetto/src/tracing:platform_impl",
     ]
   }
 }
@@ -543,7 +530,6 @@ if (!build_with_chromium) {
       "api:create_modular_peer_connection_factory",
       "api:create_peerconnection_factory",
       "api:enable_media",
-      "api:libjingle_peerconnection_api",
       "api:rtc_error",
       "api:transport_api",
       "api/audio_codecs:opus_audio_decoder_factory",
@@ -571,8 +557,8 @@ if (!build_with_chromium) {
       "modules/video_capture:video_capture_internal_impl",
       "pc:libjingle_peerconnection",
       "pc:rtc_pc",
+      # RingRTC change to build ringrtc ffi
       "ringrtc",
-      "sdk",
       "video",
 
       # RingRTC change to support deployments to older Ubuntu targets
@@ -599,6 +585,14 @@ if (!build_with_chromium) {
 
     if (rtc_include_internal_audio_device) {
       deps += [ "api/audio:create_audio_device_module" ]
+    }
+    if (!build_with_chromium) {
+      if (is_android) {
+        deps += [ "sdk/android" ]
+      }
+      if (is_ios) {
+        deps += [ "sdk:framework_objc" ]
+      }
     }
   }
 
@@ -656,6 +650,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "api/task_queue:pending_task_safety_flag_unittests",
       "api/test/metrics:metrics_unittests",
       "api/test/network_emulation:network_queue_unittests",
+      "api/transport:ecn_marking_unittest",
       "api/transport:stun_unittest",
       "api/transport/rtp:corruption_detection_message_unittest",
       "api/video/test:rtc_api_video_unittests",
@@ -675,8 +670,6 @@ if (rtc_include_tests && !build_with_chromium) {
       "rtc_base:rtc_numerics_unittests",
       "rtc_base:rtc_operations_chain_unittests",
       "rtc_base:rtc_task_queue_unittests",
-      "rtc_base:sigslot_trampoline_unittest",
-      "rtc_base:sigslot_unittest",
       "rtc_base:task_queue_stdlib_unittest",
       "rtc_base:untyped_function_unittest",
       "rtc_base:weak_ptr_unittests",
@@ -686,7 +679,6 @@ if (rtc_include_tests && !build_with_chromium) {
       "rtc_base/units:units_unittests",
       "sdk:sdk_tests",
       "test:rtp_test_utils",
-      "test:test_main",
       "test/network:network_emulation_unittests",
     ]
 
@@ -718,19 +710,27 @@ if (rtc_include_tests && !build_with_chromium) {
   rtc_test("rtc_p2p_unittests") {
     testonly = true
 
-    deps = [
-      "p2p:rtc_p2p_unittests",
-      "test:test_main",
-    ]
+    deps = [ "p2p:rtc_p2p_unittests" ]
   }
 
   if (rtc_enable_google_benchmarks) {
-    rtc_test("benchmarks") {
+    rtc_executable("benchmarks") {
       testonly = true
       deps = [
+        "rtc_base:base64_benchmark_temp",
         "rtc_base/synchronization:mutex_benchmark",
         "test:benchmark_main",
       ]
+    }
+  }
+
+  rtc_test("audio_engine_tests") {
+    testonly = true
+    deps = [ "audio:audio_tests" ]
+
+    if (is_android) {
+      use_default_launcher = false
+      deps += [ "//build/android/gtest_apk:native_test_instrumentation_test_runner_java" ]
     }
   }
 
@@ -738,14 +738,11 @@ if (rtc_include_tests && !build_with_chromium) {
   rtc_test("video_engine_tests") {
     testonly = true
     deps = [
-      "audio:audio_tests",
-
       # TODO(eladalon): call_tests aren't actually video-specific, so we
       # should move them to a more appropriate test suite.
       "call:call_tests",
       "call/adaptation:resource_adaptation_tests",
       "test:test_common",
-      "test:test_main",
       "test:video_test_common",
       "video:video_tests",
       "video/adaptation:video_adaptation_tests",
@@ -770,7 +767,6 @@ if (rtc_include_tests && !build_with_chromium) {
       "modules/audio_coding:audio_coding_perf_tests",
       "modules/audio_processing:audio_processing_perf_tests",
       "pc:peerconnection_perf_tests",
-      "test:test_main",
       "video:video_full_stack_tests",
       "video:video_pc_full_stack_tests",
     ]
@@ -804,7 +800,6 @@ if (rtc_include_tests && !build_with_chromium) {
       "audio/voip/test:audio_egress_unittests",
       "audio/voip/test:audio_ingress_unittests",
       "audio/voip/test:voip_core_unittests",
-      "test:test_main",
     ]
   }
 }

@@ -50,7 +50,6 @@
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_identity.h"
 #include "rtc_base/stream.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/time_utils.h"
 #include "test/create_test_field_trials.h"
@@ -212,7 +211,7 @@ class SSLStreamAdapterTestBase;
 class StreamWrapper : public StreamInterface {
  public:
   explicit StreamWrapper(std::unique_ptr<StreamInterface> stream)
-      : stream_(std::move(stream)) {
+      : stream_(std::move(stream)), flush_count_(0) {
     stream_->SetEventCallback([this](int events, int err) {
       RTC_DCHECK_RUN_ON(&callback_sequence_);
       callbacks_.Send(events, err);
@@ -232,6 +231,11 @@ class StreamWrapper : public StreamInterface {
   StreamState GetState() const override { return stream_->GetState(); }
 
   void Close() override { stream_->Close(); }
+  bool Flush() override {
+    flush_count_++;
+    return stream_->Flush();
+  }
+  size_t GetFlushCountForTesting() { return flush_count_; }
 
   StreamResult Read(ArrayView<uint8_t> buffer,
                     size_t& read,
@@ -248,6 +252,7 @@ class StreamWrapper : public StreamInterface {
  private:
   const std::unique_ptr<StreamInterface> stream_;
   CallbackList<int, int> callbacks_;
+  size_t flush_count_;
 };
 
 class SSLDummyStream final : public StreamInterface {
@@ -327,6 +332,7 @@ class SSLDummyStream final : public StreamInterface {
     RTC_LOG(LS_INFO) << "Closing outbound stream";
     out_->Close();
   }
+  bool Flush() override { return in_->Flush(); }
 
  private:
   void PostEvent(int events, int err) {
@@ -385,6 +391,7 @@ class BufferQueueStream : public StreamInterface {
 
   // A buffer queue stream can not be closed.
   void Close() override {}
+  bool Flush() { return false; }
 
  protected:
   void NotifyReadableForTest() { PostEvent(SE_READ, 0); }
@@ -406,8 +413,7 @@ class BufferQueueStream : public StreamInterface {
 constexpr int kBufferCapacity = 1;
 constexpr size_t kDefaultBufferSize = 2048;
 
-class SSLStreamAdapterTestBase : public ::testing::Test,
-                                 public sigslot::has_slots<> {
+class SSLStreamAdapterTestBase : public ::testing::Test {
  public:
   SSLStreamAdapterTestBase(absl::string_view client_cert_pem,
                            absl::string_view client_private_key_pem,
@@ -595,7 +601,7 @@ class SSLStreamAdapterTestBase : public ::testing::Test,
     }
   }
 
-  // This tests that we give up after 12 DTLS resends.
+  // This tests that we give up after one hour.
   // Only works for BoringSSL which allows advancing the fake clock.
   void TestHandshakeTimeout() {
     int64_t time_start = clock_.TimeNanos();
@@ -1180,11 +1186,13 @@ class SSLStreamAdapterTestDTLS : public SSLStreamAdapterTestDTLSBase {
 #endif
 // Test that we can make a handshake work if the first packet in
 // each direction is lost. This gives us predictable loss
-// rather than having to tune random
+// rather than having to tune random.
 TEST_F(SSLStreamAdapterTestDTLS,
        MAYBE_TestDTLSConnectWithLostFirstPacketNoDelay) {
   SetLoseFirstPacket(true);
   TestHandshake();
+  // 2 client flights and 1 resend.
+  EXPECT_EQ(client_buffer_.GetFlushCountForTesting(), 3u);
 }
 
 #ifdef OPENSSL_IS_BORINGSSL
@@ -1194,7 +1202,7 @@ TEST_F(SSLStreamAdapterTestDTLS,
 #define MAYBE_TestDTLSConnectWithLostFirstPacketDelay2s \
   DISABLED_TestDTLSConnectWithLostFirstPacketDelay2s
 #endif
-// Test a handshake with loss and delay
+// Test a handshake with loss and delay.
 TEST_F(SSLStreamAdapterTestDTLS,
        MAYBE_TestDTLSConnectWithLostFirstPacketDelay2s) {
   SetLoseFirstPacket(true);
@@ -1213,6 +1221,8 @@ TEST_F(SSLStreamAdapterTestDTLS,
 TEST_F(SSLStreamAdapterTestDTLS, MAYBE_TestDTLSConnectTimeout) {
   SetLoss(100);
   TestHandshakeTimeout();
+  // 1 flush for the initial send, 13 for the resends.
+  EXPECT_EQ(client_buffer_.GetFlushCountForTesting(), 14u);
 }
 
 // Test transfer -- trivial
@@ -1414,11 +1424,39 @@ TEST_F(SSLStreamAdapterTestDTLS, TestDTLSSrtpExporter) {
   int salt_len;
   ASSERT_TRUE(
       GetSrtpKeyAndSaltLengths(selected_crypto_suite, &key_len, &salt_len));
-  ZeroOnFreeBuffer<uint8_t> client_out(2 * (key_len + salt_len));
-  ZeroOnFreeBuffer<uint8_t> server_out(2 * (key_len + salt_len));
-
+  ZeroOnFreeBuffer<uint8_t> client_out =
+      ZeroOnFreeBuffer<uint8_t>::CreateUninitializedWithSize(
+          2 * (key_len + salt_len));
+  ZeroOnFreeBuffer<uint8_t> server_out =
+      ZeroOnFreeBuffer<uint8_t>::CreateUninitializedWithSize(
+          2 * (key_len + salt_len));
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   EXPECT_TRUE(client_ssl_->ExportSrtpKeyingMaterial(client_out));
   EXPECT_TRUE(server_ssl_->ExportSrtpKeyingMaterial(server_out));
+  EXPECT_EQ(client_out, server_out);
+#pragma clang diagnostic pop
+
+  ZeroOnFreeBuffer<uint8_t> append_client_out;
+  ZeroOnFreeBuffer<uint8_t> append_server_out;
+
+  EXPECT_TRUE(client_ssl_->AppendSrtpKeyingMaterial(append_client_out));
+  EXPECT_TRUE(server_ssl_->AppendSrtpKeyingMaterial(append_server_out));
+  EXPECT_EQ(client_out, append_client_out);
+  EXPECT_EQ(client_out, append_server_out);
+}
+
+TEST_F(SSLStreamAdapterTestDTLS, TestDTLSSrtpExporterWithAppend) {
+  const std::vector<int> crypto_suites = {kSrtpAes128CmSha1_80};
+  SetDtlsSrtpCryptoSuites(crypto_suites, true);
+  SetDtlsSrtpCryptoSuites(crypto_suites, false);
+
+  TestHandshake();
+  ZeroOnFreeBuffer<uint8_t> client_out;
+  ZeroOnFreeBuffer<uint8_t> server_out;
+
+  EXPECT_TRUE(client_ssl_->AppendSrtpKeyingMaterial(client_out));
+  EXPECT_TRUE(server_ssl_->AppendSrtpKeyingMaterial(server_out));
   EXPECT_EQ(client_out, server_out);
 }
 

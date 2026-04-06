@@ -68,19 +68,19 @@ public class PeerConnectionEndToEndTest {
     private int expectedHeight;
     private int expectedFramesDelivered;
     private int expectedTracksAdded;
-    private Queue<SignalingState> expectedSignalingChanges = new ArrayDeque<>();
-    private Queue<IceConnectionState> expectedIceConnectionChanges = new ArrayDeque<>();
-    private Queue<IceConnectionState> expectedStandardizedIceConnectionChanges = new ArrayDeque<>();
-    private Queue<PeerConnectionState> expectedConnectionChanges = new ArrayDeque<>();
-    private Queue<IceGatheringState> expectedIceGatheringChanges = new ArrayDeque<>();
-    private Queue<String> expectedAddStreamLabels = new ArrayDeque<>();
-    private Queue<String> expectedRemoveStreamLabels = new ArrayDeque<>();
+    private final Queue<SignalingState> expectedSignalingChanges = new ArrayDeque<>();
+    private final Queue<IceConnectionState> expectedIceConnectionChanges = new ArrayDeque<>();
+    private final Queue<IceConnectionState> expectedStandardizedIceConnectionChanges = new ArrayDeque<>();
+    private final Queue<PeerConnectionState> expectedConnectionChanges = new ArrayDeque<>();
+    private final Queue<IceGatheringState> expectedIceGatheringChanges = new ArrayDeque<>();
+    private final Queue<String> expectedAddStreamLabels = new ArrayDeque<>();
+    private final Queue<String> expectedRemoveStreamLabels = new ArrayDeque<>();
     private final List<IceCandidate> gotIceCandidates = new ArrayList<>();
-    private Map<MediaStream, WeakReference<VideoSink>> videoSinks = new IdentityHashMap<>();
+    private final IdentityHashMap<MediaStream, WeakReference<VideoSink>> videoSinks = new IdentityHashMap<>();
     private DataChannel dataChannel;
-    private Queue<DataChannel.Buffer> expectedBuffers = new ArrayDeque<>();
-    private Queue<DataChannel.State> expectedStateChanges = new ArrayDeque<>();
-    private Queue<String> expectedRemoteDataChannelLabels = new ArrayDeque<>();
+    private final Queue<DataChannel.Buffer> expectedBuffers = new ArrayDeque<>();
+    private final Queue<DataChannel.State> expectedStateChanges = new ArrayDeque<>();
+    private final Queue<String> expectedRemoteDataChannelLabels = new ArrayDeque<>();
     private int expectedOldStatsCallbacks;
     private int expectedNewStatsCallbacks;
     private List<StatsReport[]> gotStatsReports = new ArrayList<>();
@@ -424,11 +424,27 @@ public class PeerConnectionEndToEndTest {
       }
     }
 
+    @Override
+    // TODO(bugs.webrtc.org/8491): Remove NoSynchronizedMethodCheck suppression.
+    @SuppressWarnings("NoSynchronizedMethodCheck")
+    public synchronized void onFirstPacketReceivedAfterReceptiveChange(
+        MediaStreamTrack.MediaType mediaType) {
+      if (mediaType == MediaStreamTrack.MediaType.MEDIA_TYPE_AUDIO) {
+        expectedFirstAudioPacket--;
+      } else {
+        expectedFirstVideoPacket--;
+      }
+      if (expectedFirstAudioPacket < 0 || expectedFirstVideoPacket < 0) {
+        throw new RuntimeException("Unexpected call of onFirstPacketReceived");
+      }
+    }
+
     // TODO(bugs.webrtc.org/8491): Remove NoSynchronizedMethodCheck suppression.
     @SuppressWarnings("NoSynchronizedMethodCheck")
     public synchronized void expectFirstPacketReceived() {
-      expectedFirstAudioPacket = 1;
-      expectedFirstVideoPacket = 1;
+      // We expect both onFirstPacketReceived and onFirstPacketReceivedAfterReceptiveChange.
+      expectedFirstAudioPacket = 2;
+      expectedFirstVideoPacket = 2;
     }
 
     // TODO(bugs.webrtc.org/8491): Remove NoSynchronizedMethodCheck suppression.
@@ -569,7 +585,7 @@ public class PeerConnectionEndToEndTest {
   // Sets the expected resolution for an ObserverExpectations once a frame
   // has been captured.
   private static class ExpectedResolutionSetter implements VideoSink {
-    private ObserverExpectations observer;
+    private final ObserverExpectations observer;
 
     public ExpectedResolutionSetter(ObserverExpectations observer) {
       this.observer = observer;
@@ -592,7 +608,7 @@ public class PeerConnectionEndToEndTest {
     private boolean success;
     private @Nullable SessionDescription sdp;
     private @Nullable String error;
-    private CountDownLatch latch = new CountDownLatch(1);
+    private final CountDownLatch latch = new CountDownLatch(1);
 
     public SdpObserverLatch() {}
 

@@ -16,7 +16,6 @@
 #include <string>
 #include <vector>
 
-#include "absl/memory/memory.h"
 #include "api/async_dns_resolver.h"
 #include "api/environment/environment.h"
 #include "rtc_base/async_packet_socket.h"
@@ -45,6 +44,10 @@ class RTC_EXPORT PacketSocketFactory {
   enum Options {
     OPT_STUN = 0x04,
 
+    // The DTLS options below are mutually exclusive.
+    OPT_DTLS = 0x20,           // Real and secure DTLS.
+    OPT_DTLS_INSECURE = 0x10,  // Insecure DTLS without certificate validation.
+
     // The TLS options below are mutually exclusive.
     OPT_TLS = 0x02,           // Real and secure TLS.
     OPT_TLS_FAKE = 0x01,      // Fake TLS with a dummy SSL handshake.
@@ -61,59 +64,37 @@ class RTC_EXPORT PacketSocketFactory {
 
   virtual ~PacketSocketFactory() = default;
 
-  // TODO: bugs.webrtc.org/42223992 - after Oct 10, 2025 make Create*Socket
-  // functions that accept Environment pure virtual, and delete legacy
-  // Create*Socket functions.
   virtual std::unique_ptr<AsyncPacketSocket> CreateUdpSocket(
-      const Environment& /*env*/,
+      const Environment& env,
       const SocketAddress& address,
       uint16_t min_port,
-      uint16_t max_port) {
-    return absl::WrapUnique(CreateUdpSocket(address, min_port, max_port));
-  }
+      uint16_t max_port) = 0;
 
   virtual std::unique_ptr<AsyncListenSocket> CreateServerTcpSocket(
-      const Environment& /*env*/,
+      const Environment& env,
       const SocketAddress& local_address,
       uint16_t min_port,
       uint16_t max_port,
-      int opts) {
-    return absl::WrapUnique(
-        CreateServerTcpSocket(local_address, min_port, max_port, opts));
-  }
+      int opts) = 0;
 
   virtual std::unique_ptr<AsyncPacketSocket> CreateClientTcpSocket(
-      const Environment& /*env*/,
+      const Environment& env,
       const SocketAddress& local_address,
       const SocketAddress& remote_address,
-      const PacketSocketTcpOptions& tcp_options) {
-    return absl::WrapUnique(
-        CreateClientTcpSocket(local_address, remote_address, tcp_options));
-  }
+      const PacketSocketTcpOptions& tcp_options) = 0;
 
   virtual std::unique_ptr<AsyncDnsResolverInterface>
   CreateAsyncDnsResolver() = 0;
 
- private:
-  virtual AsyncPacketSocket* CreateUdpSocket(const SocketAddress& address,
-                                             uint16_t min_port,
-                                             uint16_t max_port) {
-    RTC_DCHECK_NOTREACHED();
-    return nullptr;
-  }
-  virtual AsyncListenSocket* CreateServerTcpSocket(
-      const SocketAddress& local_address,
-      uint16_t min_port,
-      uint16_t max_port,
-      int opts) {
-    RTC_DCHECK_NOTREACHED();
-    return nullptr;
-  }
-
-  virtual AsyncPacketSocket* CreateClientTcpSocket(
+  // TODO(issues.webrtc.org/42225835):
+  // Make pure virtual once downstream is updated
+  virtual std::unique_ptr<AsyncPacketSocket> CreateClientUdpSocket(
+      const Environment& env,
       const SocketAddress& local_address,
       const SocketAddress& remote_address,
-      const PacketSocketTcpOptions& tcp_options) {
+      uint16_t min_port,
+      uint16_t max_port,
+      const PacketSocketTcpOptions& options) {
     RTC_DCHECK_NOTREACHED();
     return nullptr;
   }

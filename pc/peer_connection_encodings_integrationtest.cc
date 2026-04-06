@@ -47,7 +47,6 @@
 #include "api/video_codecs/sdp_video_format.h"
 #include "media/base/codec.h"
 #include "media/engine/fake_webrtc_video_engine.h"
-#include "pc/sdp_utils.h"
 #include "pc/session_description.h"
 #include "pc/simulcast_description.h"
 #include "pc/test/mock_peer_connection_observers.h"
@@ -293,10 +292,18 @@ class PeerConnectionEncodingsIntegrationTest : public ::testing::Test {
   void ExchangeIceCandidates(
       scoped_refptr<PeerConnectionTestWrapper> local_pc_wrapper,
       scoped_refptr<PeerConnectionTestWrapper> remote_pc_wrapper) {
-    local_pc_wrapper->SignalOnIceCandidateReady.connect(
-        remote_pc_wrapper.get(), &PeerConnectionTestWrapper::AddIceCandidate);
-    remote_pc_wrapper->SignalOnIceCandidateReady.connect(
-        local_pc_wrapper.get(), &PeerConnectionTestWrapper::AddIceCandidate);
+    local_pc_wrapper->SubscribeOnIceCandidateReady(
+        remote_pc_wrapper.get(),
+        [remote_pc = remote_pc_wrapper.get()](const std::string& mid, int index,
+                                              const std::string& candidate) {
+          remote_pc->AddIceCandidate(mid, index, candidate);
+        });
+    remote_pc_wrapper->SubscribeOnIceCandidateReady(
+        local_pc_wrapper.get(),
+        [local_pc = local_pc_wrapper.get()](const std::string& mid, int index,
+                                            const std::string& candidate) {
+          local_pc->AddIceCandidate(mid, index, candidate);
+        });
   }
 
   // Negotiate without any tweaks (does not work for simulcast loopback).
@@ -392,8 +399,8 @@ class PeerConnectionEncodingsIntegrationTest : public ::testing::Test {
       scoped_refptr<PeerConnectionTestWrapper> pc_wrapper,
       SessionDescriptionInterface* sdp) {
     auto observer = make_ref_counted<MockSetSessionDescriptionObserver>();
-    pc_wrapper->pc()->SetLocalDescription(
-        observer.get(), CloneSessionDescription(sdp).release());
+    pc_wrapper->pc()->SetLocalDescription(observer.get(),
+                                          sdp->Clone().release());
     return observer;
   }
 
@@ -401,8 +408,8 @@ class PeerConnectionEncodingsIntegrationTest : public ::testing::Test {
       scoped_refptr<PeerConnectionTestWrapper> pc_wrapper,
       SessionDescriptionInterface* sdp) {
     auto observer = make_ref_counted<MockSetSessionDescriptionObserver>();
-    pc_wrapper->pc()->SetRemoteDescription(
-        observer.get(), CloneSessionDescription(sdp).release());
+    pc_wrapper->pc()->SetRemoteDescription(observer.get(),
+                                           sdp->Clone().release());
     return observer;
   }
 
@@ -2526,9 +2533,8 @@ TEST_P(PeerConnectionEncodingsIntegrationParameterizedTest, Simulcast) {
               StrCaseEq(mime_type_));
   EXPECT_THAT(GetCurrentCodecMimeType(report, *outbound_rtps[2]),
               StrCaseEq(mime_type_));
-  EXPECT_THAT(*outbound_rtps[0]->scalability_mode, StrEq("L1T3"));
-  EXPECT_THAT(*outbound_rtps[1]->scalability_mode, StrEq("L1T3"));
-  EXPECT_THAT(*outbound_rtps[2]->scalability_mode, StrEq("L1T3"));
+  EXPECT_THAT(report, OutboundRtpStatsAre(
+                          Each(ScalabilityModeIs(Optional(StrEq("L1T3"))))));
 }
 
 // Configure 4:2:1 using `scale_resolution_down_to`.
@@ -2578,20 +2584,28 @@ TEST_P(PeerConnectionEncodingsIntegrationParameterizedTest,
   EXPECT_THAT(parameters.encodings[2].scalability_mode,
               Optional(std::string("L1T3")));
 
-  // Wait until media is flowing on all three layers.
-  // Ramp up time is needed before all three layers are sending.
-  auto error_or_report =
-      GetStatsUntil(local_pc_wrapper, HasOutboundRtpBytesSent(3u),
-                    {.timeout = kLongTimeoutForRampingUp});
+  // Wait until media is flowing on all three layers AND scalability mode is
+  // reported. Ramp up time is needed before all three layers are sending.
+  auto error_or_report = GetStatsUntil(
+      local_pc_wrapper,
+      AllOf(HasOutboundRtpBytesSent(3u),
+            OutboundRtpStatsAre(
+                Each(ScalabilityModeIs(Optional(StrEq("L1T3")))))),
+      {.timeout = kLongTimeoutForRampingUp});
   ASSERT_THAT(error_or_report, IsRtcOk());
   // Verify codec and scalability mode.
   scoped_refptr<const RTCStatsReport> report = error_or_report.value();
   auto outbound_rtp_by_rid = GetOutboundRtpStreamStatsByRid(report);
-  EXPECT_THAT(outbound_rtp_by_rid,
-              UnorderedElementsAre(Pair("q", ResolutionIs(320, 180)),
-                                   Pair("h", ResolutionIs(640, 360)),
-                                   Pair("f", ResolutionIs(1280, 720))));
-  // Verify codec and scalability mode.
+  EXPECT_THAT(
+      outbound_rtp_by_rid,
+      UnorderedElementsAre(
+          Pair("q", AllOf(ResolutionIs(320, 180),
+                          ScalabilityModeIs(Optional(StrEq("L1T3"))))),
+          Pair("h", AllOf(ResolutionIs(640, 360),
+                          ScalabilityModeIs(Optional(StrEq("L1T3"))))),
+          Pair("f", AllOf(ResolutionIs(1280, 720),
+                          ScalabilityModeIs(Optional(StrEq("L1T3")))))));
+  // Verify codec.
   std::vector<const RTCOutboundRtpStreamStats*> outbound_rtps =
       report->GetStatsOfType<RTCOutboundRtpStreamStats>();
   ASSERT_THAT(outbound_rtps, SizeIs(3u));
@@ -2601,9 +2615,6 @@ TEST_P(PeerConnectionEncodingsIntegrationParameterizedTest,
               StrCaseEq(mime_type_));
   EXPECT_THAT(GetCurrentCodecMimeType(report, *outbound_rtps[2]),
               StrCaseEq(mime_type_));
-  EXPECT_THAT(*outbound_rtps[0]->scalability_mode, StrEq("L1T3"));
-  EXPECT_THAT(*outbound_rtps[1]->scalability_mode, StrEq("L1T3"));
-  EXPECT_THAT(*outbound_rtps[2]->scalability_mode, StrEq("L1T3"));
 }
 
 // Simulcast starting in 720p 4:2:1 then changing to {180p, 360p, 540p} using

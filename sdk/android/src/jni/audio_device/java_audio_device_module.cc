@@ -29,10 +29,10 @@ namespace jni {
 
 static jlong JNI_JavaAudioDeviceModule_CreateAudioDeviceModule(
     JNIEnv* env,
-    const jni_zero::JavaParamRef<jobject>& j_context,
-    const jni_zero::JavaParamRef<jobject>& j_audio_manager,
-    const jni_zero::JavaParamRef<jobject>& j_webrtc_audio_record,
-    const jni_zero::JavaParamRef<jobject>& j_webrtc_audio_track,
+    const jni_zero::JavaRef<jobject>& j_context,
+    const jni_zero::JavaRef<jobject>& j_audio_manager,
+    const jni_zero::JavaRef<jobject>& j_webrtc_audio_record,
+    const jni_zero::JavaRef<jobject>& j_webrtc_audio_track,
     jlong webrtcEnvRef,
     int input_sample_rate,
     int output_sample_rate,
@@ -46,8 +46,8 @@ static jlong JNI_JavaAudioDeviceModule_CreateAudioDeviceModule(
                      j_use_stereo_output, &input_parameters,
                      &output_parameters);
   auto audio_input = std::make_unique<AudioRecordJni>(
-      env, input_parameters, kHighLatencyModeDelayEstimateInMilliseconds,
-      j_webrtc_audio_record);
+      env, webrtc_env, input_parameters,
+      kHighLatencyModeDelayEstimateInMilliseconds, j_webrtc_audio_record);
   auto audio_output = std::make_unique<AudioTrackJni>(
       env, webrtc_env, output_parameters, j_webrtc_audio_track);
   return NativeToJavaPointer(

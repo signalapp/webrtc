@@ -89,6 +89,9 @@ void PacketStash::Prune(const absl::flat_hash_set<uint32_t>& hashes) {
   if (pos_ >= removed) {
     pos_ -= removed;
   }
+  if (pos_ >= packets_.size()) {
+    pos_ = packets_.empty() ? 0 : packets_.size() - 1;
+  }
 }
 
 void PacketStash::Prune(uint32_t max_size) {
@@ -111,6 +114,16 @@ ArrayView<const uint8_t> PacketStash::GetNext() {
   pos_ = (pos + 1) % packets_.size();
   const auto& buffer = packets_[pos].buffer;
   return ArrayView<const uint8_t>(buffer->data(), buffer->size());
+}
+
+std::vector<ArrayView<const uint8_t>> PacketStash::GetAll() const {
+  std::vector<ArrayView<const uint8_t>> ret;
+  ret.reserve(packets_.size());
+  for (const auto& buffer : packets_) {
+    const uint8_t* ptr = buffer.buffer->data();
+    ret.push_back(ArrayView<const uint8_t>(ptr, buffer.buffer->size()));
+  }
+  return ret;
 }
 
 }  // namespace webrtc

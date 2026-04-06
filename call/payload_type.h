@@ -12,13 +12,15 @@
 #define CALL_PAYLOAD_TYPE_H_
 
 #include <cstdint>
-#include <string>
 
+#include "absl/strings/string_view.h"
 #include "api/rtc_error.h"
 #include "media/base/codec.h"
 #include "rtc_base/strong_alias.h"
 
 namespace webrtc {
+
+class PayloadTypePicker;
 
 class PayloadType : public StrongAlias<class PayloadTypeTag, uint8_t> {
  public:
@@ -49,11 +51,11 @@ class PayloadTypeSuggester {
   // Media section is indicated by MID.
   // The function will either return a PT already in use on the connection
   // or a newly suggested one.
-  virtual RTCErrorOr<PayloadType> SuggestPayloadType(const std::string& mid,
-                                                     Codec codec) = 0;
+  virtual RTCErrorOr<PayloadType> SuggestPayloadType(absl::string_view mid,
+                                                     const Codec& codec) = 0;
   // Register a payload type as mapped to a specific codec for this MID
   // at this time.
-  virtual RTCError AddLocalMapping(const std::string& mid,
+  virtual RTCError AddLocalMapping(absl::string_view mid,
                                    PayloadType payload_type,
                                    const Codec& codec) = 0;
 };

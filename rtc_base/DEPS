@@ -2,13 +2,17 @@ include_rules = [
   "+json",
   "+system_wrappers",
   "+third_party/jsoncpp",
+  "+absl/strings/str_format.h",
 ]
 
 specific_include_rules = {
-  "checks.h": [
+  "checks\.h": [
     "+absl/strings/has_absl_stringify.h",
   ],
-  "protobuf_utils.h": [
+  "string_builder\.h": [
+    "+absl/strings/has_absl_stringify.h",
+  ],
+  "protobuf_utils\.h": [
     "+third_party/protobuf",
   ],
   "gunit\.h": [

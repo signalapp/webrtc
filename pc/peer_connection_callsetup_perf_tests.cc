@@ -9,7 +9,6 @@
  */
 
 #include <cassert>
-#include <cstddef>
 #include <memory>
 #include <string>
 #include <tuple>
@@ -31,7 +30,7 @@
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "p2p/base/transport_description.h"
-#include "pc/sdp_utils.h"
+#include "pc/session_description.h"
 #include "pc/test/mock_peer_connection_observers.h"
 #include "pc/test/peer_connection_test_wrapper.h"
 #include "rtc_base/checks.h"
@@ -82,8 +81,11 @@ class PeerConnectionDataChannelOpenTest
   void SignalIceCandidates(
       scoped_refptr<PeerConnectionTestWrapper> from_pc_wrapper,
       scoped_refptr<PeerConnectionTestWrapper> to_pc_wrapper) {
-    from_pc_wrapper->SignalOnIceCandidateReady.connect(
-        to_pc_wrapper.get(), &PeerConnectionTestWrapper::AddIceCandidate);
+    from_pc_wrapper->SubscribeOnIceCandidateReady(
+        this, [to_pc = to_pc_wrapper.get()](const std::string& arg1, int arg2,
+                                            const std::string& arg3) {
+          to_pc->AddIceCandidate(arg1, arg2, arg3);
+        });
   }
 
   void Negotiate(scoped_refptr<PeerConnectionTestWrapper> local_pc_wrapper,
@@ -143,8 +145,8 @@ class PeerConnectionDataChannelOpenTest
       scoped_refptr<PeerConnectionTestWrapper> pc_wrapper,
       SessionDescriptionInterface* sdp) {
     auto observer = make_ref_counted<MockSetSessionDescriptionObserver>();
-    pc_wrapper->pc()->SetLocalDescription(
-        observer.get(), CloneSessionDescription(sdp).release());
+    pc_wrapper->pc()->SetLocalDescription(observer.get(),
+                                          sdp->Clone().release());
     return observer;
   }
 
@@ -152,8 +154,8 @@ class PeerConnectionDataChannelOpenTest
       scoped_refptr<PeerConnectionTestWrapper> pc_wrapper,
       SessionDescriptionInterface* sdp) {
     auto observer = make_ref_counted<MockSetSessionDescriptionObserver>();
-    pc_wrapper->pc()->SetRemoteDescription(
-        observer.get(), CloneSessionDescription(sdp).release());
+    pc_wrapper->pc()->SetRemoteDescription(observer.get(),
+                                           sdp->Clone().release());
     return observer;
   }
 
@@ -225,7 +227,10 @@ INSTANTIATE_TEST_SUITE_P(
             "Enabled/",
             // SPED + DTLS 1.3
             "WebRTC-IceHandshakeDtls/Enabled/WebRTC-ForceDtls13/"
-            "Enabled/"),
+            "Enabled/",
+            // SPED + DTLS 1.3 + SNAP
+            "WebRTC-IceHandshakeDtls/Enabled/WebRTC-ForceDtls13/"
+            "Enabled/WebRTC-Sctp-Snap/Enabled/"),
         testing::Bool(),  // Whether to skip signaling candidates from
                           // first connection.
         testing::Values(

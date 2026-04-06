@@ -42,7 +42,7 @@ void AsyncSSLServerSocket::ProcessInput(char* data, size_t* len) {
 
   if (memcmp(client_hello.data(), data, client_hello.size()) != 0) {
     Close();
-    SignalCloseEvent(this, 0);
+    NotifyCloseEvent(this, 0);
     return;
   }
 

@@ -132,8 +132,8 @@ class RTC_EXPORT EncodedImage {
 
   std::optional<int> TemporalIndex() const { return temporal_index_; }
   void SetTemporalIndex(std::optional<int> temporal_index) {
-    RTC_DCHECK_GE(temporal_index_.value_or(0), 0);
-    RTC_DCHECK_LT(temporal_index_.value_or(0), kMaxTemporalStreams);
+    RTC_DCHECK_GE(temporal_index.value_or(0), 0);
+    RTC_DCHECK_LT(temporal_index.value_or(0), kMaxTemporalStreams);
     temporal_index_ = temporal_index;
   }
 
@@ -224,9 +224,22 @@ class RTC_EXPORT EncodedImage {
     is_steady_state_refresh_frame_ = refresh_frame;
   }
 
+  // TODO: webrtc:472264461 - Switch downstream projects to frame_type() and
+  // remove this getter.
   VideoFrameType FrameType() const { return _frameType; }
 
+  // TODO: webrtc:472264461 - Switch downstream projects to set_frame_type() and
+  // remove this setter.
   void SetFrameType(VideoFrameType frame_type) { _frameType = frame_type; }
+
+  VideoFrameType frame_type() const { return _frameType; }
+  void set_frame_type(VideoFrameType frame_type) { _frameType = frame_type; }
+
+  bool IsKey() const { return _frameType == VideoFrameType::kVideoFrameKey; }
+  bool IsDelta() const {
+    return _frameType == VideoFrameType::kVideoFrameDelta;
+  }
+
   VideoContentType contentType() const { return content_type_; }
   VideoRotation rotation() const { return rotation_; }
 
@@ -267,6 +280,13 @@ class RTC_EXPORT EncodedImage {
   std::optional<Psnr> psnr() const { return psnr_; }
   void set_psnr(std::optional<Psnr> psnr) { psnr_ = psnr; }
 
+  void set_end_of_temporal_unit(bool is_end_of_temporal_unit) {
+    is_end_of_temporal_unit_ = is_end_of_temporal_unit;
+  }
+  std::optional<bool> is_end_of_temporal_unit() const {
+    return is_end_of_temporal_unit_;
+  }
+
  private:
   size_t capacity() const { return encoded_data_ ? encoded_data_->size() : 0; }
 
@@ -306,6 +326,11 @@ class RTC_EXPORT EncodedImage {
 
   // Encoders may compute PSNR for a frame.
   std::optional<Psnr> psnr_;
+
+  // If set, indicates whether this image is the last encoding of the temporal
+  // unit identified by the RTP timestamp field, including any potentially
+  // dropped layers.
+  std::optional<bool> is_end_of_temporal_unit_;
 };
 
 }  // namespace webrtc
