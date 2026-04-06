@@ -2612,8 +2612,8 @@ void SdpOfferAnswerHandler::DoSetLocalDescription(
 
   // Determine if SDP munging was done. This is not yet acted upon.
   bool had_local_description = !!local_description();
-  SdpMungingType sdp_munging_type =
-      DetermineSdpMungingType(desc.get(), last_created_desc);
+  // RingRTC change to disable SDP munging checks
+  SdpMungingType sdp_munging_type = kNoModification;
 
   if (!disable_sdp_munging_checks_) {
     bool reject_error = false;
