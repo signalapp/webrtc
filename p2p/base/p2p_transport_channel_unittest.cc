@@ -91,7 +91,6 @@
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/socket_server.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/time_utils.h"
 #include "rtc_base/virtual_socket_server.h"
@@ -304,8 +303,7 @@ bool HasRemoteAddress(const CandidatePairInterface* pair,
 // and that the result is what we expect.
 // Note that this class is a base class for use by other tests, who will provide
 // specialized test behavior.
-class P2PTransportChannelTestBase : public ::testing::Test,
-                                    public sigslot::has_slots<> {
+class P2PTransportChannelTestBase : public ::testing::Test {
  public:
   P2PTransportChannelTestBase()
       : vss_(new VirtualSocketServer()),
@@ -391,7 +389,7 @@ class P2PTransportChannelTestBase : public ::testing::Test,
     Candidate candidate;
   };
 
-  struct Endpoint : public sigslot::has_slots<> {
+  struct Endpoint {
     Endpoint()
         : role_(ICEROLE_UNKNOWN),
           role_conflict_(false),
@@ -471,13 +469,13 @@ class P2PTransportChannelTestBase : public ::testing::Test,
     ep1_.cd1_.ch_->MaybeStartGathering();
     ep2_.cd1_.ch_->MaybeStartGathering();
     ep1_.cd1_.ch_->allocator_session()->SubscribeIceRegathering(
-        [this](PortAllocatorSession* allocator_session,
-               IceRegatheringReason reason) {
+        this, [this](PortAllocatorSession* allocator_session,
+                     IceRegatheringReason reason) {
           ep1_.OnIceRegathering(allocator_session, reason);
         });
     ep2_.cd1_.ch_->allocator_session()->SubscribeIceRegathering(
-        [this](PortAllocatorSession* allocator_session,
-               IceRegatheringReason reason) {
+        this, [this](PortAllocatorSession* allocator_session,
+                     IceRegatheringReason reason) {
           ep2_.OnIceRegathering(allocator_session, reason);
         });
   }
@@ -504,6 +502,7 @@ class P2PTransportChannelTestBase : public ::testing::Test,
                                     OnReadyToSend(transport);
                                   });
     channel->SubscribeCandidateGathered(
+        this,
         [this](IceTransportInternal* transport, const Candidate& candidate) {
           OnCandidateGathered(transport, candidate);
         });
@@ -517,13 +516,17 @@ class P2PTransportChannelTestBase : public ::testing::Test,
           OnReadPacket(transport, packet);
         });
     channel->SubscribeRoleConflict(
+        this,
         [this](IceTransportInternal* transport) { OnRoleConflict(transport); });
     channel->SubscribeNetworkRouteChanged(
         this, [this](std::optional<NetworkRoute> network_route) {
           OnNetworkRouteChanged(network_route);
         });
-    channel->SignalSentPacket.connect(
-        this, &P2PTransportChannelTestBase::OnSentPacket);
+    channel->SubscribeSentPacket(
+        this,
+        [this](PacketTransportInternal* transport, const SentPacketInfo& info) {
+          OnSentPacket(transport, info);
+        });
     channel->SetIceParameters(local_ice);
     if (remote_ice_parameter_source_ == FROM_SETICEPARAMETERS) {
       channel->SetRemoteIceParameters(remote_ice);
@@ -1016,7 +1019,7 @@ class P2PTransportChannelTestBase : public ::testing::Test,
 
   void ConnectSignalNominated(Connection* conn) {
     conn->SubscribeNominated(
-        [this](Connection* connection) { OnNominated(connection); });
+        this, [this](Connection* connection) { OnNominated(connection); });
   }
 
   void OnNominated(Connection* conn) { nominated_ = true; }
@@ -3590,8 +3593,7 @@ TEST_F(P2PTransportChannelMultihomedTest, StunDictionaryPerformsSync) {
 
 // A collection of tests which tests a single P2PTransportChannel by sending
 // pings.
-class P2PTransportChannelPingTest : public ::testing::Test,
-                                    public sigslot::has_slots<> {
+class P2PTransportChannelPingTest : public ::testing::Test {
  public:
   P2PTransportChannelPingTest()
       : vss_(std::make_unique<VirtualSocketServer>()),
@@ -3612,7 +3614,7 @@ class P2PTransportChannelPingTest : public ::testing::Test,
       OnReadyToSend(transport);
     });
     ch->SubscribeIceTransportStateChanged(
-        [this](IceTransportInternal* transport) {
+        this, [this](IceTransportInternal* transport) {
           OnChannelStateChanged(transport);
         });
     ch->SetCandidatePairChangeCallback(
@@ -5186,7 +5188,7 @@ TEST_F(P2PTransportChannelPingTest, TestIceRoleUpdatedOnRemovedPort) {
   // Make a fake signal to remove the ports in the p2ptransportchannel. then
   // change the ICE role and expect it to be updated.
   std::vector<PortInterface*> ports(1, conn->PortForTest());
-  ch.allocator_session()->SignalPortsPruned(ch.allocator_session(), ports);
+  ch.allocator_session()->NotifyPortsPruned(ch.allocator_session(), ports);
   ch.SetIceRole(ICEROLE_CONTROLLED);
   EXPECT_EQ(ICEROLE_CONTROLLED, conn->PortForTest()->GetIceRole());
 }
@@ -7240,6 +7242,118 @@ TEST_F(P2PTransportChannelTestDtlsInStun, SupportedByServer) {
 
 TEST_F(P2PTransportChannelTestDtlsInStun, SupportedByBoth) {
   Run(true, true);
+}
+
+class P2PTransportChannelRegatheringTest : public P2PTransportChannelPingTest {
+ public:
+  void SetupChannel(IceConfig config) {
+    // Use a fixed environment for the allocator and channel.
+    env_ = std::make_unique<Environment>(CreateEnvironment());
+    allocator_ = std::make_unique<FakePortAllocator>(*env_, ss());
+    channel_ = std::make_unique<P2PTransportChannel>(*env_, "regather", 1,
+                                                     allocator_.get());
+    PrepareChannel(channel_.get());
+    channel_->SetIceConfig(config);
+    channel_->SetIceRole(ICEROLE_CONTROLLING);
+    channel_->SetIceParameters(kIceParams[0]);
+    channel_->SetRemoteIceParameters(kIceParams[1]);
+    channel_->MaybeStartGathering();
+
+    // Create a connection to trigger pinging which starts the regathering
+    // timer. We need to make sure the connection is pingable.
+    channel_->AddRemoteCandidate(
+        CreateUdpCandidate(IceCandidateType::kHost, "1.1.1.1", 1, 1));
+    connection_ = WaitForConnectionTo(channel_.get(), "1.1.1.1", 1);
+    EXPECT_TRUE(connection_ != nullptr);
+
+    channel_->allocator_session()->SubscribeIceRegathering(
+        this, [this](PortAllocatorSession*, IceRegatheringReason reason) {
+          regathering_counts_[reason]++;
+        });
+  }
+
+  int GetRegatheringCount(IceRegatheringReason reason) {
+    return regathering_counts_[reason];
+  }
+
+  std::unique_ptr<Environment> env_;
+  std::unique_ptr<FakePortAllocator> allocator_;
+  std::unique_ptr<P2PTransportChannel> channel_;
+  Connection* connection_ = nullptr;
+  std::map<IceRegatheringReason, int> regathering_counts_;
+};
+
+TEST_F(P2PTransportChannelRegatheringTest,
+       IceRegatheringDoesNotOccurIfSessionNotCleared) {
+  ScopedFakeClock clock;
+  IceConfig config;
+  config.regather_on_failed_networks_interval = TimeDelta::Millis(2000);
+  SetupChannel(config);
+
+  // Session is not cleared by default.
+  // Expect no regathering in the last 10s.
+  // We use WaitUntil with a condition that is always false to wait for timeout,
+  // but we expect it to fail (return false).
+  EXPECT_FALSE(WaitUntil([&] { return false; },
+                         {.timeout = TimeDelta::Seconds(10), .clock = &clock}));
+  EXPECT_EQ(0, GetRegatheringCount(IceRegatheringReason::NETWORK_FAILURE));
+}
+
+TEST_F(P2PTransportChannelRegatheringTest, IceRegatheringRepeatsAsScheduled) {
+  ScopedFakeClock clock;
+  IceConfig config;
+  config.regather_on_failed_networks_interval = TimeDelta::Millis(2000);
+  SetupChannel(config);
+
+  channel_->allocator_session()->ClearGettingPorts();
+
+  // Expect no regathering immediately (wait < 2000ms).
+  EXPECT_FALSE(
+      WaitUntil([&] { return false; },
+                {.timeout = TimeDelta::Millis(1900), .clock = &clock}));
+  EXPECT_EQ(0, GetRegatheringCount(IceRegatheringReason::NETWORK_FAILURE));
+
+  // Expect regathering to happen once after 2s.
+  EXPECT_TRUE(WaitUntil(
+      [&] {
+        return GetRegatheringCount(IceRegatheringReason::NETWORK_FAILURE) == 1;
+      },
+      {.timeout = TimeDelta::Millis(500), .clock = &clock}));
+
+  // Expect regathering to happen for another 5 times in 11s with 2s interval.
+  // Total 6.
+  EXPECT_TRUE(WaitUntil(
+      [&] {
+        return GetRegatheringCount(IceRegatheringReason::NETWORK_FAILURE) == 6;
+      },
+      {.timeout = TimeDelta::Seconds(11), .clock = &clock}));
+}
+
+TEST_F(P2PTransportChannelRegatheringTest,
+       ScheduleOfIceRegatheringOnFailedNetworksCanBeReplaced) {
+  ScopedFakeClock clock;
+  IceConfig config;
+  config.regather_on_failed_networks_interval = TimeDelta::Millis(2000);
+  SetupChannel(config);
+
+  channel_->allocator_session()->ClearGettingPorts();
+
+  config.regather_on_failed_networks_interval = TimeDelta::Millis(5000);
+  channel_->SetIceConfig(config);
+
+  // Expect no regathering from the previous schedule (Wait 3s, previous was
+  // 2s). Since we reset the schedule, it should restart counting 5s from now.
+  EXPECT_FALSE(WaitUntil([&] { return false; },
+                         {.timeout = TimeDelta::Seconds(3), .clock = &clock}));
+  EXPECT_EQ(0, GetRegatheringCount(IceRegatheringReason::NETWORK_FAILURE));
+
+  // Expect regathering to happen twice in the last 11s (total 14s) with 5s
+  // interval. First at 5s, second at 10s.
+  EXPECT_TRUE(WaitUntil(
+      [&] {
+        return GetRegatheringCount(IceRegatheringReason::NETWORK_FAILURE) == 2;
+      },
+      {.timeout = TimeDelta::Seconds(8), .clock = &clock}));
 }
 
 }  // namespace

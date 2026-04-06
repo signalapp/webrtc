@@ -136,6 +136,10 @@ void PipeWireNode::OnNodeInfo(void* data, const pw_node_info* info) {
       uint32_t id = info->params[i].id;
       if (id == SPA_PARAM_EnumFormat &&
           info->params[i].flags & SPA_PARAM_INFO_READ) {
+        RTC_LOG(LS_INFO)
+            << "Clearing existing capabilities before re-enumeration for "
+            << that->display_name_;
+        that->capabilities_.clear();
         pw_node_enum_params(reinterpret_cast<pw_node*>(that->proxy_), 0, id, 0, UINT32_MAX, nullptr);
         break;
       }
@@ -306,7 +310,7 @@ void PipeWireSession::InitPipeWire(int fd) {
 
 RTC_NO_SANITIZE("cfi-icall")
 bool PipeWireSession::StartPipeWire(int fd) {
-  pw_init(/*argc=*/nullptr, /*argv=*/nullptr);
+  pw_initializer_ = std::make_unique<PipeWireInitializer>();
 
   pw_main_loop_ = pw_thread_loop_new("pipewire-main-loop", nullptr);
 

@@ -11,12 +11,14 @@
 #ifndef PC_RTP_TRANSPORT_INTERNAL_H_
 #define PC_RTP_TRANSPORT_INTERNAL_H_
 
-#include <cstdint>
 #include <optional>
 #include <string>
 #include <utility>
 
 #include "absl/functional/any_invocable.h"
+#include "api/task_queue/pending_task_safety_flag.h"
+#include "api/transport/ecn_marking.h"
+#include "api/units/timestamp.h"
 #include "call/rtp_demuxer.h"
 #include "pc/session_description.h"
 #include "rtc_base/async_packet_socket.h"
@@ -25,7 +27,6 @@
 #include "rtc_base/network/sent_packet.h"
 #include "rtc_base/network_route.h"
 #include "rtc_base/socket.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 
 namespace webrtc {
 
@@ -35,7 +36,7 @@ class CopyOnWriteBuffer;
 // but is accessible to internal classes in order to send and receive RTP and
 // RTCP packets belonging to a single RTP session. Additional convenience and
 // configuration methods are also provided.
-class RtpTransportInternal : public sigslot::has_slots<> {
+class RtpTransportInternal {
  public:
   virtual ~RtpTransportInternal() = default;
 
@@ -67,7 +68,9 @@ class RtpTransportInternal : public sigslot::has_slots<> {
   // BaseChannel through the RtpDemuxer callback.
   void SubscribeRtcpPacketReceived(
       const void* tag,
-      absl::AnyInvocable<void(webrtc::CopyOnWriteBuffer*, int64_t)> callback) {
+      absl::AnyInvocable<void(CopyOnWriteBuffer,
+                              std::optional<Timestamp>,
+                              EcnMarking)> callback) {
     callback_list_rtcp_packet_received_.AddReceiver(tag, std::move(callback));
   }
   // There doesn't seem to be a need to unsubscribe from this signal.
@@ -147,9 +150,10 @@ class RtpTransportInternal : public sigslot::has_slots<> {
 
  protected:
   void SendReadyToSend(bool arg) { callback_list_ready_to_send_.Send(arg); }
-  void SendRtcpPacketReceived(CopyOnWriteBuffer* buffer,
-                              int64_t packet_time_us) {
-    callback_list_rtcp_packet_received_.Send(buffer, packet_time_us);
+  void SendRtcpPacketReceived(CopyOnWriteBuffer packet,
+                              std::optional<Timestamp> arrival_time,
+                              EcnMarking ecn) {
+    callback_list_rtcp_packet_received_.Send(packet, arrival_time, ecn);
   }
   void NotifyUnDemuxableRtpPacketReceived(RtpPacketReceived& packet) {
     callback_undemuxable_rtp_packet_received_(packet);
@@ -166,7 +170,8 @@ class RtpTransportInternal : public sigslot::has_slots<> {
 
  private:
   CallbackList<bool> callback_list_ready_to_send_;
-  CallbackList<CopyOnWriteBuffer*, int64_t> callback_list_rtcp_packet_received_;
+  CallbackList<CopyOnWriteBuffer, std::optional<Timestamp>, EcnMarking>
+      callback_list_rtcp_packet_received_;
   absl::AnyInvocable<void(RtpPacketReceived&)>
       callback_undemuxable_rtp_packet_received_ =
           [](RtpPacketReceived& packet) {};
@@ -174,6 +179,7 @@ class RtpTransportInternal : public sigslot::has_slots<> {
       callback_list_network_route_changed_;
   CallbackList<bool> callback_list_writable_state_;
   CallbackList<const SentPacketInfo&> callback_list_sent_packet_;
+  ScopedTaskSafety safety_;
 };
 
 }  // namespace webrtc

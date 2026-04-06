@@ -31,6 +31,7 @@ rtc_library("bandwidth_estimation_settings") {
 rtc_source_set("ecn_marking") {
   visibility = [ "*" ]
   sources = [ "ecn_marking.h" ]
+  deps = [ "//third_party/abseil-cpp/absl/strings:string_view" ]
 }
 
 rtc_source_set("enums") {
@@ -68,6 +69,7 @@ rtc_source_set("datagram_transport_interface") {
     "..:priority",
     "..:rtc_error",
     "../../rtc_base:copy_on_write_buffer",
+    "../../rtc_base:ssl_adapter",
   ]
 }
 
@@ -79,9 +81,14 @@ rtc_library("goog_cc") {
   ]
   deps = [
     ":network_control",
+    "..:field_trials_view",
     "..:network_state_predictor_api",
     "../../api/units:time_delta",
     "../../modules/congestion_controller/goog_cc",
+    "../../modules/congestion_controller/goog_cc_scream_network_controller",
+    "../../modules/congestion_controller/scream:scream_network_controller",
+    "../../rtc_base:logging",
+    "../../rtc_base/experiments:field_trial_parser",
     "../../rtc_base/system:rtc_export",
   ]
 }
@@ -89,7 +96,10 @@ rtc_library("goog_cc") {
 rtc_source_set("sctp_transport_factory_interface") {
   visibility = [ "*" ]
   sources = [ "sctp_transport_factory_interface.h" ]
-  deps = [ "../../api/environment" ]
+  deps = [
+    "..:field_trials_view",
+    "../../api/environment",
+  ]
 }
 
 rtc_library("stun_types") {
@@ -150,6 +160,16 @@ if (rtc_include_tests) {
 }
 
 if (rtc_include_tests) {
+  rtc_library("ecn_marking_unittest") {
+    testonly = true
+    sources = [ "ecn_marking_unittest.cc" ]
+    deps = [
+      ":ecn_marking",
+      "../../test:test_support",
+      "//third_party/abseil-cpp/absl/strings",
+    ]
+  }
+
   rtc_library("stun_unittest") {
     visibility = [ "*" ]
     testonly = true

@@ -23,15 +23,13 @@
 #include "rtc_base/network/received_packet.h"
 #include "rtc_base/network/sent_packet.h"
 #include "rtc_base/network_route.h"
-#include "rtc_base/sigslot_trampoline.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/system/rtc_export.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
 
-class RTC_EXPORT PacketTransportInternal : public sigslot::has_slots<> {
+class RTC_EXPORT PacketTransportInternal {
  public:
   virtual const std::string& transport_name() const = 0;
 
@@ -71,7 +69,6 @@ class RTC_EXPORT PacketTransportInternal : public sigslot::has_slots<> {
   virtual std::optional<NetworkRoute> network_route() const;
 
   // Emitted when the writable state, represented by `writable()`, changes.
-  sigslot::signal1<PacketTransportInternal*> SignalWritableState;
   void SubscribeWritableState(
       void* tag,
       absl::AnyInvocable<void(PacketTransportInternal*)> callback);
@@ -83,7 +80,6 @@ class RTC_EXPORT PacketTransportInternal : public sigslot::has_slots<> {
   //  writable, but temporarily not able to send packets. For example, the
   //  underlying transport's socket buffer may be full, as indicated by
   //  SendPacket's return code and/or GetError.
-  sigslot::signal1<PacketTransportInternal*> SignalReadyToSend;
   void SubscribeReadyToSend(
       void* tag,
       absl::AnyInvocable<void(PacketTransportInternal*)> callback);
@@ -91,8 +87,10 @@ class RTC_EXPORT PacketTransportInternal : public sigslot::has_slots<> {
   void NotifyReadyToSend(PacketTransportInternal* packet_transport);
 
   // Emitted when receiving state changes to true.
-  sigslot::signal1<PacketTransportInternal*> SignalReceivingState;
+  [[deprecated]] void SubscribeReceivingState(
+      absl::AnyInvocable<void(PacketTransportInternal*)> callback);
   void SubscribeReceivingState(
+      void* tag,
       absl::AnyInvocable<void(PacketTransportInternal*)> callback);
   void NotifyReceivingState(PacketTransportInternal* packet_transport);
 
@@ -105,11 +103,20 @@ class RTC_EXPORT PacketTransportInternal : public sigslot::has_slots<> {
   void DeregisterReceivedPacketCallback(void* id);
 
   // Signalled each time a packet is sent on this channel.
-  sigslot::signal2<PacketTransportInternal*, const SentPacketInfo&>
-      SignalSentPacket;
-
+  void NotifySentPacket(PacketTransportInternal* transport,
+                        const SentPacketInfo& info) {
+    sent_packet_callbacks_.Send(transport, info);
+  }
+  void SubscribeSentPacket(
+      void* tag,
+      absl::AnyInvocable<void(PacketTransportInternal*, const SentPacketInfo&)>
+          callback) {
+    sent_packet_callbacks_.AddReceiver(tag, std::move(callback));
+  }
+  void UnsubscribeSentPacket(void* tag) {
+    sent_packet_callbacks_.RemoveReceivers(tag);
+  }
   // Signalled when the current network route has changed.
-  sigslot::signal1<std::optional<NetworkRoute>> SignalNetworkRouteChanged;
   void SubscribeNetworkRouteChanged(
       void* tag,
       absl::AnyInvocable<void(std::optional<NetworkRoute>)> callback);
@@ -120,9 +127,10 @@ class RTC_EXPORT PacketTransportInternal : public sigslot::has_slots<> {
   // Signalled when the transport is closed.
   void SetOnCloseCallback(absl::AnyInvocable<void() &&> callback);
 
+  virtual ~PacketTransportInternal();
+
  protected:
   PacketTransportInternal();
-  ~PacketTransportInternal() override;
 
   void NotifyPacketReceived(const ReceivedIpPacket& packet);
   void NotifyOnClose();
@@ -133,21 +141,14 @@ class RTC_EXPORT PacketTransportInternal : public sigslot::has_slots<> {
   CallbackList<PacketTransportInternal*, const ReceivedIpPacket&>
       received_packet_callback_list_ RTC_GUARDED_BY(&network_checker_);
   absl::AnyInvocable<void() &&> on_close_;
-  SignalTrampoline<PacketTransportInternal,
-                   &PacketTransportInternal::SignalWritableState>
-      writable_state_trampoline_;
-  SignalTrampoline<PacketTransportInternal,
-                   &PacketTransportInternal::SignalReadyToSend>
-      ready_to_send_trampoline_;
-  SignalTrampoline<PacketTransportInternal,
-                   &PacketTransportInternal::SignalReceivingState>
-      receiving_state_trampoline_;
-  SignalTrampoline<PacketTransportInternal,
-                   &PacketTransportInternal::SignalNetworkRouteChanged>
-      network_route_changed_trampoline_;
+  CallbackList<PacketTransportInternal*, const SentPacketInfo&>
+      sent_packet_callbacks_;
+  CallbackList<std::optional<NetworkRoute>> network_route_changed_callbacks_;
+  CallbackList<PacketTransportInternal*> writable_state_callbacks_;
+  CallbackList<PacketTransportInternal*> ready_to_send_callbacks_;
+  CallbackList<PacketTransportInternal*> receiving_state_callbacks_;
 };
 
 }  //  namespace webrtc
-
 
 #endif  // P2P_BASE_PACKET_TRANSPORT_INTERNAL_H_

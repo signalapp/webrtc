@@ -59,24 +59,24 @@ ABSL_FLAG(
 ABSL_FLAG(std::string,
           wav_filename,
           "",
-          "Path to wav file used for simulation of jitter buffer");
+          "Path to wav file used for simulation of jitter buffer.");
 
 ABSL_FLAG(bool,
           show_detector_state,
           false,
           "Show the state of the delay based BWE detector on the total "
-          "bitrate graph");
+          "bitrate graph.");
 
 ABSL_FLAG(bool,
           show_alr_state,
           false,
-          "Show the state ALR state on the total bitrate graph");
+          "Show the state ALR state on the total bitrate graph.");
 
 ABSL_FLAG(bool,
           show_link_capacity,
           true,
           "Show the lower and upper link capacity on the outgoing bitrate "
-          "graph");
+          "graph.");
 
 ABSL_FLAG(bool,
           parse_unconfigured_header_extensions,
@@ -102,6 +102,8 @@ ABSL_FLAG(bool,
           "updates all the others too. A downside is that certain "
           "operations like panning become much slower.");
 
+ABSL_FLAG(bool, show_grid, false, "Show a grid in all plots.");
+
 ABSL_FLAG(bool,
           protobuf_output,
           false,
@@ -110,12 +112,22 @@ ABSL_FLAG(bool,
 ABSL_FLAG(std::string,
           figure_output_path,
           "",
-          "A path to output the python plots into");
+          "A path to output the python plots into.");
 
 ABSL_FLAG(bool,
           list_plots,
           false,
-          "List of registered plots (for use with the --plot flag)");
+          "List of registered plots (for use with the --plot flag).");
+
+ABSL_FLAG(int,
+          averaging_window,
+          250,
+          "Time window (in ms) used for calculating moving average bitrates.");
+
+ABSL_FLAG(int,
+          averaging_step,
+          10,
+          "How often (in ms) a data point is generated in bitrate plots.");
 
 namespace {
 std::vector<std::string> StrSplit(const std::string& s,
@@ -181,8 +193,9 @@ int main(int argc, char* argv[]) {
   }
 
   webrtc::AnalyzerConfig config;
-  config.window_duration_ = webrtc::TimeDelta::Millis(250);
-  config.step_ = webrtc::TimeDelta::Millis(10);
+  config.window_duration_ =
+      webrtc::TimeDelta::Millis(absl::GetFlag(FLAGS_averaging_window));
+  config.step_ = webrtc::TimeDelta::Millis(absl::GetFlag(FLAGS_averaging_step));
   if (!parsed_log.start_log_events().empty()) {
     config.rtc_to_utc_offset_ = parsed_log.start_log_events()[0].utc_time() -
                                 parsed_log.start_log_events()[0].log_time();
@@ -246,7 +259,11 @@ int main(int argc, char* argv[]) {
         "simulated_neteq_expand_rate"}},
       {"l4s",
        {"incoming_bitrate", "outgoing_bitrate", "incoming_ecn_feedback",
-        "outgoing_ecn_feedback"}}};
+        "outgoing_ecn_feedback"}},
+      {"scream",
+       {"scream_delay_estimates", "scream_ref_window",
+        "simulated_scream_bitrates", "simulated_scream_ref_window",
+        "simulated_scream_ratios", "network_delay_feedback", "pacer_delay"}}};
 
   if (absl::GetFlag(FLAGS_list_plots)) {
     std::cerr << "List of registered plots (for use with the --plot flag):"
@@ -435,6 +452,7 @@ int main(int argc, char* argv[]) {
     std::cout << proto_charts.SerializeAsString();
   } else {
     collection.PrintPythonCode(absl::GetFlag(FLAGS_shared_xaxis),
+                               absl::GetFlag(FLAGS_show_grid),
                                absl::GetFlag(FLAGS_figure_output_path));
   }
 

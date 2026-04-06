@@ -25,6 +25,7 @@
 #include "media/base/codec.h"
 #include "media/base/media_constants.h"
 #include "media/base/stream_params.h"
+#include "p2p/base/p2p_constants.h"
 #include "p2p/base/transport_description.h"
 #include "p2p/base/transport_info.h"
 #include "pc/session_description.h"
@@ -39,8 +40,8 @@ SdpMungingType DetermineTransportModification(
     const TransportInfos& last_created_transport_infos,
     const TransportInfos& transport_infos_to_set) {
   if (last_created_transport_infos.size() != transport_infos_to_set.size()) {
-    RTC_LOG(LS_WARNING) << "SDP munging: Number of transport-infos does not "
-                           "match last created description.";
+    RTC_LOG(LS_ERROR) << "SDP munging: Number of transport-infos does not "
+                         "match last created description.";
     // Number of transports should always match number of contents so this
     // should never happen.
     return SdpMungingType::kNumberOfContents;
@@ -433,13 +434,48 @@ SdpMungingType DetermineVideoSdpModification(
   return SdpMungingType::kNoModification;
 }
 
+SdpMungingType DetermineDataSdpModification(
+    const MediaContentDescription* last_created_media_description,
+    const MediaContentDescription* media_description_to_set) {
+  RTC_DCHECK(last_created_media_description);
+  RTC_DCHECK(media_description_to_set);
+  auto last_created_sctp_description =
+      last_created_media_description->as_sctp();
+  auto sctp_description_to_set = media_description_to_set->as_sctp();
+  RTC_DCHECK(last_created_sctp_description);
+  RTC_DCHECK(sctp_description_to_set);
+
+  if (last_created_sctp_description->sctp_init() !=
+      sctp_description_to_set->sctp_init()) {
+    RTC_LOG(LS_ERROR) << "SDP munging: sctp-init does not match "
+                         "last created description.";
+    return SdpMungingType::kDataChannelSctpInit;
+  }
+
+  if (last_created_sctp_description->max_message_size() !=
+      sctp_description_to_set->max_message_size()) {
+    RTC_LOG(LS_WARNING) << "SDP munging: max-message-size does not match "
+                           "last created description.";
+    return SdpMungingType::kDataChannelMaxMessageSize;
+  }
+
+  if (last_created_sctp_description->port() !=
+      sctp_description_to_set->port()) {
+    RTC_LOG(LS_WARNING) << "SDP munging: sctp-port does not match "
+                           "last created description.";
+    return SdpMungingType::kDataChannelSctpPort;
+  }
+
+  return SdpMungingType::kNoModification;
+}
+
 SdpMungingType DetermineContentsModification(
     const ContentInfos& last_created_contents,
     const ContentInfos& contents_to_set) {
   SdpMungingType type;
   if (last_created_contents.size() != contents_to_set.size()) {
-    RTC_LOG(LS_WARNING) << "SDP munging: Number of m= sections does not match "
-                           "last created description.";
+    RTC_LOG(LS_ERROR) << "SDP munging: Number of m= sections does not match "
+                         "last created description.";
     return SdpMungingType::kNumberOfContents;
   }
 
@@ -462,6 +498,13 @@ SdpMungingType DetermineContentsModification(
     }
     // Validate video and audio contents.
     MediaType media_type = last_created_media_description->type();
+    if (media_type == MediaType::DATA) {
+      type = DetermineDataSdpModification(last_created_media_description,
+                                          media_description_to_set);
+      if (type != SdpMungingType::kNoModification) {
+        return type;
+      }
+    }
     bool is_rtp =
         media_type == MediaType::AUDIO || media_type == MediaType::VIDEO;
     if (!is_rtp) {
@@ -536,6 +579,14 @@ SdpMungingType DetermineContentsModification(
         return SdpMungingType::kRtpHeaderExtensionModified;
       }
     }
+
+    // Validate b= (which does not have an effect in the local description).
+    if (last_created_media_description->bandwidth() !=
+        media_description_to_set->bandwidth()) {
+      RTC_LOG(LS_WARNING) << "SDP munging: modifying bandwidth in SLD does not "
+                             "have an effect locally.";
+      return SdpMungingType::kBandwidth;
+    }
   }
   return SdpMungingType::kNoModification;
 }
@@ -609,6 +660,25 @@ SdpMungingType DetermineSdpMungingType(
     }
   }
 
+  // Validate Bundle fields
+  std::vector<const ContentGroup*> old_bundles =
+      last_created_desc->description()->GetGroupsByName(GROUP_TYPE_BUNDLE);
+  std::vector<const ContentGroup*> new_bundles =
+      sdesc->description()->GetGroupsByName(GROUP_TYPE_BUNDLE);
+  if (old_bundles.size() != new_bundles.size()) {
+    RTC_LOG(LS_WARNING) << "SDP munging: number of bundle groups changed from "
+                        << old_bundles.size() << " to " << new_bundles.size();
+    return SdpMungingType::kBundle;
+  }
+  for (size_t i = 0; i < old_bundles.size(); ++i) {
+    if (*new_bundles[i] != *old_bundles[i]) {
+      RTC_LOG(LS_WARNING) << "SDP munging: Content of bundle group " << i
+                          << " changed from " << old_bundles[i]->ToString()
+                          << " to " << new_bundles[i]->ToString();
+      return SdpMungingType::kBundle;
+    }
+  }
+
   // TODO: crbug.com/40567530 - this serializes the descriptions back to a SDP
   // string which is very complex and we not should be be forced to rely on
   // string equality.
@@ -661,6 +731,8 @@ bool IsSdpMungingAllowed(SdpMungingType sdp_munging_type,
     case SdpMungingType::kNoModification:
       return true;
     case SdpMungingType::kNumberOfContents:
+      return false;
+    case kDataChannelSctpInit:
       return false;
     default:
       // Handled below.

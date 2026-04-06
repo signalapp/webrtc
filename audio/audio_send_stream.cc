@@ -10,6 +10,7 @@
 
 #include "audio/audio_send_stream.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -292,10 +293,13 @@ void AudioSendStream::ConfigureStream(
       channel_send_->ResetSenderCongestionControlObjects();
     }
 
+    absl::string_view uri = TransportSequenceNumber::Uri();
+    rtp_rtcp_module_->DeregisterSendRtpHeaderExtension(uri);
+
     if (!allocate_audio_without_feedback_ &&
         new_ids.transport_sequence_number != 0) {
       rtp_rtcp_module_->RegisterRtpHeaderExtension(
-          TransportSequenceNumber::Uri(), new_ids.transport_sequence_number);
+          uri, new_ids.transport_sequence_number);
       // Probing in application limited region is only used in combination with
       // send side congestion control, wich depends on feedback packets which
       // requires transport sequence numbers to be enabled.
@@ -507,7 +511,8 @@ uint32_t AudioSendStream::OnBitrateUpdated(BitrateAllocationUpdate update) {
   std::optional<TargetAudioBitrateConstraints> constraints =
       GetMinMaxBitrateConstraints();
   if (constraints) {
-    update.target_bitrate.Clamp(constraints->min, constraints->max);
+    update.target_bitrate =
+        std::clamp(update.target_bitrate, constraints->min, constraints->max);
   }
   channel_send_->OnBitrateAllocation(update);
   // The amount of audio protection is not exposed by the encoder, hence
@@ -588,9 +593,7 @@ bool AudioSendStream::SetupSendCodec(const Config& new_config) {
 
   RTC_DCHECK(new_config.encoder_factory);
   std::unique_ptr<AudioEncoder> encoder = new_config.encoder_factory->Create(
-      env_, spec.format,
-      {.payload_type = spec.payload_type,
-       .codec_pair_id = new_config.codec_pair_id});
+      env_, spec.format, {.payload_type = spec.payload_type});
 
   if (!encoder) {
     RTC_DLOG(LS_ERROR) << "Unable to create encoder for "

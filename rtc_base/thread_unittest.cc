@@ -54,6 +54,8 @@ namespace webrtc {
 namespace {
 
 using ::testing::ElementsAre;
+using ::testing::IsNull;
+using ::testing::NotNull;
 
 // Generates a sequence of numbers (collaboratively).
 class TestGenerator {
@@ -199,6 +201,20 @@ TEST(ThreadTest, DISABLED_Main) {
   EXPECT_EQ(55, sock_client.last);
 }
 
+// Tests that the implementation behind
+// `RTC_DCHECK_DISALLOW_THREAD_BLOCKING_CALLS` doesn't cause problems (crash or
+// DCHECK) when used on a thread that does not have an attached current
+// `Thread*` instance.
+TEST(ThreadTest, DisallowBlockingCallsNoThread) {
+  ASSERT_THAT(Thread::Current(), IsNull());
+  RTC_DCHECK_DISALLOW_THREAD_BLOCKING_CALLS();
+}
+
+TEST(ThreadTest, DisallowBlockingCallsWithThread) {
+  AutoThread current;
+  RTC_DCHECK_DISALLOW_THREAD_BLOCKING_CALLS();
+}
+
 TEST(ThreadTest, CountBlockingCalls) {
   AutoThread current;
 
@@ -207,7 +223,7 @@ TEST(ThreadTest, CountBlockingCalls) {
   RTC_LOG_THREAD_BLOCK_COUNT();
 #if RTC_DCHECK_IS_ON
   Thread::ScopedCountBlockingCalls blocked_calls(
-      [&](uint32_t actual_block, uint32_t could_block) {
+      [&](uint32_t actual_block, uint32_t could_block, TimeDelta duration) {
         EXPECT_EQ(1u, actual_block);
         EXPECT_EQ(1u, could_block);
       });
@@ -246,7 +262,7 @@ TEST(ThreadTest, CountBlockingCallsOneCallback) {
   bool was_called_back = false;
   {
     Thread::ScopedCountBlockingCalls blocked_calls(
-        [&](uint32_t actual_block, uint32_t could_block) {
+        [&](uint32_t actual_block, uint32_t could_block, TimeDelta duration) {
           was_called_back = true;
         });
     current.BlockingCall([]() {});
@@ -259,7 +275,7 @@ TEST(ThreadTest, CountBlockingCallsSkipCallback) {
   bool was_called_back = false;
   {
     Thread::ScopedCountBlockingCalls blocked_calls(
-        [&](uint32_t actual_block, uint32_t could_block) {
+        [&](uint32_t actual_block, uint32_t could_block, TimeDelta duration) {
           was_called_back = true;
         });
     // Changed `blocked_calls` to not issue the callback if there are 1 or
@@ -412,6 +428,18 @@ TEST(ThreadTest, ThreeThreadsInvokeDeathTest) {
   });
 }
 
+TEST(ThreadTest, DisallowBlockingCallDeathTest) {
+  GTEST_FLAG_SET(death_test_style, "threadsafe");
+  AutoThread thread;
+  ASSERT_THAT(Thread::Current(), NotNull());
+  auto other_thread = Thread::CreateWithSocketServer();
+  other_thread->Start();
+  {
+    RTC_DCHECK_DISALLOW_THREAD_BLOCKING_CALLS();
+    RTC_EXPECT_DEATH(other_thread->BlockingCall([] {}),
+                     "blocking_calls_allowed_");
+  }
+}
 #endif
 
 // Verifies that if thread A invokes a call on thread B and thread C is trying

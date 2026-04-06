@@ -153,7 +153,8 @@ AudioEncoder::EncodedInfo AudioEncoderCopyRed::EncodeImpl(
 
   // Iterate backwards and append the data.
   size_t header_offset = 0;
-  while (it-- != redundant_encodings_.begin()) {
+  while (it != redundant_encodings_.begin()) {
+    --it;
     encoded->AppendData(it->second);
 
     const uint32_t timestamp_delta =
@@ -179,17 +180,19 @@ AudioEncoder::EncodedInfo AudioEncoderCopyRed::EncodeImpl(
   RTC_DCHECK_EQ(header_offset, header_length_bytes - 1);
   encoded->data()[header_offset] = info.payload_type;
 
-  // Shift the redundant encodings.
-  auto rit = redundant_encodings_.rbegin();
-  for (auto next = std::next(rit); next != redundant_encodings_.rend();
-       rit++, next = std::next(rit)) {
-    rit->first = next->first;
-    rit->second.SetData(next->second);
-  }
-  it = redundant_encodings_.begin();
-  if (it != redundant_encodings_.end()) {
-    it->first = info;
-    it->second.SetData(primary_encoded_);
+  // Shift the redundant encodings if speech.
+  if (info.speech) {
+    auto rit = redundant_encodings_.rbegin();
+    for (auto next = std::next(rit); next != redundant_encodings_.rend();
+         rit++, next = std::next(rit)) {
+      rit->first = next->first;
+      rit->second.SetData(next->second);
+    }
+    it = redundant_encodings_.begin();
+    if (it != redundant_encodings_.end()) {
+      it->first = info;
+      it->second.SetData(primary_encoded_);
+    }
   }
 
   // Update main EncodedInfo.

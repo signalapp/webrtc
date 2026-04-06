@@ -13,9 +13,11 @@
 
 #include <cstdint>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "absl/base/nullability.h"
+#include "absl/functional/any_invocable.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "api/candidate.h"
@@ -34,6 +36,7 @@
 #include "rtc_base/network.h"
 #include "rtc_base/socket_factory.h"
 #include "rtc_base/task_queue_for_test.h"
+#include "rtc_base/weak_ptr.h"
 
 // RingRTC change to support ICE forking
 #include "api/make_ref_counted.h"
@@ -141,7 +144,7 @@ class FakePortAllocatorSession : public PortAllocatorSession {
       RTC_DCHECK(port_);
       port_->SetIceTiebreaker(allocator_->ice_tiebreaker());
       port_->SubscribePortDestroyed(
-          [this](PortInterface* port) { OnPortDestroyed(port); });
+          this, [this](PortInterface* port) { OnPortDestroyed(port); });
       AddPort(port_.get());
     }
     ++port_config_count_;
@@ -154,7 +157,7 @@ class FakePortAllocatorSession : public PortAllocatorSession {
   bool IsCleared() const override { return is_cleared; }
 
   void RegatherOnFailedNetworks() override {
-    SignalIceRegathering(this, IceRegatheringReason::NETWORK_FAILURE);
+    NotifyIceRegathering(this, IceRegatheringReason::NETWORK_FAILURE);
   }
 
   std::vector<PortInterface*> ReadyPorts() const override {
@@ -191,19 +194,20 @@ class FakePortAllocatorSession : public PortAllocatorSession {
   void AddPort(Port* port) {
     port->set_component(component());
     port->set_generation(generation());
-    port->SubscribePortComplete([this](Port* port) { OnPortComplete(port); });
+    port->SubscribePortComplete(this,
+                                [this](Port* port) { OnPortComplete(port); });
     port->PrepareAddress();
     ready_ports_.push_back(port);
-    SignalPortReady(this, port);
+    NotifyPortReady(this, port);
     port->KeepAliveUntilPruned();
   }
   void OnPortComplete(Port* port) {
     const std::vector<Candidate>& candidates = port->Candidates();
     candidates_.insert(candidates_.end(), candidates.begin(), candidates.end());
-    SignalCandidatesReady(this, candidates);
+    NotifyCandidatesReady(this, candidates);
 
     allocation_done_ = true;
-    SignalCandidatesAllocationDone(this);
+    NotifyCandidatesAllocationDone(this);
   }
   void OnPortDestroyed(PortInterface* /* port */) {
     // Don't want to double-delete port if it deletes itself.
@@ -275,9 +279,24 @@ class FakePortAllocator : public PortAllocator {
   bool MdnsObfuscationEnabled() const override {
     return mdns_obfuscation_enabled_;
   }
+
   void SetMdnsObfuscationEnabledForTesting(bool enabled) {
     mdns_obfuscation_enabled_ = enabled;
   }
+
+  void DiscardCandidatePool() override {
+    PortAllocator::DiscardCandidatePool();
+    if (on_candidate_pool_discarded_) {
+      on_candidate_pool_discarded_();
+    }
+  }
+
+  void SetOnDiscardCandidatePool(
+      absl::AnyInvocable<void()> on_candidate_pool_discarded) {
+    on_candidate_pool_discarded_ = std::move(on_candidate_pool_discarded);
+  }
+
+  WeakPtr<FakePortAllocator> NewWeakPtr() { return weak_factory_.GetWeakPtr(); }
 
  private:
   const Environment env_;
@@ -288,6 +307,8 @@ class FakePortAllocator : public PortAllocator {
   SocketFactory* socket_factory_;
 
   bool mdns_obfuscation_enabled_ = false;
+  absl::AnyInvocable<void()> on_candidate_pool_discarded_;
+  WeakPtrFactory<FakePortAllocator> weak_factory_{this};
 };
 
 }  //  namespace webrtc

@@ -10,11 +10,9 @@
 
 #include "p2p/base/port.h"
 
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <limits>
 #include <list>
 #include <memory>
 #include <optional>
@@ -25,12 +23,12 @@
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
+#include "api/async_dns_resolver.h"
 #include "api/candidate.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
 #include "api/field_trials.h"
 #include "api/packet_socket_factory.h"
-#include "api/rtc_error.h"
 #include "api/test/mock_packet_socket_factory.h"
 #include "api/test/rtc_error_matchers.h"
 #include "api/transport/stun.h"
@@ -51,10 +49,10 @@
 #include "p2p/test/nat_socket_factory.h"
 #include "p2p/test/nat_types.h"
 #include "p2p/test/stun_server.h"
+#include "p2p/test/test_port.h"
 #include "p2p/test/test_stun_server.h"
 #include "p2p/test/test_turn_server.h"
 #include "rtc_base/async_packet_socket.h"
-#include "rtc_base/buffer.h"
 #include "rtc_base/byte_buffer.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/crypto_random.h"
@@ -65,11 +63,9 @@
 #include "rtc_base/net_helper.h"
 #include "rtc_base/network.h"
 #include "rtc_base/network/received_packet.h"
-#include "rtc_base/network/sent_packet.h"
 #include "rtc_base/network_constants.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/virtual_socket_server.h"
 #include "test/create_test_environment.h"
@@ -137,114 +133,6 @@ bool WriteStunMessage(const StunMessage& msg, ByteBufferWriter* buf) {
   return msg.Write(buf);
 }
 
-}  // namespace
-
-// Stub port class for testing STUN generation and processing.
-class TestPort : public Port {
- public:
-  TestPort(const PortParametersRef& args, uint16_t min_port, uint16_t max_port)
-      : Port(args, IceCandidateType::kHost, min_port, max_port) {}
-  ~TestPort() override {}
-
-  // Expose GetStunMessage so that we can test it.
-  using Port::GetStunMessage;
-
-  // The last StunMessage that was sent on this Port.
-  ArrayView<const uint8_t> last_stun_buf() {
-    if (!last_stun_buf_)
-      return ArrayView<const uint8_t>();
-    return *last_stun_buf_;
-  }
-  IceMessage* last_stun_msg() { return last_stun_msg_.get(); }
-  int last_stun_error_code() {
-    int code = 0;
-    if (last_stun_msg_) {
-      const StunErrorCodeAttribute* error_attr = last_stun_msg_->GetErrorCode();
-      if (error_attr) {
-        code = error_attr->code();
-      }
-    }
-    return code;
-  }
-
-  void PrepareAddress() override {
-    // Act as if the socket was bound to the best IP on the network, to the
-    // first port in the allowed range.
-    SocketAddress addr(Network()->GetBestIP(), min_port());
-    AddAddress(addr, addr, SocketAddress(), "udp", "", "", type(),
-               ICE_TYPE_PREFERENCE_HOST, 0, "", true);
-  }
-
-  bool SupportsProtocol(absl::string_view /* protocol */) const override {
-    return true;
-  }
-
-  ProtocolType GetProtocol() const override { return PROTO_UDP; }
-
-  // Exposed for testing candidate building.
-  void AddCandidateAddress(const SocketAddress& addr) {
-    AddAddress(addr, addr, SocketAddress(), "udp", "", "", type(),
-               type_preference_, 0, "", false);
-  }
-  void AddCandidateAddress(const SocketAddress& addr,
-                           const SocketAddress& base_address,
-                           IceCandidateType type,
-                           int type_preference,
-                           bool final) {
-    AddAddress(addr, base_address, SocketAddress(), "udp", "", "", type,
-               type_preference, 0, "", final);
-  }
-
-  Connection* CreateConnection(const Candidate& remote_candidate,
-                               CandidateOrigin /* origin */) override {
-    Connection* conn =
-        new ProxyConnection(env(), NewWeakPtr(), 0, remote_candidate);
-    AddOrReplaceConnection(conn);
-    // Set use-candidate attribute flag as this will add USE-CANDIDATE attribute
-    // in STUN binding requests.
-    conn->set_use_candidate_attr(true);
-    return conn;
-  }
-  int SendTo(const void* data,
-             size_t size,
-             const SocketAddress& /* addr */,
-             const AsyncSocketPacketOptions& /* options */,
-             bool payload) override {
-    if (!payload) {
-      auto msg = std::make_unique<IceMessage>();
-      auto buf = std::make_unique<BufferT<uint8_t>>(
-          static_cast<const char*>(data), size);
-      ByteBufferReader read_buf(*buf);
-      if (!msg->Read(&read_buf)) {
-        return -1;
-      }
-      last_stun_buf_ = std::move(buf);
-      last_stun_msg_ = std::move(msg);
-    }
-    return static_cast<int>(size);
-  }
-  int SetOption(Socket::Option /* opt */, int /* value */) override {
-    return 0;
-  }
-  int GetOption(Socket::Option opt, int* value) override { return -1; }
-  int GetError() override { return 0; }
-  void Reset() {
-    last_stun_buf_.reset();
-    last_stun_msg_.reset();
-  }
-  void set_type_preference(int type_preference) {
-    type_preference_ = type_preference;
-  }
-
- private:
-  void OnSentPacket(AsyncPacketSocket* socket,
-                    const SentPacketInfo& sent_packet) override {
-    NotifySentPacket(sent_packet);
-  }
-  std::unique_ptr<BufferT<uint8_t>> last_stun_buf_;
-  std::unique_ptr<IceMessage> last_stun_msg_;
-  int type_preference_ = 0;
-};
 
 bool GetStunMessageFromBufferWriter(TestPort* port,
                                     ByteBufferWriter* buf,
@@ -255,12 +143,12 @@ bool GetStunMessageFromBufferWriter(TestPort* port,
                               buf->Length(), addr, out_msg, out_username);
 }
 
-static void SendPingAndReceiveResponse(Connection* lconn,
-                                       TestPort* lport,
-                                       Connection* rconn,
-                                       TestPort* rport,
-                                       ScopedFakeClock* clock,
-                                       int64_t ms) {
+void SendPingAndReceiveResponse(Connection* lconn,
+                                TestPort* lport,
+                                Connection* rconn,
+                                TestPort* rport,
+                                ScopedFakeClock* clock,
+                                int64_t ms) {
   lconn->Ping();
   ASSERT_THAT(WaitUntil([&] { return lport->last_stun_msg(); }, IsTrue(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
@@ -278,22 +166,23 @@ static void SendPingAndReceiveResponse(Connection* lconn,
       ReceivedIpPacket(rport->last_stun_buf(), SocketAddress(), std::nullopt));
 }
 
-class TestChannel : public sigslot::has_slots<> {
+class TestChannel {
  public:
   // Takes ownership of `p1` (but not `p2`).
   explicit TestChannel(std::unique_ptr<Port> p1) : port_(std::move(p1)) {
-    port_->SubscribePortComplete([this](Port* port) { OnPortComplete(port); });
+    port_->SubscribePortComplete(this,
+                                 [this](Port* port) { OnPortComplete(port); });
     port_->SubscribeUnknownAddress(
-        [this](PortInterface* port, const SocketAddress& address,
-               ProtocolType proto, IceMessage* msg, const std::string& rf,
-               bool port_muxed) {
+        this, [this](PortInterface* port, const SocketAddress& address,
+                     ProtocolType proto, IceMessage* msg, const std::string& rf,
+                     bool port_muxed) {
           OnUnknownAddress(port, address, proto, msg, rf, port_muxed);
         });
     port_->SubscribePortDestroyed(
-        [this](PortInterface* port) { OnSrcPortDestroyed(port); });
+        this, [this](PortInterface* port) { OnSrcPortDestroyed(port); });
   }
 
-  ~TestChannel() override { Stop(); }
+  ~TestChannel() { Stop(); }
 
   int complete_count() { return complete_count_; }
   Connection* conn() { return conn_; }
@@ -307,12 +196,12 @@ class TestChannel : public sigslot::has_slots<> {
     IceMode remote_ice_mode =
         (ice_mode_ == ICEMODE_FULL) ? ICEMODE_LITE : ICEMODE_FULL;
     conn_->set_use_candidate_attr(remote_ice_mode == ICEMODE_FULL);
-    conn_->SubscribeStateChange([this](Connection* connection) {
+    conn_->SubscribeStateChange(this, [this](Connection* connection) {
       OnConnectionStateChange(connection);
     });
     conn_->SubscribeDestroyed(
         this, [this](Connection* connection) { OnDestroyed(connection); });
-    conn_->SubscribeReadyToSend([this](Connection* connection) {
+    conn_->SubscribeReadyToSend(this, [this](Connection* connection) {
       OnConnectionReadyToSend(connection);
     });
     connection_ready_to_send_ = false;
@@ -422,7 +311,7 @@ class TestChannel : public sigslot::has_slots<> {
   bool connection_ready_to_send_ = false;
 };
 
-class PortTest : public ::testing::Test, public sigslot::has_slots<> {
+class PortTest : public ::testing::Test {
  public:
   PortTest()
       : ss_(new VirtualSocketServer()),
@@ -702,7 +591,8 @@ class PortTest : public ::testing::Test, public sigslot::has_slots<> {
                           {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
                 IsRtcOk());  // for TCP connect
     ch1->Ping();
-    WAIT(!ch2->remote_address().IsNil(), kShortTimeout);
+    EXPECT_TRUE(WaitUntil([&] { return !ch2->remote_address().IsNil(); },
+                          {.timeout = TimeDelta::Millis(kShortTimeout)}));
 
     // Send a ping from dst to src.
     ch2->AcceptConnection(GetCandidate(ch1->port()));
@@ -919,7 +809,7 @@ class PortTest : public ::testing::Test, public sigslot::has_slots<> {
 
   void ConnectToSignalDestroyed(PortInterface* port) {
     port->SubscribePortDestroyed(
-        [this](PortInterface* port) { OnDestroyed(port); });
+        this, [this](PortInterface* port) { OnDestroyed(port); });
   }
 
   void OnDestroyed(PortInterface* port) { ++ports_destroyed_; }
@@ -1124,6 +1014,74 @@ void PortTest::TestConnectivity(absl::string_view name1,
                          .clock = &clock}),
               IsRtcOk());
 }
+
+class FakePacketSocketFactory : public PacketSocketFactory {
+ public:
+  FakePacketSocketFactory() = default;
+  ~FakePacketSocketFactory() override = default;
+
+  std::unique_ptr<AsyncPacketSocket> CreateUdpSocket(
+      const Environment& env,
+      const SocketAddress& address,
+      uint16_t min_port,
+      uint16_t max_port) override {
+    EXPECT_THAT(next_udp_socket_, NotNull());
+    return std::move(next_udp_socket_);
+  }
+
+  std::unique_ptr<AsyncPacketSocket> CreateClientUdpSocket(
+      const Environment& env,
+      const SocketAddress& local_address,
+      const SocketAddress& remote_address,
+      uint16_t min_port,
+      uint16_t max_port,
+      const PacketSocketTcpOptions& options) override {
+    EXPECT_THAT(next_udp_socket_, NotNull());
+    return std::move(next_udp_socket_);
+  }
+
+  std::unique_ptr<AsyncListenSocket> CreateServerTcpSocket(
+      const Environment& env,
+      const SocketAddress& local_address,
+      uint16_t min_port,
+      uint16_t max_port,
+      int opts) override {
+    EXPECT_THAT(next_server_tcp_socket_, NotNull());
+    return std::move(next_server_tcp_socket_);
+  }
+
+  std::unique_ptr<AsyncPacketSocket> CreateClientTcpSocket(
+      const Environment& env,
+      const SocketAddress& local_address,
+      const SocketAddress& remote_address,
+      const PacketSocketTcpOptions& opts) override {
+    EXPECT_TRUE(next_client_tcp_socket_.has_value());
+    auto result = std::move(*next_client_tcp_socket_);
+    next_client_tcp_socket_.reset();
+    return result;
+  }
+
+  void set_next_udp_socket(std::unique_ptr<AsyncPacketSocket> next_udp_socket) {
+    next_udp_socket_ = std::move(next_udp_socket);
+  }
+  void set_next_server_tcp_socket(
+      std::unique_ptr<AsyncListenSocket> next_server_tcp_socket) {
+    next_server_tcp_socket_ = std::move(next_server_tcp_socket);
+  }
+  void set_next_client_tcp_socket(
+      std::unique_ptr<AsyncPacketSocket> next_client_tcp_socket) {
+    next_client_tcp_socket_ = std::move(next_client_tcp_socket);
+  }
+  std::unique_ptr<webrtc::AsyncDnsResolverInterface> CreateAsyncDnsResolver()
+      override {
+    return nullptr;
+  }
+
+ private:
+  std::unique_ptr<AsyncPacketSocket> next_udp_socket_;
+  std::unique_ptr<AsyncListenSocket> next_server_tcp_socket_;
+  std::optional<std::unique_ptr<AsyncPacketSocket>> next_client_tcp_socket_;
+};
 
 class FakeAsyncPacketSocket : public AsyncPacketSocket {
  public:
@@ -1721,7 +1679,7 @@ TEST_F(PortTest, TestDelayedBindingUdp) {
   port->PrepareAddress();
 
   EXPECT_EQ(0U, port->Candidates().size());
-  socket->SignalAddressReady(socket, kLocalAddr2);
+  socket->NotifyAddressReady(socket, kLocalAddr2);
 
   EXPECT_EQ(1U, port->Candidates().size());
 }
@@ -1784,7 +1742,7 @@ void PortTest::TestCrossFamilyPorts(int type) {
           .WillOnce(Return(absl::WrapUnique(socket)));
       ports[i] = CreateUdpPort(addresses[i], &factory);
       socket->set_state(AsyncPacketSocket::STATE_BINDING);
-      socket->SignalAddressReady(socket, addresses[i]);
+      socket->NotifyAddressReady(socket, addresses[i]);
     } else if (type == SOCK_STREAM) {
       FakeAsyncListenSocket* socket = new FakeAsyncListenSocket();
       EXPECT_CALL(factory, CreateServerTcpSocket)
@@ -1855,7 +1813,7 @@ TEST_F(PortTest, TestUdpSingleAddressV6CrossTypePorts) {
         .WillOnce(Return(absl::WrapUnique(socket)));
     ports[i] = CreateUdpPort(addresses[i], &factory);
     socket->set_state(AsyncPacketSocket::STATE_BINDING);
-    socket->SignalAddressReady(socket, addresses[i]);
+    socket->NotifyAddressReady(socket, addresses[i]);
     ports[i]->PrepareAddress();
   }
 
@@ -1889,7 +1847,7 @@ TEST_F(PortTest, TestUdpMultipleAddressesV6CrossTypePorts) {
         CreateUdpPortMultipleAddrs(addresses[i], kLinkLocalIPv6Addr, &factory);
     ports[i]->SetIceTiebreaker(kTiebreakerDefault);
     socket->set_state(AsyncPacketSocket::STATE_BINDING);
-    socket->SignalAddressReady(socket, addresses[i]);
+    socket->NotifyAddressReady(socket, addresses[i]);
     ports[i]->PrepareAddress();
   }
 
@@ -2962,9 +2920,12 @@ TEST_F(PortTest, TestConnectionPriority) {
   lport->AddCandidateAddress(SocketAddress("192.168.1.4", 1234));
   rport->set_component(23);
   rport->AddCandidateAddress(SocketAddress("10.1.1.100", 1234));
+  rport->set_type_preference(ICE_TYPE_PREFERENCE_RELAY_DTLS);
+  rport->AddCandidateAddress(SocketAddress("10.1.1.100", 1234));
 
   EXPECT_EQ(0x7E001E85U, lport->Candidates()[0].priority());
-  EXPECT_EQ(0x2001EE9U, rport->Candidates()[0].priority());
+  EXPECT_EQ(0x3001EE9U, rport->Candidates()[0].priority());
+  EXPECT_EQ(0x2001EE9U, rport->Candidates()[1].priority());
 
   // RFC 5245
   // pair priority = 2^32*MIN(G,D) + 2*MAX(G,D) + (G>D?1:0)
@@ -2973,19 +2934,22 @@ TEST_F(PortTest, TestConnectionPriority) {
   Connection* lconn =
       lport->CreateConnection(rport->Candidates()[0], Port::ORIGIN_MESSAGE);
 #if defined(WEBRTC_WIN)
-  EXPECT_EQ(0x2001EE9FC003D0BU, lconn->priority());
+  EXPECT_EQ(0x3001EE9FC003D0BU, lconn->priority());
 #else
-  EXPECT_EQ(0x2001EE9FC003D0BLLU, lconn->priority());
+  EXPECT_EQ(0x3001EE9FC003D0BLLU, lconn->priority());
 #endif
+
+  lconn = lport->CreateConnection(rport->Candidates()[1], Port::ORIGIN_MESSAGE);
+  EXPECT_EQ(uint64_t{0x2001EE9FC003D0B}, lconn->priority());
 
   lport->SetIceRole(ICEROLE_CONTROLLED);
   rport->SetIceRole(ICEROLE_CONTROLLING);
   Connection* rconn =
       rport->CreateConnection(lport->Candidates()[0], Port::ORIGIN_MESSAGE);
 #if defined(WEBRTC_WIN)
-  EXPECT_EQ(0x2001EE9FC003D0AU, rconn->priority());
+  EXPECT_EQ(0x3001EE9FC003D0AU, rconn->priority());
 #else
-  EXPECT_EQ(0x2001EE9FC003D0ALLU, rconn->priority());
+  EXPECT_EQ(0x3001EE9FC003D0ALLU, rconn->priority());
 #endif
 }
 
@@ -3007,7 +2971,7 @@ TEST_F(PortTest, TestConnectionPriorityWithPriorityAdjustment) {
 
   EXPECT_EQ(0x7E001E85U + (kMaxTurnServers << 8),
             lport->Candidates()[0].priority());
-  EXPECT_EQ(0x2001EE9U + (kMaxTurnServers << 8),
+  EXPECT_EQ(0x3001EE9U + (kMaxTurnServers << 8),
             rport->Candidates()[0].priority());
 
   // RFC 5245
@@ -3017,9 +2981,9 @@ TEST_F(PortTest, TestConnectionPriorityWithPriorityAdjustment) {
   Connection* lconn =
       lport->CreateConnection(rport->Candidates()[0], Port::ORIGIN_MESSAGE);
 #if defined(WEBRTC_WIN)
-  EXPECT_EQ(0x2003EE9FC007D0BU, lconn->priority());
+  EXPECT_EQ(0x3003EE9FC007D0BU, lconn->priority());
 #else
-  EXPECT_EQ(0x2003EE9FC007D0BLLU, lconn->priority());
+  EXPECT_EQ(0x3003EE9FC007D0BLLU, lconn->priority());
 #endif
 
   lport->SetIceRole(ICEROLE_CONTROLLED);
@@ -3028,9 +2992,9 @@ TEST_F(PortTest, TestConnectionPriorityWithPriorityAdjustment) {
       rport->CreateConnection(lport->Candidates()[0], Port::ORIGIN_MESSAGE);
   RTC_LOG(LS_ERROR) << "RCONN " << rconn->priority();
 #if defined(WEBRTC_WIN)
-  EXPECT_EQ(0x2003EE9FC007D0AU, rconn->priority());
+  EXPECT_EQ(0x3003EE9FC007D0AU, rconn->priority());
 #else
-  EXPECT_EQ(0x2003EE9FC007D0ALLU, rconn->priority());
+  EXPECT_EQ(0x3003EE9FC007D0ALLU, rconn->priority());
 #endif
 }
 
@@ -3992,285 +3956,5 @@ TEST_F(PortTest, TestAddConnectionWithSameAddress) {
   EXPECT_TRUE(port->GetConnection(address) != nullptr);
 }
 
-#if RTC_DCHECK_IS_ON && GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
-class DeathChannel : public sigslot::has_slots<> {
- public:
-  explicit DeathChannel(std::unique_ptr<Port> port) : port_(std::move(port)) {}
-  void IgnoredSlot(PortInterface* /* port */) {}
-  void AddSignal() {
-    port_->SignalRoleConflict.connect(this, &DeathChannel::IgnoredSlot);
-  }
-  void AddCallback() {
-    port_->SubscribeRoleConflict([]() {});
-  }
-
- private:
-  std::unique_ptr<Port> port_;
-};
-
-class PortDeathTest : public PortTest {};
-
-TEST_F(PortDeathTest, AddSignalThenCallback) {
-  DeathChannel dc(CreateRawTestPort());
-  dc.AddSignal();
-  EXPECT_DEATH(dc.AddCallback(), "");
-}
-
-#endif  // RTC_DCHECK_IS_ON && GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
-
-// TODO(webrtc:11463) : Move Connection tests into separate unit test
-// splitting out shared test code as needed.
-
-class ConnectionTest : public PortTest {
- public:
-  ConnectionTest() {
-    lport_ = CreateTestPort(kLocalAddr1, "lfrag", "lpass");
-    rport_ = CreateTestPort(kLocalAddr2, "rfrag", "rpass");
-    lport_->SetIceRole(ICEROLE_CONTROLLING);
-    lport_->SetIceTiebreaker(kTiebreaker1);
-    rport_->SetIceRole(ICEROLE_CONTROLLED);
-    rport_->SetIceTiebreaker(kTiebreaker2);
-
-    lport_->PrepareAddress();
-    rport_->PrepareAddress();
-  }
-
-  ScopedFakeClock clock_;
-  int num_state_changes_ = 0;
-
-  Connection* CreateConnection(IceRole role) {
-    Connection* conn;
-    if (role == ICEROLE_CONTROLLING) {
-      conn = lport_->CreateConnection(rport_->Candidates()[0],
-                                      Port::ORIGIN_MESSAGE);
-    } else {
-      conn = rport_->CreateConnection(lport_->Candidates()[0],
-                                      Port::ORIGIN_MESSAGE);
-    }
-    conn->SubscribeStateChange([this](Connection* connection) {
-      OnConnectionStateChange(connection);
-    });
-    return conn;
-  }
-
-  void SendPingAndCaptureReply(Connection* lconn,
-                               Connection* rconn,
-                               int64_t ms,
-                               BufferT<uint8_t>* reply) {
-    TestPort* lport =
-        lconn->PortForTest() == lport_.get() ? lport_.get() : rport_.get();
-    TestPort* rport =
-        rconn->PortForTest() == rport_.get() ? rport_.get() : lport_.get();
-    lconn->Ping();
-    ASSERT_THAT(WaitUntil([&] { return lport->last_stun_msg(); }, IsTrue(),
-                          {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-                IsRtcOk());
-    ASSERT_GT(lport->last_stun_buf().size(), 0u);
-    rconn->OnReadPacket(ReceivedIpPacket(lport->last_stun_buf(),
-                                         SocketAddress(), std::nullopt));
-
-    clock_.AdvanceTime(TimeDelta::Millis(ms));
-    ASSERT_THAT(WaitUntil([&] { return rport->last_stun_msg(); }, IsTrue(),
-                          {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-                IsRtcOk());
-    ASSERT_GT(rport->last_stun_buf().size(), 0u);
-    reply->SetData(rport->last_stun_buf());
-  }
-
-  void SendPingAndReceiveResponse(Connection* lconn,
-                                  Connection* rconn,
-                                  int64_t ms) {
-    BufferT<uint8_t> reply;
-    SendPingAndCaptureReply(lconn, rconn, ms, &reply);
-
-    lconn->OnReadPacket(ReceivedIpPacket(reply, SocketAddress(), std::nullopt));
-  }
-
-  void OnConnectionStateChange(Connection* connection) { num_state_changes_++; }
-
-  std::unique_ptr<TestPort> lport_;
-  std::unique_ptr<TestPort> rport_;
-};
-
-TEST_F(ConnectionTest, ConnectionForgetLearnedState) {
-  Connection* lconn = CreateConnection(ICEROLE_CONTROLLING);
-  Connection* rconn = CreateConnection(ICEROLE_CONTROLLED);
-
-  EXPECT_FALSE(lconn->writable());
-  EXPECT_FALSE(lconn->receiving());
-  EXPECT_TRUE(std::isnan(lconn->GetRttEstimate().GetAverage()));
-  EXPECT_EQ(lconn->GetRttEstimate().GetVariance(),
-            std::numeric_limits<double>::infinity());
-
-  SendPingAndReceiveResponse(lconn, rconn, 10);
-
-  EXPECT_TRUE(lconn->writable());
-  EXPECT_TRUE(lconn->receiving());
-  EXPECT_EQ(lconn->GetRttEstimate().GetAverage(), 10);
-  EXPECT_EQ(lconn->GetRttEstimate().GetVariance(),
-            std::numeric_limits<double>::infinity());
-
-  SendPingAndReceiveResponse(lconn, rconn, 11);
-
-  EXPECT_TRUE(lconn->writable());
-  EXPECT_TRUE(lconn->receiving());
-  EXPECT_NEAR(lconn->GetRttEstimate().GetAverage(), 10, 0.5);
-  EXPECT_LT(lconn->GetRttEstimate().GetVariance(),
-            std::numeric_limits<double>::infinity());
-
-  lconn->ForgetLearnedState();
-
-  EXPECT_FALSE(lconn->writable());
-  EXPECT_FALSE(lconn->receiving());
-  EXPECT_TRUE(std::isnan(lconn->GetRttEstimate().GetAverage()));
-  EXPECT_EQ(lconn->GetRttEstimate().GetVariance(),
-            std::numeric_limits<double>::infinity());
-}
-
-TEST_F(ConnectionTest, ConnectionForgetLearnedStateDiscardsPendingPings) {
-  Connection* lconn = CreateConnection(ICEROLE_CONTROLLING);
-  Connection* rconn = CreateConnection(ICEROLE_CONTROLLED);
-
-  SendPingAndReceiveResponse(lconn, rconn, 10);
-
-  EXPECT_TRUE(lconn->writable());
-  EXPECT_TRUE(lconn->receiving());
-
-  BufferT<uint8_t> reply;
-  SendPingAndCaptureReply(lconn, rconn, 10, &reply);
-
-  lconn->ForgetLearnedState();
-
-  EXPECT_FALSE(lconn->writable());
-  EXPECT_FALSE(lconn->receiving());
-
-  lconn->OnReadPacket(ReceivedIpPacket(reply, SocketAddress(), std::nullopt));
-
-  // That reply was discarded due to the ForgetLearnedState() while it was
-  // outstanding.
-  EXPECT_FALSE(lconn->writable());
-  EXPECT_FALSE(lconn->receiving());
-
-  // But sending a new ping and getting a reply works.
-  SendPingAndReceiveResponse(lconn, rconn, 11);
-  EXPECT_TRUE(lconn->writable());
-  EXPECT_TRUE(lconn->receiving());
-}
-
-TEST_F(ConnectionTest, ConnectionForgetLearnedStateDoesNotTriggerStateChange) {
-  Connection* lconn = CreateConnection(ICEROLE_CONTROLLING);
-  Connection* rconn = CreateConnection(ICEROLE_CONTROLLED);
-
-  EXPECT_EQ(num_state_changes_, 0);
-  SendPingAndReceiveResponse(lconn, rconn, 10);
-
-  EXPECT_TRUE(lconn->writable());
-  EXPECT_TRUE(lconn->receiving());
-  EXPECT_EQ(num_state_changes_, 2);
-
-  lconn->ForgetLearnedState();
-
-  EXPECT_FALSE(lconn->writable());
-  EXPECT_FALSE(lconn->receiving());
-  EXPECT_EQ(num_state_changes_, 2);
-}
-
-// Test normal happy case.
-// Sending a delta and getting a delta ack in response.
-TEST_F(ConnectionTest, SendReceiveGoogDelta) {
-  constexpr int64_t ms = 10;
-  Connection* lconn = CreateConnection(ICEROLE_CONTROLLING);
-  Connection* rconn = CreateConnection(ICEROLE_CONTROLLED);
-
-  std::unique_ptr<StunByteStringAttribute> delta =
-      absl::WrapUnique(new StunByteStringAttribute(STUN_ATTR_GOOG_DELTA));
-  delta->CopyBytes("DELTA");
-
-  std::unique_ptr<StunAttribute> delta_ack =
-      absl::WrapUnique(new StunUInt64Attribute(STUN_ATTR_GOOG_DELTA_ACK, 133));
-
-  bool received_goog_delta = false;
-  bool received_goog_delta_ack = false;
-  lconn->SetStunDictConsumer(
-      // DeltaReceived
-      [](const StunByteStringAttribute* delta)
-          -> std::unique_ptr<StunAttribute> { return nullptr; },
-      // DeltaAckReceived
-      [&](RTCErrorOr<const StunUInt64Attribute*> error_or_ack) {
-        received_goog_delta_ack = true;
-        EXPECT_TRUE(error_or_ack.ok());
-        EXPECT_EQ(error_or_ack.value()->value(), 133ull);
-      });
-
-  rconn->SetStunDictConsumer(
-      // DeltaReceived
-      [&](const StunByteStringAttribute* delta)
-          -> std::unique_ptr<StunAttribute> {
-        received_goog_delta = true;
-        EXPECT_EQ(delta->string_view(), "DELTA");
-        return std::move(delta_ack);
-      },
-      // DeltaAckReceived
-      [](RTCErrorOr<const StunUInt64Attribute*> error_or__ack) {});
-
-  lconn->Ping(env().clock().CurrentTime(), std::move(delta));
-  ASSERT_THAT(WaitUntil([&] { return lport_->last_stun_msg(); }, IsTrue(),
-                        {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-              IsRtcOk());
-  ASSERT_GT(lport_->last_stun_buf().size(), 0u);
-  rconn->OnReadPacket(
-      ReceivedIpPacket(lport_->last_stun_buf(), SocketAddress(), std::nullopt));
-  EXPECT_TRUE(received_goog_delta);
-
-  clock_.AdvanceTime(TimeDelta::Millis(ms));
-  ASSERT_THAT(WaitUntil([&] { return rport_->last_stun_msg(); }, IsTrue(),
-                        {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-              IsRtcOk());
-  ASSERT_GT(rport_->last_stun_buf().size(), 0u);
-  lconn->OnReadPacket(
-      ReceivedIpPacket(rport_->last_stun_buf(), SocketAddress(), std::nullopt));
-
-  EXPECT_TRUE(received_goog_delta_ack);
-}
-
-// Test that sending a goog delta and not getting
-// a delta ack in reply gives an error callback.
-TEST_F(ConnectionTest, SendGoogDeltaNoReply) {
-  constexpr int64_t ms = 10;
-  Connection* lconn = CreateConnection(ICEROLE_CONTROLLING);
-  Connection* rconn = CreateConnection(ICEROLE_CONTROLLED);
-
-  std::unique_ptr<StunByteStringAttribute> delta =
-      absl::WrapUnique(new StunByteStringAttribute(STUN_ATTR_GOOG_DELTA));
-  delta->CopyBytes("DELTA");
-
-  bool received_goog_delta_ack_error = false;
-  lconn->SetStunDictConsumer(
-      // DeltaReceived
-      [](const StunByteStringAttribute* delta)
-          -> std::unique_ptr<StunAttribute> { return nullptr; },
-      // DeltaAckReceived
-      [&](RTCErrorOr<const StunUInt64Attribute*> error_or_ack) {
-        received_goog_delta_ack_error = true;
-        EXPECT_FALSE(error_or_ack.ok());
-      });
-
-  lconn->Ping(env().clock().CurrentTime(), std::move(delta));
-  ASSERT_THAT(WaitUntil([&] { return lport_->last_stun_msg(); }, IsTrue(),
-                        {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-              IsRtcOk());
-  ASSERT_GT(lport_->last_stun_buf().size(), 0u);
-  rconn->OnReadPacket(
-      ReceivedIpPacket(lport_->last_stun_buf(), SocketAddress(), std::nullopt));
-
-  clock_.AdvanceTime(TimeDelta::Millis(ms));
-  ASSERT_THAT(WaitUntil([&] { return rport_->last_stun_msg(); }, IsTrue(),
-                        {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-              IsRtcOk());
-  ASSERT_GT(rport_->last_stun_buf().size(), 0u);
-  lconn->OnReadPacket(
-      ReceivedIpPacket(rport_->last_stun_buf(), SocketAddress(), std::nullopt));
-  EXPECT_TRUE(received_goog_delta_ack_error);
-}
-
+}  // namespace
 }  // namespace webrtc

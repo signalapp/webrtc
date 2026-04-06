@@ -519,7 +519,6 @@ AgcManagerDirect::~AgcManagerDirect() {}
 
 void AgcManagerDirect::Initialize() {
   RTC_DLOG(LS_INFO) << "AgcManagerDirect::Initialize";
-  data_dumper_->InitiateNewSetOfRecordings();
   for (size_t ch = 0; ch < channel_agcs_.size(); ++ch) {
     channel_agcs_[ch]->Initialize();
   }
@@ -670,7 +669,7 @@ void AgcManagerDirect::Process(const AudioBuffer& audio_buffer,
   }
 }
 
-std::optional<int> AgcManagerDirect::GetDigitalComressionGain() {
+std::optional<int> AgcManagerDirect::GetDigitalCompressionGain() {
   return new_compressions_to_set_[channel_controlling_gain_];
 }
 

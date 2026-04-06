@@ -9,18 +9,6 @@
 import("../../webrtc.gni")
 
 rtc_library("emulated_network") {
-  visibility = [
-    ":*",
-    "../../api:create_network_emulation_manager",
-    "../../api/test/network_emulation:create_cross_traffic",
-  ]
-  if (rtc_include_tests) {
-    visibility += [
-      "../../modules/congestion_controller/goog_cc:goog_cc_unittests",
-      "../peer_scenario:*",
-      "../scenario:*",
-    ]
-  }
   testonly = true
   sources = [
     "cross_traffic.cc",
@@ -69,6 +57,7 @@ rtc_library("emulated_network") {
     "../../rtc_base:ip_address",
     "../../rtc_base:logging",
     "../../rtc_base:macromagic",
+    "../../rtc_base:net_helper",
     "../../rtc_base:net_helpers",
     "../../rtc_base:network",
     "../../rtc_base:network_constants",
@@ -110,9 +99,10 @@ if (rtc_include_tests && !build_with_chromium) {
       "../../api:audio_options_api",
       "../../api:create_modular_peer_connection_factory",
       "../../api:enable_media_with_defaults",
-      "../../api:libjingle_peerconnection_api",
+      "../../api:jsep",
       "../../api:media_stream_interface",
       "../../api:network_emulation_manager_api",
+      "../../api:peer_connection_interface",
       "../../api:rtc_error_matchers",
       "../../api:scoped_refptr",
       "../../api:simulated_network_api",
@@ -183,7 +173,6 @@ if (rtc_include_tests) {
       "../../rtc_base:task_queue_for_test",
       "../../rtc_base:threading",
       "../../rtc_base/synchronization:mutex",
-      "../../rtc_base/third_party/sigslot",
       "//third_party/abseil-cpp/absl/functional:any_invocable",
     ]
   }
@@ -250,6 +239,7 @@ if (rtc_include_tests) {
         deps += [
           ":feedback_generator_unittest",
           ":schedulable_network_behavior_test",
+          ":token_bucket_network_behavior_test",
         ]
       }
     }
@@ -265,6 +255,7 @@ rtc_library("simulated_network") {
     "../../api:sequence_checker",
     "../../api:simulated_network_api",
     "../../api/test/network_emulation:network_queue",
+    "../../api/transport:ecn_marking",
     "../../api/units:data_rate",
     "../../api/units:data_size",
     "../../api/units:time_delta",
@@ -288,10 +279,57 @@ if (rtc_include_tests) {
       "..:test_support",
       "../../api:simulated_network_api",
       "../../api/test/network_emulation:network_queue",
+      "../../api/transport:ecn_marking",
       "../../api/units:data_rate",
       "../../api/units:data_size",
       "../../api/units:time_delta",
       "../../api/units:timestamp",
+    ]
+  }
+}
+
+rtc_library("token_bucket_network_behavior") {
+  sources = [
+    "token_bucket_network_behavior.cc",
+    "token_bucket_network_behavior.h",
+  ]
+
+  deps = [
+    "../../api:function_view",
+    "../../api:network_emulation_manager_api",
+    "../../api:sequence_checker",
+    "../../api:simulated_network_api",
+    "../../api/test/network_emulation:network_queue",
+    "../../api/test/network_emulation:token_bucket_network_behavior_config",
+    "../../api/transport:ecn_marking",
+    "../../api/units:data_rate",
+    "../../api/units:data_size",
+    "../../api/units:time_delta",
+    "../../api/units:timestamp",
+    "../../rtc_base:checks",
+    "../../rtc_base:logging",
+    "../../rtc_base:macromagic",
+    "../../rtc_base:random",
+    "../../rtc_base/synchronization:mutex",
+    "//third_party/abseil-cpp/absl/functional:any_invocable",
+  ]
+}
+if (rtc_include_tests) {
+  rtc_library("token_bucket_network_behavior_test") {
+    sources = [ "token_bucket_network_behavior_unittest.cc" ]
+
+    testonly = true
+    deps = [
+      ":token_bucket_network_behavior",
+      "..:test_support",
+      "../../api:create_network_emulation_manager",
+      "../../api:network_emulation_manager_api",
+      "../../api:simulated_network_api",
+      "../../api/test/network_emulation:network_queue",
+      "../../api/test/network_emulation:token_bucket_network_behavior_builder",
+      "../../api/test/network_emulation:token_bucket_network_behavior_config",
+      "../../api/units:data_rate",
+      "../../api/units:data_size",
     ]
   }
 }

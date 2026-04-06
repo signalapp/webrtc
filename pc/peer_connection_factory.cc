@@ -124,6 +124,7 @@ PeerConnectionFactory::~PeerConnectionFactory() {
     RTC_DCHECK_RUN_ON(worker_thread());
     decode_metronome_ = nullptr;
     encode_metronome_ = nullptr;
+    StopAecDump();
   });
 }
 
@@ -190,13 +191,26 @@ scoped_refptr<AudioSourceInterface> PeerConnectionFactory::CreateAudioSource(
 
 bool PeerConnectionFactory::StartAecDump(FILE* file, int64_t max_size_bytes) {
   RTC_DCHECK_RUN_ON(worker_thread());
-  return context_->media_engine()->voice().StartAecDump(FileWrapper(file),
-                                                        max_size_bytes);
+  if (media_engine_ref_) {
+    RTC_LOG(LS_WARNING) << "Replacing ongoing AEC dump.";
+  } else {
+    media_engine_ref_ =
+        std::make_unique<ConnectionContext::MediaEngineReference>(context_);
+  }
+  const bool started = media_engine_ref_->media_engine()->voice().StartAecDump(
+      FileWrapper(file), max_size_bytes);
+  if (!started) {  // E.g. if the file couldn't be opened/created.
+    StopAecDump();
+  }
+  return started;
 }
 
 void PeerConnectionFactory::StopAecDump() {
   RTC_DCHECK_RUN_ON(worker_thread());
-  context_->media_engine()->voice().StopAecDump();
+  if (!media_engine_ref_)
+    return;
+  media_engine_ref_->media_engine()->voice().StopAecDump();
+  media_engine_ref_ = nullptr;
 }
 
 const MediaEngineInterface* PeerConnectionFactory::media_engine() const {
@@ -340,7 +354,7 @@ std::unique_ptr<Call> PeerConnectionFactory::CreateCall_w(
   RTC_DCHECK_RUN_ON(worker_thread());
 
   CallConfig call_config(env, network_thread());
-  if (!media_engine() || !context_->call_factory()) {
+  if (!context_->media_engine() || !context_->call_factory()) {
     return nullptr;
   }
   call_config.audio_state = media_engine()->voice().GetAudioState();

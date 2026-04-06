@@ -45,8 +45,6 @@
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "logging/rtc_event_log/events/logged_rtp_rtcp.h"
-#include "logging/rtc_event_log/events/rtc_event_generic_packet_received.h"
-#include "logging/rtc_event_log/events/rtc_event_generic_packet_sent.h"
 #include "logging/rtc_event_log/events/rtc_event_ice_candidate_pair.h"
 #include "logging/rtc_event_log/events/rtc_event_ice_candidate_pair_config.h"
 #include "logging/rtc_event_log/rtc_event_log_parser.h"
@@ -75,6 +73,7 @@
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_tools/rtc_event_log_visualizer/analyze_audio.h"
 #include "rtc_tools/rtc_event_log_visualizer/analyzer_common.h"
+#include "rtc_tools/rtc_event_log_visualizer/log_scream_simulation.h"
 #include "rtc_tools/rtc_event_log_visualizer/log_simulation.h"
 #include "rtc_tools/rtc_event_log_visualizer/plot_base.h"
 #include "system_wrappers/include/clock.h"
@@ -616,6 +615,15 @@ void EventLogAnalyzer::InitializeMapOfNamedGraphs(bool show_detector_state,
   plots_.RegisterPlot("simulated_goog_cc", [this](Plot* plot) {
     this->CreateGoogCcSimulationGraph(plot);
   });
+  plots_.RegisterPlot("simulated_scream_bitrates", [this](Plot* plot) {
+    this->CreateScreamSimulationBitrateGraph(plot);
+  });
+  plots_.RegisterPlot("simulated_scream_ref_window", [this](Plot* plot) {
+    this->CreateScreamSimulationRefWindowGraph(plot);
+  });
+  plots_.RegisterPlot("simulated_scream_ratios", [this](Plot* plot) {
+    this->CreateScreamSimulationRatiosGraph(plot);
+  });
   plots_.RegisterPlot("outgoing_loss", [this](Plot* plot) {
     this->CreateOutgoingLossRateGraph(plot);
   });
@@ -627,6 +635,12 @@ void EventLogAnalyzer::InitializeMapOfNamedGraphs(bool show_detector_state,
   });
   plots_.RegisterPlot("incoming_ecn_feedback", [this](Plot* plot) {
     this->CreateIncomingEcnFeedbackGraph(plot);
+  });
+  plots_.RegisterPlot("scream_ref_window", [this](Plot* plot) {
+    this->CreateScreamRefWindowGraph(plot);
+  });
+  plots_.RegisterPlot("scream_delay_estimates", [this](Plot* plot) {
+    this->CreateScreamDelayEstimateGraph(plot);
   });
   plots_.RegisterPlot("network_delay_feedback", [this](Plot* plot) {
     this->CreateNetworkDelayFeedbackGraph(plot);
@@ -1229,17 +1243,6 @@ void EventLogAnalyzer::CreateTotalIncomingBitrateGraph(Plot* plot) const {
   }
   plot->AppendTimeSeriesIfNotEmpty(std::move(remb_series));
 
-  if (!parsed_log_.generic_packets_received().empty()) {
-    TimeSeries time_series("Incoming generic bitrate", LineStyle::kLine);
-    auto GetPacketSizeKilobits = [](const LoggedGenericPacketReceived& packet) {
-      return packet.packet_length * 8.0 / 1000.0;
-    };
-    MovingAverage<LoggedGenericPacketReceived, double>(
-        GetPacketSizeKilobits, parsed_log_.generic_packets_received(), config_,
-        &time_series);
-    plot->AppendTimeSeries(std::move(time_series));
-  }
-
   plot->SetXAxis(config_.CallBeginTimeSec(), config_.CallEndTimeSec(),
                  "Time (s)", kLeftMargin, kRightMargin);
   plot->SetSuggestedYAxis(0, 1, "Bitrate (kbps)", kBottomMargin, kTopMargin);
@@ -1358,6 +1361,13 @@ void EventLogAnalyzer::CreateTotalOutgoingBitrateGraph(
   last_series->intervals.emplace_back(last_detector_switch,
                                       config_.CallEndTimeSec());
 
+  TimeSeries scream_series("Scream target rate", LineStyle::kStep);
+  for (auto& scream_update : parsed_log_.bwe_scream_updates()) {
+    float x = config_.GetCallTimeSec(scream_update.log_time());
+    float y = static_cast<float>(scream_update.target_rate.kbps());
+    scream_series.points.emplace_back(x, y);
+  }
+
   TimeSeries created_series("Probe cluster created.", LineStyle::kNone,
                             PointStyle::kHighlight);
   for (auto& cluster : parsed_log_.bwe_probe_cluster_created_events()) {
@@ -1420,6 +1430,7 @@ void EventLogAnalyzer::CreateTotalOutgoingBitrateGraph(
   plot->AppendTimeSeries(std::move(loss_series));
   plot->AppendTimeSeriesIfNotEmpty(std::move(probe_failures_series));
   plot->AppendTimeSeries(std::move(delay_series));
+  plot->AppendTimeSeriesIfNotEmpty(std::move(scream_series));
   plot->AppendTimeSeries(std::move(created_series));
   plot->AppendTimeSeries(std::move(result_series));
 
@@ -1431,32 +1442,6 @@ void EventLogAnalyzer::CreateTotalOutgoingBitrateGraph(
     remb_series.points.emplace_back(x, y);
   }
   plot->AppendTimeSeriesIfNotEmpty(std::move(remb_series));
-
-  if (!parsed_log_.generic_packets_sent().empty()) {
-    {
-      TimeSeries time_series("Outgoing generic total bitrate",
-                             LineStyle::kLine);
-      auto GetPacketSizeKilobits = [](const LoggedGenericPacketSent& packet) {
-        return packet.packet_length() * 8.0 / 1000.0;
-      };
-      MovingAverage<LoggedGenericPacketSent, double>(
-          GetPacketSizeKilobits, parsed_log_.generic_packets_sent(), config_,
-          &time_series);
-      plot->AppendTimeSeries(std::move(time_series));
-    }
-
-    {
-      TimeSeries time_series("Outgoing generic payload bitrate",
-                             LineStyle::kLine);
-      auto GetPacketSizeKilobits = [](const LoggedGenericPacketSent& packet) {
-        return packet.payload_length * 8.0 / 1000.0;
-      };
-      MovingAverage<LoggedGenericPacketSent, double>(
-          GetPacketSizeKilobits, parsed_log_.generic_packets_sent(), config_,
-          &time_series);
-      plot->AppendTimeSeries(std::move(time_series));
-    }
-  }
 
   plot->SetXAxis(config_.CallBeginTimeSec(), config_.CallEndTimeSec(),
                  "Time (s)", kLeftMargin, kRightMargin);
@@ -1571,6 +1556,143 @@ void EventLogAnalyzer::CreateGoogCcSimulationGraph(Plot* plot) const {
   plot->SetTitle("Simulated BWE behavior");
 }
 
+void EventLogAnalyzer::CreateScreamSimulationBitrateGraph(Plot* plot) const {
+  TimeSeries target_rate_series("Target rate", LineStyle::kStep);
+  TimeSeries pacing_rate_series("Pacing rate", LineStyle::kStep);
+  TimeSeries send_rate_series("Send rate", LineStyle::kStep);
+
+  LogScreamSimulation simulation({.rate_window = config_.window_duration_},
+                                 env_);
+  simulation.ProcessEventsInLog(parsed_log_);
+
+  for (const LogScreamSimulation::State& state : simulation.updates()) {
+    target_rate_series.points.emplace_back(config_.GetCallTimeSec(state.time),
+                                           state.target_rate.bps() / 1000);
+    pacing_rate_series.points.emplace_back(config_.GetCallTimeSec(state.time),
+                                           state.pacing_rate.bps() / 1000);
+    send_rate_series.points.emplace_back(config_.GetCallTimeSec(state.time),
+                                         state.send_rate.bps() / 1000);
+  }
+  plot->AppendTimeSeries(std::move(target_rate_series));
+  plot->AppendTimeSeries(std::move(pacing_rate_series));
+  plot->AppendTimeSeries(std::move(send_rate_series));
+
+  plot->SetXAxis(config_.CallBeginTimeSec(), config_.CallEndTimeSec(),
+                 "Time (s)", kLeftMargin, kRightMargin);
+  plot->SetSuggestedYAxis(0, 100, "Kbps", kBottomMargin, kTopMargin);
+  plot->SetTitle("Simulated Scream rates");
+}
+
+void EventLogAnalyzer::CreateScreamSimulationRefWindowGraph(Plot* plot) const {
+  using SendWindowUsage = LogScreamSimulation::State::SendWindowUsage;
+  TimeSeries ref_window_series("RefWindow", LineStyle::kStep);
+  TimeSeries ref_window_i_series("RefWindowI", LineStyle::kStep);
+  TimeSeries max_data_in_flight("Max allowed data in flight", LineStyle::kStep);
+  TimeSeries data_in_flight("Data in flight", LineStyle::kStep);
+  IntervalSeries send_window_above_max_series(
+      "Data in flight > Max allowed", "#ff8e82", IntervalSeries::kHorizontal);
+  IntervalSeries send_window_below_ref_window_series(
+      "Data in flight < RefWindow", "#c5dff2", IntervalSeries::kHorizontal);
+  IntervalSeries send_window_above_ref_window_series(
+      "Data in flight >= RefWindow", "#b9fad8", IntervalSeries::kHorizontal);
+  IntervalSeries* last_series = &send_window_below_ref_window_series;
+
+  LogScreamSimulation simulation({.rate_window = config_.window_duration_},
+                                 env_);
+  simulation.ProcessEventsInLog(parsed_log_);
+  if (simulation.updates().empty()) {
+    RTC_LOG(LS_ERROR) << "Empty simulation.";
+    return;
+  }
+
+  float send_window_state_switch =
+      config_.GetCallTimeSec(simulation.updates().front().time);
+  SendWindowUsage send_window_usage = SendWindowUsage::kBelowRefWindow;
+
+  for (const LogScreamSimulation::State& state : simulation.updates()) {
+    ref_window_series.points.emplace_back(config_.GetCallTimeSec(state.time),
+                                          state.ref_window.bytes());
+    ref_window_i_series.points.emplace_back(config_.GetCallTimeSec(state.time),
+                                            state.ref_window_i.bytes());
+    max_data_in_flight.points.emplace_back(config_.GetCallTimeSec(state.time),
+                                           state.max_data_in_flight.bytes());
+    data_in_flight.points.emplace_back(config_.GetCallTimeSec(state.time),
+                                       state.data_in_flight.bytes());
+    if (state.send_window_usage != send_window_usage) {
+      last_series->intervals.emplace_back(send_window_state_switch,
+                                          config_.GetCallTimeSec(state.time));
+      send_window_usage = state.send_window_usage;
+      send_window_state_switch = config_.GetCallTimeSec(state.time);
+      switch (send_window_usage) {
+        case SendWindowUsage::kAboveRefWindow:
+          last_series = &send_window_above_ref_window_series;
+          break;
+        case SendWindowUsage::kBelowRefWindow:
+          last_series = &send_window_below_ref_window_series;
+          break;
+        case SendWindowUsage::kAboveScreamMax:
+          last_series = &send_window_above_max_series;
+          break;
+      }
+    }
+  }
+  last_series->intervals.emplace_back(send_window_state_switch,
+                                      config_.CallEndTimeSec());
+  plot->AppendTimeSeries(std::move(ref_window_series));
+  plot->AppendTimeSeries(std::move(ref_window_i_series));
+  plot->AppendTimeSeries(std::move(max_data_in_flight));
+  plot->AppendTimeSeries(std::move(data_in_flight));
+  plot->AppendIntervalSeries(std::move(send_window_above_max_series));
+  plot->AppendIntervalSeries(std::move(send_window_below_ref_window_series));
+  plot->AppendIntervalSeries(std::move(send_window_above_ref_window_series));
+
+  plot->SetXAxis(config_.CallBeginTimeSec(), config_.CallEndTimeSec(),
+                 "Time (s)", kLeftMargin, kRightMargin);
+  plot->SetSuggestedYAxis(0, 10, "Bytes", kBottomMargin, kTopMargin);
+  plot->SetTitle("Simulated Scream RefWindow");
+}
+
+void EventLogAnalyzer::CreateScreamSimulationRatiosGraph(Plot* plot) const {
+  TimeSeries queue_delay_dev_norm_series("QueueDelayDevNorm", LineStyle::kStep);
+  TimeSeries l4s_alpha_series("L4sAlpha", LineStyle::kStep);
+  TimeSeries l4s_alpha_v_series("L4sAlphaV", LineStyle::kStep);
+  TimeSeries ref_window_scale_factor_due_to_increased_delay(
+      "RefWindowScaleFactorDueToIncreasedDelay", LineStyle::kStep);
+  TimeSeries ref_window_scale_factor_due_to_delay_variation(
+      "RefWindowScaleFactorDueToDelayVariation", LineStyle::kStep);
+
+  LogScreamSimulation simulation({.rate_window = config_.window_duration_},
+                                 env_);
+  simulation.ProcessEventsInLog(parsed_log_);
+
+  for (const LogScreamSimulation::State& state : simulation.updates()) {
+    queue_delay_dev_norm_series.points.emplace_back(
+        config_.GetCallTimeSec(state.time), state.queue_delay_dev_norm);
+    l4s_alpha_series.points.emplace_back(config_.GetCallTimeSec(state.time),
+                                         state.l4s_alpha);
+    l4s_alpha_v_series.points.emplace_back(config_.GetCallTimeSec(state.time),
+                                           state.l4s_alpha_v);
+    ref_window_scale_factor_due_to_increased_delay.points.emplace_back(
+        config_.GetCallTimeSec(state.time),
+        state.ref_window_scale_factor_due_to_increased_delay);
+    ref_window_scale_factor_due_to_delay_variation.points.emplace_back(
+        config_.GetCallTimeSec(state.time),
+        state.ref_window_scale_factor_due_to_delay_variation);
+  }
+  plot->AppendTimeSeries(std::move(queue_delay_dev_norm_series));
+  plot->AppendTimeSeries(std::move(l4s_alpha_series));
+  plot->AppendTimeSeries(std::move(l4s_alpha_v_series));
+  plot->AppendTimeSeries(
+      std::move(ref_window_scale_factor_due_to_increased_delay));
+  plot->AppendTimeSeries(
+      std::move(ref_window_scale_factor_due_to_delay_variation));
+
+  plot->SetXAxis(config_.CallBeginTimeSec(), config_.CallEndTimeSec(),
+                 "Time (s)", kLeftMargin, kRightMargin);
+  plot->SetSuggestedYAxis(0, 1, "Ratios", kBottomMargin, kTopMargin);
+  plot->SetTitle("Simulated Scream Ratios");
+}
+
 void EventLogAnalyzer::CreateOutgoingEcnFeedbackGraph(Plot* plot) const {
   CreateEcnFeedbackGraph(plot, kOutgoingPacket);
   plot->SetTitle("Outgoing ECN count per feedback");
@@ -1579,6 +1701,51 @@ void EventLogAnalyzer::CreateOutgoingEcnFeedbackGraph(Plot* plot) const {
 void EventLogAnalyzer::CreateIncomingEcnFeedbackGraph(Plot* plot) const {
   CreateEcnFeedbackGraph(plot, kIncomingPacket);
   plot->SetTitle("Incoming ECN count per feedback");
+}
+
+void EventLogAnalyzer::CreateScreamRefWindowGraph(Plot* plot) const {
+  TimeSeries ref_window_series("RefWindow", LineStyle::kStep);
+  for (auto& scream_update : parsed_log_.bwe_scream_updates()) {
+    float x = config_.GetCallTimeSec(scream_update.log_time());
+    float y = static_cast<float>(scream_update.ref_window.bytes());
+    ref_window_series.points.emplace_back(x, y);
+  }
+  plot->AppendTimeSeries(std::move(ref_window_series));
+
+  TimeSeries data_in_flight_series("Data in flight", LineStyle::kLine);
+  for (auto& scream_update : parsed_log_.bwe_scream_updates()) {
+    float x = config_.GetCallTimeSec(scream_update.log_time());
+    float y = static_cast<float>(scream_update.data_in_flight.bytes());
+    data_in_flight_series.points.emplace_back(x, y);
+  }
+  plot->AppendTimeSeries(std::move(data_in_flight_series));
+
+  plot->SetXAxis(config_.CallBeginTimeSec(), config_.CallEndTimeSec(),
+                 "Time (s)", kLeftMargin, kRightMargin);
+  plot->SetSuggestedYAxis(0, 3000, "Bytes", kBottomMargin, kTopMargin);
+  plot->SetTitle("Scream Ref Window");
+}
+
+void EventLogAnalyzer::CreateScreamDelayEstimateGraph(Plot* plot) const {
+  TimeSeries smoothed_rtt_series("Smoothed RTT", LineStyle::kStep);
+  TimeSeries avg_queue_delay_series("Avg queue delay", LineStyle::kStep);
+
+  for (auto& scream_update : parsed_log_.bwe_scream_updates()) {
+    float x = config_.GetCallTimeSec(scream_update.log_time());
+    float smoothed_rtt_ms = static_cast<float>(scream_update.smoothed_rtt.ms());
+    smoothed_rtt_series.points.emplace_back(x, smoothed_rtt_ms);
+    float avg_queue_delay_ms =
+        static_cast<float>(scream_update.avg_queue_delay.ms());
+    avg_queue_delay_series.points.emplace_back(x, avg_queue_delay_ms);
+  }
+
+  plot->AppendTimeSeries(std::move(smoothed_rtt_series));
+  plot->AppendTimeSeries(std::move(avg_queue_delay_series));
+
+  plot->SetXAxis(config_.CallBeginTimeSec(), config_.CallEndTimeSec(),
+                 "Time (s)", kLeftMargin, kRightMargin);
+  plot->SetSuggestedYAxis(0, 50, "Delay (ms)", kBottomMargin, kTopMargin);
+  plot->SetTitle("Scream delay estimates");
 }
 
 void EventLogAnalyzer::CreateEcnFeedbackGraph(Plot* plot,

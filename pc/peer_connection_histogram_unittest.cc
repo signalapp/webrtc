@@ -20,24 +20,21 @@
 #include "absl/strings/string_view.h"
 #include "api/create_modular_peer_connection_factory.h"
 #include "api/jsep.h"
-#include "api/jsep_session_description.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
 #include "api/scoped_refptr.h"
 #include "api/test/mock_async_dns_resolver.h"
 #include "api/test/rtc_error_matchers.h"
 #include "api/units/time_delta.h"
+#include "api/webrtc_sdp.h"
 #include "pc/peer_connection.h"
 #include "pc/peer_connection_wrapper.h"
-#include "pc/sdp_utils.h"
 #include "pc/test/enable_fake_media.h"
 #include "pc/test/mock_peer_connection_observers.h"
 #include "pc/usage_pattern.h"
-#include "pc/webrtc_sdp.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/fake_mdns_responder.h"
 #include "rtc_base/fake_network.h"
-#include "rtc_base/gunit.h"
 #include "rtc_base/ip_address.h"
 #include "rtc_base/network.h"
 #include "rtc_base/socket_address.h"
@@ -178,12 +175,17 @@ class PeerConnectionWrapperForUsageHistogramTest
       return false;
     }
     // Wait until the gathering completes before we signal the candidate.
-    WAIT(observer()->ice_gathering_complete_, kDefaultTimeout.ms());
-    WAIT(callee->observer()->ice_gathering_complete_, kDefaultTimeout.ms());
+    EXPECT_TRUE(WaitUntil([&] { return observer()->ice_gathering_complete_; },
+                          {.timeout = kDefaultTimeout}));
+    EXPECT_TRUE(
+        WaitUntil([&] { return callee->observer()->ice_gathering_complete_; },
+                  {.timeout = kDefaultTimeout}));
     AddBufferedIceCandidates();
     callee->AddBufferedIceCandidates();
-    WAIT(IsConnected(), kDefaultTimeout.ms());
-    WAIT(callee->IsConnected(), kDefaultTimeout.ms());
+    EXPECT_TRUE(
+        WaitUntil([&] { return IsConnected(); }, {.timeout = kDefaultTimeout}));
+    EXPECT_TRUE(WaitUntil([&] { return callee->IsConnected(); },
+                          {.timeout = kDefaultTimeout}));
     return IsConnected() && callee->IsConnected();
   }
 
@@ -193,8 +195,7 @@ class PeerConnectionWrapperForUsageHistogramTest
     if (!offer) {
       return false;
     }
-    bool set_local_offer =
-        SetLocalDescription(CloneSessionDescription(offer.get()));
+    bool set_local_offer = SetLocalDescription(offer->Clone());
     EXPECT_TRUE(set_local_offer);
     if (!set_local_offer) {
       return false;
@@ -698,7 +699,7 @@ TEST_F(PeerConnectionUsageHistogramTest,
 
   // By default, the Answer created does not contain ICE candidates.
   std::unique_ptr<SessionDescriptionInterface> answer = callee->CreateAnswer();
-  callee->SetLocalDescription(CloneSessionDescription(answer.get()));
+  callee->SetLocalDescription(answer->Clone());
   caller->SetRemoteDescription(std::move(answer));
   EXPECT_THAT(
       WaitUntil([&] { return caller->IsConnected(); }, ::testing::IsTrue()),

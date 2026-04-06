@@ -21,11 +21,10 @@
 // IWYU pragma: begin_exports
 #if defined(RTC_USE_PERFETTO)
 #include "rtc_base/trace_categories.h"
-// RingRTC change to properly disable Perfetto when it should be off.
-#include "third_party/perfetto/include/perfetto/tracing/event_context.h"
-#include "third_party/perfetto/include/perfetto/tracing/track.h"
-#include "third_party/perfetto/include/perfetto/tracing/track_event_args.h"
-#endif  // RTC_USE_PERFETTO
+#include "third_party/perfetto/include/perfetto/tracing/event_context.h"  // nogncheck
+#include "third_party/perfetto/include/perfetto/tracing/track.h"  // nogncheck
+#include "third_party/perfetto/include/perfetto/tracing/track_event_args.h"  // nogncheck
+#endif
 // IWYU pragma: end_exports
 
 #if !defined(RTC_USE_PERFETTO)

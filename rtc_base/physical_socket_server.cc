@@ -259,7 +259,7 @@ int PhysicalSocket::Bind(const SocketAddress& bind_addr) {
   sockaddr* addr = reinterpret_cast<sockaddr*>(&addr_storage);
   int err = ::bind(s_, addr, static_cast<int>(len));
   UpdateLastError();
-#if !defined(NDEBUG)
+#if RTC_DCHECK_IS_ON
   if (0 == err) {
     dbg_addr_ = "Bound @ ";
     dbg_addr_.append(GetLocalAddress().ToString());
@@ -589,7 +589,7 @@ int PhysicalSocket::Listen(int backlog) {
   if (err == 0) {
     state_ = CS_CONNECTING;
     EnableEvents(DE_ACCEPT);
-#if !defined(NDEBUG)
+#if RTC_DCHECK_IS_ON
     dbg_addr_ = "Listening @ ";
     dbg_addr_.append(GetLocalAddress().ToString());
 #endif
@@ -661,7 +661,7 @@ void PhysicalSocket::OnResolveResult(const AsyncDnsResolverResult& result) {
 
   if (error) {
     SetError(error);
-    SignalCloseEvent(this, error);
+    NotifyCloseEvent(this, error);
   }
 }
 
@@ -899,7 +899,7 @@ bool SocketDispatcher::CheckSignalClose() {
 
   state_ = CS_CLOSED;
   signal_close_ = false;
-  SignalCloseEvent(this, signal_err_);
+  NotifyCloseEvent(this, signal_err_);
   return true;
 }
 
@@ -990,23 +990,23 @@ void SocketDispatcher::OnEvent(uint32_t ff, int err) {
     if (ff != DE_CONNECT)
       RTC_LOG(LS_VERBOSE) << "Signalled with DE_CONNECT: " << ff;
     DisableEvents(DE_CONNECT);
-#if !defined(NDEBUG)
+#if RTC_DCHECK_IS_ON
     dbg_addr_ = "Connected @ ";
     dbg_addr_.append(GetRemoteAddress().ToString());
 #endif
-    SignalConnectEvent(this);
+    NotifyConnectEvent(this);
   }
   if (((ff & DE_ACCEPT) != 0) && (id_ == cache_id)) {
     DisableEvents(DE_ACCEPT);
-    SignalReadEvent(this);
+    NotifyReadEvent(this);
   }
   if ((ff & DE_READ) != 0) {
     DisableEvents(DE_READ);
-    SignalReadEvent(this);
+    NotifyReadEvent(this);
   }
   if (((ff & DE_WRITE) != 0) && (id_ == cache_id)) {
     DisableEvents(DE_WRITE);
-    SignalWriteEvent(this);
+    NotifyWriteEvent(this);
   }
   if (((ff & DE_CLOSE) != 0) && (id_ == cache_id)) {
     signal_close_ = true;
@@ -1035,24 +1035,24 @@ void SocketDispatcher::OnEvent(uint32_t ff, int err) {
   // something like a READ followed by a CONNECT, which would be odd.
   if ((ff & DE_CONNECT) != 0) {
     DisableEvents(DE_CONNECT);
-    SignalConnectEvent(this);
+    NotifyConnectEvent(this);
   }
   if ((ff & DE_ACCEPT) != 0) {
     DisableEvents(DE_ACCEPT);
-    SignalReadEvent(this);
+    NotifyReadEvent(this);
   }
   if ((ff & DE_READ) != 0) {
     DisableEvents(DE_READ);
-    SignalReadEvent(this);
+    NotifyReadEvent(this);
   }
   if ((ff & DE_WRITE) != 0) {
     DisableEvents(DE_WRITE);
-    SignalWriteEvent(this);
+    NotifyWriteEvent(this);
   }
   if ((ff & DE_CLOSE) != 0) {
     // The socket is now dead to us, so stop checking it.
     SetEnabledEvents(0);
-    SignalCloseEvent(this, err);
+    NotifyCloseEvent(this, err);
   }
 #if defined(WEBRTC_USE_EPOLL)
   FinishBatchedEventUpdates();

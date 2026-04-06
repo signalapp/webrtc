@@ -15,6 +15,8 @@
 #include <pipewire/pipewire.h>
 #include <spa/buffer/buffer.h>
 #include <spa/buffer/meta.h>
+#include <spa/debug/types.h>
+#include <spa/param/format-types.h>
 #include <spa/param/format.h>
 #include <spa/param/param.h>
 #include <spa/param/video/format-utils.h>
@@ -29,7 +31,6 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 
-#include <algorithm>
 #include <cerrno>
 #include <cstdint>
 #include <cstring>
@@ -39,6 +40,7 @@
 #include <vector>
 
 #include "api/scoped_refptr.h"
+#include "media/base/video_common.h"
 #include "modules/desktop_capture/desktop_capture_types.h"
 #include "modules/desktop_capture/desktop_capturer.h"
 #include "modules/desktop_capture/desktop_frame.h"
@@ -53,6 +55,7 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/sanitizer.h"
+#include "rtc_base/strings/string_builder.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread_annotations.h"
 #include "rtc_base/time_utils.h"
@@ -78,6 +81,7 @@ constexpr PipeWireVersion kDropSingleModifierMinVersion = {.major = 0,
 class SharedScreenCastStreamPrivate {
  public:
   SharedScreenCastStreamPrivate();
+  explicit SharedScreenCastStreamPrivate(std::unique_ptr<EglDmaBuf> egl_dmabuf);
   ~SharedScreenCastStreamPrivate();
 
   bool StartScreenCastStream(uint32_t stream_node_id,
@@ -125,10 +129,9 @@ class SharedScreenCastStreamPrivate {
 
   int64_t modifier_;
   std::unique_ptr<EglDmaBuf> egl_dmabuf_;
-  // List of modifiers we query as supported by the graphics card/driver
-  std::vector<uint64_t> modifiers_;
 
   // PipeWire types
+  std::unique_ptr<PipeWireInitializer> pw_initializer_;
   struct pw_context* pw_context_ = nullptr;
   struct pw_core* pw_core_ = nullptr;
   struct pw_stream* pw_stream_ = nullptr;
@@ -162,7 +165,7 @@ class SharedScreenCastStreamPrivate {
   pw_core_events pw_core_events_ = {};
   pw_stream_events pw_stream_events_ = {};
 
-  struct spa_video_info_raw spa_video_format_;
+  struct spa_video_info_raw spa_video_format_ = {};
 
   void ProcessBuffer(pw_buffer* buffer);
   bool ProcessMemFDBuffer(pw_buffer* buffer,
@@ -220,6 +223,8 @@ void SharedScreenCastStreamPrivate::OnCoreInfo(void* data,
   RTC_DCHECK(stream);
 
   stream->pw_server_version_ = PipeWireVersion::Parse(info->version);
+  RTC_LOG(LS_INFO) << "PipeWire server version: "
+                   << stream->pw_server_version_.ToStringView();
 }
 
 void SharedScreenCastStreamPrivate::OnCoreDone(void* data,
@@ -243,6 +248,9 @@ void SharedScreenCastStreamPrivate::OnStreamStateChanged(
   SharedScreenCastStreamPrivate* that =
       static_cast<SharedScreenCastStreamPrivate*>(data);
   RTC_DCHECK(that);
+
+  RTC_LOG(LS_INFO) << "PipeWire stream state: "
+                   << pw_stream_state_as_string(state);
 
   switch (state) {
     case PW_STREAM_STATE_ERROR:
@@ -269,11 +277,25 @@ void SharedScreenCastStreamPrivate::OnStreamParamChanged(
       static_cast<SharedScreenCastStreamPrivate*>(data);
   RTC_DCHECK(that);
 
-  RTC_LOG(LS_INFO) << "PipeWire stream format changed.";
+  uint32_t media_subtype;
+  uint32_t media_type;
+  int result;
+
   if (!format || id != SPA_PARAM_Format) {
     return;
   }
 
+  result = spa_format_parse(format, &media_type, &media_subtype);
+  if (result < 0) {
+    return;
+  }
+
+  if (media_type != SPA_MEDIA_TYPE_video ||
+      media_subtype != SPA_MEDIA_SUBTYPE_raw) {
+    return;
+  }
+
+  that->spa_video_format_ = {};
   spa_format_video_raw_parse(format, &that->spa_video_format_);
 
   if (that->observer_ && that->spa_video_format_.max_framerate.denom) {
@@ -282,36 +304,53 @@ void SharedScreenCastStreamPrivate::OnStreamParamChanged(
         that->spa_video_format_.max_framerate.denom);
   }
 
-  auto width = that->spa_video_format_.size.width;
-  auto height = that->spa_video_format_.size.height;
-  auto stride = SPA_ROUND_UP_N(width * kBytesPerPixel, 4);
-  auto size = height * stride;
-
-  that->stream_size_ = DesktopSize(width, height);
-
-  uint8_t buffer[2048] = {};
-  auto builder = spa_pod_builder{.data = buffer, .size = sizeof(buffer)};
-
-  // Setup buffers and meta header for new format.
-
   // When SPA_FORMAT_VIDEO_modifier is present we can use DMA-BUFs as
   // the server announces support for it.
   // See https://github.com/PipeWire/pipewire/blob/master/doc/dma-buf.dox
   const bool has_modifier =
-      spa_pod_find_prop(format, nullptr, SPA_FORMAT_VIDEO_modifier);
+      spa_pod_find_prop(format, nullptr, SPA_FORMAT_VIDEO_modifier) != nullptr;
   that->modifier_ =
       has_modifier ? that->spa_video_format_.modifier : DRM_FORMAT_MOD_INVALID;
-  std::vector<const spa_pod*> params;
+  that->stream_size_ = DesktopSize(that->spa_video_format_.size.width,
+                                   that->spa_video_format_.size.height);
+
+  if (that->observer_) {
+    that->observer_->OnFormatChanged(
+        that->spa_video_format_.format, that->spa_video_format_.size.width,
+        that->spa_video_format_.size.height,
+        that->spa_video_format_.framerate.num /
+            that->spa_video_format_.framerate.denom,
+        that->modifier_);
+  }
+
+  if (RTC_LOG_CHECK_LEVEL(LS_INFO)) {
+    StringBuilder sb;
+    sb << "PipeWire stream format changed:\n";
+    sb << "    Format: " << that->spa_video_format_.format << " ("
+       << spa_debug_type_find_name(spa_type_video_format,
+                                   that->spa_video_format_.format)
+       << ")\n";
+    if (has_modifier) {
+      sb << "    Modifier: " << that->modifier_ << "\n";
+    }
+    sb << "    Size: " << that->spa_video_format_.size.width << " x "
+       << that->spa_video_format_.size.height << "\n";
+    sb << "    Framerate: " << that->spa_video_format_.framerate.num << "/"
+       << that->spa_video_format_.framerate.denom;
+    RTC_LOG(LS_INFO) << sb.str();
+  }
+
   const int buffer_types = has_modifier
                                ? (1 << SPA_DATA_DmaBuf) | (1 << SPA_DATA_MemFd)
                                : (1 << SPA_DATA_MemFd);
 
+  uint8_t buffer[2048] = {};
+  auto builder = spa_pod_builder{.data = buffer, .size = sizeof(buffer)};
+  std::vector<const spa_pod*> params;
   params.push_back(reinterpret_cast<spa_pod*>(spa_pod_builder_add_object(
       &builder, SPA_TYPE_OBJECT_ParamBuffers, SPA_PARAM_Buffers,
-      SPA_PARAM_BUFFERS_size, SPA_POD_Int(size), SPA_PARAM_BUFFERS_stride,
-      SPA_POD_Int(stride), SPA_PARAM_BUFFERS_buffers,
-      SPA_POD_CHOICE_RANGE_Int(8, 1, 32), SPA_PARAM_BUFFERS_dataType,
-      SPA_POD_CHOICE_FLAGS_Int(buffer_types))));
+      SPA_PARAM_BUFFERS_buffers, SPA_POD_CHOICE_RANGE_Int(8, 1, 32),
+      SPA_PARAM_BUFFERS_dataType, SPA_POD_CHOICE_FLAGS_Int(buffer_types))));
   params.push_back(reinterpret_cast<spa_pod*>(spa_pod_builder_add_object(
       &builder, SPA_TYPE_OBJECT_ParamMeta, SPA_PARAM_Meta, SPA_PARAM_META_type,
       SPA_POD_Id(SPA_META_Header), SPA_PARAM_META_size,
@@ -386,7 +425,6 @@ void SharedScreenCastStreamPrivate::OnRenegotiateFormat(void* data, uint64_t) {
     PipeWireThreadLoopLock thread_loop_lock(that->pw_main_loop_);
 
     uint8_t buffer[4096] = {};
-
     spa_pod_builder builder =
         spa_pod_builder{.data = buffer, .size = sizeof(buffer)};
 
@@ -394,25 +432,19 @@ void SharedScreenCastStreamPrivate::OnRenegotiateFormat(void* data, uint64_t) {
     struct spa_rectangle resolution =
         SPA_RECTANGLE(that->width_, that->height_);
     struct spa_fraction frame_rate = SPA_FRACTION(that->frame_rate_, 1);
-
-    for (uint32_t format : {SPA_VIDEO_FORMAT_BGRA, SPA_VIDEO_FORMAT_RGBA,
-                            SPA_VIDEO_FORMAT_BGRx, SPA_VIDEO_FORMAT_RGBx}) {
-      if (!that->modifiers_.empty()) {
-        params.push_back(
-            BuildFormat(&builder, format, that->modifiers_,
-                        that->width_ && that->height_ ? &resolution : nullptr,
-                        &frame_rate));
-      }
-      params.push_back(BuildFormat(
-          &builder, format, /*modifiers=*/{},
-          that->width_ && that->height_ ? &resolution : nullptr, &frame_rate));
-    }
+    BuildFullFormat(&builder, that->egl_dmabuf_->GetRenderDevice(),
+                    that->width_ && that->height_ ? &resolution : nullptr,
+                    &frame_rate, params);
 
     pw_stream_update_params(that->pw_stream_, params.data(), params.size());
   }
 }
 
 SharedScreenCastStreamPrivate::SharedScreenCastStreamPrivate() {}
+
+SharedScreenCastStreamPrivate::SharedScreenCastStreamPrivate(
+    std::unique_ptr<EglDmaBuf> egl_dmabuf)
+    : egl_dmabuf_(std::move(egl_dmabuf)) {}
 
 SharedScreenCastStreamPrivate::~SharedScreenCastStreamPrivate() {
   StopAndCleanupStream();
@@ -434,11 +466,13 @@ bool SharedScreenCastStreamPrivate::StartScreenCastStream(
     RTC_LOG(LS_ERROR) << "Unable to open PipeWire library";
     return false;
   }
-  egl_dmabuf_ = std::make_unique<EglDmaBuf>();
+  if (!egl_dmabuf_) {
+    egl_dmabuf_ = EglDmaBuf::CreateDefault();
+  }
 
   pw_stream_node_id_ = stream_node_id;
 
-  pw_init(/*argc=*/nullptr, /*argc=*/nullptr);
+  pw_initializer_ = std::make_unique<PipeWireInitializer>();
 
   pw_main_loop_ = pw_thread_loop_new("pipewire-main-loop", nullptr);
 
@@ -455,6 +489,8 @@ bool SharedScreenCastStreamPrivate::StartScreenCastStream(
   }
 
   pw_client_version_ = PipeWireVersion::Parse(pw_get_library_version());
+  RTC_LOG(LS_INFO) << "PipeWire client version: "
+                   << pw_client_version_.ToStringView();
 
   // Initialize event handlers, remote end and stream-related.
   pw_core_events_.version = PW_VERSION_CORE_EVENTS;
@@ -504,49 +540,43 @@ bool SharedScreenCastStreamPrivate::StartScreenCastStream(
 
     pw_stream_add_listener(pw_stream_, &spa_stream_listener_,
                            &pw_stream_events_, this);
-    uint8_t buffer[4096] = {};
 
-    spa_pod_builder builder =
-        spa_pod_builder{.data = buffer, .size = sizeof(buffer)};
-
-    std::vector<const spa_pod*> params;
-    const bool has_required_pw_client_version =
-        pw_client_version_ >= kDmaBufModifierMinVersion;
-    const bool has_required_pw_server_version =
+    // Modifiers can be used with PipeWire >= 0.3.33
+    const bool has_dmabuf_support =
+        egl_dmabuf_ && pw_client_version_ >= kDmaBufModifierMinVersion &&
         pw_server_version_ >= kDmaBufModifierMinVersion;
+
+    struct spa_fraction default_frame_rate = SPA_FRACTION(frame_rate_, 1);
     struct spa_rectangle resolution;
     bool set_resolution = false;
     if (width && height) {
       resolution = SPA_RECTANGLE(width, height);
       set_resolution = true;
     }
-    struct spa_fraction default_frame_rate = SPA_FRACTION(frame_rate_, 1);
-    for (uint32_t format : {SPA_VIDEO_FORMAT_BGRA, SPA_VIDEO_FORMAT_RGBA,
-                            SPA_VIDEO_FORMAT_BGRx, SPA_VIDEO_FORMAT_RGBx}) {
-      // Modifiers can be used with PipeWire >= 0.3.33
-      if (has_required_pw_client_version && has_required_pw_server_version) {
-        modifiers_ = egl_dmabuf_->QueryDmaBufModifiers(format);
 
-        if (!modifiers_.empty()) {
-          params.push_back(BuildFormat(&builder, format, modifiers_,
-                                       set_resolution ? &resolution : nullptr,
-                                       &default_frame_rate));
-        }
-      }
+    uint8_t buffer[4096] = {};
+    spa_pod_builder builder =
+        spa_pod_builder{.data = buffer, .size = sizeof(buffer)};
 
-      params.push_back(BuildFormat(&builder, format, /*modifiers=*/{},
-                                   set_resolution ? &resolution : nullptr,
-                                   &default_frame_rate));
+    RTC_LOG(LS_INFO) << "DMABufs are "
+                     << (has_dmabuf_support ? "supported" : "not supported");
+
+    std::vector<const spa_pod*> params;
+    if (has_dmabuf_support) {
+      BuildFullFormat(&builder, egl_dmabuf_->GetRenderDevice(),
+                      set_resolution ? &resolution : nullptr,
+                      &default_frame_rate, params);
+    } else {
+      BuildBaseFormat(&builder, set_resolution ? &resolution : nullptr,
+                      &default_frame_rate, params);
     }
 
     if (pw_stream_connect(pw_stream_, PW_DIRECTION_INPUT, pw_stream_node_id_,
                           PW_STREAM_FLAG_AUTOCONNECT, params.data(),
                           params.size()) != 0) {
-      RTC_LOG(LS_ERROR) << "Could not connect receiving stream.";
+      RTC_LOG(LS_ERROR) << "Could not connect receiving stream";
       return false;
     }
-
-    RTC_LOG(LS_INFO) << "PipeWire remote opened.";
   }
   return true;
 }
@@ -979,26 +1009,40 @@ bool SharedScreenCastStreamPrivate::ProcessDMABuffer(
     return false;
   }
 
-  std::vector<EglDmaBuf::PlaneData> plane_datas;
+  std::vector<EglDrmDevice::PlaneData> plane_datas;
   for (uint32_t i = 0; i < n_planes; ++i) {
-    EglDmaBuf::PlaneData data = {
+    EglDrmDevice::PlaneData data = {
         .fd = static_cast<int32_t>(spa_buffer->datas[i].fd),
         .stride = static_cast<uint32_t>(spa_buffer->datas[i].chunk->stride),
         .offset = static_cast<uint32_t>(spa_buffer->datas[i].chunk->offset)};
     plane_datas.push_back(data);
   }
 
-  const bool imported = egl_dmabuf_->ImageFromDmaBuf(
+  auto render_device = egl_dmabuf_->GetRenderDevice();
+  if (!render_device) {
+    RTC_LOG(LS_ERROR)
+        << "Failed to import image from DMA-BUF: no render device";
+    return false;
+  }
+
+  const bool imported = render_device->ImageFromDmaBuf(
       stream_size_, spa_video_format_.format, plane_datas, modifier_, offset,
       frame.size(), frame.data());
   if (!imported) {
-    RTC_LOG(LS_ERROR) << "Dropping DMA-BUF modifier: " << modifier_
-                      << " and trying to renegotiate stream parameters";
+    RTC_LOG(LS_ERROR)
+        << "DMA-BUF modifier " << modifier_ << " failed for format "
+        << spa_video_format_.format << " ("
+        << spa_debug_type_find_name(spa_type_video_format,
+                                    spa_video_format_.format)
+        << "), marking as failed and renegotiating stream parameters";
 
     if (pw_server_version_ >= kDropSingleModifierMinVersion) {
-      std::erase(modifiers_, modifier_);
+      render_device->MarkModifierFailed(spa_video_format_.format, modifier_);
     } else {
-      modifiers_.clear();
+      // For older PipeWire versions, mark all modifiers as failed for this
+      // format
+      render_device->MarkModifierFailed(spa_video_format_.format,
+                                        DRM_FORMAT_MOD_INVALID);
     }
 
     pw_loop_signal_event(pw_thread_loop_get_loop(pw_main_loop_), renegotiate_);
@@ -1021,12 +1065,24 @@ void SharedScreenCastStreamPrivate::ConvertRGBxToBGRx(uint8_t* frame,
 SharedScreenCastStream::SharedScreenCastStream()
     : private_(std::make_unique<SharedScreenCastStreamPrivate>()) {}
 
+SharedScreenCastStream::SharedScreenCastStream(
+    std::unique_ptr<EglDmaBuf> egl_dmabuf)
+    : private_(std::make_unique<SharedScreenCastStreamPrivate>(
+          std::move(egl_dmabuf))) {}
+
 SharedScreenCastStream::~SharedScreenCastStream() {}
 
-webrtc::scoped_refptr<SharedScreenCastStream>
-SharedScreenCastStream::CreateDefault() {
+scoped_refptr<SharedScreenCastStream> SharedScreenCastStream::CreateDefault() {
   // Explicit new, to access non-public constructor.
   return scoped_refptr<SharedScreenCastStream>(new SharedScreenCastStream());
+}
+
+scoped_refptr<SharedScreenCastStream>
+SharedScreenCastStream::CreateWithEglDmaBuf(
+    std::unique_ptr<EglDmaBuf> egl_dmabuf) {
+  // Explicit new, to access non-public constructor.
+  return scoped_refptr<SharedScreenCastStream>(
+      new SharedScreenCastStream(std::move(egl_dmabuf)));
 }
 
 bool SharedScreenCastStream::StartScreenCastStream(uint32_t stream_node_id) {

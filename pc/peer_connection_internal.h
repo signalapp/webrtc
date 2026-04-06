@@ -24,6 +24,7 @@
 #include "api/candidate.h"
 #include "api/crypto/crypto_options.h"
 #include "api/data_channel_interface.h"
+#include "api/environment/environment.h"
 #include "api/field_trials_view.h"
 #include "api/jsep.h"
 #include "api/media_stream_interface.h"
@@ -45,6 +46,7 @@
 #include "pc/session_description.h"
 #include "pc/transport_stats.h"
 #include "pc/usage_pattern.h"
+#include "rtc_base/containers/flat_map.h"
 #include "rtc_base/rtc_certificate.h"
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_stream_adapter.h"
@@ -115,7 +117,7 @@ class PeerConnectionSdpMethods {
   virtual bool IsUnifiedPlan() const = 0;
   virtual bool ValidateBundleSettings(
       const SessionDescription* desc,
-      const std::map<std::string, const ContentGroup*>&
+      const flat_map<std::string, const ContentGroup*>&
           bundle_groups_by_mid) = 0;
 
   // Internal implementation for AddTransceiver family of methods. If
@@ -159,6 +161,7 @@ class PeerConnectionSdpMethods {
     return nullptr;
   }
 
+  virtual const Environment& env() const = 0;
   virtual const FieldTrialsView& trials() const = 0;
 
   virtual void ClearStatsCache() = 0;

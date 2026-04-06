@@ -15,7 +15,6 @@
 // anything in media/.
 
 #include <cstddef>
-#include <cstdint>
 #include <functional>
 #include <optional>
 
@@ -28,48 +27,6 @@
 
 namespace webrtc {
 
-// Constants that are important to API users
-
-// The number of outgoing streams that we'll negotiate. Since stream IDs (SIDs)
-// are 0-based, the highest usable SID is 1023.
-//
-// It's recommended to use the maximum of 65535 in:
-// https://tools.ietf.org/html/draft-ietf-rtcweb-data-channel-13#section-6.2
-// However, we use 1024 in order to save memory. usrsctp allocates 104 bytes
-// for each pair of incoming/outgoing streams (on a 64-bit system), so 65535
-// streams would waste ~6MB.
-//
-// Note: "max" and "min" here are inclusive.
-constexpr uint16_t kMaxSctpStreams = 1024;
-constexpr uint16_t kMaxSctpSid = kMaxSctpStreams - 1;
-constexpr uint16_t kMinSctpSid = 0;
-// The maximum number of streams that can be negotiated according to spec.
-constexpr uint16_t kSpecMaxSctpSid = 65535;
-
-// This is the default SCTP port to use. It is passed along the wire and the
-// connectee and connector must be using the same port. It is not related to the
-// ports at the IP level. (Corresponds to: sockaddr_conn.sconn_port in
-// usrsctp.h)
-const int kSctpDefaultPort = 5000;
-
-// Error cause codes defined at
-// https://www.iana.org/assignments/sctp-parameters/sctp-parameters.xhtml#sctp-parameters-24
-enum class SctpErrorCauseCode : uint16_t {
-  kInvalidStreamIdentifier = 1,
-  kMissingMandatoryParameter = 2,
-  kStaleCookieError = 3,
-  kOutOfResource = 4,
-  kUnresolvableAddress = 5,
-  kUnrecognizedChunkType = 6,
-  kInvalidMandatoryParameter = 7,
-  kUnrecognizedParameters = 8,
-  kNoUserData = 9,
-  kCookieReceivedWhileShuttingDown = 10,
-  kRestartWithNewAddresses = 11,
-  kUserInitiatedAbort = 12,
-  kProtocolViolation = 13,
-};
-
 // Abstract SctpTransport interface for use internally (by PeerConnection etc.).
 // Exists to allow mock/fake SctpTransports to be created.
 class SctpTransportInternal {
@@ -79,9 +36,7 @@ class SctpTransportInternal {
   virtual void SetOnConnectedCallback(std::function<void()> callback) = 0;
   virtual void SetDataChannelSink(DataChannelSink* sink) = 0;
 
-  // Changes what underlying DTLS transport is uses. Used when switching which
-  // bundled transport the SctpTransport uses.
-  virtual void SetDtlsTransport(DtlsTransportInternal* transport) = 0;
+  virtual DtlsTransportInternal* dtls_transport() const = 0;
 
   // When Start is called, connects as soon as possible; this can be called
   // before DTLS completes, in which case the connection will begin when DTLS
@@ -143,9 +98,6 @@ class SctpTransportInternal {
   virtual size_t buffered_amount(int sid) const = 0;
   virtual size_t buffered_amount_low_threshold(int sid) const = 0;
   virtual void SetBufferedAmountLowThreshold(int sid, size_t bytes) = 0;
-
-  // Helper for debugging.
-  virtual void set_debug_name_for_testing(const char* debug_name) = 0;
 };
 
 }  //  namespace webrtc

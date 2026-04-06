@@ -104,6 +104,7 @@
 #include "rtc_base/unique_id_generator.h"
 #include "test/call_test.h"
 #include "test/configurable_frame_size_encoder.h"
+#include "test/create_test_field_trials.h"
 #include "test/encoder_settings.h"
 #include "test/fake_encoder.h"
 #include "test/frame_forwarder.h"
@@ -732,7 +733,8 @@ TEST_F(VideoSendStreamTest, SupportsUlpfecWithoutExtensions) {
 class VideoSendStreamWithoutUlpfecTest : public test::CallTest {
  protected:
   VideoSendStreamWithoutUlpfecTest()
-      : CallTest(/*field_trials=*/"WebRTC-DisableUlpFecExperiment/Enabled/") {}
+      : CallTest(
+            CreateTestFieldTrials("WebRTC-DisableUlpFecExperiment/Enabled/")) {}
 };
 
 TEST_F(VideoSendStreamWithoutUlpfecTest, NoUlpfecIfDisabledThroughFieldTrial) {
@@ -1613,7 +1615,7 @@ TEST_F(VideoSendStreamTest, MinTransmitBitrateRespectsRemb) {
       RtpRtcpInterface::Configuration config;
       config.outgoing_transport = feedback_transport_.get();
       config.retransmission_rate_limiter = &retranmission_rate_limiter_;
-      rtp_rtcp_ = std::make_unique<ModuleRtpRtcpImpl2>(env_, config);
+      rtp_rtcp_ = ModuleRtpRtcpImpl2::CreateSendModule(env_, config);
       rtp_rtcp_->SetRTCPStatus(RtcpMode::kReducedSize);
     }
 
@@ -2959,7 +2961,7 @@ TEST_F(VideoSendStreamTest, ReportsSentResolution) {
       encoded.capture_time_ms_ = input_image.render_time_ms();
 
       for (size_t i = 0; i < kNumStreams; ++i) {
-        encoded._frameType = (*frame_types)[i];
+        encoded.set_frame_type((*frame_types)[i]);
         encoded._encodedWidth = kEncodedResolution[i].width;
         encoded._encodedHeight = kEncodedResolution[i].height;
         encoded.SetSimulcastIndex(i);

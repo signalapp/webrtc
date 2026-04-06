@@ -11,6 +11,7 @@
 #include "modules/audio_processing/aec3/echo_canceller3.h"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <deque>
 #include <memory>
@@ -22,6 +23,7 @@
 #include "api/array_view.h"
 #include "api/audio/echo_canceller3_config.h"
 #include "api/audio/echo_control.h"
+#include "api/audio/neural_residual_echo_estimator.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
 #include "api/field_trials.h"
@@ -1164,16 +1166,17 @@ TEST(EchoCanceller3, StereoContentDetectionForMonoSignals) {
 }
 
 TEST(EchoCanceller3, InjectedNeuralResidualEchoEstimatorIsUsed) {
-  class NeuralResidualEchoEstimatorImpl : public NeuralResidualEchoEstimator {
+  class NeuralResidualEchoEstimatorMock : public NeuralResidualEchoEstimator {
    public:
-    NeuralResidualEchoEstimatorImpl() {}
+    NeuralResidualEchoEstimatorMock() {}
 
-    void Estimate(ArrayView<const float> render,
+    void Estimate(const Block& render,
                   ArrayView<const std::array<float, 64>> capture,
                   ArrayView<const std::array<float, 64>> linear_aec_output,
                   ArrayView<const std::array<float, 65>> S2_linear,
                   ArrayView<const std::array<float, 65>> Y2,
                   ArrayView<const std::array<float, 65>> E2,
+                  bool dominant_nearend,
                   ArrayView<std::array<float, 65>> R2,
                   ArrayView<std::array<float, 65>> R2_unbounded) override {
       residual_echo_estimate_requested_ = true;
@@ -1188,13 +1191,19 @@ TEST(EchoCanceller3, InjectedNeuralResidualEchoEstimatorIsUsed) {
       return residual_echo_estimate_requested_;
     }
 
+    EchoCanceller3Config GetConfiguration(bool multi_channel) const override {
+      return EchoCanceller3Config();
+    }
+
+    MOCK_METHOD(void, Reset, (), (override));
+
    private:
     bool residual_echo_estimate_requested_ = false;
   };
 
   constexpr int kSampleRateHz = 16000;
   constexpr int kNumChannels = 1;
-  NeuralResidualEchoEstimatorImpl neural_residual_echo_estimator;
+  NeuralResidualEchoEstimatorMock neural_residual_echo_estimator;
   const Environment env = CreateEnvironment();
   EchoCanceller3Config config;
   AudioBuffer buffer(/*input_rate=*/kSampleRateHz,
@@ -1207,7 +1216,7 @@ TEST(EchoCanceller3, InjectedNeuralResidualEchoEstimatorIsUsed) {
                       &neural_residual_echo_estimator,
                       /*sample_rate_hz=*/kSampleRateHz,
                       /*num_render_channels=*/kNumChannels,
-                      /*num_capture_input_channels=*/kNumChannels);
+                      /*num_capture_channels=*/kNumChannels);
   constexpr int kNumFramesToProcess = 300;
   for (int k = 0; k < kNumFramesToProcess; ++k) {
     RunAecInSMono(buffer, aec3, k);

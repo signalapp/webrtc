@@ -47,6 +47,7 @@ rtc_library("audio_coding") {
     "../../api/neteq:default_neteq_factory",
     "../../api/neteq:neteq_api",
     "../../api/units:timestamp",
+    "../../audio/utility:audio_frame_operations",
     "../../common_audio",
     "../../common_audio:common_audio_c",
     "../../rtc_base:buffer",
@@ -486,8 +487,6 @@ rtc_library("neteq") {
     "neteq/histogram.h",
     "neteq/merge.cc",
     "neteq/merge.h",
-    "neteq/nack_tracker.cc",
-    "neteq/nack_tracker.h",
     "neteq/neteq_impl.cc",
     "neteq/neteq_impl.h",
     "neteq/normal.cc",
@@ -1024,7 +1023,6 @@ if (rtc_include_tests) {
                "../../rtc_base:checks",
                "../../test:create_test_field_trials",
                "../../test:fileutils",
-               "../../test:test_main",
                "../../test:test_support",
              ] + audio_coding_deps
 
@@ -1137,7 +1135,6 @@ if (rtc_include_tests) {
       deps += [
         ":webrtc_opus",
         "../../rtc_base:checks",
-        "../../test:test_main",
         "../../test:test_support",
         "../audio_processing",
         "//testing/gtest",
@@ -1405,6 +1402,7 @@ if (rtc_include_tests) {
 
       sources = [
         "acm2/acm_remixing_unittest.cc",
+        "acm2/acm_resampler_unittest.cc",
         "acm2/audio_coding_module_unittest.cc",
         "acm2/call_statistics_unittest.cc",
         "audio_network_adaptor/audio_network_adaptor_impl_unittest.cc",
@@ -1456,7 +1454,6 @@ if (rtc_include_tests) {
         "neteq/mock/mock_packet_buffer.h",
         "neteq/mock/mock_red_payload_splitter.h",
         "neteq/mock/mock_statistics_calculator.h",
-        "neteq/nack_tracker_unittest.cc",
         "neteq/neteq_decoder_plc_unittest.cc",
         "neteq/neteq_impl_unittest.cc",
         "neteq/neteq_network_stats_unittest.cc",

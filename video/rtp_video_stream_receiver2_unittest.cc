@@ -43,6 +43,7 @@
 #include "call/test/mock_rtp_packet_sink_interface.h"
 #include "call/video_receive_stream.h"
 #include "common_video/h264/h264_common.h"
+#include "logging/rtc_event_log/mock/mock_rtc_event_log.h"
 #include "media/base/media_constants.h"
 #include "modules/include/module_common_types.h"
 #include "modules/rtp_rtcp/include/rtp_header_extension_map.h"
@@ -68,6 +69,7 @@
 #include "test/mock_transport.h"
 #include "test/rtcp_packet_parser.h"
 #include "test/time_controller/simulated_time_controller.h"
+#include "test/time_controller/simulated_time_controller_impl.h"
 
 namespace webrtc {
 
@@ -77,7 +79,6 @@ using ::testing::_;
 using ::testing::DoubleNear;
 using ::testing::ElementsAre;
 using ::testing::Eq;
-using ::testing::Invoke;
 using ::testing::SizeIs;
 using ::testing::Values;
 
@@ -187,10 +188,11 @@ class RtpVideoStreamReceiver2Test : public ::testing::Test,
       : time_controller_(Timestamp::Millis(100)),
         env_(CreateEnvironment(CreateTestFieldTrialsPtr(field_trials),
                                time_controller_.GetClock(),
-                               time_controller_.GetTaskQueueFactory())),
+                               time_controller_.GetTaskQueueFactory(),
+                               &log_)),
         task_queue_(time_controller_.GetTaskQueueFactory()->CreateTaskQueue(
             "RtpVideoStreamReceiver2Test",
-            TaskQueueFactory::Priority::NORMAL)),
+            TaskQueueFactory::Priority::kNormal)),
         task_queue_setter_(task_queue_.get()),
         config_(CreateConfig()) {
     rtp_receive_statistics_ = ReceiveStatistics::Create(&env_.clock());
@@ -204,9 +206,9 @@ class RtpVideoStreamReceiver2Test : public ::testing::Test,
                                                 /*raw_payload=*/false);
     ON_CALL(mock_transport_, SendRtcp)
         .WillByDefault(
-            Invoke([this](ArrayView<const uint8_t> packet, ::testing::Unused) {
+            [this](ArrayView<const uint8_t> packet, ::testing::Unused) {
               return rtcp_packet_parser_.Parse(packet);
-            }));
+            });
   }
 
   RTPVideoHeader GetDefaultH264VideoHeader() {
@@ -268,6 +270,7 @@ class RtpVideoStreamReceiver2Test : public ::testing::Test,
   }
 
   GlobalSimulatedTimeController time_controller_;
+  MockRtcEventLog log_;
   Environment env_;
   std::unique_ptr<TaskQueueBase, TaskQueueDeleter> task_queue_;
   TokenTaskQueue::CurrentTaskQueueSetter task_queue_setter_;
@@ -372,10 +375,10 @@ TEST_F(RtpVideoStreamReceiver2Test, CacheColorSpaceFromLastPacketOfKeyframe) {
   EXPECT_TRUE(key_frame_packet2.GetExtension<ColorSpaceExtension>());
   rtp_video_stream_receiver_->OnRtpPacket(key_frame_packet1);
   EXPECT_CALL(mock_on_complete_frame_callback_, DoOnCompleteFrame(_))
-      .WillOnce(Invoke([kColorSpace](EncodedFrame* frame) {
+      .WillOnce([kColorSpace](EncodedFrame* frame) {
         ASSERT_TRUE(frame->EncodedImage().ColorSpace());
         EXPECT_EQ(*frame->EncodedImage().ColorSpace(), kColorSpace);
-      }));
+      });
   rtp_video_stream_receiver_->OnRtpPacket(key_frame_packet2);
   // Resend the first key frame packet to simulate padding for example.
   rtp_video_stream_receiver_->OnRtpPacket(key_frame_packet1);
@@ -388,10 +391,10 @@ TEST_F(RtpVideoStreamReceiver2Test, CacheColorSpaceFromLastPacketOfKeyframe) {
   // included in the RTP packet.
   EXPECT_FALSE(delta_frame_packet.GetExtension<ColorSpaceExtension>());
   EXPECT_CALL(mock_on_complete_frame_callback_, DoOnCompleteFrame(_))
-      .WillOnce(Invoke([kColorSpace](EncodedFrame* frame) {
+      .WillOnce([kColorSpace](EncodedFrame* frame) {
         ASSERT_TRUE(frame->EncodedImage().ColorSpace());
         EXPECT_EQ(*frame->EncodedImage().ColorSpace(), kColorSpace);
-      }));
+      });
   rtp_video_stream_receiver_->OnRtpPacket(delta_frame_packet);
 }
 
@@ -677,10 +680,10 @@ TEST_F(RtpVideoStreamReceiver2Test, PacketInfoIsPropagatedIntoVideoFrames) {
   mock_on_complete_frame_callback_.AppendExpectedBitstream(data.data(),
                                                            data.size());
   EXPECT_CALL(mock_on_complete_frame_callback_, DoOnCompleteFrame(_))
-      .WillOnce(Invoke([kAbsoluteCaptureTimestamp](EncodedFrame* frame) {
+      .WillOnce([kAbsoluteCaptureTimestamp](EncodedFrame* frame) {
         EXPECT_THAT(GetAbsoluteCaptureTimestamps(frame),
                     ElementsAre(kAbsoluteCaptureTimestamp));
-      }));
+      });
   rtp_video_stream_receiver_->OnReceivedPayloadData(data, rtp_packet,
                                                     video_header, 0);
 }
@@ -724,9 +727,9 @@ TEST_F(RtpVideoStreamReceiver2Test,
   // Expect rtp video stream receiver to extrapolate it for the resulting video
   // frame using absolute capture time from the previous packet.
   EXPECT_CALL(mock_on_complete_frame_callback_, DoOnCompleteFrame(_))
-      .WillOnce(Invoke([](EncodedFrame* frame) {
+      .WillOnce([](EncodedFrame* frame) {
         EXPECT_THAT(GetAbsoluteCaptureTimestamps(frame), SizeIs(1));
-      }));
+      });
   rtp_video_stream_receiver_->OnReceivedPayloadData(data, rtp_packet,
                                                     video_header, 0);
 }
@@ -1190,13 +1193,13 @@ TEST_F(RtpVideoStreamReceiver2Test, ParseGenericDescriptorOnePacket) {
   rtp_packet.SetSequenceNumber(1);
 
   EXPECT_CALL(mock_on_complete_frame_callback_, DoOnCompleteFrame)
-      .WillOnce(Invoke([kSpatialIndex](EncodedFrame* frame) {
+      .WillOnce([kSpatialIndex](EncodedFrame* frame) {
         EXPECT_EQ(frame->num_references, 2U);
         EXPECT_EQ(frame->references[0], frame->Id() - 90);
         EXPECT_EQ(frame->references[1], frame->Id() - 80);
         EXPECT_EQ(frame->SpatialIndex(), kSpatialIndex);
         EXPECT_THAT(frame->PacketInfos(), SizeIs(1));
-      }));
+      });
 
   rtp_video_stream_receiver_->OnRtpPacket(rtp_packet);
 }
@@ -1248,13 +1251,13 @@ TEST_F(RtpVideoStreamReceiver2Test, ParseGenericDescriptorTwoPackets) {
                                                            data.size() - 1);
 
   EXPECT_CALL(mock_on_complete_frame_callback_, DoOnCompleteFrame)
-      .WillOnce(Invoke([kSpatialIndex](EncodedFrame* frame) {
+      .WillOnce([kSpatialIndex](EncodedFrame* frame) {
         EXPECT_EQ(frame->num_references, 0U);
         EXPECT_EQ(frame->SpatialIndex(), kSpatialIndex);
         EXPECT_EQ(frame->EncodedImage()._encodedWidth, 480u);
         EXPECT_EQ(frame->EncodedImage()._encodedHeight, 360u);
         EXPECT_THAT(frame->PacketInfos(), SizeIs(2));
-      }));
+      });
 
   rtp_video_stream_receiver_->OnRtpPacket(second_packet);
 }
@@ -1750,10 +1753,10 @@ TEST_P(RtpVideoStreamReceiver2TestPlayoutDelay, PlayoutDelay) {
   // Expect the playout delay of encoded frame to be the same as the transmitted
   // playout delay unless it was overridden by a field trial.
   EXPECT_CALL(mock_on_complete_frame_callback_, DoOnCompleteFrame(_))
-      .WillOnce(Invoke([expected_playout_delay =
-                            GetParam().expected_delay](EncodedFrame* frame) {
+      .WillOnce([expected_playout_delay =
+                     GetParam().expected_delay](EncodedFrame* frame) {
         EXPECT_EQ(frame->EncodedImage().PlayoutDelay(), expected_playout_delay);
-      }));
+      });
   rtp_video_stream_receiver_->OnReceivedPayloadData(
       received_packet.PayloadBuffer(), received_packet, video_header, 0);
 }
@@ -1825,5 +1828,20 @@ TEST_F(RtpVideoStreamReceiver2TestH265, H265Bitstream) {
       CopyOnWriteBuffer(idr, sizeof(idr)), rtp_packet, video_header, 0);
 }
 #endif  // RTC_ENABLE_H265
+
+TEST_F(RtpVideoStreamReceiver2Test, LogsReceivedPacketToEventLog) {
+  RtpPacketReceived rtp_packet;
+
+  EXPECT_CALL(log_, LogProxy(_));
+  rtp_video_stream_receiver_->OnRtpPacket(rtp_packet);
+}
+
+TEST_F(RtpVideoStreamReceiver2Test, DoesNotLogRecoveredPacketToEventLog) {
+  RtpPacketReceived recovered_packet;
+  recovered_packet.set_recovered(true);
+
+  EXPECT_CALL(log_, LogProxy(_)).Times(0);
+  rtp_video_stream_receiver_->OnRtpPacket(recovered_packet);
+}
 
 }  // namespace webrtc

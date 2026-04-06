@@ -16,7 +16,6 @@
 #include <atomic>
 #include <cstdint>
 #include <deque>
-#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -27,6 +26,7 @@
 #include "api/location.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/units/time_delta.h"
+#include "api/units/timestamp.h"  // IWYU pragma: keep
 #include "rtc_base/platform_thread_types.h"
 #include "rtc_base/socket_server.h"
 
@@ -286,42 +286,54 @@ void ThreadManager::UnwrapCurrentThread() {
   }
 }
 
+#if RTC_DCHECK_IS_ON
 Thread::ScopedDisallowBlockingCalls::ScopedDisallowBlockingCalls()
     : thread_(Thread::Current()),
-      previous_state_(thread_->SetAllowBlockingCalls(false)) {}
-
-Thread::ScopedDisallowBlockingCalls::~ScopedDisallowBlockingCalls() {
-  RTC_DCHECK(thread_->IsCurrent());
-  thread_->SetAllowBlockingCalls(previous_state_);
+      previous_state_(thread_ ? thread_->SetAllowBlockingCalls(false) : false) {
 }
 
-#if RTC_DCHECK_IS_ON
+Thread::ScopedDisallowBlockingCalls::~ScopedDisallowBlockingCalls() {
+  if (thread_) {
+    RTC_DCHECK(thread_->IsCurrent());
+    thread_->SetAllowBlockingCalls(previous_state_);
+  }
+}
+
 Thread::ScopedCountBlockingCalls::ScopedCountBlockingCalls(
-    std::function<void(uint32_t, uint32_t)> callback)
+    absl::AnyInvocable<void(uint32_t, uint32_t, TimeDelta) &&> callback)
     : thread_(Thread::Current()),
-      base_blocking_call_count_(thread_->GetBlockingCallCount()),
+      base_blocking_call_count_(thread_ ? thread_->GetBlockingCallCount() : 0u),
       base_could_be_blocking_call_count_(
-          thread_->GetCouldBeBlockingCallCount()),
-      result_callback_(std::move(callback)) {}
+          thread_ ? thread_->GetCouldBeBlockingCallCount() : 0u),
+      result_callback_(std::move(callback)),
+      start_time_ns_(TimeNanos()) {}
 
 Thread::ScopedCountBlockingCalls::~ScopedCountBlockingCalls() {
   if (GetTotalBlockedCallCount() >= min_blocking_calls_for_callback_) {
-    result_callback_(GetBlockingCallCount(), GetCouldBeBlockingCallCount());
+    int64_t duration_us = (TimeNanos() - start_time_ns_) / 1000;
+    std::move(result_callback_)(GetBlockingCallCount(),
+                                GetCouldBeBlockingCallCount(),
+                                TimeDelta::Micros(duration_us));
   }
 }
 
 uint32_t Thread::ScopedCountBlockingCalls::GetBlockingCallCount() const {
-  return thread_->GetBlockingCallCount() - base_blocking_call_count_;
+  return thread_ ? thread_->GetBlockingCallCount() - base_blocking_call_count_
+                 : 0u;
 }
 
 uint32_t Thread::ScopedCountBlockingCalls::GetCouldBeBlockingCallCount() const {
-  return thread_->GetCouldBeBlockingCallCount() -
-         base_could_be_blocking_call_count_;
+  return thread_ ? thread_->GetCouldBeBlockingCallCount() -
+                       base_could_be_blocking_call_count_
+                 : 0u;
 }
 
 uint32_t Thread::ScopedCountBlockingCalls::GetTotalBlockedCallCount() const {
   return GetBlockingCallCount() + GetCouldBeBlockingCallCount();
 }
+#else
+Thread::ScopedDisallowBlockingCalls::ScopedDisallowBlockingCalls() = default;
+Thread::ScopedDisallowBlockingCalls::~ScopedDisallowBlockingCalls() = default;
 #endif
 
 Thread::Thread(SocketServer* ss) : Thread(ss, /*do_init=*/true) {}
@@ -483,8 +495,8 @@ void Thread::PostTaskImpl(absl::AnyInvocable<void() &&> task,
   {
     MutexLock lock(&mutex_);
     messages_.push(std::move(task));
+    WakeUpSocketServer();
   }
-  WakeUpSocketServer();
 }
 
 void Thread::PostDelayedTaskImpl(absl::AnyInvocable<void() &&> task,
@@ -512,8 +524,8 @@ void Thread::PostDelayedTaskImpl(absl::AnyInvocable<void() &&> task,
     // will be misordered, and then only briefly.  This is probably ok.
     ++delayed_next_num_;
     RTC_DCHECK_NE(0, delayed_next_num_);
+    WakeUpSocketServer();
   }
-  WakeUpSocketServer();
 }
 
 int Thread::GetDelay() {

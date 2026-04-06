@@ -33,11 +33,11 @@
 #endif
 #include "api/field_trials_view.h"
 #include "api/task_queue/pending_task_safety_flag.h"
+#include "api/task_queue/task_queue_base.h"
 #include "rtc_base/ssl_identity.h"
 #include "rtc_base/ssl_stream_adapter.h"
 #include "rtc_base/stream.h"
 #include "rtc_base/task_utils/repeating_task.h"
-#include "rtc_base/thread.h"
 
 namespace webrtc {
 
@@ -92,6 +92,7 @@ class OpenSSLStreamAdapter final : public SSLStreamAdapter {
   [[deprecated]] void SetMode(SSLMode mode) override;
   void SetMaxProtocolVersion(SSLProtocolVersion version) override;
   void SetInitialRetransmissionTimeout(int timeout_ms) override;
+  void UpdateRetransmissionTimeout(int timeout_ms) override;
   void SetMTU(int mtu) override;
 
   StreamResult Read(ArrayView<uint8_t> data, size_t& read, int& error) override;
@@ -109,6 +110,8 @@ class OpenSSLStreamAdapter final : public SSLStreamAdapter {
   bool GetSslVersionBytes(int* version) const override;
   // Key Extractor interface
   bool ExportSrtpKeyingMaterial(
+      ZeroOnFreeBuffer<uint8_t>& keying_material) override;
+  bool AppendSrtpKeyingMaterial(
       ZeroOnFreeBuffer<uint8_t>& keying_material) override;
 
   uint16_t GetPeerSignatureAlgorithm() const override;
@@ -215,7 +218,7 @@ class OpenSSLStreamAdapter final : public SSLStreamAdapter {
   const std::unique_ptr<StreamInterface> stream_;
   absl::AnyInvocable<void(SSLHandshakeError)> handshake_error_;
 
-  Thread* const owner_;
+  TaskQueueBase* const owner_;
   ScopedTaskSafety task_safety_;
   RepeatingTaskHandle timeout_task_;
 

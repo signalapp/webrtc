@@ -13,9 +13,13 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
+#include <optional>
+#include <utility>
 #include <vector>
 
 #include "api/field_trials.h"
+#include "api/transport/ecn_marking.h"
+#include "api/units/timestamp.h"
 #include "call/rtp_demuxer.h"
 #include "media/base/fake_rtp.h"
 #include "p2p/dtls/dtls_transport_internal.h"
@@ -29,6 +33,7 @@
 #include "rtc_base/containers/flat_set.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/ssl_stream_adapter.h"
+#include "rtc_base/thread.h"
 #include "test/create_test_field_trials.h"
 #include "test/gtest.h"
 
@@ -71,12 +76,16 @@ class SrtpTransportTest : public ::testing::Test {
     srtp_transport2_->SetRtpPacketTransport(rtp_packet_transport2_.get());
 
     srtp_transport1_->SubscribeRtcpPacketReceived(
-        &rtp_sink1_, [this](CopyOnWriteBuffer* buffer, int64_t packet_time_ms) {
-          rtp_sink1_.OnRtcpPacketReceived(buffer, packet_time_ms);
+        &rtp_sink1_,
+        [this](CopyOnWriteBuffer packet, std::optional<Timestamp> arrival_time,
+               EcnMarking ecn) {
+          rtp_sink1_.OnRtcpPacketReceived(std::move(packet), arrival_time, ecn);
         });
     srtp_transport2_->SubscribeRtcpPacketReceived(
-        &rtp_sink2_, [this](CopyOnWriteBuffer* buffer, int64_t packet_time_ms) {
-          rtp_sink2_.OnRtcpPacketReceived(buffer, packet_time_ms);
+        &rtp_sink2_,
+        [this](CopyOnWriteBuffer packet, std::optional<Timestamp> arrival_time,
+               EcnMarking ecn) {
+          rtp_sink2_.OnRtcpPacketReceived(std::move(packet), arrival_time, ecn);
         });
 
     RtpDemuxerCriteria demuxer_criteria;
@@ -127,7 +136,7 @@ class SrtpTransportTest : public ::testing::Test {
   void TestSendRecvRtpPacket(int crypto_suite) {
     size_t rtp_len = sizeof(kPcmuFrame);
     size_t packet_size = rtp_len + rtp_auth_tag_len(crypto_suite);
-    Buffer rtp_packet_buffer(packet_size);
+    Buffer rtp_packet_buffer = Buffer::CreateUninitializedWithSize(packet_size);
     char* rtp_packet_data = rtp_packet_buffer.data<char>();
     memcpy(rtp_packet_data, kPcmuFrame, rtp_len);
     // In order to be able to run this test function multiple times we can not
@@ -178,7 +187,8 @@ class SrtpTransportTest : public ::testing::Test {
   void TestSendRecvRtcpPacket(int crypto_suite) {
     size_t rtcp_len = sizeof(::kRtcpReport);
     size_t packet_size = rtcp_len + 4 + rtcp_auth_tag_len(crypto_suite);
-    Buffer rtcp_packet_buffer(packet_size);
+    Buffer rtcp_packet_buffer =
+        Buffer::CreateUninitializedWithSize(packet_size);
     char* rtcp_packet_data = rtcp_packet_buffer.data<char>();
     memcpy(rtcp_packet_data, ::kRtcpReport, rtcp_len);
 
@@ -248,7 +258,7 @@ class SrtpTransportTest : public ::testing::Test {
       const std::vector<int>& encrypted_header_ids) {
     size_t rtp_len = sizeof(kPcmuFrameWithExtensions);
     size_t packet_size = rtp_len + rtp_auth_tag_len(crypto_suite);
-    Buffer rtp_packet_buffer(packet_size);
+    Buffer rtp_packet_buffer = Buffer::CreateUninitializedWithSize(packet_size);
     char* rtp_packet_data = rtp_packet_buffer.data<char>();
     memcpy(rtp_packet_data, kPcmuFrameWithExtensions, rtp_len);
     // In order to be able to run this test function multiple times we can not
@@ -320,6 +330,7 @@ class SrtpTransportTest : public ::testing::Test {
     TestSendRecvPacketWithEncryptedHeaderExtension(crypto_suite,
                                                    encrypted_headers);
   }
+  AutoThread main_thread;
 
   std::unique_ptr<SrtpTransport> srtp_transport1_;
   std::unique_ptr<SrtpTransport> srtp_transport2_;
@@ -440,7 +451,7 @@ TEST_F(SrtpTransportTest, RemoveSrtpReceiveStream) {
   // Create a packet and try to send it three times.
   size_t rtp_len = sizeof(kPcmuFrame);
   size_t packet_size = rtp_len + rtp_auth_tag_len(kSrtpAeadAes128Gcm);
-  Buffer rtp_packet_buffer(packet_size);
+  Buffer rtp_packet_buffer = Buffer::CreateUninitializedWithSize(packet_size);
   char* rtp_packet_data = rtp_packet_buffer.data<char>();
   memcpy(rtp_packet_data, kPcmuFrame, rtp_len);
 

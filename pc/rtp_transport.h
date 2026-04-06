@@ -14,6 +14,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <memory>
 #include <optional>
 #include <string>
 
@@ -38,6 +39,7 @@
 namespace webrtc {
 
 class CopyOnWriteBuffer;
+class DtlsSrtpTransport;
 
 class RtpTransport : public RtpTransportInternal {
  public:
@@ -46,6 +48,8 @@ class RtpTransport : public RtpTransportInternal {
 
   RtpTransport(bool rtcp_mux_enabled, const FieldTrialsView& field_trials)
       : rtcp_mux_enabled_(rtcp_mux_enabled) {}
+
+  virtual DtlsSrtpTransport* AsDtlsSrtpTransport() { return nullptr; }
 
   bool rtcp_mux_enabled() const override { return rtcp_mux_enabled_; }
   void SetRtcpMuxEnabled(bool enable) override;
@@ -59,11 +63,14 @@ class RtpTransport : public RtpTransportInternal {
     return rtp_packet_transport_;
   }
   void SetRtpPacketTransport(PacketTransportInternal* rtp);
+  void SetRtpPacketTransportOwned(std::unique_ptr<PacketTransportInternal> rtp);
 
   PacketTransportInternal* rtcp_packet_transport() const {
     return rtcp_packet_transport_;
   }
   void SetRtcpPacketTransport(PacketTransportInternal* rtcp);
+  void SetRtcpPacketTransportOwned(
+      std::unique_ptr<PacketTransportInternal> rtcp);
 
   bool IsReadyToSend() const override { return ready_to_send_; }
 
@@ -96,10 +103,6 @@ class RtpTransport : public RtpTransportInternal {
                    Timestamp arrival_time,
                    EcnMarking ecn);
 
-  bool SendPacket(bool rtcp,
-                  CopyOnWriteBuffer* packet,
-                  const AsyncSocketPacketOptions& options,
-                  int flags);
   flat_set<uint32_t> GetSsrcsForSink(RtpPacketSinkInterface* sink);
 
   // Overridden by SrtpTransport.
@@ -110,6 +113,13 @@ class RtpTransport : public RtpTransportInternal {
   virtual void OnWritableState(PacketTransportInternal* packet_transport);
 
  private:
+  bool SendPacket(bool rtcp,
+                  CopyOnWriteBuffer* packet,
+                  const AsyncSocketPacketOptions& options,
+                  int flags);
+  // Helper function for SetRt(c)pPacketTransport
+  void ChangePacketTransport(PacketTransportInternal* new_transport,
+                             PacketTransportInternal*& transport_to_change);
   void OnReadyToSend(PacketTransportInternal* transport);
   void OnSentPacket(PacketTransportInternal* packet_transport,
                     const SentPacketInfo& sent_packet);
@@ -128,8 +138,11 @@ class RtpTransport : public RtpTransportInternal {
 
   PacketTransportInternal* rtp_packet_transport_ = nullptr;
   PacketTransportInternal* rtcp_packet_transport_ = nullptr;
+  std::unique_ptr<PacketTransportInternal> owned_rtp_packet_transport_;
+  std::unique_ptr<PacketTransportInternal> owned_rtcp_packet_transport_;
 
   bool ready_to_send_ = false;
+  bool received_rtp_with_ecn_ = false;
   bool rtp_ready_to_send_ = false;
   bool rtcp_ready_to_send_ = false;
 
@@ -139,7 +152,6 @@ class RtpTransport : public RtpTransportInternal {
   RtpHeaderExtensionMap header_extension_map_;
   // Guard against recursive "ready to send" signals
   bool processing_ready_to_send_ = false;
-  bool processing_sent_packet_ = false;
   ScopedTaskSafety safety_;
 
   // RingRTC change to drop all incoming packets until explicitly allowed
