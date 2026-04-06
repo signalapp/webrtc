@@ -70,9 +70,13 @@ typedef struct {
   double jitter;
   double total_audio_energy;
   double jitter_buffer_delay;
+  double jitter_buffer_target_delay;
   uint64_t jitter_buffer_emitted_count;
   uint64_t jitter_buffer_flushes;
   double estimated_playout_timestamp;
+  uint64_t total_samples_received;
+  uint64_t concealed_samples;
+  uint64_t fec_packets_received;
 } AudioReceiverStatistics;
 
 typedef struct {

@@ -177,12 +177,19 @@ void StatsObserverRffi::OnStatsDelivered(
           stat->total_audio_energy.value_or(0.0);
       audio_receiver.jitter_buffer_delay =
           stat->jitter_buffer_delay.value_or(0.0);
+      audio_receiver.jitter_buffer_target_delay =
+          stat->jitter_buffer_target_delay.value_or(0.0);
       audio_receiver.jitter_buffer_emitted_count =
           stat->jitter_buffer_emitted_count.value_or(0);
       audio_receiver.jitter_buffer_flushes =
           stat->jitter_buffer_flushes.value_or(0);
       audio_receiver.estimated_playout_timestamp =
           stat->estimated_playout_timestamp.value_or(0.0);
+      audio_receiver.total_samples_received =
+          stat->total_samples_received.value_or(0);
+      audio_receiver.concealed_samples = stat->concealed_samples.value_or(0);
+      audio_receiver.fec_packets_received =
+          stat->fec_packets_received.value_or(0);
 
       this->audio_receiver_statistics_.push_back(audio_receiver);
     } else if (*stat->kind == "video" &&
