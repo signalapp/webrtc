@@ -380,14 +380,15 @@ bool JsepTransportController::SetIncomingRtpEnabled(bool enabled) {
 
   RTC_DCHECK_RUN_ON(network_thread_);
 
-  for (const auto& transport : transports_.Transports()) {
-    RTC_LOG(LS_WARNING) << "JsepTransportController::SetIncomingRtpEnabled(" << enabled << ") "
-                        << transport->rtp_transport()->transport_name();
-    if (!transport->rtp_transport()->SetIncomingRtpEnabled(enabled)) {
-      return false;
+  bool success = true;
+  transports_.ForEachTransport([&](JsepTransport& transport) {
+    if (success) {
+      RTC_LOG(LS_WARNING) << "JsepTransportController::SetIncomingRtpEnabled(" << enabled << ") "
+                          << transport.rtp_transport()->transport_name();
+      success = transport.rtp_transport()->SetIncomingRtpEnabled(enabled);
     }
-  }
-  return true;
+  });
+  return success;
 }
 
 
@@ -584,23 +585,35 @@ JsepTransportController::CreateUnencryptedRtpTransport(
 }
 
 // RingRTC: Allow out-of-band / "manual" key negotiation.
-std::unique_ptr<SrtpTransport> JsepTransportController::CreateSrtpTransport(
+std::unique_ptr<RtpTransport> JsepTransportController::CreateCustomSrtpTransport(
     const std::string& transport_name,
-    DtlsTransportInternal* rtp_dtls_transport,
-    DtlsTransportInternal* rtcp_dtls_transport) {
+    std::unique_ptr<DtlsTransportInternal> rtp_dtls_transport,
+    std::unique_ptr<DtlsTransportInternal> rtcp_dtls_transport) {
   RTC_DCHECK_RUN_ON(network_thread_);
   auto srtp_transport = std::make_unique<SrtpTransport>(
       rtcp_dtls_transport == nullptr, env_.field_trials());
   RTC_DCHECK(rtp_dtls_transport);
-  srtp_transport->SetRtpPacketTransport(rtp_dtls_transport);
+  srtp_transport->SetRtpPacketTransportOwned(std::move(rtp_dtls_transport));
   if (rtcp_dtls_transport) {
-    srtp_transport->SetRtcpPacketTransport(rtcp_dtls_transport);
+    srtp_transport->SetRtcpPacketTransportOwned(std::move(rtcp_dtls_transport));
   }
   if (config_.enable_external_auth) {
     srtp_transport->EnableExternalAuth();
   }
+  srtp_transport->SubscribeRtcpPacketReceived(
+      this, [this](CopyOnWriteBuffer packet,
+                   std::optional<Timestamp> arrival_time, EcnMarking ecn) {
+        RTC_DCHECK_RUN_ON(network_thread_);
+        OnRtcpPacketReceived_n(std::move(packet), arrival_time, ecn);
+      });
+  srtp_transport->SetUnDemuxableRtpPacketReceivedHandler(
+      [this](RtpPacketReceived& packet) {
+        RTC_DCHECK_RUN_ON(network_thread_);
+        OnUnDemuxableRtpPacketReceived_n(packet);
+      });
   return srtp_transport;
 }
+// end RingRTC
 
 std::unique_ptr<DtlsSrtpTransport>
 JsepTransportController::CreateDtlsSrtpTransport(
@@ -1204,16 +1217,19 @@ RTCError JsepTransportController::MaybeCreateJsepTransport(
     rtcp_dtls_transport = CreateDtlsTransport(content_info, /*rtcp=*/true);
   }
 
+  // RingRTC: Allow out-of-band / "manual" key negotiation.
+  std::unique_ptr<RtpTransport> rtp_transport;
   if (content_desc->crypto().has_value()) {
-    // RingRTC: Allow out-of-band / "manual" key negotiation.
-    srtp_transport = CreateSrtpTransport(
-        content_info.mid(), rtp_dtls_transport.get(), rtcp_dtls_transport.get());
-    RTC_LOG(LS_INFO) << "Creating SrtpTransport.";
+    rtp_transport =
+        CreateCustomSrtpTransport(content_info.mid(),
+                                  std::move(rtp_dtls_transport),
+                                  std::move(rtcp_dtls_transport));
   } else {
-    std::unique_ptr<RtpTransport> rtp_transport =
+    rtp_transport =
         CreateRtpTransport(content_info.mid(), std::move(rtp_dtls_transport),
-                           std::move(rtcp_dtls_transport));
+                          std::move(rtcp_dtls_transport));
   }
+  // end RingRTC
 
   std::unique_ptr<SctpTransportInternal> sctp_transport;
   if (config_.sctp_factory) {

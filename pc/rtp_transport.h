@@ -40,6 +40,8 @@ namespace webrtc {
 
 class CopyOnWriteBuffer;
 class DtlsSrtpTransport;
+// RingRTC: Allow out-of-band / "manual" key negotiation.
+class SrtpTransport;
 
 class RtpTransport : public RtpTransportInternal {
  public:
@@ -49,7 +51,11 @@ class RtpTransport : public RtpTransportInternal {
   RtpTransport(bool rtcp_mux_enabled, const FieldTrialsView& field_trials)
       : rtcp_mux_enabled_(rtcp_mux_enabled) {}
 
-  virtual DtlsSrtpTransport* AsDtlsSrtpTransport() { return nullptr; }
+  // RingRTC: Allow out-of-band / "manual" key negotiation.
+  virtual DtlsSrtpTransport* AsDtlsSrtpTransportAlwaysNull() { return nullptr; }
+
+  // RingRTC: Allow out-of-band / "manual" key negotiation.
+  virtual SrtpTransport* AsCustomSrtpTransport() { return nullptr; }
 
   bool rtcp_mux_enabled() const override { return rtcp_mux_enabled_; }
   void SetRtcpMuxEnabled(bool enable) override;

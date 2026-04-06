@@ -356,8 +356,7 @@ struct RTC_EXPORT PortConfiguration {
 // Performs the allocation of ports, in a sequenced (timed) manner, for a given
 // network and IP address.
 // This class is thread-compatible.
-// RingRTC change to support ICE forking
-class AllocationSequence : public sigslot::has_slots<> {
+class AllocationSequence {
  public:
   enum State {
     kInit,       // Initial state.

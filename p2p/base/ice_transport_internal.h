@@ -337,11 +337,9 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
   void RemoveGatheringStateCallback(const void* removal_tag);
 
   // Handles sending and receiving of candidates.
-  sigslot::signal2<IceTransportInternal*, const Candidate&>
-      SignalCandidateGathered;
   void NotifyCandidateGathered(IceTransportInternal* transport,
                                const Candidate& candidate) {
-    SignalCandidateGathered(transport, candidate);
+    candidate_gathered_callbacks_.Send(transport, candidate);
   }
   [[deprecated("Use SubscribeCandidateGathered(void* tag, ...)")]]
   void SubscribeCandidateGathered(

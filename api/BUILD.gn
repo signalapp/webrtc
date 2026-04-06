@@ -317,8 +317,8 @@ rtc_library("jsep") {
   sources = [
     # RingRTC change: Propagate externally-negotiated keys.
     "crypto_params.h",
-    "data_channel_interface.cc",
-    "data_channel_interface.h",
+    # RingRTC change to support ICE forking
+    "ice_gatherer_interface.h",
     "jsep.cc",
     "jsep.h",
     "jsep_ice_candidate.cc",

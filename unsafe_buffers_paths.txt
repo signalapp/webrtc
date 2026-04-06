@@ -10,6 +10,8 @@
 -common_audio/third_party/
 -modules/third_party/
 -third_party/
+# RingRTC change to allow interop with Rust pointers
+-ringrtc
 
 # Directory-level exceptions, to be worked on
 -examples/objc/
@@ -591,6 +593,8 @@
 -pc/ice_server_parsing.cc
 -pc/jsep_transport_unittest.cc
 -pc/media_session_unittest.cc
+# RingRTC change to allow interop with Rust pointers
+-pc/peer_connection.cc
 -pc/peer_connection_histogram_unittest.cc
 -pc/peer_connection_interface_unittest.cc
 -pc/rtc_stats_collector_unittest.cc

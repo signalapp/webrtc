@@ -374,6 +374,16 @@ class RTC_EXPORT PortAllocatorSession {
     ice_regathering_callbacks_.Send(session, reason);
   }
 
+  // RingRTC change to support ICE forking
+  void UnsubscribeAll(void* tag) {
+    port_ready_callbacks_.RemoveReceivers(tag);
+    ports_pruned_callbacks_.RemoveReceivers(tag);
+    candidates_ready_callbacks_.RemoveReceivers(tag);
+    candidate_error_callbacks_.RemoveReceivers(tag);
+    candidates_removed_callbacks_.RemoveReceivers(tag);
+    candidates_allocation_done_callbacks_.RemoveReceivers(tag);
+  }
+
   virtual uint32_t generation();
   virtual void set_generation(uint32_t generation);
 

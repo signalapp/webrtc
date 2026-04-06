@@ -403,4 +403,36 @@ bool SrtpTransport::UnregisterRtpDemuxerSink(RtpPacketSinkInterface* sink) {
   return RtpTransport::UnregisterRtpDemuxerSink(sink);
 }
 
+// RingRTC change, copied from  DtlsSrtpTransport, Allow out-of-band / "manual" key negotiation.
+void SrtpTransport::UpdateSendEncryptedHeaderExtensionIds(
+  const std::vector<int>& send_extension_ids) {
+  if (send_extension_ids_ == send_extension_ids) {
+    return;
+  }
+  send_extension_ids_.emplace(send_extension_ids);
+}
+
+void SrtpTransport::UpdateRecvEncryptedHeaderExtensionIds(
+    const std::vector<int>& recv_extension_ids) {
+  if (recv_extension_ids_ == recv_extension_ids) {
+    return;
+  }
+  recv_extension_ids_.emplace(recv_extension_ids);
+}
+
+bool SrtpTransport::CustomSetRtpParams(int send_crypto_suite,
+                    const ZeroOnFreeBuffer<uint8_t>& send_key,
+                    int recv_crypto_suite,
+                    const ZeroOnFreeBuffer<uint8_t>& recv_key) {
+  RTC_DCHECK(send_extension_ids_);
+  RTC_DCHECK(recv_extension_ids_);
+  return SetRtpParams(
+      send_crypto_suite,
+      send_key,
+      *(send_extension_ids_),
+      recv_crypto_suite,
+      recv_key,
+      *(recv_extension_ids_));
+}
+// end RingRTC change
 }  // namespace webrtc

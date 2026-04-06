@@ -869,6 +869,17 @@ void PeerConnection::CloseOnNetworkThread(
         task = nullptr;
       }
       if (network_thread_safety_->alive()) {
+        // RingRTC change to receive RTP data
+        if (rtp_demuxer_sink_registered_ && rtp_packet_observer_ != nullptr) {
+          JsepTransportController* transport_controller =
+              this->transport_controller_n();
+          RtpTransportInternal* rtp_transport =
+              transport_controller->GetBundledRtpTransport();
+          rtp_demuxer_sink_registered_ =
+              !rtp_transport->UnregisterRtpDemuxerSink(rtp_packet_observer_);
+        }
+        rtp_packet_observer_ = nullptr;
+        // end RingRTC change
         // port_allocator_ and transport_controller_ live on the network thread
         // and must be destroyed there.
         TeardownDataChannelTransport_n(RTCError::OK());
@@ -1955,31 +1966,6 @@ void PeerConnection::Close() {
   if (ConfiguredForMedia()) {
     rtp_manager_->Close();
   }
-
-  network_thread()->BlockingCall([&] {
-    RTC_DCHECK_RUN_ON(network_thread());
-
-    // RingRTC change to receive RTP data
-    if (rtp_demuxer_sink_registered_ && rtp_packet_observer_ != nullptr) {
-      JsepTransportController* transport_controller =
-          this->transport_controller_n();
-      RtpTransportInternal* rtp_transport =
-          transport_controller->GetBundledRtpTransport();
-      rtp_demuxer_sink_registered_ =
-          !rtp_transport->UnregisterRtpDemuxerSink(rtp_packet_observer_);
-    }
-    rtp_packet_observer_ = nullptr;
-
-    TeardownDataChannelTransport_n({});
-    transport_controller_.reset();
-    port_allocator_->DiscardCandidatePool();
-    if (network_thread_safety_) {
-      network_thread_safety_->SetNotAlive();
-    }
-  });
-
-  sctp_mid_s_.reset();
-  SetSctpTransportName("");
 
   worker_thread()->BlockingCall([&] {
     RTC_DCHECK_RUN_ON(worker_thread());
@@ -3312,7 +3298,7 @@ bool PeerConnection::ReceiveRtp(uint8_t pt, bool enable_incoming) {
 
 void PeerConnection::ConfigureAudioEncoders(
     const AudioEncoder::Config& config) {
-  std::vector<VoiceChannel*> sending_voice_channels;
+  std::vector<VoiceMediaSendChannelInterface*> sending_voice_channels;
   for (const auto& transceiver : rtp_manager()->transceivers()->List()) {
     if (transceiver->media_type() != MediaType::AUDIO) {
       continue;
@@ -3320,9 +3306,8 @@ void PeerConnection::ConfigureAudioEncoders(
 
     if (transceiver->direction() == RtpTransceiverDirection::kSendRecv ||
         transceiver->direction() == RtpTransceiverDirection::kSendOnly) {
-      auto* voice_channel =
-          static_cast<VoiceChannel*>(transceiver->internal()->channel());
-      if (voice_channel) {
+      if(auto* voice_channel =
+            static_cast<VoiceMediaSendChannelInterface*>(transceiver->internal()->voice_media_send_channel())) {
         sending_voice_channels.push_back(voice_channel);
       }
     }
@@ -3351,8 +3336,8 @@ void PeerConnection::GetAudioLevels(uint16_t* captured_out,
   *captured_out = 0;
   *received_size_out = 0;
 
-  std::vector<VoiceChannel*> sending_voice_channels;
-  std::vector<VoiceChannel*> receiving_voice_channels;
+  std::vector<VoiceMediaSendChannelInterface*> sending_voice_channels;
+  std::vector<VoiceMediaReceiveChannelInterface*> receiving_voice_channels;
   auto transceivers = rtp_manager()->transceivers()->List();
   for (auto transceiver : transceivers) {
     if (transceiver->media_type() != MediaType::AUDIO) {
@@ -3363,17 +3348,15 @@ void PeerConnection::GetAudioLevels(uint16_t* captured_out,
         transceiver->direction() == RtpTransceiverDirection::kSendRecv;
     if (is_send_recv ||
         transceiver->direction() == RtpTransceiverDirection::kSendOnly) {
-      auto* voice_channel =
-          static_cast<VoiceChannel*>(transceiver->internal()->channel());
-      if (voice_channel) {
+      if(auto* voice_channel =
+            static_cast<VoiceMediaSendChannelInterface*>(transceiver->internal()->voice_media_send_channel())) {
         sending_voice_channels.push_back(voice_channel);
       }
     }
     if (is_send_recv ||
         transceiver->direction() == RtpTransceiverDirection::kRecvOnly) {
-      auto* voice_channel =
-          static_cast<VoiceChannel*>(transceiver->internal()->channel());
-      if (voice_channel) {
+      if(auto* voice_channel =
+            static_cast<VoiceMediaReceiveChannelInterface*>(transceiver->internal()->voice_media_receive_channel())) {
         receiving_voice_channels.push_back(voice_channel);
       }
     }
@@ -3411,6 +3394,7 @@ uint32_t PeerConnection::GetLastBandwidthEstimateBps() {
     return this->call_->GetLastBandwidthEstimateBps();
   });
 }
+// end RingRTC change to add methods
 
 void PeerConnection::RunOnSignalingThread(absl::AnyInvocable<void() &&> task) {
   if (signaling_thread()->IsCurrent()) {

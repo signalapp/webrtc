@@ -33,7 +33,11 @@ class DtlsSrtpTransport : public SrtpTransport {
  public:
   DtlsSrtpTransport(bool rtcp_mux_enabled, const FieldTrialsView& field_trials);
 
-  DtlsSrtpTransport* AsDtlsSrtpTransport() override { return this; }
+  // RingRTC: Allow out-of-band / "manual" key negotiation.
+  DtlsSrtpTransport* AsDtlsSrtpTransportAlwaysNull() override { return this; }
+
+  // RingRTC: Allow out-of-band / "manual" key negotiation.
+  SrtpTransport* AsCustomSrtpTransport() override { return nullptr; }
 
   // Set P2P layer RTP/RTCP DtlsTransports. When using RTCP-muxing,
   // `rtcp_dtls_transport` is null.
@@ -87,9 +91,11 @@ class DtlsSrtpTransport : public SrtpTransport {
   // Override the SrtpTransport::OnWritableState.
   void OnWritableState(PacketTransportInternal* packet_transport) override;
 
+  // RingRTC - move to SrtpTransport, Allow out-of-band / "manual" key negotiation.
   // The encrypted header extension IDs.
-  std::optional<std::vector<int>> send_extension_ids_;
-  std::optional<std::vector<int>> recv_extension_ids_;
+  // std::optional<std::vector<int>> send_extension_ids_;
+  // std::optional<std::vector<int>> recv_extension_ids_;
+  // end RingRTC change
 
   absl::AnyInvocable<void()> on_dtls_state_change_;
 };

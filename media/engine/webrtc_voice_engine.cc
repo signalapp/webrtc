@@ -747,8 +747,6 @@ void WebRtcVoiceEngine::ApplyOptions(const AudioOptions& options_in) {
 
   if (options.echo_cancellation) {
     apm_config.echo_canceller.enabled = *options.echo_cancellation;
-    // RingRTC change to disable AECM
-    apm_config.echo_canceller.mobile_mode = false;
   }
 
   if (options.auto_gain_control) {
@@ -2059,6 +2057,7 @@ RTCError WebRtcVoiceSendChannel::SetRtpSendParameters(
 }
 
 void WebRtcVoiceSendChannel::ConfigureEncoders(const AudioEncoder::Config& config) {
+  RTC_DCHECK_RUN_ON(worker_thread_);
   int count = 0;
   for (auto& it : send_streams_) {
     it.second->ConfigureEncoder(config);
@@ -2074,6 +2073,7 @@ void WebRtcVoiceSendChannel::ConfigureEncoders(const AudioEncoder::Config& confi
 
 // RingRTC change to get audio levels
 void WebRtcVoiceSendChannel::GetCapturedAudioLevel(uint16_t* captured_out) {
+  RTC_DCHECK_RUN_ON(worker_thread_);
   uint16_t captured = 0;
   for (const auto& kv : send_streams_) {
     captured = kv.second->GetAudioLevel();

@@ -112,8 +112,8 @@ void PeerConnectionObserverRffi::OnIceSelectedCandidatePairChanged(
                          local_relayed, local_relay_protocol, remote_relayed};
 
   callbacks_.onIceNetworkRouteChange(observer_, network_route,
-                                     SdpSerializeCandidate(local).c_str(),
-                                     SdpSerializeCandidate(remote).c_str());
+                                     local.ToCandidateAttribute(true).c_str(),
+                                     remote.ToCandidateAttribute(true).c_str());
 }
 
 void PeerConnectionObserverRffi::OnIceGatheringChange(

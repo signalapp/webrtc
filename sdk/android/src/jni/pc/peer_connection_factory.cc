@@ -383,9 +383,9 @@ JNI_PeerConnectionFactory_CreatePeerConnectionFactory(
 static void JNI_PeerConnectionFactory_FreeFactory(JNIEnv*, jlong j_p) {
   delete reinterpret_cast<OwnedFactoryAndThreads*>(j_p);
   // RingRTC change to allow field trials to be initialized once.
-  DeprecatedGlobalFieldTrials::Set(nullptr);
+  // DeprecatedGlobalFieldTrials::Set(nullptr);
   // RingRTC change to allow field trials to be initialized once.
-  GetStaticObjects().field_trials_init_string = nullptr;
+  // GetStaticObjects().field_trials_init_string = nullptr;
 }
 
 static jlong JNI_PeerConnectionFactory_CreateLocalMediaStream(

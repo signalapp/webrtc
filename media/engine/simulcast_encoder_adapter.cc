@@ -198,7 +198,8 @@ SimulcastEncoderAdapter::StreamContext::StreamContext(
   if (parent_) {
     encoder_context_->encoder().RegisterEncodeCompleteCallback(this);
   } else {
-    RTC_LOG(LS_ERROR) << "[SEA] StreamContext ctor parent is null";
+    // RingRTC change to reduce log spam
+    RTC_LOG(LS_INFO) << "[SEA] StreamContext ctor parent is null";
   }
 }
 

@@ -280,6 +280,7 @@ class JsepTransportController final {
 
   // RingRTC change to explicitly control when incoming packets can be processed
   bool SetIncomingRtpEnabled(bool enabled);
+
  private:
   // Always called via a blocking call from the signaling thread.
   RTCError SetLocalDescription_n(SdpType type,
@@ -394,10 +395,11 @@ class JsepTransportController final {
       std::unique_ptr<PacketTransportInternal> rtp_packet_transport,
       std::unique_ptr<PacketTransportInternal> rtcp_packet_transport);
   // RingRTC: Allow out-of-band / "manual" key negotiation.
-  std::unique_ptr<SrtpTransport> CreateSrtpTransport(
+  std::unique_ptr<RtpTransport> CreateCustomSrtpTransport(
       const std::string& transport_name,
-      DtlsTransportInternal* rtp_dtls_transport,
-      DtlsTransportInternal* rtcp_dtls_transport);
+      std::unique_ptr<DtlsTransportInternal> rtp_dtls_transport,
+      std::unique_ptr<DtlsTransportInternal> rtcp_dtls_transport);
+  // end RingRTC
   // Creates a DTLS SRTP transport.
   std::unique_ptr<DtlsSrtpTransport> CreateDtlsSrtpTransport(
       absl::string_view transport_name,

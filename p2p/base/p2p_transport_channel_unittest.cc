@@ -6728,7 +6728,7 @@ TEST_F(P2PTransportChannelPingTest, Forking) {
 
   // Destroy the second transport and make sure things don't blow up.
   transport2.reset();
-  gatherer->port_allocator_session()->SignalCandidatesAllocationDone(
+  gatherer->port_allocator_session()->NotifyCandidatesAllocationDone(
       gatherer->port_allocator_session());
   // Make sure destroying the second transport doesn't close the gatherer's
   // ports.
@@ -6737,7 +6737,7 @@ TEST_F(P2PTransportChannelPingTest, Forking) {
   // Destroy the PortAllocator backing the gatherer and make sure things don't
   // blow up.
   shared_pa.reset();
-  gatherer->port_allocator_session()->SignalCandidatesAllocationDone(
+  gatherer->port_allocator_session()->NotifyCandidatesAllocationDone(
       gatherer->port_allocator_session());
 }
 

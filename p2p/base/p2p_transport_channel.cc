@@ -240,22 +240,10 @@ P2PTransportChannel::~P2PTransportChannel() {
   // after the P2pTransportChannel, so we need to make sure we disconnect
   // from the signals that we listen to in OnPortReady.
   safety_flag_->SetNotAlive();
-
-  // RingRTC change to support ICE forking
   if (shared_gatherer_) {
-    shared_gatherer_->port_allocator_session()->SignalPortReady.disconnect(
-        this);
-    shared_gatherer_->port_allocator_session()->SignalPortsPruned.disconnect(
-        this);
-    shared_gatherer_->port_allocator_session()
-        ->SignalCandidatesReady.disconnect(this);
-    shared_gatherer_->port_allocator_session()->SignalCandidateError.disconnect(
-        this);
-    shared_gatherer_->port_allocator_session()
-        ->SignalCandidatesRemoved.disconnect(this);
-    shared_gatherer_->port_allocator_session()
-        ->SignalCandidatesAllocationDone.disconnect(this);
+    shared_gatherer_->port_allocator_session()->UnsubscribeAll(this);
   }
+  // end RingRTC change
 }
 
 // Add the allocator session to our list so that we know which sessions
@@ -272,6 +260,7 @@ void P2PTransportChannel::AddAllocatorSession(
     generation +=
         (shared_gatherer_->port_allocator_session()->generation() + 1);
   }
+  // end RingRTC
   session->set_generation(generation);
   session->SubscribePortReady(
       this, [this](PortAllocatorSession* session, PortInterface* port) {
@@ -930,7 +919,7 @@ void P2PTransportChannel::MaybeStartGathering() {
 void P2PTransportChannel::StartGatheringWithSharedGatherer(
     scoped_refptr<webrtc::IceGathererInterface> shared_gatherer) {
   RTC_DCHECK(!shared_gatherer_);
-  RTC_DCHECK_RUN_ON(network_thread_);
+  RTC_DCHECK_RUN_ON(&network_thread_);
   if (gathering_state_ != kIceGatheringGathering) {
     gathering_state_ = kIceGatheringGathering;
     SendGatheringStateEvent();
@@ -941,16 +930,59 @@ void P2PTransportChannel::StartGatheringWithSharedGatherer(
   shared_gatherer_ = std::move(shared_gatherer);
 
   auto* session = shared_gatherer_->port_allocator_session();
-  session->SignalPortReady.connect(this, &P2PTransportChannel::OnPortReady);
-  session->SignalPortsPruned.connect(this, &P2PTransportChannel::OnPortsPruned);
-  session->SignalCandidatesReady.connect(
-      this, &P2PTransportChannel::OnCandidatesReady);
-  session->SignalCandidateError.connect(this,
-                                        &P2PTransportChannel::OnCandidateError);
-  session->SignalCandidatesRemoved.connect(
-      this, &P2PTransportChannel::OnCandidatesRemoved);
-  session->SignalCandidatesAllocationDone.connect(
-      this, &P2PTransportChannel::OnCandidatesAllocationDone);
+  scoped_refptr<PendingTaskSafetyFlag> flag = safety_flag_;
+  session->SubscribePortReady(
+      this, [flag = std::move(flag), this](PortAllocatorSession* session, PortInterface* port) {
+        if (!flag->alive()) {
+          return;
+        }
+        OnPortReady(session, port);
+      });
+
+  flag = safety_flag_;
+  session->SubscribePortsPruned(
+      this, [flag = std::move(flag), this](PortAllocatorSession* session,
+             const std::vector<PortInterface*>& ports) {
+        if (!flag->alive()) {
+          return;
+        }
+        OnPortsPruned(session, ports);
+      });
+
+  flag = safety_flag_;
+  session->SubscribeCandidatesReady(
+      this, [flag = std::move(flag), this](PortAllocatorSession* session,
+             const std::vector<Candidate>& candidate) {
+        if (!flag->alive()) {
+          return;
+        }
+        OnCandidatesReady(session, candidate);
+      });
+  flag = safety_flag_;
+  session->SubscribeCandidateError(this, [flag = std::move(flag), this](PortAllocatorSession* session,
+                                          const IceCandidateErrorEvent& event) {
+    if (!flag->alive()) {
+      return;
+    }
+    OnCandidateError(session, event);
+  });
+  flag = safety_flag_;
+  session->SubscribeCandidatesRemoved(
+      this, [flag = std::move(flag), this](PortAllocatorSession* session,
+             const std::vector<Candidate>& candidates) {
+        if (!flag->alive()) {
+          return;
+        }
+        OnCandidatesRemoved(session, candidates);
+      });
+  flag = safety_flag_;
+  session->SubscribeCandidatesAllocationDone(
+      this, [flag = std::move(flag), this](PortAllocatorSession* session) {
+        if (!flag->alive()) {
+          return;
+        }
+        OnCandidatesAllocationDone(session);
+      });
   // Process the pooled session's existing candidates/ports, if they exist.
   OnCandidatesReady(session, session->ReadyCandidates());
   for (PortInterface* port : session->ReadyPorts()) {
@@ -965,6 +997,7 @@ void P2PTransportChannel::StartGatheringWithSharedGatherer(
   // that method here.
   session->StartGettingPorts();
 }
+// end RingRTC
 
 // A new port is available, attempt to make connections for it
 // RingRTC change to support ICE forking
@@ -997,7 +1030,7 @@ void P2PTransportChannel::OnPortReady(PortAllocatorSession* session,
     // a port between many transports.  So disable it until we have
     // role conflict handling that works with ICE forking.
     port->SubscribeUnknownAddress(
-        [flag = std::move(flag), this](
+        this, [flag = std::move(flag), this](
             PortInterface* port, const SocketAddress& address,
             ProtocolType proto, IceMessage* stun_msg,
             const std::string& remote_username, bool port_muxed) {
@@ -1009,10 +1042,9 @@ void P2PTransportChannel::OnPortReady(PortAllocatorSession* session,
         });
     port->SubscribeRoleConflict(
         SafeInvocable(safety_flag_, [this] { OnRoleConflictIgnored(); }));
-
   } else {
     port->SubscribeUnknownAddress(
-        [flag = std::move(flag), this](
+        this, [flag = std::move(flag), this](
             PortInterface* port, const SocketAddress& address,
             ProtocolType proto, IceMessage* stun_msg,
             const std::string& remote_username, bool port_muxed) {
@@ -1025,17 +1057,11 @@ void P2PTransportChannel::OnPortReady(PortAllocatorSession* session,
     port->SubscribeRoleConflict(
         SafeInvocable(safety_flag_, [this] { NotifyRoleConflictInternal(); }));
   }
-  port->SubscribeSentPacket(this, [flag = std::move(flag), this](const SentPacketInfo& sent_packet) {
-        if (!flag->alive()) {
-          return;
-        }
-        OnSentPacket(sent_packet);
-  });
-
+  // end RingRTC
   ports_.push_back(port);
   // RingRTC change to support ICE forking (code moved up *and* added)
   flag = safety_flag_;
-  port->SubscribeSentPacket(
+  port->SubscribeSentPacket(this,
       [flag = std::move(flag), this](const SentPacketInfo& sent_packet) {
         if (!flag->alive()) {
           return;
@@ -1045,12 +1071,13 @@ void P2PTransportChannel::OnPortReady(PortAllocatorSession* session,
 
   flag = safety_flag_;
   port->SubscribePortDestroyed(
-      [flag = std::move(flag), this](PortInterface* port) {
+      this, [flag = std::move(flag), this](PortInterface* port) {
         if (!flag->alive()) {
           return;
         }
         OnPortDestroyed(port);
       });
+  // end RingRTC
 
   // Attempt to create a connection from this new port to all of the remote
   // candidates that we were given so far.
@@ -1130,7 +1157,8 @@ void P2PTransportChannel::OnUnknownAddress(PortInterface* port,
                                            ProtocolType proto,
                                            IceMessage* stun_msg,
                                            const std::string& remote_username,
-                                           bool port_muxed) {
+                                           bool port_muxed,
+                                           bool shared) {
   RTC_DCHECK_RUN_ON(&network_thread_);
   RTC_DCHECK(stun_msg);
 

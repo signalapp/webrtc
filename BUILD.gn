@@ -557,6 +557,7 @@ if (!build_with_chromium) {
       "modules/video_capture:video_capture_internal_impl",
       "pc:libjingle_peerconnection",
       "pc:rtc_pc",
+      # RingRTC change to build ringrtc ffi
       "ringrtc",
       "video",
 

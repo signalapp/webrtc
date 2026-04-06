@@ -207,7 +207,8 @@ class JsepTransport {
   void ActivateRtcpMux() RTC_RUN_ON(transport_sequence_);
 
   // RingRTC: Allow out-of-band / "manual" key negotiation.
-  bool SetSrtpCrypto(const std::optional<CryptoParams>& crypto,
+  bool SetSrtpCrypto(SrtpTransport* srtp_transport,
+                     const std::optional<CryptoParams>& crypto,
                      const std::vector<int>& encrypted_extension_ids,
                      SdpType type,
                      ContentSource source);
@@ -271,7 +272,7 @@ class JsepTransport {
   const scoped_refptr<::webrtc::SctpTransport> sctp_transport_;
 
   // RingRTC: Allow out-of-band / "manual" key negotiation.
-  SrtpKeyCarrier srtp_key_carrier_ RTC_GUARDED_BY(network_thread_);
+  SrtpKeyCarrier srtp_key_carrier_ RTC_GUARDED_BY(transport_sequence_);
   RtcpMuxFilter rtcp_mux_negotiator_ RTC_GUARDED_BY(transport_sequence_);
 
   // This is invoked when RTCP-mux becomes active and
