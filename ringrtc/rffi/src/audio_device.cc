@@ -15,9 +15,12 @@
 namespace webrtc {
 namespace rffi {
 
+namespace {
+std::atomic<AudioTransport*> AUDIO_TRANSPORT;
+}
+
 RUSTEXPORT int32_t
-Rust_recordedDataIsAvailable(AudioTransport* audio_callback,
-                             const void* audio_samples,
+Rust_recordedDataIsAvailable(const void* audio_samples,
                              size_t n_samples,
                              size_t n_bytes_per_sample,
                              size_t n_channels,
@@ -28,8 +31,10 @@ Rust_recordedDataIsAvailable(AudioTransport* audio_callback,
                              bool key_pressed,
                              uint32_t* new_mic_level,
                              int64_t estimated_capture_time_ns) {
+  AudioTransport* audio_callback =
+      AUDIO_TRANSPORT.load(std::memory_order_seq_cst);
   if (!audio_callback) {
-    return -1;
+    return 0;
   }
   std::optional<int64_t> estimated_capture_time_ns_opt;
   if (estimated_capture_time_ns >= 0) {
@@ -41,8 +46,7 @@ Rust_recordedDataIsAvailable(AudioTransport* audio_callback,
       *new_mic_level, estimated_capture_time_ns_opt);
 }
 
-RUSTEXPORT int32_t Rust_needMorePlayData(AudioTransport* audio_callback,
-                                         size_t n_samples,
+RUSTEXPORT int32_t Rust_needMorePlayData(size_t n_samples,
                                          size_t n_bytes_per_sample,
                                          size_t n_channels,
                                          uint32_t samples_per_sec,
@@ -50,8 +54,10 @@ RUSTEXPORT int32_t Rust_needMorePlayData(AudioTransport* audio_callback,
                                          size_t* n_samples_out,
                                          int64_t* elapsed_time_ms,
                                          int64_t* ntp_time_ms) {
+  AudioTransport* audio_callback =
+      AUDIO_TRANSPORT.load(std::memory_order_seq_cst);
   if (!audio_callback) {
-    return -1;
+    return 0;
   }
   return audio_callback->NeedMorePlayData(
       n_samples, n_bytes_per_sample, n_channels, samples_per_sec, audio_samples,
@@ -63,6 +69,7 @@ RingRTCAudioDeviceModule::RingRTCAudioDeviceModule(
     const AudioDeviceCallbacks* callbacks)
     : adm_borrowed_(adm_borrowed), rust_callbacks_(*callbacks) {
   TRACE_LOG;
+  AUDIO_TRANSPORT.store(nullptr, std::memory_order_seq_cst);
   RTC_DCHECK_RUN_ON(&thread_checker_);
 }
 
@@ -93,7 +100,17 @@ int32_t RingRTCAudioDeviceModule::RegisterAudioCallback(
     AudioTransport* audio_callback) {
   TRACE_LOG;
   RTC_DCHECK_RUN_ON(&thread_checker_);
-  return rust_callbacks_.registerAudioCallback(adm_borrowed_, audio_callback);
+
+  // There is a narrow race condition if we update this while playing or
+  // recording: the audio thread might write to a free'd pointer if we change
+  // the callback and free the old one in between when it loads the pointer and
+  // the callback finishes.
+  if (Playing() || Recording()) {
+    return -1;
+  }
+
+  AUDIO_TRANSPORT.store(audio_callback, std::memory_order_seq_cst);
+  return 0;
 }
 
 int32_t RingRTCAudioDeviceModule::Init() {
@@ -144,28 +161,35 @@ int32_t RingRTCAudioDeviceModule::RecordingDeviceName(
   return rust_callbacks_.recordingDeviceName(adm_borrowed_, index, name, guid);
 }
 
+// NOTE: We ignore the following calls because the client is the source of truth
+// for which devices the user wants to use, and with the ringrtc ADM we no
+// longer communicate device selection through the WebRTC / C++ layer. This
+// means that we can and should ignore any updates WebRTC issues to device
+// selection, as long as we correctly initialize to a valid device before any
+// attempt to use a playout or recording device.
+
 int32_t RingRTCAudioDeviceModule::SetPlayoutDevice(uint16_t index) {
   TRACE_LOG;
-  RTC_DCHECK_RUN_ON(&thread_checker_);
-  return rust_callbacks_.setPlayoutDevice(adm_borrowed_, index);
+  RTC_LOG(LS_INFO) << "Ignoring C++-side SetPlayoutDevice call";
+  return 0;
 }
 
 int32_t RingRTCAudioDeviceModule::SetPlayoutDevice(WindowsDeviceType device) {
   TRACE_LOG;
-  RTC_DCHECK_RUN_ON(&thread_checker_);
-  return rust_callbacks_.setPlayoutDeviceWin(adm_borrowed_, device);
+  RTC_LOG(LS_INFO) << "Ignoring C++-side SetPlayoutDevice call";
+  return 0;
 }
 
 int32_t RingRTCAudioDeviceModule::SetRecordingDevice(uint16_t index) {
   TRACE_LOG;
-  RTC_DCHECK_RUN_ON(&thread_checker_);
-  return rust_callbacks_.setRecordingDevice(adm_borrowed_, index);
+  RTC_LOG(LS_INFO) << "Ignoring C++-side SetRecordingDevice call";
+  return 0;
 }
 
 int32_t RingRTCAudioDeviceModule::SetRecordingDevice(WindowsDeviceType device) {
   TRACE_LOG;
-  RTC_DCHECK_RUN_ON(&thread_checker_);
-  return rust_callbacks_.setRecordingDeviceWin(adm_borrowed_, device);
+  RTC_LOG(LS_INFO) << "Ignoring C++-side SetRecordingDevice call";
+  return 0;
 }
 
 int32_t RingRTCAudioDeviceModule::PlayoutIsAvailable(bool* available) {

@@ -130,30 +130,4 @@ RUSTEXPORT webrtc::VideoTrackInterface* Rust_createVideoTrack(
     webrtc::PeerConnectionFactoryOwner* factory_owner_borrowed_rc,
     webrtc::VideoTrackSourceInterface* source_borrowed_rc);
 
-RUSTEXPORT int16_t Rust_getAudioPlayoutDevices(
-    webrtc::PeerConnectionFactoryOwner* factory_owner_borrowed_rc);
-
-RUSTEXPORT int32_t Rust_getAudioPlayoutDeviceName(
-    webrtc::PeerConnectionFactoryOwner* factory_owner_borrowed_rc,
-    uint16_t index,
-    char* name_out,
-    char* uuid_out);
-
-RUSTEXPORT bool Rust_setAudioPlayoutDevice(
-    webrtc::PeerConnectionFactoryOwner* factory_owner_borrowed_rc,
-    uint16_t index);
-
-RUSTEXPORT int16_t Rust_getAudioRecordingDevices(
-    webrtc::PeerConnectionFactoryOwner* factory_owner_borrowed_rc);
-
-RUSTEXPORT int32_t Rust_getAudioRecordingDeviceName(
-    webrtc::PeerConnectionFactoryOwner* factory_owner_borrowed_rc,
-    uint16_t index,
-    char* name_out,
-    char* uuid_out);
-
-RUSTEXPORT bool Rust_setAudioRecordingDevice(
-    webrtc::PeerConnectionFactoryOwner* factory_owner_borrowed_rc,
-    uint16_t index);
-
 #endif /* RFFI_API_PEER_CONNECTION_FACTORY_H__ */

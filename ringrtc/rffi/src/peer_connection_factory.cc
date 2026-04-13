@@ -174,7 +174,7 @@ class PeerConnectionFactoryWithOwnedThreads
     auto factory = CreateModularPeerConnectionFactory(std::move(dependencies));
     return make_ref_counted<PeerConnectionFactoryWithOwnedThreads>(
         std::move(factory), std::move(network_thread), std::move(worker_thread),
-        std::move(signaling_thread), std::move(injectable_network), adm.get(),
+        std::move(signaling_thread), std::move(injectable_network),
         audio_config_borrowed->free_adm_cb,
         audio_config_borrowed->rust_adm_borrowed);
   }
@@ -191,87 +191,6 @@ class PeerConnectionFactoryWithOwnedThreads
     return injectable_network_.get();
   }
 
-  int16_t AudioPlayoutDevices() override {
-    return owned_worker_thread_->BlockingCall(
-        [&]() { return audio_device_module_->PlayoutDevices(); });
-  }
-
-  int32_t AudioPlayoutDeviceName(uint16_t index,
-                                 char* name_out,
-                                 char* uuid_out) override {
-    return owned_worker_thread_->BlockingCall([&]() {
-      return audio_device_module_->PlayoutDeviceName(index, name_out, uuid_out);
-    });
-  }
-
-  bool SetAudioPlayoutDevice(uint16_t index) override {
-    return owned_worker_thread_->BlockingCall([&]() {
-      // We need to stop and restart playout if it's already in progress.
-      bool was_initialized = audio_device_module_->PlayoutIsInitialized();
-      bool was_playing = audio_device_module_->Playing();
-      if (was_initialized) {
-        if (audio_device_module_->StopPlayout() != 0) {
-          return false;
-        }
-      }
-      if (audio_device_module_->SetPlayoutDevice(index) != 0) {
-        return false;
-      }
-      if (was_initialized) {
-        if (audio_device_module_->InitPlayout() != 0) {
-          return false;
-        }
-      }
-      if (was_playing) {
-        if (audio_device_module_->StartPlayout() != 0) {
-          return false;
-        }
-      }
-      return true;
-    });
-  }
-
-  int16_t AudioRecordingDevices() override {
-    return owned_worker_thread_->BlockingCall(
-        [&]() { return audio_device_module_->RecordingDevices(); });
-  }
-
-  int32_t AudioRecordingDeviceName(uint16_t index,
-                                   char* name_out,
-                                   char* uuid_out) override {
-    return owned_worker_thread_->BlockingCall([&]() {
-      return audio_device_module_->RecordingDeviceName(index, name_out,
-                                                       uuid_out);
-    });
-  }
-
-  bool SetAudioRecordingDevice(uint16_t index) override {
-    return owned_worker_thread_->BlockingCall([&]() {
-      // We need to stop and restart recording if it is already in progress.
-      bool was_initialized = audio_device_module_->RecordingIsInitialized();
-      bool was_recording = audio_device_module_->Recording();
-      if (was_initialized) {
-        if (audio_device_module_->StopRecording() != 0) {
-          return false;
-        }
-      }
-      if (audio_device_module_->SetRecordingDevice(index) != 0) {
-        return false;
-      }
-      if (was_initialized) {
-        if (audio_device_module_->InitRecording() != 0) {
-          return false;
-        }
-      }
-      if (was_recording) {
-        if (audio_device_module_->StartRecording() != 0) {
-          return false;
-        }
-      }
-      return true;
-    });
-  }
-
  protected:
   PeerConnectionFactoryWithOwnedThreads(
       scoped_refptr<PeerConnectionFactoryInterface> factory,
@@ -279,7 +198,6 @@ class PeerConnectionFactoryWithOwnedThreads
       std::unique_ptr<Thread> owned_worker_thread,
       std::unique_ptr<Thread> owned_signaling_thread,
       std::unique_ptr<rffi::InjectableNetwork> injectable_network,
-      AudioDeviceModule* audio_device_module,
       void (*free_adm_cb)(const void*),
       void* rust_adm_borrowed)
       : adm_cleanup_(free_adm_cb, rust_adm_borrowed),
@@ -287,7 +205,6 @@ class PeerConnectionFactoryWithOwnedThreads
         owned_worker_thread_(std::move(owned_worker_thread)),
         owned_signaling_thread_(std::move(owned_signaling_thread)),
         injectable_network_(std::move(injectable_network)),
-        audio_device_module_(audio_device_module),
         factory_(std::move(factory)) {}
 
  private:
@@ -312,7 +229,6 @@ class PeerConnectionFactoryWithOwnedThreads
   const std::unique_ptr<Thread> owned_worker_thread_;
   const std::unique_ptr<Thread> owned_signaling_thread_;
   std::unique_ptr<rffi::InjectableNetwork> injectable_network_;
-  AudioDeviceModule* audio_device_module_;
   const scoped_refptr<PeerConnectionFactoryInterface> factory_;
 };
 #endif  // !defined(WEBRTC_IOS) && !defined(WEBRTC_ANDROID)
@@ -531,46 +447,6 @@ RUSTEXPORT VideoTrackInterface* Rust_createVideoTrack(
   // Note: This must stay "video1" to stay in sync with V4 signaling.
   return take_rc(factory->CreateVideoTrack(
       scoped_refptr<VideoTrackSourceInterface>(source_borrowed_rc), "video1"));
-}
-
-RUSTEXPORT int16_t Rust_getAudioPlayoutDevices(
-    PeerConnectionFactoryOwner* factory_owner_borrowed_rc) {
-  return factory_owner_borrowed_rc->AudioPlayoutDevices();
-}
-
-RUSTEXPORT int32_t Rust_getAudioPlayoutDeviceName(
-    PeerConnectionFactoryOwner* factory_owner_borrowed_rc,
-    uint16_t index,
-    char* name_out,
-    char* uuid_out) {
-  return factory_owner_borrowed_rc->AudioPlayoutDeviceName(index, name_out,
-                                                           uuid_out);
-}
-
-RUSTEXPORT bool Rust_setAudioPlayoutDevice(
-    PeerConnectionFactoryOwner* factory_owner_borrowed_rc,
-    uint16_t index) {
-  return factory_owner_borrowed_rc->SetAudioPlayoutDevice(index);
-}
-
-RUSTEXPORT int16_t Rust_getAudioRecordingDevices(
-    PeerConnectionFactoryOwner* factory_owner_borrowed_rc) {
-  return factory_owner_borrowed_rc->AudioRecordingDevices();
-}
-
-RUSTEXPORT int32_t Rust_getAudioRecordingDeviceName(
-    PeerConnectionFactoryOwner* factory_owner_borrowed_rc,
-    uint16_t index,
-    char* name_out,
-    char* uuid_out) {
-  return factory_owner_borrowed_rc->AudioRecordingDeviceName(index, name_out,
-                                                             uuid_out);
-}
-
-RUSTEXPORT bool Rust_setAudioRecordingDevice(
-    PeerConnectionFactoryOwner* factory_owner_borrowed_rc,
-    uint16_t index) {
-  return factory_owner_borrowed_rc->SetAudioRecordingDevice(index);
 }
 
 }  // namespace rffi

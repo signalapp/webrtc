@@ -18,8 +18,7 @@
  */
 
 RUSTEXPORT int32_t
-Rust_recordedDataIsAvailable(webrtc::AudioTransport* audio_callback,
-                             const void* audio_samples,
+Rust_recordedDataIsAvailable(const void* audio_samples,
                              size_t n_samples,
                              size_t n_bytes_per_sample,
                              size_t n_channels,
@@ -31,8 +30,7 @@ Rust_recordedDataIsAvailable(webrtc::AudioTransport* audio_callback,
                              uint32_t* new_mic_level,
                              int64_t estimated_capture_time_ns);
 
-RUSTEXPORT int32_t Rust_needMorePlayData(webrtc::AudioTransport* audio_callback,
-                                         size_t n_samples,
+RUSTEXPORT int32_t Rust_needMorePlayData(size_t n_samples,
                                          size_t n_bytes_per_sample,
                                          size_t n_channels,
                                          uint32_t samples_per_sec,
@@ -45,8 +43,6 @@ typedef struct {
   int32_t (*activeAudioLayer)(
       void* adm_borrowed,
       webrtc::AudioDeviceModule::AudioLayer* audio_layer);
-  int32_t (*registerAudioCallback)(void* adm_borrowed,
-                                   webrtc::AudioTransport* audio_callback);
   // Main initialization and termination
   int32_t (*init)(void* adm_borrowed);
   int32_t (*terminate)(void* adm_borrowed);
@@ -63,16 +59,6 @@ typedef struct {
                                  uint16_t index,
                                  char name[webrtc::kAdmMaxDeviceNameSize],
                                  char guid[webrtc::kAdmMaxGuidSize]);
-
-  // Device selection
-  int32_t (*setPlayoutDevice)(void* adm_borrowed, uint16_t index);
-  int32_t (*setPlayoutDeviceWin)(
-      void* adm_borrowed,
-      webrtc::AudioDeviceModule::WindowsDeviceType device);
-  int32_t (*setRecordingDevice)(void* adm_borrowed, uint16_t index);
-  int32_t (*setRecordingDeviceWin)(
-      void* adm_borrowed,
-      webrtc::AudioDeviceModule::WindowsDeviceType device);
 
   // Audio transport initialization
   int32_t (*playoutIsAvailable)(void* adm_borrowed, bool* available);
