@@ -769,8 +769,10 @@ class ChannelTest : public ::testing::Test {
     });
     RTCError error =
         channel1_->SetLocalContent(&local_updated, SdpType::kOffer);
-    EXPECT_FALSE(error.ok());
-    EXPECT_THAT(error.message(), HasSubstr("RTP extension ID reassignment"));
+    // Expected to succeed because the mapping for ID 1 was cleared by the
+    // previous SetLocalContent call (which set extensions to empty).
+    // RtpTransport allows reuse when not in use by any active MID.
+    EXPECT_TRUE(error.ok());
   }
 
   // Test that SetLocalContent and SetRemoteContent properly configure
