@@ -750,7 +750,6 @@ if (rtc_include_tests && !build_with_chromium) {
   }
 
   rtc_test_suite("webrtc_nonparallel_tests") {
-    testonly = true
     tests = [
       "rtc_base:cpu_time_unittest",
       "rtc_base:file_rotating_stream_unittest",
@@ -758,9 +757,6 @@ if (rtc_include_tests && !build_with_chromium) {
       "rtc_base:physical_socket_server_unittest",
       "rtc_base:socket_address_unittest",
     ]
-    if (is_android) {
-      shard_timeout = 900
-    }
   }
 
   rtc_test("voip_unittests") {
