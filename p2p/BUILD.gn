@@ -326,6 +326,7 @@ rtc_library("dtls_transport_internal") {
     "../api:dtls_transport_interface",
     "../api:rtc_error",
     "../api:scoped_refptr",
+    "../api/task_queue",
     "../rtc_base:buffer",
     "../rtc_base:callback_list",
     "../rtc_base:checks",
@@ -413,6 +414,7 @@ rtc_library("ice_transport_internal") {
     "../api:candidate",
     "../api:peer_connection_interface",
     "../api:rtc_error",
+    "../api/task_queue",
     "../api/transport:enums",
     "../api/units:time_delta",
     "../rtc_base:callback_list",
@@ -519,6 +521,7 @@ rtc_library("packet_transport_internal") {
   ]
   deps = [
     "../api:sequence_checker",
+    "../api/task_queue",
     "../rtc_base:async_packet_socket",
     "../rtc_base:callback_list",
     "../rtc_base:checks",

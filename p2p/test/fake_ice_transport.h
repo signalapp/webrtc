@@ -63,7 +63,8 @@ class FakeIceTransportInternal : public IceTransportInternal {
                                     int component,
                                     TaskQueueBase* network_thread = nullptr,
                                     absl::string_view field_trials_string = "")
-      : name_(name),
+      : IceTransportInternal(network_thread),
+        name_(name),
         component_(component),
         network_thread_(network_thread ? network_thread
                                        : TaskQueueBase::Current()),
@@ -186,6 +187,8 @@ class FakeIceTransportInternal : public IceTransportInternal {
     RTC_DCHECK_RUN_ON(network_thread_);
     return remote_candidates_;
   }
+
+  TaskQueueBase* network_thread() const { return network_thread_; }
 
   // Fake IceTransportInternal implementation.
   const std::string& transport_name() const override { return name_; }
