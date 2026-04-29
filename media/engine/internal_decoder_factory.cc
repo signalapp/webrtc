@@ -11,10 +11,12 @@
 #include "media/engine/internal_decoder_factory.h"
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "absl/strings/match.h"
 #include "api/environment/environment.h"
+#include "api/video/resolution.h"
 #include "api/video/video_codec_type.h"
 #include "api/video_codecs/h264_profile_level_id.h"
 #include "api/video_codecs/sdp_video_format.h"
@@ -65,7 +67,8 @@ std::vector<SdpVideoFormat> InternalDecoderFactory::GetSupportedFormats()
 
 VideoDecoderFactory::CodecSupport InternalDecoderFactory::QueryCodecSupport(
     const SdpVideoFormat& format,
-    bool reference_scaling) const {
+    bool reference_scaling,
+    std::optional<Resolution> resolution) const {
   // Query for supported formats and check if the specified format is supported.
   // Return unsupported if an invalid combination of format and
   // reference_scaling is specified.
@@ -98,7 +101,7 @@ VideoDecoderFactory::CodecSupport InternalDecoderFactory::QueryCodecSupport(
 std::unique_ptr<VideoDecoder> InternalDecoderFactory::Create(
     const Environment& env,
     const SdpVideoFormat& format) {
-  if (!QueryCodecSupport(format, false).is_supported) {
+  if (!QueryCodecSupport(format, false, std::nullopt).is_supported) {
     RTC_LOG(LS_WARNING) << "Trying to create decoder for unsupported format. "
                         << format.ToString();
     return nullptr;

@@ -495,7 +495,7 @@ bool IsScalabilityModeSupportedByCodec(const Codec& codec,
                                        const VideoSendStream::Config& config) {
   return config.encoder_settings.encoder_factory
       ->QueryCodecSupport(SdpVideoFormat(codec.name, codec.params),
-                          scalability_mode)
+                          scalability_mode, std::nullopt)
       .is_supported;
 }
 
