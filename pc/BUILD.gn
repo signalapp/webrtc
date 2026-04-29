@@ -2889,6 +2889,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../rtc_base:socket_address",
       "../rtc_base:socket_server",
       "../rtc_base:threading",
+      "../test:fileutils",
       "../test:run_loop",
       "../test:test_support",
     ]
