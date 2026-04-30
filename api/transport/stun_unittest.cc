@@ -1686,4 +1686,49 @@ TEST_F(StunTest, ByteStringAsVectorOfUint32) {
   EXPECT_THAT(*integrity_vector, ElementsAreArray(expected_integrity_vector));
 }
 
+TEST_F(StunTest, AttributesAfterMessageIntegrityAreIgnored) {
+  // 1. Create a legitimate STUN message.
+  IceMessage msg(STUN_BINDING_REQUEST, "abcdefghijkl");
+  auto username = StunAttribute::CreateByteString(STUN_ATTR_USERNAME);
+  username->CopyBytes("user");
+  msg.AddAttribute(std::move(username));
+
+  // 2. Add MESSAGE-INTEGRITY.
+  const std::string password = "password";
+  EXPECT_TRUE(msg.AddMessageIntegrity(password));
+
+  // 3. Serialize to buffer.
+  ByteBufferWriter buf;
+  EXPECT_TRUE(msg.Write(&buf));
+
+  // 4. Manually append an "attacker-injected" attribute AFTER the buffer.
+  // We'll use NOMINATION (0xC001) which is 4 bytes header + 4 bytes value.
+  buf.WriteUInt16(STUN_ATTR_NOMINATION);
+  buf.WriteUInt16(4);  // length
+  buf.WriteUInt32(0xDEADBEEF);
+
+  // 5. Update the STUN header length to include the new attribute.
+  std::span<const uint8_t> raw = buf.DataView();
+  std::vector<uint8_t> packet(raw.begin(), raw.end());
+  size_t new_total_size = packet.size();
+  uint16_t new_stun_length =
+      static_cast<uint16_t>(new_total_size - kStunHeaderSize);
+  SetBE16(std::span(packet).subspan(2, 2), new_stun_length);
+
+  // 6. Parse the tampered message.
+  IceMessage parsed_msg;
+  ByteBufferReader reader(packet);
+  EXPECT_TRUE(parsed_msg.Read(&reader));
+
+  // 7. Verify integrity still passes (this confirms MI check ignores trailing
+  // data).
+  EXPECT_EQ(parsed_msg.ValidateMessageIntegrity(password),
+            StunMessage::IntegrityStatus::kIntegrityOk);
+
+  // 8. According to RFC 8489, attributes following MESSAGE-INTEGRITY (except
+  // FINGERPRINT) MUST be ignored. This test case expects that the injected
+  // attribute is NOT present.
+  EXPECT_EQ(parsed_msg.GetUInt32(STUN_ATTR_NOMINATION), nullptr);
+}
+
 }  // namespace webrtc

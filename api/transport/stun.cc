@@ -35,10 +35,8 @@
 #include "rtc_base/net_helpers.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/span_helpers.h"
+#include "rtc_base/string_utils.h"
 #include "system_wrappers/include/metrics.h"
-
-using ::webrtc::ByteBufferReader;
-using ::webrtc::ByteBufferWriter;
 
 namespace webrtc {
 
@@ -622,6 +620,7 @@ bool StunMessage::Read(ByteBufferReader* buf) {
   attrs_.resize(0);
 
   size_t rest = buf->Length() - length_;
+  bool have_seen_integrity = false;
   while (buf->Length() > rest) {
     uint16_t attr_type, attr_length;
     if (!buf->ReadUInt16(&attr_type))
@@ -643,7 +642,20 @@ bool StunMessage::Read(ByteBufferReader* buf) {
       if (!attr->Read(buf)) {
         return false;
       }
-      attrs_.push_back(std::move(attr));
+      // If the message is integrity-protected, ignore all attributes
+      // after the integrity attributes except for FINGERPRINT.
+      // RFC 8489 implicity enforces this; RFC 5389 section 15.4
+      // had explicit text saying it.
+      if (!have_seen_integrity || attr_type == STUN_ATTR_FINGERPRINT) {
+        attrs_.push_back(std::move(attr));
+      } else {
+        RTC_LOG(LS_WARNING) << "Attribute found after INTEGRITY: 0x"
+                            << ToHex(attr_type) << ", ignored";
+      }
+      if (attr_type == STUN_ATTR_MESSAGE_INTEGRITY ||
+          attr_type == STUN_ATTR_GOOG_MESSAGE_INTEGRITY_32) {
+        have_seen_integrity = true;
+      }
     }
   }
 
