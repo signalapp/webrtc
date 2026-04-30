@@ -96,6 +96,14 @@ class AudioDecoder {
   virtual std::vector<ParseResult> ParsePayload(Buffer&& payload,
                                                 uint32_t timestamp);
 
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+  virtual std::vector<ParseResult> ParsePayloadRedundancy(
+      Buffer&& payload,
+      uint32_t timestamp,
+      uint32_t recovery_timestamp_offset);
+#endif
+
   // TODO(bugs.webrtc.org/10098): The Decode and DecodeRedundant methods are
   // obsolete; callers should call ParsePayload instead. For now, subclasses
   // must still implement DecodeInternal.

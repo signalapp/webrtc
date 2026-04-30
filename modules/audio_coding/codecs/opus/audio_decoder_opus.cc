@@ -23,6 +23,10 @@
 #include "modules/audio_coding/codecs/opus/opus_interface.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/checks.h"
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+#include "rtc_base/copy_on_write_buffer.h"
+#endif
 // RingRTC Change to configure opus
 #include "rtc_base/logging.h"
 
@@ -66,6 +70,75 @@ std::vector<AudioDecoder::ParseResult> AudioDecoderOpusImpl::ParsePayload(
   return results;
 }
 
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+std::vector<AudioDecoder::ParseResult>
+AudioDecoderOpusImpl::ParsePayloadRedundancy(
+    Buffer&& payload,
+    uint32_t timestamp,
+    uint32_t recovery_timestamp_offset) {
+  std::vector<ParseResult> results;
+  uint32_t begin_timestamp = timestamp;
+
+  // Check for FEC.
+  if (PacketHasFec(payload.data(), payload.size())) {
+    const int duration =
+        PacketDurationRedundant(payload.data(), payload.size());
+    RTC_DCHECK_GE(duration, 0);
+    Buffer payload_copy(payload.data(), payload.size());
+    results.emplace_back(
+        timestamp - duration,
+        1, // FEC packets have a priority of 1.
+        std::make_unique<OpusFrame>(this, std::move(payload_copy), false)
+    );
+    begin_timestamp -= duration;
+  }
+
+  // Check for DRED.
+  if (recovery_timestamp_offset > 0) {
+    int32_t dred_end = 0;
+    CopyOnWriteBuffer dred_data(opus_dred_get_size());
+    int samples = WebRtcOpus_DredParse(dec_state_, dred_data.MutableData(),
+                                       payload.data(), payload.size(),
+                                       recovery_timestamp_offset, &dred_end);
+    if (samples > 0 && dred_end < samples) {
+      samples -= dred_end;
+      // Find the desired number of 10ms chunks.
+      int dred_count = 100 * samples / sample_rate_hz_;
+      int desired_dred_count =
+          100 * recovery_timestamp_offset / sample_rate_hz_;
+      if (dred_count > 0 && desired_dred_count > 0) {
+        if (dred_count > desired_dred_count)
+          dred_count = desired_dred_count;
+        uint32_t recovery_timestamp =
+            timestamp - dred_count * sample_rate_hz_ / 100;
+        for (int i = 0; i < dred_count; ++i) {
+          // Make sure recovery_timestamp < begin_timestamp (if there was a FEC frame).
+          if ((begin_timestamp == recovery_timestamp) ||
+              (begin_timestamp - recovery_timestamp) >= 0xFFFFFFFF / 2)
+            break;
+          results.emplace_back(
+              recovery_timestamp,
+              2, // Deep REDundancy packets have a priority of 2.
+              std::make_unique<OpusFrame>(this, dred_data, dred_count - i, timestamp)
+          );
+          recovery_timestamp += sample_rate_hz_ / 100;
+        }
+      }
+    }
+  }
+
+  // Handle the primary packet.
+  results.emplace_back(
+      timestamp,
+      0, // Primary packets have a priority of 0 (highest).
+      std::make_unique<OpusFrame>(this, std::move(payload), true)
+  );
+
+  return results;
+}
+#endif
+
 int AudioDecoderOpusImpl::DecodeInternal(const uint8_t* encoded,
                                          size_t encoded_len,
                                          int sample_rate_hz,
@@ -101,6 +174,20 @@ int AudioDecoderOpusImpl::DecodeRedundantInternal(const uint8_t* encoded,
   *speech_type = ConvertSpeechType(temp_type);
   return ret;
 }
+
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+int AudioDecoderOpusImpl::DecodeDred(const uint8_t* encoded,
+                                             size_t encoded_len,
+                                             uint32_t primary_timestamp,
+                                             int16_t* decoded,
+                                             int index) {
+  int ret = WebRtcOpus_DecodeDred(dec_state_, encoded, decoded, index);
+  if (ret > 0)
+    ret *= static_cast<int>(channels_);  // Return total number of samples.
+  return ret;
+}
+#endif
 
 void AudioDecoderOpusImpl::Reset() {
   WebRtcOpus_DecoderInit(dec_state_);
@@ -172,6 +259,18 @@ bool AudioDecoderOpusImpl::Configure(const AudioDecoder::Config& config) {
     }
     RTC_LOG(LS_INFO) << "Successfully configured OPUS DNN blob for decoder: "
                      << config.dnn_weights_length << " bytes";
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+    if (WebRtcOpus_DredDecoderSetDnnBlob(dec_state_, config.dnn_weights_data,
+                                         config.dnn_weights_length) == -1) {
+      RTC_LOG(LS_WARNING)
+          << "Failed to configure OPUS DNN blob for DRED decoder";
+    } else {
+      RTC_LOG(LS_INFO)
+          << "Successfully configured OPUS DNN blob for DRED decoder: "
+          << config.dnn_weights_length << " bytes";
+    }
+#endif
   }
 #endif
 

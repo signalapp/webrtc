@@ -694,7 +694,9 @@ bool AudioEncoderOpusImpl::RecreateEncoderInstance() {
                                           config_.dnn_weights_length));
 // RingRTC change to support Opus DRED
 #if WEBRTC_OPUS_SUPPORT_DRED
-    RTC_CHECK_EQ(0, WebRtcOpus_SetDredDuration(inst_, config_.dred_duration));
+    if (config_.dred_duration > 0) {
+      RTC_CHECK_EQ(0, WebRtcOpus_SetDredDuration(inst_, config_.dred_duration));
+    }
 #endif
   }
 #endif
@@ -935,6 +937,7 @@ bool AudioEncoderOpusImpl::Configure(const webrtc::AudioEncoder::Config& config)
                               config.dnn_weights_length) == -1) {
       RTC_LOG(LS_ERROR) << "Failed to configure OPUS DNN blob for encoder";
       // Reset the DNN weights configuration so RecreateEncoderInstance() can succeed.
+      config_.dred_duration = 0;
       config_.dnn_weights_data = nullptr;
       config_.dnn_weights_length = 0;
       return false;
@@ -945,6 +948,8 @@ bool AudioEncoderOpusImpl::Configure(const webrtc::AudioEncoder::Config& config)
 #if WEBRTC_OPUS_SUPPORT_DRED
     if (WebRtcOpus_SetDredDuration(inst_, config.dred_duration) == -1) {
       RTC_LOG(LS_WARNING) << "Failed to configure OPUS DRED, ignoring...";
+      // Reset the dred_duration so RecreateEncoderInstance() can succeed.
+      config_.dred_duration = 0;
     } else {
       RTC_LOG(LS_INFO) << "Successfully configured OPUS DRED=" << config.dred_duration;
     }

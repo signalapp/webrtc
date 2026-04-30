@@ -479,6 +479,27 @@ int16_t WebRtcOpus_DecoderSetComplexity(OpusDecInst* inst, int32_t complexity);
 int16_t WebRtcOpus_DecoderSetDnnBlob(OpusDecInst* inst, const void* data, int length);
 #endif
 
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+/*
+ * WebRtcOpus_DredDecoderSetDnnBlob(...)
+ *
+ * Input:
+ *      - inst               : Dred decoder context
+ *      - data               : Pointer to the DNN weights blob
+ *      - length             : Length of the DNN weights blob in bytes
+ *
+ * Provide external DNN weights blob for the Opus DRED decoder.
+ * No-op if data is null or length is 0.
+ *
+ * Return value              :  0 - Success
+ *                             -1 - Error
+ */
+int16_t WebRtcOpus_DredDecoderSetDnnBlob(OpusDecInst* inst,
+                                         const void* data,
+                                         int length);
+#endif
+
 /****************************************************************************
  * WebRtcOpus_Decode(...)
  *
@@ -526,6 +547,62 @@ int WebRtcOpus_DecodeFec(OpusDecInst* inst,
                          size_t encoded_bytes,
                          int16_t* decoded,
                          int16_t* audio_type);
+
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+/****************************************************************************
+ * WebRtcOpus_DecodeDred(...)
+ *
+ * This function decodes the DRED information cached in the decoder
+ * into a 10 msec. slice of audio
+ *
+ * Input:
+ *      - inst               : Decoder context
+ *      - offset             : Which DRED segment to decode, in units of 10
+ *                             msec.
+ *
+ * Output:
+ *      - decoded            : The decoded audio
+ *
+ * Return value              : >0 - Samples per channel in decoded vector
+ *                             -1 - Error
+ */
+int WebRtcOpus_DecodeDred(OpusDecInst* inst,
+                          const uint8_t* dred_data,
+                          int16_t* decoded,
+                          int offset);
+
+/****************************************************************************
+ * WebRtcOpus_DredParse(...)
+ *
+ * This function parses DRED redundancy data from an Opus packet. The parsed
+ * DRED state is stored in dred_data for later use by WebRtcOpus_DecodeDred().
+ *
+ * Input:
+ *      - inst               : Decoder context (must have a DRED decoder)
+ *      - encoded            : Encoded Opus packet
+ *      - length_bytes       : Length of encoded packet in bytes
+ *      - max_samples        : Maximum number of DRED samples needed, at the
+ *                             decoder's sample rate
+ *
+ * Output:
+ *      - dred_data          : Parsed DRED state (opaque, passed to
+ *                             WebRtcOpus_DecodeDred)
+ *      - dred_end           : Number of non-encoded samples between the DRED
+ *                             timestamp and the last DRED sample. Non-zero
+ *                             near silence/DTX transitions.
+ *
+ * Return value              : >0 - Offset in samples of the first DRED sample
+ *                              0 - No DRED data present in packet
+ *                             <0 - Error
+ */
+int WebRtcOpus_DredParse(OpusDecInst* inst,
+                         uint8_t* dred_data,
+                         const uint8_t* encoded,
+                         size_t length_bytes,
+                         int max_samples,
+                         int32_t* dred_end);
+#endif
 
 /****************************************************************************
  * WebRtcOpus_DurationEst(...)

@@ -87,6 +87,16 @@ std::vector<AudioDecoder::ParseResult> AudioDecoder::ParsePayload(
   return results;
 }
 
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+std::vector<AudioDecoder::ParseResult> AudioDecoder::ParsePayloadRedundancy(
+    Buffer&& payload,
+    uint32_t timestamp,
+    uint32_t recovery_timestamp_offset) {
+  return ParsePayload(std::move(payload), timestamp);
+}
+#endif
+
 int AudioDecoder::Decode(const uint8_t* encoded,
                          size_t encoded_len,
                          int sample_rate_hz,

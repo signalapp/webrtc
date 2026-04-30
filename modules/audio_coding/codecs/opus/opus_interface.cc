@@ -206,7 +206,7 @@ int16_t WebRtcOpus_SetBitRate(OpusEncInst* inst, int32_t rate) {
 
 int16_t WebRtcOpus_SetPacketLossRate(OpusEncInst* inst, int32_t loss_rate) {
   // RingRTC change to log opus setters
-  RTC_LOG(LS_WARNING) << "WebRtcOpus_SetPacketLossRate " << loss_rate;
+  RTC_LOG(LS_INFO) << "WebRtcOpus_SetPacketLossRate " << loss_rate;
   if (inst) {
     return ENCODER_CTL(inst, OPUS_SET_PACKET_LOSS_PERC(loss_rate));
   } else {
@@ -453,13 +453,26 @@ int16_t WebRtcOpus_DecoderCreate(OpusDecInst** inst,
       state->in_dtx_mode = 0;
       state->last_packet_num_channels = channels;
       *inst = state;
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+      state->dred_decoder = opus_dred_decoder_create(&error);
+      if (error == OPUS_OK && state->dred_decoder)
+        return 0;
+#else
       return 0;
+#endif
     }
 
     // If memory allocation was unsuccessful, free the entire state.
     if (state->decoder) {
       opus_decoder_destroy(state->decoder);
     }
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+    if (state->dred_decoder) {
+      opus_dred_decoder_destroy(state->dred_decoder);
+    }
+#endif
     free(state);
   }
   return -1;
@@ -508,6 +521,11 @@ int16_t WebRtcOpus_DecoderFree(OpusDecInst* inst) {
     } else if (inst->multistream_decoder) {
       opus_multistream_decoder_destroy(inst->multistream_decoder);
     }
+#if WEBRTC_OPUS_SUPPORT_DRED
+    if (inst->dred_decoder) {
+      opus_dred_decoder_destroy(inst->dred_decoder);
+    }
+#endif
     free(inst);
     return 0;
   } else {
@@ -546,6 +564,22 @@ int16_t WebRtcOpus_DecoderSetDnnBlob(OpusDecInst* inst, const void* data, int le
   if (!inst || !inst->decoder)
     return -1;
   int res = opus_decoder_ctl(inst->decoder, OPUS_SET_DNN_BLOB(data, length));
+  return (res == OPUS_OK) ? 0 : -1;
+}
+#endif
+
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+int16_t WebRtcOpus_DredDecoderSetDnnBlob(OpusDecInst* inst,
+                                         const void* data,
+                                         int length) {
+  RTC_LOG(LS_INFO) << "WebRtcOpus_DredDecoderSetDnnBlob with length " << length;
+  if (!data || length <= 0)
+    return 0;
+  if (!inst || !inst->dred_decoder)
+    return -1;
+  int res =
+      opus_dred_decoder_ctl(inst->dred_decoder, OPUS_SET_DNN_BLOB(data, length));
   return (res == OPUS_OK) ? 0 : -1;
 }
 #endif
@@ -686,6 +720,39 @@ int WebRtcOpus_DecodeFec(OpusDecInst* inst,
 
   return decoded_samples;
 }
+
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+int WebRtcOpus_DecodeDred(OpusDecInst* inst,
+                          const uint8_t* dred_data,
+                          int16_t* decoded,
+                          int offset) {
+  int dred_samples = inst->sample_rate_hz / 100;
+  if (!inst->decoder)
+    return 0;
+  return opus_decoder_dred_decode(inst->decoder,
+                                  reinterpret_cast<const OpusDRED*>(dred_data),
+                                  offset * dred_samples, decoded, dred_samples);
+}
+
+int WebRtcOpus_DredParse(OpusDecInst* inst,
+                         uint8_t* dred_data,
+                         const uint8_t* encoded,
+                         size_t length_bytes,
+                         int max_samples,
+                         int32_t* dred_end) {
+  if (!inst->dred_decoder)
+    return 0;
+  // Request one extra 10ms frame to overcome a bug in Opus DRED parsing.
+  int parse_max_samples = max_samples + inst->sample_rate_hz / 100;
+  int result = opus_dred_parse(inst->dred_decoder,
+                               reinterpret_cast<OpusDRED*>(dred_data), encoded,
+                               static_cast<opus_int32>(length_bytes),
+                               parse_max_samples, inst->sample_rate_hz,
+                               dred_end, 0);
+  return result;
+}
+#endif
 
 int WebRtcOpus_DurationEst(OpusDecInst* inst,
                            const uint8_t* payload,

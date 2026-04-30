@@ -1358,7 +1358,10 @@ hooks = [
     'name': 'download_opus_models_win',
     'pattern': '.',
     'condition': 'host_os == "win"',
-    'action': ['src/ringrtc/opus/src/dnn/download_model.bat',
+    'cwd': 'src/ringrtc/opus/src',
+    'action': ['cmd.exe',
+               '/c',
+               'dnn\\download_model.bat',
                'a5177ec6fb7d15058e99e57029746100121f68e4890b1467d4094aa336b6013e'
                ],
   },

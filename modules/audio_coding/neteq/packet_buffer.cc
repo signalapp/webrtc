@@ -52,7 +52,15 @@ PacketBuffer::PacketBuffer(size_t max_number_of_packets,
                            StatisticsCalculator* stats)
     : max_number_of_packets_(max_number_of_packets),
       tick_timer_(tick_timer),
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+      stats_(stats),
+      newest_sequence_number_(0),
+      insert_count_(0),
+      num_primary_packets_(0) {}
+#else
       stats_(stats) {}
+#endif
 
 // Destructor. All packets in the buffer will be destroyed.
 PacketBuffer::~PacketBuffer() {
@@ -114,6 +122,12 @@ void PacketBuffer::Flush() {
       << ", num_no_packet_info=" << num_no_packet_info;
   }
   buffer_.clear();
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+  newest_sequence_number_ = 0;
+  insert_count_ = 0;
+  num_primary_packets_ = 0;
+#endif
   stats_->FlushedPacketBuffer();
 }
 
@@ -130,15 +144,37 @@ int PacketBuffer::InsertPacket(Packet&& packet) {
   RTC_DCHECK_GE(packet.priority.codec_level, 0);
   RTC_DCHECK_GE(packet.priority.red_level, 0);
 
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+  const bool is_primary = packet.priority.codec_level == 0;
+  if (insert_count_ == 0) {
+    newest_sequence_number_ = packet.sequence_number;
+  }
+  insert_count_++;
+  newest_sequence_number_ =
+      LatestSequenceNumber(packet.sequence_number, newest_sequence_number_);
+#endif
+
   int return_val = kOK;
 
   packet.waiting_time = tick_timer_->GetNewStopwatch();
 
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+  if (num_primary_packets_ >= max_number_of_packets_
+      || buffer_.size() >= max_number_of_packets_ * 4) {
+#else
   if (buffer_.size() >= max_number_of_packets_) {
+#endif
     // Buffer is full.
     // RingRTC change to log more information around audio jitter buffer flushes
     size_t buffer_size_before_flush = buffer_.size();
     Flush();
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+    newest_sequence_number_ = packet.sequence_number;
+    insert_count_ = 1;
+#endif
     return_val = kFlushed;
     RTC_LOG(LS_WARNING) << "Packet buffer flushed"
                         << ", packets discarded=" << buffer_size_before_flush;
@@ -163,9 +199,21 @@ int PacketBuffer::InsertPacket(Packet&& packet) {
   // packet.
   PacketList::iterator it = rit.base();
   if (it != buffer_.end() && packet.timestamp == it->timestamp) {
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+    if (it->priority.codec_level == 0) {
+      num_primary_packets_--;
+    }
+#endif
     LogPacketDiscarded(it->priority.codec_level);
     it = buffer_.erase(it);
   }
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+  if (is_primary) {
+    num_primary_packets_++;
+  }
+#endif
   buffer_.insert(it, std::move(packet));  // Insert the packet at that position.
 
   return return_val;
@@ -201,6 +249,39 @@ int PacketBuffer::NextHigherTimestamp(uint32_t timestamp,
   return kNotFound;
 }
 
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+std::optional<PacketBuffer::NextLowerTimestampResult> PacketBuffer::NextLowerTimestamp(
+    uint16_t sequence_number,
+    uint32_t timestamp) const {
+  if (Empty()) {
+    // Buffer is empty.
+    return std::nullopt;
+  }
+
+  for (auto rit = buffer_.rbegin(); rit != buffer_.rend(); ++rit) {
+    if (IsNewerTimestamp(timestamp, rit->timestamp)) {
+      uint16_t sequence_diff = sequence_number - rit->sequence_number;
+      if (sequence_diff > 1 &&
+          IsNewerSequenceNumber(sequence_number, rit->sequence_number)) {
+        // Found a packet matching the search.
+        return NextLowerTimestampResult{rit->timestamp, rit->frame->Duration()};
+      } else {
+        return std::nullopt;
+      }
+    }
+  }
+  return std::nullopt;
+}
+
+std::optional<uint16_t> PacketBuffer::NewestSequenceNumber() const {
+  if (insert_count_ == 0) {
+    return std::nullopt;
+  }
+  return newest_sequence_number_;
+}
+#endif
+
 const Packet* PacketBuffer::PeekNextPacket() const {
   return buffer_.empty() ? nullptr : &buffer_.front();
 }
@@ -214,6 +295,12 @@ std::optional<Packet> PacketBuffer::GetNextPacket() {
   std::optional<Packet> packet(std::move(buffer_.front()));
   // Assert that the packet sanity checks in InsertPacket method works.
   RTC_DCHECK(!packet->empty());
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+  if (packet->priority.codec_level == 0) {
+    num_primary_packets_--;
+  }
+#endif
   buffer_.pop_front();
 
   return packet;
@@ -226,6 +313,12 @@ int PacketBuffer::DiscardNextPacket() {
   // Assert that the packet sanity checks in InsertPacket method works.
   const Packet& packet = buffer_.front();
   RTC_DCHECK(!packet.empty());
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+  if (packet.priority.codec_level == 0) {
+    num_primary_packets_--;
+  }
+#endif
   LogPacketDiscarded(packet.priority.codec_level);
   buffer_.pop_front();
   return kOK;
@@ -238,6 +331,12 @@ void PacketBuffer::DiscardOldPackets(uint32_t timestamp_limit,
         !IsObsoleteTimestamp(p.timestamp, timestamp_limit, horizon_samples)) {
       return false;
     }
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+    if (p.priority.codec_level == 0) {
+      num_primary_packets_--;
+    }
+#endif
     LogPacketDiscarded(p.priority.codec_level);
     return true;
   });
@@ -252,6 +351,12 @@ void PacketBuffer::DiscardPacketsWithPayloadType(uint8_t payload_type) {
     if (p.payload_type != payload_type) {
       return false;
     }
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+    if (p.priority.codec_level == 0) {
+      num_primary_packets_--;
+    }
+#endif
     LogPacketDiscarded(p.priority.codec_level);
     return true;
   });

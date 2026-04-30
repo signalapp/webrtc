@@ -321,9 +321,47 @@ int NetEqImpl::InsertPacket(const RTPHeader& rtp_header,
         return new_packet;
       };
 
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+      std::vector<AudioDecoder::ParseResult> results;
+      if (packet.payload.size() > 2) {
+        uint32_t previous_timestamp;
+        if (auto result = packet_buffer_->NextLowerTimestamp(
+            packet.sequence_number, packet.timestamp)) {
+          previous_timestamp =
+              result->timestamp + static_cast<uint32_t>(result->duration);
+        } else {
+          bool have_loss = false;
+          if (auto newest_seq = packet_buffer_->NewestSequenceNumber()) {
+            const uint16_t gap = packet.sequence_number - *newest_seq;
+            have_loss = gap > 1 &&
+                IsNewerSequenceNumber(packet.sequence_number, *newest_seq);
+          }
+          previous_timestamp =
+              have_loss ? sync_buffer_->end_timestamp() : packet.timestamp;
+        }
+
+        uint32_t current_gap = packet.timestamp - previous_timestamp;
+        // Skip DRED if the gap exceeds 5s (likely an unsigned wrap).
+        if (current_gap > static_cast<uint32_t>(fs_hz_) * 5) {
+          current_gap = 0;
+        }
+
+        results = info->GetDecoder()->ParsePayloadRedundancy(
+            std::move(packet.payload), packet.timestamp, current_gap);
+        if (!results.empty()) {
+          // Update to the earliest recovered packet timestamp.
+          main_timestamp = results.front().timestamp;
+        }
+      } else {
+        results = info->GetDecoder()->ParsePayload(
+            std::move(packet.payload), packet.timestamp);
+      }
+#else
       std::vector<AudioDecoder::ParseResult> results =
           info->GetDecoder()->ParsePayload(std::move(packet.payload),
                                            packet.timestamp);
+#endif
       if (results.empty()) {
         packet_list.pop_front();
       } else {

@@ -79,6 +79,20 @@ class PacketBuffer {
   virtual int NextHigherTimestamp(uint32_t timestamp,
                                   uint32_t* next_timestamp) const;
 
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+  struct NextLowerTimestampResult {
+    uint32_t timestamp;
+    size_t duration;
+  };
+
+  virtual std::optional<NextLowerTimestampResult> NextLowerTimestamp(
+      uint16_t sequence_number,
+      uint32_t timestamp) const;
+
+  virtual std::optional<uint16_t> NewestSequenceNumber() const;
+#endif
+
   // Returns a (constant) pointer to the first packet in the buffer. Returns
   // NULL if the buffer is empty.
   virtual const Packet* PeekNextPacket() const;
@@ -145,6 +159,12 @@ class PacketBuffer {
   PacketList buffer_;
   const TickTimer* tick_timer_;
   StatisticsCalculator* stats_;
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+  uint16_t newest_sequence_number_;
+  uint64_t insert_count_;
+  size_t num_primary_packets_;
+#endif
 };
 
 }  // namespace webrtc

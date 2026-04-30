@@ -10,3 +10,9 @@ declare_args() {
   # Enable Opus DRED (deep redundancy). Implies Deep PLC support.
   rtc_opus_support_dred = false
 }
+
+# Disable DRED and Deep PLC on 32-bit ARM due to instability on some devices.
+if (current_cpu == "arm") {
+  rtc_opus_support_deep_plc = false
+  rtc_opus_support_dred = false
+}

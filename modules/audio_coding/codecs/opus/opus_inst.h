@@ -34,6 +34,10 @@ struct WebRtcOpusEncInst {
 struct WebRtcOpusDecInst {
   OpusDecoder* decoder;
   OpusMSDecoder* multistream_decoder;
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+  OpusDREDDecoder* dred_decoder;
+#endif
   size_t channels;
   int in_dtx_mode;
   int sample_rate_hz;

@@ -25,6 +25,12 @@
 #include "rtc_base/buffer.h"
 #include "rtc_base/string_to_number.h"
 
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+#include "modules/audio_coding/codecs/opus/audio_decoder_opus.h"
+#include "rtc_base/copy_on_write_buffer.h"
+#endif
+
 namespace webrtc {
 
 std::optional<std::string> GetFormatParameter(const SdpAudioFormat& format,
@@ -48,8 +54,28 @@ class OpusFrame : public AudioDecoder::EncodedAudioFrame {
         payload_(std::move(payload)),
         is_primary_payload_(is_primary_payload) {}
 
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+  OpusFrame(AudioDecoder* decoder,
+            const CopyOnWriteBuffer& dred_payload,
+            int dred_index,
+            uint32_t dred_primary_timestamp)
+      : decoder_(decoder),
+        is_primary_payload_(false),
+        dred_payload_(dred_payload),
+        dred_index_(dred_index),
+        dred_primary_timestamp_(dred_primary_timestamp) {}
+#endif
+
   size_t Duration() const override {
     int ret;
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+    if (dred_index_ > 0) {
+      // DRED frames are always 10ms.
+      return decoder_->SampleRateHz() / 100;
+    }
+#endif
     if (is_primary_payload_) {
       ret = decoder_->PacketDuration(payload_.data(), payload_.size());
     } else {
@@ -58,7 +84,15 @@ class OpusFrame : public AudioDecoder::EncodedAudioFrame {
     return (ret < 0) ? 0 : static_cast<size_t>(ret);
   }
 
-  bool IsDtxPacket() const override { return payload_.size() <= 2; }
+  bool IsDtxPacket() const override {
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+    // Don't treat DRED frames as DTX packets.
+    return payload_.size() <= 2 && dred_index_ == 0;
+#else
+    return payload_.size() <= 2;
+#endif
+  }
 
   std::optional<DecodeResult> Decode(
       ArrayView<int16_t> decoded) const override {
@@ -68,6 +102,13 @@ class OpusFrame : public AudioDecoder::EncodedAudioFrame {
       ret = decoder_->Decode(
           payload_.data(), payload_.size(), decoder_->SampleRateHz(),
           decoded.size() * sizeof(int16_t), decoded.data(), &speech_type);
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+    } else if (dred_index_ > 0 && dred_payload_.size() > 0) {
+      ret = static_cast<AudioDecoderOpusImpl*>(decoder_)->DecodeDred(
+          dred_payload_.data(), dred_payload_.size(),
+          dred_primary_timestamp_, decoded.data(), dred_index_);
+#endif
     } else {
       ret = decoder_->DecodeRedundant(
           payload_.data(), payload_.size(), decoder_->SampleRateHz(),
@@ -85,6 +126,12 @@ class OpusFrame : public AudioDecoder::EncodedAudioFrame {
   AudioDecoder* const decoder_;
   const Buffer payload_;
   const bool is_primary_payload_;
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+  const CopyOnWriteBuffer dred_payload_;
+  const int dred_index_ = 0;
+  const uint32_t dred_primary_timestamp_ = 0;
+#endif
 };
 
 }  // namespace webrtc

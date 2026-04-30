@@ -36,6 +36,19 @@ class AudioDecoderOpusImpl final : public AudioDecoder {
 
   std::vector<ParseResult> ParsePayload(Buffer&& payload,
                                         uint32_t timestamp) override;
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+  std::vector<ParseResult> ParsePayloadRedundancy(
+      Buffer&& payload,
+      uint32_t timestamp,
+      uint32_t recovery_timestamp_offset) override;
+
+  int DecodeDred(const uint8_t* encoded,
+                 size_t encoded_len,
+                 uint32_t primary_timestamp,
+                 int16_t* decoded,
+                 int index);
+#endif
   void Reset() override;
   int PacketDuration(const uint8_t* encoded, size_t encoded_len) const override;
   int PacketDurationRedundant(const uint8_t* encoded,
