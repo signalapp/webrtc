@@ -450,7 +450,8 @@ class RtpTransceiver : public RtpTransceiverInterface {
   RTCErrorOr<std::optional<std::string>> InitializeOnNetworkThread(
       absl::AnyInvocable<RtpTransportInternal*() &&> transport_lookup)
       RTC_RUN_ON(context()->network_thread());
-  void OnNetworkRouteChanged(std::optional<NetworkRoute> network_route)
+  void OnNetworkRouteChanged(ChannelInterface* channel,
+                             std::optional<NetworkRoute> network_route)
       RTC_RUN_ON(context()->network_thread());
   void ClearRtpTransportState() RTC_RUN_ON(context()->network_thread());
   void SetRtpTransportState(RtpTransportInternal* transport)

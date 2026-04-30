@@ -1398,10 +1398,16 @@ void RtpTransceiver::SetRtpTransportState(RtpTransportInternal* transport) {
   RTC_DCHECK(!rtp_transport_);
   rtp_transport_ = transport;
   if (rtp_transport_) {
+    // Safe to capture raw pointer to channel because we unsubscribe on the
+    // network thread (via GetClearChannelNetworkTask) before the channel is
+    // destroyed on the worker thread (via GetDeleteChannelWorkerTask).
+    // Capturing raw pointer avoids reading `channel_` member on the network
+    // thread, which races with signaling thread moving it during teardown.
     rtp_transport_->SubscribeNetworkRouteChanged(
-        this, [this](std::optional<NetworkRoute> route) {
+        this,
+        [this, channel = channel_.get()](std::optional<NetworkRoute> route) {
           RTC_DCHECK_RUN_ON(context()->network_thread());
-          OnNetworkRouteChanged(route);
+          OnNetworkRouteChanged(channel, route);
         });
   }
 }
@@ -1426,11 +1432,12 @@ RtpTransceiver::InitializeOnNetworkThread(
 }
 
 void RtpTransceiver::OnNetworkRouteChanged(
+    ChannelInterface* channel,
     std::optional<NetworkRoute> network_route) {
   RTC_DCHECK_RUN_ON(context()->network_thread());
-  if (channel_ && rtp_transport_) {
-    RTC_LOG(LS_INFO) << "Network route changed for mid=" << channel_->mid();
-    channel_->media_send_channel()->OnNetworkRouteChanged(
+  if (channel && rtp_transport_) {
+    RTC_LOG(LS_INFO) << "Network route changed for mid=" << channel->mid();
+    channel->media_send_channel()->OnNetworkRouteChanged(
         rtp_transport_->transport_name(),
         network_route.value_or(NetworkRoute()));
   }
