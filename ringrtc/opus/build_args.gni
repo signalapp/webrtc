@@ -11,8 +11,9 @@ declare_args() {
   rtc_opus_support_dred = false
 }
 
-# Disable DRED and Deep PLC on 32-bit ARM due to instability on some devices.
-if (current_cpu == "arm") {
+# Disable DRED and Deep PLC on 32-bit ARM (instability on some devices)
+# and on Windows ARM64 (no armcpu.c support).
+if (current_cpu == "arm" || (current_cpu == "arm64" && is_win)) {
   rtc_opus_support_deep_plc = false
   rtc_opus_support_dred = false
 }
