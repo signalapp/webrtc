@@ -4663,7 +4663,7 @@ void SdpOfferAnswerHandler::GetOptionsForOffer(
   session_options->use_obsolete_sctp_sdp =
       offer_answer_options.use_obsolete_sctp_sdp;
   // draft-hancke-tsvwg-snap.
-  session_options->use_sctp_snap = pc_->trials().IsEnabled("WebRTC-Sctp-Snap");
+  session_options->use_sctp_snap = pc_->configuration()->enable_sctp_snap;
 }
 
 void SdpOfferAnswerHandler::GetOptionsForPlanBOffer(
@@ -4948,7 +4948,7 @@ void SdpOfferAnswerHandler::GetOptionsForAnswer(
   session_options->crypto_options = pc_->GetCryptoOptions();
   session_options->pooled_ice_credentials = cached_pooled_ice_credentials_;
   // draft-hancke-tsvwg-snap.
-  session_options->use_sctp_snap = pc_->trials().IsEnabled("WebRTC-Sctp-Snap");
+  session_options->use_sctp_snap = pc_->configuration()->enable_sctp_snap;
 }
 
 void SdpOfferAnswerHandler::GetOptionsForPlanBAnswer(

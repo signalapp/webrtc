@@ -125,6 +125,7 @@ bool PeerConnectionInterface::RTCConfiguration::operator==(
     std::optional<TimeDelta> pacer_burst_interval;
     bool always_negotiate_data_channels;
     int max_sctp_streams;
+    bool enable_sctp_snap;
   };
   static_assert(sizeof(stuff_being_tested_for_equality) == sizeof(*this),
                 "Did you add something to RTCConfiguration and forget to "
