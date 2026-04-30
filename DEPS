@@ -1349,8 +1349,9 @@ hooks = [
     'name': 'download_opus_models_linux',
     'pattern': '.',
     'condition': 'host_os != "win"',
+    'cwd': 'src/ringrtc/opus/src',
     'action': ['bash',
-               'src/ringrtc/opus/src/dnn/download_model.sh',
+               'dnn/download_model.sh',
                'a5177ec6fb7d15058e99e57029746100121f68e4890b1467d4094aa336b6013e'
                ],
   },
