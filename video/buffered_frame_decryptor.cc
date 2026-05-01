@@ -80,8 +80,7 @@ BufferedFrameDecryptor::FrameDecision BufferedFrameDecryptor::DecryptFrame(
 
   // RingRTC change to allow encryption without generic descriptor
   // Place the decrypted frame inline into the existing frame.
-  ArrayView<uint8_t> encrypted_bitstream(frame->mutable_data(),
-                                              frame->size());
+  std::span<uint8_t> encrypted_bitstream(frame->mutable_data(), frame->size());
 
   // Place the decrypted frame inline into the existing frame.
   std::span<uint8_t> inline_decrypted_bitstream(frame->mutable_data(),

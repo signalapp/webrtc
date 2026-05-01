@@ -597,9 +597,6 @@ std::unique_ptr<RtpTransport> JsepTransportController::CreateCustomSrtpTransport
   if (rtcp_dtls_transport) {
     srtp_transport->SetRtcpPacketTransportOwned(std::move(rtcp_dtls_transport));
   }
-  if (config_.enable_external_auth) {
-    srtp_transport->EnableExternalAuth();
-  }
   srtp_transport->SubscribeRtcpPacketReceived(
       this, [this](CopyOnWriteBuffer packet,
                    std::optional<Timestamp> arrival_time, EcnMarking ecn) {

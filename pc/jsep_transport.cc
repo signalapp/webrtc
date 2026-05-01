@@ -254,8 +254,6 @@ RTCError JsepTransport::SetRemoteJsepTransportDescription(
       return RTCError(RTCErrorType::INVALID_PARAMETER,
                       "Failed to setup SRTP crypto parameters.");
     }
-    custom_srtp_transport->CacheRtpAbsSendTimeHeaderExtension(
-        jsep_description.rtp_abs_sendtime_extn_id);
   }
   // end RingRTC
 
