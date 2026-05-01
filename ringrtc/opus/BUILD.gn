@@ -115,13 +115,15 @@ config("opus_private_config") {
 
     if (current_cpu == "arm64") {
       defines += [ "OPUS_ARM_PRESUME_AARCH64_NEON_INTR" ]
-      if (is_mac) {
-        defines += [ "OPUS_ARM_PRESUME_DOTPROD" ]
-      } else {
-        defines += [
-          "OPUS_ARM_MAY_HAVE_DOTPROD",
-          "OPUS_HAVE_RTCD",
-        ]
+      if (rtc_opus_support_dred || rtc_opus_support_deep_plc) {
+        if (is_mac) {
+          defines += [ "OPUS_ARM_PRESUME_DOTPROD" ]
+        } else {
+          defines += [
+            "OPUS_ARM_MAY_HAVE_DOTPROD",
+            "OPUS_HAVE_RTCD",
+          ]
+        }
       }
     }
   }
