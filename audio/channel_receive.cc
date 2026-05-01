@@ -17,11 +17,11 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/audio/audio_device.h"
 #include "api/audio/audio_mixer.h"
 #include "api/audio_codecs/audio_decoder_factory.h"
@@ -125,7 +125,6 @@ class ChannelReceive : public ChannelReceiveInterface,
                  NetEqFactory* neteq_factory,
                  AudioDeviceModule* audio_device_module,
                  Transport* rtcp_send_transport,
-                 uint32_t local_ssrc,
                  uint32_t remote_ssrc,
                  size_t jitter_buffer_max_packets,
                  bool jitter_buffer_fast_playout,
@@ -215,10 +214,9 @@ class ChannelReceive : public ChannelReceiveInterface,
   void SetFrameDecryptor(
       scoped_refptr<FrameDecryptorInterface> frame_decryptor) override;
 
-  void OnLocalSsrcChange(uint32_t local_ssrc) override;
-
   // RingRTC change to configure opus
   void ConfigureDecoder(const AudioDecoder::Config& config) override;
+  // End RingRTC change to configure opus
 
   void RtcpPacketTypesCounterUpdated(
       uint32_t ssrc,
@@ -234,7 +232,7 @@ class ChannelReceive : public ChannelReceiveInterface,
 
   int GetRtpTimestampRateHz() const;
 
-  void OnReceivedPayloadData(ArrayView<const uint8_t> payload,
+  void OnReceivedPayloadData(std::span<const uint8_t> payload,
                              const RTPHeader& header,
                              Timestamp receive_time)
       RTC_RUN_ON(worker_thread_checker_);
@@ -348,7 +346,7 @@ class ChannelReceive : public ChannelReceiveInterface,
       RTC_GUARDED_BY(worker_thread_checker_);
 };
 
-void ChannelReceive::OnReceivedPayloadData(ArrayView<const uint8_t> payload,
+void ChannelReceive::OnReceivedPayloadData(std::span<const uint8_t> payload,
                                            const RTPHeader& header,
                                            Timestamp receive_time) {
   if (!playing_) {
@@ -393,7 +391,7 @@ void ChannelReceive::InitFrameTransformerDelegate(
   // Pass a callback to ChannelReceive::OnReceivedPayloadData, to be called by
   // the delegate to receive transformed audio.
   ChannelReceiveFrameTransformerDelegate::ReceiveFrameCallback
-      receive_audio_callback = [this](ArrayView<const uint8_t> packet,
+      receive_audio_callback = [this](std::span<const uint8_t> packet,
                                       const RTPHeader& header,
                                       Timestamp receive_time) {
         RTC_DCHECK_RUN_ON(&worker_thread_checker_);
@@ -567,7 +565,6 @@ ChannelReceive::ChannelReceive(
     NetEqFactory* neteq_factory,
     AudioDeviceModule* audio_device_module,
     Transport* rtcp_send_transport,
-    uint32_t local_ssrc,
     uint32_t remote_ssrc,
     size_t jitter_buffer_max_packets,
     bool jitter_buffer_fast_playout,
@@ -611,7 +608,6 @@ ChannelReceive::ChannelReceive(
   configuration.receiver_only = true;
   configuration.outgoing_transport = rtcp_send_transport;
   configuration.receive_statistics = rtp_receive_statistics_.get();
-  configuration.local_media_ssrc = local_ssrc;
   configuration.rtcp_packet_type_counter_observer = this;
   configuration.non_sender_rtt_measurement = enable_non_sender_rtt;
   // RingRTC change to configure the RTCP report interval.
@@ -620,7 +616,14 @@ ChannelReceive::ChannelReceive(
   if (frame_transformer)
     InitFrameTransformerDelegate(std::move(frame_transformer));
 
-  rtp_rtcp_ = ModuleRtpRtcpImpl2::CreateReceiveModule(env_, configuration);
+  rtp_rtcp_ =
+      ModuleRtpRtcpImpl2::CreateReceiveModule(env_, configuration, [this] {
+        if (packet_router_ == nullptr) {
+          return kFallbackRtcpSsrcForAudio;
+        }
+        return packet_router_->SsrcOfFirstSender().value_or(
+            kFallbackRtcpSsrcForAudio);
+      });
   rtp_rtcp_->SetRemoteSSRC(remote_ssrc_);
 
   // Ensure that RTCP is enabled for the created channel.
@@ -703,12 +706,10 @@ void ChannelReceive::OnRtpPacket(const RtpPacketReceived& packet) {
   packet_copy.set_payload_type_frequency(it->second);
   if (nack_tracker_) {
     nack_tracker_->UpdateSampleRate(it->second);
-    TimeDelta round_trip_time =
-        rtp_rtcp_->LastRtt().value_or(TimeDelta::Zero());
     nack_tracker_->UpdateLastReceivedPacket(packet.SequenceNumber(),
                                             packet.Timestamp());
     std::vector<uint16_t> nack_list =
-        nack_tracker_->GetNackList(round_trip_time.ms());
+        nack_tracker_->GetNackList(rtp_rtcp_->LastRtt());
     if (!nack_list.empty()) {
       rtp_rtcp_->SendNACK(nack_list.data(), nack_list.size());
     }
@@ -755,8 +756,8 @@ void ChannelReceive::ReceivePacket(const uint8_t* packet,
     const FrameDecryptorInterface::Result decrypt_result =
         frame_decryptor_->Decrypt(
             MediaType::AUDIO, csrcs,
-            /*additional_data=*/
-            nullptr, ArrayView<const uint8_t>(payload, payload_data_length),
+            /*additional_data=*/{},
+            std::span<const uint8_t>(payload, payload_data_length),
             decrypted_audio_payload);
 
     if (decrypt_result.IsOk()) {
@@ -774,7 +775,7 @@ void ChannelReceive::ReceivePacket(const uint8_t* packet,
     payload_data_length = 0;
   }
 
-  ArrayView<const uint8_t> payload_data(payload, payload_data_length);
+  std::span<const uint8_t> payload_data(payload, payload_data_length);
   if (frame_transformer_delegate_) {
     // Asynchronously transform the received payload. After the payload is
     // transformed, the delegate will call OnReceivedPayloadData to handle it.
@@ -793,12 +794,11 @@ void ChannelReceive::ReceivePacket(const uint8_t* packet,
 
 void ChannelReceive::ReceivedRTCPPacket(const uint8_t* data, size_t length) {
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);
-
   // Store playout timestamp for the received RTCP packet
   UpdatePlayoutTimestamp(true, env_.clock().CurrentTime());
 
   // Deliver RTCP packet to RTP/RTCP module for parsing
-  rtp_rtcp_->IncomingRtcpPacket(MakeArrayView(data, length));
+  rtp_rtcp_->IncomingRtcpPacket(std::span(data, length));
 
   std::optional<TimeDelta> rtt = rtp_rtcp_->LastRtt();
   if (!rtt.has_value()) {
@@ -984,11 +984,6 @@ void ChannelReceive::SetFrameDecryptor(
     scoped_refptr<FrameDecryptorInterface> frame_decryptor) {
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);
   frame_decryptor_ = std::move(frame_decryptor);
-}
-
-void ChannelReceive::OnLocalSsrcChange(uint32_t local_ssrc) {
-  RTC_DCHECK_RUN_ON(&worker_thread_checker_);
-  rtp_rtcp_->SetLocalSsrc(local_ssrc);
 }
 
 NetworkStatistics ChannelReceive::GetNetworkStatistics(
@@ -1233,7 +1228,6 @@ std::unique_ptr<ChannelReceiveInterface> CreateChannelReceive(
     NetEqFactory* neteq_factory,
     AudioDeviceModule* audio_device_module,
     Transport* rtcp_send_transport,
-    uint32_t local_ssrc,
     uint32_t remote_ssrc,
     size_t jitter_buffer_max_packets,
     bool jitter_buffer_fast_playout,
@@ -1248,8 +1242,8 @@ std::unique_ptr<ChannelReceiveInterface> CreateChannelReceive(
     const CryptoOptions& crypto_options,
     scoped_refptr<FrameTransformerInterface> frame_transformer) {
   return std::make_unique<ChannelReceive>(
-      env, neteq_factory, audio_device_module, rtcp_send_transport, local_ssrc,
-      remote_ssrc, jitter_buffer_max_packets, jitter_buffer_fast_playout,
+      env, neteq_factory, audio_device_module, rtcp_send_transport, remote_ssrc,
+      jitter_buffer_max_packets, jitter_buffer_fast_playout,
       jitter_buffer_min_delay_ms,
       // RingRTC change to configure the jitter buffer's max target delay.
       jitter_buffer_max_target_delay_ms,

@@ -38,6 +38,7 @@
 #include "api/rtp_sender_interface.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
+#include "api/sframe/sframe_encrypter_interface.h"
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/video_codecs/video_encoder_factory.h"
@@ -253,6 +254,7 @@ void RtpSenderBase::SetEncoderSelectorOnChannel() {
   if (stopped_ || ssrc_ == 0) {
     return;
   }
+
   worker_thread_->BlockingCall([&, ssrc = ssrc_] {
     RTC_DCHECK_RUN_ON(worker_thread_);
     if (media_channel_)
@@ -260,9 +262,15 @@ void RtpSenderBase::SetEncoderSelectorOnChannel() {
   });
 }
 
-void RtpSenderBase::SetCachedParameters(RtpParameters parameters) {
+void RtpSenderBase::SetCachedParameters(
+    std::optional<RtpParameters> parameters) {
   RTC_DCHECK_RUN_ON(signaling_thread_);
-  cached_parameters_ = std::move(parameters);
+  if (parameters.has_value()) {
+    cached_parameters_ = std::move(*parameters);
+  } else {
+    cached_parameters_.reset();
+    last_transaction_id_.reset();
+  }
 }
 
 void RtpSenderBase::SetMediaChannel(MediaSendChannelInterface* media_channel) {
@@ -272,12 +280,31 @@ void RtpSenderBase::SetMediaChannel(MediaSendChannelInterface* media_channel) {
     return;
   }
 
+  if (media_channel_) {
+    media_channel_->SetParametersChangedCallback(nullptr);
+  }
+
   // Note that setting the media_channel_ to nullptr and clearing the send state
   // via ClearSend_w, are separate operations. Stopping the actual send
   // operation, needs to be done via any of the paths that end up with a call to
   // ClearSend_w(), such as DetachTrackAndGetStopTask().
   media_channel_ = media_channel;
+  if (media_channel_) {
+    media_channel_->SetParametersChangedCallback(
+        [this] { OnParametersChanged(); });
+  }
   media_channel_ ? worker_safety_->SetAlive() : worker_safety_->SetNotAlive();
+}
+
+void RtpSenderBase::OnParametersChanged() {
+  RTC_DCHECK_RUN_ON(worker_thread_);
+  RTC_LOG(LS_INFO) << "RtpSender: OnParametersChanged signaled.";
+  signaling_thread_->PostTask(SafeTask(signaling_safety_.flag(), [this] {
+    RTC_DCHECK_RUN_ON(signaling_thread_);
+    cached_parameters_.reset();
+    last_transaction_id_.reset();
+    RTC_LOG(LS_INFO) << "RtpSender: OnParametersChanged cache cleared.";
+  }));
 }
 
 RtpParameters RtpSenderBase::GetParametersInternal(bool may_use_cache,
@@ -357,6 +384,12 @@ RtpParameters RtpSenderBase::GetParameters() const {
   if (cached && !stopped_ && ssrc_ != 0 && cached_parameters_) {
     RtpParameters cached_filtered = *cached;
     RemoveEncodingLayers(disabled_rids_, &cached_filtered.encodings);
+    if (cached_filtered != result) {
+      RTC_LOG(LS_ERROR)
+          << "Cached send params not equal to worker thread state.\n"
+          << "Cached: " << cached_filtered << "\n"
+          << "Result: " << result;
+    }
     RTC_DCHECK(cached_filtered == result)
         << "The cached value should have been equal (filtered)";
   }
@@ -638,6 +671,7 @@ void RtpSenderBase::SetStreams(const std::vector<std::string>& stream_ids) {
 bool RtpSenderBase::SetTrack(MediaStreamTrackInterface* track) {
   RTC_DCHECK_RUN_ON(signaling_thread_);
   TRACE_EVENT0("webrtc", "RtpSenderBase::SetTrack");
+
   if (stopped_) {
     RTC_LOG(LS_ERROR) << "SetTrack can't be called on a stopped RtpSender.";
     return false;
@@ -883,6 +917,15 @@ void RtpSenderBase::SetFrameTransformer(
   }
 }
 
+RTCErrorOr<scoped_refptr<SframeEncrypterInterface>>
+RtpSenderBase::CreateSframeEncrypterOrError(
+    const SframeEncrypterInit& options) {
+  RTC_DCHECK_RUN_ON(signaling_thread_);
+  // TODO(bugs.webrtc.org/479862368): Implement Sframe encrypter creation.
+  return RTCError(RTCErrorType::UNSUPPORTED_OPERATION,
+                  "Sframe encrypter not yet implemented");
+}
+
 LocalAudioSinkAdapter::LocalAudioSinkAdapter() : sink_(nullptr) {}
 
 LocalAudioSinkAdapter::~LocalAudioSinkAdapter() {
@@ -1057,6 +1100,7 @@ void AudioRtpSender::SetSend() {
   // `track_->enabled()` hops to the signaling thread, so call it before we hop
   // to the worker thread or else it will deadlock.
   bool track_enabled = track_->enabled();
+  InvalidateCache();
   bool success = worker_thread_->BlockingCall([&, ssrc = ssrc_] {
     RTC_DCHECK_RUN_ON(worker_thread_);
     return media_channel_
@@ -1199,6 +1243,7 @@ void VideoRtpSender::SetSend() {
       break;
   }
   auto* video_track = static_cast<VideoTrackInterface*>(track_.get());
+  InvalidateCache();
   bool success = worker_thread_->BlockingCall([&, ssrc = ssrc_] {
     RTC_DCHECK_RUN_ON(worker_thread_);
     return media_channel_ ? video_media_channel()->SetVideoSend(ssrc, &options,

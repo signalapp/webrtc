@@ -14,6 +14,7 @@
 #include <cstring>
 #include <memory>
 #include <optional>
+#include <span>
 #include <utility>
 #include <vector>
 
@@ -37,9 +38,9 @@
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/rtc_certificate.h"
 #include "rtc_base/ssl_identity.h"
-#include "rtc_base/thread.h"
 #include "test/create_test_field_trials.h"
 #include "test/gtest.h"
+#include "test/run_loop.h"
 
 namespace webrtc {
 namespace {
@@ -137,7 +138,7 @@ class DtlsSrtpTransportTest : public ::testing::Test {
     memcpy(rtp_packet_data, kPcmuFrame, rtp_len);
     // In order to be able to run this test function multiple times we can not
     // use the same sequence number twice. Increase the sequence number by one.
-    SetBE16(reinterpret_cast<uint8_t*>(rtp_packet_data) + 2,
+    SetBE16(std::span<uint8_t>(rtp_packet_buffer).subspan(2),
             ++sequence_number_);
     CopyOnWriteBuffer rtp_packet1to2(rtp_packet_data, rtp_len, packet_size);
     CopyOnWriteBuffer rtp_packet2to1(rtp_packet_data, rtp_len, packet_size);
@@ -210,7 +211,7 @@ class DtlsSrtpTransportTest : public ::testing::Test {
     memcpy(rtp_packet_data, kPcmuFrameWithExtensions, rtp_len);
     // In order to be able to run this test function multiple times we can not
     // use the same sequence number twice. Increase the sequence number by one.
-    SetBE16(reinterpret_cast<uint8_t*>(rtp_packet_data) + 2,
+    SetBE16(std::span<uint8_t>(rtp_packet_buffer).subspan(2),
             ++sequence_number_);
     CopyOnWriteBuffer rtp_packet1to2(rtp_packet_data, rtp_len, packet_size);
     CopyOnWriteBuffer rtp_packet2to1(rtp_packet_data, rtp_len, packet_size);
@@ -266,7 +267,7 @@ class DtlsSrtpTransportTest : public ::testing::Test {
     SendRecvRtcpPackets();
   }
 
-  AutoThread main_thread_;
+  test::RunLoop main_thread_;
   std::unique_ptr<DtlsSrtpTransport> dtls_srtp_transport1_;
   std::unique_ptr<DtlsSrtpTransport> dtls_srtp_transport2_;
   TransportObserver transport_observer1_;

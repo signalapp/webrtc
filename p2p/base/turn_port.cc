@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -23,7 +24,6 @@
 #include "absl/memory/memory.h"
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/candidate.h"
 #include "api/local_network_access_permission.h"
 #include "api/packet_socket_factory.h"
@@ -799,7 +799,7 @@ bool TurnPort::HandleIncomingPacket(AsyncPacketSocket* socket,
   // Check the message type, to see if is a Channel Data message.
   // The message will either be channel data, a TURN data indication, or
   // a response to a previous request.
-  uint16_t msg_type = GetBE16(packet.payload().data());
+  uint16_t msg_type = GetBE16(packet.payload());
   if (IsTurnChannelData(msg_type)) {
     HandleChannelData(msg_type, packet);
     return true;
@@ -1130,8 +1130,9 @@ void TurnPort::HandleChannelData(uint16_t channel_id,
   //   +-------------------------------+
 
   // Extract header fields from the message.
-  uint16_t len = GetBE16(packet.payload().data() + 2);
-  if (len > packet.payload().size() - TURN_CHANNEL_HEADER_SIZE) {
+  std::span<const uint8_t> payload = packet.payload();
+  uint16_t len = GetBE16(payload.subspan(2, 2));
+  if (len > payload.size() - TURN_CHANNEL_HEADER_SIZE) {
     RTC_LOG(LS_WARNING) << ToString()
                         << ": Received TURN channel data message with "
                            "incorrect length, len: "
@@ -1149,7 +1150,7 @@ void TurnPort::HandleChannelData(uint16_t channel_id,
     return;
   }
   ReceivedIpPacket unwrapped_packet = ReceivedIpPacket(
-      packet.payload().subview(TURN_CHANNEL_HEADER_SIZE, len), entry->address(),
+      payload.subspan(TURN_CHANNEL_HEADER_SIZE, len), entry->address(),
       packet.arrival_time(), packet.ecn(), packet.decryption_info());
   DispatchPacket(unwrapped_packet, PROTO_UDP);
 }
@@ -1881,7 +1882,7 @@ int TurnEntry::Send(const void* data,
     buf.WriteUInt16(channel_id_);
     buf.WriteUInt16(static_cast<uint16_t>(size));
     buf.Write(
-        ArrayView<const uint8_t>(reinterpret_cast<const uint8_t*>(data), size));
+        std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(data), size));
   }
   AsyncSocketPacketOptions modified_options(options);
   modified_options.info_signaled_after_sent.turn_overhead_bytes =

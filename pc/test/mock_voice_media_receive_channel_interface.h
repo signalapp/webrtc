@@ -13,10 +13,10 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
-#include <set>
 #include <type_traits>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "api/audio_options.h"
 #include "api/call/audio_sink.h"
 #include "api/crypto/frame_decryptor_interface.h"
@@ -80,6 +80,10 @@ class MockVoiceMediaReceiveChannelInterface
               GetStats,
               (webrtc::VoiceMediaReceiveInfo * stats, bool reset_legacy),
               (override));
+  MOCK_METHOD(absl::AnyInvocable<std::optional<VoiceMediaReceiveInfo>()>,
+              GetStatsCallback,
+              (bool reset_legacy),
+              (override));
   MOCK_METHOD(::webrtc::RtcpMode, RtcpMode, (), (const, override));
   MOCK_METHOD(void, SetRtcpMode, (::webrtc::RtcpMode mode), (override));
   MOCK_METHOD(void, SetReceiveNackEnabled, (bool enabled), (override));
@@ -106,18 +110,11 @@ class MockVoiceMediaReceiveChannelInterface
               SetInterface,
               (webrtc::MediaChannelNetworkInterface * iface),
               (override));
-  MOCK_METHOD(void,
-              OnPacketReceived,
-              (const RtpPacketReceived& packet),
-              (override));
+  MOCK_METHOD(void, OnPacketReceived, (RtpPacketReceived packet), (override));
   MOCK_METHOD(std::optional<uint32_t>,
               GetUnsignaledSsrc,
               (),
               (const, override));
-  MOCK_METHOD(void,
-              ChooseReceiverReportSsrc,
-              (const std::set<uint32_t>& choices),
-              (override));
   MOCK_METHOD(void, OnDemuxerCriteriaUpdatePending, (), (override));
   MOCK_METHOD(void, OnDemuxerCriteriaUpdateComplete, (), (override));
   MOCK_METHOD(void,

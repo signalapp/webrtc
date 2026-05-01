@@ -16,10 +16,10 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include <vector>
 
 #include "absl/memory/memory.h"
-#include "api/array_view.h"
 #include "api/video/render_resolution.h"
 #include "api/video/video_bitrate_allocation.h"
 #include "api/video/video_codec_constants.h"
@@ -322,7 +322,7 @@ void VideoEncoderWrapper::OnEncodedFrame(
   // This is a bit subtle. The `frame` variable from the lambda capture is
   // const. Which implies that (i) we need to make a copy to be able to
   // write to the metadata, and (ii) we should avoid using the .data()
-  // method (including implicit conversion to ArrayView) on the non-const
+  // method (including implicit conversion to std::span) on the non-const
   // copy, since that would trigget a copy operation on the underlying
   // CopyOnWriteBuffer.
   EncodedImage frame_copy = frame;
@@ -366,7 +366,7 @@ int32_t VideoEncoderWrapper::HandleReturnCode(JNIEnv* jni,
   return WEBRTC_VIDEO_CODEC_FALLBACK_SOFTWARE;
 }
 
-int VideoEncoderWrapper::ParseQp(ArrayView<const uint8_t> buffer) {
+int VideoEncoderWrapper::ParseQp(std::span<const uint8_t> buffer) {
   int qp;
   bool success;
   switch (codec_settings_.codecType) {
@@ -458,9 +458,10 @@ ScopedJavaLocalRef<jobject> VideoEncoderWrapper::ToJavaBitrateAllocation(
       ScopedJavaLocalRef<jobjectArray>::Adopt(
           jni, jni->NewObjectArray(kMaxSpatialLayers, int_array_class_.obj(),
                                    nullptr /* initial */));
-  for (int spatial_i = 0; spatial_i < kMaxSpatialLayers; ++spatial_i) {
+  for (size_t spatial_i = 0; spatial_i < kMaxSpatialLayers; ++spatial_i) {
     std::array<int32_t, kMaxTemporalStreams> spatial_layer;
-    for (int temporal_i = 0; temporal_i < kMaxTemporalStreams; ++temporal_i) {
+    for (size_t temporal_i = 0; temporal_i < kMaxTemporalStreams;
+         ++temporal_i) {
       spatial_layer[temporal_i] = allocation.GetBitrate(spatial_i, temporal_i);
     }
 

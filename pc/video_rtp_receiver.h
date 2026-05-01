@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/crypto/frame_decryptor_interface.h"
 #include "api/dtls_transport_interface.h"
@@ -36,13 +37,12 @@
 #include "pc/rtp_receiver.h"
 #include "pc/video_rtp_track_source.h"
 #include "pc/video_track.h"
-#include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
 
-class VideoRtpReceiver : public RtpReceiverInternal {
+class VideoRtpReceiver : public RtpReceiverBase {
  public:
   // An SSRC of 0 will create a receiver that will match the first SSRC it
   // sees. Must be called on signaling thread.
@@ -87,11 +87,11 @@ class VideoRtpReceiver : public RtpReceiverInternal {
 
   // RtpReceiverInternal implementation.
   void Stop() override;
-  void SetupMediaChannel(uint32_t ssrc) override;
-  void SetupUnsignaledMediaChannel() override;
+  absl::AnyInvocable<void() &&> GetSetupForMediaChannel(uint32_t ssrc) override;
+  absl::AnyInvocable<void() &&> GetSetupForUnsignaledMediaChannel() override;
   std::optional<uint32_t> ssrc() const override;
-  void NotifyFirstPacketReceived() override;
-  void NotifyFirstPacketReceivedAfterReceptiveChange() override;
+  void NotifyFirstPacketReceived(uint32_t ssrc) override;
+  void NotifyFirstPacketReceivedAfterReceptiveChange(uint32_t ssrc) override;
   void set_stream_ids(std::vector<std::string> stream_ids) override;
   void set_transport(
       scoped_refptr<DtlsTransportInterface> dtls_transport) override;
@@ -109,17 +109,18 @@ class VideoRtpReceiver : public RtpReceiverInternal {
 
   std::vector<RtpSource> GetSources() const override;
 
-  // Combines SetMediaChannel, SetupMediaChannel and
-  // SetupUnsignaledMediaChannel.
-  void SetupMediaChannel(std::optional<uint32_t> ssrc,
-                         MediaReceiveChannelInterface* media_channel);
+  // Combines SetMediaChannel, GetSetupForMediaChannel and
+  // GetSetupForUnsignaledMediaChannel.
+  absl::AnyInvocable<void() &&> GetSetupForMediaChannel(
+      std::optional<uint32_t> ssrc,
+      VideoMediaReceiveChannelInterface* media_channel);
 
  private:
-  void RestartMediaChannel(std::optional<uint32_t> ssrc)
-      RTC_RUN_ON(&signaling_thread_checker_);
-  void RestartMediaChannel_w(std::optional<uint32_t> ssrc,
-                             MediaSourceInterface::SourceState state)
-      RTC_RUN_ON(worker_thread_);
+  absl::AnyInvocable<void() &&> GetRestartFunctionForMediaChannel(
+      std::optional<uint32_t> ssrc) RTC_RUN_ON(&signaling_thread_checker_);
+  void GetRestartFunctionForMediaChannel_w(
+      std::optional<uint32_t> ssrc,
+      MediaSourceInterface::SourceState state) RTC_RUN_ON(worker_thread_);
   void SetSink(VideoSinkInterface<VideoFrame>* sink) RTC_RUN_ON(worker_thread_);
   void SetMediaChannel_w(MediaReceiveChannelInterface* media_channel)
       RTC_RUN_ON(worker_thread_);
@@ -143,9 +144,6 @@ class VideoRtpReceiver : public RtpReceiverInternal {
 
     VideoRtpReceiver* const receiver_;
   } source_callback_{this};
-
-  RTC_NO_UNIQUE_ADDRESS SequenceChecker signaling_thread_checker_;
-  Thread* const worker_thread_;
 
   const std::string id_;
   VideoMediaReceiveChannelInterface* media_channel_

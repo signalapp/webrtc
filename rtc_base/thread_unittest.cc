@@ -10,10 +10,12 @@
 
 #include "rtc_base/thread.h"
 
+#include <array>
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -26,6 +28,7 @@
 #include "api/units/time_delta.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/async_udp_socket.h"
+#include "rtc_base/byte_order.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/event.h"
 #include "rtc_base/fake_clock.h"
@@ -42,6 +45,7 @@
 #include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/run_loop.h"
 #include "test/testsupport/rtc_expect_death.h"
 #include "test/wait_until.h"
 
@@ -81,8 +85,9 @@ class MessageClient : public TestGenerator {
   ~MessageClient() { delete socket_; }
 
   void OnValue(int value) {
-    int result = Next(value);
-    EXPECT_GE(socket_->Send(&result, sizeof(result)), 0);
+    std::array<uint8_t, sizeof(uint32_t)> octets;
+    SetLE32(octets, Next(value));
+    EXPECT_GE(socket_->Send(octets.data(), octets.size()), 0);
   }
 
  private:
@@ -113,8 +118,7 @@ class SocketClient : public TestGenerator {
 
   void OnPacket(AsyncPacketSocket* socket, const ReceivedIpPacket& packet) {
     EXPECT_EQ(packet.payload().size(), sizeof(uint32_t));
-    uint32_t prev =
-        reinterpret_cast<const uint32_t*>(packet.payload().data())[0];
+    uint32_t prev = GetLE32(packet.payload());
     uint32_t result = Next(prev);
 
     post_thread_->PostDelayedTask([post_handler_ = post_handler_,
@@ -867,6 +871,54 @@ TEST(ThreadPostDelayedTaskTest, IsCurrentTaskQueue) {
     thread->UnwrapCurrent();
   }
   EXPECT_EQ(TaskQueueBase::Current(), current_tq);
+}
+
+// Uses `HasPendingTasks()` to detect when to yield to another posted task.
+TEST(ThreadCooperativeTest, TaskTriggersHasPendingTasks) {
+  test::RunLoop loop;
+  auto thread = Thread::Create();
+  thread->Start();
+
+  bool was_interrupted = false;
+  Event task_started;
+
+  // Post a long running task that checks for pending tasks.
+  thread->PostTask(
+      [&was_interrupted, &loop, &task_started, thread = thread.get()] {
+        task_started.Set();
+        while (!thread->HasPendingTasks()) {
+          // Busy loop/simulated work
+        }
+        loop.PostTask([&was_interrupted, &loop] {
+          was_interrupted = true;
+          loop.Quit();
+        });
+      });
+
+  // Wait for the task to start to ensure that the task doesn't
+  // run first.
+  task_started.Wait(Event::kForever);
+
+  // Post a task that interrupts the busy loop.
+  thread->PostTask([] {});
+
+  loop.Run();
+  EXPECT_TRUE(was_interrupted);
+}
+
+TEST(ThreadCooperativeTest, HasPendingTasksClearedAfterTask) {
+  std::unique_ptr<Thread> thread(Thread::Create());
+  thread->Start();
+
+  // Initially false.
+  thread->BlockingCall([&] { EXPECT_FALSE(thread->HasPendingTasks()); });
+
+  // Post task.
+  thread->PostTask([&] {});
+
+  // Use `BlockingCall` to post normal task which implicitly blocks and waits
+  // for its functor to run, at which point the queue will be empty again.
+  thread->BlockingCall([&] { EXPECT_FALSE(thread->HasPendingTasks()); });
 }
 
 class ThreadFactory : public TaskQueueFactory {

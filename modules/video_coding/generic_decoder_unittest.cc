@@ -12,10 +12,10 @@
 
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <utility>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/field_trials.h"
 #include "api/rtp_packet_infos.h"
 #include "api/scoped_refptr.h"
@@ -75,7 +75,7 @@ class ReceiveCallback : public VCMReceiveCallback {
     return ret;
   }
 
-  ArrayView<const VideoFrame> GetAllFrames() const { return frames_; }
+  std::span<const VideoFrame> GetAllFrames() const { return frames_; }
 
   void OnDroppedFrames(uint32_t frames_dropped) override {
     frames_dropped_ += frames_dropped;
@@ -271,6 +271,46 @@ TEST_F(GenericDecoderTest, UsesMappedColorSpaceIfSet) {
   std::optional<VideoFrame> decoded_frame = user_callback_.PopLastFrame();
   ASSERT_TRUE(decoded_frame.has_value());
   EXPECT_EQ(decoded_frame->color_space(), kMappedColorSpace);
+}
+
+TEST_F(GenericDecoderTest, SetsScreenshareContentTypeIfSetInFrameInfo) {
+  constexpr uint32_t kRtpTimestamp = 1;
+  FrameInfo frame_info;
+  frame_info.rtp_timestamp = kRtpTimestamp;
+  frame_info.decode_start = Timestamp::Zero();
+  frame_info.content_type = VideoContentType::SCREENSHARE;
+  frame_info.frame_type = VideoFrameType::kVideoFrameKey;
+
+  VideoFrame video_frame = VideoFrame::Builder()
+                               .set_video_frame_buffer(I420Buffer::Create(5, 5))
+                               .set_rtp_timestamp(kRtpTimestamp)
+                               .build();
+  vcm_callback_.Map(std::move(frame_info));
+  vcm_callback_.Decoded(video_frame);
+
+  std::optional<VideoFrame> decoded_frame = user_callback_.PopLastFrame();
+  ASSERT_TRUE(decoded_frame.has_value());
+  EXPECT_EQ(decoded_frame->content_type(), VideoContentType::SCREENSHARE);
+}
+
+TEST_F(GenericDecoderTest, SetsUnspecifiedContentTypeIfSetInFrameInfo) {
+  constexpr uint32_t kRtpTimestamp = 1;
+  FrameInfo frame_info;
+  frame_info.rtp_timestamp = kRtpTimestamp;
+  frame_info.decode_start = Timestamp::Zero();
+  frame_info.content_type = VideoContentType::UNSPECIFIED;
+  frame_info.frame_type = VideoFrameType::kVideoFrameKey;
+
+  VideoFrame video_frame = VideoFrame::Builder()
+                               .set_video_frame_buffer(I420Buffer::Create(5, 5))
+                               .set_rtp_timestamp(kRtpTimestamp)
+                               .build();
+  vcm_callback_.Map(std::move(frame_info));
+  vcm_callback_.Decoded(video_frame);
+
+  std::optional<VideoFrame> decoded_frame = user_callback_.PopLastFrame();
+  ASSERT_TRUE(decoded_frame.has_value());
+  EXPECT_EQ(decoded_frame->content_type(), VideoContentType::UNSPECIFIED);
 }
 
 TEST_F(GenericDecoderTest, UsesDecoderColorSpaceIfNoneMapped) {

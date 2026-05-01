@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/crypto/frame_decryptor_interface.h"
 #include "api/dtls_transport_interface.h"
@@ -35,7 +36,6 @@
 #include "pc/media_stream_track_proxy.h"
 #include "pc/remote_audio_source.h"
 #include "pc/rtp_receiver.h"
-#include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
 
@@ -43,14 +43,15 @@ namespace webrtc {
 
 class AudioRtpReceiver : public ObserverInterface,
                          public AudioSourceInterface::AudioObserver,
-                         public RtpReceiverInternal {
+                         public RtpReceiverBase {
  public:
   // The constructor supports optionally passing the voice channel to the
   // instance at construction time without having to call `SetMediaChannel()`
   // on the worker thread straight after construction.
   // However, when using that, the assumption is that right after construction,
-  // a call to either `SetupUnsignaledMediaChannel` or `SetupMediaChannel`
-  // will be made, which will internally start the source on the worker thread.
+  // a call to either `GetSetupForUnsignaledMediaChannel` or
+  // `GetSetupForMediaChannel` will be made, which will internally start the
+  // source on the worker thread.
   AudioRtpReceiver(Thread* worker_thread,
                    absl::string_view receiver_id,
                    std::vector<std::string> stream_ids,
@@ -106,11 +107,11 @@ class AudioRtpReceiver : public ObserverInterface,
 
   // RtpReceiverInternal implementation.
   void Stop() override;
-  void SetupMediaChannel(uint32_t ssrc) override;
-  void SetupUnsignaledMediaChannel() override;
+  absl::AnyInvocable<void() &&> GetSetupForMediaChannel(uint32_t ssrc) override;
+  absl::AnyInvocable<void() &&> GetSetupForUnsignaledMediaChannel() override;
   std::optional<uint32_t> ssrc() const override;
-  void NotifyFirstPacketReceived() override;
-  void NotifyFirstPacketReceivedAfterReceptiveChange() override;
+  void NotifyFirstPacketReceived(uint32_t ssrc) override;
+  void NotifyFirstPacketReceivedAfterReceptiveChange(uint32_t ssrc) override;
   void set_stream_ids(std::vector<std::string> stream_ids) override;
   void set_transport(
       scoped_refptr<DtlsTransportInterface> dtls_transport) override;
@@ -136,17 +137,15 @@ class AudioRtpReceiver : public ObserverInterface,
       VoiceMediaReceiveChannelInterface* media_channel,
       RemoteAudioSource::OnAudioChannelGoneAction source_gone_action);
 
-  void RestartMediaChannel(std::optional<uint32_t> ssrc)
-      RTC_RUN_ON(&signaling_thread_checker_);
-  void RestartMediaChannel_w(std::optional<uint32_t> ssrc,
-                             bool track_enabled,
-                             MediaSourceInterface::SourceState state)
-      RTC_RUN_ON(worker_thread_);
+  absl::AnyInvocable<void() &&> GetRestartFunctionForMediaChannel(
+      std::optional<uint32_t> ssrc) RTC_RUN_ON(&signaling_thread_checker_);
+  void GetRestartFunctionForMediaChannel_w(
+      std::optional<uint32_t> ssrc,
+      bool track_enabled,
+      MediaSourceInterface::SourceState state) RTC_RUN_ON(worker_thread_);
   void Reconfigure(bool track_enabled) RTC_RUN_ON(worker_thread_);
   void SetOutputVolume_w(double volume) RTC_RUN_ON(worker_thread_);
 
-  RTC_NO_UNIQUE_ADDRESS SequenceChecker signaling_thread_checker_;
-  Thread* const worker_thread_;
   const std::string id_;
   const scoped_refptr<RemoteAudioSource> source_;
   const scoped_refptr<AudioTrackProxyWithInternal<AudioTrack>> track_;

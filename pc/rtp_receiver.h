@@ -21,11 +21,18 @@
 #include <string>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "api/dtls_transport_interface.h"
 #include "api/media_stream_interface.h"
+#include "api/rtc_error.h"
 #include "api/rtp_receiver_interface.h"
 #include "api/scoped_refptr.h"
+#include "api/sequence_checker.h"
+#include "api/sframe/sframe_decrypter_interface.h"
+#include "api/sframe/sframe_types.h"
 #include "media/base/media_channel.h"
+#include "rtc_base/system/no_unique_address.h"
+#include "rtc_base/thread.h"
 
 namespace webrtc {
 
@@ -48,11 +55,19 @@ class RtpReceiverInternal : public RtpReceiverInterface {
 
   // Configures the RtpReceiver with the underlying media channel, with the
   // given SSRC as the stream identifier.
-  virtual void SetupMediaChannel(uint32_t ssrc) = 0;
+  // This function returns a callable object that must be invoked on the worker
+  // thread by the caller to complete the operation. This is done to allow the
+  // caller to batch up tasks for the worker thread.
+  [[nodiscard]] virtual absl::AnyInvocable<void() &&> GetSetupForMediaChannel(
+      uint32_t ssrc) = 0;
 
   // Configures the RtpReceiver with the underlying media channel to receive an
   // unsignaled receive stream.
-  virtual void SetupUnsignaledMediaChannel() = 0;
+  // This function returns a callable object that must be invoked on the worker
+  // thread by the caller to complete the operation. This is done to allow the
+  // caller to batch up tasks for the worker thread.
+  [[nodiscard]] virtual absl::AnyInvocable<void() &&>
+  GetSetupForUnsignaledMediaChannel() = 0;
 
   virtual void set_transport(
       scoped_refptr<DtlsTransportInterface> dtls_transport) = 0;
@@ -62,9 +77,9 @@ class RtpReceiverInternal : public RtpReceiverInterface {
 
   // Call this to notify the RtpReceiver when the first packet has been received
   // on the corresponding channel.
-  virtual void NotifyFirstPacketReceived() = 0;
+  virtual void NotifyFirstPacketReceived(uint32_t ssrc) = 0;
   // Similar to the above but done whenever the receptive flag changed.
-  virtual void NotifyFirstPacketReceivedAfterReceptiveChange() = 0;
+  virtual void NotifyFirstPacketReceivedAfterReceptiveChange(uint32_t ssrc) = 0;
 
   // Set the associated remote media streams for this receiver. The remote track
   // will be removed from any streams that are no longer present and added to
@@ -86,6 +101,18 @@ class RtpReceiverInternal : public RtpReceiverInterface {
 
   static std::vector<scoped_refptr<MediaStreamInterface>> CreateStreamsFromIds(
       std::vector<std::string> stream_ids);
+};
+
+class RtpReceiverBase : public RtpReceiverInternal {
+ public:
+  RTCErrorOr<scoped_refptr<SframeDecrypterInterface>>
+  CreateSframeDecrypterOrError(SframeCipherSuite cipher_suite) override;
+
+ protected:
+  explicit RtpReceiverBase(Thread* worker_thread);
+
+  RTC_NO_UNIQUE_ADDRESS SequenceChecker signaling_thread_checker_;
+  Thread* const worker_thread_;
 };
 
 }  // namespace webrtc

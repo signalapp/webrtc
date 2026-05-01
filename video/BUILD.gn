@@ -73,12 +73,12 @@ rtc_library("video") {
     ":frame_cadence_adapter",
     ":frame_decode_scheduler",
     ":frame_dumping_decoder",
+    ":null_video_decoder",
     ":task_queue_frame_decode_scheduler",
     ":unique_timestamp_counter",
     ":video_stream_buffer_controller",
     ":video_stream_encoder_impl",
     ":video_stream_encoder_interface",
-    "../api:array_view",
     "../api:bitrate_allocation",
     "../api:fec_controller_api",
     "../api:field_trials_view",
@@ -190,6 +190,23 @@ rtc_library("video") {
   if (!build_with_mozilla) {
     deps += [ "../media:rtc_media_base" ]
   }
+}
+
+rtc_library("null_video_decoder") {
+  visibility = [ "*" ]
+
+  sources = [
+    "null_video_decoder.cc",
+    "null_video_decoder.h",
+  ]
+
+  deps = [
+    "../api/video:encoded_image",
+    "../api/video_codecs:video_codecs_api",
+    "../modules/video_coding:video_codec_interface",
+    "../rtc_base:logging",
+    "../rtc_base/system:rtc_export",
+  ]
 }
 
 rtc_library("frame_dumping_decoder") {
@@ -528,7 +545,6 @@ if (rtc_include_tests) {
       ]
       deps = [
         ":frame_dumping_decoder",
-        "../api:array_view",
         "../api:create_frame_generator",
         "../api:fec_controller_api",
         "../api:field_trials_view",
@@ -836,7 +852,6 @@ if (rtc_include_tests) {
       ":video_stream_buffer_controller",
       ":video_stream_encoder_impl",
       ":video_stream_encoder_interface",
-      "../api:array_view",
       "../api:bitrate_allocation",
       "../api:create_frame_generator",
       "../api:fake_frame_decryptor",
@@ -904,6 +919,7 @@ if (rtc_include_tests) {
       "../api/video:video_rtp_headers",
       "../api/video:video_stream_encoder",
       "../api/video/corruption_detection:frame_instrumentation_data",
+      "../api/video/corruption_detection:frame_instrumentation_generator_header",
       "../api/video/test:video_frame_matchers",
       "../api/video_codecs:scalability_mode",
       "../api/video_codecs:video_codecs_api",
@@ -973,6 +989,7 @@ if (rtc_include_tests) {
       "../rtc_base/containers:flat_map",
       "../rtc_base/experiments:alr_experiment",
       "../rtc_base/experiments:encoder_info_settings",
+      "../rtc_base/experiments:quality_scaling_experiment",
       "../rtc_base/experiments:rate_control_settings",
       "../rtc_base/synchronization:mutex",
       "../system_wrappers",

@@ -14,12 +14,12 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/audio_codecs/audio_decoder.h"
 #include "api/audio_codecs/audio_format.h"
 #include "rtc_base/buffer.h"
@@ -95,7 +95,7 @@ class OpusFrame : public AudioDecoder::EncodedAudioFrame {
   }
 
   std::optional<DecodeResult> Decode(
-      ArrayView<int16_t> decoded) const override {
+      std::span<int16_t> decoded) const override {
     AudioDecoder::SpeechType speech_type = AudioDecoder::kSpeech;
     int ret;
     if (is_primary_payload_) {
