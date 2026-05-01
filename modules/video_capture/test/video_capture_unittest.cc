@@ -16,6 +16,7 @@
 #include <cstring>
 #include <map>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -31,7 +32,6 @@
 #include "modules/video_capture/video_capture_defines.h"
 #include "modules/video_capture/video_capture_factory.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/strings/string_builder.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread_annotations.h"
 #include "system_wrappers/include/clock.h"
@@ -357,9 +357,10 @@ TEST_F(VideoCaptureTest, MAYBE_Capabilities) {
     VideoCaptureCapability capability;
     EXPECT_EQ(0, device_info_->GetCapability(module->CurrentDeviceName(), i,
                                              capability));
-    StringBuilder sb;
-    sb << capability.width << "x" << capability.height;
-    std::string resolution = sb.Release();
+    std::ostringstream resolutionStream;
+    resolutionStream << capability.width << "x" << capability.height;
+    resolutionStream.flush();
+    std::string resolution = resolutionStream.str();
     frame_rates_by_resolution[resolution].push_back(capability.maxFPS);
 
     // Since Android presents so many resolution/FPS combinations and the test
