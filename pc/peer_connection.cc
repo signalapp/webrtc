@@ -3203,9 +3203,8 @@ absl::AnyInvocable<void(const CopyOnWriteBuffer& packet, int64_t packet_time_us)
                        const>
 PeerConnection::InitializeRtcpCallback() {
   return [this](const CopyOnWriteBuffer& packet, int64_t /*packet_time_us*/) {
-    worker_thread()->PostTask(SafeTask(worker_thread_safety_, [this, packet]() {
-      call_ptr_->Receiver()->DeliverRtcpPacket(packet);
-    }));
+    RTC_DCHECK_RUN_ON(network_thread());
+    call_ptr_->Receiver()->DeliverRtcpPacket(packet);
   };
 }
 

@@ -471,11 +471,8 @@ class Call final : public webrtc::Call,
 
   bool is_started_ RTC_GUARDED_BY(worker_thread_) = false;
 
-  // Sequence checker for outgoing network traffic. Could be the network thread.
-  // Could also be a pacer owned thread or TQ such as the TaskQueueSender.
-  RTC_NO_UNIQUE_ADDRESS SequenceChecker sent_packet_sequence_checker_;
   std::optional<SentPacketInfo> last_sent_packet_
-      RTC_GUARDED_BY(sent_packet_sequence_checker_);
+      RTC_GUARDED_BY(network_thread_);
   // Declared last since it will issue callbacks from a task queue. Declaring it
   // last ensures that it is destroyed first and any running tasks are finished.
   const std::unique_ptr<RtpTransportControllerSendInterface> transport_send_;
@@ -707,7 +704,6 @@ Call::Call(CallConfig config,
 
   receive_11993_checker_.Detach();
   send_transport_sequence_checker_.Detach();
-  sent_packet_sequence_checker_.Detach();
 
   // Do not remove this call; it is here to convince the compiler that the
   // WebRTC source timestamp string needs to be in the final binary.
@@ -1238,7 +1234,7 @@ void Call::OnUpdateSyncGroup(webrtc::AudioReceiveStreamInterface& stream,
 }
 
 void Call::OnSentPacket(const SentPacketInfo& sent_packet) {
-  RTC_DCHECK_RUN_ON(&sent_packet_sequence_checker_);
+  RTC_DCHECK_RUN_ON(network_thread_);
   // When bundling is in effect, multiple senders may be sharing the same
   // transport. It means every |sent_packet| will be multiply notified from
   // different channels, WebRtcVoiceMediaChannel or WebRtcVideoChannel. Record
@@ -1251,13 +1247,6 @@ void Call::OnSentPacket(const SentPacketInfo& sent_packet) {
     return;
   }
   last_sent_packet_ = sent_packet;
-
-  // In production and with most tests, this method will be called on the
-  // network thread. However some test classes such as DirectTransport don't
-  // incorporate a network thread. This means that tests for RtpSenderEgress
-  // and ModuleRtpRtcpImpl2 that use DirectTransport, will call this method
-  // on a ProcessThread. This is alright as is since we forward the call to
-  // implementations that either just do a PostTask or use locking.
   video_send_delay_stats_->OnSentPacket(sent_packet.packet_id,
                                         env_.clock().CurrentTime());
   transport_send_->OnSentPacket(sent_packet);
@@ -1340,6 +1329,14 @@ void Call::ConfigureSync(absl::string_view sync_group) {
 }
 
 void Call::DeliverRtcpPacket(CopyOnWriteBuffer packet) {
+  if (!worker_thread_->IsCurrent()) {
+    RTC_DCHECK(network_thread_->IsCurrent());
+    worker_thread_->PostTask(SafeTask(
+        task_safety_.flag(), [this, packet = std::move(packet)]() mutable {
+          DeliverRtcpPacket(std::move(packet));
+        }));
+    return;
+  }
   RTC_DCHECK_RUN_ON(worker_thread_);
   RTC_DCHECK(IsRtcpPacket(packet));
   TRACE_EVENT0("webrtc", "Call::DeliverRtcp");
