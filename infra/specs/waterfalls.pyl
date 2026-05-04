@@ -45,7 +45,7 @@
       'Android32 Builder x86 (dbg)': {},
       'Android64': {
         'mixins': [
-          'walleye', 'android-devices', 'has_native_resultdb_integration',
+          'panther_on_14', 'android-devices', 'has_native_resultdb_integration',
           'chromium-tester-service-account'
         ],
         'test_suites': {
@@ -55,7 +55,7 @@
       },
       'Android64 (dbg)': {
         'mixins': [
-          'walleye', 'android-devices', 'has_native_resultdb_integration',
+          'panther_on_14', 'android-devices', 'has_native_resultdb_integration',
           'chromium-tester-service-account'
         ],
         'test_suites': {
@@ -304,7 +304,7 @@
     'machines': {
       'android_arm64_dbg': {
         'mixins': [
-          'walleye', 'android-devices', 'has_native_resultdb_integration',
+          'panther_on_14', 'android-devices', 'has_native_resultdb_integration',
           'chromium-tester-service-account'
         ],
         'test_suites': {
@@ -314,7 +314,7 @@
       },
       'android_arm64_rel': {
         'mixins': [
-          'walleye', 'android-devices', 'has_native_resultdb_integration',
+          'panther_on_14', 'android-devices', 'has_native_resultdb_integration',
           'chromium-tester-service-account'
         ],
         'test_suites': {

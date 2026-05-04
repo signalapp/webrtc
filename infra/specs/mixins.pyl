@@ -131,6 +131,15 @@
   'out_dir_arg': {
     'args': ['--out-dir', '${ISOLATED_OUTDIR}']
   },
+  'panther_on_14': {
+    'swarming': {
+      'dimensions': {
+        'device_type': 'panther',
+        'device_os': 'AP2A.240705.004',
+        'os': 'Android'
+      }
+    }
+  },
   'perf-output': {
     'args': [
       '--isolated-script-test-perf-output=${ISOLATED_OUTDIR}/perftest-output.pb'

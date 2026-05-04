@@ -1293,7 +1293,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -1314,7 +1315,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -1335,7 +1337,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -1356,7 +1359,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -1377,7 +1381,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -1398,7 +1403,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -1419,7 +1425,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -1440,7 +1447,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -1461,7 +1469,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
@@ -1483,7 +1492,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
@@ -1505,7 +1515,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
@@ -1527,7 +1538,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -1548,7 +1560,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -1569,7 +1582,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -1590,7 +1604,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -1611,7 +1626,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -1632,7 +1648,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
@@ -1654,7 +1671,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -1675,7 +1693,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "crosshatch",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
@@ -1697,7 +1716,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -1718,7 +1738,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -1739,7 +1760,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -1760,7 +1782,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -1781,7 +1804,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
@@ -1803,7 +1827,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -1824,7 +1849,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -1845,7 +1871,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -1871,7 +1898,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -1892,7 +1920,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -1917,7 +1946,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -1938,7 +1968,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -1959,7 +1990,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -1980,7 +2012,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -2001,7 +2034,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -2022,7 +2056,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -2043,7 +2078,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -2064,7 +2100,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -2085,7 +2122,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
@@ -2107,7 +2145,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
@@ -2129,7 +2168,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
@@ -2151,7 +2191,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -2172,7 +2213,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -2193,7 +2235,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -2214,7 +2257,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -2235,7 +2279,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -2256,7 +2301,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
@@ -2278,7 +2324,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -2299,7 +2346,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "crosshatch",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
@@ -2321,7 +2369,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -2342,7 +2391,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -2363,7 +2413,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -2384,7 +2435,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -2405,7 +2457,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
@@ -2427,7 +2480,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -2448,7 +2502,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -2469,7 +2524,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -2495,7 +2551,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -2516,7 +2573,8 @@
         "swarming": {
           "dimensions": {
             "android_devices": "1",
-            "device_type": "walleye",
+            "device_os": "AP2A.240705.004",
+            "device_type": "panther",
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
