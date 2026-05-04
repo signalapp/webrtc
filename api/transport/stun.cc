@@ -142,6 +142,15 @@ static bool DesignatedExpertRange(int attr_type) {
 }
 
 void StunMessage::AddAttribute(std::unique_ptr<StunAttribute> attr) {
+  // Once a message is signed, adding attributes is a programming error.
+  // Exceptions are the Integrity attributes and Fingerprint.
+  if (attr->type() != STUN_ATTR_MESSAGE_INTEGRITY &&
+      attr->type() != STUN_ATTR_GOOG_MESSAGE_INTEGRITY_32 &&
+      attr->type() != STUN_ATTR_FINGERPRINT) {
+    RTC_CHECK(integrity_ != IntegrityStatus::kIntegrityOk)
+        << "You cannot add attributes to a signed STUN message."
+        << " Message type was 0x" << ToHex(attr->type());
+  }
   // Fail any attributes that aren't valid for this type of message,
   // but allow any type for the range that in the RFC is reserved for
   // the "designated experts".
@@ -160,6 +169,12 @@ void StunMessage::AddAttribute(std::unique_ptr<StunAttribute> attr) {
 }
 
 std::unique_ptr<StunAttribute> StunMessage::RemoveAttribute(int type) {
+  if (type != STUN_ATTR_MESSAGE_INTEGRITY &&
+      type != STUN_ATTR_GOOG_MESSAGE_INTEGRITY_32) {
+    // Removing attributes will break integrity, so don't allow
+    // removing attributes from a signed message.
+    RTC_CHECK(integrity_ != IntegrityStatus::kIntegrityOk);
+  }
   std::unique_ptr<StunAttribute> attribute;
   for (auto it = attrs_.rbegin(); it != attrs_.rend(); ++it) {
     if ((*it)->type() == type) {
@@ -175,6 +190,12 @@ std::unique_ptr<StunAttribute> StunMessage::RemoveAttribute(int type) {
       attr_length += (4 - (attr_length % 4));
     }
     length_ -= static_cast<uint16_t>(attr_length + 4);
+    if (type == STUN_ATTR_MESSAGE_INTEGRITY ||
+        type == STUN_ATTR_GOOG_MESSAGE_INTEGRITY_32) {
+      // If the message was signed, it is now unsigned, and adding more
+      // attributes is possible.
+      integrity_ = IntegrityStatus::kNotSet;
+    }
   }
   return attribute;
 }
@@ -185,6 +206,7 @@ void StunMessage::ClearAttributes() {
   }
   attrs_.clear();
   length_ = 0;
+  integrity_ = IntegrityStatus::kNotSet;
 }
 
 std::vector<uint16_t> StunMessage::GetNonComprehendedAttributes() const {
@@ -620,7 +642,6 @@ bool StunMessage::Read(ByteBufferReader* buf) {
   attrs_.resize(0);
 
   size_t rest = buf->Length() - length_;
-  bool have_seen_integrity = false;
   while (buf->Length() > rest) {
     uint16_t attr_type, attr_length;
     if (!buf->ReadUInt16(&attr_type))
@@ -642,20 +663,7 @@ bool StunMessage::Read(ByteBufferReader* buf) {
       if (!attr->Read(buf)) {
         return false;
       }
-      // If the message is integrity-protected, ignore all attributes
-      // after the integrity attributes except for FINGERPRINT.
-      // RFC 8489 implicity enforces this; RFC 5389 section 15.4
-      // had explicit text saying it.
-      if (!have_seen_integrity || attr_type == STUN_ATTR_FINGERPRINT) {
-        attrs_.push_back(std::move(attr));
-      } else {
-        RTC_LOG(LS_WARNING) << "Attribute found after INTEGRITY: 0x"
-                            << ToHex(attr_type) << ", ignored";
-      }
-      if (attr_type == STUN_ATTR_MESSAGE_INTEGRITY ||
-          attr_type == STUN_ATTR_GOOG_MESSAGE_INTEGRITY_32) {
-        have_seen_integrity = true;
-      }
+      attrs_.push_back(std::move(attr));
     }
   }
 
