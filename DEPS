@@ -9,7 +9,7 @@ gclient_gn_args = [
 vars = {
   # Keep the Chromium default for these gn args.
   'generate_location_tags': True,
-  'android_ndk_version': '"2@30.0.14608247"',
+  'android_ndk_version': Str('2@30.0.14608247'),
 
   # By default, we should check out everything needed to run on the main
   # chromium waterfalls. More info at: crbug.com/570091.
