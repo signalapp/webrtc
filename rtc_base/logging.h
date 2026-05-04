@@ -56,6 +56,7 @@
 #include <span>
 #include <sstream>  // no-presubmit-check TODO(webrtc:8982)
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -314,7 +315,8 @@ enum class LogArgType : int8_t {
   kLongDouble,
   kCharP,
   kStdString,
-  kStringView,
+  kStdStringView,  // std::string_view, for downstream compatibility.
+  kStringView,     // absl::string_view
   kVoidP,
   kLogMetadata,
   kLogMetadataErr,
@@ -381,6 +383,18 @@ inline Val<LogArgType::kStringView, const absl::string_view*> MakeVal(
   return {&x};
 }
 
+// `std::string_view` must be supported separately from `absl::string_view`
+// because they are distinct types on certain toolchains (e.g., Android NDKs),
+// and this separate overload prevents dangling references across implicit
+// conversions.
+template <typename T>
+  requires(std::is_same_v<T, std::string_view> &&
+           !std::is_same_v<T, absl::string_view>)
+inline Val<LogArgType::kStdStringView, const std::string_view*> MakeVal(
+    const T& x) {
+  return {&x};
+}
+
 inline Val<LogArgType::kVoidP, const void*> MakeVal(const void* x) {
   return {x};
 }
@@ -412,7 +426,9 @@ inline Val<LogArgType::kLogMetadataTag, LogMetadataTag> MakeVal(
 #endif
 
 template <typename T,
-          std::enable_if_t<absl::HasAbslStringify<T>::value>* = nullptr>
+          std::enable_if_t<absl::HasAbslStringify<T>::value &&
+                           !std::is_same<std::decay_t<T>,
+                                         std::string_view>::value>* = nullptr>
 ToStringVal MakeVal(const T& x) {
   return {absl::StrCat(x)};
 }
@@ -424,6 +440,7 @@ template <typename T,
           typename T1 = std::decay_t<T>,
           std::enable_if_t<std::is_class<T1>::value &&               //
                            !std::is_same<T1, std::string>::value &&  //
+                           !std::is_same<T1, std::string_view>::value &&
                            !std::is_same<T1, LogMetadata>::value &&  //
                            !absl::HasAbslStringify<T1>::value &&
 #ifdef WEBRTC_ANDROID
