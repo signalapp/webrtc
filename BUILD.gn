@@ -134,7 +134,6 @@ if (rtc_include_tests) {
       "//call:call_tests",
       "//call/adaptation:resource_adaptation_tests",
       "//pc:peerconnection_unittests",
-      "//test:test_support_unittests",
       "//video:video_tests",
       "//video/adaptation:video_adaptation_tests",
     ]

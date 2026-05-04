@@ -35,7 +35,9 @@ if (!build_with_chromium) {
   }
 
   if (rtc_include_tests) {
-    rtc_cc_test("video_analyzer_unittests") {
+    group("video_analyzer_unittests") {
+      testonly = true
+
       deps = [
         ":analyzing_video_sink_test",
         ":analyzing_video_sinks_helper_test",

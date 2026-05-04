@@ -19,22 +19,12 @@ if (!build_with_chromium) {
   }
 
   if (rtc_include_tests) {
-    rtc_cc_test("dvqa_unittests") {
-      sources = [
-        "frames_storage_test.cc",
-        "pausable_state_test.cc",
-      ]
+    group("dvqa_unittests") {
+      testonly = true
+
       deps = [
-        ":frames_storage",
-        ":pausable_state",
-        "../../../../..:test_support",
-        "../../../../../../api:scoped_refptr",
-        "../../../../../../api:time_controller",
-        "../../../../../../api/units:time_delta",
-        "../../../../../../api/units:timestamp",
-        "../../../../../../api/video:video_frame",
-        "../../../../../../system_wrappers",
-        "../../../../../time_controller",
+        ":frames_storage_test",
+        ":pausable_state_test",
       ]
     }
   }
@@ -46,7 +36,7 @@ if (!build_with_chromium) {
 rtc_library("pausable_state") {
   visibility = [
     ":dvqa",
-    ":dvqa_unittests",
+    ":pausable_state_test",
     "..:default_video_quality_analyzer_internal",
   ]
 
@@ -67,7 +57,7 @@ rtc_library("pausable_state") {
 rtc_library("frames_storage") {
   visibility = [
     ":dvqa",
-    ":dvqa_unittests",
+    ":frames_storage_test",
     "..:default_video_quality_analyzer",
   ]
 
@@ -84,4 +74,36 @@ rtc_library("frames_storage") {
     "../../../../../../rtc_base:checks",
     "../../../../../../system_wrappers",
   ]
+}
+
+if (rtc_include_tests) {
+  rtc_library("pausable_state_test") {
+    testonly = true
+    sources = [ "pausable_state_test.cc" ]
+    deps = [
+      ":pausable_state",
+      "../../../../..:test_support",
+      "../../../../../../api:time_controller",
+      "../../../../../../api/units:time_delta",
+      "../../../../../../api/units:timestamp",
+      "../../../../../../system_wrappers",
+      "../../../../../time_controller",
+    ]
+  }
+
+  rtc_library("frames_storage_test") {
+    testonly = true
+    sources = [ "frames_storage_test.cc" ]
+    deps = [
+      ":frames_storage",
+      "../../../../..:test_support",
+      "../../../../../../api:scoped_refptr",
+      "../../../../../../api:time_controller",
+      "../../../../../../api/units:time_delta",
+      "../../../../../../api/units:timestamp",
+      "../../../../../../api/video:video_frame",
+      "../../../../../../system_wrappers",
+      "../../../../../time_controller",
+    ]
+  }
 }

@@ -41,7 +41,8 @@ rtc_library("fuzz_data_helper") {
   ]
 }
 
-rtc_cc_test("fuzz_data_helper_unittest") {
+rtc_library("fuzz_data_helper_unittest") {
+  testonly = true
   sources = [ "fuzz_data_helper_unittest.cc" ]
   deps = [
     ":fuzz_data_helper",
