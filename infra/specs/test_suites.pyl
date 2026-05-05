@@ -47,8 +47,7 @@
       },
       'slow_peer_connection_unittests': {},
       'svc_tests': {
-        'remove_mixins': ['walleye'],
-        'mixins': ['shards-8', 'crosshatch'],
+        'mixins': ['shards-8'],
       },
       'system_wrappers_unittests': {},
       'test_support_unittests': {},

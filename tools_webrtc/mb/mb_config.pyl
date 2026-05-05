@@ -138,7 +138,7 @@
       # Android
       'android_arm64_dbg': 'android_release_bot_arm64',
       'android_arm64_rel': 'android_release_bot_arm64',
-      'android_arm_dbg': 'android_debug_static_bot_arm',
+      'android_arm_dbg': 'android_debug_static_bot_arm64',
       'android_arm_more_configs': {
         'dummy_audio_file_devices_no_protobuf':
         'dummy_audio_file_devices_no_protobuf_android_arm64',
@@ -147,11 +147,11 @@
         'perfetto': 'perfetto_android_arm64',
         'cxx23': 'use_cxx23_android_arm64',
       },
-      'android_arm_rel': 'android_release_bot_arm',
+      'android_arm_rel': 'android_release_bot_arm64',
       'android_compile_arm64_dbg': 'android_debug_static_bot_arm64',
       'android_compile_arm64_rel': 'android_pure_release_bot_arm64',
-      'android_compile_arm_dbg': 'android_debug_static_bot_arm',
-      'android_compile_arm_rel': 'android_pure_release_bot_arm',
+      'android_compile_arm_dbg': 'android_debug_static_bot_arm64',
+      'android_compile_arm_rel': 'android_pure_release_bot_arm64',
       'android_compile_x64_dbg': 'android_debug_static_bot_x64',
       'android_compile_x64_rel': 'android_release_bot_x64',
       'android_compile_x86_dbg': 'android_debug_static_bot_x86',

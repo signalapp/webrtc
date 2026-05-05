@@ -11,26 +11,8 @@
     'name': 'client.webrtc',
     'mixins': [],
     'machines': {
-      'Android32': {
-        'mixins': [
-          'walleye', 'android-devices', 'has_native_resultdb_integration',
-          'chromium-tester-service-account'
-        ],
-        'test_suites': {
-          'gtest_tests': 'android_tests',
-          'isolated_scripts': 'android_junit_tests',
-        },
-      },
-      'Android32 (dbg)': {
-        'mixins': [
-          'walleye', 'android-devices', 'has_native_resultdb_integration',
-          'chromium-tester-service-account'
-        ],
-        'test_suites': {
-          'gtest_tests': 'android_tests',
-          'isolated_scripts': 'android_junit_tests',
-        },
-      },
+      'Android32': {},
+      'Android32 (dbg)': {},
       'Android32 Builder arm': {},
       'Android32 Builder x86': {},
       'Android32 Builder x86 (dbg)': {},
@@ -56,7 +38,7 @@
       },
       'Android64 (more configs)': {
         'mixins': [
-          'walleye', 'android-devices', 'has_native_resultdb_integration',
+          'panther_on_14', 'android-devices', 'has_native_resultdb_integration',
           'chromium-tester-service-account'
         ],
         'test_suites': {
@@ -324,7 +306,7 @@
       },
       'android_arm_dbg': {
         'mixins': [
-          'walleye', 'android-devices', 'has_native_resultdb_integration',
+          'panther_on_14', 'android-devices', 'has_native_resultdb_integration',
           'chromium-tester-service-account'
         ],
         'test_suites': {
@@ -334,7 +316,7 @@
       },
       'android_arm_more_configs': {
         'mixins': [
-          'walleye', 'android-devices', 'has_native_resultdb_integration',
+          'panther_on_14', 'android-devices', 'has_native_resultdb_integration',
           'chromium-tester-service-account'
         ],
         'test_suites': {
@@ -343,7 +325,7 @@
       },
       'android_arm_rel': {
         'mixins': [
-          'walleye', 'android-devices', 'has_native_resultdb_integration',
+          'panther_on_14', 'android-devices', 'has_native_resultdb_integration',
           'chromium-tester-service-account'
         ],
         'test_suites': {
