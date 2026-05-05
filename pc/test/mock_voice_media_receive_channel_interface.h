@@ -76,6 +76,12 @@ class MockVoiceMediaReceiveChannelInterface
               GetReceivedAudioLevel,
               (),
               (override));
+  // RingRTC change to configure opus.
+  MOCK_METHOD(void,
+              ConfigureDecoders,
+              (const webrtc::AudioDecoder::Config& config),
+              (override));
+  // End RingRTC changes
   MOCK_METHOD(bool,
               GetStats,
               (webrtc::VoiceMediaReceiveInfo * stats, bool reset_legacy),

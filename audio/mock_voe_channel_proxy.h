@@ -130,6 +130,12 @@ class MockChannelReceive : public voe::ChannelReceiveInterface {
       (override));
   MOCK_METHOD(void, SetMaximumBufferPackets, (size_t max_packets), (override));
   MOCK_METHOD(void, SetFastAccelerate, (bool enable), (override));
+  // RingRTC change to configure opus.
+  MOCK_METHOD(void,
+              ConfigureDecoder,
+              (const webrtc::AudioDecoder::Config& config),
+              (override));
+  // End RingRTC change
 };
 
 class MockChannelSend : public voe::ChannelSendInterface {

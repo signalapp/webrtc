@@ -3753,8 +3753,7 @@ TEST_F(P2PTransportChannelPingTest, TestStunPingIntervals) {
   ch.MaybeStartGathering();
   ch.AddRemoteCandidate(
       CreateUdpCandidate(IceCandidateType::kHost, "1.1.1.1", 1, 1));
-  // RingRTC change to prevent hang.
-  Connection* conn = WaitForConnectionTo(&ch, "1.1.1.1", 1, &clock);
+  Connection* conn = WaitForConnectionTo(&ch, "1.1.1.1", 1);
 
   ASSERT_TRUE(conn != nullptr);
   EXPECT_TRUE(DefaultWait().Until([&] { return conn->num_pings_sent() == 1; }));
@@ -4762,8 +4761,7 @@ TEST_F(P2PTransportChannelPingTest, TestDontPruneWhenWeak) {
   ch.MaybeStartGathering();
   ch.AddRemoteCandidate(
       CreateUdpCandidate(IceCandidateType::kHost, "1.1.1.1", 1, 1));
-  // RingRTC change to prevent hang.
-  Connection* conn1 = WaitForConnectionTo(&ch, "1.1.1.1", 1, &clock);
+  Connection* conn1 = WaitForConnectionTo(&ch, "1.1.1.1", 1);
   ASSERT_TRUE(conn1 != nullptr);
   EXPECT_EQ(nullptr, ch.selected_connection());
   conn1->ReceivedPingResponse(kLowRtt, "id");  // Becomes writable and receiving
@@ -5046,8 +5044,7 @@ TEST_F(P2PTransportChannelPingTest, TestPortDestroyedAfterTimeoutAndPruned) {
   ch.AddRemoteCandidate(
       CreateUdpCandidate(IceCandidateType::kHost, "1.1.1.1", 1, 1));
 
-  // RingRTC change to prevent hang.
-  Connection* conn = WaitForConnectionTo(&ch, "1.1.1.1", 1, &fake_clock);
+  Connection* conn = WaitForConnectionTo(&ch, "1.1.1.1", 1);
   ASSERT_TRUE(conn != nullptr);
 
   // Simulate 2 minutes going by. This should be enough time for the port to
@@ -6418,7 +6415,7 @@ TEST(P2PTransportChannel, InjectActiveIceController) {
 // RingRTC change to support ICE forking
 TEST_F(P2PTransportChannelPingTest, Forking) {
   ScopedFakeClock clock;
-  const Environment env = CreateEnvironment();
+  const Environment env = CreateTestEnvironment();
 
   // Prepare two transports with a shared gatherer
   FakePortAllocator fake_port_allocator1(env, ss());
@@ -6437,15 +6434,16 @@ TEST_F(P2PTransportChannelPingTest, Forking) {
 
   EXPECT_EQ(IceGatheringState::kIceGatheringNew, transport1->gathering_state());
   transport1->StartGatheringWithSharedGatherer(gatherer);
-  SIMULATED_WAIT(
-      IceGatheringState::kIceGatheringComplete == transport1->gathering_state(),
-      kShortTimeout.ms(), clock);
+  EXPECT_TRUE(ShortWait().Until(
+      [&] {
+        return IceGatheringState::kIceGatheringComplete == transport1->gathering_state();
+      }));
   transport1->SetRemoteIceParameters(kIceParams[1]);
   transport1->AddRemoteCandidate(
       CreateUdpCandidate(IceCandidateType::kHost, "1.1.1.1", 1, 1));
   ASSERT_EQ(1u, transport1->connections().size());
   Connection* transport1_conn =
-      WaitForConnectionTo(transport1.get(), "1.1.1.1", 1, &clock);
+      WaitForConnectionTo(transport1.get(), "1.1.1.1", 1);
   ASSERT_TRUE(transport1_conn);
   EXPECT_EQ(gatherer->port_allocator_session()->ice_ufrag(),
             transport1_conn->local_candidate().username());
@@ -6458,15 +6456,16 @@ TEST_F(P2PTransportChannelPingTest, Forking) {
   // Start the second
   EXPECT_EQ(IceGatheringState::kIceGatheringNew, transport2->gathering_state());
   transport2->StartGatheringWithSharedGatherer(gatherer);
-  SIMULATED_WAIT(
-      IceGatheringState::kIceGatheringComplete == transport1->gathering_state(),
-      kShortTimeout.ms(), clock);
+  EXPECT_TRUE(ShortWait().Until(
+      [&] {
+        return IceGatheringState::kIceGatheringComplete == transport1->gathering_state();
+      }));
   transport2->SetRemoteIceParameters(kIceParams[2]);
   transport2->AddRemoteCandidate(
       CreateUdpCandidate(IceCandidateType::kHost, "2.2.2.2", 2, 2));
   ASSERT_EQ(1u, transport2->connections().size());
   Connection* transport2_conn =
-      WaitForConnectionTo(transport2.get(), "2.2.2.2", 2, &clock);
+      WaitForConnectionTo(transport2.get(), "2.2.2.2", 2);
   EXPECT_EQ(gatherer->port_allocator_session()->ice_ufrag(),
             transport2_conn->local_candidate().username());
   EXPECT_EQ(gatherer->port_allocator_session()->ice_pwd(),
