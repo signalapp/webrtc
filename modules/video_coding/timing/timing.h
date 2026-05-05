@@ -101,7 +101,7 @@ class VCMTiming {
 
   // Returns the receiver system time when the frame with `rtp_timestamp`
   // should be rendered, assuming that the system time currently is `now`.
-  virtual Timestamp RenderTime(uint32_t rtp_timestamp, Timestamp now) const;
+  Timestamp RenderTime(uint32_t rtp_timestamp, Timestamp now) const;
 
   // Returns the maximum time in ms that we can wait for a frame to become
   // complete before we must pass it to the decoder. render_time==0 indicates
@@ -110,9 +110,9 @@ class VCMTiming {
   // In this case, the parameter too_many_frames_queued is used to signal that
   // the decode queue is full and that the frame should be decoded as soon as
   // possible.
-  virtual TimeDelta MaxWaitingTime(Timestamp render_time,
-                                   Timestamp now,
-                                   bool too_many_frames_queued) const;
+  TimeDelta MaxWaitingTime(Timestamp render_time,
+                           Timestamp now,
+                           bool too_many_frames_queued) const;
 
   // Returns the current target delay which is minimum delay + decode time +
   // render delay.

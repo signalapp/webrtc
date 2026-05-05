@@ -14,12 +14,9 @@
 #include <optional>
 
 #include "api/field_trials.h"
-#include "api/field_trials_view.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "modules/video_coding/timing/timing.h"
-#include "rtc_base/checks.h"
-#include "rtc_base/containers/flat_map.h"
 #include "system_wrappers/include/clock.h"
 #include "test/create_test_field_trials.h"
 #include "test/gmock.h"
@@ -35,37 +32,8 @@ using ::testing::Optional;
 
 namespace {
 
-class FakeVCMTiming : public VCMTiming {
- public:
-  explicit FakeVCMTiming(Clock* clock, const FieldTrialsView& field_trials)
-      : VCMTiming(clock, field_trials) {}
-
-  Timestamp RenderTime(uint32_t frame_timestamp, Timestamp now) const override {
-    RTC_DCHECK(render_time_map_.contains(frame_timestamp));
-    auto it = render_time_map_.find(frame_timestamp);
-    return it->second;
-  }
-
-  TimeDelta MaxWaitingTime(Timestamp render_time,
-                           Timestamp now,
-                           bool too_many_frames_queued) const override {
-    RTC_DCHECK(wait_time_map_.contains(render_time));
-    auto it = wait_time_map_.find(render_time);
-    return it->second;
-  }
-
-  void SetTimes(uint32_t frame_timestamp,
-                Timestamp render_time,
-                TimeDelta max_decode_wait) {
-    render_time_map_.insert_or_assign(frame_timestamp, render_time);
-    wait_time_map_.insert_or_assign(render_time, max_decode_wait);
-  }
-
- protected:
-  flat_map<uint32_t, Timestamp> render_time_map_;
-  flat_map<Timestamp, TimeDelta> wait_time_map_;
-};
-}  // namespace
+constexpr uint32_t kNextRtp = 90000;
+constexpr uint32_t kLastRtp = 180000;
 
 class FrameDecodeTimingTest : public ::testing::Test {
  public:
@@ -73,81 +41,83 @@ class FrameDecodeTimingTest : public ::testing::Test {
       : field_trials_(CreateTestFieldTrials()),
         clock_(Timestamp::Millis(1000)),
         timing_(&clock_, field_trials_),
-        frame_decode_scheduler_(&clock_, &timing_) {}
+        frame_decode_scheduler_(&clock_, &timing_) {
+    timing_.set_render_delay(TimeDelta::Zero());
+    timing_.OnCompleteTemporalUnit(kNextRtp, clock_.CurrentTime());
+  }
 
  protected:
   FieldTrials field_trials_;
   SimulatedClock clock_;
-  FakeVCMTiming timing_;
+  VCMTiming timing_;
   FrameDecodeTiming frame_decode_scheduler_;
 };
 
 TEST_F(FrameDecodeTimingTest, ReturnsWaitTimesWhenValid) {
-  const TimeDelta decode_delay = TimeDelta::Millis(42);
-  const Timestamp render_time = clock_.CurrentTime() + TimeDelta::Millis(60);
-  timing_.SetTimes(90000, render_time, decode_delay);
+  const TimeDelta kDecodeDelay = TimeDelta::Millis(42);
+  timing_.SetMinimumDelay(kDecodeDelay);
 
   EXPECT_THAT(frame_decode_scheduler_.OnFrameBufferUpdated(
-                  90000, 180000, kMaxWaitForFrame, false),
+                  kNextRtp, kLastRtp, kMaxWaitForFrame, false),
               Optional(AllOf(
                   Field(&FrameDecodeTiming::FrameSchedule::latest_decode_time,
-                        Eq(clock_.CurrentTime() + decode_delay)),
+                        Eq(clock_.CurrentTime() + kDecodeDelay)),
                   Field(&FrameDecodeTiming::FrameSchedule::render_time,
-                        Eq(render_time)))));
+                        Eq(clock_.CurrentTime() + kDecodeDelay)))));
 }
 
 TEST_F(FrameDecodeTimingTest, FastForwardsFrameTooFarInThePast) {
-  const TimeDelta decode_delay =
+  const TimeDelta kDecodeDelay =
       -FrameDecodeTiming::kMaxAllowedFrameDelay - TimeDelta::Millis(1);
-  const Timestamp render_time = clock_.CurrentTime();
-  timing_.SetTimes(90000, render_time, decode_delay);
+  timing_.SetMinimumDelay(kDecodeDelay);
+  timing_.set_min_playout_delay(kDecodeDelay);
 
   EXPECT_THAT(frame_decode_scheduler_.OnFrameBufferUpdated(
-                  90000, 180000, kMaxWaitForFrame, false),
+                  kNextRtp, kLastRtp, kMaxWaitForFrame, false),
               Eq(std::nullopt));
 }
 
 TEST_F(FrameDecodeTimingTest, NoFastForwardIfOnlyFrameToDecode) {
-  const TimeDelta decode_delay =
+  const TimeDelta kDecodeDelay =
       -FrameDecodeTiming::kMaxAllowedFrameDelay - TimeDelta::Millis(1);
-  const Timestamp render_time = clock_.CurrentTime();
-  timing_.SetTimes(90000, render_time, decode_delay);
+  timing_.SetMinimumDelay(kDecodeDelay);
+  timing_.set_min_playout_delay(kDecodeDelay);
 
-  // Negative `decode_delay` means that `latest_decode_time` is now.
+  // Negative `kDecodeDelay` means that `latest_decode_time` is now.
   EXPECT_THAT(frame_decode_scheduler_.OnFrameBufferUpdated(
-                  90000, 90000, kMaxWaitForFrame, false),
+                  kNextRtp, kNextRtp, kMaxWaitForFrame, false),
               Optional(AllOf(
                   Field(&FrameDecodeTiming::FrameSchedule::latest_decode_time,
                         Eq(clock_.CurrentTime())),
                   Field(&FrameDecodeTiming::FrameSchedule::render_time,
-                        Eq(render_time)))));
+                        Eq(clock_.CurrentTime() + kDecodeDelay)))));
 }
 
 TEST_F(FrameDecodeTimingTest, MaxWaitCapped) {
-  TimeDelta frame_delay = TimeDelta::Millis(30);
-  const TimeDelta decode_delay = TimeDelta::Seconds(3);
-  const Timestamp render_time = clock_.CurrentTime() + TimeDelta::Seconds(3);
-  timing_.SetTimes(90000, render_time, decode_delay);
-  timing_.SetTimes(180000, render_time + frame_delay,
-                   decode_delay + frame_delay);
+  const TimeDelta kDecodeDelay = kMaxWaitForFrame * 2;
+  timing_.SetMinimumDelay(kDecodeDelay);
 
   EXPECT_THAT(frame_decode_scheduler_.OnFrameBufferUpdated(
-                  90000, 270000, kMaxWaitForFrame, false),
+                  kNextRtp, kLastRtp, kMaxWaitForFrame, false),
               Optional(AllOf(
                   Field(&FrameDecodeTiming::FrameSchedule::latest_decode_time,
                         Eq(clock_.CurrentTime() + kMaxWaitForFrame)),
                   Field(&FrameDecodeTiming::FrameSchedule::render_time,
-                        Eq(render_time)))));
+                        Eq(clock_.CurrentTime() + kDecodeDelay)))));
+}
 
-  // Test cap keyframe.
-  clock_.AdvanceTime(frame_delay);
+TEST_F(FrameDecodeTimingTest, MaxWaitCappedForKey) {
+  const TimeDelta kDecodeDelay = kMaxWaitForKeyFrame * 2;
+  timing_.SetMinimumDelay(kDecodeDelay);
+
   EXPECT_THAT(frame_decode_scheduler_.OnFrameBufferUpdated(
-                  180000, 270000, kMaxWaitForKeyFrame, false),
+                  kNextRtp, kLastRtp, kMaxWaitForKeyFrame, false),
               Optional(AllOf(
                   Field(&FrameDecodeTiming::FrameSchedule::latest_decode_time,
                         Eq(clock_.CurrentTime() + kMaxWaitForKeyFrame)),
                   Field(&FrameDecodeTiming::FrameSchedule::render_time,
-                        Eq(render_time + frame_delay)))));
+                        Eq(clock_.CurrentTime() + kDecodeDelay)))));
 }
 
+}  // namespace
 }  // namespace webrtc
