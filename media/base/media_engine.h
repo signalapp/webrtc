@@ -28,6 +28,9 @@
 #include "api/rtp_parameters.h"
 #include "api/scoped_refptr.h"
 #include "api/video/video_bitrate_allocator_factory.h"
+#include "api/video_codecs/sdp_video_format.h"
+#include "api/video_codecs/video_decoder_factory.h"
+#include "api/video_codecs/video_encoder_factory.h"
 #include "call/audio_state.h"
 #include "media/base/codec.h"
 #include "media/base/media_channel.h"
@@ -186,6 +189,12 @@ class VideoEngineInterface : public RtpHeaderExtensionQueryInterface {
   [[deprecated]] inline std::vector<Codec> recv_codecs(bool include_rtx) const {
     return LegacyRecvCodecs(include_rtx);
   }
+
+  virtual VideoEncoderFactory* encoder_factory() const = 0;
+  virtual VideoDecoderFactory* decoder_factory() const = 0;
+
+  virtual std::vector<SdpVideoFormat> GetSupportedFormats(
+      bool is_decoder) const = 0;
 };
 
 // MediaEngineInterface is an abstraction of a media engine which can be

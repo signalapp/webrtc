@@ -443,18 +443,24 @@ rtc_library("codec_vendor") {
 rtc_library("typed_codec_vendor") {
   visibility = [ ":*" ]
   sources = [
+    "codec_configuration.h",
     "typed_codec_vendor.cc",
     "typed_codec_vendor.h",
   ]
   deps = [
     "../api:field_trials_view",
+    "../api:payload_type",
     "../api:rtp_parameters",
     "../api/audio_codecs:audio_codecs_api",
+    "../api/video_codecs:video_codecs_api",
     "../media:codec",
     "../media:codec_list",
     "../media:media_constants",
     "../media:media_engine",
     "../rtc_base:checks",
+    "../rtc_base/containers:flat_set",
+    "//third_party/abseil-cpp/absl/base:nullability",
+    "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
 }
@@ -2252,6 +2258,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "srtp_transport_unittest.cc",
       "test/rtp_transport_test_util.h",
       "test/srtp_test_util.h",
+      "typed_codec_vendor_unittest.cc",
       "video_rtp_receiver_unittest.cc",
     ]
 
@@ -2284,6 +2291,7 @@ if (rtc_include_tests && !build_with_chromium) {
       ":srtp_session",
       ":srtp_transport",
       ":transport_stats",
+      ":typed_codec_vendor",
       ":used_ids",
       ":video_rtp_receiver",
       "../api:audio_options_api",

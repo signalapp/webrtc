@@ -55,6 +55,11 @@
 #include "api/video/video_bitrate_allocator_factory.h"
 #include "api/video/video_sink_interface.h"
 #include "api/video/video_source_interface.h"
+#include "api/video_codecs/sdp_video_format.h"
+#include "api/video_codecs/video_decoder.h"
+#include "api/video_codecs/video_decoder_factory.h"
+#include "api/video_codecs/video_encoder.h"
+#include "api/video_codecs/video_encoder_factory.h"
 #include "call/audio_state.h"
 #include "media/base/audio_source.h"
 #include "media/base/codec.h"
@@ -930,7 +935,59 @@ class FakeVideoEngine : public VideoEngineInterface {
   void SetRtpHeaderExtensions(
       std::vector<RtpHeaderExtensionCapability> header_extensions);
 
+  VideoEncoderFactory* encoder_factory() const override {
+    return encoder_factory_.get();
+  }
+  VideoDecoderFactory* decoder_factory() const override {
+    return decoder_factory_.get();
+  }
+
+  std::vector<SdpVideoFormat> GetSupportedFormats(
+      bool is_decoder) const override;
+
  private:
+  class FakeVideoEncoderFactory : public VideoEncoderFactory {
+   public:
+    explicit FakeVideoEncoderFactory(FakeVideoEngine* owner) : owner_(owner) {}
+    std::vector<SdpVideoFormat> GetSupportedFormats() const override {
+      std::vector<SdpVideoFormat> formats;
+      for (const auto& codec : owner_->send_codecs_) {
+        formats.push_back(SdpVideoFormat(codec.name, codec.params));
+      }
+      return formats;
+    }
+    std::unique_ptr<VideoEncoder> Create(
+        const Environment& env,
+        const SdpVideoFormat& format) override {
+      return nullptr;
+    }
+
+   private:
+    const FakeVideoEngine* const owner_;
+  };
+
+  class FakeVideoDecoderFactory : public VideoDecoderFactory {
+   public:
+    explicit FakeVideoDecoderFactory(FakeVideoEngine* owner) : owner_(owner) {}
+    std::vector<SdpVideoFormat> GetSupportedFormats() const override {
+      std::vector<SdpVideoFormat> formats;
+      for (const auto& codec : owner_->recv_codecs_) {
+        formats.push_back(SdpVideoFormat(codec.name, codec.params));
+      }
+      return formats;
+    }
+    std::unique_ptr<VideoDecoder> Create(
+        const Environment& env,
+        const SdpVideoFormat& format) override {
+      return nullptr;
+    }
+
+   private:
+    const FakeVideoEngine* const owner_;
+  };
+
+  const std::unique_ptr<VideoEncoderFactory> encoder_factory_;
+  const std::unique_ptr<VideoDecoderFactory> decoder_factory_;
   std::vector<Codec> send_codecs_;
   std::vector<Codec> recv_codecs_;
   bool capture_;
