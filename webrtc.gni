@@ -313,9 +313,6 @@ declare_args() {
   # Allows for rust targets.
   rtc_rust = true
 
-  # Enables an experimental rust version of base64 for building and testing.
-  rtc_rusty_base64 = false
-
   # Enables PSNR calculation for video getStats.
   rtc_video_psnr = true
 }

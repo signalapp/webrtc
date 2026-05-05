@@ -94,7 +94,7 @@ if (!build_with_chromium) {
       }
 
       # TODO(bugs.webrtc.org/430260876): Remove once rust links with libwebrtc.
-      if (!is_asan && !rtc_rusty_base64) {
+      if (!is_asan) {
         # Do not build :webrtc_lib_link_test because lld complains on some OS
         # (e.g. when target_os = "mac") when is_asan=true. For more details,
         # see bugs.webrtc.org/11027#c5.
@@ -599,7 +599,7 @@ if (!build_with_chromium) {
 
   # TODO(bugs.webrtc.org/430260876): Compile webrtc lib with rust once toolchain
   # is working.
-  if (rtc_include_tests && !is_asan && !rtc_rusty_base64) {
+  if (rtc_include_tests && !is_asan) {
     rtc_executable("webrtc_lib_link_test") {
       testonly = true
 

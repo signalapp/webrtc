@@ -1873,44 +1873,16 @@ rtc_library("task_queue_for_test") {
   ]
 }
 
-# Base64 implementation is backed by either Rust or Abseil.
-if (!rtc_rusty_base64) {
-  # abseil backed base64.
-  rtc_library("base64") {
-    sources = [
-      "base64.cc",
-      "base64.h",
-    ]
-    deps = [
-      "//third_party/abseil-cpp/absl/algorithm:container",
-      "//third_party/abseil-cpp/absl/strings",
-      "//third_party/abseil-cpp/absl/strings:string_view",
-    ]
-  }
-} else {
-  import("//build/config/rust.gni")
-  import("//build/rust/rust_static_library.gni")
-
-  rust_static_library("base64_rust_bridge") {
-    allow_unsafe = true  # Needed for FFI with cxx crate.
-    crate_root = "base64.rs"
-    sources = [ "base64.rs" ]
-    cxx_bindings = [ "base64.rs" ]
-    deps = [ "//third_party/rust/base64/v0_22:lib" ]
-    visibility = [ ":base64" ]
-  }
-
-  rtc_library("base64") {
-    sources = [
-      "base64.h",
-      "base64_rust.cc",
-    ]
-    deps = [
-      ":base64_rust_bridge",
-      "//build/rust:cxx_cppdeps",
-      "//third_party/abseil-cpp/absl/strings:string_view",
-    ]
-  }
+rtc_library("base64") {
+  sources = [
+    "base64.cc",
+    "base64.h",
+  ]
+  deps = [
+    "//third_party/abseil-cpp/absl/algorithm:container",
+    "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/strings:string_view",
+  ]
 }
 
 rtc_library("cpu_info") {
