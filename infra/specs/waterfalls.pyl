@@ -31,15 +31,6 @@
           'isolated_scripts': 'android_junit_tests',
         },
       },
-      'Android32 (more configs)': {
-        'mixins': [
-          'walleye', 'android-devices', 'has_native_resultdb_integration',
-          'chromium-tester-service-account'
-        ],
-        'test_suites': {
-          'gtest_tests': 'more_configs_tests',
-        },
-      },
       'Android32 Builder arm': {},
       'Android32 Builder x86': {},
       'Android32 Builder x86 (dbg)': {},
@@ -61,6 +52,15 @@
         'test_suites': {
           'gtest_tests': 'android_tests',
           'isolated_scripts': 'android_junit_tests',
+        },
+      },
+      'Android64 (more configs)': {
+        'mixins': [
+          'walleye', 'android-devices', 'has_native_resultdb_integration',
+          'chromium-tester-service-account'
+        ],
+        'test_suites': {
+          'gtest_tests': 'more_configs_tests',
         },
       },
       'Android64 Builder arm64': {},

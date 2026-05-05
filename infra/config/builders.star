@@ -330,7 +330,7 @@ ci_builder("Android32 Builder x86 (dbg)", "Android|x86|dbg")
 try_builder("android_compile_x86_dbg")
 ci_builder("Android32 Builder x86", "Android|x86|rel")
 try_builder("android_compile_x86_rel")
-ci_builder("Android32 (more configs)", "Android|arm|more")
+ci_builder("Android64 (more configs)", "Android|arm64|more")
 try_builder("android_arm_more_configs")
 chromium_try_builder("android_chromium_compile")
 

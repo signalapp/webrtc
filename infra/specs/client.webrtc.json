@@ -1249,32 +1249,6 @@
       }
     ]
   },
-  "Android32 (more configs)": {
-    "gtest_tests": [
-      {
-        "merge": {
-          "script": "//testing/merge_scripts/standard_gtest_merge.py"
-        },
-        "module_name": "//pc:peerconnection_unittests",
-        "name": "peerconnection_unittests",
-        "resultdb": {
-          "enable": true,
-          "has_native_resultdb_integration": true
-        },
-        "swarming": {
-          "dimensions": {
-            "android_devices": "1",
-            "device_type": "walleye",
-            "os": "Android"
-          },
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
-          "shards": 4
-        },
-        "test": "peerconnection_unittests",
-        "test_id_prefix": "ninja://pc:peerconnection_unittests/"
-      }
-    ]
-  },
   "Android32 Builder arm": {},
   "Android32 Builder x86": {},
   "Android32 Builder x86 (dbg)": {},
@@ -2581,6 +2555,32 @@
         },
         "test": "android_sdk_junit_tests",
         "test_id_prefix": "ninja://sdk/android:android_sdk_junit_tests/"
+      }
+    ]
+  },
+  "Android64 (more configs)": {
+    "gtest_tests": [
+      {
+        "merge": {
+          "script": "//testing/merge_scripts/standard_gtest_merge.py"
+        },
+        "module_name": "//pc:peerconnection_unittests",
+        "name": "peerconnection_unittests",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "dimensions": {
+            "android_devices": "1",
+            "device_type": "walleye",
+            "os": "Android"
+          },
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
+          "shards": 4
+        },
+        "test": "peerconnection_unittests",
+        "test_id_prefix": "ninja://pc:peerconnection_unittests/"
       }
     ]
   },
