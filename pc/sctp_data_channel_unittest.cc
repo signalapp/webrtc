@@ -613,6 +613,22 @@ TEST_F(SctpDataChannelTest, TransportDestroyedWhileDataBuffered) {
   EXPECT_EQ(RTCErrorDetailType::SCTP_FAILURE, channel_->error().error_detail());
 }
 
+TEST_F(SctpDataChannelTest, ChannelDeletedWhileDataBuffered) {
+  AddObserver();
+  SetChannelReady();
+
+  CopyOnWriteBuffer buffer(100 * 1024);
+  memset(buffer.MutableData(), 0, buffer.size());
+  DataBuffer packet(buffer, true);
+
+  // Send a very large packet, forcing the message to become buffered.
+  channel_->SendAsync(packet, nullptr);
+
+  // Delete the channel, expect no crashes.
+  inner_channel_ = nullptr;
+  channel_ = nullptr;
+}
+
 TEST_F(SctpDataChannelTest, TransportGotErrorCode) {
   SetChannelReady();
 

@@ -273,7 +273,7 @@ class SctpDataChannel : public DataChannelInterface {
       RTC_RUN_ON(network_thread_);
 
   bool connected_to_transport() const RTC_RUN_ON(network_thread_) {
-    return network_safety_->alive();
+    return connected_to_transport_;
   }
   void MaybeSendOnBufferedAmountChanged() RTC_RUN_ON(network_thread_);
 
@@ -306,9 +306,8 @@ class SctpDataChannel : public DataChannelInterface {
       kHandshakeInit;
   // Did we already start the graceful SCTP closing procedure?
   bool started_closing_procedure_ RTC_GUARDED_BY(network_thread_) = false;
+  bool connected_to_transport_ RTC_GUARDED_BY(network_thread_) = false;
   PacketQueue queued_received_data_ RTC_GUARDED_BY(network_thread_);
-  scoped_refptr<PendingTaskSafetyFlag> network_safety_ =
-      PendingTaskSafetyFlag::CreateDetachedInactive();
 };
 
 }  // namespace webrtc

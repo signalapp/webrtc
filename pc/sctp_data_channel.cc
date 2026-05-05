@@ -344,15 +344,13 @@ SctpDataChannel::SctpDataChannel(
       negotiated_(config.negotiated),
       ordered_(config.ordered),
       observer_(nullptr),
-      controller_(std::move(controller)) {
+      controller_(std::move(controller)),
+      connected_to_transport_(connected_to_transport) {
   RTC_DCHECK_RUN_ON(network_thread_);
   // Since we constructed on the network thread we can't (yet) check the
   // `controller_` pointer since doing so will trigger a thread check.
   RTC_UNUSED(network_thread_);
   RTC_DCHECK(config.IsValid());
-
-  if (connected_to_transport)
-    network_safety_->SetAlive();
 
   switch (config.open_handshake_role) {
     case InternalDataChannelInit::kNone:  // pre-negotiated
@@ -611,14 +609,17 @@ void SctpDataChannel::SendAsync(
   // thread. So we always post to the network thread (even if the current thread
   // might be the network thread - in theory a call could even come from within
   // the `on_complete` callback).
-  network_thread_->PostTask(SafeTask(
-      network_safety_, [this, buffer = std::move(buffer),
-                        on_complete = std::move(on_complete)]() mutable {
-        RTC_DCHECK_RUN_ON(network_thread_);
-        RTCError err = SendImpl(std::move(buffer));
-        if (on_complete)
-          std::move(on_complete)(err);
-      }));
+  scoped_refptr<SctpDataChannel> me(this);
+  network_thread_->PostTask([me = std::move(me), buffer = std::move(buffer),
+                             on_complete = std::move(on_complete)]() mutable {
+    RTC_DCHECK_RUN_ON(me->network_thread_);
+    if (!me->connected_to_transport()) {
+      return;
+    }
+    RTCError err = me->SendImpl(std::move(buffer));
+    if (on_complete)
+      std::move(on_complete)(err);
+  });
 }
 
 void SctpDataChannel::SetSctpSid_n(StreamId sid) {
@@ -661,7 +662,7 @@ void SctpDataChannel::OnClosingProcedureComplete() {
 
 void SctpDataChannel::OnTransportChannelCreated() {
   RTC_DCHECK_RUN_ON(network_thread_);
-  network_safety_->SetAlive();
+  connected_to_transport_ = true;
 }
 
 void SctpDataChannel::OnTransportChannelClosed(RTCError error) {
@@ -782,7 +783,7 @@ void SctpDataChannel::CloseAbruptlyWithError(RTCError error) {
     return;
   }
 
-  network_safety_->SetNotAlive();
+  connected_to_transport_ = false;
 
   // Still go to "kClosing" before "kClosed", since observers may be expecting
   // that.
