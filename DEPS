@@ -93,8 +93,10 @@ deps = {
   },
   'src/testing':
     'https://chromium.googlesource.com/chromium/src/testing@629b7bb6055714e23d8125bf790cfc8d94a94159',
+  # RingRTC change for 148 only to pick up crash fix on android
   'src/third_party':
-    'https://chromium.googlesource.com/chromium/src/third_party@f54c8ff58874b977b8ba20c146dd312d2102168e',
+    'https://chromium.googlesource.com/chromium/src/third_party@4923971b35e39f6bd9be8bc19c4680785a15c80d',
+  # End RingRTC change
 
   'src/buildtools/linux64': {
     'packages': [
