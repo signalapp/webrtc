@@ -54,7 +54,6 @@
 #include <memory>
 #include <optional>
 #include <span>
-#include <sstream>  // no-presubmit-check TODO(webrtc:8982)
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -432,25 +431,6 @@ template <typename T>
            !std::is_same_v<std::decay_t<T>, std::string_view>)
 ToStringVal MakeVal(const T& x) {
   return {absl::StrCat(x)};
-}
-
-// Handle arbitrary types other than the above by falling back to stringstream.
-// TODO(bugs.webrtc.org/9278): Get rid of this overload when callers don't need
-// it anymore. No in-tree caller does, but some external callers still do.
-template <typename T>
-  requires(std::is_class_v<std::decay_t<T>> &&
-           !std::is_same_v<std::decay_t<T>, std::string> &&
-           !std::is_same_v<std::decay_t<T>, std::string_view> &&
-           !std::is_same_v<std::decay_t<T>, LogMetadata> &&
-           !absl::HasAbslStringify<std::decay_t<T>>::value &&
-#ifdef WEBRTC_ANDROID
-           !std::is_same_v<std::decay_t<T>, LogMetadataTag> &&
-#endif
-           !std::is_same_v<std::decay_t<T>, LogMetadataErr>)
-ToStringVal MakeVal(const T& x) {
-  std::ostringstream os;  // no-presubmit-check TODO(webrtc:8982)
-  os << x;
-  return {os.str()};
 }
 
 #if RTC_LOG_ENABLED()
@@ -834,6 +814,5 @@ inline const char* AdaptString(const std::string& str) {
 #endif
 
 }  // namespace webrtc
-
 
 #endif  // RTC_BASE_LOGGING_H_
