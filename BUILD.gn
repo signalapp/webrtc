@@ -23,13 +23,7 @@
 
 import("//build/config/linux/pkg_config.gni")
 import("//build/config/sanitizers/sanitizers.gni")
-import("//testing/test.gni")
 import("webrtc.gni")
-
-if (rtc_rust) {
-  import("//build/rust/rust_unit_tests_group.gni")
-}
-
 if (rtc_enable_protobuf) {
   import("//third_party/protobuf/proto_library.gni")
 }
@@ -99,9 +93,6 @@ if (!build_with_chromium) {
         # (e.g. when target_os = "mac") when is_asan=true. For more details,
         # see bugs.webrtc.org/11027#c5.
         deps += [ ":webrtc_lib_link_test" ]
-      }
-      if (rtc_rust) {
-        deps += [ ":rust_tests" ]
       }
       if (is_ios) {
         deps += [
@@ -778,16 +769,6 @@ if (rtc_include_tests && !build_with_chromium) {
       "audio/voip/test:audio_ingress_unittests",
       "audio/voip/test:voip_core_unittests",
     ]
-  }
-
-  if (rtc_rust) {
-    rtc_rust_test_suite("rust_tests") {
-      testonly = true
-      deps = [
-        "api/units:units_rust_unit_tests",
-        "rust/webrtc_import:tests",
-      ]
-    }
   }
 }
 

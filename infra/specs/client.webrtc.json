@@ -2024,24 +2024,6 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//:rust_tests",
-        "name": "rust_tests",
-        "resultdb": {
-          "result_format": "json"
-        },
-        "swarming": {
-          "dimensions": {
-            "cpu": "x86-64",
-            "os": "Ubuntu-22.04"
-          }
-        },
-        "test": "rust_tests",
-        "test_id_prefix": "ninja://:rust_tests/"
-      },
-      {
-        "merge": {
-          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
-        },
         "module_name": "//modules/desktop_capture:shared_screencast_stream_test",
         "name": "shared_screencast_stream_test",
         "resultdb": {
@@ -2515,24 +2497,6 @@
         },
         "test": "rtc_unittests",
         "test_id_prefix": "ninja://:rtc_unittests/"
-      },
-      {
-        "merge": {
-          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
-        },
-        "module_name": "//:rust_tests",
-        "name": "rust_tests",
-        "resultdb": {
-          "result_format": "json"
-        },
-        "swarming": {
-          "dimensions": {
-            "cpu": "x86-64",
-            "os": "Ubuntu-22.04"
-          }
-        },
-        "test": "rust_tests",
-        "test_id_prefix": "ninja://:rust_tests/"
       },
       {
         "merge": {
@@ -3016,24 +2980,6 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//:rust_tests",
-        "name": "rust_tests",
-        "resultdb": {
-          "result_format": "json"
-        },
-        "swarming": {
-          "dimensions": {
-            "cpu": "x86-64",
-            "os": "Ubuntu-22.04"
-          }
-        },
-        "test": "rust_tests",
-        "test_id_prefix": "ninja://:rust_tests/"
-      },
-      {
-        "merge": {
-          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
-        },
         "module_name": "//modules/desktop_capture:shared_screencast_stream_test",
         "name": "shared_screencast_stream_test",
         "resultdb": {
@@ -3507,24 +3453,6 @@
         },
         "test": "rtc_unittests",
         "test_id_prefix": "ninja://:rtc_unittests/"
-      },
-      {
-        "merge": {
-          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
-        },
-        "module_name": "//:rust_tests",
-        "name": "rust_tests",
-        "resultdb": {
-          "result_format": "json"
-        },
-        "swarming": {
-          "dimensions": {
-            "cpu": "x86-64",
-            "os": "Ubuntu-22.04"
-          }
-        },
-        "test": "rust_tests",
-        "test_id_prefix": "ninja://:rust_tests/"
       },
       {
         "merge": {
@@ -4008,24 +3936,6 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//:rust_tests",
-        "name": "rust_tests",
-        "resultdb": {
-          "result_format": "json"
-        },
-        "swarming": {
-          "dimensions": {
-            "cpu": "x86-64",
-            "os": "Ubuntu-22.04"
-          }
-        },
-        "test": "rust_tests",
-        "test_id_prefix": "ninja://:rust_tests/"
-      },
-      {
-        "merge": {
-          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
-        },
         "module_name": "//modules/desktop_capture:shared_screencast_stream_test",
         "name": "shared_screencast_stream_test",
         "resultdb": {
@@ -4504,24 +4414,6 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//:rust_tests",
-        "name": "rust_tests",
-        "resultdb": {
-          "result_format": "json"
-        },
-        "swarming": {
-          "dimensions": {
-            "cpu": "x86-64",
-            "os": "Ubuntu-22.04"
-          }
-        },
-        "test": "rust_tests",
-        "test_id_prefix": "ninja://:rust_tests/"
-      },
-      {
-        "merge": {
-          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
-        },
         "module_name": "//pc:slow_peer_connection_unittests",
         "name": "slow_peer_connection_unittests",
         "resultdb": {
@@ -4978,24 +4870,6 @@
         },
         "test": "rtc_unittests",
         "test_id_prefix": "ninja://:rtc_unittests/"
-      },
-      {
-        "merge": {
-          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
-        },
-        "module_name": "//:rust_tests",
-        "name": "rust_tests",
-        "resultdb": {
-          "result_format": "json"
-        },
-        "swarming": {
-          "dimensions": {
-            "cpu": "x86-64",
-            "os": "Ubuntu-22.04"
-          }
-        },
-        "test": "rust_tests",
-        "test_id_prefix": "ninja://:rust_tests/"
       },
       {
         "merge": {
@@ -5458,24 +5332,6 @@
         },
         "test": "rtc_unittests",
         "test_id_prefix": "ninja://:rtc_unittests/"
-      },
-      {
-        "merge": {
-          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
-        },
-        "module_name": "//:rust_tests",
-        "name": "rust_tests",
-        "resultdb": {
-          "result_format": "json"
-        },
-        "swarming": {
-          "dimensions": {
-            "cpu": "x86-64",
-            "os": "Ubuntu-22.04"
-          }
-        },
-        "test": "rust_tests",
-        "test_id_prefix": "ninja://:rust_tests/"
       },
       {
         "merge": {
@@ -5955,24 +5811,6 @@
         },
         "test": "rtc_unittests",
         "test_id_prefix": "ninja://:rtc_unittests/"
-      },
-      {
-        "merge": {
-          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
-        },
-        "module_name": "//:rust_tests",
-        "name": "rust_tests",
-        "resultdb": {
-          "result_format": "json"
-        },
-        "swarming": {
-          "dimensions": {
-            "cpu": "x86-64",
-            "os": "Ubuntu-22.04"
-          }
-        },
-        "test": "rust_tests",
-        "test_id_prefix": "ninja://:rust_tests/"
       },
       {
         "merge": {
@@ -6473,25 +6311,6 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//:rust_tests",
-        "name": "rust_tests",
-        "resultdb": {
-          "result_format": "json"
-        },
-        "swarming": {
-          "dimensions": {
-            "cores": "12",
-            "cpu": "x86-64",
-            "os": "Mac-15"
-          }
-        },
-        "test": "rust_tests",
-        "test_id_prefix": "ninja://:rust_tests/"
-      },
-      {
-        "merge": {
-          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
-        },
         "module_name": "//pc:slow_peer_connection_unittests",
         "name": "slow_peer_connection_unittests",
         "resultdb": {
@@ -6977,25 +6796,6 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//:rust_tests",
-        "name": "rust_tests",
-        "resultdb": {
-          "result_format": "json"
-        },
-        "swarming": {
-          "dimensions": {
-            "cores": "12",
-            "cpu": "x86-64",
-            "os": "Mac-15"
-          }
-        },
-        "test": "rust_tests",
-        "test_id_prefix": "ninja://:rust_tests/"
-      },
-      {
-        "merge": {
-          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
-        },
         "module_name": "//pc:slow_peer_connection_unittests",
         "name": "slow_peer_connection_unittests",
         "resultdb": {
@@ -7466,24 +7266,6 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//:rust_tests",
-        "name": "rust_tests",
-        "resultdb": {
-          "result_format": "json"
-        },
-        "swarming": {
-          "dimensions": {
-            "cpu": "x86-64",
-            "os": "Mac-15"
-          }
-        },
-        "test": "rust_tests",
-        "test_id_prefix": "ninja://:rust_tests/"
-      },
-      {
-        "merge": {
-          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
-        },
         "module_name": "//pc:slow_peer_connection_unittests",
         "name": "slow_peer_connection_unittests",
         "resultdb": {
@@ -7939,24 +7721,6 @@
         },
         "test": "rtc_unittests",
         "test_id_prefix": "ninja://:rtc_unittests/"
-      },
-      {
-        "merge": {
-          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
-        },
-        "module_name": "//:rust_tests",
-        "name": "rust_tests",
-        "resultdb": {
-          "result_format": "json"
-        },
-        "swarming": {
-          "dimensions": {
-            "cpu": "arm64-64-Apple_M1",
-            "os": "Mac-15"
-          }
-        },
-        "test": "rust_tests",
-        "test_id_prefix": "ninja://:rust_tests/"
       },
       {
         "merge": {
@@ -8448,24 +8212,6 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//:rust_tests",
-        "name": "rust_tests",
-        "resultdb": {
-          "result_format": "json"
-        },
-        "swarming": {
-          "dimensions": {
-            "cpu": "x86-64",
-            "os": "Windows-10-19045"
-          }
-        },
-        "test": "rust_tests",
-        "test_id_prefix": "ninja://:rust_tests/"
-      },
-      {
-        "merge": {
-          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
-        },
         "module_name": "//pc:slow_peer_connection_unittests",
         "name": "slow_peer_connection_unittests",
         "resultdb": {
@@ -8921,24 +8667,6 @@
         },
         "test": "rtc_unittests",
         "test_id_prefix": "ninja://:rtc_unittests/"
-      },
-      {
-        "merge": {
-          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
-        },
-        "module_name": "//:rust_tests",
-        "name": "rust_tests",
-        "resultdb": {
-          "result_format": "json"
-        },
-        "swarming": {
-          "dimensions": {
-            "cpu": "x86-64",
-            "os": "Windows-10-19045"
-          }
-        },
-        "test": "rust_tests",
-        "test_id_prefix": "ninja://:rust_tests/"
       },
       {
         "merge": {
@@ -9404,24 +9132,6 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "module_name": "//:rust_tests",
-        "name": "rust_tests",
-        "resultdb": {
-          "result_format": "json"
-        },
-        "swarming": {
-          "dimensions": {
-            "cpu": "x86-64",
-            "os": "Windows-10-19045"
-          }
-        },
-        "test": "rust_tests",
-        "test_id_prefix": "ninja://:rust_tests/"
-      },
-      {
-        "merge": {
-          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
-        },
         "module_name": "//pc:slow_peer_connection_unittests",
         "name": "slow_peer_connection_unittests",
         "resultdb": {
@@ -9877,24 +9587,6 @@
         },
         "test": "rtc_unittests",
         "test_id_prefix": "ninja://:rtc_unittests/"
-      },
-      {
-        "merge": {
-          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
-        },
-        "module_name": "//:rust_tests",
-        "name": "rust_tests",
-        "resultdb": {
-          "result_format": "json"
-        },
-        "swarming": {
-          "dimensions": {
-            "cpu": "x86-64",
-            "os": "Windows-10-19045"
-          }
-        },
-        "test": "rust_tests",
-        "test_id_prefix": "ninja://:rust_tests/"
       },
       {
         "merge": {
