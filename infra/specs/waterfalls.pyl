@@ -11,8 +11,6 @@
     'name': 'client.webrtc',
     'mixins': [],
     'machines': {
-      'Android32': {},
-      'Android32 (dbg)': {},
       'Android32 Builder arm': {},
       'Android32 Builder x86': {},
       'Android32 Builder x86 (dbg)': {},
@@ -284,26 +282,6 @@
     'name': 'tryserver.webrtc',
     'mixins': [],
     'machines': {
-      'android_arm64_dbg': {
-        'mixins': [
-          'panther_on_14', 'android-devices', 'has_native_resultdb_integration',
-          'chromium-tester-service-account'
-        ],
-        'test_suites': {
-          'gtest_tests': 'android_tests_tryserver',
-          'isolated_scripts': 'android_junit_tests',
-        },
-      },
-      'android_arm64_rel': {
-        'mixins': [
-          'panther_on_14', 'android-devices', 'has_native_resultdb_integration',
-          'chromium-tester-service-account'
-        ],
-        'test_suites': {
-          'gtest_tests': 'android_tests_tryserver',
-          'isolated_scripts': 'android_junit_tests',
-        },
-      },
       'android_arm_dbg': {
         'mixins': [
           'panther_on_14', 'android-devices', 'has_native_resultdb_integration',
@@ -333,8 +311,6 @@
           'isolated_scripts': 'android_junit_tests',
         },
       },
-      'android_compile_arm64_dbg': {},
-      'android_compile_arm64_rel': {},
       'android_compile_arm_dbg': {},
       'android_compile_arm_rel': {},
       'android_compile_x64_dbg': {},
