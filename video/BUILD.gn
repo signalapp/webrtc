@@ -2215,6 +2215,8 @@ if (rtc_include_tests) {
       ":video_source_sink_controller_unittest",
       ":video_stream_buffer_controller_unittest",
       ":video_stream_encoder_unittest",
+      "corruption_detection:corruption_detection_unittests",
+      "corruption_detection/evaluation:corruption_detection_eval_unittests",
     ]
   }
 }
