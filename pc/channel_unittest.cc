@@ -782,11 +782,13 @@ class ChannelTest : public ::testing::Test {
     CreateChannels(0, 0);
     typename T::Content content;
     CreateContent(0, kPcmuCodec, kH264Codec, &content);
-    auto offer_enum = offer ? (T::Content::kSession) : (T::Content::kNo);
-    auto answer_enum = answer ? (T::Content::kSession) : (T::Content::kNo);
-    content.set_extmap_allow_mixed_enum(offer_enum);
+    auto offer_enum = offer ? (T::Content::AttributeLevel::kSession)
+                            : (T::Content::AttributeLevel::kNone);
+    auto answer_enum = answer ? (T::Content::AttributeLevel::kSession)
+                              : (T::Content::AttributeLevel::kNone);
+    content.set_extmap_allow_mixed_level(offer_enum);
     EXPECT_TRUE(channel1_->SetLocalContent(&content, SdpType::kOffer).ok());
-    content.set_extmap_allow_mixed_enum(answer_enum);
+    content.set_extmap_allow_mixed_level(answer_enum);
     EXPECT_TRUE(channel1_->SetRemoteContent(&content, SdpType::kAnswer).ok());
     EXPECT_EQ(answer, media_send_channel1_impl()->ExtmapAllowMixed());
   }
@@ -797,11 +799,13 @@ class ChannelTest : public ::testing::Test {
     CreateChannels(0, 0);
     typename T::Content content;
     CreateContent(0, kPcmuCodec, kH264Codec, &content);
-    auto offer_enum = offer ? (T::Content::kSession) : (T::Content::kNo);
-    auto answer_enum = answer ? (T::Content::kSession) : (T::Content::kNo);
-    content.set_extmap_allow_mixed_enum(offer_enum);
+    auto offer_enum = offer ? (T::Content::AttributeLevel::kSession)
+                            : (T::Content::AttributeLevel::kNone);
+    auto answer_enum = answer ? (T::Content::AttributeLevel::kSession)
+                              : (T::Content::AttributeLevel::kNone);
+    content.set_extmap_allow_mixed_level(offer_enum);
     EXPECT_TRUE(channel1_->SetRemoteContent(&content, SdpType::kOffer).ok());
-    content.set_extmap_allow_mixed_enum(answer_enum);
+    content.set_extmap_allow_mixed_level(answer_enum);
     EXPECT_TRUE(channel1_->SetLocalContent(&content, SdpType::kAnswer).ok());
     EXPECT_EQ(answer, channel1_->media_send_channel()->ExtmapAllowMixed());
   }
