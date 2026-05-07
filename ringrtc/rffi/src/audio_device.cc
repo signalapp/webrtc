@@ -57,6 +57,7 @@ RUSTEXPORT int32_t Rust_needMorePlayData(size_t n_samples,
   AudioTransport* audio_callback =
       AUDIO_TRANSPORT.load(std::memory_order_seq_cst);
   if (!audio_callback) {
+    *n_samples_out = n_samples;
     return 0;
   }
   return audio_callback->NeedMorePlayData(
