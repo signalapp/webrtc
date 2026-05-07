@@ -179,10 +179,7 @@ void SctpSidAllocator::ReleaseSid(StreamId sid) {
 // and the ObserverAdapter no longer be necessary.
 class SctpDataChannel::ObserverAdapter : public DataChannelObserver {
  public:
-  explicit ObserverAdapter(
-      SctpDataChannel* channel,
-      scoped_refptr<PendingTaskSafetyFlag> signaling_safety)
-      : channel_(channel), signaling_safety_(std::move(signaling_safety)) {}
+  explicit ObserverAdapter(SctpDataChannel* channel) : channel_(channel) {}
 
   bool IsInsideCallback() const {
     RTC_DCHECK_RUN_ON(signaling_thread());
@@ -237,7 +234,8 @@ class SctpDataChannel::ObserverAdapter : public DataChannelObserver {
       RTC_DCHECK(was_dropped_);
       was_dropped_ = false;
       adapter_->cached_getters_ = this;
-      return adapter_->delegate_ && adapter_->signaling_safety_->alive();
+      return adapter_->delegate_ &&
+             adapter_->channel_->controller_safety_->alive();
     }
 
     RTCError error() { return cached_error_; }
@@ -294,7 +292,6 @@ class SctpDataChannel::ObserverAdapter : public DataChannelObserver {
   // `channel_` in the `RTC_DCHECK_RUN_ON` checks on the signaling thread.
   Thread* const signaling_thread_{channel_->signaling_thread_};
   ScopedTaskSafety safety_;
-  scoped_refptr<PendingTaskSafetyFlag> signaling_safety_;
   CachedGetters* cached_getters_ RTC_GUARDED_BY(signaling_thread()) = nullptr;
 };
 
@@ -304,23 +301,22 @@ scoped_refptr<SctpDataChannel> SctpDataChannel::Create(
     absl::string_view label,
     bool connected_to_transport,
     const InternalDataChannelInit& config,
+    scoped_refptr<PendingTaskSafetyFlag> controller_safety,
     Thread* signaling_thread,
     Thread* network_thread) {
   RTC_DCHECK(config.IsValid());
-  return make_ref_counted<SctpDataChannel>(config, std::move(controller), label,
-                                           connected_to_transport,
-                                           signaling_thread, network_thread);
+  return make_ref_counted<SctpDataChannel>(
+      config, std::move(controller), label, connected_to_transport,
+      std::move(controller_safety), signaling_thread, network_thread);
 }
 
 // static
 scoped_refptr<DataChannelInterface> SctpDataChannel::CreateProxy(
-    scoped_refptr<SctpDataChannel> channel,
-    scoped_refptr<PendingTaskSafetyFlag> signaling_safety) {
+    scoped_refptr<SctpDataChannel> channel) {
   // Copy thread params to local variables before `std::move()`.
   auto* signaling_thread = channel->signaling_thread_;
   auto* network_thread = channel->network_thread_;
-  channel->observer_adapter_ = std::make_unique<ObserverAdapter>(
-      channel.get(), std::move(signaling_safety));
+  channel->observer_adapter_ = std::make_unique<ObserverAdapter>(channel.get());
   return DataChannelProxy::Create(signaling_thread, network_thread,
                                   std::move(channel));
 }
@@ -330,6 +326,7 @@ SctpDataChannel::SctpDataChannel(
     WeakPtr<SctpDataChannelControllerInterface> controller,
     absl::string_view label,
     bool connected_to_transport,
+    scoped_refptr<PendingTaskSafetyFlag> controller_safety,
     Thread* signaling_thread,
     Thread* network_thread)
     : signaling_thread_(signaling_thread),
@@ -345,7 +342,8 @@ SctpDataChannel::SctpDataChannel(
       ordered_(config.ordered),
       observer_(nullptr),
       controller_(std::move(controller)),
-      connected_to_transport_(connected_to_transport) {
+      connected_to_transport_(connected_to_transport),
+      controller_safety_(std::move(controller_safety)) {
   RTC_DCHECK_RUN_ON(network_thread_);
   // Since we constructed on the network thread we can't (yet) check the
   // `controller_` pointer since doing so will trigger a thread check.
