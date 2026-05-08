@@ -2746,10 +2746,10 @@ TEST_F(MediaSessionDescriptionFactoryTest,
       offer->GetContentDescriptionByName(kAudioMid);
   MediaContentDescription* video_offer =
       offer->GetContentDescriptionByName(kVideoMid);
-  ASSERT_EQ(audio_offer->extmap_allow_mixed_level(),
-            MediaContentDescription::AttributeLevel::kNone);
-  ASSERT_EQ(video_offer->extmap_allow_mixed_level(),
-            MediaContentDescription::AttributeLevel::kNone);
+  ASSERT_EQ(audio_offer->extmap_allow_mixed_enum(),
+            MediaContentDescription::kNo);
+  ASSERT_EQ(video_offer->extmap_allow_mixed_enum(),
+            MediaContentDescription::kNo);
 
   std::unique_ptr<SessionDescription> answer(
       f2_.CreateAnswerOrError(offer.get(), opts,
@@ -2760,10 +2760,10 @@ TEST_F(MediaSessionDescriptionFactoryTest,
       answer->GetContentDescriptionByName(kAudioMid);
   MediaContentDescription* video_answer =
       answer->GetContentDescriptionByName(kVideoMid);
-  EXPECT_EQ(audio_answer->extmap_allow_mixed_level(),
-            MediaContentDescription::AttributeLevel::kNone);
-  EXPECT_EQ(video_answer->extmap_allow_mixed_level(),
-            MediaContentDescription::AttributeLevel::kNone);
+  EXPECT_EQ(audio_answer->extmap_allow_mixed_enum(),
+            MediaContentDescription::kNo);
+  EXPECT_EQ(video_answer->extmap_allow_mixed_enum(),
+            MediaContentDescription::kNo);
 }
 
 TEST_F(MediaSessionDescriptionFactoryTest,
@@ -2775,12 +2775,10 @@ TEST_F(MediaSessionDescriptionFactoryTest,
   offer->set_extmap_allow_mixed(false);
   MediaContentDescription* audio_offer =
       offer->GetContentDescriptionByName(kAudioMid);
-  audio_offer->set_extmap_allow_mixed_level(
-      MediaContentDescription::AttributeLevel::kMedia);
+  audio_offer->set_extmap_allow_mixed_enum(MediaContentDescription::kMedia);
   MediaContentDescription* video_offer =
       offer->GetContentDescriptionByName(kVideoMid);
-  video_offer->set_extmap_allow_mixed_level(
-      MediaContentDescription::AttributeLevel::kMedia);
+  video_offer->set_extmap_allow_mixed_enum(MediaContentDescription::kMedia);
 
   std::unique_ptr<SessionDescription> answer(
       f2_.CreateAnswerOrError(offer.get(), opts,
@@ -2791,10 +2789,10 @@ TEST_F(MediaSessionDescriptionFactoryTest,
       answer->GetContentDescriptionByName(kAudioMid);
   MediaContentDescription* video_answer =
       answer->GetContentDescriptionByName(kVideoMid);
-  EXPECT_EQ(audio_answer->extmap_allow_mixed_level(),
-            MediaContentDescription::AttributeLevel::kMedia);
-  EXPECT_EQ(video_answer->extmap_allow_mixed_level(),
-            MediaContentDescription::AttributeLevel::kMedia);
+  EXPECT_EQ(audio_answer->extmap_allow_mixed_enum(),
+            MediaContentDescription::kMedia);
+  EXPECT_EQ(video_answer->extmap_allow_mixed_enum(),
+            MediaContentDescription::kMedia);
 }
 
 TEST_F(MediaSessionDescriptionFactoryTest,
@@ -2806,12 +2804,10 @@ TEST_F(MediaSessionDescriptionFactoryTest,
   offer->set_extmap_allow_mixed(false);
   MediaContentDescription* audio_offer =
       offer->GetContentDescriptionByName(kAudioMid);
-  audio_offer->set_extmap_allow_mixed_level(
-      MediaContentDescription::AttributeLevel::kNone);
+  audio_offer->set_extmap_allow_mixed_enum(MediaContentDescription::kNo);
   MediaContentDescription* video_offer =
       offer->GetContentDescriptionByName(kVideoMid);
-  video_offer->set_extmap_allow_mixed_level(
-      MediaContentDescription::AttributeLevel::kMedia);
+  video_offer->set_extmap_allow_mixed_enum(MediaContentDescription::kMedia);
 
   std::unique_ptr<SessionDescription> answer(
       f2_.CreateAnswerOrError(offer.get(), opts,
@@ -2822,10 +2818,10 @@ TEST_F(MediaSessionDescriptionFactoryTest,
       answer->GetContentDescriptionByName(kAudioMid);
   MediaContentDescription* video_answer =
       answer->GetContentDescriptionByName(kVideoMid);
-  EXPECT_EQ(audio_answer->extmap_allow_mixed_level(),
-            MediaContentDescription::AttributeLevel::kNone);
-  EXPECT_EQ(video_answer->extmap_allow_mixed_level(),
-            MediaContentDescription::AttributeLevel::kMedia);
+  EXPECT_EQ(audio_answer->extmap_allow_mixed_enum(),
+            MediaContentDescription::kNo);
+  EXPECT_EQ(video_answer->extmap_allow_mixed_enum(),
+            MediaContentDescription::kMedia);
 }
 
 // Create an audio and video offer with:
