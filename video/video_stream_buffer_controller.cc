@@ -110,7 +110,7 @@ VideoStreamBufferController::VideoStreamBufferController(
       buffer_(std::make_unique<FrameBuffer>(kMaxFramesBuffered,
                                             kMaxFramesHistory,
                                             field_trials)),
-      decode_timing_(clock_, timing_),
+      decode_timing_(clock_, timing_, field_trials_),
       timeout_tracker_(
           clock_,
           worker_queue,
@@ -265,7 +265,7 @@ void VideoStreamBufferController::OnFrameReady(
   std::unique_ptr<EncodedFrame> frame =
       CombineAndDeleteFrames(std::move(frames));
 
-  timing_->SetLastDecodeScheduledTimestamp(now);
+  decode_timing_.SetLastDecodeScheduledTimestamp(now);
 
   decoder_ready_for_new_frame_ = false;
   receiver_->OnEncodedFrame(std::move(frame));

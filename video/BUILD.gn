@@ -353,11 +353,13 @@ rtc_library("frame_decode_timing") {
     "frame_decode_timing.h",
   ]
   deps = [
+    "../api:field_trials_view",
     "../api/units:time_delta",
     "../api/units:timestamp",
     "../modules/video_coding/timing:timing_module",
     "../rtc_base:checks",
     "../rtc_base:logging",
+    "../rtc_base/experiments:field_trial_parser",
     "../system_wrappers",
   ]
 }
@@ -1454,6 +1456,7 @@ if (rtc_include_tests) {
       ":video",
       "../api:field_trials",
       "../api:field_trials_view",
+      "../api/units:frequency",
       "../api/units:time_delta",
       "../api/units:timestamp",
       "../modules/video_coding/timing:timing_module",
