@@ -167,7 +167,6 @@ rtc_library("video") {
     "../rtc_base:safe_conversions",
     "../rtc_base:sample_counter",
     "../rtc_base:stringutils",
-    "../rtc_base:threading",
     "../rtc_base:timeutils",
     "../rtc_base/experiments:alr_experiment",
     "../rtc_base/experiments:corruption_detection_frame_selector_settings",
