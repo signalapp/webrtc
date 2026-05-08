@@ -5356,6 +5356,41 @@ TEST_P(PeerConnectionIntegrationTest,
 
 #endif  // WEBRTC_HAVE_SCTP
 
+TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
+       MungeOfferCodecAndReOfferCausesNoDuplicateId) {
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignaling();
+  caller()->AddVideoTrack();
+  caller()->AddAudioTrack();
+  auto munger = [](std::unique_ptr<SessionDescriptionInterface>& sdp) {
+    VideoContentDescription* video =
+        GetFirstVideoContentDescription(sdp->description());
+    std::vector<Codec> codecs = video->codecs();
+    for (auto& codec : codecs) {
+      if (codec.name == "VP9") {
+        RTC_LOG(LS_ERROR) << "Remapping VP9 codec " << codec << " to AV1";
+        codec.name = "AV1";
+      }
+    }
+    video->set_codecs(codecs);
+  };
+  caller()->SetGeneratedSdpMunger(munger);
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
+  EXPECT_TRUE(ValidateBundledPayloadTypes(
+                  *caller()->pc()->local_description()->description())
+                  .ok());
+  EXPECT_TRUE(ValidateBundledPayloadTypes(
+                  *caller()->pc()->remote_description()->description())
+                  .ok());
+  caller()->SetGeneratedSdpMunger(nullptr);
+  auto offer = caller()->CreateOfferAndWait();
+  ASSERT_THAT(offer, NotNull());
+  // The offer should be acceptable.
+  EXPECT_TRUE(ValidateBundledPayloadTypes(*offer->description()).ok());
+  EXPECT_TRUE(caller()->SetLocalDescriptionAndSendSdpMessage(std::move(offer)));
+}
+
 }  // namespace
 
 }  // namespace webrtc
