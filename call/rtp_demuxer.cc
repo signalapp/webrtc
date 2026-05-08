@@ -161,7 +161,13 @@ bool RtpDemuxer::AddSink(const RtpDemuxerCriteria& criteria,
   }
 
   for (uint32_t ssrc : criteria.ssrcs()) {
-    sink_by_ssrc_.emplace(ssrc, sink);
+    auto result = sink_by_ssrc_.emplace(ssrc, sink);
+    if (!result.second) {
+      if (signaled_ssrcs_.find(ssrc) == signaled_ssrcs_.end()) {
+        result.first->second = sink;
+      }
+    }
+    signaled_ssrcs_.insert(ssrc);
   }
 
   for (uint8_t payload_type : criteria.payload_types()) {
@@ -231,10 +237,12 @@ bool RtpDemuxer::CriteriaWouldConflict(
   for (uint32_t ssrc : criteria.ssrcs()) {
     const auto sink_by_ssrc = sink_by_ssrc_.find(ssrc);
     if (sink_by_ssrc != sink_by_ssrc_.end()) {
-      RTC_LOG(LS_INFO) << criteria.ToString()
-                       << " would conflict with existing sink = "
-                       << sink_by_ssrc->second << " binding by SSRC=" << ssrc;
-      return true;
+      if (signaled_ssrcs_.find(ssrc) != signaled_ssrcs_.end()) {
+        RTC_LOG(LS_INFO) << criteria.ToString()
+                         << " would conflict with existing sink = "
+                         << sink_by_ssrc->second << " binding by SSRC=" << ssrc;
+        return true;
+      }
     }
   }
 
@@ -270,6 +278,10 @@ void RtpDemuxer::AddSink(absl::string_view rsid, RtpPacketSinkInterface* sink) {
 
 bool RtpDemuxer::RemoveSink(const RtpPacketSinkInterface* sink) {
   RTC_DCHECK(sink);
+  flat_set<uint32_t> ssrcs = GetSsrcsForSink(sink);
+  for (uint32_t ssrc : ssrcs) {
+    signaled_ssrcs_.erase(ssrc);
+  }
   size_t num_removed = RemoveFromMapByValue(&sink_by_mid_, sink) +
                        RemoveFromMapByValue(&sink_by_ssrc_, sink) +
                        RemoveFromMultimapByValue(&sinks_by_pt_, sink) +
@@ -400,8 +412,13 @@ RtpPacketSinkInterface* RtpDemuxer::ResolveSink(
     return ssrc_sink_it->second;
   }
 
-  // Legacy senders will only signal payload type, support that as last resort.
-  return ResolveSinkByPayloadType(packet.PayloadType(), ssrc);
+  if (use_payload_type_demuxing_) {
+    // Legacy senders will only signal payload type.
+    // Support that as a last resort.
+    return ResolveSinkByPayloadType(packet.PayloadType(), ssrc);
+  }
+
+  return nullptr;
 }
 
 RtpPacketSinkInterface* RtpDemuxer::ResolveSinkByMid(absl::string_view mid,

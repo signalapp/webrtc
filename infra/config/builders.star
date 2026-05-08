@@ -20,8 +20,6 @@ WEBRTC_GIT = "https://webrtc.googlesource.com/src"
 # useful when a failure can be safely ignored while fixing it without
 # blocking the LKGR finder on it.
 skipped_lkgr_bots = [
-    # TODO: https://issues.webrtc.org/460264453 - Re-enable when reliable
-    "iOS Debug (simulator)",
 ]
 
 lkgr_builders = []
@@ -342,8 +340,7 @@ ios_builder("iOS64 Release", "iOS|arm64|rel")
 ios_try_job("ios_compile_arm64_rel")
 ios_builder("iOS Debug (simulator)", "iOS|x64|sim")
 
-# TODO: https://issues.webrtc.org/460264453 - Re-enable when reliable
-ios_try_job("ios_dbg_simulator", cq = None)
+ios_try_job("ios_dbg_simulator")
 ios_builder("iOS API Framework Builder", "iOS|fat|size", recipe = "ios_api_framework", prioritized = True)
 ios_try_job("ios_api_framework", recipe = "ios_api_framework")
 
@@ -397,9 +394,7 @@ try_builder("mac_compile_dbg")
 ci_builder("Mac64 Release", "Mac|x64|rel")
 try_builder("mac_rel")
 try_builder("mac_compile_rel", cq = None)
-ci_builder("Mac64 Builder", ci_cat = None, perf_cat = "Mac|x64|Builder|")
 ci_builder("MacArm64 Builder", ci_cat = None, perf_cat = "Mac|arm64|Builder|")
-perf_builder("Perf Mac 11", "Mac|x64|Tester|11", triggered_by = ["Mac64 Builder"])
 perf_builder("Perf Mac M1 Arm64 12", "Mac|arm64|Tester|12", triggered_by = ["MacArm64 Builder"])
 ci_builder("Mac Asan", "Mac|x64|asan")
 try_builder("mac_asan")

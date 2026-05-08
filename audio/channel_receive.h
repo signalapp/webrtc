@@ -167,10 +167,9 @@ class ChannelReceiveInterface : public RtpPacketSinkInterface {
   virtual void SetFrameDecryptor(
       scoped_refptr<webrtc::FrameDecryptorInterface> frame_decryptor) = 0;
 
-  virtual void OnLocalSsrcChange(uint32_t local_ssrc) = 0;
-
   // RingRTC change to configure opus
   virtual void ConfigureDecoder(const AudioDecoder::Config& config) = 0;
+  // End RingRTC change to configure opus
 };
 
 std::unique_ptr<ChannelReceiveInterface> CreateChannelReceive(
@@ -178,7 +177,6 @@ std::unique_ptr<ChannelReceiveInterface> CreateChannelReceive(
     NetEqFactory* neteq_factory,
     AudioDeviceModule* audio_device_module,
     Transport* rtcp_send_transport,
-    uint32_t local_ssrc,
     uint32_t remote_ssrc,
     size_t jitter_buffer_max_packets,
     bool jitter_buffer_fast_playout,

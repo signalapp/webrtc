@@ -18,13 +18,13 @@
 #include <cstring>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/audio/audio_processing.h"
 #include "api/audio/audio_processing_statistics.h"
 #include "api/audio/audio_view.h"
@@ -1255,7 +1255,7 @@ int AudioProcessingImpl::ProcessCaptureStreamLocked() {
         *capture_buffer);
   }
 
-  capture_input_rms_.Analyze(ArrayView<const float>(
+  capture_input_rms_.Analyze(std::span<const float>(
       capture_buffer->channels_const()[0],
       capture_nonlocked_.capture_processing_format.num_frames()));
   const bool log_rms = ++capture_rms_interval_counter_ >= 1000;
@@ -1402,7 +1402,7 @@ int AudioProcessingImpl::ProcessCaptureStreamLocked() {
     }
 
     if (submodules_.echo_detector) {
-      submodules_.echo_detector->AnalyzeCaptureAudio(ArrayView<const float>(
+      submodules_.echo_detector->AnalyzeCaptureAudio(std::span<const float>(
           capture_buffer->channels()[0], capture_buffer->num_frames()));
     }
 
@@ -1426,7 +1426,7 @@ int AudioProcessingImpl::ProcessCaptureStreamLocked() {
       submodules_.capture_post_processor->Process(capture_buffer);
     }
 
-    capture_output_rms_.Analyze(ArrayView<const float>(
+    capture_output_rms_.Analyze(std::span<const float>(
         capture_buffer->channels_const()[0],
         capture_nonlocked_.capture_processing_format.num_frames()));
     if (log_rms) {
@@ -1486,7 +1486,7 @@ int AudioProcessingImpl::ProcessCaptureStreamLocked() {
   if (!capture_.capture_output_used_last_frame &&
       capture_.capture_output_used) {
     for (size_t ch = 0; ch < capture_buffer->num_channels(); ++ch) {
-      ArrayView<float> channel_view(capture_buffer->channels()[ch],
+      std::span<float> channel_view(capture_buffer->channels()[ch],
                                     capture_buffer->num_frames());
       std::fill(channel_view.begin(), channel_view.end(), 0.f);
     }
@@ -1649,7 +1649,7 @@ int AudioProcessingImpl::set_stream_delay_ms(int delay) {
 }
 
 bool AudioProcessingImpl::GetLinearAecOutput(
-    ArrayView<std::array<float, 160>> linear_output) const {
+    std::span<std::array<float, 160>> linear_output) const {
   MutexLock lock(&mutex_capture_);
   AudioBuffer* linear_aec_buffer = capture_.linear_aec_output.get();
 
@@ -1660,8 +1660,8 @@ bool AudioProcessingImpl::GetLinearAecOutput(
 
     for (size_t ch = 0; ch < linear_aec_buffer->num_channels(); ++ch) {
       RTC_DCHECK_EQ(linear_output[ch].size(), linear_aec_buffer->num_frames());
-      ArrayView<const float> channel_view =
-          ArrayView<const float>(linear_aec_buffer->channels_const()[ch],
+      std::span<const float> channel_view =
+          std::span<const float>(linear_aec_buffer->channels_const()[ch],
                                  linear_aec_buffer->num_frames());
       FloatS16ToFloat(channel_view.data(), channel_view.size(),
                       linear_output[ch].data());

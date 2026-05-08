@@ -14,6 +14,7 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <map>
 #include <memory>
 #include <queue>
@@ -316,6 +317,13 @@ class RTC_LOCKABLE RTC_EXPORT Thread : public TaskQueueBase {
   // ProcessMessages occasionally.
   virtual void Run();
 
+  // Returns true if there are pending tasks in the message queue.
+  // Cooperative tasks can use this to know if they should yield.
+  // If a task yields, it is up to the task itself how or if to
+  // continue the ongoing operation. Typically this can be handled
+  // by using PostTask() to queue up a continuation task.
+  bool HasPendingTasks() const;
+
   // Convenience method to invoke a functor on another thread.
   // Blocks the current thread until execution is complete.
   // Ex: thread.BlockingCall([&] { result = MyFunctionReturningBool(); });
@@ -497,7 +505,7 @@ class RTC_LOCKABLE RTC_EXPORT Thread : public TaskQueueBase {
   // Called by the ThreadManager when being unset as the current thread.
   void ClearCurrentTaskQueue();
 
-  std::queue<absl::AnyInvocable<void() &&>> messages_ RTC_GUARDED_BY(mutex_);
+  std::deque<absl::AnyInvocable<void() &&>> messages_ RTC_GUARDED_BY(mutex_);
   std::priority_queue<DelayedMessage> delayed_messages_ RTC_GUARDED_BY(mutex_);
   uint32_t delayed_next_num_ RTC_GUARDED_BY(mutex_);
 #if RTC_DCHECK_IS_ON
@@ -545,6 +553,16 @@ class RTC_LOCKABLE RTC_EXPORT Thread : public TaskQueueBase {
   friend class ThreadManager;
 
   int dispatch_warning_ms_ RTC_GUARDED_BY(this) = kSlowDispatchLoggingThreshold;
+
+#if RTC_DCHECK_IS_ON
+  // This is used to catch if a cooperative task ends up being called from
+  // within another task. If that happens, the risk is that a full yield won't
+  // actually happen, so this is to help with ensuring we catch when things
+  // don't run as expected since webrtc can be configured in many ways and
+  // sometimes virtual thread concepts such as worker and network threads, can
+  // map to the same thread object.
+  int running_synchronous_blocking_call_count_ RTC_GUARDED_BY(this) = 0;
+#endif
 };
 
 // AutoThread automatically installs itself at construction

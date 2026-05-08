@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "absl/strings/match.h"
 #include "api/audio/audio_device.h"
 #include "api/audio_options.h"
@@ -173,6 +174,16 @@ bool FakeVoiceMediaReceiveChannel::GetStats(
     bool /* get_and_clear_legacy_stats */) {
   return false;
 }
+absl::AnyInvocable<std::optional<VoiceMediaReceiveInfo>()>
+FakeVoiceMediaReceiveChannel::GetStatsCallback(bool reset_legacy) {
+  return [this, reset_legacy]() -> std::optional<VoiceMediaReceiveInfo> {
+    VoiceMediaReceiveInfo info;
+    if (GetStats(&info, reset_legacy)) {
+      return info;
+    }
+    return std::nullopt;
+  };
+}
 void FakeVoiceMediaReceiveChannel::SetRawAudioSink(
     uint32_t /* ssrc */,
     std::unique_ptr<AudioSinkInterface> sink) {
@@ -318,6 +329,16 @@ bool FakeVoiceMediaSendChannel::GetOutputVolume(uint32_t ssrc, double* volume) {
 bool FakeVoiceMediaSendChannel::GetStats(VoiceMediaSendInfo* /* info */) {
   return false;
 }
+absl::AnyInvocable<std::optional<VoiceMediaSendInfo>()>
+FakeVoiceMediaSendChannel::GetStatsCallback() {
+  return [this]() -> std::optional<VoiceMediaSendInfo> {
+    VoiceMediaSendInfo info;
+    if (GetStats(&info)) {
+      return info;
+    }
+    return std::nullopt;
+  };
+}
 bool FakeVoiceMediaSendChannel::SetSendCodecs(
     const std::vector<Codec>& codecs) {
   if (fail_set_send_codecs()) {
@@ -418,6 +439,16 @@ void FakeVideoMediaSendChannel::FillBitrateInfo(
     BandwidthEstimationInfo* /* bwe_info */) {}
 bool FakeVideoMediaSendChannel::GetStats(VideoMediaSendInfo* /* info */) {
   return false;
+}
+absl::AnyInvocable<std::optional<VideoMediaSendInfo>()>
+FakeVideoMediaSendChannel::GetStatsCallback() {
+  return [this]() -> std::optional<VideoMediaSendInfo> {
+    VideoMediaSendInfo info;
+    if (GetStats(&info)) {
+      return info;
+    }
+    return std::nullopt;
+  };
 }
 bool FakeVideoMediaSendChannel::SetSendCodecs(
     const std::vector<Codec>& codecs) {
@@ -559,6 +590,16 @@ void FakeVideoMediaReceiveChannel::RequestRecvKeyFrame(uint32_t /* ssrc */) {}
 bool FakeVideoMediaReceiveChannel::GetStats(VideoMediaReceiveInfo* /* info */) {
   return false;
 }
+absl::AnyInvocable<std::optional<VideoMediaReceiveInfo>()>
+FakeVideoMediaReceiveChannel::GetStatsCallback() {
+  return [this]() -> std::optional<VideoMediaReceiveInfo> {
+    VideoMediaReceiveInfo info;
+    if (GetStats(&info)) {
+      return info;
+    }
+    return std::nullopt;
+  };
+}
 
 FakeVoiceEngine::FakeVoiceEngine()
     : encoder_factory_(make_ref_counted<FakeVoiceEncoderFactory>(this)),
@@ -654,7 +695,9 @@ FakeVideoEngine::CreateSendChannel(
     const MediaConfig& /* config */,
     const VideoOptions& options,
     const CryptoOptions& /* crypto_options */,
-    VideoBitrateAllocatorFactory* /* video_bitrate_allocator_factory */) {
+    VideoBitrateAllocatorFactory* /* video_bitrate_allocator_factory */,
+    VideoMediaSendChannelInterface::EncoderSwitchRequestCallback
+    /* video_encoder_switch_request_callback */) {
   std::unique_ptr<FakeVideoMediaSendChannel> ch =
       std::make_unique<FakeVideoMediaSendChannel>(options,
                                                   call->network_thread());

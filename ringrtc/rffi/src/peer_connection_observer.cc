@@ -5,6 +5,8 @@
 
 #include "rffi/src/peer_connection_observer.h"
 
+#include <span>
+
 #include "pc/webrtc_sdp.h"
 #include "rffi/src/ptr.h"
 #include "rtc_base/net_helper.h"
@@ -222,9 +224,9 @@ class Encryptor : public FrameEncryptorInterface {
               uint32_t _ssrc,
               // This is not supported by our SFU currently, so don't bother
               // trying to use it.
-              ArrayView<const uint8_t> _generic_video_header,
-              ArrayView<const uint8_t> plaintext,
-              ArrayView<uint8_t> ciphertext_buffer,
+              std::span<const uint8_t> _generic_video_header,
+              std::span<const uint8_t> plaintext,
+              std::span<uint8_t> ciphertext_buffer,
               size_t* ciphertext_size) override {
     bool is_audio = (media_type == MediaType::AUDIO);
     bool is_video = (media_type == MediaType::VIDEO);
@@ -339,9 +341,9 @@ class Decryptor : public FrameDecryptorInterface {
       const std::vector<uint32_t>& _csrcs,
       // This is not supported by our SFU currently, so don't bother trying to
       // use it.
-      ArrayView<const uint8_t> _generic_video_header,
-      ArrayView<const uint8_t> ciphertext,
-      ArrayView<uint8_t> plaintext_buffer) override {
+      std::span<const uint8_t> _generic_video_header,
+      std::span<const uint8_t> ciphertext,
+      std::span<uint8_t> plaintext_buffer) override {
     bool is_audio = (media_type == MediaType::AUDIO);
     bool is_video = (media_type == MediaType::VIDEO);
     if (!is_audio && !is_video) {

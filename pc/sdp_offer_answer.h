@@ -148,15 +148,18 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
       scoped_refptr<SetLocalDescriptionObserverInterface> observer);
   void SetLocalDescription(
       scoped_refptr<SetLocalDescriptionObserverInterface> observer);
-  void SetLocalDescription(SetSessionDescriptionObserver* observer,
-                           SessionDescriptionInterface* desc);
-  void SetLocalDescription(SetSessionDescriptionObserver* observer);
+  void SetLocalDescription(
+      scoped_refptr<SetSessionDescriptionObserver> observer,
+      std::unique_ptr<SessionDescriptionInterface> desc);
+  void SetLocalDescription(
+      scoped_refptr<SetSessionDescriptionObserver> observer);
 
   void SetRemoteDescription(
       std::unique_ptr<SessionDescriptionInterface> desc,
       scoped_refptr<SetRemoteDescriptionObserverInterface> observer);
-  void SetRemoteDescription(SetSessionDescriptionObserver* observer,
-                            SessionDescriptionInterface* desc);
+  void SetRemoteDescription(
+      scoped_refptr<SetSessionDescriptionObserver> observer,
+      std::unique_ptr<SessionDescriptionInterface> desc);
 
   PeerConnectionInterface::RTCConfiguration GetConfiguration();
   RTCError SetConfiguration(
@@ -571,7 +574,7 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
 
   // Based on number of transceivers per media type, enabled or disable
   // payload type based demuxing in the affected channels.
-  bool UpdatePayloadTypeDemuxingState(
+  void UpdatePayloadTypeDemuxingState(
       ContentSource source,
       const flat_map<std::string, const ContentGroup*>& bundle_groups_by_mid);
 

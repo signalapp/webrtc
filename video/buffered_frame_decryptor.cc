@@ -13,10 +13,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <utility>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/crypto/frame_decryptor_interface.h"
 #include "api/field_trials_view.h"
 #include "api/media_types.h"
@@ -80,11 +80,10 @@ BufferedFrameDecryptor::FrameDecision BufferedFrameDecryptor::DecryptFrame(
 
   // RingRTC change to allow encryption without generic descriptor
   // Place the decrypted frame inline into the existing frame.
-  ArrayView<uint8_t> encrypted_bitstream(frame->mutable_data(),
-                                              frame->size());
+  std::span<uint8_t> encrypted_bitstream(frame->mutable_data(), frame->size());
 
   // Place the decrypted frame inline into the existing frame.
-  ArrayView<uint8_t> inline_decrypted_bitstream(frame->mutable_data(),
+  std::span<uint8_t> inline_decrypted_bitstream(frame->mutable_data(),
                                                 max_plaintext_byte_size);
 
   // Enable authenticating the header if the field trial isn't disabled.

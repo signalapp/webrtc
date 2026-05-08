@@ -52,51 +52,47 @@
 #include "rtc_base/thread.h"
 #include "rtc_base/unique_id_generator.h"
 
+namespace webrtc {
+
 namespace {
 
-using webrtc::RTCError;
-using webrtc::RTCErrorType;
-using webrtc::RtpTransceiverDirection;
-using webrtc::UniqueRandomIdGenerator;
-
-webrtc::RtpExtension RtpExtensionFromCapability(
-    const webrtc::RtpHeaderExtensionCapability& capability) {
-  return webrtc::RtpExtension(capability.uri,
-                              capability.preferred_id.value_or(1),
-                              capability.preferred_encrypt);
+RtpExtension RtpExtensionFromCapability(
+    const RtpHeaderExtensionCapability& capability) {
+  return RtpExtension(capability.uri, capability.preferred_id.value_or(1),
+                      capability.preferred_encrypt);
 }
 
-webrtc::RtpHeaderExtensions RtpHeaderExtensionsFromCapabilities(
-    const std::vector<webrtc::RtpHeaderExtensionCapability>& capabilities) {
-  webrtc::RtpHeaderExtensions exts;
+RtpHeaderExtensions RtpHeaderExtensionsFromCapabilities(
+    const std::vector<RtpHeaderExtensionCapability>& capabilities) {
+  RtpHeaderExtensions exts;
   for (const auto& capability : capabilities) {
     exts.push_back(RtpExtensionFromCapability(capability));
   }
   return exts;
 }
 
-std::vector<webrtc::RtpHeaderExtensionCapability>
+std::vector<RtpHeaderExtensionCapability>
 UnstoppedRtpHeaderExtensionCapabilities(
-    std::vector<webrtc::RtpHeaderExtensionCapability> capabilities) {
+    std::vector<RtpHeaderExtensionCapability> capabilities) {
   std::erase_if(
-      capabilities, [](const webrtc::RtpHeaderExtensionCapability& capability) {
+      capabilities, [](const RtpHeaderExtensionCapability& capability) {
         return capability.direction == RtpTransceiverDirection::kStopped;
       });
   return capabilities;
 }
 
-bool IsCapabilityPresent(const webrtc::RtpHeaderExtensionCapability& capability,
-                         const webrtc::RtpHeaderExtensions& extensions) {
+bool IsCapabilityPresent(const RtpHeaderExtensionCapability& capability,
+                         const RtpHeaderExtensions& extensions) {
   return std::find_if(extensions.begin(), extensions.end(),
-                      [&capability](const webrtc::RtpExtension& extension) {
+                      [&capability](const RtpExtension& extension) {
                         return capability.uri == extension.uri;
                       }) != extensions.end();
 }
 
-webrtc::RtpHeaderExtensions UnstoppedOrPresentRtpHeaderExtensions(
-    const std::vector<webrtc::RtpHeaderExtensionCapability>& capabilities,
-    const webrtc::RtpHeaderExtensions& all_encountered_extensions) {
-  webrtc::RtpHeaderExtensions extensions;
+RtpHeaderExtensions UnstoppedOrPresentRtpHeaderExtensions(
+    const std::vector<RtpHeaderExtensionCapability>& capabilities,
+    const RtpHeaderExtensions& all_encountered_extensions) {
+  RtpHeaderExtensions extensions;
   for (const auto& capability : capabilities) {
     if (capability.direction != RtpTransceiverDirection::kStopped ||
         IsCapabilityPresent(capability, all_encountered_extensions)) {
@@ -105,12 +101,6 @@ webrtc::RtpHeaderExtensions UnstoppedOrPresentRtpHeaderExtensions(
   }
   return extensions;
 }
-
-}  // namespace
-
-namespace webrtc {
-
-namespace {
 
 bool ContainsRtxCodec(const std::vector<Codec>& codecs) {
   return absl::c_find_if(codecs, [](const Codec& c) {
@@ -410,8 +400,8 @@ RTCError CreateMediaContentOffer(
   if (!AddStreamParams(media_description_options.sender_options,
                        session_options.rtcp_cname, ssrc_generator,
                        current_streams, offer, field_trials)) {
-    LOG_AND_RETURN_ERROR(RTCErrorType::INTERNAL_ERROR,
-                         "Failed to add stream parameters");
+    return LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
+                     << "Failed to add stream parameters");
   }
 
   return CreateContentOffer(media_description_options, session_options,
@@ -712,7 +702,7 @@ MediaSessionDescriptionFactory::filtered_rtp_header_extensions(
     RtpHeaderExtensions extensions) const {
   if (!is_unified_plan_) {
     // Remove extensions only supported with unified-plan.
-    std::erase_if(extensions, [](const webrtc::RtpExtension& extension) {
+    std::erase_if(extensions, [](const RtpExtension& extension) {
       return extension.uri == RtpExtension::kMidUri ||
              extension.uri == RtpExtension::kRidUri ||
              extension.uri == RtpExtension::kRepairedRidUri;
@@ -812,9 +802,9 @@ MediaSessionDescriptionFactory::CreateOfferOrError(
     if (!offer_bundle.content_names().empty()) {
       offer->AddGroup(offer_bundle);
       if (!UpdateTransportInfoForBundle(offer_bundle, offer.get())) {
-        LOG_AND_RETURN_ERROR(
-            RTCErrorType::INTERNAL_ERROR,
-            "CreateOffer failed to UpdateTransportInfoForBundle");
+        return LOG_ERROR(
+            RTCError(RTCErrorType::INTERNAL_ERROR)
+            << "CreateOffer failed to UpdateTransportInfoForBundle");
       }
     }
   }
@@ -845,7 +835,8 @@ MediaSessionDescriptionFactory::CreateAnswerOrError(
     const MediaSessionOptions& session_options,
     const SessionDescription* current_description) const {
   if (!offer) {
-    LOG_AND_RETURN_ERROR(RTCErrorType::INTERNAL_ERROR, "Called without offer.");
+    return LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
+                     << "Called without offer.");
   }
 
   // Must have options for exactly as many sections as in the offer.
@@ -1005,9 +996,9 @@ MediaSessionDescriptionFactory::CreateAnswerOrError(
         // Share the same ICE credentials and crypto params across all contents,
         // as BUNDLE requires.
         if (!UpdateTransportInfoForBundle(answer_bundle, answer.get())) {
-          LOG_AND_RETURN_ERROR(
-              RTCErrorType::INTERNAL_ERROR,
-              "CreateAnswer failed to UpdateTransportInfoForBundle.");
+          return LOG_ERROR(
+              RTCError(RTCErrorType::INTERNAL_ERROR)
+              << "CreateAnswer failed to UpdateTransportInfoForBundle.");
         }
       }
     }
@@ -1350,9 +1341,9 @@ RTCError MediaSessionDescriptionFactory::AddRtpContentForAnswer(
       media_description_options.transport_options, current_description,
       !offer_content->rejected && bundle_transport == nullptr, ice_credentials);
   if (!transport) {
-    LOG_AND_RETURN_ERROR(
-        RTCErrorType::INTERNAL_ERROR,
-        "Failed to create transport answer, transport is missing");
+    return LOG_ERROR(
+        RTCError(RTCErrorType::INTERNAL_ERROR)
+        << "Failed to create transport answer, transport is missing");
   }
 
   // Pick codecs based on the requested communications direction in the offer
@@ -1405,16 +1396,16 @@ RTCError MediaSessionDescriptionFactory::AddRtpContentForAnswer(
                          ssrc_generator(), current_streams,
                          answer_content.get(),
                          transport_desc_factory_->trials())) {
-    LOG_AND_RETURN_ERROR(RTCErrorType::INTERNAL_ERROR,
-                         "Failed to set codecs in answer");
+    return LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
+                     << "Failed to set codecs in answer");
   }
   if (!CreateMediaContentAnswer(
           offer_content_description, media_description_options, session_options,
           filtered_rtp_header_extensions(header_extensions), ssrc_generator(),
           enable_encrypted_rtp_header_extensions_, current_streams,
           bundle_enabled, answer_content.get())) {
-    LOG_AND_RETURN_ERROR(RTCErrorType::INTERNAL_ERROR,
-                         "Failed to create answer");
+    return LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
+                     << "Failed to create answer");
   }
 
   bool secure = bundle_transport ? bundle_transport->description.secure()
@@ -1455,9 +1446,9 @@ RTCError MediaSessionDescriptionFactory::AddDataContentForAnswer(
       media_description_options.transport_options, current_description,
       !offer_content->rejected && bundle_transport == nullptr, ice_credentials);
   if (!data_transport) {
-    LOG_AND_RETURN_ERROR(
-        RTCErrorType::INTERNAL_ERROR,
-        "Failed to create transport answer, data transport is missing");
+    return LOG_ERROR(
+        RTCError(RTCErrorType::INTERNAL_ERROR)
+        << "Failed to create transport answer, data transport is missing");
   }
 
   bool bundle_enabled = offer_description->HasGroup(GROUP_TYPE_BUNDLE) &&
@@ -1487,8 +1478,8 @@ RTCError MediaSessionDescriptionFactory::AddDataContentForAnswer(
             RtpHeaderExtensions(), ssrc_generator(),
             enable_encrypted_rtp_header_extensions_, current_streams,
             bundle_enabled, data_answer.get())) {
-      LOG_AND_RETURN_ERROR(RTCErrorType::INTERNAL_ERROR,
-                           "Failed to create answer");
+      return LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
+                       << "Failed to create answer");
     }
     // Respond with sctpmap if the offer uses sctpmap.
     bool offer_uses_sctpmap = offer_data_description->use_sctpmap();
@@ -1548,9 +1539,9 @@ RTCError MediaSessionDescriptionFactory::AddUnsupportedContentForAnswer(
           !offer_content->rejected && bundle_transport == nullptr,
           ice_credentials);
   if (!unsupported_transport) {
-    LOG_AND_RETURN_ERROR(
-        RTCErrorType::INTERNAL_ERROR,
-        "Failed to create transport answer, unsupported transport is missing");
+    return LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
+                     << "Failed to create transport answer, unsupported "
+                        "transport is missing");
   }
   RTC_CHECK(IsMediaContentOfType(offer_content, MediaType::UNSUPPORTED));
 
