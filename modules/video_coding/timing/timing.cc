@@ -56,7 +56,7 @@ void VCMTiming::VideoDelayTimings::Reset() {
   estimated_max_decode_time = TimeDelta::Zero();
   render_delay = kDefaultRenderDelay;
   min_playout_delay = TimeDelta::Zero();
-  target_delay = TimeDelta::Zero();
+  stats_target_delay = TimeDelta::Zero();
   current_delay = TimeDelta::Zero();
 }
 
@@ -66,9 +66,8 @@ TimeDelta VCMTiming::VideoDelayTimings::TargetDelay() const {
 }
 
 TimeDelta VCMTiming::VideoDelayTimings::StatsTargetDelay() const {
-  TimeDelta stats_target_delay =
-      TargetDelay() - (estimated_max_decode_time + render_delay);
-  return std::max(TimeDelta::Zero(), stats_target_delay);
+  TimeDelta delay = TargetDelay() - (estimated_max_decode_time + render_delay);
+  return std::max(TimeDelta::Zero(), delay);
 }
 
 bool VCMTiming::VideoDelayTimings::UseLowLatencyRendering() const {
@@ -184,7 +183,7 @@ TimeDelta VCMTiming::TargetVideoDelay() const {
 VCMTiming::VideoDelayTimings VCMTiming::GetTimings() const {
   MutexLock lock(&mutex_);
   VideoDelayTimings timings = timings_;
-  timings.target_delay = timings_.StatsTargetDelay();
+  timings.stats_target_delay = timings_.StatsTargetDelay();
   return timings;
 }
 

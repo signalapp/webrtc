@@ -59,7 +59,7 @@ class VCMTiming {
     // Obtained from `playout-delay` RTP header extension.
     TimeDelta max_playout_delay = TimeDelta::Seconds(10);
     // Target total delay. Obtained from all the elements above.
-    TimeDelta target_delay = TimeDelta::Zero();
+    TimeDelta stats_target_delay = TimeDelta::Zero();
     // Current total delay. Obtained by smoothening the `target_delay`.
     TimeDelta current_delay = TimeDelta::Zero();
   };

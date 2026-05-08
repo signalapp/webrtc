@@ -332,7 +332,7 @@ void VideoStreamBufferController::UpdateFrameBufferTimings(
   if (timings.num_decoded_frames) {
     stats_proxy_->OnFrameBufferTimingsUpdated(
         timings.estimated_max_decode_time.ms(), timings.current_delay.ms(),
-        timings.target_delay.ms(), timings.minimum_delay.ms(),
+        timings.stats_target_delay.ms(), timings.minimum_delay.ms(),
         timings.min_playout_delay.ms(), timings.render_delay.ms());
   }
 
@@ -347,8 +347,8 @@ void VideoStreamBufferController::UpdateFrameBufferTimings(
   // https://w3c.github.io/webrtc-stats/#dom-rtcinboundrtpstreamstats-jitterbufferdelay
   TimeDelta jitter_buffer_delay =
       std::max(TimeDelta::Zero(), now - min_receive_time);
-  stats_proxy_->OnDecodableFrame(jitter_buffer_delay, timings.target_delay,
-                                 timings.minimum_delay);
+  stats_proxy_->OnDecodableFrame(
+      jitter_buffer_delay, timings.stats_target_delay, timings.minimum_delay);
 }
 
 bool VideoStreamBufferController::IsTooManyFramesQueued() const
