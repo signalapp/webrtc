@@ -88,7 +88,6 @@
 #include "rtc_base/logging.h"
 #include "rtc_base/numerics/sequence_number_util.h"
 #include "rtc_base/strings/string_builder.h"
-#include "rtc_base/thread.h"
 #include "system_wrappers/include/ntp_time.h"
 #include "video/buffered_frame_decryptor.h"
 
@@ -379,7 +378,7 @@ RtpVideoStreamReceiver2::RtpVideoStreamReceiver2(
     frame_transformer_delegate_ =
         make_ref_counted<RtpVideoStreamReceiverFrameTransformerDelegate>(
             this, &env_.clock(), std::move(frame_transformer),
-            Thread::Current(), config_.rtp.remote_ssrc);
+            TaskQueueBase::Current(), config_.rtp.remote_ssrc);
     frame_transformer_delegate_->Init();
   }
 }
@@ -1034,8 +1033,8 @@ void RtpVideoStreamReceiver2::SetDepacketizerToDecoderFrameTransformer(
   RTC_DCHECK_RUN_ON(&worker_task_checker_);
   frame_transformer_delegate_ =
       make_ref_counted<RtpVideoStreamReceiverFrameTransformerDelegate>(
-          this, &env_.clock(), std::move(frame_transformer), Thread::Current(),
-          config_.rtp.remote_ssrc);
+          this, &env_.clock(), std::move(frame_transformer),
+          TaskQueueBase::Current(), config_.rtp.remote_ssrc);
   frame_transformer_delegate_->Init();
 }
 
