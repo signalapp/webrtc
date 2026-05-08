@@ -1374,7 +1374,7 @@ class WebRtcSdpTest : public ::testing::Test {
     EXPECT_EQ(cd1->streams(), cd2->streams());
 
     // extmap-allow-mixed
-    EXPECT_EQ(cd1->extmap_allow_mixed_enum(), cd2->extmap_allow_mixed_enum());
+    EXPECT_EQ(cd1->extmap_allow_mixed_level(), cd2->extmap_allow_mixed_level());
 
     // extmap
     ASSERT_EQ(cd1->rtp_header_extensions().size(),
@@ -2231,8 +2231,10 @@ TEST_F(WebRtcSdpTest, SerializeMediaContentDescriptionWithExtmapAllowMixed) {
   MediaContentDescription* audio_desc =
       jdesc_->description()->GetContentDescriptionByName(kAudioContentName);
   ASSERT_THAT(audio_desc, NotNull());
-  video_desc->set_extmap_allow_mixed_enum(MediaContentDescription::kMedia);
-  audio_desc->set_extmap_allow_mixed_enum(MediaContentDescription::kMedia);
+  video_desc->set_extmap_allow_mixed_level(
+      MediaContentDescription::AttributeLevel::kMedia);
+  audio_desc->set_extmap_allow_mixed_level(
+      MediaContentDescription::AttributeLevel::kMedia);
   TestSerialize(jdesc_);
 }
 
@@ -2619,8 +2621,10 @@ TEST_F(WebRtcSdpTest, DeserializeMediaContentDescriptionWithExtmapAllowMixed) {
   MediaContentDescription* audio_desc =
       jdesc_->description()->GetContentDescriptionByName(kAudioContentName);
   ASSERT_THAT(audio_desc, NotNull());
-  video_desc->set_extmap_allow_mixed_enum(MediaContentDescription::kMedia);
-  audio_desc->set_extmap_allow_mixed_enum(MediaContentDescription::kMedia);
+  video_desc->set_extmap_allow_mixed_level(
+      MediaContentDescription::AttributeLevel::kMedia);
+  audio_desc->set_extmap_allow_mixed_level(
+      MediaContentDescription::AttributeLevel::kMedia);
 
   std::string sdp_with_extmap_allow_mixed = kSdpFullString;
   InjectAfter("a=mid:audio_content_name\r\n", kExtmapAllowMixed,
