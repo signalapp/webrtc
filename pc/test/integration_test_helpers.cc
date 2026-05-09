@@ -28,12 +28,9 @@
 #include "api/jsep.h"
 #include "api/make_ref_counted.h"
 #include "api/media_stream_interface.h"
-#include "api/media_types.h"
-#include "api/payload_type.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
 #include "api/rtc_event_log/rtc_event_log_factory.h"
-#include "api/rtp_parameters.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
 #include "api/stats/rtc_stats_report.h"
@@ -45,15 +42,12 @@
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "logging/rtc_event_log/fake_rtc_event_log_factory.h"
-#include "media/base/codec.h"
 #include "media/base/stream_params.h"
-#include "p2p/base/p2p_constants.h"
 #include "pc/peer_connection_factory.h"
 #include "pc/session_description.h"
 #include "pc/test/fake_audio_capture_module.h"
 #include "pc/test/mock_peer_connection_observers.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/containers/flat_map.h"
 #include "rtc_base/fake_network.h"
 #include "rtc_base/firewall_socket_server.h"
 #include "rtc_base/logging.h"
@@ -568,67 +562,5 @@ PeerConnectionIntegrationTestWithSimulatedTime::
           sdp_semantics,
           time_controller.get()),
       time_controller_(std::move(time_controller)) {}
-
-// Tests whether a parameter set contains duplicate payload types.
-// Copied from sdp_offer_answer.cc
-RTCError FindDuplicateCodecParameters(
-    const RtpCodecParameters codec_parameters,
-    flat_map<PayloadType, RtpCodecParameters>& payload_to_codec_parameters) {
-  auto existing_codec_parameters =
-      payload_to_codec_parameters.find(codec_parameters.payload_type);
-  if (existing_codec_parameters != payload_to_codec_parameters.end() &&
-      codec_parameters != existing_codec_parameters->second) {
-    return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                     << "A BUNDLE group contains a codec collision for "
-                     << "payload_type='" << codec_parameters.payload_type
-                     << ". All codecs must share the same type, "
-                     << "encoding name, clock rate and parameters.");
-  }
-  payload_to_codec_parameters.try_emplace(codec_parameters.payload_type,
-                                          codec_parameters);
-  return RTCError::OK();
-}
-
-// Tests whether a session description contains conflicting descriptions
-// for a payload type.
-// Copied from sdp_offer_answer.cc
-RTCError ValidateBundledPayloadTypes(const SessionDescription& description) {
-  // https://www.rfc-editor.org/rfc/rfc8843#name-payload-type-pt-value-reuse
-  // ... all codecs associated with the payload type number MUST share an
-  // identical codec configuration. This means that the codecs MUST share
-  // the same media type, encoding name, clock rate, and any parameter
-  // that can affect the codec configuration and packetization.
-  std::vector<const ContentGroup*> bundle_groups =
-      description.GetGroupsByName(GROUP_TYPE_BUNDLE);
-  for (const ContentGroup* bundle_group : bundle_groups) {
-    flat_map<PayloadType, RtpCodecParameters> payload_to_codec_parameters;
-    for (const std::string& content_name : bundle_group->content_names()) {
-      const ContentInfo* content_description =
-          description.GetContentByName(content_name);
-      if (content_description == nullptr) {
-        return LOG_ERROR(RTCError(RTCErrorType::INVALID_PARAMETER)
-                         << "A BUNDLE group contains a MID='" << content_name
-                         << "' matching no m= section.");
-      }
-      const MediaContentDescription* media_description =
-          content_description->media_description();
-      RTC_DCHECK(media_description);
-      if (content_description->rejected || !media_description->has_codecs()) {
-        continue;
-      }
-      const MediaType type = media_description->type();
-      if (type == MediaType::AUDIO || type == MediaType::VIDEO) {
-        for (const Codec& c : media_description->codecs()) {
-          RTCError error = FindDuplicateCodecParameters(
-              c.ToCodecParameters(), payload_to_codec_parameters);
-          if (!error.ok()) {
-            return error;
-          }
-        }
-      }
-    }
-  }
-  return RTCError::OK();
-}
 
 }  // namespace webrtc

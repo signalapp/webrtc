@@ -172,10 +172,6 @@ int FindFirstMediaStatsIndexByKind(
     const std::string& kind,
     const std::vector<const RTCInboundRtpStreamStats*>& inbound_rtps);
 
-// Tests whether a session description contains conflicting descriptions
-// for a payload type within a bundle.
-RTCError ValidateBundledPayloadTypes(const SessionDescription& description);
-
 class TaskQueueMetronome : public Metronome {
  public:
   explicit TaskQueueMetronome(TimeDelta tick_period);
