@@ -749,6 +749,8 @@ Call::~Call() {
   RTC_CHECK(video_send_streams_.empty());
   RTC_CHECK(audio_receive_streams_.empty());
   RTC_CHECK(video_receive_streams_.empty());
+  RTC_CHECK(audio_receiver_controller_.IsEmpty());
+  RTC_CHECK(video_receiver_controller_.IsEmpty());
 
   receive_side_cc_periodic_task_.Stop();
   elastic_bandwidth_allocation_task_.Stop();
