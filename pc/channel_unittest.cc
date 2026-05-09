@@ -651,11 +651,11 @@ class ChannelTest : public ::testing::Test {
     CreateContent(/*flags=*/0, kPcmuCodec, kH264Codec, &local);
     CreateContent(/*flags=*/0, kPcmuCodec, kH264Codec, &remote);
     local.set_rtp_header_extensions({
-        RtpExtension(RtpExtension::kTransportSequenceNumberUri, 0),
-        RtpExtension(RtpExtension::kVideoRotationUri, 1),
+        RtpExtension(RtpExtension::kTransportSequenceNumberUri, 1),
+        RtpExtension(RtpExtension::kVideoRotationUri, 2),
     });
     remote.set_rtp_header_extensions({
-        RtpExtension(RtpExtension::kVideoRotationUri, 1),
+        RtpExtension(RtpExtension::kVideoRotationUri, 2),
     });
 
     CreateChannels(0, 0);
@@ -663,11 +663,11 @@ class ChannelTest : public ::testing::Test {
     ASSERT_TRUE(channel1_->SetRemoteContent(&remote, SdpType::kAnswer).ok());
 
     EXPECT_THAT(media_receive_channel1_impl()->recv_extensions(),
-                ElementsAre(AllOf(Field("id", &RtpExtension::id, 1),
+                ElementsAre(AllOf(Field("id", &RtpExtension::id, 2),
                                   Field("uri", &RtpExtension::uri,
                                         RtpExtension::kVideoRotationUri))));
     EXPECT_THAT(media_send_channel1_impl()->send_extensions(),
-                ElementsAre(AllOf(Field("id", &RtpExtension::id, 1),
+                ElementsAre(AllOf(Field("id", &RtpExtension::id, 2),
                                   Field("uri", &RtpExtension::uri,
                                         RtpExtension::kVideoRotationUri))));
   }
@@ -680,7 +680,7 @@ class ChannelTest : public ::testing::Test {
         RtpExtension(RtpExtension::kVideoRotationUri, 1),
     });
     remote.set_rtp_header_extensions({
-        RtpExtension(RtpExtension::kTransportSequenceNumberUri, 0),
+        RtpExtension(RtpExtension::kTransportSequenceNumberUri, 2),
         RtpExtension(RtpExtension::kVideoRotationUri, 1),
     });
 
@@ -1924,9 +1924,16 @@ TEST_F(VoiceChannelSingleThreadTest, DuplicateRtpHeaderExtensionIds) {
   Base::TestDuplicateRtpHeaderExtensionIds();
 }
 
-TEST_F(VoiceChannelSingleThreadTest, InvalidRtpHeaderExtensionIds) {
+#if GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
+TEST_F(VoiceChannelSingleThreadTest, InvalidRtpHeaderExtensionIdsDeathTest) {
+#if RTC_DCHECK_IS_ON
+  // Note - EXPECT_DEBUG_DEATH does not work as expected here.
+  EXPECT_DEATH(Base::TestInvalidRtpHeaderExtensionIds(), "not in valid range");
+#else
   Base::TestInvalidRtpHeaderExtensionIds();
+#endif
 }
+#endif
 
 TEST_F(VoiceChannelSingleThreadTest, RtpHeaderExtensionIdReassignment) {
   Base::TestRtpHeaderExtensionIdReassignment();
@@ -2221,9 +2228,16 @@ TEST_F(VideoChannelSingleThreadTest, DuplicateRtpHeaderExtensionIds) {
   Base::TestDuplicateRtpHeaderExtensionIds();
 }
 
-TEST_F(VideoChannelSingleThreadTest, InvalidRtpHeaderExtensionIds) {
+#if GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
+TEST_F(VideoChannelSingleThreadTest, InvalidRtpHeaderExtensionIdsDeathTest) {
+#if RTC_DCHECK_IS_ON
+  // Note - EXPECT_DEBUG_DEATH does not work as expected here.
+  EXPECT_DEATH(Base::TestInvalidRtpHeaderExtensionIds(), "not in valid range");
+#else
   Base::TestInvalidRtpHeaderExtensionIds();
+#endif
 }
+#endif
 
 TEST_F(VideoChannelSingleThreadTest, RtpHeaderExtensionIdReassignment) {
   Base::TestRtpHeaderExtensionIdReassignment();
