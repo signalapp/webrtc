@@ -128,15 +128,14 @@ std::unique_ptr<ModuleRtpRtcpImpl2> CreateRtpRtcpModule(
       .receive_statistics = receive_statistics,
       .outgoing_transport = rtcp_send_transport,
       .rtcp_packet_type_counter_observer = rtcp_packet_type_counter_observer,
+      .rtcp_mode = RtcpMode::kCompound,
+      .remote_ssrc = remote_ssrc,
       .non_sender_rtt_measurement = enable_non_sender_rtt,
   };
 
   std::unique_ptr<ModuleRtpRtcpImpl2> rtp_rtcp =
       ModuleRtpRtcpImpl2::CreateReceiveModule(
           env, configuration, std::move(fallback_ssrc_callback));
-  rtp_rtcp->SetRemoteSSRC(remote_ssrc);
-  // Ensure that RTCP is enabled for the created channel.
-  rtp_rtcp->SetRTCPStatus(RtcpMode::kCompound);
   return rtp_rtcp;
 }
 
