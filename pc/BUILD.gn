@@ -458,6 +458,7 @@ rtc_library("typed_codec_vendor") {
     "../media:media_constants",
     "../media:media_engine",
     "../rtc_base:checks",
+    "../rtc_base:logging",
     "../rtc_base/containers:flat_set",
     "//third_party/abseil-cpp/absl/base:nullability",
     "//third_party/abseil-cpp/absl/strings",
@@ -1256,6 +1257,7 @@ rtc_library("sdp_payload_type_suggester") {
     "../rtc_base:event_tracer",
     "../rtc_base:logging",
     "../rtc_base:threading",
+    "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
 }
@@ -2241,6 +2243,7 @@ if (rtc_include_tests && !build_with_chromium) {
     sources = [
       "audio_rtp_receiver_unittest.cc",
       "channel_unittest.cc",
+      "codec_vendor_redesign_unittest.cc",
       "codec_vendor_unittest.cc",
       "datagram_connection_unittest.cc",
       "dtls_srtp_transport_integrationtest.cc",

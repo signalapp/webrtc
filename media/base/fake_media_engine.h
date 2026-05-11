@@ -11,6 +11,7 @@
 #ifndef MEDIA_BASE_FAKE_MEDIA_ENGINE_H_
 #define MEDIA_BASE_FAKE_MEDIA_ENGINE_H_
 
+#include <algorithm>
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
@@ -27,6 +28,7 @@
 #include "absl/algorithm/container.h"
 #include "absl/base/nullability.h"
 #include "absl/functional/any_invocable.h"
+#include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "api/audio/audio_device.h"
 #include "api/audio_codecs/audio_codec_pair_id.h"
@@ -66,6 +68,7 @@
 #include "media/base/media_channel.h"
 #include "media/base/media_channel_impl.h"
 #include "media/base/media_config.h"
+#include "media/base/media_constants.h"
 #include "media/base/media_engine.h"
 #include "media/base/rtp_utils.h"
 #include "media/base/stream_params.h"
@@ -841,9 +844,17 @@ class FakeVoiceEngine : public VoiceEngineInterface {
       // engine's "send_codecs/recv_codecs" and have them show up later.
       std::vector<AudioCodecSpec> specs;
       for (const auto& codec : owner_->send_codecs_) {
+        size_t channels = std::max<size_t>(1, codec.channels);
+        AudioCodecInfo info(codec.clockrate, channels, codec.bitrate);
+        if (absl::EqualsIgnoreCase(codec.name, kOpusCodecName)) {
+          info.allow_comfort_noise = true;
+          info.supports_network_adaption = true;
+        } else {
+          info.allow_comfort_noise = false;
+          info.supports_network_adaption = false;
+        }
         specs.push_back(AudioCodecSpec{
-            .format = {codec.name, codec.clockrate, codec.channels},
-            .info = {codec.clockrate, codec.channels, codec.bitrate}});
+            .format = {codec.name, codec.clockrate, channels}, .info = info});
       }
       return specs;
     }
@@ -868,9 +879,17 @@ class FakeVoiceEngine : public VoiceEngineInterface {
       // engine's "send_codecs/recv_codecs" and have them show up later.
       std::vector<AudioCodecSpec> specs;
       for (const auto& codec : owner_->recv_codecs_) {
+        size_t channels = std::max<size_t>(1, codec.channels);
+        AudioCodecInfo info(codec.clockrate, channels, codec.bitrate);
+        if (absl::EqualsIgnoreCase(codec.name, kOpusCodecName)) {
+          info.allow_comfort_noise = true;
+          info.supports_network_adaption = true;
+        } else {
+          info.allow_comfort_noise = false;
+          info.supports_network_adaption = false;
+        }
         specs.push_back(AudioCodecSpec{
-            .format = {codec.name, codec.clockrate, codec.channels},
-            .info = {codec.clockrate, codec.channels, codec.bitrate}});
+            .format = {codec.name, codec.clockrate, channels}, .info = info});
       }
       return specs;
     }
