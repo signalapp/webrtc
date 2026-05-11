@@ -2127,8 +2127,7 @@ RTCError SdpOfferAnswerHandler::ApplyLocalDescription(
   error = UpdateSessionState(type, CS_LOCAL, local_description()->description(),
                              bundle_groups_by_mid);
   if (!error.ok()) {
-    RTC_LOG(LS_ERROR) << error.message() << " (" << type << ")";
-    return error;
+    return LOG_ERROR(error);
   }
 
   // Now that we have a local description, we can push down remote candidates.
