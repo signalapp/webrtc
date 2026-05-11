@@ -15,7 +15,7 @@ vars = {
   # chromium waterfalls. More info at: crbug.com/570091.
   'checkout_configuration': 'default',
   'checkout_instrumented_libraries': 'checkout_linux and checkout_configuration == "default"',
-  'chromium_revision': '1f0c44e8c8884106492d7c685e7c70c7dd385fb9',
+  'chromium_revision': '8d2158536560a7cd2b557d7291bf39bade6ceee0',
 
   # Fetch the prebuilt binaries for llvm-cov and llvm-profdata. Needed to
   # process the raw profiles produced by instrumented targets (built with
@@ -71,7 +71,7 @@ vars = {
 
 deps = {
   'src/build':
-    'https://chromium.googlesource.com/chromium/src/build@416d72bd34b8494001ac18e1f9b093501b94b88d',
+    'https://chromium.googlesource.com/chromium/src/build@8f19e6432e6389bedeb97dc84ce16971167dfe11',
   'src/buildtools':
     'https://chromium.googlesource.com/chromium/src/buildtools@c389d23aa69eb752f185e40215649bcf9d2e6527',
   # Gradle 6.6.1. Used for testing Android Studio project generation for WebRTC.
@@ -80,13 +80,13 @@ deps = {
     'condition': 'checkout_android',
   },
   'src/ios': {
-    'url': 'https://chromium.googlesource.com/chromium/src/ios@e4e7132cf2d4114d73c793722bd56f2272433796',
+    'url': 'https://chromium.googlesource.com/chromium/src/ios@f7b117e78b679c2f4730db086461e7f967b9ead1',
     'condition': 'checkout_ios',
   },
   'src/testing':
-    'https://chromium.googlesource.com/chromium/src/testing@70a7fa26559e1ed83f1c0c9f268407a659909714',
+    'https://chromium.googlesource.com/chromium/src/testing@ac4c947e627427a232bd1fc6c1bc63aae9c048bd',
   'src/third_party':
-    'https://chromium.googlesource.com/chromium/src/third_party@516b574cb9e90ab9a8956aec3333ddf7ed672254',
+    'https://chromium.googlesource.com/chromium/src/third_party@f9c737064dea5f16254a8ee07bf1234fed02085e',
 
   'src/buildtools/third_party/mold/cipd': {
       'packages': [
@@ -500,7 +500,7 @@ deps = {
   },
 
   'src/third_party/boringssl/src':
-    'https://boringssl.googlesource.com/boringssl.git@9730fe2168ced0889a227855cbc28762f49c1bd5',
+    'https://boringssl.googlesource.com/boringssl.git@e33a1a81ae78a13dab9f628740a26aebc0d35c46',
   'src/third_party/breakpad/breakpad':
     'https://chromium.googlesource.com/breakpad/breakpad.git@6d017fa2c0c440f914385bb794fd88de90fef736',
   'src/third_party/catapult':
@@ -523,7 +523,7 @@ deps = {
   'src/third_party/flatbuffers/src':
     'https://chromium.googlesource.com/external/github.com/google/flatbuffers.git@a86afae9399bbe631d1ea0783f8816e780e236cc',
   'src/third_party/grpc/src': {
-    'url': 'https://chromium.googlesource.com/external/github.com/grpc/grpc.git@5c2fe9124d354218e022f475fdb6cef795be0d22',
+    'url': 'https://chromium.googlesource.com/external/github.com/grpc/grpc.git@f34849a51551df3867a91f4d575527491203508b',
   },
   # Used for embedded builds. CrOS & Linux use the system version.
   'src/third_party/fontconfig/src': {
@@ -621,7 +621,7 @@ deps = {
       'condition': 'checkout_android',
   },
   'src/third_party/perfetto':
-    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + '2ce111ce4650388541c8e4d4df3656faa3a3c9ab',
+    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + 'c7cae5ae895f634482fcaac850fd205396563b75',
   'src/third_party/protobuf-javascript/src':
     Var('chromium_git') + '/external/github.com/protocolbuffers/protobuf-javascript' + '@' + 'e6d763860001ba1a76a63adcff5efb12b1c96024',
   'src/third_party/libvpx/source/libvpx':
@@ -656,7 +656,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/third_party/r8',
-              'version': 'c5lTsG8SBk1O65oXjpYPZ4aO-A0Mvqg2icDQHpuDesMC',
+              'version': 'pm-O_KtQo3bGF1RF9SaBnUvKnarOA7xlMy6a6B0LTXAC',
           },
       ],
       'condition': 'checkout_android',
@@ -680,7 +680,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'src/tools':
-    'https://chromium.googlesource.com/chromium/src/tools@04a872537906a1e0467397abf179216c3e504f06',
+    'https://chromium.googlesource.com/chromium/src/tools@7510a35dab004a42684c9c2d8670ca51eb26cad6',
 
   'src/third_party/espresso': {
       'packages': [
