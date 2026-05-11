@@ -712,11 +712,24 @@ class ChannelTest : public ::testing::Test {
     EXPECT_THAT(error.message(), HasSubstr("Duplicate extension ID"));
   }
 
-  void TestInvalidRtpHeaderExtensionIds() {
+  void TestRtpHeaderExtensionIdOutOfRangeHigh() {
     typename T::Content local;
     CreateContent(/*flags=*/0, kPcmuCodec, kH264Codec, &local);
     local.set_rtp_header_extensions({
         RtpExtension(RtpExtension::kTransportSequenceNumberUri, 256),
+    });
+
+    CreateChannels(0, 0);
+    RTCError error = channel1_->SetLocalContent(&local, SdpType::kOffer);
+    EXPECT_FALSE(error.ok());
+    EXPECT_THAT(error.message(), HasSubstr("Bad extension ID"));
+  }
+
+  void TestRtpHeaderExtensionIdOutOfRangeLow() {
+    typename T::Content local;
+    CreateContent(/*flags=*/0, kPcmuCodec, kH264Codec, &local);
+    local.set_rtp_header_extensions({
+        RtpExtension(RtpExtension::kTransportSequenceNumberUri, 0),
     });
 
     CreateChannels(0, 0);
@@ -1925,12 +1938,25 @@ TEST_F(VoiceChannelSingleThreadTest, DuplicateRtpHeaderExtensionIds) {
 }
 
 #if GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
-TEST_F(VoiceChannelSingleThreadTest, InvalidRtpHeaderExtensionIdsDeathTest) {
+TEST_F(VoiceChannelSingleThreadTest,
+       RtpHeaderExtensionIdOutOfRangeHighDeathTest) {
 #if RTC_DCHECK_IS_ON
   // Note - EXPECT_DEBUG_DEATH does not work as expected here.
-  EXPECT_DEATH(Base::TestInvalidRtpHeaderExtensionIds(), "not in valid range");
+  EXPECT_DEATH(Base::TestRtpHeaderExtensionIdOutOfRangeHigh(),
+               "not in valid range");
 #else
-  Base::TestInvalidRtpHeaderExtensionIds();
+  Base::TestRtpHeaderExtensionIdOutOfRangeHigh();
+#endif
+}
+
+TEST_F(VoiceChannelSingleThreadTest,
+       RtpHeaderExtensionIdOutOfRangeLowDeathTest) {
+#if RTC_DCHECK_IS_ON
+  // Note - EXPECT_DEBUG_DEATH does not work as expected here.
+  EXPECT_DEATH(Base::TestRtpHeaderExtensionIdOutOfRangeLow(),
+               "not in valid range");
+#else
+  Base::TestRtpHeaderExtensionIdOutOfRangeLow();
 #endif
 }
 #endif
@@ -2229,12 +2255,25 @@ TEST_F(VideoChannelSingleThreadTest, DuplicateRtpHeaderExtensionIds) {
 }
 
 #if GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
-TEST_F(VideoChannelSingleThreadTest, InvalidRtpHeaderExtensionIdsDeathTest) {
+TEST_F(VideoChannelSingleThreadTest,
+       RtpHeaderExtensionIdOutOfRangeHighDeathTest) {
 #if RTC_DCHECK_IS_ON
   // Note - EXPECT_DEBUG_DEATH does not work as expected here.
-  EXPECT_DEATH(Base::TestInvalidRtpHeaderExtensionIds(), "not in valid range");
+  EXPECT_DEATH(Base::TestRtpHeaderExtensionIdOutOfRangeHigh(),
+               "not in valid range");
 #else
-  Base::TestInvalidRtpHeaderExtensionIds();
+  Base::TestRtpHeaderExtensionIdOutOfRangeHigh();
+#endif
+}
+
+TEST_F(VideoChannelSingleThreadTest,
+       RtpHeaderExtensionIdOutOfRangeLowDeathTest) {
+#if RTC_DCHECK_IS_ON
+  // Note - EXPECT_DEBUG_DEATH does not work as expected here.
+  EXPECT_DEATH(Base::TestRtpHeaderExtensionIdOutOfRangeLow(),
+               "not in valid range");
+#else
+  Base::TestRtpHeaderExtensionIdOutOfRangeLow();
 #endif
 }
 #endif
