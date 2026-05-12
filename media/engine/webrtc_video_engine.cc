@@ -866,8 +866,8 @@ WebRtcVideoEngine::GetRtpHeaderExtensions(
       (field_trials != nullptr ? *field_trials : trials_);
 
   std::vector<RtpHeaderExtensionCapability> result;
-  // id is *not* incremented for non-default extensions, UsedIds needs to
-  // resolve conflicts.
+  // id is *not* incremented for non-default extensions. Conflicting IDs
+  // need to be resolved.
   int id = 1;
   for (const auto& uri :
        {RtpExtension::kTimestampOffsetUri, RtpExtension::kAbsSendTimeUri,

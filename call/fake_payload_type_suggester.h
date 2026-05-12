@@ -16,7 +16,6 @@
 #include <string>
 #include <utility>
 
-#include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "api/payload_type.h"
 #include "api/rtc_error.h"
@@ -24,6 +23,7 @@
 #include "call/payload_type.h"
 #include "call/payload_type_picker.h"
 #include "media/base/codec.h"
+#include "media/base/codec_comparators.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/containers/flat_map.h"
 
@@ -106,7 +106,7 @@ class FakePayloadTypeSuggester : public PayloadTypeSuggester {
                                           PayloadTypeRecorder& recorder,
                                           bool pick_from_top_of_range) {
     if (codec.id.IsSet()) {
-      if (!IsPayloadTypeConflict(mid, codec.id, codec.name,
+      if (!IsPayloadTypeConflict(mid, codec.id, codec,
                                  pick_from_top_of_range)) {
         pt_picker_.AddMapping(codec.id, codec);
         recorder.AddMapping(codec.id, codec);
@@ -118,12 +118,12 @@ class FakePayloadTypeSuggester : public PayloadTypeSuggester {
 
   bool IsPayloadTypeConflict(absl::string_view mid,
                              PayloadType payload_type,
-                             const std::string& codec_name,
+                             const Codec& codec,
                              bool pick_from_top_of_range) const {
     for (const auto& kv : recorders_) {
       auto existing = kv.second->LookupCodec(payload_type);
       if (existing.ok()) {
-        if (!absl::EqualsIgnoreCase(existing.value().name, codec_name)) {
+        if (!MatchesWithReferenceAttributes(existing.value(), codec)) {
           return true;
         }
       }
@@ -131,7 +131,7 @@ class FakePayloadTypeSuggester : public PayloadTypeSuggester {
     // Also check the global picker
     auto global_existing = pt_picker_.LookupCodec(payload_type);
     if (global_existing &&
-        !absl::EqualsIgnoreCase(global_existing->name, codec_name)) {
+        !MatchesWithReferenceAttributes(*global_existing, codec)) {
       return true;
     }
     return false;

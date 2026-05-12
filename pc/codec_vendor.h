@@ -138,7 +138,8 @@ class CodecLookupHelper {
 RTCError MergeCodecsForTesting(const CodecList& reference_codecs,
                                absl::string_view mid,
                                CodecList& offered_codecs,
-                               PayloadTypeSuggester& pt_suggester);
+                               PayloadTypeSuggester& pt_suggester,
+                               bool pick_from_top_of_range = false);
 
 }  //  namespace webrtc
 

@@ -397,5 +397,30 @@ TEST(CodecVendorMergeTest, MergeWithBrokenReferenceRedErrors) {
   EXPECT_THAT(error.type(), Eq(RTCErrorType::INTERNAL_ERROR));
 }
 
+TEST(CodecVendorMergeTest, MergeWithCollisionPicksFromTop) {
+  CodecList reference_codecs;
+  const std::string mid = "mid";
+  CodecList merged_codecs;
+  FakePayloadTypeSuggester pt_suggester;
+  // Existing codec with PT 97
+  Codec some_codec = CreateVideoCodec(97, "foo");
+  merged_codecs.push_back(some_codec);
+  pt_suggester.AddLocalMapping(mid, 97, some_codec);
+
+  // New codec in reference that also wants PT 97
+  Codec some_other_codec = CreateVideoCodec(97, "bar");
+  reference_codecs.push_back(some_other_codec);
+
+  // When merging with pick_from_top_of_range = true, it should pick 127
+  RTCError error =
+      MergeCodecsForTesting(reference_codecs, mid, merged_codecs, pt_suggester,
+                            /*pick_from_top_of_range=*/true);
+  EXPECT_TRUE(error.ok());
+  EXPECT_THAT(merged_codecs.size(), Eq(2));
+  EXPECT_THAT(merged_codecs.codecs(),
+              Contains(AllOf(Field("name", &Codec::name, "bar"),
+                             Field("id", &Codec::id, 127))));
+}
+
 }  // namespace
 }  // namespace webrtc
