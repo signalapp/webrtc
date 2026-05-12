@@ -412,13 +412,12 @@ RtpPacketSinkInterface* RtpDemuxer::ResolveSink(
     return ssrc_sink_it->second;
   }
 
-  if (use_payload_type_demuxing_) {
-    // Legacy senders will only signal payload type.
-    // Support that as a last resort.
-    return ResolveSinkByPayloadType(packet.PayloadType(), ssrc);
-  }
-
-  return nullptr;
+  // RingRTC change: We are a "legacy sender" by this definition: Data RTP
+  //                 is sent without registering an ssrc with webrtc
+  // Legacy senders will only signal payload type.
+  // Support that as a last resort.
+  return ResolveSinkByPayloadType(packet.PayloadType(), ssrc);
+  // End RingRTC change
 }
 
 RtpPacketSinkInterface* RtpDemuxer::ResolveSinkByMid(absl::string_view mid,
