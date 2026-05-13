@@ -122,8 +122,8 @@ class VoiceEngineInterface : public RtpHeaderExtensionQueryInterface {
   virtual const std::vector<Codec>& LegacySendCodecs() const = 0;
   virtual const std::vector<Codec>& LegacyRecvCodecs() const = 0;
 
-  virtual AudioEncoderFactory* encoder_factory() const = 0;
-  virtual AudioDecoderFactory* decoder_factory() const = 0;
+  virtual const scoped_refptr<AudioEncoderFactory>& encoder_factory() const = 0;
+  virtual const scoped_refptr<AudioDecoderFactory>& decoder_factory() const = 0;
 
   // Starts AEC dump using existing file, a maximum file size in bytes can be
   // specified. Logging is stopped just before the size limit is exceeded.

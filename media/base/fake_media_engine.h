@@ -816,11 +816,11 @@ class FakeVoiceEngine : public VoiceEngineInterface {
   // TODO: https://issues.webrtc.org/360058654 - stop faking codecs here.
   const std::vector<Codec>& LegacySendCodecs() const override;
   const std::vector<Codec>& LegacyRecvCodecs() const override;
-  AudioEncoderFactory* encoder_factory() const override {
-    return encoder_factory_.get();
+  const scoped_refptr<AudioEncoderFactory>& encoder_factory() const override {
+    return encoder_factory_;
   }
-  AudioDecoderFactory* decoder_factory() const override {
-    return decoder_factory_.get();
+  const scoped_refptr<AudioDecoderFactory>& decoder_factory() const override {
+    return decoder_factory_;
   }
   void SetCodecs(const std::vector<Codec>& codecs);
   void SetRecvCodecs(const std::vector<Codec>& codecs);
@@ -909,8 +909,8 @@ class FakeVoiceEngine : public VoiceEngineInterface {
 
   std::vector<Codec> recv_codecs_;
   std::vector<Codec> send_codecs_;
-  scoped_refptr<FakeVoiceEncoderFactory> encoder_factory_;
-  scoped_refptr<FakeVoiceDecoderFactory> decoder_factory_;
+  scoped_refptr<AudioEncoderFactory> encoder_factory_;
+  scoped_refptr<AudioDecoderFactory> decoder_factory_;
   std::vector<RtpHeaderExtensionCapability> header_extensions_;
 
   friend class FakeMediaEngine;

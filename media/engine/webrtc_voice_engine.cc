@@ -292,7 +292,7 @@ AudioReceiveStreamInterface::Config BuildReceiveStreamConfig(
     RtcpMode rtcp_mode,
     const std::vector<std::string>& stream_ids,
     Transport* rtcp_send_transport,
-    const scoped_refptr<AudioDecoderFactory>& decoder_factory,
+    scoped_refptr<AudioDecoderFactory> decoder_factory,
     const std::map<int, SdpAudioFormat>& decoder_map,
     size_t jitter_buffer_max_packets,
     bool jitter_buffer_fast_accelerate,
@@ -309,7 +309,7 @@ AudioReceiveStreamInterface::Config BuildReceiveStreamConfig(
   }
   config.rtcp_send_transport = rtcp_send_transport;
   config.enable_non_sender_rtt = enable_non_sender_rtt;
-  config.decoder_factory = decoder_factory;
+  config.decoder_factory = std::move(decoder_factory);
   config.decoder_map = decoder_map;
   config.jitter_buffer_max_packets = jitter_buffer_max_packets;
   config.jitter_buffer_fast_accelerate = jitter_buffer_fast_accelerate;
@@ -698,19 +698,6 @@ void WebRtcVoiceEngine::ApplyOptions(const AudioOptions& options_in) {
 
   if (options.stereo_swapping) {
     audio_state()->SetStereoChannelSwapping(*options.stereo_swapping);
-  }
-
-  if (options.audio_jitter_buffer_max_packets) {
-    audio_jitter_buffer_max_packets_ =
-        std::max(20, *options.audio_jitter_buffer_max_packets);
-  }
-  if (options.audio_jitter_buffer_fast_accelerate) {
-    audio_jitter_buffer_fast_accelerate_ =
-        *options.audio_jitter_buffer_fast_accelerate;
-  }
-  if (options.audio_jitter_buffer_min_delay_ms) {
-    audio_jitter_buffer_min_delay_ms_ =
-        *options.audio_jitter_buffer_min_delay_ms;
   }
 
   AudioProcessing* ap = apm();
@@ -1476,7 +1463,7 @@ bool WebRtcVoiceSendChannel::SetSendCodecs(
       SdpAudioFormat format(voice_codec.name, voice_codec.clockrate,
                             voice_codec.channels, voice_codec.params);
 
-      voice_codec_info = engine()->encoder_factory_->QueryAudioEncoder(format);
+      voice_codec_info = engine()->encoder_factory()->QueryAudioEncoder(format);
       if (!voice_codec_info) {
         RTC_LOG(LS_WARNING) << "Unknown codec " << ToString(voice_codec);
         send_codec_position++;
@@ -1633,7 +1620,7 @@ bool WebRtcVoiceSendChannel::AddSendStream(const StreamParams& sp) {
       env_, ssrc, mid_, sp.cname, sp.id, send_codec_spec_, ExtmapAllowMixed(),
       send_rtp_extensions_, rtcp_cc_ack_type_, max_send_bitrate_bps_,
       audio_config_.rtcp_report_interval_ms, audio_network_adaptor_config,
-      call_, transport(), engine()->encoder_factory_, crypto_options_);
+      call_, transport(), engine()->encoder_factory(), crypto_options_);
   send_streams_.insert(std::make_pair(ssrc, stream));
   if (ssrc_list_changed_callback_) {
     std::set<uint32_t> ssrcs_in_use;
@@ -2236,7 +2223,7 @@ RtpParameters WebRtcVoiceReceiveChannel::GetRtpReceiverParameters(
       recv_params_.extensions, RtpExtension::IsSupportedForAudio, false,
       env_.field_trials());
 
-  for (const Codec& codec : recv_codecs_) {
+  for (const Codec& codec : recv_params_.codecs) {
     rtp_params.codecs.push_back(codec.ToCodecParameters());
   }
   rtp_params.rtcp.reduced_size = recv_rtcp_mode_ == RtcpMode::kReducedSize;
@@ -2255,7 +2242,7 @@ RtpParameters WebRtcVoiceReceiveChannel::GetDefaultRtpReceiveParameters()
   }
   rtp_params.encodings.emplace_back();
 
-  for (const Codec& codec : recv_codecs_) {
+  for (const Codec& codec : recv_params_.codecs) {
     rtp_params.codecs.push_back(codec.ToCodecParameters());
   }
   return rtp_params;
@@ -2273,10 +2260,10 @@ bool WebRtcVoiceReceiveChannel::SetOptions(const AudioOptions& options) {
 
   // Check if any options changed that should apply to receive streams.
   if (options.audio_jitter_buffer_max_packets &&
-      *options.audio_jitter_buffer_max_packets !=
+      std::max(20, *options.audio_jitter_buffer_max_packets) !=
           audio_config_.audio_jitter_buffer_max_packets) {
     audio_config_.audio_jitter_buffer_max_packets =
-        *options.audio_jitter_buffer_max_packets;
+        std::max(20, *options.audio_jitter_buffer_max_packets);
     for (auto& [unused, stream] : recv_streams_) {
       stream->SetJitterBufferMaxPackets(
           audio_config_.audio_jitter_buffer_max_packets);
@@ -2315,7 +2302,7 @@ bool WebRtcVoiceReceiveChannel::SetRecvCodecs(
   for (const Codec& codec : codecs) {
     // Log a warning if a codec's payload type is changing. This used to be
     // treated as an error. It's abnormal, but not really illegal.
-    std::optional<Codec> old_codec = FindCodec(recv_codecs_, codec);
+    std::optional<Codec> old_codec = FindCodec(recv_params_.codecs, codec);
     if (old_codec && old_codec->id != codec.id) {
       RTC_LOG(LS_WARNING) << codec.name << " mapped to a second payload type ("
                           << codec.id << ", was already mapped to "
@@ -2324,7 +2311,7 @@ bool WebRtcVoiceReceiveChannel::SetRecvCodecs(
     auto format = AudioCodecToSdpAudioFormat(codec);
     if (!IsCodec(codec, kCnCodecName) && !IsCodec(codec, kDtmfCodecName) &&
         !IsCodec(codec, kRedCodecName) &&
-        !engine()->decoder_factory_->IsSupportedDecoder(format)) {
+        !engine()->decoder_factory()->IsSupportedDecoder(format)) {
       RTC_LOG(LS_ERROR) << "Unsupported codec: " << absl::StrCat(format);
       return false;
     }
@@ -2365,8 +2352,6 @@ bool WebRtcVoiceReceiveChannel::SetRecvCodecs(
   for (auto& kv : recv_streams_) {
     kv.second->SetDecoderMap(decoder_map_);
   }
-
-  recv_codecs_ = codecs;
 
   SetReceive(playout_enabled);
   RTC_DCHECK_EQ(playout_, playout_enabled);
@@ -2429,7 +2414,6 @@ void WebRtcVoiceReceiveChannel::SetReceive(bool receive) {
 bool WebRtcVoiceReceiveChannel::AddRecvStream(const StreamParams& sp) {
   TRACE_EVENT0("webrtc", "WebRtcVoiceMediaChannel::AddRecvStream");
   RTC_DCHECK_RUN_ON(worker_thread_);
-  RTC_DCHECK_RUN_ON(&engine()->worker_thread_checker_);
   RTC_LOG(LS_INFO) << "AddRecvStream: " << sp.ToString();
 
   if (!sp.has_ssrcs()) {
@@ -2461,13 +2445,14 @@ bool WebRtcVoiceReceiveChannel::AddRecvStream(const StreamParams& sp) {
   }
 
   // Create a new channel for receiving audio data.
-  auto config = BuildReceiveStreamConfig(
+  AudioReceiveStreamInterface::Config config = BuildReceiveStreamConfig(
       ssrc, recv_nack_enabled_, enable_non_sender_rtt_, recv_rtcp_mode_,
-      sp.stream_ids(), transport(), engine()->decoder_factory_, decoder_map_,
-      engine()->audio_jitter_buffer_max_packets_,
-      engine()->audio_jitter_buffer_fast_accelerate_,
-      engine()->audio_jitter_buffer_min_delay_ms_, unsignaled_frame_decryptor_,
-      crypto_options_, unsignaled_frame_transformer_);
+      sp.stream_ids(), transport(), engine()->decoder_factory(), decoder_map_,
+      audio_config_.audio_jitter_buffer_max_packets,
+      audio_config_.audio_jitter_buffer_fast_accelerate,
+      options_.audio_jitter_buffer_min_delay_ms.value_or(0),
+      unsignaled_frame_decryptor_, crypto_options_,
+      unsignaled_frame_transformer_);
 
   recv_streams_.insert(std::make_pair(
       ssrc, new WebRtcAudioReceiveStream(std::move(config), call_)));
@@ -2801,11 +2786,12 @@ void WebRtcVoiceReceiveChannel::FillReceiveCodecStats(
     VoiceMediaReceiveInfo* voice_media_info) {
   RTC_DCHECK_RUN_ON(worker_thread_);
   for (const auto& receiver : voice_media_info->receivers) {
-    auto codec = absl::c_find_if(recv_codecs_, [&receiver](const Codec& c) {
-      return receiver.codec_payload_type &&
-             *receiver.codec_payload_type == c.id;
-    });
-    if (codec != recv_codecs_.end()) {
+    std::vector<Codec>::const_iterator codec =
+        absl::c_find_if(recv_params_.codecs, [&receiver](const Codec& c) {
+          return receiver.codec_payload_type &&
+                 *receiver.codec_payload_type == c.id;
+        });
+    if (codec != recv_params_.codecs.end()) {
       voice_media_info->receive_codecs.insert(
           std::make_pair(codec->id.value(), codec->ToCodecParameters()));
     }
