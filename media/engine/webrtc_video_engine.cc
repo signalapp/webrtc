@@ -1860,7 +1860,6 @@ WebRtcVideoSendChannel::WebRtcVideoSendStream::WebRtcVideoSendStream(
     const VideoSenderParameters& send_params)
     : send_channel_(send_channel),
       env_(env),
-      worker_thread_(call->worker_thread()),
       ssrcs_(sp.ssrcs),
       ssrc_groups_(sp.ssrc_groups),
       call_(call),
@@ -2851,7 +2850,6 @@ WebRtcVideoReceiveChannel::WebRtcVideoReceiveChannel(
     VideoDecoderFactory* decoder_factory)
     : MediaChannelUtil(call->network_thread(), config.enable_dscp),
       env_(env),
-      worker_thread_(call->worker_thread()),
       network_thread_safety_(PendingTaskSafetyFlag::CreateAttachedToTaskQueue(
           /*alive=*/true,
           call->network_thread())),
@@ -3532,16 +3530,7 @@ WebRtcVideoReceiveChannel::WebRtcVideoReceiveStream::
     call_->DestroyFlexfecReceiveStream(flexfec_stream_);
 }
 
-VideoReceiveStreamInterface&
-WebRtcVideoReceiveChannel::WebRtcVideoReceiveStream::stream() {
-  RTC_DCHECK(stream_);
-  return *stream_;
-}
 
-FlexfecReceiveStream*
-WebRtcVideoReceiveChannel::WebRtcVideoReceiveStream::flexfec_stream() {
-  return flexfec_stream_;
-}
 
 const std::vector<uint32_t>&
 WebRtcVideoReceiveChannel::WebRtcVideoReceiveStream::GetSsrcs() const {
