@@ -8,9 +8,10 @@
  * be found in the AUTHORS file in the root of the source tree.
  */
 
-#include "video/corruption_detection/evaluation/av1_qp_parser.h"
+#include "modules/video_coding/utility/av1_qp_parser.h"
 
 #include <cstdint>
+#include <memory>
 #include <optional>
 
 #include "test/gmock.h"
@@ -85,47 +86,47 @@ constexpr uint8_t kQpSpatialLayer2 = 241u;
 constexpr uint8_t kQpSpatialLayer3 = 241u;
 
 TEST(Av1QpParserTest, ParseQpAv1KeyFrame) {
-  Av1QpParser parser;
-  std::optional<uint32_t> qp = parser.Parse(kCodedFrameAv1Frame1Qp81);
+  std::unique_ptr<Av1QpParser> parser = Av1QpParser::Create();
+  std::optional<uint32_t> qp = parser->Parse(kCodedFrameAv1Frame1Qp81);
   EXPECT_THAT(qp, 81u);
 }
 
 TEST(Av1QpParserTest, ParseQpAv1DeltaFrameError) {
-  Av1QpParser parser_error;
+  std::unique_ptr<Av1QpParser> parser_error = Av1QpParser::Create();
   // When the first frame is skipped the `sequence_header` is not set, hence QP
   // must be unattainable.
-  std::optional<uint32_t> qp = parser_error.Parse(kCodedFrameAv1Frame2Qp81);
+  std::optional<uint32_t> qp = parser_error->Parse(kCodedFrameAv1Frame2Qp81);
   EXPECT_FALSE(qp.has_value());
 }
 
 TEST(Av1QpParserTest, ParseQpAv1DeltaFrameProper) {
-  Av1QpParser parser;
-  ASSERT_TRUE(parser.Parse(kCodedFrameAv1Frame1Qp81).has_value());
-  std::optional<uint32_t> qp = parser.Parse(kCodedFrameAv1Frame2Qp81);
+  std::unique_ptr<Av1QpParser> parser = Av1QpParser::Create();
+  ASSERT_TRUE(parser->Parse(kCodedFrameAv1Frame1Qp81).has_value());
+  std::optional<uint32_t> qp = parser->Parse(kCodedFrameAv1Frame2Qp81);
   EXPECT_THAT(qp, 81u);
 }
 
 TEST(Av1QpParserTest, ParseQpAv1SvcL3T1SpatialLayer1) {
-  Av1QpParser parser;
+  std::unique_ptr<Av1QpParser> parser = Av1QpParser::Create();
   // `operating_point` = 2 would get the QP for the lowest resolution.
-  std::optional<uint32_t> qp = parser.Parse(kL3T1Av1TemporaUnit,
-                                            /*operating_point=*/2);
+  std::optional<uint32_t> qp = parser->Parse(kL3T1Av1TemporaUnit,
+                                             /*operating_point=*/2);
   EXPECT_THAT(qp, kQpSpatialLayer1);
 }
 
 TEST(Av1QpParserTest, ParseQpAv1SvcL3T1SpatialLayer2) {
-  Av1QpParser parser;
+  std::unique_ptr<Av1QpParser> parser = Av1QpParser::Create();
   // `operating_point` = 1 would get the QP for mid resolution.
-  std::optional<uint32_t> qp = parser.Parse(kL3T1Av1TemporaUnit,
-                                            /*operating_point=*/1);
+  std::optional<uint32_t> qp = parser->Parse(kL3T1Av1TemporaUnit,
+                                             /*operating_point=*/1);
   EXPECT_THAT(qp, kQpSpatialLayer2);
 }
 
 TEST(Av1QpParserTest, ParseQpAv1SvcL3T1SpatialLayer3) {
-  Av1QpParser parser;
+  std::unique_ptr<Av1QpParser> parser = Av1QpParser::Create();
   // `operating_point` = 0 would get the QP for the highest resolution.
-  std::optional<uint32_t> qp = parser.Parse(kL3T1Av1TemporaUnit,
-                                            /*operating_point=*/0);
+  std::optional<uint32_t> qp = parser->Parse(kL3T1Av1TemporaUnit,
+                                             /*operating_point=*/0);
   EXPECT_THAT(qp, kQpSpatialLayer3);
 }
 
