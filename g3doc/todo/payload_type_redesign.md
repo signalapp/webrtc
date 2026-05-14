@@ -1,5 +1,7 @@
 # Payload type allocation redesign
 
+The bug associated with this work is webrtc:360058654
+
 ## Background: What a payload type is
 
 The payload type is a property of a codec that is established between a sender

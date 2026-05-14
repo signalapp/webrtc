@@ -107,8 +107,7 @@ TEST_F(CodecVendorRedesignTest, AudioOfferIncludesRedAndAssignsIds) {
   EXPECT_EQ(fmtp, absl::StrCat(opus_it->id, "/", opus_it->id));
 }
 
-TEST_F(CodecVendorRedesignTest,
-       DISABLED_VideoOfferIncludesRtxAndRedAndAssignsIds) {
+TEST_F(CodecVendorRedesignTest, VideoOfferIncludesRtxAndRedAndAssignsIds) {
   MediaDescriptionOptions options(MediaType::VIDEO, "video",
                                   RtpTransceiverDirection::kSendRecv,
                                   /*stopped=*/false);

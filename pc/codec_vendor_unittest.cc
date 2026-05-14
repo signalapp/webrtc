@@ -32,6 +32,7 @@
 #include "pc/rtp_parameters_conversion.h"
 #include "pc/session_description.h"
 #include "rtc_base/checks.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -133,9 +134,10 @@ TEST(CodecVendorTest, TestSetAudioCodecs) {
   media_engine.SetAudioRecvCodecs(no_codecs.codecs());
   {
     CodecVendor codec_vendor(&media_engine, false, trials);
-    EXPECT_EQ(no_codecs, codec_vendor.audio_send_codecs());
-    EXPECT_EQ(no_codecs, codec_vendor.audio_recv_codecs());
-    EXPECT_EQ(no_codecs, codec_vendor.audio_sendrecv_codecs());
+    EXPECT_EQ(no_codecs.codecs(), codec_vendor.audio_send_codecs().codecs());
+    EXPECT_EQ(no_codecs.codecs(), codec_vendor.audio_recv_codecs().codecs());
+    EXPECT_EQ(no_codecs.codecs(),
+              codec_vendor.audio_sendrecv_codecs().codecs());
   }
 }
 
@@ -266,6 +268,9 @@ TEST(CodecVendorTest, GetNegotiatedCodecsForAnswerWithCollision) {
 }
 
 TEST(CodecVendorMergeTest, BasicTestSetup) {
+  if (CreateTestFieldTrials().IsEnabled("WebRTC-PayloadTypesInTransport")) {
+    GTEST_SKIP();
+  }
   CodecList reference_codecs;
   const std::string mid = "mid";
   CodecList merged_codecs;
@@ -276,6 +281,9 @@ TEST(CodecVendorMergeTest, BasicTestSetup) {
 }
 
 TEST(CodecVendorMergeTest, IdenticalListsMergeWithNoChange) {
+  if (CreateTestFieldTrials().IsEnabled("WebRTC-PayloadTypesInTransport")) {
+    GTEST_SKIP();
+  }
   CodecList reference_codecs;
   const std::string mid = "mid";
   CodecList merged_codecs;
@@ -293,6 +301,9 @@ TEST(CodecVendorMergeTest, IdenticalListsMergeWithNoChange) {
 }
 
 TEST(CodecVendorMergeTest, MergeRenumbersAdditionalCodecs) {
+  if (CreateTestFieldTrials().IsEnabled("WebRTC-PayloadTypesInTransport")) {
+    GTEST_SKIP();
+  }
   CodecList reference_codecs;
   const std::string mid = "mid";
   CodecList merged_codecs;
@@ -323,6 +334,9 @@ TEST(CodecVendorMergeTest, MergeRenumbersAdditionalCodecs) {
 }
 
 TEST(CodecVendorMergeTest, MergeRenumbersRedCodecArgument) {
+  if (CreateTestFieldTrials().IsEnabled("WebRTC-PayloadTypesInTransport")) {
+    GTEST_SKIP();
+  }
   CodecList reference_codecs;
   const std::string mid = "mid";
   CodecList merged_codecs;
@@ -350,6 +364,9 @@ TEST(CodecVendorMergeTest, MergeRenumbersRedCodecArgument) {
 }
 
 TEST(CodecVendorMergeTest, MergeRenumbersRedCodecArgumentAndMerges) {
+  if (CreateTestFieldTrials().IsEnabled("WebRTC-PayloadTypesInTransport")) {
+    GTEST_SKIP();
+  }
   CodecList reference_codecs;
   const std::string mid = "mid";
   CodecList merged_codecs;
@@ -380,6 +397,9 @@ TEST(CodecVendorMergeTest, MergeRenumbersRedCodecArgumentAndMerges) {
 }
 
 TEST(CodecVendorMergeTest, MergeWithBrokenReferenceRedErrors) {
+  if (CreateTestFieldTrials().IsEnabled("WebRTC-PayloadTypesInTransport")) {
+    GTEST_SKIP();
+  }
   CodecList reference_codecs;
   const std::string mid = "mid";
   CodecList merged_codecs;
@@ -398,6 +418,9 @@ TEST(CodecVendorMergeTest, MergeWithBrokenReferenceRedErrors) {
 }
 
 TEST(CodecVendorMergeTest, MergeWithCollisionPicksFromTop) {
+  if (CreateTestFieldTrials().IsEnabled("WebRTC-PayloadTypesInTransport")) {
+    GTEST_SKIP();
+  }
   CodecList reference_codecs;
   const std::string mid = "mid";
   CodecList merged_codecs;

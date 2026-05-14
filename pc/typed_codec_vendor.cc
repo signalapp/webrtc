@@ -179,7 +179,8 @@ std::vector<CodecConfiguration> VideoCodecConfigurationsFromFactory(
 
 Codecs CodecsFromConfigurations(
     const std::vector<CodecConfiguration>& configurations,
-    MediaType type) {
+    MediaType type,
+    bool rtx_enabled) {
   Codecs out;
   flat_set<std::string> shared_added;
   for (const auto& config : configurations) {
@@ -195,7 +196,9 @@ Codecs CodecsFromConfigurations(
       if (config.resiliency.red && shared_added.insert(kRedCodecName).second) {
         out.push_back(CreateVideoCodec(kRedCodecName));
         // Video RED also gets an RTX codec.
-        out.push_back(CreateVideoCodec(PayloadType::NotSet(), kRtxCodecName));
+        if (rtx_enabled) {
+          out.push_back(CreateVideoCodec(PayloadType::NotSet(), kRtxCodecName));
+        }
       }
       if (config.resiliency.ulpfec &&
           shared_added.insert(kUlpfecCodecName).second) {
@@ -248,7 +251,7 @@ TypedCodecVendor::TypedCodecVendor(const MediaEngineInterface* absl_nonnull
           media_engine->video(), is_sender, rtx_enabled, trials);
     }
     codecs_ = CodecList::CreateFromTrustedData(
-        CodecsFromConfigurations(configurations_, type));
+        CodecsFromConfigurations(configurations_, type, rtx_enabled));
   } else {
     codecs_ = CodecList::CreateFromTrustedData(
         GetCodecs(media_engine, type, is_sender, rtx_enabled));

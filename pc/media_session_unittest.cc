@@ -6546,8 +6546,9 @@ TEST_F(VideoCodecsOfferH265LevelIdTest,
   AttachSenderToMediaDescriptionOptions(
       kVideoMid, MediaType::VIDEO, kVideoTrack1, {kMediaStream1}, 1, &opts);
   std::vector<RtpCodecCapability> preferences;
-  for (const Codec& codec :
-       codec_lookup_helper_offerer_.GetCodecVendor()->video_recv_codecs()) {
+  for (const Codec& codec : codec_lookup_helper_offerer_.GetCodecVendor()
+                                ->video_recv_codecs()
+                                .codecs()) {
     preferences.push_back(ToRtpCodecCapability(codec));
   }
   opts.media_description_options[0].codec_preferences = preferences;
