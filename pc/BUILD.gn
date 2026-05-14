@@ -721,6 +721,7 @@ rtc_library("srtp_session") {
     "../rtc_base:text2pcap",
     "../rtc_base:timeutils",
     "../rtc_base/synchronization:mutex",
+    "../rtc_base/system:no_unique_address",
     "../system_wrappers:metrics",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
