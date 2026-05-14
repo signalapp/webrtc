@@ -44,6 +44,9 @@ class SrtpSession {
   SrtpSession(const SrtpSession&) = delete;
   SrtpSession& operator=(const SrtpSession&) = delete;
 
+  // Enable or disable cryptex. May update existing session.
+  bool UseCryptex(bool enabled, bool require, bool sending_session);
+
   // Configures the session for sending data using the specified
   // crypto suite and key. Receiving must be done by a separate session.
   bool SetSend(int crypto_suite,
@@ -120,6 +123,11 @@ class SrtpSession {
   bool inited_ RTC_GUARDED_BY(thread_checker_) = false;
   int last_send_seq_num_ RTC_GUARDED_BY(thread_checker_) = -1;
   int decryption_failure_count_ RTC_GUARDED_BY(thread_checker_) = 0;
+
+  // Supported since libsrtp v2.8.0.
+  bool use_cryptex_ RTC_GUARDED_BY(thread_checker_) = false;
+  bool require_cryptex_ RTC_GUARDED_BY(thread_checker_) = false;
+
   const bool dump_plain_rtp_ = false;
 };
 
