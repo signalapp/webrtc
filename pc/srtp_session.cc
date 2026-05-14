@@ -12,7 +12,6 @@
 
 #include <cstdint>
 #include <cstring>
-#include <optional>
 #include <vector>
 
 #include "absl/strings/string_view.h"
@@ -37,9 +36,6 @@
 #endif
 
 namespace webrtc {
-
-constexpr uint16_t kRtpOneByteHeaderExtensionProfile = 0xBEDE;
-constexpr uint16_t kRtpTwoByteHeaderExtensionProfile = 0x1000;
 
 namespace {
 class LibSrtpInitializer {
@@ -147,7 +143,7 @@ void LibSrtpInitializer::DecrementLibsrtpUsageCountAndMaybeDeinit() {
 // One more than the maximum libsrtp error code. Required by
 // RTC_HISTOGRAM_ENUMERATION. Keep this in sync with srtp_error_status_t defined
 // in srtp.h.
-constexpr int kSrtpErrorCodeBoundary = 29;
+constexpr int kSrtpErrorCodeBoundary = 28;
 
 SrtpSession::SrtpSession() {}
 
@@ -162,23 +158,6 @@ SrtpSession::~SrtpSession() {
   if (inited_) {
     LibSrtpInitializer::Get().DecrementLibsrtpUsageCountAndMaybeDeinit();
   }
-}
-
-bool SrtpSession::UseCryptex(bool enable, bool require, bool sending_session) {
-  RTC_DCHECK_RUN_ON(&thread_checker_);
-  if (session_) {
-    srtp_ssrc_t ssrc;
-    ssrc.type = sending_session ? ssrc_any_outbound : ssrc_any_inbound;
-    int err = srtp_set_stream_use_cryptex(session_, &ssrc, enable);
-    // Should not fail given the usage in libWebRTC.
-    RTC_DCHECK(err == srtp_err_status_ok);
-    if (err != srtp_err_status_ok) {
-      return false;
-    }
-  }
-  use_cryptex_ = enable;
-  require_cryptex_ = require;
-  return true;
 }
 
 bool SrtpSession::SetSend(int crypto_suite,
@@ -290,22 +269,7 @@ bool SrtpSession::UnprotectRtp(CopyOnWriteBuffer& buffer) {
   }
   int out_len = buffer.size();
 
-  std::optional<uint16_t> extension_profile;
-  if (require_cryptex_) {
-    // After decryption this will be set to 0xBEDE or 0x1000 for one/two byte
-    // extensions so must be parsed before decryption. If no extensions are
-    // present this returns std::nullopt.
-    extension_profile = ParseRtpExtensionProfile(buffer);
-  }
   int err = srtp_unprotect(session_, buffer.MutableData<char>(), &out_len);
-  if (err == srtp_err_status_ok && require_cryptex_ &&
-      (extension_profile == kRtpOneByteHeaderExtensionProfile ||
-       extension_profile == kRtpTwoByteHeaderExtensionProfile)) {
-    // An additional check whether cryptex is used when required.
-    // TODO: bugs.webrtc.org/455813732 - libSRTP wіll be doing this check
-    // after https://github.com/cisco/libsrtp/pull/805
-    err = srtp_err_status_cryptex_err;
-  }
   if (err != srtp_err_status_ok) {
     // Limit the error logging to avoid excessive logs when there are lots of
     // bad packets.
@@ -410,10 +374,7 @@ bool SrtpSession::DoSetKey(int type,
   // TODO(astor) parse window size from WSH session-param
   policy.window_size = 1024;
   policy.allow_repeat_tx = 1;
-  // If both encrypted extension ids and cryptex are in use,
-  // cryptex takes precedence and encrypted extensions remain
-  // empty for libSRTP.
-  if (!extension_ids.empty() && !use_cryptex_) {
+  if (!extension_ids.empty()) {
     policy.enc_xtn_hdr = const_cast<int*>(&extension_ids[0]);
     policy.enc_xtn_hdr_count = static_cast<int>(extension_ids.size());
   }
@@ -433,11 +394,6 @@ bool SrtpSession::DoSetKey(int type,
       RTC_LOG(LS_ERROR) << "Failed to update SRTP session, err=" << err;
       return false;
     }
-  }
-  int err = srtp_set_stream_use_cryptex(session_, &policy.ssrc, use_cryptex_);
-  if (err != srtp_err_status_ok) {
-    RTC_LOG(LS_ERROR) << "Failed to update SRTP session cryptex, err=" << err;
-    return false;
   }
 
   rtp_auth_tag_len_ = policy.rtp.auth_tag_len;
