@@ -494,8 +494,7 @@ PeerConnection::PeerConnection(
       data_channel_controller_(this),
       message_handler_(signaling_thread()),
       codec_lookup_helper_(
-          std::make_unique<CodecLookupHelperForPeerConnection>(this)),
-      weak_factory_(this) {
+          std::make_unique<CodecLookupHelperForPeerConnection>(this)) {
   // Field trials specific to the peerconnection should be owned by the `env`,
   RTC_DCHECK(dependencies.trials == nullptr);
 
@@ -631,12 +630,11 @@ PeerConnection::InitializeNetworkThread(
   config.ice_transport_factory = ice_transport_factory_.get();
   config.dtls_transport_factory = dtls_transport_factory_.get();
   config.rtp_transport_factory = rtp_transport_factory_.get();
-  config.on_dtls_handshake_error =
-      [weak_ptr = weak_factory_.GetWeakPtr()](SSLHandshakeError s) {
-        if (weak_ptr) {
-          weak_ptr->OnTransportControllerDtlsHandshakeError(s);
-        }
-      };
+  config.on_dtls_handshake_error = [](SSLHandshakeError s) {
+    RTC_HISTOGRAM_ENUMERATION("WebRTC.PeerConnection.DtlsHandshakeError",
+                              static_cast<int>(s),
+                              static_cast<int>(SSLHandshakeError::MAX_VALUE));
+  };
   config.signal_ice_candidates_gathered =
       [this](absl::string_view transport,
              const std::vector<Candidate>& candidates) {
@@ -2542,13 +2540,6 @@ void PeerConnection::OnTransportControllerCandidatesRemoved(
 void PeerConnection::OnTransportControllerCandidateChanged(
     const CandidatePairChangeEvent& event) {
   OnSelectedCandidatePairChanged(event);
-}
-
-void PeerConnection::OnTransportControllerDtlsHandshakeError(
-    SSLHandshakeError error) {
-  RTC_HISTOGRAM_ENUMERATION("WebRTC.PeerConnection.DtlsHandshakeError",
-                            static_cast<int>(error),
-                            static_cast<int>(SSLHandshakeError::MAX_VALUE));
 }
 
 // Returns the media index for a local ice candidate given the content name.
