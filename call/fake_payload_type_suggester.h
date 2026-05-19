@@ -39,13 +39,6 @@ class FakePayloadTypeSuggester : public PayloadTypeSuggester {
       const Codec& codec,
       bool pick_from_top_of_range = false) override {
     PayloadTypeRecorder& recorder = LookupRecorder(mid);
-    if (pick_from_top_of_range) {
-      RTCErrorOr<PayloadType> result =
-          MaybeAddMapping(mid, codec, recorder, pick_from_top_of_range);
-      if (result.ok()) {
-        return result;
-      }
-    }
     RTCErrorOr<PayloadType> current_pt = recorder.LookupPayloadType(codec);
     if (current_pt.ok()) {
       return current_pt;
@@ -55,15 +48,19 @@ class FakePayloadTypeSuggester : public PayloadTypeSuggester {
     if (it != fallback_suggestions_.end()) {
       return it->second;
     }
-    RTCErrorOr<PayloadType> result =
-        MaybeAddMapping(mid, codec, recorder, pick_from_top_of_range);
-    if (result.ok()) {
-      return result;
+
+    if (codec.id.IsSet() && !IsPayloadTypeConflict(mid, codec.id, codec)) {
+      pt_picker_.AddMapping(codec.id, codec);
+      recorder.AddMapping(codec.id, codec);
+      return codec.id;
     }
+
     // There's only one PT picker, but multiple recorders.
     RTCErrorOr<PayloadType> suggested_result =
         pt_picker_.SuggestMapping(codec, &recorder, pick_from_top_of_range);
+
     if (suggested_result.ok()) {
+      pt_picker_.AddMapping(suggested_result.value(), codec);
       recorder.AddMapping(suggested_result.value(), codec);
     }
     return suggested_result;
@@ -93,35 +90,20 @@ class FakePayloadTypeSuggester : public PayloadTypeSuggester {
     return rtp_extension_picker_.SuggestMapping(
         extension.uri, extension.encrypt, extension.id, id_domain, nullptr);
   }
-  RTCError AddRtpHeaderExtensionMapping(absl::string_view mid,
-                                        const RtpExtension& extension,
-                                        bool local) override {
+  [[nodiscard]] RTCError AddRtpHeaderExtensionMapping(
+      absl::string_view mid,
+      const RtpExtension& extension,
+      bool local) override {
     return rtp_extension_picker_.AddMapping(extension.id, extension.uri,
                                             extension.encrypt);
   }
 
  private:
-  RTCErrorOr<PayloadType> MaybeAddMapping(absl::string_view mid,
-                                          const Codec& codec,
-                                          PayloadTypeRecorder& recorder,
-                                          bool pick_from_top_of_range) {
-    if (codec.id.IsSet()) {
-      if (!IsPayloadTypeConflict(mid, codec.id, codec,
-                                 pick_from_top_of_range)) {
-        pt_picker_.AddMapping(codec.id, codec);
-        recorder.AddMapping(codec.id, codec);
-        return codec.id;
-      }
-    }
-    return RTCError(RTCErrorType::INVALID_PARAMETER);
-  }
-
   bool IsPayloadTypeConflict(absl::string_view mid,
                              PayloadType payload_type,
-                             const Codec& codec,
-                             bool pick_from_top_of_range) const {
+                             const Codec& codec) const {
     for (const auto& kv : recorders_) {
-      auto existing = kv.second->LookupCodec(payload_type);
+      RTCErrorOr<Codec> existing = kv.second->LookupCodec(payload_type);
       if (existing.ok()) {
         if (!MatchesWithReferenceAttributes(existing.value(), codec)) {
           return true;
@@ -129,7 +111,7 @@ class FakePayloadTypeSuggester : public PayloadTypeSuggester {
       }
     }
     // Also check the global picker
-    auto global_existing = pt_picker_.LookupCodec(payload_type);
+    std::optional<Codec> global_existing = pt_picker_.LookupCodec(payload_type);
     if (global_existing &&
         !MatchesWithReferenceAttributes(*global_existing, codec)) {
       return true;

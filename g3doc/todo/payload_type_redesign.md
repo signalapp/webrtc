@@ -209,22 +209,27 @@ To ensure correctness and prevent regressions while the
 `WebRTC-PayloadTypesInTransport` field trial is being developed, a "Redesign
 Feedback Loop" strategy is used:
 
+1. **Identify failing tests** Run the tests for this CL with the flag
+   "force-fieldtrials='WebRTC-PayloadTypesInTransport/Enable'". When using this
+   with `gtest-parallel`, two dashes must be inserted before the extra argument.
+2. **Reproduction and Isolation**: When a failure is identified in step 1, the
+   specific test case is cloned or ported into a specialized integration test
+   file (`pc/codec_vendor_redesign_unittest.cc`) on the implementation branch.
+   This allows for focused debugging and ensures the failure is reproducible in
+   a clean environment with the trial explicitly enabled.
+3. **Surgical Fixes**: Fixes are developed and verified using the isolated
+   tests.
+4. **Full Re-verification**: Once the tests are stable, run all tests without
+   the field trial flag to ensure there are no regressions, and then either ask
+   to commit this set of changes or loop back to step 1.
+
+To ensure that no unit tests are missed, a "canary branch" approach is used.
+
 1. **Canary Branch (`pt-enable`)**: Maintain a branch where the field trial is
    forced enabled by default. This branch is used to run the full WebRTC test
    suite (especially `rtc_pc_unittests` and `peerconnection_unittests`) to
    identify all edge cases and legacy behaviors that the redesign logic doesn't
    yet handle.
-2. **Reproduction and Isolation**: When a failure is identified on the canary
-   branch, the specific test case is cloned or ported into a specialized
-   integration test file (`pc/codec_vendor_redesign_unittest.cc`) on the
-   implementation branch. This allows for focused debugging and ensures the
-   failure is reproducible in a clean environment with the trial explicitly
-   enabled.
-3. **Surgical Fixes**: Fixes are developed and verified on the implementation
-   branch using the isolated tests.
-4. **Full Re-verification**: Once the implementation branch is stable, the
-   canary branch is rebased to include the fixes, and the full test suite is run
-   again to ensure no remaining failures and to catch new regressions.
 
 ## Backwards Compatibility for Unit Testing
 

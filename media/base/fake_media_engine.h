@@ -854,7 +854,8 @@ class FakeVoiceEngine : public VoiceEngineInterface {
           info.supports_network_adaption = false;
         }
         specs.push_back(AudioCodecSpec{
-            .format = {codec.name, codec.clockrate, channels}, .info = info});
+            .format = {codec.name, codec.clockrate, channels, codec.params},
+            .info = info});
       }
       return specs;
     }
@@ -889,7 +890,8 @@ class FakeVoiceEngine : public VoiceEngineInterface {
           info.supports_network_adaption = false;
         }
         specs.push_back(AudioCodecSpec{
-            .format = {codec.name, codec.clockrate, channels}, .info = info});
+            .format = {codec.name, codec.clockrate, channels, codec.params},
+            .info = info});
       }
       return specs;
     }
@@ -971,7 +973,11 @@ class FakeVideoEngine : public VideoEngineInterface {
     std::vector<SdpVideoFormat> GetSupportedFormats() const override {
       std::vector<SdpVideoFormat> formats;
       for (const auto& codec : owner_->send_codecs_) {
-        formats.push_back(SdpVideoFormat(codec.name, codec.params));
+        SdpVideoFormat format(codec.name, codec.params);
+        format.packetization = codec.packetization;
+        format.tx_mode = codec.tx_mode;
+        format.scalability_modes = codec.scalability_modes;
+        formats.push_back(format);
       }
       return formats;
     }
@@ -991,7 +997,11 @@ class FakeVideoEngine : public VideoEngineInterface {
     std::vector<SdpVideoFormat> GetSupportedFormats() const override {
       std::vector<SdpVideoFormat> formats;
       for (const auto& codec : owner_->recv_codecs_) {
-        formats.push_back(SdpVideoFormat(codec.name, codec.params));
+        SdpVideoFormat format(codec.name, codec.params);
+        format.packetization = codec.packetization;
+        format.tx_mode = codec.tx_mode;
+        format.scalability_modes = codec.scalability_modes;
+        formats.push_back(format);
       }
       return formats;
     }

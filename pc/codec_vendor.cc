@@ -196,7 +196,7 @@ RTCError MergeRtxCodec(const CodecConfiguration& config,
                                         config.codec.channels})
                     : CreateVideoCodec(PayloadType::NotSet(), kRtxCodecName);
     rtx.SetParam(kCodecParamAssociatedPayloadType, primary_codec.id.value());
-    auto result =
+    RTCErrorOr<PayloadType> result =
         pt_suggester.SuggestPayloadType(mid, rtx, pick_from_top_of_range);
     if (!result.ok()) {
       return result.MoveError();
@@ -222,7 +222,7 @@ RTCError MergeRedCodec(const CodecConfiguration& config,
     Codec red = (config.codec.type == Codec::Type::kAudio)
                     ? CreateAudioCodec({kRedCodecName, 48000, 2})
                     : CreateVideoCodec(kRedCodecName);
-    auto result =
+    RTCErrorOr<PayloadType> result =
         pt_suggester.SuggestPayloadType(mid, red, pick_from_top_of_range);
     if (!result.ok()) {
       return result.MoveError();
@@ -234,7 +234,7 @@ RTCError MergeRedCodec(const CodecConfiguration& config,
       // Video RED also gets an RTX codec.
       Codec red_rtx = CreateVideoCodec(PayloadType::NotSet(), kRtxCodecName);
       red_rtx.SetParam(kCodecParamAssociatedPayloadType, red.id.value());
-      auto rtx_res =
+      RTCErrorOr<PayloadType> rtx_res =
           pt_suggester.SuggestPayloadType(mid, red_rtx, pick_from_top_of_range);
       if (rtx_res.ok()) {
         red_rtx.id = rtx_res.value();
@@ -265,7 +265,7 @@ RTCError MergeUlpfecCodec(const CodecConfiguration& config,
   });
   if (fec_it == offered_codecs.end()) {
     Codec fec = CreateVideoCodec(kUlpfecCodecName);
-    auto result =
+    RTCErrorOr<PayloadType> result =
         pt_suggester.SuggestPayloadType(mid, fec, pick_from_top_of_range);
     if (!result.ok()) {
       return result.MoveError();
@@ -291,7 +291,7 @@ RTCError MergeFlexfecCodec(const CodecConfiguration& config,
   });
   if (fec_it == offered_codecs.end()) {
     Codec fec = CreateVideoCodec(kFlexfecCodecName);
-    auto result =
+    RTCErrorOr<PayloadType> result =
         pt_suggester.SuggestPayloadType(mid, fec, pick_from_top_of_range);
     if (!result.ok()) {
       return result.MoveError();
@@ -321,8 +321,8 @@ RTCError MergeCodecsFromConfigurations(
     Codec primary_codec;
     if (primary_it == offered_codecs.end()) {
       primary_codec = config.codec;
-      auto result = pt_suggester.SuggestPayloadType(mid, primary_codec,
-                                                    pick_from_top_of_range);
+      RTCErrorOr<PayloadType> result = pt_suggester.SuggestPayloadType(
+          mid, primary_codec, pick_from_top_of_range);
       if (!result.ok()) {
         return result.MoveError();
       }
@@ -651,7 +651,8 @@ void NegotiateVideoCodecLevelsForOffer(
 RTCError NegotiateCodecs(const CodecList& local_codecs,
                          const CodecList& offered_codecs,
                          CodecList& negotiated_codecs_out,
-                         bool keep_offer_order) {
+                         bool keep_offer_order,
+                         bool payload_types_in_transport) {
   RTC_DCHECK_DISALLOW_THREAD_BLOCKING_CALLS();
   flat_map<PayloadType, PayloadType> pt_mapping_table;
   // Since we build the negotiated codec list one entry at a time,
@@ -710,11 +711,15 @@ RTCError NegotiateCodecs(const CodecList& local_codecs,
       }
       PayloadType apt_value(apt_int);
       if (!pt_mapping_table.contains(apt_value)) {
-        RTC_LOG(LS_WARNING) << "Unmapped apt value " << apt_value;
-        continue;
+        if (!payload_types_in_transport) {
+          RTC_LOG(LS_WARNING) << "Unmapped apt value " << apt_value;
+          continue;
+        }
       }
-      negotiated.SetParam(kCodecParamAssociatedPayloadType,
-                          pt_mapping_table.at(apt_value).value());
+      if (pt_mapping_table.contains(apt_value)) {
+        negotiated.SetParam(kCodecParamAssociatedPayloadType,
+                            pt_mapping_table.at(apt_value).value());
+      }
     }
   }
   if (keep_offer_order) {
@@ -796,7 +801,7 @@ RTCError AssignCodecIdsAndLinkRedRefactored(
 
   for (Codec& codec : codecs) {
     if (codec.id == PayloadType::NotSet()) {
-      auto result =
+      RTCErrorOr<PayloadType> result =
           pt_suggester.SuggestPayloadType(mid, codec, pick_from_top_of_range);
       if (!result.ok()) {
         return result.error();
@@ -845,8 +850,7 @@ RTCError CodecVendor::MergeCodecsByDirection(MediaType type,
                                              absl::string_view mid,
                                              CodecList& codecs_out,
                                              PayloadTypeSuggester& pt_suggester,
-                                             bool pick_from_top_of_range,
-                                             bool favor_send_order) {
+                                             bool pick_from_top_of_range) {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
   RTC_DCHECK_DISALLOW_THREAD_BLOCKING_CALLS();
   const std::vector<CodecConfiguration>& send_configs =
@@ -860,25 +864,28 @@ RTCError CodecVendor::MergeCodecsByDirection(MediaType type,
     case RtpTransceiverDirection::kSendRecv:
     case RtpTransceiverDirection::kStopped:
     case RtpTransceiverDirection::kInactive: {
-      if (favor_send_order) {
-        RTCError error = MergeCodecsFromConfigurations(
-            send_configs, mid, codecs_out, pt_suggester, trials_,
-            pick_from_top_of_range);
-        if (!error.ok())
-          return error;
-        return MergeCodecsFromConfigurations(recv_configs, mid, codecs_out,
-                                             pt_suggester, trials_,
-                                             pick_from_top_of_range);
-      } else {
-        RTCError error = MergeCodecsFromConfigurations(
-            recv_configs, mid, codecs_out, pt_suggester, trials_,
-            pick_from_top_of_range);
-        if (!error.ok())
-          return error;
-        return MergeCodecsFromConfigurations(send_configs, mid, codecs_out,
-                                             pt_suggester, trials_,
-                                             pick_from_top_of_range);
+      // Construct the list of codecs that exist both in the send and
+      // receive codec lists. We expect that these lists are equal
+      // most of the time, with some codecs only in the receive configs.
+      // When there are multiple instances of the same codec, with
+      // diffferent parameters, we want all the versions of the codec that
+      // are in the send configuration, since receive configurations are
+      // often more expansive.
+      // TODO: issues.webrtc.org/514760523 - write tests to verify outcomes.
+      std::vector<CodecConfiguration> intersected;
+      for (const CodecConfiguration& send_config : send_configs) {
+        for (const CodecConfiguration& recv_config : recv_configs) {
+          if (absl::EqualsIgnoreCase(send_config.codec.name,
+                                     recv_config.codec.name) &&
+              send_config.codec.clockrate == recv_config.codec.clockrate) {
+            intersected.push_back(send_config);
+            break;
+          }
+        }
       }
+      return MergeCodecsFromConfigurations(intersected, mid, codecs_out,
+                                           pt_suggester, trials_,
+                                           pick_from_top_of_range);
     }
     case RtpTransceiverDirection::kSendOnly:
       return MergeCodecsFromConfigurations(send_configs, mid, codecs_out,
@@ -1087,8 +1094,7 @@ RTCErrorOr<Codecs> CodecVendor::GetNegotiatedCodecsForAnswer(
     }
     MergeCodecsByDirection(media_description_options.type,
                            RtpTransceiverDirection::kSendRecv, mid, codecs,
-                           pt_suggester, /*pick_from_top_of_range=*/false,
-                           /*favor_send_order=*/true);
+                           pt_suggester, /*pick_from_top_of_range=*/false);
   } else {
     // LEGACY path: Assume codecs have PTs.
     // If current content exists and is not being recycled, use its codecs.
@@ -1188,7 +1194,8 @@ RTCErrorOr<Codecs> CodecVendor::GetNegotiatedCodecsForAnswer(
     }
     NegotiateCodecs(filtered_codecs, checked_codecs_from_offer.value(),
                     negotiated_codecs,
-                    media_description_options.codec_preferences.empty());
+                    media_description_options.codec_preferences.empty(),
+                    payload_types_in_transport_);
   } else {
     // media_description_options.codecs_to_include contains codecs
     RTCErrorOr<CodecList> codecs_from_arg =
@@ -1345,7 +1352,7 @@ CodecList CodecVendor::audio_sendrecv_codecs() const {
   CodecList audio_sendrecv_codecs;
   RTCError error =
       NegotiateCodecs(audio_recv_codecs_.codecs(), audio_send_codecs_.codecs(),
-                      audio_sendrecv_codecs, true);
+                      audio_sendrecv_codecs, true, payload_types_in_transport_);
   RTC_DCHECK(error.ok());
   return audio_sendrecv_codecs;
 }
@@ -1364,7 +1371,7 @@ CodecList CodecVendor::video_sendrecv_codecs() const {
   CodecList video_sendrecv_codecs;
   RTCError error =
       NegotiateCodecs(video_recv_codecs_.codecs(), video_send_codecs_.codecs(),
-                      video_sendrecv_codecs, true);
+                      video_sendrecv_codecs, true, payload_types_in_transport_);
   RTC_DCHECK(error.ok());
   return video_sendrecv_codecs;
 }

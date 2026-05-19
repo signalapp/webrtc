@@ -457,7 +457,6 @@ rtc_library("typed_codec_vendor") {
     "../media:media_constants",
     "../media:media_engine",
     "../rtc_base:checks",
-    "../rtc_base:logging",
     "../rtc_base/containers:flat_set",
     "//third_party/abseil-cpp/absl/base:nullability",
     "//third_party/abseil-cpp/absl/strings",

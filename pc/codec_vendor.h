@@ -110,8 +110,7 @@ class CodecVendor {
                                   absl::string_view mid,
                                   CodecList& codecs_out,
                                   PayloadTypeSuggester& pt_suggester,
-                                  bool pick_from_top_of_range,
-                                  bool favor_send_order = false);
+                                  bool pick_from_top_of_range);
 
   // Makes sure that modifications and reading data is done on the same thread
   // and to makessure we consistently make calls to GetNegotiatedCodecsForOffer

@@ -289,7 +289,8 @@ TEST(CodecVendorMergeTest, IdenticalListsMergeWithNoChange) {
   CodecList merged_codecs;
   FakePayloadTypeSuggester pt_suggester;
   Codec some_codec = CreateVideoCodec(97, "foo");
-  auto pt_or_error = pt_suggester.SuggestPayloadType(mid, some_codec);
+  RTCErrorOr<PayloadType> pt_or_error =
+      pt_suggester.SuggestPayloadType(mid, some_codec, false);
   ASSERT_THAT(pt_or_error.value(), Eq(97));
   reference_codecs.push_back(some_codec);
   merged_codecs.push_back(some_codec);
@@ -309,7 +310,8 @@ TEST(CodecVendorMergeTest, MergeRenumbersAdditionalCodecs) {
   CodecList merged_codecs;
   FakePayloadTypeSuggester pt_suggester;
   Codec some_codec = CreateVideoCodec(97, "foo");
-  auto pt_or_error = pt_suggester.SuggestPayloadType(mid, some_codec);
+  RTCErrorOr<PayloadType> pt_or_error =
+      pt_suggester.SuggestPayloadType(mid, some_codec, false);
   ASSERT_THAT(pt_or_error.value(), Eq(97));
   merged_codecs.push_back(some_codec);
   // Use the same PT for a reference codec. This should be renumbered.
@@ -428,7 +430,7 @@ TEST(CodecVendorMergeTest, MergeWithCollisionPicksFromTop) {
   // Existing codec with PT 97
   Codec some_codec = CreateVideoCodec(97, "foo");
   merged_codecs.push_back(some_codec);
-  pt_suggester.AddLocalMapping(mid, 97, some_codec);
+  RTC_CHECK(pt_suggester.AddLocalMapping(mid, 97, some_codec).ok());
 
   // New codec in reference that also wants PT 97
   Codec some_other_codec = CreateVideoCodec(97, "bar");

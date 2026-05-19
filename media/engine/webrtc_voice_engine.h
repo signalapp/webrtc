@@ -138,6 +138,8 @@ class WebRtcVoiceEngine final : public VoiceEngineInterface {
 
   std::optional<AudioDeviceModule::Stats> GetAudioDeviceStats() override;
 
+  bool NeedsAuxiliaryCodecsAdded() const override { return true; }
+
  private:
   const Environment env_;
   std::unique_ptr<TaskQueueBase, TaskQueueDeleter> low_priority_worker_queue_;
