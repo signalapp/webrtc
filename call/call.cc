@@ -23,6 +23,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/functional/bind_front.h"
 #include "absl/strings/string_view.h"
 #include "api/adaptation/resource.h"
@@ -290,10 +291,10 @@ class Call final : public webrtc::Call,
 
   void DeliverRtcpPacket(CopyOnWriteBuffer packet) override;
 
-  void DeliverRtpPacket(
-      MediaType media_type,
-      RtpPacketReceived packet,
-      OnUndemuxablePacketHandler undemuxable_packet_handler) override;
+  void DeliverRtpPacket(MediaType media_type,
+                        RtpPacketReceived packet,
+                        absl_nonnull OnUndemuxablePacketHandler
+                            undemuxable_packet_handler) override;
 
   void SignalChannelNetworkState(MediaType media, NetworkState state) override;
 
@@ -1420,10 +1421,10 @@ void Call::DeliverRtcpPacket_w(CopyOnWriteBuffer packet) {
   }
 }
 
-void Call::DeliverRtpPacket(
-    MediaType media_type,
-    RtpPacketReceived packet,
-    OnUndemuxablePacketHandler undemuxable_packet_handler) {
+void Call::DeliverRtpPacket(MediaType media_type,
+                            RtpPacketReceived packet,
+                            absl_nonnull OnUndemuxablePacketHandler
+                                undemuxable_packet_handler) {
   RTC_DCHECK_RUN_ON(network_thread_);
 
   if (receive_time_calculator_) {

@@ -27,6 +27,7 @@
 
 #include "absl/algorithm/algorithm.h"
 #include "absl/algorithm/container.h"
+#include "absl/base/nullability.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/functional/bind_front.h"
 #include "absl/strings/match.h"
@@ -2150,11 +2151,11 @@ class WebRtcVoiceReceiveChannel::WebRtcAudioReceiveStream {
 
 WebRtcVoiceReceiveChannel::WebRtcVoiceReceiveChannel(
     const Environment& env,
-    WebRtcVoiceEngine* engine,
+    WebRtcVoiceEngine* absl_nonnull engine,
     const MediaConfig& config,
     const AudioOptions& options,
     const CryptoOptions& crypto_options,
-    Call* call)
+    Call* absl_nonnull call)
     : MediaChannelUtil(call->network_thread(), config.enable_dscp),
       env_(env),
       worker_thread_(call->worker_thread()),

@@ -23,6 +23,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/crypto/crypto_options.h"
@@ -508,11 +509,11 @@ class WebRtcVideoReceiveChannel : public MediaChannelUtil,
                                   public VideoMediaReceiveChannelInterface {
  public:
   WebRtcVideoReceiveChannel(const Environment& env,
-                            Call* call,
+                            Call* absl_nonnull call,
                             const MediaConfig& config,
                             const VideoOptions& options,
                             const CryptoOptions& crypto_options,
-                            VideoDecoderFactory* decoder_factory);
+                            VideoDecoderFactory* absl_nonnull decoder_factory);
   ~WebRtcVideoReceiveChannel() override;
 
  public:

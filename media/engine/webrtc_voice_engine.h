@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/audio/audio_device.h"
@@ -310,11 +311,11 @@ class WebRtcVoiceReceiveChannel final
       public VoiceMediaReceiveChannelInterface {
  public:
   WebRtcVoiceReceiveChannel(const Environment& env,
-                            WebRtcVoiceEngine* engine,
+                            WebRtcVoiceEngine* absl_nonnull engine,
                             const MediaConfig& config,
                             const AudioOptions& options,
                             const CryptoOptions& crypto_options,
-                            Call* call);
+                            Call* absl_nonnull call);
 
   WebRtcVoiceReceiveChannel() = delete;
   WebRtcVoiceReceiveChannel(const WebRtcVoiceReceiveChannel&) = delete;

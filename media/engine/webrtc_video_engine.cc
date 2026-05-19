@@ -26,6 +26,7 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
+#include "absl/base/nullability.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/functional/bind_front.h"
 #include "absl/strings/match.h"
@@ -2843,11 +2844,11 @@ void WebRtcVideoSendChannel::SetEncoderToPacketizerFrameTransformer(
 // ------------------------ WebRtcVideoReceiveChannel ---------------------
 WebRtcVideoReceiveChannel::WebRtcVideoReceiveChannel(
     const Environment& env,
-    Call* call,
+    Call* absl_nonnull call,
     const MediaConfig& config,
     const VideoOptions& options,
     const CryptoOptions& crypto_options,
-    VideoDecoderFactory* decoder_factory)
+    VideoDecoderFactory* absl_nonnull decoder_factory)
     : MediaChannelUtil(call->network_thread(), config.enable_dscp),
       env_(env),
       network_thread_safety_(PendingTaskSafetyFlag::CreateAttachedToTaskQueue(
