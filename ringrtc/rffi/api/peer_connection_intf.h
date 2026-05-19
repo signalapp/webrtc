@@ -43,14 +43,6 @@ RUSTEXPORT void Rust_setLocalDescription(
 RUSTEXPORT const char* Rust_toSdp(
     webrtc::SessionDescriptionInterface* session_description_borrowed);
 
-// Returns an owned pointer.
-RUSTEXPORT webrtc::SessionDescriptionInterface* Rust_answerFromSdp(
-    const char* sdp_borrowed);
-
-// Returns an owned pointer.
-RUSTEXPORT webrtc::SessionDescriptionInterface* Rust_offerFromSdp(
-    const char* sdp_borrowed);
-
 RUSTEXPORT bool Rust_disableDtlsAndSetSrtpKey(
     webrtc::SessionDescriptionInterface* session_description_borrowed,
     int crypto_suite,

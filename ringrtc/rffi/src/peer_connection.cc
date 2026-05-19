@@ -166,28 +166,6 @@ RUSTEXPORT const char* Rust_toSdp(
   return nullptr;
 }
 
-// Returns an owned pointer.
-static SessionDescriptionInterface* createSessionDescriptionInterface(
-    SdpType type,
-    const char* sdp_borrowed) {
-  if (sdp_borrowed != nullptr) {
-    return CreateSessionDescription(type, std::string(sdp_borrowed)).release();
-  } else {
-    return nullptr;
-  }
-}
-
-// Returns an owned pointer.
-RUSTEXPORT SessionDescriptionInterface* Rust_answerFromSdp(
-    const char* sdp_borrowed) {
-  return createSessionDescriptionInterface(SdpType::kAnswer, sdp_borrowed);
-}
-
-RUSTEXPORT SessionDescriptionInterface* Rust_offerFromSdp(
-    const char* sdp_borrowed) {
-  return createSessionDescriptionInterface(SdpType::kOffer, sdp_borrowed);
-}
-
 RUSTEXPORT bool Rust_disableDtlsAndSetSrtpKey(
     SessionDescriptionInterface* session_description_borrowed,
     int crypto_suite,
