@@ -1240,6 +1240,7 @@ rtc_library("sdp_payload_type_suggester") {
     "../api:peer_connection_interface",
     "../api:rtc_error",
     "../api:rtp_parameters",
+    "../api/environment",
     "../call:payload_type",
     "../call:payload_type_picker",
     "../media:codec",
@@ -3684,6 +3685,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../api:rtc_error",
       "../media:codec",
       "../media:media_constants",
+      "../test:create_test_environment",
       "../test:test_support",
       "//third_party/abseil-cpp/absl/strings:string_view",
     ]

@@ -31,6 +31,7 @@
 #include "rtc_base/containers/flat_set.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/string_encode.h"
+#include "system_wrappers/include/metrics.h"
 
 namespace webrtc {
 
@@ -371,8 +372,14 @@ RTCError RtpHeaderExtensionRecorder::AddMapping(int id,
   auto it = uri_to_id_.find(std::pair{uri, encrypt});
   if (it != uri_to_id_.end()) {
     if (it->second != id) {
-      // TODO: https://issues.webrtc.org/41480892 - This will return an error in
-      // the future.
+      RTC_HISTOGRAM_BOOLEAN(
+          "WebRTC.PeerConnection.RtpHeaderExtensionRedefinition", true);
+      // TODO: bugs.webrtc.org/504685269 - Enable error return by default.
+      if (env_.field_trials().IsEnabled(
+              "WebRTC-ErrorOnRtpExtensionRedefinition")) {
+        return RTCError(RTCErrorType::INVALID_PARAMETER,
+                        "Redefining mapping for RTP header extension");
+      }
       RTC_LOG(LS_ERROR) << "RtpHeaderExtensionRecorder: Redefining mapping for "
                         << uri << " (encrypt=" << encrypt << ") from "
                         << it->second << " to " << id;
