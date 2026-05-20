@@ -271,7 +271,9 @@ DtlsTransportInternalImpl::DtlsTransportInternalImpl(
           [this](bool success) { CompleteDtlsInStun(success); }) {
   RTC_DCHECK(ice_transport_);
   ConnectToIceTransport();
-  dtls_in_stun_ = ice_transport_->internal()->config().dtls_handshake_in_stun;
+  if (SSLStreamAdapter::IsBoringSsl()) {
+    dtls_in_stun_ = ice_transport_->internal()->config().dtls_handshake_in_stun;
+  }
 }
 
 DtlsTransportInternalImpl::DtlsTransportInternalImpl(
@@ -522,7 +524,9 @@ bool DtlsTransportInternalImpl::AppendSrtpKeyingMaterial(
 bool DtlsTransportInternalImpl::SetupDtls() {
   RTC_DCHECK(dtls_role_);
 
-  dtls_in_stun_ = ice_transport()->config().dtls_handshake_in_stun;
+  if (SSLStreamAdapter::IsBoringSsl()) {
+    dtls_in_stun_ = ice_transport()->config().dtls_handshake_in_stun;
+  }
 
   {
     auto downward = std::make_unique<StreamInterfaceChannel>(ice_transport());
