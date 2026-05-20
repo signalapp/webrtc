@@ -102,8 +102,9 @@ class FakePayloadTypeSuggester : public PayloadTypeSuggester {
   bool IsPayloadTypeConflict(absl::string_view mid,
                              PayloadType payload_type,
                              const Codec& codec) const {
-    for (const auto& kv : recorders_) {
-      RTCErrorOr<Codec> existing = kv.second->LookupCodec(payload_type);
+    auto it = recorders_.find(mid);
+    if (it != recorders_.end()) {
+      RTCErrorOr<Codec> existing = it->second->LookupCodec(payload_type);
       if (existing.ok()) {
         if (!MatchesWithReferenceAttributes(existing.value(), codec)) {
           return true;

@@ -196,6 +196,12 @@ RTCError MergeRtxCodec(const CodecConfiguration& config,
                                         config.codec.channels})
                     : CreateVideoCodec(PayloadType::NotSet(), kRtxCodecName);
     rtx.SetParam(kCodecParamAssociatedPayloadType, primary_codec.id.value());
+    // Convention: RTX PT = primary PT + 1.
+    // Suggester will ignore this if it is already in use.
+    int preferred_id = primary_codec.id.value() + 1;
+    if (preferred_id <= 127) {
+      rtx.id = PayloadType(preferred_id);
+    }
     RTCErrorOr<PayloadType> result =
         pt_suggester.SuggestPayloadType(mid, rtx, pick_from_top_of_range);
     if (!result.ok()) {
@@ -283,7 +289,8 @@ RTCError MergeFlexfecCodec(const CodecConfiguration& config,
                            const FieldTrialsView& trials,
                            bool pick_from_top_of_range) {
   if (!config.resiliency.flexfec || config.codec.type != Codec::Type::kVideo ||
-      !trials.IsEnabled("WebRTC-FlexFEC-03-Advertised")) {
+      (!trials.IsEnabled("WebRTC-FlexFEC-03-Advertised") &&
+       !trials.IsEnabled("WebRTC-FlexFEC-03"))) {
     return RTCError::OK();
   }
   auto fec_it = absl::c_find_if(offered_codecs, [&](const Codec& c) {
