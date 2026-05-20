@@ -82,11 +82,10 @@ using ::webrtc::RtpExtension;
 using ::webrtc::RtpTransceiverDirection;
 using ::webrtc::SdpType;
 using ::webrtc::StreamParams;
+using ::webrtc::Thread;
 
-const webrtc::Codec kPcmuCodec = webrtc::CreateAudioCodec(0, "PCMU", 64000, 1);
-const webrtc::Codec kPcmaCodec = webrtc::CreateAudioCodec(8, "PCMA", 64000, 1);
-const webrtc::Codec kIsacCodec =
-    webrtc::CreateAudioCodec(103, "ISAC", 40000, 1);
+const webrtc::Codec kPcmuCodec = webrtc::CreateAudioCodec(0, "PCMU", 8000, 1);
+const webrtc::Codec kPcmaCodec = webrtc::CreateAudioCodec(8, "PCMA", 8000, 1);
 const webrtc::Codec kH264Codec = webrtc::CreateVideoCodec(97, "H264");
 const webrtc::Codec kH264SvcCodec = webrtc::CreateVideoCodec(99, "H264-SVC");
 constexpr uint32_t kSsrc1 = 0x1111;
@@ -946,6 +945,93 @@ class ChannelTest : public ::testing::Test {
     SendCustomRtp2(kSsrc2, 0);
     WaitForThreads();
     EXPECT_TRUE(CheckCustomRtp1(kSsrc2, 0));
+  }
+
+  class MockReceiveChannel : public T::MediaReceiveChannel {
+   public:
+    MockReceiveChannel(const typename T::Options& options,
+                       Thread* network_thread)
+        : T::MediaReceiveChannel(options, network_thread) {}
+
+    void OnDemuxerCriteriaUpdatePending() override {
+      ++pending_count_;
+      T::MediaReceiveChannel::OnDemuxerCriteriaUpdatePending();
+    }
+
+    void OnDemuxerCriteriaUpdateComplete() override {
+      --pending_count_;
+      T::MediaReceiveChannel::OnDemuxerCriteriaUpdateComplete();
+    }
+
+    bool AddRecvStream(const StreamParams& sp) override {
+      add_stream_called_ = true;
+      if (pending_count_ <= 0) {
+        criteria_not_pending_during_add_stream_ = true;
+      }
+      return T::MediaReceiveChannel::AddRecvStream(sp);
+    }
+
+    bool add_stream_called() const { return add_stream_called_; }
+    bool criteria_not_pending_during_add_stream() const {
+      return criteria_not_pending_during_add_stream_;
+    }
+
+   private:
+    int pending_count_ = 0;
+    bool add_stream_called_ = false;
+    bool criteria_not_pending_during_add_stream_ = false;
+  };
+
+  void TestUpdateRemoteStreamsRaceWithRtpPacket() {
+    auto ch1r = std::make_unique<MockReceiveChannel>(typename T::Options(),
+                                                     network_thread_);
+    MockReceiveChannel* mock_ch1r = ch1r.get();
+
+    CreateChannels(std::make_unique<typename T::MediaSendChannel>(
+                       typename T::Options(), network_thread_),
+                   std::move(ch1r),
+                   std::make_unique<typename T::MediaSendChannel>(
+                       typename T::Options(), network_thread_),
+                   std::make_unique<typename T::MediaReceiveChannel>(
+                       typename T::Options(), network_thread_),
+                   0, 0);
+
+    // Configure a new stream `stream1` to be added
+    StreamParams stream1;
+    stream1.id = "stream1";
+    stream1.ssrcs.push_back(kSsrc1);
+    stream1.cname = "stream1_cname";
+
+    typename T::Content content1;
+    CreateContent(0, kPcmuCodec, kH264Codec, &content1);
+    content1.AddStream(stream1);
+
+    ASSERT_TRUE(channel1_->SetLocalContent(&content1, SdpType::kOffer).ok());
+    channel1_->Enable(true);
+
+    typename T::Content content2;
+    CreateContent(0, kPcmuCodec, kH264Codec, &content2);
+    ASSERT_TRUE(channel2_->SetRemoteContent(&content1, SdpType::kOffer).ok());
+    ConnectFakeTransports();
+
+    // Configure answer adding stream2.
+    StreamParams stream2;
+    stream2.id = "stream2";
+    stream2.ssrcs.push_back(kSsrc2);
+    stream2.cname = "stream2_cname";
+
+    typename T::Content content3;
+    CreateContent(0, kPcmuCodec, kH264Codec, &content3);
+    content3.AddStream(stream2);
+
+    // Call SetRemoteContent.
+    RTCError error = channel1_->SetRemoteContent(&content3, SdpType::kAnswer);
+
+    EXPECT_TRUE(error.ok()) << "SetRemoteContent failed: " << error.message();
+    EXPECT_TRUE(mock_ch1r->add_stream_called());
+    EXPECT_FALSE(mock_ch1r->criteria_not_pending_during_add_stream())
+        << "Race condition detected: demuxer criteria was not pending during "
+           "AddRecvStream!";
   }
 
   // Test that we only start playout and sending at the right times.
@@ -2027,6 +2113,10 @@ TEST_F(VoiceChannelDoubleThreadTest, TestChangeStreamParamsInContent) {
   Base::TestChangeStreamParamsInContent();
 }
 
+TEST_F(VoiceChannelDoubleThreadTest, TestUpdateRemoteStreamsRaceWithRtpPacket) {
+  Base::TestUpdateRemoteStreamsRaceWithRtpPacket();
+}
+
 TEST_F(VoiceChannelDoubleThreadTest, TestPlayoutAndSendingStates) {
   Base::TestPlayoutAndSendingStates();
 }
@@ -2668,6 +2758,10 @@ TEST_F(VideoChannelDoubleThreadTest, TestSetContentFailure) {
 
 TEST_F(VideoChannelDoubleThreadTest, TestSendTwoOffers) {
   Base::TestSendTwoOffers();
+}
+
+TEST_F(VideoChannelDoubleThreadTest, TestUpdateRemoteStreamsRaceWithRtpPacket) {
+  Base::TestUpdateRemoteStreamsRaceWithRtpPacket();
 }
 
 TEST_F(VideoChannelDoubleThreadTest, TestReceiveTwoOffers) {

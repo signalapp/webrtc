@@ -536,12 +536,21 @@ RTCError BaseChannel::MaybeUpdateDemuxerAndRtpExtensions_w(
 }
 
 bool BaseChannel::RegisterRtpDemuxerSink_w(
-    bool clear_payload_types,
-    std::optional<flat_set<uint32_t>> ssrcs) {
-  media_receive_channel()->OnDemuxerCriteriaUpdatePending();
-  absl::Cleanup cleanup = [this] {
-    media_receive_channel()->OnDemuxerCriteriaUpdateComplete();
-  };
+    const MediaContentDescription* content) {
+  bool clear_payload_types = false;
+  if (!RtpTransceiverDirectionHasSend(content->direction())) {
+    RTC_DLOG(LS_VERBOSE)
+        << "RegisterRtpDemuxerSink_w: remote side will not send "
+           "- disable payload type demuxing for "
+        << ToString();
+    clear_payload_types = true;
+  }
+
+  flat_set<uint32_t> ssrcs;
+  for (const StreamParams& new_stream : content->streams()) {
+    ssrcs.insert(new_stream.ssrcs.begin(), new_stream.ssrcs.end());
+  }
+
   bool ret = network_thread_->BlockingCall([&] {
     RTC_DCHECK_RUN_ON(network_thread());
     if (!rtp_transport_) {
@@ -558,11 +567,9 @@ bool BaseChannel::RegisterRtpDemuxerSink_w(
       needs_re_registration = true;
     }
 
-    if (ssrcs) {
-      if (ssrcs_ != *ssrcs) {
-        ssrcs_ = std::move(*ssrcs);
-        needs_re_registration = true;
-      }
+    if (ssrcs_ != ssrcs) {
+      ssrcs_ = std::move(ssrcs);
+      needs_re_registration = true;
     }
 
     if (!needs_re_registration) {
@@ -957,17 +964,24 @@ RTCError BaseChannel::UpdateRemoteStreams_w(
     const MediaContentDescription* content,
     SdpType type) {
   RTC_LOG_THREAD_BLOCK_COUNT();
-  bool clear_payload_types = false;
-  if (!RtpTransceiverDirectionHasSend(content->direction())) {
-    RTC_DLOG(LS_VERBOSE) << "UpdateRemoteStreams_w: remote side will not send "
-                            "- disable payload type demuxing for "
-                         << ToString();
-    clear_payload_types = true;
-  }
+  media_receive_channel()->OnDemuxerCriteriaUpdatePending();
+  absl::Cleanup cleanup = [this] {
+    media_receive_channel()->OnDemuxerCriteriaUpdateComplete();
+  };
 
   const std::vector<StreamParams>& streams = content->streams();
   const bool new_has_unsignaled_ssrcs = HasStreamWithNoSsrcs(streams);
   const bool old_has_unsignaled_ssrcs = HasStreamWithNoSsrcs(remote_streams_);
+
+  RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(0);
+
+  // Re-register the sink to update after changing the demuxer criteria first.
+  if (!RegisterRtpDemuxerSink_w(content)) {
+    return RTCError::InvalidParameter()
+           << "Failed to set up audio demuxing for mid='" << mid() << "'.";
+  }
+
+  RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(1);
 
   // Check for streams that have been removed.
   for (const StreamParams& old_stream : remote_streams_) {
@@ -992,7 +1006,6 @@ RTCError BaseChannel::UpdateRemoteStreams_w(
   }
 
   // Check for new streams.
-  flat_set<uint32_t> ssrcs;
   for (const StreamParams& new_stream : streams) {
     // We allow a StreamParams with an empty list of SSRCs, in which case the
     // MediaChannel will cache the parameters and use them for any unsignaled
@@ -1014,19 +1027,7 @@ RTCError BaseChannel::UpdateRemoteStreams_w(
                << " to " << ToString();
       }
     }
-    // Update the receiving SSRCs.
-    ssrcs.insert(new_stream.ssrcs.begin(), new_stream.ssrcs.end());
   }
-
-  RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(0);
-
-  // Re-register the sink to update after changing the demuxer criteria.
-  if (!RegisterRtpDemuxerSink_w(clear_payload_types, std::move(ssrcs))) {
-    return RTCError::InvalidParameter()
-           << "Failed to set up audio demuxing for mid='" << mid() << "'.";
-  }
-
-  RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(1);
 
   remote_streams_ = streams;
 
