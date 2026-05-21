@@ -769,59 +769,6 @@ TEST(TransportFeedbackAdapterCongestionFeedbackTest,
 }
 
 TEST(TransportFeedbackAdapterCongestionFeedbackTest,
-     CalculateSmoothedRttForConstantOneWayDelay) {
-  TransportFeedbackAdapter adapter;
-  const Timestamp kFirstSendTime = Timestamp::Seconds(1234);
-
-  // Send 3 packets with a constant one way delay. // send timestamp and
-  // receive timestamp may use different epoch.
-  const PacketTemplate packets[] = {
-      {
-          .transport_sequence_number = 1,
-          .rtp_sequence_number = 101,
-          .send_timestamp = kFirstSendTime,
-          .receive_timestamp = Timestamp::Millis(200),
-      },
-      {
-          .transport_sequence_number = 2,
-          .rtp_sequence_number = 102,
-          .send_timestamp = kFirstSendTime + TimeDelta::Millis(10),
-          .receive_timestamp = Timestamp::Millis(210),
-      },
-      {
-          .transport_sequence_number = 3,
-          .rtp_sequence_number = 103,
-          .send_timestamp = kFirstSendTime + TimeDelta::Millis(50),
-          .receive_timestamp = Timestamp::Millis(250),
-      },
-      {
-          .transport_sequence_number = 4,
-          .rtp_sequence_number = 105,
-          .send_timestamp = kFirstSendTime + TimeDelta::Millis(55),
-          .receive_timestamp = Timestamp::Millis(255),
-      }};
-
-  for (const PacketTemplate& packet : packets) {
-    adapter.AddPacket(CreatePacketToSend(packet), packet.pacing_info,
-                      /*overhead=*/0u, packet.send_timestamp);
-
-    adapter.ProcessSentPacket(SentPacketInfo(packet.transport_sequence_number,
-                                             packet.send_timestamp.ms()));
-  }
-
-  const TimeDelta kExpectedRtt = TimeDelta::Millis(20);
-  for (int i = 0; i < 4; i = i + 2) {
-    rtcp::CongestionControlFeedback rtcp_feedback =
-        BuildRtcpCongestionControlFeedbackPacket(std::span(&packets[i], 2));
-    std::optional<TransportPacketsFeedback> adapted_feedback =
-        adapter.ProcessCongestionControlFeedback(
-            rtcp_feedback,
-            /*feedback_receive_time=*/packets[i + 1].send_timestamp +
-                kExpectedRtt);
-  }
-}
-
-TEST(TransportFeedbackAdapterCongestionFeedbackTest,
      CongestionControlFeedbackResultReportsLostPacketOnce) {
   TransportFeedbackAdapter adapter;
 
