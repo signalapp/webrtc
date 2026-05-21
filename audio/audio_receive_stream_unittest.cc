@@ -421,13 +421,6 @@ TEST(AudioReceiveStreamTest, ReconfigureWithUpdatedConfig) {
 
     MockChannelReceive& channel_receive = *helper.channel_receive();
 
-    // TODO(tommi, nisse): This applies new extensions to the internal config,
-    // but there's nothing that actually verifies that the changes take effect.
-    // In fact Call manages the extensions separately in Call::ReceiveRtpConfig
-    // and changing this config value (there seem to be a few copies), doesn't
-    // affect that logic.
-    recv_stream->ReconfigureForTesting(new_config);
-
     new_config.decoder_map.emplace(1, SdpAudioFormat("foo", 8000, 1));
     EXPECT_CALL(channel_receive, SetReceiveCodecs(new_config.decoder_map));
     recv_stream->SetDecoderMap(new_config.decoder_map);
@@ -439,31 +432,19 @@ TEST(AudioReceiveStreamTest, ReconfigureWithUpdatedConfig) {
   }
 }
 
-TEST(AudioReceiveStreamTest, ReconfigureWithFrameDecryptor) {
+TEST(AudioReceiveStreamTest, SetFrameDecryptorForwardsToChannelReceive) {
   test::RunLoop loop;
   for (bool use_null_audio_processing : {false, true}) {
     ConfigHelper helper(loop.task_queue(), loop.task_queue(),
                         use_null_audio_processing);
     auto recv_stream = helper.CreateAudioReceiveStream();
 
-    auto new_config_0 = helper.config();
-    scoped_refptr<FrameDecryptorInterface> mock_frame_decryptor_0(
-        make_ref_counted<MockFrameDecryptor>());
-    new_config_0.frame_decryptor = mock_frame_decryptor_0;
+    scoped_refptr<FrameDecryptorInterface> mock_frame_decryptor =
+        make_ref_counted<MockFrameDecryptor>();
+    EXPECT_CALL(*helper.channel_receive(),
+                SetFrameDecryptor(mock_frame_decryptor));
 
-    // TODO(tommi): While this changes the internal config value, it doesn't
-    // actually change what frame_decryptor is used. WebRtcAudioReceiveStream
-    // recreates the whole instance in order to change this value.
-    // So, it's not clear if changing this post initialization needs to be
-    // supported.
-    recv_stream->ReconfigureForTesting(new_config_0);
-
-    auto new_config_1 = helper.config();
-    scoped_refptr<FrameDecryptorInterface> mock_frame_decryptor_1(
-        make_ref_counted<MockFrameDecryptor>());
-    new_config_1.frame_decryptor = mock_frame_decryptor_1;
-    new_config_1.crypto_options.sframe.require_frame_encryption = true;
-    recv_stream->ReconfigureForTesting(new_config_1);
+    recv_stream->SetFrameDecryptor(mock_frame_decryptor);
     recv_stream->UnregisterFromTransport();
   }
 }
