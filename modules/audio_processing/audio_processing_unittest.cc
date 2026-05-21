@@ -38,6 +38,7 @@
 #include "api/environment/environment.h"
 #include "api/make_ref_counted.h"
 #include "api/scoped_refptr.h"
+#include "api/units/timestamp.h"
 #include "common_audio/channel_buffer.h"
 #include "common_audio/include/audio_util.h"
 #include "modules/audio_processing/aec_dump/aec_dump_factory.h"
@@ -46,7 +47,6 @@
 #include "modules/audio_processing/test/test_utils.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/cpu_info.h"
-#include "rtc_base/fake_clock.h"
 #include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/numerics/safe_minmax.h"
 #include "rtc_base/protobuf_utils.h"
@@ -58,6 +58,7 @@
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/testsupport/file_utils.h"
+#include "test/time_controller/simulated_time_controller.h"
 
 #ifdef WEBRTC_ANDROID_PLATFORM_BUILD
 #include "external/webrtc/webrtc/modules/audio_processing/debug.pb.h"
@@ -390,6 +391,7 @@ class ApmTest : public ::testing::Test {
 
   const std::string output_path_;
   const std::string ref_filename_;
+  GlobalSimulatedTimeController time_controller_{Timestamp::Seconds(5)};
   scoped_refptr<AudioProcessing> apm_;
   Int16FrameData frame_;
   Int16FrameData revframe_;
@@ -410,7 +412,8 @@ ApmTest::ApmTest()
       far_file_(nullptr),
       near_file_(nullptr),
       out_file_(nullptr) {
-  apm_ = BuiltinAudioProcessingBuilder().Build(CreateTestEnvironment());
+  apm_ = BuiltinAudioProcessingBuilder().Build(
+      CreateTestEnvironment({.time = &time_controller_}));
   AudioProcessing::Config apm_config = apm_->GetConfig();
   apm_config.gain_controller1.analog_gain_controller.enabled = false;
   apm_config.pipeline.maximum_internal_processing_rate = 48000;
@@ -1482,7 +1485,6 @@ void ApmTest::ProcessDebugDump(absl::string_view in_filename,
 }
 
 void ApmTest::VerifyDebugDumpTest(Format format) {
-  ScopedFakeClock fake_clock;
   const std::string in_filename = test::ResourcePath("ref03", "aecdump");
   std::string format_string;
   switch (format) {
