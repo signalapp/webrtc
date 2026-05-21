@@ -239,6 +239,7 @@ if (rtc_include_tests) {
       "../../../modules/video_coding:video_coding_utility",
       "../../../modules/video_coding/svc:svc_rate_allocator",
       "../../../rtc_base:checks",
+      "../../../test:create_test_environment",
       "../../../test:fileutils",
       "../../../test:test_support",
       "../../../video/corruption_detection/evaluation:test_clip",

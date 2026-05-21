@@ -1034,6 +1034,7 @@ if (rtc_include_tests) {
       "../../media:rtc_simulcast_encoder_adapter",
       "../../rtc_base:checks",
       "../../rtc_base:timeutils",
+      "../../test:create_test_environment",
       "../../test:create_test_field_trials",
       "../../test:fileutils",
       "../../test:test_support",

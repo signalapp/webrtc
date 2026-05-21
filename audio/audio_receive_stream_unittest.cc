@@ -19,7 +19,6 @@
 
 #include "api/audio_codecs/audio_format.h"
 #include "api/crypto/frame_decryptor_interface.h"
-#include "api/environment/environment_factory.h"
 #include "api/make_ref_counted.h"
 #include "api/rtp_headers.h"
 #include "api/scoped_refptr.h"
@@ -39,6 +38,7 @@
 #include "modules/pacing/packet_router.h"
 #include "modules/rtp_rtcp/source/byte_io.h"
 #include "rtc_base/time_utils.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/mock_audio_decoder_factory.h"
@@ -176,7 +176,7 @@ struct ConfigHelper {
 
   std::unique_ptr<AudioReceiveStreamImpl> CreateAudioReceiveStream() {
     auto ret = std::make_unique<AudioReceiveStreamImpl>(
-        CreateEnvironment(), &packet_router_, stream_config_, audio_state_,
+        CreateTestEnvironment(), &packet_router_, stream_config_, audio_state_,
         std::unique_ptr<voe::ChannelReceiveInterface>(channel_receive_));
     ret->RegisterWithTransport(&rtp_stream_receiver_controller_);
     return ret;

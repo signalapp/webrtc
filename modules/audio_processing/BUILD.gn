@@ -366,6 +366,7 @@ if (rtc_include_tests) {
         "../../rtc_base:threading",
         "../../rtc_base/synchronization:mutex",
         "../../rtc_base/system:file_wrapper",
+        "../../test:create_test_environment",
         "../../test:fileutils",
         "../../test:rtc_expect_death",
         "../../test:test_support",
@@ -463,6 +464,7 @@ if (rtc_include_tests) {
       "../../rtc_base:random",
       "../../rtc_base:rtc_event",
       "../../system_wrappers",
+      "../../test:create_test_environment",
       "../../test:test_support",
       "//third_party/abseil-cpp/absl/strings:string_view",
     ]
