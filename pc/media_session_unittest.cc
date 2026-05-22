@@ -5619,10 +5619,10 @@ TEST_F(VideoCodecsOfferH265LevelIdTest,
                                               offerer_recv_codecs);
   codec_lookup_helper_answerer_.SetVideoCodecs(answerer_send_codecs,
                                                answerer_recv_codecs);
-  EXPECT_EQ(offerer_sendrecv_codecs,
-            codec_lookup_helper_offerer_.GetCodecVendor()
-                ->video_sendrecv_codecs()
-                .codecs());
+  EXPECT_THAT(codec_lookup_helper_offerer_.GetCodecVendor()
+                  ->video_sendrecv_codecs()
+                  .codecs(),
+              CodecListsMatch(offerer_sendrecv_codecs, &env_.field_trials()));
 
   MediaSessionOptions opts;
   AddMediaDescriptionOptions(MediaType::VIDEO, kVideoMid,
