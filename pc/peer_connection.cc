@@ -2043,7 +2043,9 @@ void PeerConnection::ReportFirstConnectUsageMetrics() {
       // Rollback does not have SDP so can not be munged.
       break;
   }
-  bool negotiated_sctp_snap = false;
+
+  // Below this point are features where we check what was negotiated in
+  // SDP. `desc` will contain the answer, i.e. what was negotiated.
   const SessionDescription* desc = nullptr;
   if (local_description()->GetType() == SdpType::kAnswer ||
       local_description()->GetType() == SdpType::kPrAnswer) {
@@ -2058,7 +2060,8 @@ void PeerConnection::ReportFirstConnectUsageMetrics() {
                      << ", remote=" << remote_description()->GetType();
     return;
   }
-  // Below this point, we assume that we have an answer in `desc`
+
+  bool negotiated_sctp_snap = false;
   const ContentInfo* sctp_content = GetFirstDataContent(desc);
   if (sctp_content && !sctp_content->rejected) {
     const SctpDataContentDescription* sctp_desc =
@@ -2069,8 +2072,9 @@ void PeerConnection::ReportFirstConnectUsageMetrics() {
   }
   RTC_HISTOGRAM_BOOLEAN("WebRTC.PeerConnection.NegotiatedSctpSnap",
                         negotiated_sctp_snap);
+
   // Record congestion control mechanism in use, if any.
-  // The information is taken from the last seen Answer SDP.
+  // The information is taken from the last seen answer SDP.
   std::optional<RtcpFeedbackType> feedback_type;
   for (const auto& content : desc->contents()) {
     std::optional<RtcpFeedbackType> this_feedback_type =
@@ -2088,6 +2092,25 @@ void PeerConnection::ReportFirstConnectUsageMetrics() {
   RTC_HISTOGRAM_ENUMERATION("WebRTC.PeerConnection.NegotiatedFeedbackType",
                             static_cast<int>(*feedback_type),
                             static_cast<int>(RtcpFeedbackType::MAX));
+
+  CryptexPolicyUsage cryptex = kCryptexPolicyUsageMax;
+  switch (configuration_.crypto_options.srtp.cryptex_policy) {
+    case CryptoOptions::Srtp::CryptexPolicy::kDisabled:
+      cryptex = kCryptexPolicyUsageDisabled;
+      break;
+    case CryptoOptions::Srtp::CryptexPolicy::kNegotiate:
+      cryptex = kCryptexPolicyUsageNegotiate;
+      // Special-case for when cryptex was not required but negotiated.
+      if (desc->cryptex()) {
+        cryptex = kCryptexPolicyUsageNegotiated;
+      }
+      break;
+    case CryptoOptions::Srtp::CryptexPolicy::kRequire:
+      cryptex = kCryptexPolicyUsageRequire;
+      break;
+  }
+  RTC_HISTOGRAM_ENUMERATION("WebRTC.PeerConnection.CryptexUsage", cryptex,
+                            kCryptexPolicyUsageMax);
 }
 
 void PeerConnection::ReportCloseUsageMetrics() {

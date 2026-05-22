@@ -75,6 +75,7 @@
 #include "pc/jsep_transport_controller.h"
 #include "pc/legacy_stats_collector.h"
 #include "pc/media_options.h"
+#include "pc/media_protocol_names.h"
 #include "pc/media_session.h"
 #include "pc/media_stream.h"
 #include "pc/media_stream_observer.h"
@@ -720,6 +721,68 @@ RTCError ValidateSsrcGroups(const SessionDescription& description) {
   return RTCError::OK();
 }
 
+// Check that cryptex is supported (if required) and consistent within the
+// bundle groups.
+RTCError ValidateCryptex(
+    const SessionDescription* description,
+    const flat_map<std::string, const ContentGroup*>& bundle_groups_by_mid,
+    bool required_to_negotiate) {
+  RTC_DCHECK(description);
+
+  bool session_level_support = description->cryptex();
+  for (const ContentInfo& content_info : description->contents()) {
+    if (content_info.rejected ||
+        !IsRtpProtocol(content_info.media_description()->protocol())) {
+      continue;
+    }
+    const MediaContentDescription* media = content_info.media_description();
+    if (required_to_negotiate && !session_level_support && !media->cryptex()) {
+      return LOG_ERROR(RTCError::InvalidParameter()
+                       << "cryptex required but not negotiated.");
+    }
+
+    if (media->cryptex_level() ==
+        MediaContentDescription::AttributeLevel::kSession) {
+      // Session level attributes are implicitly consistent.
+      continue;
+    }
+
+    const auto mid = content_info.mid();
+    auto it = bundle_groups_by_mid.find(mid);
+    if (it == bundle_groups_by_mid.end() || it->second == nullptr) {
+      continue;
+    }
+    const ContentGroup* bundle = it->second;
+
+    // Find and compare cryptex at media level of the current content to
+    // cryptex of the first non-datachannel media content.
+    const ContentInfo* first_media_content = nullptr;
+    for (const std::string& name : bundle->content_names()) {
+      const ContentInfo* content = description->GetContentByName(name);
+      if (content && content->media_description()->type() != MediaType::DATA) {
+        first_media_content = content;
+        break;
+      }
+    }
+    if (!first_media_content) {
+      return LOG_ERROR(RTCError::InvalidParameter() << "Inconsistent bundle");
+    }
+    // If this content is the first non-datachannel media content in the
+    // bundle, this is implicitly consistent.
+    if (first_media_content->mid() == mid) {
+      continue;
+    }
+    if (first_media_content->media_description()->cryptex_level() !=
+        media->cryptex_level()) {
+      return LOG_ERROR(
+          RTCError::InvalidParameter()
+          << "The media section with MID='" << content_info.mid()
+          << "' is not consistent with the cryptex level of its bundle");
+    }
+  }
+  return RTCError::OK();
+}
+
 RTCError ValidatePayloadTypes(const SessionDescription& description) {
   for (const ContentInfo& content : description.contents()) {
     if (content.type != MediaProtocolType::kRtp) {
@@ -1046,7 +1109,7 @@ const ContentInfo* GetContentByIndex(const SessionDescriptionInterface* sdesc,
 }
 
 // From `rtc_options`, fill parts of `session_options` shared by all generated
-// m= sectionss (in other words, nothing that involves a map/array).
+// m= sections (in other words, nothing that involves a map/array).
 void ExtractSharedMediaSessionOptions(
     const PeerConnectionInterface::RTCOfferAnswerOptions& rtc_options,
     MediaSessionOptions* session_options) {
@@ -4063,6 +4126,13 @@ RTCError SdpOfferAnswerHandler::ValidateSessionDescription(
     if (!crypto_error.ok()) {
       return crypto_error;
     }
+  }
+
+  error = ValidateCryptex(sdesc->description(), bundle_groups_by_mid,
+                          pc_->GetCryptoOptions().srtp.cryptex_policy ==
+                              CryptoOptions::Srtp::CryptexPolicy::kRequire);
+  if (!error.ok()) {
+    return error;
   }
 
   // Verify ice-ufrag and ice-pwd.

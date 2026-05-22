@@ -782,6 +782,8 @@ RTCError JsepTransportController::ApplyDescription_n(
 
     JsepTransportDescription jsep_description = CreateJsepTransportDescription(
         content_info, transport_info, extension_ids);
+    jsep_description.transport_desc.cryptex =
+        content_info.media_description()->cryptex();
     if (local) {
       error =
           transport->SetLocalJsepTransportDescription(jsep_description, type);
@@ -1199,12 +1201,14 @@ RTCError JsepTransportController::MaybeCreateJsepTransport(
       make_ref_counted<DtlsTransport>(rtp_dtls_transport_ptr);
 
   std::unique_ptr<JsepTransport> jsep_transport =
-      std::make_unique<JsepTransport>(certificate_, std::move(rtp_transport),
-                                      std::move(dtls_transport),
-                                      std::move(sctp_transport), [&]() {
-                                        RTC_DCHECK_RUN_ON(network_thread_);
-                                        UpdateAggregateStates_n();
-                                      });
+      std::make_unique<JsepTransport>(
+          certificate_, std::move(rtp_transport), std::move(dtls_transport),
+          std::move(sctp_transport),
+          [&]() {
+            RTC_DCHECK_RUN_ON(network_thread_);
+            UpdateAggregateStates_n();
+          },
+          config_.crypto_options.srtp.cryptex_policy);
 
   // Object hierarchy for objects injected into JsepTransport:
   //

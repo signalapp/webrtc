@@ -27,6 +27,7 @@
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
 #include "api/candidate.h"
 #include "api/create_peerconnection_factory.h"
+#include "api/crypto/crypto_options.h"
 #include "api/jsep.h"
 #include "api/media_types.h"
 #include "api/peer_connection_interface.h"
@@ -1207,6 +1208,49 @@ TEST_F(SdpMungingTest, HeaderExtensionModified) {
   EXPECT_THAT(
       metrics::Samples("WebRTC.PeerConnection.SdpMunging.Offer.Initial"),
       ElementsAre(Pair(SdpMungingType::kRtpHeaderExtensionModified, 1)));
+}
+
+TEST_F(SdpMungingTest, CryptexModifiedSession) {
+  RTCConfiguration config;
+  config.sdp_semantics = SdpSemantics::kUnifiedPlan;
+  config.crypto_options.srtp.cryptex_policy =
+      CryptoOptions::Srtp::CryptexPolicy::kNegotiate;
+  auto pc = CreatePeerConnection(config, "");
+  pc->AddVideoTrack("video_track", {});
+
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
+  EXPECT_TRUE(offer->description()->cryptex());
+  offer->description()->set_cryptex(false);
+
+  RTCError error;
+  EXPECT_FALSE(pc->SetLocalDescription(std::move(offer), &error));
+  EXPECT_THAT(
+      metrics::Samples("WebRTC.PeerConnection.SdpMunging.Offer.Initial"),
+      ElementsAre(Pair(SdpMungingType::kCryptex, 1)));
+}
+
+TEST_F(SdpMungingTest, CryptexModifiedMedia) {
+  RTCConfiguration config;
+  config.sdp_semantics = SdpSemantics::kUnifiedPlan;
+  config.crypto_options.srtp.cryptex_policy =
+      CryptoOptions::Srtp::CryptexPolicy::kNegotiate;
+  auto pc = CreatePeerConnection(config, "");
+  pc->AddVideoTrack("video_track", {});
+
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
+  auto& contents = offer->description()->contents();
+  ASSERT_THAT(contents, SizeIs(1));
+  auto* media_description = contents[0].media_description();
+  ASSERT_THAT(media_description, Not(IsNull()));
+  EXPECT_TRUE(media_description->cryptex());
+  media_description->set_cryptex_level(
+      MediaContentDescription::AttributeLevel::kNone);
+
+  RTCError error;
+  EXPECT_FALSE(pc->SetLocalDescription(std::move(offer), &error));
+  EXPECT_THAT(
+      metrics::Samples("WebRTC.PeerConnection.SdpMunging.Offer.Initial"),
+      ElementsAre(Pair(SdpMungingType::kCryptex, 1)));
 }
 
 TEST_F(SdpMungingTest, PayloadTypeChanged) {

@@ -21,6 +21,7 @@
 #include "absl/algorithm/container.h"
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
+#include "api/crypto/crypto_options.h"
 #include "api/environment/environment.h"
 #include "api/field_trials_view.h"
 #include "api/media_types.h"
@@ -630,6 +631,16 @@ bool CreateMediaContentAnswer(
       extensions_filter, &negotiated_rtp_extensions, suggester,
       media_description_options.mid, id_domain);
   answer->set_rtp_header_extensions(negotiated_rtp_extensions);
+  // Cryptex is declarative, i.e. does not depend on the offer.
+  // If present in the offer we match the level (session/media)
+  // and put it at session level otherwise.
+  if (session_options.crypto_options.srtp.cryptex_policy !=
+      CryptoOptions::Srtp::CryptexPolicy::kDisabled) {
+    answer->set_cryptex_level(
+        offer->cryptex_level() != MediaContentDescription::AttributeLevel::kNone
+            ? offer->cryptex_level()
+            : MediaContentDescription::AttributeLevel::kSession);
+  }
 
   answer->set_rtcp_mux(session_options.rtcp_mux_enabled && offer->rtcp_mux());
   answer->set_rtcp_reduced_size(offer->rtcp_reduced_size());
@@ -864,6 +875,8 @@ MediaSessionDescriptionFactory::CreateOfferOrError(
   }
 
   offer->set_extmap_allow_mixed(session_options.offer_extmap_allow_mixed);
+  offer->set_cryptex(session_options.crypto_options.srtp.cryptex_policy !=
+                     CryptoOptions::Srtp::CryptexPolicy::kDisabled);
 
   return offer;
 }
@@ -938,6 +951,17 @@ MediaSessionDescriptionFactory::CreateAnswerOrError(
   }
 
   answer->set_extmap_allow_mixed(offer->extmap_allow_mixed());
+  // Cryptex is declarative: advertise support when policy allows. If the
+  // offer used cryptex at media level, answer at media level.
+  bool use_session_level_cryptex =
+      offer->cryptex() ||
+      absl::c_find_if(offer->contents(), [](const ContentInfo& content) {
+        return content.media_description()->cryptex_level() ==
+               MediaContentDescription::AttributeLevel::kMedia;
+      }) == offer->contents().end();
+  answer->set_cryptex(session_options.crypto_options.srtp.cryptex_policy !=
+                          CryptoOptions::Srtp::CryptexPolicy::kDisabled &&
+                      use_session_level_cryptex);
 
   // Iterate through the media description options, matching with existing
   // media descriptions in `current_description`.

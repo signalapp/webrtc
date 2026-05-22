@@ -5137,6 +5137,50 @@ TEST_P(PeerConnectionIntegrationTest, PerPeerConnectionHeaderExtensions) {
   }
 }
 
+TEST_P(PeerConnectionIntegrationTest, CryptexRenegotiation) {
+  CryptoOptions crypto_options;
+  crypto_options.srtp.cryptex_policy =
+      CryptoOptions::Srtp::CryptexPolicy::kNegotiate;
+  PeerConnectionInterface::RTCConfiguration config;
+  config.crypto_options = crypto_options;
+
+  const bool create_media_engine = true;
+  SetCallerPcWrapperAndReturnCurrent(CreatePeerConnectionWrapper(
+      "caller", nullptr, &config, PeerConnectionDependencies(nullptr),
+      /* event_log_factory= */ nullptr,
+      /* reset_encoder_factory= */ false,
+      /* reset_decoder_factory= */ false, create_media_engine));
+  SetCalleePcWrapperAndReturnCurrent(CreatePeerConnectionWrapper(
+      "callee", nullptr, &config, PeerConnectionDependencies(nullptr),
+      /* event_log_factory= */ nullptr,
+      /* reset_encoder_factory= */ false,
+      /* reset_decoder_factory= */ false, create_media_engine));
+
+  ConnectFakeSignaling();
+
+  caller()->AddAudioVideoTracks();
+  // Strip cryptex from the answer the caller receives so the caller observes
+  // a peer that does not negotiate cryptex.
+  caller()->SetReceivedSdpMunger(
+      [](std::unique_ptr<SessionDescriptionInterface>& sdp) {
+        sdp->description()->set_cryptex(false);
+      });
+
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(
+      WaitUntil(
+          [&] {
+            return PeerConnectionStateIs(
+                PeerConnectionInterface::PeerConnectionState::kConnected);
+          },
+          IsTrue()),
+      IsRtcOk());
+  caller()->SetReceivedSdpMunger(nullptr);
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
+              IsRtcOk());
+}
+
 #ifdef WEBRTC_HAVE_SCTP
 
 class DowngradeLogSink : public LogSink {

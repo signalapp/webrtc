@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "api/candidate.h"
+#include "api/crypto/crypto_options.h"
 #include "api/field_trials.h"
 #include "api/ice_transport_interface.h"
 #include "api/jsep.h"
@@ -150,7 +151,8 @@ class JsepTransport2Test : public ::testing::Test {
         /*local_certificate=*/nullptr, std::move(rtp_transport),
         std::move(rtp_dtls_transport_wrapper),
         /*sctp_transport=*/nullptr,
-        /*rtcp_mux_active_callback=*/[&]() { OnRtcpMuxActive(); });
+        /*rtcp_mux_active_callback=*/[&]() { OnRtcpMuxActive(); },
+        /*cryptex_policy=*/CryptoOptions::Srtp::CryptexPolicy::kDisabled);
 
     signal_rtcp_mux_active_received_ = false;
     return jsep_transport;
