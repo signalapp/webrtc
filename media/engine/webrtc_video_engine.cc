@@ -3178,6 +3178,17 @@ std::optional<uint32_t> WebRtcVideoReceiveChannel::GetUnsignaledSsrc() const {
   return ssrc;
 }
 
+std::vector<uint32_t> WebRtcVideoReceiveChannel::GetUnsignaledSsrcs() const {
+  RTC_DCHECK_RUN_ON(&thread_checker_);
+  std::vector<uint32_t> ssrcs;
+  for (const auto& [ssrc, stream] : receive_streams_) {
+    if (stream->IsDefaultStream()) {
+      ssrcs.push_back(ssrc);
+    }
+  }
+  return ssrcs;
+}
+
 void WebRtcVideoReceiveChannel::OnDemuxerCriteriaUpdatePending() {
   RTC_DCHECK_RUN_ON(&thread_checker_);
   ++demuxer_criteria_id_;

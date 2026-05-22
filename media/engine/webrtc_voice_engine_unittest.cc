@@ -2885,6 +2885,28 @@ TEST_P(WebRtcVoiceEngineTestFake,
   EXPECT_EQ(0u, receivers2.size());
 }
 
+TEST_P(WebRtcVoiceEngineTestFake, GetUnsignaledSsrcs) {
+  ASSERT_TRUE(SetupChannel());
+  // No receive streams to start with.
+  ASSERT_TRUE(call_.GetAudioReceiveStreams().empty());
+  EXPECT_TRUE(receive_channel_->GetUnsignaledSsrcs().empty());
+
+  // Deliver a couple packets with unsignaled SSRCs.
+  uint8_t packet[sizeof(kPcmuFrame)];
+  memcpy(packet, kPcmuFrame, sizeof(kPcmuFrame));
+  SetBE32(std::span<uint8_t>(&packet[8], 4), 0x1234);
+  DeliverPacket(packet);
+  SetBE32(std::span<uint8_t>(&packet[8], 4), 0x5678);
+  DeliverPacket(packet);
+
+  EXPECT_THAT(receive_channel_->GetUnsignaledSsrcs(),
+              testing::ElementsAre(0x1234, 0x5678));
+
+  // Should remove all default streams.
+  receive_channel_->ResetUnsignaledRecvStream();
+  EXPECT_TRUE(receive_channel_->GetUnsignaledSsrcs().empty());
+}
+
 // Test that receiving N unsignaled stream works (streams will be created), and
 // that packets are forwarded to them all.
 TEST_P(WebRtcVoiceEngineTestFake, RecvMultipleUnsignaled) {

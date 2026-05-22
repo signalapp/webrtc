@@ -1706,6 +1706,82 @@ class ChannelTest : public ::testing::Test {
         channel2_->media_receive_channel());
   }
 
+  void TestSetRtpTransportNullClearsReceiveSinks() {
+    CreateChannels(0, 0);
+    SendTask(channel1_->network_thread(),
+             [this]() { channel1_->SetRtpTransport(nullptr); });
+    EXPECT_TRUE(absl::c_linear_search(
+        media_receive_channel1_impl()->clear_receive_sinks_calls(),
+        std::nullopt));
+  }
+
+  void TestRegisterRtpDemuxerSinkPropagatesReceiveSsrcs() {
+    CreateChannels(0, 0);
+    typename T::Content content;
+    CreateContent(0, kPcmuCodec, kH264Codec, &content);
+    AddLegacyStreamInContent(kSsrc1, 0, &content);
+
+    EXPECT_TRUE(channel1_->SetRemoteContent(&content, SdpType::kOffer).ok());
+    EXPECT_GT(media_receive_channel1_impl()->receive_ssrcs_n().count(kSsrc1),
+              0u);
+  }
+
+  void TestUpdateRemoteStreamsClearsRemovedSinks() {
+    CreateChannels(0, 0);
+    typename T::Content content1;
+    CreateContent(0, kPcmuCodec, kH264Codec, &content1);
+    AddLegacyStreamInContent(kSsrc1, 0, &content1);
+    AddLegacyStreamInContent(kSsrc2, 0, &content1);
+
+    EXPECT_TRUE(channel1_->SetRemoteContent(&content1, SdpType::kOffer).ok());
+    EXPECT_TRUE(media_receive_channel1_impl()->HasRecvStream(kSsrc1));
+    EXPECT_TRUE(media_receive_channel1_impl()->HasRecvStream(kSsrc2));
+
+    typename T::Content content2;
+    CreateContent(0, kPcmuCodec, kH264Codec, &content2);
+    AddLegacyStreamInContent(kSsrc2, 0, &content2);
+
+    EXPECT_TRUE(channel1_->SetRemoteContent(&content2, SdpType::kOffer).ok());
+
+    bool found_cleared_ssrc = false;
+    for (const auto& call :
+         media_receive_channel1_impl()->clear_receive_sinks_calls()) {
+      if (call.has_value() && absl::c_linear_search(*call, kSsrc1)) {
+        found_cleared_ssrc = true;
+        break;
+      }
+    }
+    EXPECT_TRUE(found_cleared_ssrc);
+  }
+
+  void TestUpdateRemoteStreamsClearsUnsignaledSinks() {
+    CreateChannels(0, 0);
+
+    typename T::Content content1;
+    CreateContent(0, kPcmuCodec, kH264Codec, &content1);
+    StreamParams unsignaled_stream;
+    content1.AddStream(unsignaled_stream);
+
+    EXPECT_TRUE(channel1_->SetRemoteContent(&content1, SdpType::kOffer).ok());
+
+    media_receive_channel1_impl()->AddFakeUnsignaledSsrc(kSsrc3);
+
+    typename T::Content content2;
+    CreateContent(0, kPcmuCodec, kH264Codec, &content2);
+
+    EXPECT_TRUE(channel1_->SetRemoteContent(&content2, SdpType::kOffer).ok());
+
+    bool found_cleared_ssrc = false;
+    for (const auto& call :
+         media_receive_channel1_impl()->clear_receive_sinks_calls()) {
+      if (call.has_value() && absl::c_linear_search(*call, kSsrc3)) {
+        found_cleared_ssrc = true;
+        break;
+      }
+    }
+    EXPECT_TRUE(found_cleared_ssrc);
+  }
+
   webrtc::test::RunLoop main_thread_;
   // TODO(pbos): Remove playout from all media channels and let renderers mute
   // themselves.
@@ -2058,6 +2134,26 @@ TEST_F(VoiceChannelSingleThreadTest, RtpHeaderExtensionIdReassignment) {
 TEST_F(VoiceChannelSingleThreadTest,
        TestRtpHeaderExtensionIdHistoryReassignment) {
   Base::TestRtpHeaderExtensionIdHistoryReassignment();
+}
+
+TEST_F(VoiceChannelSingleThreadTest,
+       TestSetRtpTransportNullClearsReceiveSinks) {
+  Base::TestSetRtpTransportNullClearsReceiveSinks();
+}
+
+TEST_F(VoiceChannelSingleThreadTest,
+       TestRegisterRtpDemuxerSinkPropagatesReceiveSsrcs) {
+  Base::TestRegisterRtpDemuxerSinkPropagatesReceiveSsrcs();
+}
+
+TEST_F(VoiceChannelSingleThreadTest,
+       TestUpdateRemoteStreamsClearsRemovedSinks) {
+  Base::TestUpdateRemoteStreamsClearsRemovedSinks();
+}
+
+TEST_F(VoiceChannelSingleThreadTest,
+       TestUpdateRemoteStreamsClearsUnsignaledSinks) {
+  Base::TestUpdateRemoteStreamsClearsUnsignaledSinks();
 }
 
 // VoiceChannelDoubleThreadTest
@@ -2667,6 +2763,26 @@ TEST_F(VideoChannelSingleThreadTest,
                   AllOf(Field(&webrtc::Codec::id, 97),
                         Field(&webrtc::Codec::packetization,
                               webrtc::kPacketizationParamRaw))));
+}
+
+TEST_F(VideoChannelSingleThreadTest,
+       TestSetRtpTransportNullClearsReceiveSinks) {
+  Base::TestSetRtpTransportNullClearsReceiveSinks();
+}
+
+TEST_F(VideoChannelSingleThreadTest,
+       TestRegisterRtpDemuxerSinkPropagatesReceiveSsrcs) {
+  Base::TestRegisterRtpDemuxerSinkPropagatesReceiveSsrcs();
+}
+
+TEST_F(VideoChannelSingleThreadTest,
+       TestUpdateRemoteStreamsClearsRemovedSinks) {
+  Base::TestUpdateRemoteStreamsClearsRemovedSinks();
+}
+
+TEST_F(VideoChannelSingleThreadTest,
+       TestUpdateRemoteStreamsClearsUnsignaledSinks) {
+  Base::TestUpdateRemoteStreamsClearsUnsignaledSinks();
 }
 
 // VideoChannelDoubleThreadTest

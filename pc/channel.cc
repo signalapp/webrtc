@@ -253,7 +253,7 @@ bool BaseChannel::ConnectToRtpTransport_n(RtpTransportInternal* rtp_transport) {
   return true;
 }
 
-void BaseChannel::DisconnectFromRtpTransport_n() {
+void BaseChannel::DisconnectFromRtpTransport_n(bool permanent_teardown) {
   RTC_DCHECK(rtp_transport_);
   RTC_DCHECK(media_send_channel());
   rtp_transport_->UnregisterRtpDemuxerSink(this);
@@ -262,6 +262,9 @@ void BaseChannel::DisconnectFromRtpTransport_n() {
   rtp_transport_->UnsubscribeSentPacket(this);
   rtp_transport_ = nullptr;
   media_send_channel()->SetInterface(nullptr);
+  if (permanent_teardown) {
+    media_receive_channel()->ClearReceiveSinks_n(std::nullopt);
+  }
   media_receive_channel()->SetInterface(nullptr);
 }
 
@@ -273,7 +276,7 @@ bool BaseChannel::SetRtpTransport(RtpTransportInternal* rtp_transport) {
   }
 
   if (rtp_transport_) {
-    DisconnectFromRtpTransport_n();
+    DisconnectFromRtpTransport_n(rtp_transport == nullptr);
   }
 
   RTC_DCHECK(!rtp_transport_);
@@ -536,7 +539,8 @@ RTCError BaseChannel::MaybeUpdateDemuxerAndRtpExtensions_w(
 }
 
 bool BaseChannel::RegisterRtpDemuxerSink_w(
-    const MediaContentDescription* content) {
+    const MediaContentDescription* content,
+    std::vector<uint32_t> removed_ssrcs) {
   bool clear_payload_types = false;
   if (!RtpTransceiverDirectionHasSend(content->direction())) {
     RTC_DLOG(LS_VERBOSE)
@@ -560,6 +564,10 @@ bool BaseChannel::RegisterRtpDemuxerSink_w(
       return false;
     }
 
+    if (!removed_ssrcs.empty()) {
+      media_receive_channel()->ClearReceiveSinks_n(std::move(removed_ssrcs));
+    }
+
     bool needs_re_registration = false;
 
     if (clear_payload_types && !payload_types_.empty()) {
@@ -571,6 +579,7 @@ bool BaseChannel::RegisterRtpDemuxerSink_w(
       ssrcs_ = std::move(ssrcs);
       needs_re_registration = true;
     }
+    media_receive_channel()->SetReceiveSsrcs_n(ssrcs_);
 
     if (!needs_re_registration) {
       return true;
@@ -973,26 +982,46 @@ RTCError BaseChannel::UpdateRemoteStreams_w(
   const bool new_has_unsignaled_ssrcs = HasStreamWithNoSsrcs(streams);
   const bool old_has_unsignaled_ssrcs = HasStreamWithNoSsrcs(remote_streams_);
 
+  // Check for streams that have been removed.
+  std::vector<uint32_t> removed_ssrcs;
+  bool reset_unsignaled_streams = false;
+  for (const StreamParams& old_stream : remote_streams_) {
+    // If we no longer have an unsignaled stream, we would like to remove
+    // the unsignaled stream params that are cached.
+    if (!old_stream.has_ssrcs() && !new_has_unsignaled_ssrcs) {
+      if (!reset_unsignaled_streams) {
+        reset_unsignaled_streams = true;
+        std::vector<uint32_t> unsignaled =
+            media_receive_channel()->GetUnsignaledSsrcs();
+        removed_ssrcs.insert(removed_ssrcs.end(), unsignaled.begin(),
+                             unsignaled.end());
+        RTC_LOG(LS_INFO) << "Reset unsignaled remote stream for " << ToString()
+                         << ".";
+      }
+    } else if (old_stream.has_ssrcs() &&
+               !GetStreamBySsrc(streams, old_stream.first_ssrc())) {
+      removed_ssrcs.push_back(old_stream.first_ssrc());
+    }
+  }
+
   RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(0);
 
   // Re-register the sink to update after changing the demuxer criteria first.
-  if (!RegisterRtpDemuxerSink_w(content)) {
+  if (!RegisterRtpDemuxerSink_w(content, std::move(removed_ssrcs))) {
     return RTCError::InvalidParameter()
            << "Failed to set up audio demuxing for mid='" << mid() << "'.";
   }
 
   RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(1);
 
-  // Check for streams that have been removed.
+  if (reset_unsignaled_streams) {
+    media_receive_channel()->ResetUnsignaledRecvStream();
+  }
+
+  // Now remove the old streams on the worker thread.
   for (const StreamParams& old_stream : remote_streams_) {
-    // If we no longer have an unsignaled stream, we would like to remove
-    // the unsignaled stream params that are cached.
-    if (!old_stream.has_ssrcs() && !new_has_unsignaled_ssrcs) {
-      media_receive_channel()->ResetUnsignaledRecvStream();
-      RTC_LOG(LS_INFO) << "Reset unsignaled remote stream for " << ToString()
-                       << ".";
-    } else if (old_stream.has_ssrcs() &&
-               !GetStreamBySsrc(streams, old_stream.first_ssrc())) {
+    if (old_stream.has_ssrcs() &&
+        !GetStreamBySsrc(streams, old_stream.first_ssrc())) {
       if (media_receive_channel()->RemoveRecvStream(old_stream.first_ssrc())) {
         RTC_LOG(LS_INFO) << "Remove remote ssrc: " << old_stream.first_ssrc()
                          << " from " << ToString() << ".";
