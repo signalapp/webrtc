@@ -513,7 +513,7 @@ class WebRtcVideoReceiveChannel : public MediaChannelUtil,
                             const MediaConfig& config,
                             const VideoOptions& options,
                             const CryptoOptions& crypto_options,
-                            VideoDecoderFactory* absl_nonnull decoder_factory);
+                            VideoDecoderFactory* absl_nullable decoder_factory);
   ~WebRtcVideoReceiveChannel() override;
 
  public:

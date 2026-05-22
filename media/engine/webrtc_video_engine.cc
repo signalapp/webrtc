@@ -136,7 +136,7 @@ const char* StreamTypeToString(VideoSendStream::StreamStats::StreamType type) {
 // should be advertised as supported.
 template <class T>
 std::vector<SdpVideoFormat> GetDefaultSupportedFormats(
-    const T* factory,
+    const T* absl_nullable factory,
     bool is_decoder_factory,
     const FieldTrialsView& trials) {
   if (!factory) {
@@ -203,7 +203,7 @@ RTCErrorOr<Codec> AddRtx(const Codec& primary_codec,
 // where codecs are negotiated.
 template <class T>
 std::vector<Codec> GetPayloadTypesAndDefaultCodecs(
-    const T* factory,
+    const T* absl_nullable factory,
     bool is_decoder_factory,
     bool include_rtx,
     const FieldTrialsView& trials) {
@@ -2848,7 +2848,7 @@ WebRtcVideoReceiveChannel::WebRtcVideoReceiveChannel(
     const MediaConfig& config,
     const VideoOptions& options,
     const CryptoOptions& crypto_options,
-    VideoDecoderFactory* absl_nonnull decoder_factory)
+    VideoDecoderFactory* absl_nullable decoder_factory)
     : MediaChannelUtil(call->network_thread(), config.enable_dscp),
       env_(env),
       network_thread_safety_(PendingTaskSafetyFlag::CreateAttachedToTaskQueue(
