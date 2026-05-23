@@ -101,7 +101,6 @@ class ModuleRtpRtcpImpl2 final : public RtpRtcpInterface,
 
   void SetRemoteSSRC(uint32_t ssrc) override;
 
-  void SetLocalSsrc(uint32_t local_ssrc) override;
 
   // Sender part.
   void RegisterSendPayloadFrequency(int payload_type,
@@ -358,15 +357,14 @@ class ModuleRtpRtcpImpl2 final : public RtpRtcpInterface,
 
   // The function for getting the right SSRC for sending RTCP reports
   // Must outlive rtcp_sender_, so placed before it.
-  absl::AnyInvocable<uint32_t() const> recv_ssrc_callback_
-      RTC_GUARDED_BY(rtcp_module_checker_);
+  const absl::AnyInvocable<uint32_t() const> recv_ssrc_callback_;
 
   // These three classes contain their own thread checking.
   const std::unique_ptr<RtpSenderContext> rtp_sender_;
   RTCPSender rtcp_sender_;
   RTCPReceiver rtcp_receiver_;
 
-  uint16_t packet_overhead_ RTC_GUARDED_BY(rtcp_module_checker_);
+  const uint16_t packet_overhead_;
 
   // Send side
   int64_t nack_last_time_sent_full_ms_ RTC_GUARDED_BY(rtcp_module_checker_);

@@ -160,7 +160,6 @@ class RtpReceiveChannelHelper : public Base, public MediaChannelUtil {
     return clear_receive_sinks_calls_;
   }
 
-  virtual bool SetLocalSsrc(const StreamParams& /* sp */) { return true; }
   void OnDemuxerCriteriaUpdatePending() override {}
   void OnDemuxerCriteriaUpdateComplete() override {}
 

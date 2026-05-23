@@ -41,7 +41,6 @@ class MockRtpRtcpInterface : public RtpRtcpInterface {
               (std::span<const uint8_t> packet),
               (override));
   MOCK_METHOD(void, SetRemoteSSRC, (uint32_t ssrc), (override));
-  MOCK_METHOD(void, SetLocalSsrc, (uint32_t ssrc), (override));
   MOCK_METHOD(void, SetMaxRtpPacketSize, (size_t size), (override));
   MOCK_METHOD(size_t, MaxRtpPacketSize, (), (const, override));
   MOCK_METHOD(void,
