@@ -86,6 +86,7 @@ using ::testing::ElementsAreArray;
 using ::testing::IsEmpty;
 using ::testing::NiceMock;
 using ::testing::Not;
+using ::testing::Optional;
 using ::testing::ReturnArg;
 using ::testing::SaveArg;
 using ::testing::SizeIs;
@@ -1826,7 +1827,7 @@ TEST_F(RtpSenderVideoWithFrameTransformerTest,
             EXPECT_EQ(metadata.GetFrameId(), 10);
             EXPECT_EQ(metadata.GetTemporalIndex(), 3);
             EXPECT_EQ(metadata.GetSpatialIndex(), 2);
-            EXPECT_THAT(metadata.GetFrameDependencies(), ElementsAre(5));
+            EXPECT_THAT(metadata.GetDependencies(), Optional(ElementsAre(5)));
             EXPECT_THAT(metadata.GetDecodeTargetIndications(),
                         ElementsAre(DecodeTargetIndication::kSwitch));
           });
