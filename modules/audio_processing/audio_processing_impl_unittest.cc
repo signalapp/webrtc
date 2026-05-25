@@ -24,10 +24,12 @@
 #include "api/audio/audio_processing.h"
 #include "api/audio/builtin_audio_processing_builder.h"
 #include "api/audio/echo_control.h"
+#include "api/audio/neural_residual_echo_estimator.h"
 #include "api/environment/environment.h"
 #include "api/make_ref_counted.h"
 #include "api/ref_count.h"
 #include "api/scoped_refptr.h"
+#include "modules/audio_processing/aec3/neural_residual_echo_estimator/neural_residual_echo_estimator_test_helper.h"
 #include "modules/audio_processing/test/echo_canceller_test_tools.h"
 #include "modules/audio_processing/test/echo_control_mock.h"
 #include "modules/audio_processing/test/test_utils.h"
@@ -638,6 +640,68 @@ TEST(AudioProcessingImplTest, RenderPreProcessorBeforeEchoDetector) {
   // produced by the render pre-processor.
   EXPECT_EQ(kExpectedPreprocessedAudioLevel,
             test_echo_detector->last_render_audio_first_sample());
+}
+
+TEST(AudioProcessingImplTest, NeuralResidualEchoEstimatorInjection) {
+  std::unique_ptr<NeuralResidualEchoEstimatorTestHelper> ree_helper =
+      CreateNeuralResidualEchoEstimatorTestHelper();
+  std::unique_ptr<NeuralResidualEchoEstimator> ree_estimator =
+      ree_helper->GetNeuralResidualEchoEstimator();
+  ASSERT_NE(ree_estimator, nullptr);
+  scoped_refptr<AudioProcessing> apm =
+      BuiltinAudioProcessingBuilder()
+          .SetNeuralResidualEchoEstimator(std::move(ree_estimator))
+          .Build(CreateTestEnvironment());
+  ASSERT_NE(apm, nullptr);
+  AudioProcessing::Config apm_config;
+  apm_config.echo_canceller.enabled = true;
+  apm->ApplyConfig(apm_config);
+  constexpr int kSampleRateHz = 16000;
+  constexpr size_t kNumChannels = 2;
+  const ProcessingConfig processing_config = {{
+      {kSampleRateHz, kNumChannels},
+      {kSampleRateHz, kNumChannels},
+      {kSampleRateHz, kNumChannels},
+      {kSampleRateHz, kNumChannels},
+  }};
+  apm->Initialize(processing_config);
+
+  constexpr size_t kFrameSize = kSampleRateHz / 100;
+  std::array<std::array<float, kFrameSize>, kNumChannels> render_buffer;
+  std::array<std::array<float, kFrameSize>, kNumChannels> capture_buffer;
+  float* render_channel_pointers[] = {render_buffer[0].data(),
+                                      render_buffer[1].data()};
+  float* capture_channel_pointers[] = {capture_buffer[0].data(),
+                                       capture_buffer[1].data()};
+  StreamConfig stream_config(kSampleRateHz, kNumChannels);
+  Random random_generator(2341U);
+  constexpr size_t kRenderDelaySamples = kSampleRateHz * 10 / 1000;  // 10 ms
+  DelayBuffer<float> render_delay_buffer(kRenderDelaySamples);
+  constexpr size_t kCaptureDelaySamples = kSampleRateHz * 100 / 1000;  // 100 ms
+  DelayBuffer<float> capture_delay_buffer(kCaptureDelaySamples);
+  constexpr int kFramesToProcess = 250;
+  for (int i = 0; i < kFramesToProcess; ++i) {
+    RandomizeSampleVector(&random_generator, render_buffer[0]);
+    render_delay_buffer.Delay(render_buffer[0], render_buffer[1]);
+    std::array<float, kFrameSize> sum_render;
+    for (size_t sample_idx = 0; sample_idx < kFrameSize; ++sample_idx) {
+      sum_render[sample_idx] =
+          render_buffer[0][sample_idx] + render_buffer[1][sample_idx];
+    }
+    std::array<float, kFrameSize> delayed_sum_render;
+    capture_delay_buffer.Delay(sum_render, delayed_sum_render);
+    for (size_t sample_idx = 0; sample_idx < kFrameSize; ++sample_idx) {
+      float val = delayed_sum_render[sample_idx] * 0.1f;
+      capture_buffer[0][sample_idx] = val;
+      capture_buffer[1][sample_idx] = val;
+    }
+    ASSERT_EQ(apm->ProcessReverseStream(render_channel_pointers, stream_config,
+                                        stream_config, render_channel_pointers),
+              AudioProcessing::Error::kNoError);
+    ASSERT_EQ(apm->ProcessStream(capture_channel_pointers, stream_config,
+                                 stream_config, capture_channel_pointers),
+              AudioProcessing::Error::kNoError);
+  }
 }
 
 class StartupInputVolumeParameterizedTest
