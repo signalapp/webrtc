@@ -383,6 +383,7 @@ rtc_library("av1_qp_parser") {
   deps = [
     "../../api/video:video_frame",
     "../../api/video:video_frame_type",
+    "//third_party/libgav1:libgav1_decoder",
     "//third_party/libgav1:libgav1_parser",
   ]
   public_configs = [ "//third_party/libgav1:libgav1_public_config" ]
