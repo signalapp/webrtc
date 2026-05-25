@@ -651,7 +651,7 @@ class VideoCodecAnalyzer : public VideoCodecTester::VideoCodecStats {
             StatsSample(frame.target_bitrate->kbps<double>(), time));
         int buffer_level_bits = leaky_bucket.Update(frame);
         stream.buffer_delay_ms.AddSample(StatsSample(
-            1000 * buffer_level_bits / frame.target_bitrate->bps<double>(),
+            1000.0 * buffer_level_bits / frame.target_bitrate->bps<double>(),
             time));
       }
     }
