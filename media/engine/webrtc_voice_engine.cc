@@ -1269,12 +1269,12 @@ WebRtcVoiceSendChannel::WebRtcVoiceSendChannel(
       env_(env),
       worker_thread_(call->worker_thread()),
       engine_(engine),
+      options_(options),
       call_(call),
       audio_config_(config.audio),
       crypto_options_(crypto_options) {
   RTC_LOG(LS_VERBOSE) << "WebRtcVoiceSendChannel::WebRtcVoiceSendChannel";
   RTC_DCHECK(call);
-  SetOptions(options);
 }
 
 WebRtcVoiceSendChannel::~WebRtcVoiceSendChannel() {
@@ -2163,12 +2163,12 @@ WebRtcVoiceReceiveChannel::WebRtcVoiceReceiveChannel(
           /*alive=*/true,
           call->network_thread())),
       engine_(engine),
+      options_(options),
       call_(call),
       audio_config_(config.audio),
       crypto_options_(crypto_options) {
   RTC_LOG(LS_VERBOSE) << "WebRtcVoiceReceiveChannel::WebRtcVoiceReceiveChannel";
   RTC_DCHECK(call);
-  SetOptions(options);
 }
 
 WebRtcVoiceReceiveChannel::~WebRtcVoiceReceiveChannel() {

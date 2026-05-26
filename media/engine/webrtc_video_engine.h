@@ -251,13 +251,13 @@ class WebRtcVideoSendChannel : public MediaChannelUtil,
 
   void SetParametersChangedCallback(
       absl::AnyInvocable<void()> callback) override {
-    RTC_DCHECK_RUN_ON(&thread_checker_);
+    RTC_DCHECK_RUN_ON(worker_thread_);
     parameters_changed_callback_ = std::move(callback);
   }
 
   // Implemented for VideoMediaChannelTest.
   bool sending() const {
-    RTC_DCHECK_RUN_ON(&thread_checker_);
+    RTC_DCHECK_RUN_ON(worker_thread_);
     return sending_;
   }
 
@@ -283,7 +283,7 @@ class WebRtcVideoSendChannel : public MediaChannelUtil,
       scoped_refptr<FrameTransformerInterface> frame_transformer) override;
   // Information queries to support SetReceiverFeedbackParameters
   bool SendCodecHasNack() const override {
-    RTC_DCHECK_RUN_ON(&thread_checker_);
+    RTC_DCHECK_RUN_ON(worker_thread_);
     if (!send_codec()) {
       return false;
     }
@@ -306,14 +306,14 @@ class WebRtcVideoSendChannel : public MediaChannelUtil,
 
   bool GetChangedSenderParameters(const VideoSenderParameters& params,
                                   ChangedSenderParameters* changed_params) const
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(thread_checker_);
+      RTC_EXCLUSIVE_LOCKS_REQUIRED(worker_thread_);
   bool ApplyChangedParams(const ChangedSenderParameters& changed_params);
   bool ValidateSendSsrcAvailability(const StreamParams& sp) const
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(thread_checker_);
+      RTC_EXCLUSIVE_LOCKS_REQUIRED(worker_thread_);
   // Executes the actual encoder switch operation.
   void ApplyEncoderSwitch(std::optional<SdpVideoFormat> format,
                           bool allow_default_fallback)
-      RTC_RUN_ON(thread_checker_);
+      RTC_RUN_ON(worker_thread_);
 
   // Wrapper for the sender part.
   class WebRtcVideoSendStream {
@@ -438,12 +438,11 @@ class WebRtcVideoSendChannel : public MediaChannelUtil,
   // Get all codecs that are compatible with the receiver.
   std::vector<VideoCodecSettings> SelectSendVideoCodecs(
       const std::vector<VideoCodecSettings>& remote_mapped_codecs) const
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(thread_checker_);
-
+      RTC_EXCLUSIVE_LOCKS_REQUIRED(worker_thread_);
   void FillSenderStats(VideoMediaSendInfo* info, bool log_stats)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(thread_checker_);
+      RTC_EXCLUSIVE_LOCKS_REQUIRED(worker_thread_);
   void FillSendCodecStats(VideoMediaSendInfo* video_media_info)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(thread_checker_);
+      RTC_EXCLUSIVE_LOCKS_REQUIRED(worker_thread_);
 
   // Accessor function for send_codec_. Introduced in order to ensure
   // that a receive channel does not touch the send codec directly.
@@ -459,38 +458,36 @@ class WebRtcVideoSendChannel : public MediaChannelUtil,
   ScopedTaskSafety task_safety_;
   RTC_NO_UNIQUE_ADDRESS SequenceChecker network_thread_checker_{
       SequenceChecker::kDetached};
-  RTC_NO_UNIQUE_ADDRESS SequenceChecker thread_checker_;
 
-  bool sending_ RTC_GUARDED_BY(thread_checker_);
+  bool sending_ RTC_GUARDED_BY(worker_thread_);
   Call* const call_;
 
-  const MediaConfig::Video video_config_ RTC_GUARDED_BY(thread_checker_);
+  const MediaConfig::Video video_config_ RTC_GUARDED_BY(worker_thread_);
 
   // Using primary-ssrc (first ssrc) as key.
   std::map<uint32_t, WebRtcVideoSendStream*> send_streams_
-      RTC_GUARDED_BY(thread_checker_);
-  std::set<uint32_t> send_ssrcs_ RTC_GUARDED_BY(thread_checker_);
+      RTC_GUARDED_BY(worker_thread_);
+  std::set<uint32_t> send_ssrcs_ RTC_GUARDED_BY(worker_thread_);
 
-  std::optional<VideoCodecSettings> send_codec_ RTC_GUARDED_BY(thread_checker_);
+  std::optional<VideoCodecSettings> send_codec_ RTC_GUARDED_BY(worker_thread_);
   std::vector<VideoCodecSettings> negotiated_codecs_
-      RTC_GUARDED_BY(thread_checker_);
-  std::vector<VideoCodecSettings> send_codecs_ RTC_GUARDED_BY(thread_checker_);
+      RTC_GUARDED_BY(worker_thread_);
+  std::vector<VideoCodecSettings> send_codecs_ RTC_GUARDED_BY(worker_thread_);
 
-  std::vector<RtpExtension> send_rtp_extensions_
-      RTC_GUARDED_BY(thread_checker_);
+  std::vector<RtpExtension> send_rtp_extensions_ RTC_GUARDED_BY(worker_thread_);
 
-  VideoEncoderFactory* const encoder_factory_ RTC_GUARDED_BY(thread_checker_);
+  VideoEncoderFactory* const encoder_factory_ RTC_GUARDED_BY(worker_thread_);
   VideoBitrateAllocatorFactory* const bitrate_allocator_factory_
-      RTC_GUARDED_BY(thread_checker_);
+      RTC_GUARDED_BY(worker_thread_);
   // See reason for keeping track of the FlexFEC payload type separately in
   // comment in WebRtcVideoChannel::ChangedReceiverParameters.
-  BitrateConstraints bitrate_config_ RTC_GUARDED_BY(thread_checker_);
-  VideoSenderParameters send_params_ RTC_GUARDED_BY(thread_checker_);
-  VideoOptions default_send_options_ RTC_GUARDED_BY(thread_checker_);
-  int64_t last_send_stats_log_ms_ RTC_GUARDED_BY(thread_checker_);
+  BitrateConstraints bitrate_config_ RTC_GUARDED_BY(worker_thread_);
+  VideoSenderParameters send_params_ RTC_GUARDED_BY(worker_thread_);
+  VideoOptions default_send_options_ RTC_GUARDED_BY(worker_thread_);
+  int64_t last_send_stats_log_ms_ RTC_GUARDED_BY(worker_thread_);
   // Per peer connection crypto options that last for the lifetime of the peer
   // connection.
-  const CryptoOptions crypto_options_ RTC_GUARDED_BY(thread_checker_);
+  const CryptoOptions crypto_options_ RTC_GUARDED_BY(worker_thread_);
 
   // Callback invoked whenever the list of SSRCs changes.
   absl::AnyInvocable<void(const std::set<uint32_t>&)>
@@ -498,7 +495,7 @@ class WebRtcVideoSendChannel : public MediaChannelUtil,
 
   // Callback invoked whenever the sender parameters change.
   absl::AnyInvocable<void()> parameters_changed_callback_
-      RTC_GUARDED_BY(&thread_checker_);
+      RTC_GUARDED_BY(worker_thread_);
 
   // Callback to intercept the encoder switch request.
   VideoMediaSendChannelInterface::EncoderSwitchRequestCallback
