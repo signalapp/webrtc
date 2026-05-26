@@ -7162,6 +7162,35 @@ TEST_F(WebRtcVideoChannelTest, GetUnsignaledSsrcs) {
   EXPECT_TRUE(receive_channel_->GetUnsignaledSsrcs().empty());
 }
 
+// If the first RTP packet for an unsignaled SSRC arrives before the default
+// sink is attached, a later SetDefaultSink must still bind to the existing
+// unsignaled receive stream.
+TEST_F(WebRtcVideoChannelTest,
+       SetDefaultSinkAfterUnsignaledPacketBindsExistingStream) {
+  // Unsignaled packet arrives with no default sink set.
+  RtpPacketReceived packet;
+  packet.SetSsrc(kIncomingUnsignalledSsrc);
+  ReceivePacketAndAdvanceTime(packet);
+
+  ASSERT_EQ(1u, fake_call_->GetVideoReceiveStreams().size());
+  FakeVideoReceiveStream* recv_stream = fake_call_->GetVideoReceiveStreams()[0];
+  EXPECT_EQ(kIncomingUnsignalledSsrc, recv_stream->GetConfig().rtp.remote_ssrc);
+
+  // Install default sink after the fact; must be bound to the existing stream.
+  FakeVideoRenderer renderer;
+  receive_channel_->SetDefaultSink(&renderer);
+
+  VideoFrame video_frame =
+      VideoFrame::Builder()
+          .set_video_frame_buffer(CreateBlackFrameBuffer(4, 4))
+          .set_rtp_timestamp(100)
+          .set_timestamp_us(0)
+          .set_rotation(kVideoRotation_0)
+          .build();
+  recv_stream->InjectFrame(video_frame);
+  EXPECT_EQ(1, renderer.num_rendered_frames());
+}
+
 TEST_F(WebRtcVideoChannelTest,
        RecentlyAddedSsrcsDoNotCreateUnsignalledRecvStreams) {
   const uint32_t kSsrc1 = 1;

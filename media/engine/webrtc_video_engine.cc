@@ -3218,6 +3218,9 @@ void WebRtcVideoReceiveChannel::SetDefaultSink(
   RTC_DCHECK_RUN_ON(&thread_checker_);
   RTC_LOG(LS_INFO) << "SetDefaultSink: " << (sink ? "(ptr)" : "nullptr");
   default_sink_ = sink;
+  if (std::optional<uint32_t> ssrc = GetUnsignaledSsrc()) {
+    SetSink(*ssrc, default_sink_);
+  }
 }
 
 bool WebRtcVideoReceiveChannel::GetStats(VideoMediaReceiveInfo* info) {
