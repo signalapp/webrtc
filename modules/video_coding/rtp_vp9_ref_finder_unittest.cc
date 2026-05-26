@@ -115,7 +115,7 @@ class Frame {
     } else {
       vp9_header.flexible_mode = true;
       vp9_header.num_ref_pics = flex_refs.size();
-      for (size_t i = 0; i < flex_refs.size(); ++i) {
+      for (size_t i = 0; i < std::min(flex_refs.size(), kMaxVp9RefPics); ++i) {
         vp9_header.pid_diff[i] = flex_refs.at(i);
       }
     }
@@ -690,6 +690,29 @@ TEST_F(RtpVp9RefFinderTest, SpatialIndexTooHighDropsFrame) {
              .Tl0(0)
              .AsKeyFrame()
              .Gof(&ss));
+  EXPECT_THAT(frames_, SizeIs(0));
+}
+
+TEST_F(RtpVp9RefFinderTest, FlexibleModeTooManyReferencesDropsFrame) {
+  Insert(Frame().Pid(0).SidAndTid(0, 0).AsKeyFrame());
+  EXPECT_THAT(frames_, SizeIs(1));
+  Insert(Frame().Pid(1).SidAndTid(0, 0).FlexRefs({1, 2, 3, 4}));
+  EXPECT_THAT(frames_, SizeIs(1));
+}
+
+TEST_F(RtpVp9RefFinderTest, GofTooManyReferencesDropsFrame) {
+  GofInfoVP9 ss;
+  ss.num_frames_in_gof = 2;
+  ss.temporal_idx[0] = 0;
+  ss.num_ref_pics[0] = 1;
+  ss.pid_diff[0][0] = 1;
+
+  // GOF index 1 requires 4 reference pictures (more than kMaxVp9RefPics = 3).
+  ss.temporal_idx[1] = 1;
+  ss.num_ref_pics[1] = 4;
+  ss.pid_diff[1][0] = 1;
+
+  Insert(Frame().Pid(0).SidAndTid(0, 0).Tl0(0).AsKeyFrame().Gof(&ss));
   EXPECT_THAT(frames_, SizeIs(0));
 }
 

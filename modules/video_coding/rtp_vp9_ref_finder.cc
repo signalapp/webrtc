@@ -85,7 +85,7 @@ RtpFrameReferenceFinder::ReturnVector RtpVp9RefFinder::ManageFrame(
 RtpVp9RefFinder::FrameDecision RtpVp9RefFinder::ManageFrameFlexible(
     RtpFrameObject* frame,
     const RTPVideoHeaderVP9& codec_header) {
-  if (codec_header.num_ref_pics > EncodedFrame::kMaxFrameReferences) {
+  if (codec_header.num_ref_pics > kMaxVp9RefPics) {
     return kDrop;
   }
 
@@ -200,7 +200,7 @@ RtpVp9RefFinder::FrameDecision RtpVp9RefFinder::ManageFrameGof(
                                                         frame->Id());
     size_t gof_idx = diff % info->gof->num_frames_in_gof;
 
-    if (info->gof->num_ref_pics[gof_idx] > EncodedFrame::kMaxFrameReferences) {
+    if (info->gof->num_ref_pics[gof_idx] > kMaxVp9RefPics) {
       return kDrop;
     }
 
