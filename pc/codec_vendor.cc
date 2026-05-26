@@ -214,6 +214,7 @@ RTCError MergeRtxCodec(const CodecConfiguration& config,
 }
 
 RTCError MergeRedCodec(const CodecConfiguration& config,
+                       const Codec& primary_codec,
                        absl::string_view mid,
                        CodecList& offered_codecs,
                        PayloadTypeSuggester& pt_suggester,
@@ -224,16 +225,36 @@ RTCError MergeRedCodec(const CodecConfiguration& config,
   auto red_it = absl::c_find_if(offered_codecs, [&](const Codec& c) {
     return c.name == kRedCodecName && c.type == config.codec.type;
   });
+
+  Codec red;
+  bool newly_created = false;
   if (red_it == offered_codecs.end()) {
-    Codec red = (config.codec.type == Codec::Type::kAudio)
-                    ? CreateAudioCodec({kRedCodecName, 48000, 2})
-                    : CreateVideoCodec(kRedCodecName);
+    red = (config.codec.type == Codec::Type::kAudio)
+              ? CreateAudioCodec({kRedCodecName, 48000, 2})
+              : CreateVideoCodec(kRedCodecName);
     RTCErrorOr<PayloadType> result =
         pt_suggester.SuggestPayloadType(mid, red, pick_from_top_of_range);
     if (!result.ok()) {
       return result.MoveError();
     }
     red.id = result.value();
+    newly_created = true;
+  } else {
+    red = *red_it;
+  }
+
+  if (config.codec.type == Codec::Type::kAudio &&
+      absl::EqualsIgnoreCase(config.codec.name, kOpusCodecName)) {
+    if (red.params.empty()) {
+      StringBuilder param;
+      // Opus RED uses Opus as both the primary payload and
+      // the redundancy payload, with different timestamp offsets.
+      param << primary_codec.id.value() << "/" << primary_codec.id.value();
+      red.SetParam(kCodecParamNotInNameValueFormat, param.str());
+    }
+  }
+
+  if (newly_created) {
     offered_codecs.push_back(red);
 
     if (config.codec.type == Codec::Type::kVideo) {
@@ -254,6 +275,9 @@ RTCError MergeRedCodec(const CodecConfiguration& config,
         RTC_DCHECK(rtx_res.error().type() == RTCErrorType::RESOURCE_EXHAUSTED);
       }
     }
+  } else if (red_it != offered_codecs.end()) {
+    // Update the codec in the list if it was modified
+    *red_it = red;
   }
   return RTCError::OK();
 }
@@ -347,8 +371,8 @@ RTCError MergeCodecsFromConfigurations(
     }
 
     // 3. Handle RED
-    error = MergeRedCodec(config, mid, offered_codecs, pt_suggester,
-                          pick_from_top_of_range);
+    error = MergeRedCodec(config, primary_codec, mid, offered_codecs,
+                          pt_suggester, pick_from_top_of_range);
     if (!error.ok()) {
       return error;
     }
@@ -771,6 +795,8 @@ void LinkRed(std::vector<Codec>& codecs) {
           absl::EqualsIgnoreCase(codec.name, kRedCodecName)) {
         if (codec.params.empty()) {
           StringBuilder param;
+          // Opus RED uses Opus as both the primary payload and
+          // the redundancy payload, with different timestamp offsets.
           param << first_opus_pt << "/" << first_opus_pt;
           codec.SetParam(kCodecParamNotInNameValueFormat, param.str());
         }
@@ -835,7 +861,6 @@ RTCError AssignCodecIdsAndLinkRedRefactored(
     }
   }
 
-  LinkRed(codecs);
   return RTCError::OK();
 }
 
