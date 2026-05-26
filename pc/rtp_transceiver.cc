@@ -147,14 +147,6 @@ void ConfigureExtraVideoHeaderExtensions(
   }
 }
 
-void ConfigureSendCodecs(CodecVendor& codec_vendor,
-                         MediaType media_type,
-                         RtpSenderInternal* sender) {
-  sender->SetSendCodecs(media_type == MediaType::VIDEO
-                            ? codec_vendor.video_send_codecs().codecs()
-                            : codec_vendor.audio_send_codecs().codecs());
-}
-
 scoped_refptr<RtpSenderProxyWithInternal<RtpSenderInternal>> CreateSender(
     MediaType media_type,
     const Environment& env,
@@ -166,7 +158,9 @@ scoped_refptr<RtpSenderProxyWithInternal<RtpSenderInternal>> CreateSender(
     MediaSendChannelInterface* media_send_channel,
     const std::vector<RtpEncodingParameters>& init_send_encodings,
     bool simulcast_rejected,
-    const std::vector<SimulcastLayer>& initial_simulcast_layers) {
+    const std::vector<SimulcastLayer>& initial_simulcast_layers,
+    std::vector<std::string> stream_ids,
+    std::vector<Codec> send_codecs) {
   if (media_type == MediaType::AUDIO) {
     return RtpSenderProxyWithInternal<RtpSenderInternal>::Create(
         context->signaling_thread(),
@@ -174,7 +168,9 @@ scoped_refptr<RtpSenderProxyWithInternal<RtpSenderInternal>> CreateSender(
             env, context->signaling_thread(), context->worker_thread(),
             sender_id, legacy_stats, set_streams_observer,
             std::move(enable_sframe_at_owner),
-            static_cast<VoiceMediaSendChannelInterface*>(media_send_channel)));
+            static_cast<VoiceMediaSendChannelInterface*>(media_send_channel),
+            std::move(stream_ids), init_send_encodings,
+            std::move(send_codecs)));
   }
   RTC_DCHECK_EQ(media_type, MediaType::VIDEO);
   return RtpSenderProxyWithInternal<RtpSenderInternal>::Create(
@@ -183,21 +179,8 @@ scoped_refptr<RtpSenderProxyWithInternal<RtpSenderInternal>> CreateSender(
           env, context->signaling_thread(), context->worker_thread(), sender_id,
           set_streams_observer, std::move(enable_sframe_at_owner),
           static_cast<VideoMediaSendChannelInterface*>(media_send_channel),
-          init_send_encodings, simulcast_rejected, initial_simulcast_layers));
-}
-
-void ConfigureSender(
-    scoped_refptr<RtpSenderProxyWithInternal<RtpSenderInternal>>& sender,
-    MediaStreamTrackInterface* track,
-    const std::vector<std::string>& stream_ids,
-    const std::vector<RtpEncodingParameters>& send_encodings,
-    CodecVendor& codec_vendor) {
-  bool set_track_succeeded = sender->SetTrack(track);
-  RTC_DCHECK(set_track_succeeded);
-  auto* internal = sender->internal();
-  internal->set_stream_ids(stream_ids);
-  internal->set_init_send_encodings(send_encodings);
-  ConfigureSendCodecs(codec_vendor, sender->media_type(), internal);
+          init_send_encodings, simulcast_rejected, initial_simulcast_layers,
+          std::move(stream_ids), std::move(send_codecs)));
 }
 
 template <typename RtpReceiverT, typename ReceiveInterface>
@@ -277,6 +260,13 @@ std::vector<absl::AnyInvocable<void() &&>> DetachAndGetStopTasksForSenders(
 
 }  // namespace
 
+std::vector<Codec> RtpTransceiver::GetSendCodecs() {
+  RTC_DCHECK_RUN_ON(thread_);
+  return media_type_ == MediaType::VIDEO
+             ? codec_vendor().video_send_codecs().codecs()
+             : codec_vendor().audio_send_codecs().codecs();
+}
+
 RtpTransceiver::RtpTransceiver(const Environment& env,
                                MediaType media_type,
                                ConnectionContext* context,
@@ -344,7 +334,7 @@ RtpTransceiver::RtpTransceiver(
             .encodings,
         header_extensions_to_negotiate_);
   }
-  ConfigureSendCodecs(codec_vendor(), media_type_, sender_internal);
+  sender_internal->SetSendCodecs(GetSendCodecs());
 }
 
 RtpTransceiver::RtpTransceiver(
@@ -399,6 +389,7 @@ RtpTransceiver::RtpTransceiver(
   }
 
   auto encoder_switch_callback = GetEncoderSwitchRequestCallback();
+  std::vector<Codec> send_codecs = GetSendCodecs();
 
   worker_tasks.AddWithFinalizer(
       [this, call, media_config, audio_options, video_options, crypto_options,
@@ -406,6 +397,7 @@ RtpTransceiver::RtpTransceiver(
        encoder_switch_callback = std::move(encoder_switch_callback),
        sender_id = std::string(sender_id), init_send_encodings,
        simulcast_rejected, initial_simulcast_layers, track, stream_ids,
+       send_codecs = std::move(send_codecs),
        receiver_id = std::string(
            receiver_id)]() mutable -> ScopedOperationsBatcher::FinalizerTask {
         RTC_DCHECK_RUN_ON(this->context()->worker_thread());
@@ -419,17 +411,17 @@ RtpTransceiver::RtpTransceiver(
             sender_id,
             absl::bind_front(&RtpTransceiver::TryToEnableSframe, this),
             channels.first.get(), init_send_encodings, simulcast_rejected,
-            initial_simulcast_layers);
+            initial_simulcast_layers, stream_ids, std::move(send_codecs));
         return ScopedOperationsBatcher::FinalizerTask(
             [this, channels = std::move(channels), sender = std::move(sender),
-             track, stream_ids, init_send_encodings, receiver_id]() mutable {
+             track, receiver_id]() mutable {
               RTC_DCHECK_RUN_ON(thread_);
               owned_send_channel_ = std::move(channels.first);
               owned_receive_channel_ = std::move(channels.second);
               senders_.push_back(std::move(sender));
 
-              ConfigureSender(senders_.back(), track.get(), stream_ids,
-                              init_send_encodings, codec_vendor());
+              bool set_track_succeeded = senders_.back()->SetTrack(track.get());
+              RTC_DCHECK(set_track_succeeded);
 
               receivers_.push_back(CreateReceiver(
                   media_type_, context_->signaling_thread(),
@@ -750,7 +742,7 @@ PLAN_B_ONLY void RtpTransceiver::AddSenderPlanB(
   RTC_DCHECK(sender);
   RTC_DCHECK_EQ(media_type(), sender->media_type());
   RTC_DCHECK(!absl::c_linear_search(senders_, sender));
-  ConfigureSendCodecs(codec_vendor(), media_type(), sender->internal());
+  sender->internal()->SetSendCodecs(GetSendCodecs());
   senders_.push_back(sender);
 }
 
@@ -765,16 +757,17 @@ RtpTransceiver::AddSenderPlanB(
   RTC_DCHECK(!unified_plan_);
   RTC_DCHECK(media_type_ == MediaType::AUDIO ||
              media_type_ == MediaType::VIDEO);
+  std::vector<Codec> send_codecs = GetSendCodecs();
   context_->worker_thread()->BlockingCall([&]() mutable {
     RTC_DCHECK_RUN_ON(context()->worker_thread());
     senders_.push_back(CreateSender(
         media_type_, env_, context_, legacy_stats_, set_streams_observer_,
         sender_id, /*enable_sframe_at_owner=*/nullptr,
         channel_ ? channel_->media_send_channel() : nullptr, send_encodings,
-        false, {}));
+        false, {}, stream_ids, std::move(send_codecs)));
   });
-  ConfigureSender(senders_.back(), track.get(), stream_ids, send_encodings,
-                  codec_vendor());
+  bool set_track_succeeded = senders_.back()->SetTrack(track.get());
+  RTC_DCHECK(set_track_succeeded);
   return senders_.back();
 }
 

@@ -41,6 +41,7 @@
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/video/video_bitrate_allocator_factory.h"
+#include "media/base/codec.h"
 #include "media/base/media_channel.h"
 #include "media/base/media_config.h"
 #include "media/base/media_engine.h"
@@ -441,6 +442,7 @@ class RtpTransceiver : public RtpTransceiverInterface {
   CodecVendor& codec_vendor() {
     return *codec_lookup_helper_->GetCodecVendor();
   }
+  std::vector<Codec> GetSendCodecs();
   void OnFirstPacketReceived(uint32_t ssrc);
   void OnPacketReceived(uint32_t ssrc,
                         scoped_refptr<PendingTaskSafetyFlag> safety)

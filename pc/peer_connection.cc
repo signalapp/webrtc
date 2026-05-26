@@ -1164,12 +1164,16 @@ scoped_refptr<RtpSenderInterface> PeerConnection::CreateSender(
   }
 
   scoped_refptr<RtpSenderProxyWithInternal<RtpSenderInternal>> new_sender;
+  CodecVendor codec_vendor(context_->media_engine(), false, trials());
+
   if (kind == MediaStreamTrackInterface::kAudioKind) {
-    auto audio_sender =
-        AudioRtpSender::Create(env_, signaling_thread(), worker_thread(),
-                               CreateRandomUuid(), legacy_stats_.get(), nullptr,
-                               /*enable_sframe_at_owner=*/nullptr,
-                               rtp_manager()->voice_media_send_channel());
+    auto audio_sender = AudioRtpSender::Create(
+        env_, signaling_thread(), worker_thread(), CreateRandomUuid(),
+        legacy_stats_.get(), nullptr,
+        /*enable_sframe_at_owner=*/nullptr,
+        rtp_manager()->voice_media_send_channel(), stream_ids,
+        /*init_send_encodings=*/std::vector<RtpEncodingParameters>(1),
+        codec_vendor.audio_send_codecs().codecs());
     new_sender = RtpSenderProxyWithInternal<RtpSenderInternal>::Create(
         signaling_thread(), audio_sender);
     rtp_manager()->GetAudioTransceiver()->internal()->AddSenderPlanB(
@@ -1180,7 +1184,8 @@ scoped_refptr<RtpSenderInterface> PeerConnection::CreateSender(
         /*enable_sframe_at_owner=*/nullptr,
         rtp_manager()->video_media_send_channel(),
         /*init_send_encodings=*/{}, /*simulcast_rejected=*/false,
-        /*initial_simulcast_layers=*/{});
+        /*initial_simulcast_layers=*/{}, stream_ids,
+        codec_vendor.video_send_codecs().codecs());
     new_sender = RtpSenderProxyWithInternal<RtpSenderInternal>::Create(
         signaling_thread(), video_sender);
     rtp_manager()->GetVideoTransceiver()->internal()->AddSenderPlanB(
@@ -1188,11 +1193,6 @@ scoped_refptr<RtpSenderInterface> PeerConnection::CreateSender(
   } else {
     RTC_LOG(LS_ERROR) << "CreateSender called with invalid kind: " << kind;
   }
-
-  if (!new_sender) {
-    return nullptr;
-  }
-  new_sender->internal()->set_stream_ids(stream_ids);
 
   return new_sender;
 }

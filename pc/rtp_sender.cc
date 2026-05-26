@@ -202,6 +202,16 @@ void SetRtpParametersOnWorkerThread(
                                       std::move(callback));
 }
 
+std::vector<std::string> GetUniqueStreamIds(
+    const std::vector<std::string>& stream_ids) {
+  std::vector<std::string> unique_ids;
+  absl::c_copy_if(stream_ids, std::back_inserter(unique_ids),
+                  [&](const std::string& id) {
+                    return !absl::c_linear_search(unique_ids, id);
+                  });
+  return unique_ids;
+}
+
 }  // namespace
 
 // Returns true if any RtpParameters member that isn't implemented contains a
@@ -229,12 +239,17 @@ RtpSenderBase::RtpSenderBase(
     MediaType media_type,
     SetStreamsObserver* set_streams_observer,
     absl::AnyInvocable<RTCError()> enable_sframe_at_owner,
-    MediaSendChannelInterface* media_channel)
+    MediaSendChannelInterface* media_channel,
+    std::vector<std::string> stream_ids,
+    std::vector<RtpEncodingParameters> init_send_encodings,
+    std::vector<Codec> send_codecs)
     : env_(env),
       signaling_thread_(signaling_thread),
       worker_thread_(worker_thread),
       id_(id),
       media_type_(media_type),
+      stream_ids_(GetUniqueStreamIds(stream_ids)),
+      send_codecs_(std::move(send_codecs)),
       media_channel_(nullptr),  // Will be set in SetMediaChannel().
       set_streams_observer_(set_streams_observer),
       worker_safety_(PendingTaskSafetyFlag::CreateAttachedToTaskQueue(
@@ -245,7 +260,7 @@ RtpSenderBase::RtpSenderBase(
                                                            signaling_thread_)),
       enable_sframe_at_owner_(std::move(enable_sframe_at_owner)) {
   RTC_DCHECK(worker_thread_);
-  init_parameters_.encodings.emplace_back();
+  init_parameters_.encodings = std::move(init_send_encodings);
   if (media_channel) {
     // When initialized with a valid media channel, we need to be running on the
     // worker thread in order to set things up properly.
@@ -703,11 +718,7 @@ void RtpSenderBase::NotifyFirstPacketSent() {
 }
 
 void RtpSenderBase::set_stream_ids(const std::vector<std::string>& stream_ids) {
-  stream_ids_.clear();
-  absl::c_copy_if(stream_ids, std::back_inserter(stream_ids_),
-                  [this](const std::string& stream_id) {
-                    return !absl::c_linear_search(stream_ids_, stream_id);
-                  });
+  stream_ids_ = GetUniqueStreamIds(stream_ids);
 }
 
 void RtpSenderBase::SetStreams(const std::vector<std::string>& stream_ids) {
@@ -1133,10 +1144,14 @@ scoped_refptr<AudioRtpSender> AudioRtpSender::Create(
     LegacyStatsCollectorInterface* stats,
     SetStreamsObserver* set_streams_observer,
     absl::AnyInvocable<RTCError()> enable_sframe_at_owner,
-    MediaSendChannelInterface* media_channel) {
+    MediaSendChannelInterface* media_channel,
+    std::vector<std::string> stream_ids,
+    std::vector<RtpEncodingParameters> init_send_encodings,
+    std::vector<Codec> send_codecs) {
   return make_ref_counted<AudioRtpSender>(
       env, signaling_thread, worker_thread, id, stats, set_streams_observer,
-      std::move(enable_sframe_at_owner), media_channel);
+      std::move(enable_sframe_at_owner), media_channel, std::move(stream_ids),
+      std::move(init_send_encodings), std::move(send_codecs));
 }
 
 AudioRtpSender::AudioRtpSender(
@@ -1147,7 +1162,10 @@ AudioRtpSender::AudioRtpSender(
     LegacyStatsCollectorInterface* stats,
     SetStreamsObserver* set_streams_observer,
     absl::AnyInvocable<RTCError()> enable_sframe_at_owner,
-    MediaSendChannelInterface* media_channel)
+    MediaSendChannelInterface* media_channel,
+    std::vector<std::string> stream_ids,
+    std::vector<RtpEncodingParameters> init_send_encodings,
+    std::vector<Codec> send_codecs)
     : RtpSenderBase(env,
                     signaling_thread,
                     worker_thread,
@@ -1155,7 +1173,10 @@ AudioRtpSender::AudioRtpSender(
                     MediaType::AUDIO,
                     set_streams_observer,
                     std::move(enable_sframe_at_owner),
-                    media_channel),
+                    media_channel,
+                    std::move(stream_ids),
+                    std::move(init_send_encodings),
+                    std::move(send_codecs)),
       legacy_stats_(stats),
       dtmf_sender_(DtmfSender::Create(signaling_thread, this)),
       dtmf_sender_proxy_(
@@ -1312,11 +1333,14 @@ scoped_refptr<VideoRtpSender> VideoRtpSender::Create(
     MediaSendChannelInterface* media_channel,
     const std::vector<RtpEncodingParameters>& init_send_encodings,
     bool simulcast_rejected,
-    const std::vector<SimulcastLayer>& initial_simulcast_layers) {
+    const std::vector<SimulcastLayer>& initial_simulcast_layers,
+    std::vector<std::string> stream_ids,
+    std::vector<Codec> send_codecs) {
   return make_ref_counted<VideoRtpSender>(
       env, signaling_thread, worker_thread, id, set_streams_observer,
       std::move(enable_sframe_at_owner), media_channel, init_send_encodings,
-      simulcast_rejected, initial_simulcast_layers);
+      simulcast_rejected, initial_simulcast_layers, std::move(stream_ids),
+      std::move(send_codecs));
 }
 
 VideoRtpSender::VideoRtpSender(
@@ -1329,19 +1353,24 @@ VideoRtpSender::VideoRtpSender(
     MediaSendChannelInterface* media_channel,
     const std::vector<RtpEncodingParameters>& init_send_encodings,
     bool simulcast_rejected,
-    const std::vector<SimulcastLayer>& initial_simulcast_layers)
-    : RtpSenderBase(env,
-                    signaling_thread,
-                    worker_thread,
-                    id,
-                    MediaType::VIDEO,
-                    set_streams_observer,
-                    std::move(enable_sframe_at_owner),
-                    media_channel) {
-  set_init_send_encodings(
-      CalculateInitialEncodings(init_parameters_.encodings, init_send_encodings,
-                                initial_simulcast_layers, simulcast_rejected));
-}
+    const std::vector<SimulcastLayer>& initial_simulcast_layers,
+    std::vector<std::string> stream_ids,
+    std::vector<Codec> send_codecs)
+    : RtpSenderBase(
+          env,
+          signaling_thread,
+          worker_thread,
+          id,
+          MediaType::VIDEO,
+          set_streams_observer,
+          std::move(enable_sframe_at_owner),
+          media_channel,
+          std::move(stream_ids),
+          CalculateInitialEncodings(std::vector<RtpEncodingParameters>(1),
+                                    init_send_encodings,
+                                    initial_simulcast_layers,
+                                    simulcast_rejected),
+          std::move(send_codecs)) {}
 
 VideoRtpSender::~VideoRtpSender() {
   Stop();
