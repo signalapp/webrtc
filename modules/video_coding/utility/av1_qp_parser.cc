@@ -14,20 +14,18 @@
 #include <memory>
 #include <optional>
 #include <span>
-#include <vector>
 
 #include "third_party/libgav1/src/src/buffer_pool.h"
 #include "third_party/libgav1/src/src/decoder_state.h"
-#include "third_party/libgav1/src/src/gav1/decoder.h"
 #include "third_party/libgav1/src/src/gav1/status_code.h"
 #include "third_party/libgav1/src/src/obu_parser.h"
 
 namespace webrtc {
 namespace {
 
-class Av1QpHeaderParser : public Av1QpParser {
+class Av1QpParserImpl : public Av1QpParser {
  public:
-  Av1QpHeaderParser()
+  Av1QpParserImpl()
       : buffer_pool_(/*on_frame_buffer_size_changed=*/nullptr,
                      /*get_frame_buffer=*/nullptr,
                      /*release_frame_buffer=*/nullptr,
@@ -42,7 +40,7 @@ class Av1QpHeaderParser : public Av1QpParser {
     libgav1::RefCountedBufferPtr curr_frame;
     libgav1::ObuParser parser(frame_data.data(), frame_data.size(),
                               operating_point, &buffer_pool_, &decoder_state_);
-    std::optional<uint32_t> highest_acceptable_spatial_layers_qp;
+    uint8_t highest_acceptable_spatial_layers_qp;
 
     // Since the temporal unit can have more than 1 frame in scalable coding, we
     // go through all the frame's.
@@ -83,57 +81,10 @@ class Av1QpHeaderParser : public Av1QpParser {
   std::optional<libgav1::ObuSequenceHeader> sequence_header_ = std::nullopt;
 };
 
-class Av1QpAverageParser : public Av1QpParser {
- public:
-  Av1QpAverageParser() = default;
-
-  std::optional<uint32_t> Parse(std::span<const uint8_t> frame_data) override {
-    return Parse(frame_data, 0);
-  }
-
-  std::optional<uint32_t> Parse(std::span<const uint8_t> frame_data,
-                                int operating_point) override {
-    if (!decoder_ || operating_point_ != operating_point) {
-      libgav1::DecoderSettings settings;
-      settings.parse_only = true;
-      settings.operating_point = operating_point;
-      decoder_ = std::make_unique<libgav1::Decoder>();
-      if (decoder_->Init(&settings) != libgav1::kStatusOk) {
-        decoder_.reset();
-        return std::nullopt;
-      }
-      operating_point_ = operating_point;
-    }
-
-    if (decoder_->EnqueueFrame(frame_data.data(), frame_data.size(), 0,
-                               nullptr) != libgav1::kStatusOk) {
-      return std::nullopt;
-    }
-
-    const libgav1::DecoderBuffer* buffer = nullptr;
-    if (decoder_->DequeueFrame(&buffer) != libgav1::kStatusOk) {
-      return std::nullopt;
-    }
-
-    std::vector<int> qps = decoder_->GetFramesMeanQpInTemporalUnit();
-    if (qps.empty()) {
-      return std::nullopt;
-    }
-    return qps.back();
-  }
-
- private:
-  std::unique_ptr<libgav1::Decoder> decoder_;
-  int operating_point_ = -1;
-};
-
 }  // namespace
 
-std::unique_ptr<Av1QpParser> Av1QpParser::Create(Settings settings) {
-  if (settings.use_average_qp) {
-    return std::make_unique<Av1QpAverageParser>();
-  }
-  return std::make_unique<Av1QpHeaderParser>();
+std::unique_ptr<Av1QpParser> Av1QpParser::Create() {
+  return std::make_unique<Av1QpParserImpl>();
 }
 
 }  // namespace webrtc

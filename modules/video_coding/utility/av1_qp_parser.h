@@ -32,18 +32,15 @@ namespace webrtc {
 // Note that the parser is stateful - each decoded frame of the bitstream
 // must be passed to the parser, starting with a keyframe, in order for the
 // state to be valid.
+//
+// Also note that the value returned is the _base_ QP from the frame header,
+// which might not be representative of the average frame QP.
+// TODO: bugs.webrc.org/496266459 - Implement average frame QP calculation.
 class Av1QpParser {
  public:
-  struct Settings {
-    Settings() : use_average_qp(false) {}
-    // When false, the frame global QP (from the frame header) is returned.
-    // When true, the full frame is parsed and the true average QP is returned.
-    bool use_average_qp;
-  };
-
   virtual ~Av1QpParser() = default;
 
-  static std::unique_ptr<Av1QpParser> Create(Settings settings = Settings());
+  static std::unique_ptr<Av1QpParser> Create();
 
   // Parse the bitstream and return the base frame QP for the highest
   // available spatial layer of the frame.
