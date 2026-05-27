@@ -377,8 +377,7 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
                        size_t mline_index,
                        const ContentInfo& content,
                        const ContentInfo* old_local_content,
-                       const ContentInfo* old_remote_content,
-                       ScopedOperationsBatcher& worker_tasks)
+                       const ContentInfo* old_remote_content)
       RTC_RUN_ON(signaling_thread());
 
   // Returns the media section in the given session description that is

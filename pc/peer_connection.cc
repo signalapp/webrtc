@@ -1114,17 +1114,14 @@ PeerConnection::AddTransceiver(MediaType media_type,
   std::string sender_id = (track && !rtp_manager()->FindSenderById(track->id())
                                ? track->id()
                                : CreateRandomUuid());
-  ScopedOperationsBatcher worker_tasks(context_->worker_thread());
   auto transceiver = rtp_manager()->CreateAndAddTransceiver(
       configuration_.media_config, sdp_handler_->audio_options(),
       sdp_handler_->video_options(), configuration_.crypto_options,
       sdp_handler_->video_bitrate_allocator_factory(), media_type, track,
       init.stream_ids, parameters.encodings,
       /*header_extensions_to_negotiate=*/{},
-      /*simulcast_rejected=*/false, /*initial_simulcast_layers=*/{},
-      worker_tasks, sender_id);
-  RTCError error = worker_tasks.Run();
-  RTC_DCHECK(error.ok());
+      /*simulcast_rejected=*/false,
+      /*initial_simulcast_layers=*/{}, sender_id);
   transceiver->internal()->set_direction(init.direction);
 
   if (update_negotiation_needed) {

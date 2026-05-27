@@ -146,7 +146,6 @@ class RtpTransceiver : public RtpTransceiverInterface {
       std::vector<RtpHeaderExtensionCapability> header_extensions_to_negotiate,
       bool simulcast_rejected,
       const std::vector<SimulcastLayer>& initial_simulcast_layers,
-      ScopedOperationsBatcher& worker_tasks,
       absl::AnyInvocable<void()> on_negotiation_needed);
   ~RtpTransceiver() override;
 

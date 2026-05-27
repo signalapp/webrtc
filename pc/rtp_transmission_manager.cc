@@ -47,7 +47,6 @@
 #include "pc/rtp_sender.h"
 #include "pc/rtp_sender_proxy.h"
 #include "pc/rtp_transceiver.h"
-#include "pc/scoped_operations_batcher.h"
 #include "pc/simulcast_description.h"
 #include "pc/usage_pattern.h"
 #include "pc/video_rtp_receiver.h"
@@ -250,7 +249,6 @@ RtpTransmissionManager::AddTrackUnifiedPlan(
     if (FindSenderById(sender_id)) {
       sender_id = CreateRandomUuid();
     }
-    ScopedOperationsBatcher worker_tasks(context_->worker_thread());
     transceiver = CreateAndAddTransceiver(
         media_config, audio_options, video_options, crypto_options,
         video_bitrate_allocator_factory, media_type, track, stream_ids,
@@ -259,9 +257,7 @@ RtpTransmissionManager::AddTrackUnifiedPlan(
             : std::vector<RtpEncodingParameters>(1, RtpEncodingParameters{}),
         /*header_extensions_to_negotiate=*/{},
         /*simulcast_rejected=*/false, /*initial_simulcast_layers=*/{},
-        worker_tasks, sender_id, /*receiver_id=*/"");
-    RTCError error = worker_tasks.Run();
-    RTC_DCHECK(error.ok());
+        sender_id, /*receiver_id=*/"");
     transceiver->internal()->set_created_by_addtrack(true);
     transceiver->internal()->set_direction(RtpTransceiverDirection::kSendRecv);
   }
@@ -283,7 +279,6 @@ RtpTransmissionManager::CreateAndAddTransceiver(
         header_extensions_to_negotiate,
     bool simulcast_rejected,
     const std::vector<SimulcastLayer>& initial_simulcast_layers,
-    ScopedOperationsBatcher& worker_tasks,
     absl::string_view sender_id,
     absl::string_view receiver_id) {
   RTC_DCHECK_RUN_ON(signaling_thread());
@@ -320,7 +315,7 @@ RtpTransmissionManager::CreateAndAddTransceiver(
           codec_lookup_helper_, legacy_stats_, observer, audio_options,
           video_options, crypto_options, video_bitrate_allocator_factory,
           std::move(header_extensions), simulcast_rejected,
-          initial_simulcast_layers, worker_tasks,
+          initial_simulcast_layers,
           [this_weak_ptr = weak_ptr_factory_.GetWeakPtr()]() {
             if (this_weak_ptr) {
               this_weak_ptr->OnNegotiationNeeded();

@@ -4336,9 +4336,9 @@ RTCError SdpOfferAnswerHandler::UpdateTransceiversAndDataChannels(
         old_remote_content =
             &old_remote_description->description()->contents()[i];
       }
-      auto transceiver_or_error = AssociateTransceiver(
-          source, new_session.GetType(), i, new_content, old_local_content,
-          old_remote_content, worker_tasks);
+      auto transceiver_or_error =
+          AssociateTransceiver(source, new_session.GetType(), i, new_content,
+                               old_local_content, old_remote_content);
       if (!transceiver_or_error.ok()) {
         // In the case where a transceiver is rejected locally prior to being
         // associated, we don't expect to find a transceiver, but might find it
@@ -4374,13 +4374,6 @@ RTCError SdpOfferAnswerHandler::UpdateTransceiversAndDataChannels(
     }
   }
 
-  // Run transceiver creation tasks to ensure transceivers are fully constructed
-  // before UpdateTransceiverChannel is called.
-  RTCError error = worker_tasks.Run();
-  if (!error.ok()) {
-    return error;
-  }
-
   for (TransceiverUpdate& update : transceivers_to_update) {
     auto it = bundle_groups_by_mid.find(update.content.mid());
     const ContentGroup* bundle_group =
@@ -4399,7 +4392,7 @@ RTCError SdpOfferAnswerHandler::UpdateTransceiversAndDataChannels(
                                           update.transceiver, worker_tasks);
   }
 
-  error = network_teardown_tasks.Run();
+  RTCError error = network_teardown_tasks.Run();
   RTC_DCHECK(error.ok());  // Teardown tasks cannot fail.
   error = worker_tasks.Run();
   RTC_DCHECK(error.ok());  // Cleanup and construction tasks cannot fail.
@@ -4413,8 +4406,7 @@ SdpOfferAnswerHandler::AssociateTransceiver(
     size_t mline_index,
     const ContentInfo& content,
     const ContentInfo* old_local_content,
-    const ContentInfo* old_remote_content,
-    ScopedOperationsBatcher& worker_tasks) {
+    const ContentInfo* old_remote_content) {
   TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::AssociateTransceiver");
   RTC_DCHECK(IsUnifiedPlan());
 #if RTC_DCHECK_IS_ON
@@ -4490,7 +4482,7 @@ SdpOfferAnswerHandler::AssociateTransceiver(
           pc_->GetCryptoOptions(), video_bitrate_allocator_factory_.get(),
           media_desc->type(), nullptr, {}, send_encodings,
           /*header_extensions_to_negotiate=*/{}, simulcast_rejected,
-          initial_simulcast_layers, worker_tasks, sender_id, receiver_id);
+          initial_simulcast_layers, sender_id, receiver_id);
       transceiver->internal()->set_direction(
           RtpTransceiverDirection::kRecvOnly);
       transceiver->internal()->ApplySframeEnabled(media_desc->sframe_enabled());
