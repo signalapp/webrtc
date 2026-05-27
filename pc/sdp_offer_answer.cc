@@ -2895,8 +2895,16 @@ void SdpOfferAnswerHandler::DoSetLocalDescription(
   // If application was successful, we change the codec vendor's codec
   // tables according to the mangle.
   // Note that this depends on there being a single codec vendor for all MIDs.
-  codec_lookup_helper_->GetCodecVendor()->ModifyVideoCodecs(
-      codecs_mangled_to_raw);
+  // We call SetRawPacketization in the redesign path and ModifyVideoCodecs in
+  // the legacy path to avoid them interfering with each other.
+  if (codec_lookup_helper_->GetCodecVendor()->payload_types_in_transport()) {
+    for (const auto& change : codecs_mangled_to_raw) {
+      codec_lookup_helper_->GetCodecVendor()->SetRawPacketization(change.first);
+    }
+  } else {
+    codec_lookup_helper_->GetCodecVendor()->ModifyVideoCodecs(
+        codecs_mangled_to_raw);
+  }
 
   if (local_description()->GetType() == SdpType::kAnswer) {
     RemoveStoppedTransceivers();

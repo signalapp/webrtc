@@ -1046,6 +1046,27 @@ TEST_F(SdpMungingTest, VideoCodecsModifiedWithRawPacketization) {
           Pair(SdpMungingType::kVideoCodecsModifiedWithRawPacketization, 1)));
 }
 
+TEST_F(SdpMungingTest, VideoCodecsModifiedWithRawPacketization_Redesign) {
+  auto pc = CreatePeerConnection("WebRTC-PayloadTypesInTransport/Enabled/");
+  pc->AddVideoTrack("video_track", {});
+
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
+  auto& contents = offer->description()->contents();
+  ASSERT_THAT(contents, SizeIs(1));
+  auto* media_description = contents[0].media_description();
+  ASSERT_THAT(media_description, Not(IsNull()));
+  std::vector<Codec> codecs = media_description->codecs();
+  ASSERT_THAT(codecs, Not(SizeIs(0)));
+  codecs[0].packetization = "raw";
+  media_description->set_codecs(codecs);
+  RTCError error;
+  EXPECT_TRUE(pc->SetLocalDescription(std::move(offer), &error));
+  EXPECT_THAT(
+      metrics::Samples("WebRTC.PeerConnection.SdpMunging.Offer.Initial"),
+      ElementsAre(
+          Pair(SdpMungingType::kVideoCodecsModifiedWithRawPacketization, 1)));
+}
+
 TEST_F(SdpMungingTest, MultiOpus) {
   auto pc = CreatePeerConnection();
   pc->AddAudioTrack("audio_track", {});

@@ -24,6 +24,7 @@
 #include "api/payload_type.h"
 #include "api/video_codecs/sdp_video_format.h"
 #include "media/base/codec.h"
+#include "media/base/codec_comparators.h"
 #include "media/base/codec_list.h"
 #include "media/base/media_constants.h"
 #include "media/base/media_engine.h"
@@ -259,6 +260,19 @@ TypedCodecVendor::TypedCodecVendor(const MediaEngineInterface* absl_nonnull
   } else {
     codecs_ = CodecList::CreateFromTrustedData(
         GetCodecs(media_engine, type, is_sender, rtx_enabled));
+  }
+}
+
+void TypedCodecVendor::SetRawPacketization(const Codec& codec) {
+  for (CodecConfiguration& config : configurations_) {
+    if (MatchesWithCodecRules(config.codec, codec)) {
+      config.codec.packetization = kPacketizationParamRaw;
+    }
+  }
+  for (Codec& c : codecs_.writable_codecs()) {
+    if (MatchesWithCodecRules(c, codec)) {
+      c.packetization = kPacketizationParamRaw;
+    }
   }
 }
 

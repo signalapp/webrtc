@@ -344,7 +344,9 @@ RTCError MergeCodecsFromConfigurations(
     const FieldTrialsView& trials,
     bool pick_from_top_of_range = false) {
   RTC_DCHECK_DISALLOW_THREAD_BLOCKING_CALLS();
-  for (const auto& config : configurations) {
+
+  // Pass 1: Primary and RTX
+  for (const CodecConfiguration& config : configurations) {
     // 1. Find or add primary codec
     auto primary_it = absl::c_find_if(offered_codecs, [&](const Codec& c) {
       return MatchesWithCodecRules(config.codec, c);
@@ -369,17 +371,31 @@ RTCError MergeCodecsFromConfigurations(
     if (!error.ok()) {
       return error;
     }
+  }
 
-    // 3. Handle RED
-    error = MergeRedCodec(config, primary_codec, mid, offered_codecs,
-                          pt_suggester, pick_from_top_of_range);
+  // Pass 2: RED
+  for (const CodecConfiguration& config : configurations) {
+    if (!config.resiliency.red) {
+      continue;
+    }
+    // Find the primary codec in offered_codecs to pass to MergeRedCodec.
+    auto primary_it = absl::c_find_if(offered_codecs, [&](const Codec& c) {
+      return MatchesWithCodecRules(config.codec, c);
+    });
+    RTC_DCHECK(primary_it != offered_codecs.end());
+
+    RTCError error = MergeRedCodec(config, *primary_it, mid, offered_codecs,
+                                   pt_suggester, pick_from_top_of_range);
     if (!error.ok()) {
       return error;
     }
+  }
 
+  // Pass 3: FEC (ULPFEC + FlexFEC)
+  for (const CodecConfiguration& config : configurations) {
     // 4. Handle ULPFEC
-    error = MergeUlpfecCodec(config, mid, offered_codecs, pt_suggester,
-                             pick_from_top_of_range);
+    RTCError error = MergeUlpfecCodec(config, mid, offered_codecs, pt_suggester,
+                                      pick_from_top_of_range);
     if (!error.ok()) {
       return error;
     }
@@ -391,6 +407,7 @@ RTCError MergeCodecsFromConfigurations(
       return error;
     }
   }
+
   return RTCError::OK();
 }
 
@@ -1412,9 +1429,9 @@ void CodecVendor::ModifyVideoCodecs(
     const std::vector<std::pair<Codec, Codec>>& changes) {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
   RTC_DCHECK_DISALLOW_THREAD_BLOCKING_CALLS();
+  RTC_DCHECK(!payload_types_in_transport_);
   // For each codec in the first element that occurs in our supported codecs,
   // replace it with the codec in the second element. Exact matches only.
-  // Note: This needs further work to work with PT late assignment.
   for (const std::pair<Codec, Codec>& change : changes) {
     {
       CodecList send_codecs = video_send_codecs_.codecs();
@@ -1443,6 +1460,14 @@ void CodecVendor::ModifyVideoCodecs(
       }
     }
   }
+}
+
+void CodecVendor::SetRawPacketization(const Codec& codec) {
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
+  RTC_DCHECK_DISALLOW_THREAD_BLOCKING_CALLS();
+  RTC_DCHECK(payload_types_in_transport_);
+  video_send_codecs_.SetRawPacketization(codec);
+  video_recv_codecs_.SetRawPacketization(codec);
 }
 
 }  // namespace webrtc

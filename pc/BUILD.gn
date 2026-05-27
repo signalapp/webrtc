@@ -3979,6 +3979,7 @@ if (rtc_include_tests && !build_with_chromium) {
     deps = [
       ":integration_test_helpers",
       ":session_description",
+      "../api:field_trials_view",
       "../api:jsep",
       "../api:peer_connection_interface",
       "../api:rtc_error_matchers",
