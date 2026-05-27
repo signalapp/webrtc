@@ -953,7 +953,7 @@ class FakeVideoEngine : public VideoEngineInterface {
       const CryptoOptions& crypto_options,
       VideoBitrateAllocatorFactory* video_bitrate_allocator_factory,
       VideoMediaSendChannelInterface::EncoderSwitchRequestCallback
-          video_encoder_switch_request_callback = nullptr) override;
+          video_encoder_switch_request_callback) override;
   std::unique_ptr<VideoMediaReceiveChannelInterface> CreateReceiveChannel(
       const Environment& env,
       Call* call,

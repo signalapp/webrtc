@@ -586,7 +586,6 @@ WebRtcVoiceEngine::CreateSendChannel(const Environment& env,
                                      const MediaConfig& config,
                                      const AudioOptions& options,
                                      const CryptoOptions& crypto_options) {
-  RTC_DCHECK_RUN_ON(&worker_thread_checker_);
   return std::make_unique<WebRtcVoiceSendChannel>(env, this, config, options,
                                                   crypto_options, call);
 }
@@ -597,7 +596,6 @@ WebRtcVoiceEngine::CreateReceiveChannel(const Environment& env,
                                         const MediaConfig& config,
                                         const AudioOptions& options,
                                         const CryptoOptions& crypto_options) {
-  RTC_DCHECK_RUN_ON(&worker_thread_checker_);
   return std::make_unique<WebRtcVoiceReceiveChannel>(env, this, config, options,
                                                      crypto_options, call);
 }
