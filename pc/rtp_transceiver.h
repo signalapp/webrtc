@@ -476,6 +476,8 @@ class RtpTransceiver : public RtpTransceiverInterface {
   VideoMediaSendChannelInterface::EncoderSwitchRequestCallback
   GetEncoderSwitchRequestCallback();
 
+  absl::AnyInvocable<void()> GetParametersChangedCallback();
+
   RTCError UpdateCodecPreferencesCaches(
       const std::vector<RtpCodecCapability>& codecs);
   // Helper function for handling extensions during O/A

@@ -250,7 +250,7 @@ RtpSenderBase::RtpSenderBase(
       media_type_(media_type),
       stream_ids_(GetUniqueStreamIds(stream_ids)),
       send_codecs_(std::move(send_codecs)),
-      media_channel_(nullptr),  // Will be set in SetMediaChannel().
+      media_channel_(media_channel),
       set_streams_observer_(set_streams_observer),
       worker_safety_(PendingTaskSafetyFlag::CreateAttachedToTaskQueue(
           /*alive=*/media_channel != nullptr,
@@ -261,15 +261,6 @@ RtpSenderBase::RtpSenderBase(
       enable_sframe_at_owner_(std::move(enable_sframe_at_owner)) {
   RTC_DCHECK(worker_thread_);
   init_parameters_.encodings = std::move(init_send_encodings);
-  if (media_channel) {
-    // When initialized with a valid media channel, we need to be running on the
-    // worker thread in order to set things up properly.
-    RTC_DCHECK_RUN_ON(worker_thread_);
-    SetMediaChannel(media_channel);
-  } else {
-    // Otherwise, we're less picky (but probably running on the signaling
-    // thread).
-  }
 }
 
 RtpSenderBase::~RtpSenderBase() {
@@ -340,31 +331,19 @@ void RtpSenderBase::SetMediaChannel(MediaSendChannelInterface* media_channel) {
     return;
   }
 
-  if (media_channel_) {
-    media_channel_->SetParametersChangedCallback(nullptr);
-  }
-
   // Note that setting the media_channel_ to nullptr and clearing the send state
   // via ClearSend_w, are separate operations. Stopping the actual send
   // operation, needs to be done via any of the paths that end up with a call to
   // ClearSend_w(), such as DetachTrackAndGetStopTask().
   media_channel_ = media_channel;
-  if (media_channel_) {
-    media_channel_->SetParametersChangedCallback(
-        [this] { OnParametersChanged(); });
-  }
   media_channel_ ? worker_safety_->SetAlive() : worker_safety_->SetNotAlive();
 }
 
 void RtpSenderBase::OnParametersChanged() {
-  RTC_DCHECK_RUN_ON(worker_thread_);
-  RTC_LOG(LS_INFO) << "RtpSender: OnParametersChanged signaled.";
-  signaling_thread_->PostTask(SafeTask(signaling_safety_.flag(), [this] {
-    RTC_DCHECK_RUN_ON(signaling_thread_);
-    cached_parameters_.reset();
-    last_transaction_id_.reset();
-    RTC_LOG(LS_INFO) << "RtpSender: OnParametersChanged cache cleared.";
-  }));
+  RTC_DCHECK_RUN_ON(signaling_thread_);
+  cached_parameters_.reset();
+  last_transaction_id_.reset();
+  RTC_LOG(LS_INFO) << "RtpSender: OnParametersChanged cache cleared.";
 }
 
 RtpParameters RtpSenderBase::GetParametersInternal(bool may_use_cache,

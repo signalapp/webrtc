@@ -826,7 +826,9 @@ class FakeVoiceEngine : public VoiceEngineInterface {
       Call* call,
       const MediaConfig& config,
       const AudioOptions& options,
-      const CryptoOptions& crypto_options) override;
+      const CryptoOptions& crypto_options,
+      absl::AnyInvocable<void()> parameters_changed_callback =
+          nullptr) override;
   std::unique_ptr<VoiceMediaReceiveChannelInterface> CreateReceiveChannel(
       const Environment& env,
       Call* call,
@@ -953,7 +955,8 @@ class FakeVideoEngine : public VideoEngineInterface {
       const CryptoOptions& crypto_options,
       VideoBitrateAllocatorFactory* video_bitrate_allocator_factory,
       VideoMediaSendChannelInterface::EncoderSwitchRequestCallback
-          video_encoder_switch_request_callback) override;
+          video_encoder_switch_request_callback,
+      absl::AnyInvocable<void()> parameters_changed_callback) override;
   std::unique_ptr<VideoMediaReceiveChannelInterface> CreateReceiveChannel(
       const Environment& env,
       Call* call,

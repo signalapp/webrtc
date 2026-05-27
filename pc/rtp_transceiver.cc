@@ -232,11 +232,13 @@ CreateMediaContentChannels(
     const CryptoOptions& crypto_options,
     VideoBitrateAllocatorFactory* video_bitrate_allocator_factory,
     VideoMediaSendChannelInterface::EncoderSwitchRequestCallback
-        video_encoder_switch_request_callback = nullptr) {
+        video_encoder_switch_request_callback = nullptr,
+    absl::AnyInvocable<void()> parameters_changed_callback = nullptr) {
   if (media_type == MediaType::AUDIO) {
     RTC_DCHECK(voice_factory);
-    return {voice_factory->CreateSendChannel(env, call, media_config,
-                                             audio_options, crypto_options),
+    return {voice_factory->CreateSendChannel(
+                env, call, media_config, audio_options, crypto_options,
+                std::move(parameters_changed_callback)),
             voice_factory->CreateReceiveChannel(env, call, media_config,
                                                 audio_options, crypto_options)};
   }
@@ -244,7 +246,8 @@ CreateMediaContentChannels(
   return {video_factory->CreateSendChannel(
               env, call, media_config, video_options, crypto_options,
               video_bitrate_allocator_factory,
-              std::move(video_encoder_switch_request_callback)),
+              std::move(video_encoder_switch_request_callback),
+              std::move(parameters_changed_callback)),
           video_factory->CreateReceiveChannel(env, call, media_config,
                                               video_options, crypto_options)};
 }
@@ -391,12 +394,14 @@ RtpTransceiver::RtpTransceiver(
   }
 
   auto encoder_switch_callback = GetEncoderSwitchRequestCallback();
+  auto parameters_changed_callback = GetParametersChangedCallback();
   std::vector<Codec> send_codecs = GetSendCodecs();
 
   worker_tasks.AddWithFinalizer(
       [this, call, media_config, audio_options, video_options, crypto_options,
        video_bitrate_allocator_factory,
        encoder_switch_callback = std::move(encoder_switch_callback),
+       parameters_changed_callback = std::move(parameters_changed_callback),
        sender_id = std::string(sender_id), init_send_encodings,
        simulcast_rejected, initial_simulcast_layers, track, stream_ids,
        send_codecs = std::move(send_codecs),
@@ -406,8 +411,8 @@ RtpTransceiver::RtpTransceiver(
         auto channels = CreateMediaContentChannels(
             media_type_, env_, voice_channel_factory(), video_channel_factory(),
             call, media_config, audio_options, video_options, crypto_options,
-            video_bitrate_allocator_factory,
-            std::move(encoder_switch_callback));
+            video_bitrate_allocator_factory, std::move(encoder_switch_callback),
+            std::move(parameters_changed_callback));
         auto sender = CreateSender(
             media_type_, env_, context_, legacy_stats_, set_streams_observer_,
             sender_id,
@@ -496,6 +501,9 @@ void RtpTransceiver::CreateChannel(
         OnPacketReceived(packet.Ssrc(), flag);
       };
 
+  auto encoder_switch_callback = GetEncoderSwitchRequestCallback();
+  auto parameters_changed_callback = GetParametersChangedCallback();
+
   // TODO(bugs.webrtc.org/11992): CreateVideoChannel internally switches to
   // the worker thread. We shouldn't be using the `call_ptr_` hack here but
   // simply be on the worker thread and use `call_` (update upstream code).
@@ -503,6 +511,8 @@ void RtpTransceiver::CreateChannel(
       [this, mid_str = std::string(mid), call_ptr, media_config, srtp_required,
        crypto_options, audio_options, video_options,
        video_bitrate_allocator_factory,
+       encoder_switch_callback = std::move(encoder_switch_callback),
+       parameters_changed_callback = std::move(parameters_changed_callback),
        callbacks = std::move(callbacks)]() mutable
           -> RTCErrorOr<ScopedOperationsBatcher::FinalizerTask> {
         RTC_DCHECK_RUN_ON(context()->worker_thread());
@@ -528,7 +538,8 @@ void RtpTransceiver::CreateChannel(
               media_type(), env_, voice_channel_factory(),
               video_channel_factory(), call_ptr, media_config, audio_options,
               video_options, crypto_options, video_bitrate_allocator_factory,
-              GetEncoderSwitchRequestCallback());
+              std::move(encoder_switch_callback),
+              std::move(parameters_changed_callback));
           media_send_channel = std::move(channels.first);
           media_receive_channel = std::move(channels.second);
           SetMediaChannels(media_send_channel.get(),
@@ -725,6 +736,18 @@ RtpTransceiver::GetEncoderSwitchRequestCallback() {
               });
             }));
       };
+}
+
+absl::AnyInvocable<void()> RtpTransceiver::GetParametersChangedCallback() {
+  RTC_DCHECK(signaling_thread_safety_);
+  return [this, signaling_safety = signaling_thread_safety_]() {
+    thread_->PostTask(SafeTask(signaling_safety, [this]() {
+      RTC_DCHECK_RUN_ON(thread_);
+      for (const auto& sender : senders_) {
+        sender->internal()->OnParametersChanged();
+      }
+    }));
+  };
 }
 
 // RTC_RUN_ON(context()->worker_thread());

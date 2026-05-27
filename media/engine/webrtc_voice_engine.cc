@@ -581,13 +581,16 @@ scoped_refptr<AudioState> WebRtcVoiceEngine::GetAudioState() const {
 }
 
 std::unique_ptr<VoiceMediaSendChannelInterface>
-WebRtcVoiceEngine::CreateSendChannel(const Environment& env,
-                                     Call* call,
-                                     const MediaConfig& config,
-                                     const AudioOptions& options,
-                                     const CryptoOptions& crypto_options) {
-  return std::make_unique<WebRtcVoiceSendChannel>(env, this, config, options,
-                                                  crypto_options, call);
+WebRtcVoiceEngine::CreateSendChannel(
+    const Environment& env,
+    Call* call,
+    const MediaConfig& config,
+    const AudioOptions& options,
+    const CryptoOptions& crypto_options,
+    absl::AnyInvocable<void()> parameters_changed_callback) {
+  return std::make_unique<WebRtcVoiceSendChannel>(
+      env, this, config, options, crypto_options, call,
+      std::move(parameters_changed_callback));
 }
 
 std::unique_ptr<VoiceMediaReceiveChannelInterface>
@@ -1262,7 +1265,8 @@ WebRtcVoiceSendChannel::WebRtcVoiceSendChannel(
     const MediaConfig& config,
     const AudioOptions& options,
     const CryptoOptions& crypto_options,
-    Call* call)
+    Call* call,
+    absl::AnyInvocable<void()> parameters_changed_callback)
     : MediaChannelUtil(call->network_thread(), config.enable_dscp),
       env_(env),
       worker_thread_(call->worker_thread()),
@@ -1270,7 +1274,8 @@ WebRtcVoiceSendChannel::WebRtcVoiceSendChannel(
       options_(options),
       call_(call),
       audio_config_(config.audio),
-      crypto_options_(crypto_options) {
+      crypto_options_(crypto_options),
+      parameters_changed_callback_(std::move(parameters_changed_callback)) {
   RTC_LOG(LS_VERBOSE) << "WebRtcVoiceSendChannel::WebRtcVoiceSendChannel";
   RTC_DCHECK(call);
 }

@@ -260,6 +260,7 @@ rtc_library("media_engine") {
     "../rtc_base:stringutils",
     "../rtc_base/system:file_wrapper",
     "//third_party/abseil-cpp/absl/algorithm:container",
+    "//third_party/abseil-cpp/absl/functional:any_invocable",
   ]
 }
 

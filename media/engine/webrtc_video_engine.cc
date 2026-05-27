@@ -814,11 +814,13 @@ WebRtcVideoEngine::CreateSendChannel(
     const CryptoOptions& crypto_options,
     VideoBitrateAllocatorFactory* video_bitrate_allocator_factory,
     VideoMediaSendChannelInterface::EncoderSwitchRequestCallback
-        video_encoder_switch_request_callback) {
+        video_encoder_switch_request_callback,
+    absl::AnyInvocable<void()> parameters_changed_callback) {
   return std::make_unique<WebRtcVideoSendChannel>(
       env, call, config, options, crypto_options, encoder_factory_.get(),
       video_bitrate_allocator_factory,
-      std::move(video_encoder_switch_request_callback));
+      std::move(video_encoder_switch_request_callback),
+      std::move(parameters_changed_callback));
 }
 std::unique_ptr<VideoMediaReceiveChannelInterface>
 WebRtcVideoEngine::CreateReceiveChannel(const Environment& env,
@@ -924,7 +926,8 @@ WebRtcVideoSendChannel::WebRtcVideoSendChannel(
     VideoEncoderFactory* encoder_factory,
     VideoBitrateAllocatorFactory* bitrate_allocator_factory,
     VideoMediaSendChannelInterface::EncoderSwitchRequestCallback
-        video_encoder_switch_request_callback)
+        video_encoder_switch_request_callback,
+    absl::AnyInvocable<void()> parameters_changed_callback)
     : MediaChannelUtil(call->network_thread(), config.enable_dscp),
       env_(env),
       worker_thread_(call->worker_thread()),
@@ -936,6 +939,7 @@ WebRtcVideoSendChannel::WebRtcVideoSendChannel(
       default_send_options_(options),
       last_send_stats_log_ms_(-1),
       crypto_options_(crypto_options),
+      parameters_changed_callback_(std::move(parameters_changed_callback)),
       encoder_switch_request_callback_(
           std::move(video_encoder_switch_request_callback)) {}
 

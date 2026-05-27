@@ -17,6 +17,7 @@
 #include <span>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "api/audio/audio_device.h"
 #include "api/audio_codecs/audio_decoder_factory.h"
 #include "api/audio_codecs/audio_encoder_factory.h"
@@ -98,7 +99,8 @@ class VoiceChannelFactoryInterface {
       Call* call,
       const MediaConfig& config,
       const AudioOptions& options,
-      const CryptoOptions& crypto_options) = 0;
+      const CryptoOptions& crypto_options,
+      absl::AnyInvocable<void()> parameters_changed_callback = nullptr) = 0;
 
   // Safe to be called from the signaling thread.
   virtual std::unique_ptr<VoiceMediaReceiveChannelInterface>
@@ -127,7 +129,8 @@ class VideoChannelFactoryInterface {
       const CryptoOptions& crypto_options,
       VideoBitrateAllocatorFactory* video_bitrate_allocator_factory,
       VideoMediaSendChannelInterface::EncoderSwitchRequestCallback
-          video_encoder_switch_request_callback) = 0;
+          video_encoder_switch_request_callback,
+      absl::AnyInvocable<void()> parameters_changed_callback) = 0;
 
   // Safe to be called from the signaling thread.
   virtual std::unique_ptr<VideoMediaReceiveChannelInterface>
@@ -162,7 +165,9 @@ class VoiceEngineInterface : public RtpHeaderExtensionQueryInterface,
       Call* call,
       const MediaConfig& config,
       const AudioOptions& options,
-      const CryptoOptions& crypto_options) override = 0;
+      const CryptoOptions& crypto_options,
+      absl::AnyInvocable<void()> parameters_changed_callback =
+          nullptr) override = 0;
 
   std::unique_ptr<VoiceMediaReceiveChannelInterface> CreateReceiveChannel(
       const Environment& env,
@@ -214,7 +219,8 @@ class VideoEngineInterface : public RtpHeaderExtensionQueryInterface,
       const CryptoOptions& crypto_options,
       VideoBitrateAllocatorFactory* video_bitrate_allocator_factory,
       VideoMediaSendChannelInterface::EncoderSwitchRequestCallback
-          video_encoder_switch_request_callback) override = 0;
+          video_encoder_switch_request_callback,
+      absl::AnyInvocable<void()> parameters_changed_callback) override = 0;
 
   std::unique_ptr<VideoMediaReceiveChannelInterface> CreateReceiveChannel(
       const Environment& env,

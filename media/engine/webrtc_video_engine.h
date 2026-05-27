@@ -109,7 +109,8 @@ class WebRtcVideoEngine : public VideoEngineInterface {
       const CryptoOptions& crypto_options,
       VideoBitrateAllocatorFactory* video_bitrate_allocator_factory,
       VideoMediaSendChannelInterface::EncoderSwitchRequestCallback
-          video_encoder_switch_request_callback) override;
+          video_encoder_switch_request_callback,
+      absl::AnyInvocable<void()> parameters_changed_callback) override;
   std::unique_ptr<VideoMediaReceiveChannelInterface> CreateReceiveChannel(
       const Environment& env,
       Call* call,
@@ -181,7 +182,8 @@ class WebRtcVideoSendChannel : public MediaChannelUtil,
       VideoEncoderFactory* encoder_factory,
       VideoBitrateAllocatorFactory* bitrate_allocator_factory,
       VideoMediaSendChannelInterface::EncoderSwitchRequestCallback
-          video_encoder_switch_request_callback);
+          video_encoder_switch_request_callback,
+      absl::AnyInvocable<void()> parameters_changed_callback = nullptr);
   ~WebRtcVideoSendChannel() override;
 
   MediaType media_type() const override { return MediaType::VIDEO; }
@@ -247,12 +249,6 @@ class WebRtcVideoSendChannel : public MediaChannelUtil,
   void SetSsrcListChangedCallback(
       absl::AnyInvocable<void(const std::set<uint32_t>&)> callback) override {
     ssrc_list_changed_callback_ = std::move(callback);
-  }
-
-  void SetParametersChangedCallback(
-      absl::AnyInvocable<void()> callback) override {
-    RTC_DCHECK_RUN_ON(worker_thread_);
-    parameters_changed_callback_ = std::move(callback);
   }
 
   // Implemented for VideoMediaChannelTest.
