@@ -716,4 +716,35 @@ TEST_F(RtpVp9RefFinderTest, GofTooManyReferencesDropsFrame) {
   EXPECT_THAT(frames_, SizeIs(0));
 }
 
+TEST_F(RtpVp9RefFinderTest, GofUpSwitchMultipleRefs) {
+  GofInfoVP9 ss;
+  ss.num_frames_in_gof = 3;
+
+  ss.temporal_idx[0] = 0;
+  ss.num_ref_pics[0] = 1;
+  ss.pid_diff[0][0] = 3;
+
+  ss.temporal_idx[1] = 1;
+  ss.num_ref_pics[1] = 1;
+  ss.pid_diff[1][0] = 1;
+
+  ss.temporal_idx[2] = 2;
+  ss.num_ref_pics[2] = 2;
+  ss.pid_diff[2][0] = 2;
+  ss.pid_diff[2][1] = 1;
+
+  Insert(Frame().Pid(0).SidAndTid(0, 0).Tl0(0).AsKeyFrame().Gof(&ss));
+  EXPECT_THAT(frames_, SizeIs(1));
+  EXPECT_THAT(frames_, HasFrameWithIdAndRefs(0, {}));
+  Insert(Frame().Pid(1).SidAndTid(0, 1).Tl0(0).AsUpswitch());
+  EXPECT_THAT(frames_, SizeIs(2));
+  EXPECT_THAT(frames_, HasFrameWithIdAndRefs(5, {0}));
+
+  // Since PID0 was prior to the upswitch frame (PID1), the reference from PID2
+  // to PID0 should be removed.
+  Insert(Frame().Pid(2).SidAndTid(0, 2).Tl0(0));
+  EXPECT_THAT(frames_, SizeIs(3));
+  EXPECT_THAT(frames_, HasFrameWithIdAndRefs(10, {5}));
+}
+
 }  // namespace webrtc
