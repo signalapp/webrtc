@@ -129,6 +129,21 @@ const int kMaxTelephoneEventCode = 255;
 const int kMinPayloadType = 0;
 const int kMaxPayloadType = 127;
 
+AudioOptions CreateDefaultAudioOptions() {
+  AudioOptions options;
+  options.echo_cancellation = true;
+  options.auto_gain_control = true;
+#if defined(WEBRTC_IOS)
+  // On iOS, VPIO provides built-in NS.
+  options.noise_suppression = false;
+#else
+  options.noise_suppression = true;
+#endif
+  options.highpass_filter = true;
+  options.stereo_swapping = false;
+  return options;
+}
+
 class ProxySink : public AudioSinkInterface {
  public:
   explicit ProxySink(AudioSinkInterface* sink) : sink_(sink) {
@@ -530,23 +545,9 @@ void WebRtcVoiceEngine::Init() {
   adm_helpers::Init(adm());
 
   // Set default engine options.
-  {
-    AudioOptions options;
-    options.echo_cancellation = true;
-    options.auto_gain_control = true;
-#if defined(WEBRTC_IOS)
-    // On iOS, VPIO provides built-in NS.
-    options.noise_suppression = false;
-#else
-    options.noise_suppression = true;
-#endif
-    options.highpass_filter = true;
-    options.stereo_swapping = false;
-    options.audio_jitter_buffer_max_packets = 200;
-    options.audio_jitter_buffer_fast_accelerate = false;
-    options.audio_jitter_buffer_min_delay_ms = 0;
-    ApplyOptions(options);
-  }
+  AudioOptions options = CreateDefaultAudioOptions();
+  options.SetAll(global_options_);
+  ApplyOptions(options);
 
   // Connect the ADM to our audio path. It's important to do this after applying
   // the configuration so that the audio callback receives calls with the
@@ -601,6 +602,12 @@ WebRtcVoiceEngine::CreateReceiveChannel(const Environment& env,
                                         const CryptoOptions& crypto_options) {
   return std::make_unique<WebRtcVoiceReceiveChannel>(env, this, config, options,
                                                      crypto_options, call);
+}
+
+void WebRtcVoiceEngine::ApplyGlobalOptions(const AudioOptions& options) {
+  RTC_DCHECK_RUN_ON(&worker_thread_checker_);
+  global_options_.SetAll(options);
+  ApplyOptions(options);
 }
 
 void WebRtcVoiceEngine::ApplyOptions(const AudioOptions& options_in) {
@@ -1299,7 +1306,6 @@ bool WebRtcVoiceSendChannel::SetOptions(const AudioOptions& options) {
   // on top.  This means there is no way to "clear" options such that
   // they go back to the engine default.
   options_.SetAll(options);
-  engine()->ApplyOptions(options_);
 
   std::optional<std::string> audio_network_adaptor_config =
       GetAudioNetworkAdaptorConfig(options_);
@@ -1563,8 +1569,6 @@ bool WebRtcVoiceSendChannel::SetSend(bool send) {
 
   // Apply channel specific options.
   if (send) {
-    engine()->ApplyOptions(options_);
-
     // Initialize the ADM for recording (this may take time on some platforms,
     // e.g. Android).
     if (options_.init_recording_on_send.value_or(true) &&
@@ -2260,7 +2264,6 @@ bool WebRtcVoiceReceiveChannel::SetOptions(const AudioOptions& options) {
   // on top.  This means there is no way to "clear" options such that
   // they go back to the engine default.
   options_.SetAll(options);
-  engine()->ApplyOptions(options_);
 
   // Check if any options changed that should apply to receive streams.
   if (options.audio_jitter_buffer_max_packets &&

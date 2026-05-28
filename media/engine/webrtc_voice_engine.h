@@ -120,10 +120,14 @@ class WebRtcVoiceEngine final : public VoiceEngineInterface {
     return decoder_factory_;
   }
 
-  // Every option that is "set" will be applied. Every option not "set" will be
-  // ignored. This allows us to selectively turn on and off different options
-  // easily at any time.
+  // Applies channel/stream level options. Every option that is "set" will be
+  // applied, and others will be ignored.
   void ApplyOptions(const AudioOptions& options);
+  // Applies global engine-level processing options (e.g. APM settings like AEC,
+  // AGC, NS). Global options govern all processing; local channel-level
+  // settings for these fields are ignored and do not override the global
+  // configuration.
+  void ApplyGlobalOptions(const AudioOptions& options) override;
 
   AudioDeviceModule* adm();
   AudioProcessing* apm() const;
@@ -167,6 +171,7 @@ class WebRtcVoiceEngine final : public VoiceEngineInterface {
   const std::vector<Codec> legacy_send_codecs_;
   const std::vector<Codec> legacy_recv_codecs_;
   bool initialized_ RTC_GUARDED_BY(worker_thread_checker_) = false;
+  AudioOptions global_options_ RTC_GUARDED_BY(worker_thread_checker_);
 };
 
 class WebRtcVoiceSendChannel final : public MediaChannelUtil,
