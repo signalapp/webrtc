@@ -862,6 +862,60 @@ void CreateScreamSimulationRatiosGraph(const ParsedRtcEventLog& parsed_log,
   plot->SetTitle("Simulated Scream Ratios");
 }
 
+void CreateScreamSimulationFeedbackEventsPerRttGraph(
+    const ParsedRtcEventLog& parsed_log,
+    const AnalyzerConfig& config,
+    Plot* plot) {
+  TimeSeries lost_series("Lost per smoothed RTT", LineStyle::kLine);
+  TimeSeries recovered_series("Recovered per smoothed RTT", LineStyle::kLine);
+  TimeSeries ce_marked_series("CE marked per smoothed RTT", LineStyle::kLine);
+
+  TimeSeries lost_per_feedback_series("Lost per feedback", LineStyle::kNone,
+                                      PointStyle::kHighlight);
+  TimeSeries recovered_per_feedback_series(
+      "Recovered per feedback", LineStyle::kNone, PointStyle::kHighlight);
+  TimeSeries ce_marked_per_feedback_series(
+      "CE marked per feedback", LineStyle::kNone, PointStyle::kHighlight);
+
+  LogScreamSimulation simulation({.rate_window = config.window_duration_},
+                                 config.env_);
+  simulation.ProcessEventsInLog(parsed_log);
+
+  for (const LogScreamSimulation::State& state : simulation.updates()) {
+    lost_series.points.emplace_back(config.GetCallTimeSec(state.time),
+                                    state.packets_lost_per_rtt);
+    recovered_series.points.emplace_back(config.GetCallTimeSec(state.time),
+                                         state.packets_recovered_per_rtt);
+    ce_marked_series.points.emplace_back(config.GetCallTimeSec(state.time),
+                                         state.ce_marked_per_rtt);
+
+    if (state.packets_lost_per_feedback > 0) {
+      lost_per_feedback_series.points.emplace_back(
+          config.GetCallTimeSec(state.time), state.packets_lost_per_feedback);
+    }
+    if (state.packets_recovered_per_feedback > 0) {
+      recovered_per_feedback_series.points.emplace_back(
+          config.GetCallTimeSec(state.time),
+          state.packets_recovered_per_feedback);
+    }
+    if (state.ce_marked_per_feedback > 0) {
+      ce_marked_per_feedback_series.points.emplace_back(
+          config.GetCallTimeSec(state.time), state.ce_marked_per_feedback);
+    }
+  }
+  plot->AppendTimeSeries(std::move(lost_series));
+  plot->AppendTimeSeries(std::move(recovered_series));
+  plot->AppendTimeSeries(std::move(ce_marked_series));
+  plot->AppendTimeSeriesIfNotEmpty(std::move(lost_per_feedback_series));
+  plot->AppendTimeSeriesIfNotEmpty(std::move(recovered_per_feedback_series));
+  plot->AppendTimeSeriesIfNotEmpty(std::move(ce_marked_per_feedback_series));
+
+  plot->SetXAxis(config.CallBeginTimeSec(), config.CallEndTimeSec(), "Time (s)",
+                 kLeftMargin, kRightMargin);
+  plot->SetSuggestedYAxis(0, 10, "Packets", kBottomMargin, kTopMargin);
+  plot->SetTitle("Simulated Scream feedback events per smoothed RTT");
+}
+
 void CreateScreamRefWindowGraph(const ParsedRtcEventLog& parsed_log,
                                 const AnalyzerConfig& config,
                                 Plot* plot) {
