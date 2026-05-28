@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "api/frame_transformer_interface.h"
 #include "api/rtp_header_extension_id.h"
@@ -217,6 +218,7 @@ class RtpRtcpInterface : public RtcpFeedbackSenderInterface {
                                           RtpHeaderExtensionId id) = 0;
   // Backwards compatibility overload.
   // TODO: bugs.webrtc.org/514817938 - Remove when downstream is updated.
+  ABSL_DEPRECATE_AND_INLINE()
   void RegisterRtpHeaderExtension(absl::string_view uri, int id) {
     RegisterRtpHeaderExtension(uri, RtpHeaderExtensionId(id));
   }

@@ -315,14 +315,25 @@ struct RTC_EXPORT RtpHeaderExtensionCapability {
                                RtpTransceiverDirection direction);
   // Backwards compatibility overloads.
   // TODO: bugs.webrtc.org/514817938 - Remove when downstream is updated.
-  RtpHeaderExtensionCapability(absl::string_view uri, int preferred_id);
+  ABSL_DEPRECATE_AND_INLINE()
+  RtpHeaderExtensionCapability(absl::string_view uri, int preferred_id)
+      : RtpHeaderExtensionCapability(uri, RtpHeaderExtensionId(preferred_id)) {}
+  ABSL_DEPRECATE_AND_INLINE()
   RtpHeaderExtensionCapability(absl::string_view uri,
                                int preferred_id,
-                               RtpTransceiverDirection direction);
+                               RtpTransceiverDirection direction)
+      : RtpHeaderExtensionCapability(uri,
+                                     RtpHeaderExtensionId(preferred_id),
+                                     direction) {}
+  ABSL_DEPRECATE_AND_INLINE()
   RtpHeaderExtensionCapability(absl::string_view uri,
                                int preferred_id,
                                bool preferred_encrypt,
-                               RtpTransceiverDirection direction);
+                               RtpTransceiverDirection direction)
+      : RtpHeaderExtensionCapability(uri,
+                                     RtpHeaderExtensionId(preferred_id),
+                                     preferred_encrypt,
+                                     direction) {}
   ~RtpHeaderExtensionCapability();
 
   bool operator==(const RtpHeaderExtensionCapability& o) const {
@@ -364,8 +375,12 @@ struct RTC_EXPORT RtpExtension {
   RtpExtension(absl::string_view uri, RtpHeaderExtensionId id, bool encrypt);
   // Backwards compatibility overloads.
   // TODO: bugs.webrtc.org/514817938 - Remove when downstream is updated.
-  RtpExtension(absl::string_view uri, int id);
-  RtpExtension(absl::string_view uri, int id, bool encrypt);
+  ABSL_DEPRECATE_AND_INLINE()
+  RtpExtension(absl::string_view uri, int id)
+      : RtpExtension(uri, RtpHeaderExtensionId(id)) {}
+  ABSL_DEPRECATE_AND_INLINE()
+  RtpExtension(absl::string_view uri, int id, bool encrypt)
+      : RtpExtension(uri, RtpHeaderExtensionId(id), encrypt) {}
   ~RtpExtension();
 
   std::string ToString() const;

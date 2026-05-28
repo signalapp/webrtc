@@ -164,26 +164,7 @@ RtpHeaderExtensionCapability::RtpHeaderExtensionCapability(
       preferred_id(preferred_id),
       preferred_encrypt(preferred_encrypt),
       direction(direction) {}
-RtpHeaderExtensionCapability::RtpHeaderExtensionCapability(
-    absl::string_view uri,
-    int preferred_id)
-    : uri(uri), preferred_id(RtpHeaderExtensionId(preferred_id)) {}
-RtpHeaderExtensionCapability::RtpHeaderExtensionCapability(
-    absl::string_view uri,
-    int preferred_id,
-    RtpTransceiverDirection direction)
-    : uri(uri),
-      preferred_id(RtpHeaderExtensionId(preferred_id)),
-      direction(direction) {}
-RtpHeaderExtensionCapability::RtpHeaderExtensionCapability(
-    absl::string_view uri,
-    int preferred_id,
-    bool preferred_encrypt,
-    RtpTransceiverDirection direction)
-    : uri(uri),
-      preferred_id(RtpHeaderExtensionId(preferred_id)),
-      preferred_encrypt(preferred_encrypt),
-      direction(direction) {}
+
 RtpHeaderExtensionCapability::~RtpHeaderExtensionCapability() = default;
 
 RtpExtension::RtpExtension() = default;
@@ -197,10 +178,7 @@ RtpExtension::RtpExtension(absl::string_view uri,
     : uri(uri), id(id), encrypt(encrypt) {
   RTC_DCHECK(id.Valid()) << "Extension ID " << id << " is not in valid range";
 }
-RtpExtension::RtpExtension(absl::string_view uri, int id)
-    : RtpExtension(uri, RtpHeaderExtensionId(id)) {}
-RtpExtension::RtpExtension(absl::string_view uri, int id, bool encrypt)
-    : RtpExtension(uri, RtpHeaderExtensionId(id), encrypt) {}
+
 RtpExtension::~RtpExtension() = default;
 
 RtpFecParameters::RtpFecParameters() = default;
