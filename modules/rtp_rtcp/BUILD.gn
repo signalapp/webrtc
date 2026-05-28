@@ -491,6 +491,18 @@ rtc_library("rtp_packetizer_av1_test_helper") {
   ]
 }
 
+rtc_source_set("sframe_descriptor") {
+  sources = [ "source/sframe_descriptor.h" ]
+}
+
+rtc_source_set("sframe_rtp_packet_received") {
+  sources = [ "source/sframe_rtp_packet_received.h" ]
+  deps = [
+    ":rtp_rtcp_format",
+    ":sframe_descriptor",
+  ]
+}
+
 if (rtc_include_tests) {
   if (!build_with_chromium) {
     rtc_test("test_packet_masks_metrics") {
