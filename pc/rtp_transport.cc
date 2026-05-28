@@ -423,6 +423,12 @@ void RtpTransport::OnReadPacket(PacketTransportInternal* transport,
                                 const ReceivedIpPacket& received_packet) {
   TRACE_EVENT0("webrtc", "RtpTransport::OnReadPacket");
 
+  // DTLS-decrypted application data is not RTP/RTCP.
+  // TODO: bugs.webrtc.org/517079993 - follow RFC 7983 design.
+  if (received_packet.decryption_info() == ReceivedIpPacket::kDtlsDecrypted) {
+    return;
+  }
+
   // When using RTCP multiplexing we might get RTCP packets on the RTP
   // transport. We check the RTP payload type to determine if it is RTCP.
   RtpPacketType packet_type = InferRtpPacketType(received_packet.payload());
