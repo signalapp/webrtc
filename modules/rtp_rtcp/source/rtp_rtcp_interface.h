@@ -21,6 +21,7 @@
 
 #include "absl/strings/string_view.h"
 #include "api/frame_transformer_interface.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_packet_sender.h"
 #include "api/scoped_refptr.h"
@@ -212,7 +213,13 @@ class RtpRtcpInterface : public RtcpFeedbackSenderInterface {
   virtual void SetExtmapAllowMixed(bool extmap_allow_mixed) = 0;
 
   // Register extension by uri, triggers CHECK on falure.
-  virtual void RegisterRtpHeaderExtension(absl::string_view uri, int id) = 0;
+  virtual void RegisterRtpHeaderExtension(absl::string_view uri,
+                                          RtpHeaderExtensionId id) = 0;
+  // Backwards compatibility overload.
+  // TODO: bugs.webrtc.org/514817938 - Remove when downstream is updated.
+  void RegisterRtpHeaderExtension(absl::string_view uri, int id) {
+    RegisterRtpHeaderExtension(uri, RtpHeaderExtensionId(id));
+  }
 
   virtual void DeregisterSendRtpHeaderExtension(absl::string_view uri) = 0;
 

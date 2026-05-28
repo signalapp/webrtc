@@ -31,6 +31,7 @@
 #include "api/make_ref_counted.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_parameters.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
@@ -701,7 +702,7 @@ RTCError JsepTransportController::ApplyDescription_n(
     return error;
   }
 
-  std::map<const ContentGroup*, std::vector<int>>
+  std::map<const ContentGroup*, std::vector<RtpHeaderExtensionId>>
       merged_encrypted_extension_ids_by_bundle;
   if (!bundles_.bundle_groups().empty()) {
     merged_encrypted_extension_ids_by_bundle =
@@ -765,7 +766,7 @@ RTCError JsepTransportController::ApplyDescription_n(
       return error;
     }
 
-    std::vector<int> extension_ids;
+    std::vector<RtpHeaderExtensionId> extension_ids;
     if (established_bundle_group) {
       // If bundled: Check that this is BUNDLE-tagged (first in the group).
       RTC_DCHECK(content_info.mid() ==
@@ -1085,7 +1086,7 @@ JsepTransportDescription
 JsepTransportController::CreateJsepTransportDescription(
     const ContentInfo& content_info,
     const TransportInfo& transport_info,
-    const std::vector<int>& encrypted_extension_ids) {
+    const std::vector<RtpHeaderExtensionId>& encrypted_extension_ids) {
   TRACE_EVENT0("webrtc",
                "JsepTransportController::CreateJsepTransportDescription");
   const MediaContentDescription* content_desc =
@@ -1099,16 +1100,17 @@ JsepTransportController::CreateJsepTransportDescription(
                                   transport_info.description);
 }
 
-std::vector<int> JsepTransportController::GetEncryptedHeaderExtensionIds(
+std::vector<RtpHeaderExtensionId>
+JsepTransportController::GetEncryptedHeaderExtensionIds(
     const ContentInfo& content_info) {
   const MediaContentDescription* content_desc =
       content_info.media_description();
 
   if (!config_.crypto_options.srtp.enable_encrypted_rtp_header_extensions) {
-    return std::vector<int>();
+    return std::vector<RtpHeaderExtensionId>();
   }
 
-  std::vector<int> encrypted_header_extension_ids;
+  std::vector<RtpHeaderExtensionId> encrypted_header_extension_ids;
   for (const auto& extension : content_desc->rtp_header_extensions()) {
     if (!extension.encrypt) {
       continue;
@@ -1120,12 +1122,12 @@ std::vector<int> JsepTransportController::GetEncryptedHeaderExtensionIds(
   return encrypted_header_extension_ids;
 }
 
-std::map<const ContentGroup*, std::vector<int>>
+std::map<const ContentGroup*, std::vector<RtpHeaderExtensionId>>
 JsepTransportController::MergeEncryptedHeaderExtensionIdsForBundles(
     const SessionDescription* description) {
   RTC_DCHECK(description);
   RTC_DCHECK(!bundles_.bundle_groups().empty());
-  std::map<const ContentGroup*, std::vector<int>>
+  std::map<const ContentGroup*, std::vector<RtpHeaderExtensionId>>
       merged_encrypted_extension_ids_by_bundle;
   // Union the encrypted header IDs in the group when bundle is enabled.
   for (const ContentInfo& content_info : description->contents()) {
@@ -1133,12 +1135,12 @@ JsepTransportController::MergeEncryptedHeaderExtensionIdsForBundles(
     if (!group)
       continue;
     // Get or create list of IDs for the BUNDLE group.
-    std::vector<int>& merged_ids =
+    std::vector<RtpHeaderExtensionId>& merged_ids =
         merged_encrypted_extension_ids_by_bundle[group];
     // Add IDs not already in the list.
-    std::vector<int> extension_ids =
+    std::vector<RtpHeaderExtensionId> extension_ids =
         GetEncryptedHeaderExtensionIds(content_info);
-    for (int id : extension_ids) {
+    for (RtpHeaderExtensionId id : extension_ids) {
       if (!absl::c_linear_search(merged_ids, id)) {
         merged_ids.push_back(id);
       }

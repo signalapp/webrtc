@@ -42,6 +42,7 @@
 #include "api/payload_type.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_parameters.h"
 #include "api/rtp_receiver_interface.h"
 #include "api/rtp_sender_interface.h"
@@ -617,7 +618,7 @@ RTCError ValidateBundledPayloadTypes(const SessionDescription& description) {
 
 RTCError FindDuplicateHeaderExtensionIds(
     const RtpExtension extension,
-    std::map<int, RtpExtension>& id_to_extension) {
+    std::map<RtpHeaderExtensionId, RtpExtension>& id_to_extension) {
   auto existing_extension = id_to_extension.find(extension.id);
   if (existing_extension != id_to_extension.end() &&
       !(extension.uri == existing_extension->second.uri &&
@@ -641,7 +642,7 @@ RTCError ValidateBundledRtpHeaderExtensions(
   std::vector<const ContentGroup*> bundle_groups =
       description.GetGroupsByName(GROUP_TYPE_BUNDLE);
   for (const ContentGroup* bundle_group : bundle_groups) {
-    std::map<int, RtpExtension> id_to_extension;
+    std::map<RtpHeaderExtensionId, RtpExtension> id_to_extension;
     for (const std::string& content_name : bundle_group->content_names()) {
       const ContentInfo* content_description =
           description.GetContentByName(content_name);

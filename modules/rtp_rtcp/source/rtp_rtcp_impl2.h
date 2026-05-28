@@ -24,6 +24,7 @@
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "api/environment/environment.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_headers.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
@@ -110,7 +111,8 @@ class ModuleRtpRtcpImpl2 final : public RtpRtcpInterface,
 
   void SetExtmapAllowMixed(bool extmap_allow_mixed) override;
 
-  void RegisterRtpHeaderExtension(absl::string_view uri, int id) override;
+  void RegisterRtpHeaderExtension(absl::string_view uri,
+                                  RtpHeaderExtensionId id) override;
   void DeregisterSendRtpHeaderExtension(absl::string_view uri) override;
 
   bool SupportsPadding() const override;

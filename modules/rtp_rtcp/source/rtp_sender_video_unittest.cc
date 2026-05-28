@@ -27,6 +27,7 @@
 #include "api/frame_transformer_factory.h"
 #include "api/frame_transformer_interface.h"
 #include "api/make_ref_counted.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_headers.h"
 #include "api/scoped_refptr.h"
 #include "api/task_queue/task_queue_base.h"
@@ -92,19 +93,17 @@ using ::testing::SaveArg;
 using ::testing::SizeIs;
 using ::testing::WithArgs;
 
-enum : int {  // The first valid value is 1.
-  kAbsoluteSendTimeExtensionId = 1,
-  kGenericDescriptorId,
-  kDependencyDescriptorId,
-  kTransmissionTimeOffsetExtensionId,
-  kTransportSequenceNumberExtensionId,
-  kVideoRotationExtensionId,
-  kVideoTimingExtensionId,
-  kAbsoluteCaptureTimeExtensionId,
-  kPlayoutDelayExtensionId,
-  kVideoLayersAllocationExtensionId,
-  kCorruptionDetectionExtensionId,
-};
+constexpr RtpHeaderExtensionId kAbsoluteSendTimeExtensionId(1);
+constexpr RtpHeaderExtensionId kGenericDescriptorId(2);
+constexpr RtpHeaderExtensionId kDependencyDescriptorId(3);
+constexpr RtpHeaderExtensionId kTransmissionTimeOffsetExtensionId(4);
+constexpr RtpHeaderExtensionId kTransportSequenceNumberExtensionId(5);
+constexpr RtpHeaderExtensionId kVideoRotationExtensionId(6);
+constexpr RtpHeaderExtensionId kVideoTimingExtensionId(7);
+constexpr RtpHeaderExtensionId kAbsoluteCaptureTimeExtensionId(8);
+constexpr RtpHeaderExtensionId kPlayoutDelayExtensionId(9);
+constexpr RtpHeaderExtensionId kVideoLayersAllocationExtensionId(10);
+constexpr RtpHeaderExtensionId kCorruptionDetectionExtensionId(11);
 
 constexpr int kPayloadType = 100;
 constexpr VideoCodecType kType = VideoCodecType::kVideoCodecGeneric;
@@ -592,10 +591,14 @@ TEST_F(RtpSenderVideoTest,
   constexpr size_t kMaxPacketSize = 1'000;
 
   rtp_module_->SetMaxRtpPacketSize(kMaxPacketSize);
-  rtp_module_->RegisterRtpHeaderExtension(RtpMid::Uri(), 1);
-  rtp_module_->RegisterRtpHeaderExtension(RtpStreamId::Uri(), 2);
-  rtp_module_->RegisterRtpHeaderExtension(RepairedRtpStreamId::Uri(), 3);
-  rtp_module_->RegisterRtpHeaderExtension(AbsoluteSendTime::Uri(), 4);
+  rtp_module_->RegisterRtpHeaderExtension(RtpMid::Uri(),
+                                          RtpHeaderExtensionId(1));
+  rtp_module_->RegisterRtpHeaderExtension(RtpStreamId::Uri(),
+                                          RtpHeaderExtensionId(2));
+  rtp_module_->RegisterRtpHeaderExtension(RepairedRtpStreamId::Uri(),
+                                          RtpHeaderExtensionId(3));
+  rtp_module_->RegisterRtpHeaderExtension(AbsoluteSendTime::Uri(),
+                                          RtpHeaderExtensionId(4));
   rtp_module_->SetMid("long_mid");
   rtp_module_->SetRtxSendPayloadType(kRtxPayloadId, kMediaPayloadId);
   rtp_module_->SetStorePacketsStatus(/*enable=*/true, 10);

@@ -23,6 +23,7 @@
 #include "absl/algorithm/container.h"
 #include "absl/strings/string_view.h"
 #include "api/rtc_error.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_parameters.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
@@ -61,15 +62,14 @@ void RemoveExtensionMapForMid(
 }
 
 RTCError VerifyExtensionIds(const RtpHeaderExtensions& extensions) {
-  using ExtensionsUsed = std::bitset<1 + RtpExtension::kMaxId>;
+  using ExtensionsUsed = std::bitset<1 + RtpHeaderExtensionId::kMaxId.value()>;
   ExtensionsUsed id_used;
   for (const auto& extension : extensions) {
-    if (extension.id < RtpExtension::kMinId ||
-        extension.id > RtpExtension::kMaxId) {
+    if (!extension.id.Valid()) {
       return RTCError::InvalidParameter()
              << "Bad extension ID: " << extension.ToString();
     }
-    ExtensionsUsed::reference entry = id_used[extension.id];
+    ExtensionsUsed::reference entry = id_used[extension.id.value()];
     if (entry) {
       return RTCError::InvalidParameter()
              << "Duplicate extension ID: " << extension.ToString();

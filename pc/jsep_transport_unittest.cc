@@ -27,6 +27,7 @@
 #include "api/ice_transport_interface.h"
 #include "api/jsep.h"
 #include "api/make_ref_counted.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/scoped_refptr.h"
 #include "media/base/fake_rtp.h"
 #include "p2p/base/ice_transport_internal.h"
@@ -1262,8 +1263,8 @@ class JsepTransport2HeaderExtensionTest
   int received_packet_count_ = 0;
   std::unique_ptr<JsepTransport> jsep_transport1_;
   std::unique_ptr<JsepTransport> jsep_transport2_;
-  std::vector<int> recv_encrypted_headers1_;
-  std::vector<int> recv_encrypted_headers2_;
+  std::vector<RtpHeaderExtensionId> recv_encrypted_headers1_;
+  std::vector<RtpHeaderExtensionId> recv_encrypted_headers2_;
 };
 
 // Test that the encrypted header extension works and can be changed in

@@ -32,6 +32,7 @@
 #include "api/media_types.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_parameters.h"
 #include "api/rtp_transceiver_direction.h"
 #include "api/scoped_refptr.h"
@@ -1221,7 +1222,7 @@ TEST_F(SdpMungingTest, HeaderExtensionModified) {
   ASSERT_THAT(media_description, Not(IsNull()));
   auto extensions = media_description->rtp_header_extensions();
   ASSERT_GT(extensions.size(), 0u);
-  extensions[0].id = 42;  // id=42 should be unused.
+  extensions[0].id = RtpHeaderExtensionId(42);  // id=42 should be unused.
   media_description->set_rtp_header_extensions(extensions);
 
   RTCError error;

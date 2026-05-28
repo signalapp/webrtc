@@ -26,6 +26,7 @@
 #include "api/field_trials_view.h"
 #include "api/media_types.h"
 #include "api/rtc_error.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_parameters.h"
 #include "api/rtp_transceiver_direction.h"
 #include "api/sctp_transport_interface.h"
@@ -59,7 +60,8 @@ namespace {
 
 RtpExtension RtpExtensionFromCapability(
     const RtpHeaderExtensionCapability& capability) {
-  return RtpExtension(capability.uri, capability.preferred_id.value_or(1),
+  return RtpExtension(capability.uri,
+                      capability.preferred_id.value_or(RtpHeaderExtensionId(1)),
                       capability.preferred_encrypt);
 }
 

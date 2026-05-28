@@ -42,6 +42,7 @@
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
 #include "api/rtc_event_log/rtc_event_log_factory.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_parameters.h"
 #include "api/rtp_receiver_interface.h"
 #include "api/rtp_sender_interface.h"
@@ -1139,7 +1140,7 @@ void PeerConnectionIntegrationWrapper::OnDataChannel(
 
 bool PeerConnectionIntegrationWrapper::IdExists(
     const RtpHeaderExtensions& extensions,
-    int id) {
+    RtpHeaderExtensionId id) {
   for (const auto& extension : extensions) {
     if (extension.id == id) {
       return true;

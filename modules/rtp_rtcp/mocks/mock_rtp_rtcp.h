@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_headers.h"
 #include "api/transport/network_types.h"
 #include "api/units/time_delta.h"
@@ -54,7 +55,7 @@ class MockRtpRtcpInterface : public RtpRtcpInterface {
   MOCK_METHOD(void, SetExtmapAllowMixed, (bool extmap_allow_mixed), (override));
   MOCK_METHOD(void,
               RegisterRtpHeaderExtension,
-              (absl::string_view uri, int id),
+              (absl::string_view uri, RtpHeaderExtensionId id),
               (override));
   MOCK_METHOD(void,
               DeregisterSendRtpHeaderExtension,

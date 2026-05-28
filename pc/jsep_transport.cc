@@ -27,6 +27,8 @@
 #include "api/jsep.h"
 #include "api/make_ref_counted.h"
 #include "api/rtc_error.h"
+#include "api/rtp_header_extension_id.h"
+#include "api/rtp_parameters.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
 #include "media/sctp/sctp_transport_internal.h"
@@ -57,7 +59,7 @@ JsepTransportDescription::JsepTransportDescription() {}
 
 JsepTransportDescription::JsepTransportDescription(
     bool rtcp_mux_enabled,
-    const std::vector<int>& encrypted_header_extension_ids,
+    const std::vector<RtpHeaderExtensionId>& encrypted_header_extension_ids,
     const TransportDescription& transport_desc)
     : rtcp_mux_enabled(rtcp_mux_enabled),
       encrypted_header_extension_ids(encrypted_header_extension_ids),
