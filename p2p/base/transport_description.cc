@@ -25,10 +25,6 @@
 #include "rtc_base/ssl_fingerprint.h"
 #include "rtc_base/strings/string_builder.h"
 
-using webrtc::RTCError;
-using webrtc::RTCErrorOr;
-using webrtc::RTCErrorType;
-
 namespace webrtc {
 namespace {
 

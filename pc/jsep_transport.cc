@@ -51,8 +51,6 @@
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/trace_event.h"
 
-using webrtc::SdpType;
-
 namespace webrtc {
 
 JsepTransportDescription::JsepTransportDescription() {}

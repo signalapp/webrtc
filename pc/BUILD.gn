@@ -3598,7 +3598,7 @@ if (rtc_include_tests && !build_with_chromium) {
     deps = [
       ":sctp_utils",
       "../api:priority",
-      "../media:rtc_data_sctp_transport_internal",
+      "../api:sctp_transport_interface",
       "../rtc_base:byte_buffer",
       "../rtc_base:copy_on_write_buffer",
       "../test:test_support",
