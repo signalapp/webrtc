@@ -68,7 +68,7 @@ class LogScreamSimulation {
     double ref_window_combined_increase_scale_factor = 0.0;
     double l4s_alpha = 0.0;
     double l4s_alpha_v = 0.0;
-    double loss_event_rate = 0.0;
+    double loss_congestion_level = 0.0;
     int packets_lost_per_rtt = 0;
     int packets_recovered_per_rtt = 0;
     int ce_marked_per_rtt = 0;

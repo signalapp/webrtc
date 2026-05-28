@@ -7,7 +7,7 @@
  *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
-#include "modules/congestion_controller/scream/loss_rate_estimator.h"
+#include "modules/congestion_controller/scream/loss_estimator.h"
 
 #include <algorithm>
 
@@ -18,14 +18,13 @@
 
 namespace webrtc {
 
-LossRateEstimator::LossRateEstimator(const ScreamV2Parameters& params)
+LossEstimator::LossEstimator(const ScreamV2Parameters& params)
     : virtual_rtt_(params.virtual_rtt.Get()),
-      loss_event_rate_avg_g_loss_(params.loss_event_rate_avg_g_loss.Get()),
-      loss_event_rate_avg_g_no_loss_(
-          params.loss_event_rate_avg_g_no_loss.Get()) {}
+      rtts_with_loss_before_backoff_(
+          params.rtts_with_loss_before_backoff.Get()),
+      lossless_rtts_before_clear_(params.lossless_rtts_before_clear.Get()) {}
 
-bool LossRateEstimator::Update(const TransportPacketsFeedback& msg,
-                               TimeDelta rtt) {
+bool LossEstimator::Update(const TransportPacketsFeedback& msg, TimeDelta rtt) {
   if (msg.PacketsWithFeedback().empty()) {
     return false;
   }
@@ -54,7 +53,7 @@ bool LossRateEstimator::Update(const TransportPacketsFeedback& msg,
       unrecovered_lost_packets_--;
       unrecovered_lost_packets_ = std::max(0, unrecovered_lost_packets_);
       if (unrecovered_lost_packets_ == 0) {
-        loss_event_rate_ = 0.0;
+        congestion_level_ = 0.0;
         loss_event_this_rtt_ = false;
       }
     } else {
@@ -66,11 +65,27 @@ bool LossRateEstimator::Update(const TransportPacketsFeedback& msg,
 
   if (msg.feedback_time - last_rtt_update_time_ >= max_rtt) {
     last_rtt_update_time_ = msg.feedback_time;
-
-    double g = loss_event_this_rtt_ ? loss_event_rate_avg_g_loss_
-                                    : loss_event_rate_avg_g_no_loss_;
-    loss_event_rate_ =
-        g * (loss_event_this_rtt_ ? 1.0 : 0.0) + (1.0 - g) * loss_event_rate_;
+    if (loss_event_this_rtt_) {
+      // Asymmetric step filter: increment by 1.0 /
+      // rtts_with_loss_before_backoff_ on a [0.0, 1.0] normalized scale. This
+      // takes exactly rtts_with_loss_before_backoff_ consecutive RTTs with loss
+      // to trigger backoff (reaching the 1.0 threshold).
+      congestion_level_ = std::min(
+          1.0, congestion_level_ + 1.0 / rtts_with_loss_before_backoff_);
+    } else {
+      // Asymmetric step filter: decrement by 1.0 / lossless_rtts_before_clear_
+      // on a [0.0, 1.0] normalized scale.
+      // Assuming ~50 packets are transmitted per RTT, a 1% uniform random
+      // packet loss rate results in a ~40% probability of at least one loss
+      // event per RTT. Under this noise profile (40% loss RTTs, 60% lossless
+      // RTTs), the expected drift per RTT is strongly negative:
+      // 0.4 * (+1.0/3) + 0.6 * (-1.0/2) = -0.167 (or -0.5 on a [0, 3] scale).
+      // This completely filters out spurious uniform random losses, while
+      // preserving memory of recent congestion after one lossless RTT (drops
+      // to 0.5, allowing fast 2-RTT back-to-back reaction).
+      congestion_level_ =
+          std::max(0.0, congestion_level_ - 1.0 / lossless_rtts_before_clear_);
+    }
     loss_event_this_rtt_ = false;
   }
   return has_lost_packets;

@@ -20,7 +20,7 @@
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "modules/congestion_controller/scream/delay_based_congestion_control.h"
-#include "modules/congestion_controller/scream/loss_rate_estimator.h"
+#include "modules/congestion_controller/scream/loss_estimator.h"
 #include "modules/congestion_controller/scream/scream_v2_parameters.h"
 
 namespace webrtc {
@@ -69,10 +69,8 @@ class ScreamV2 {
   // Returns the average fraction of ECN-CE marked data units per RTT.
   double l4s_alpha() const { return l4s_alpha_; }
 
-  // Returns the exponentially weighted moving average (EWMA) loss event rate
-  // per RTT.
-  double loss_event_rate() const {
-    return loss_rate_estimator_.loss_event_rate();
+  double loss_congestion_level() const {
+    return loss_estimator_.congestion_level();
   }
 
   Timestamp last_reference_window_decrease_time() const {
@@ -153,7 +151,7 @@ class ScreamV2 {
   double l4s_alpha_ = 0.0;
   Timestamp last_ce_mark_detected_time_ = Timestamp::MinusInfinity();
 
-  LossRateEstimator loss_rate_estimator_;
+  LossEstimator loss_estimator_;
 
   TimeDelta feedback_hold_time_ = TimeDelta::Zero();
 

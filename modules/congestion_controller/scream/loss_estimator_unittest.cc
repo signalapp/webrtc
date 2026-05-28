@@ -7,7 +7,7 @@
  *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
-#include "modules/congestion_controller/scream/loss_rate_estimator.h"
+#include "modules/congestion_controller/scream/loss_estimator.h"
 
 #include <vector>
 
@@ -44,47 +44,68 @@ TransportPacketsFeedback CreateFeedbackWithLoss(Timestamp feedback_time,
   return feedback;
 }
 
-TEST(LossRateEstimatorTest, EstimatesEwmaLossRate) {
+TEST(LossEstimatorTest, EstimatesCongestionLevel) {
   SimulatedClock clock(Timestamp::Seconds(1000));
   Environment env = CreateTestEnvironment({.time = &clock});
   ScreamV2Parameters params(env.field_trials());
-  LossRateEstimator estimator(params);
+  LossEstimator estimator(params);
 
-  EXPECT_EQ(estimator.loss_event_rate(), 0.0);
+  EXPECT_EQ(estimator.congestion_level(), 0.0);
+  EXPECT_FALSE(estimator.congested());
 
   // RTT 1: Loss occurs. Since last_rtt_update_time_ starts at MinusInfinity,
   // this report executes the RTT boundary update immediately.
   TransportPacketsFeedback feedback1 =
       CreateFeedbackWithLoss(clock.CurrentTime(), /*with_loss=*/true);
   EXPECT_TRUE(estimator.Update(feedback1, TimeDelta::Millis(25)));
-  EXPECT_NEAR(estimator.loss_event_rate(), 0.1, 0.001);
+  EXPECT_NEAR(estimator.congestion_level(), 1.0 / 3.0, 0.001);
+  EXPECT_FALSE(estimator.congested());
 
+  // RTT 2: Loss occurs.
   clock.AdvanceTime(TimeDelta::Millis(25));
-  // Trigger next RTT boundary update without loss.
   TransportPacketsFeedback feedback2 =
+      CreateFeedbackWithLoss(clock.CurrentTime(), /*with_loss=*/true);
+  EXPECT_TRUE(estimator.Update(feedback2, TimeDelta::Millis(25)));
+  EXPECT_NEAR(estimator.congestion_level(), 2.0 / 3.0, 0.001);
+  EXPECT_FALSE(estimator.congested());
+
+  // RTT 3: Loss occurs.
+  clock.AdvanceTime(TimeDelta::Millis(25));
+  TransportPacketsFeedback feedback3 =
+      CreateFeedbackWithLoss(clock.CurrentTime(), /*with_loss=*/true);
+  EXPECT_TRUE(estimator.Update(feedback3, TimeDelta::Millis(25)));
+  EXPECT_NEAR(estimator.congestion_level(), 1.0, 0.001);
+  EXPECT_TRUE(estimator.congested());
+
+  // RTT 4: No Loss (Step Down of 0.5).
+  clock.AdvanceTime(TimeDelta::Millis(25));
+  TransportPacketsFeedback feedback4 =
       CreateFeedbackWithLoss(clock.CurrentTime(), /*with_loss=*/false);
-  EXPECT_FALSE(estimator.Update(feedback2, TimeDelta::Millis(25)));
-  EXPECT_NEAR(estimator.loss_event_rate(), 0.08, 0.001);
+  EXPECT_FALSE(estimator.Update(feedback4, TimeDelta::Millis(25)));
+  EXPECT_NEAR(estimator.congestion_level(), 0.5, 0.001);
+  EXPECT_FALSE(estimator.congested());
+
+  // RTT 5: Loss occurs.
+  clock.AdvanceTime(TimeDelta::Millis(25));
+  TransportPacketsFeedback feedback5 =
+      CreateFeedbackWithLoss(clock.CurrentTime(), /*with_loss=*/true);
+  EXPECT_TRUE(estimator.Update(feedback5, TimeDelta::Millis(25)));
+  EXPECT_NEAR(estimator.congestion_level(), 0.5 + 1.0 / 3.0, 0.001);
+  EXPECT_FALSE(estimator.congested());
 }
 
-TEST(LossRateEstimatorTest, ClearsLossRateUponFullRecovery) {
+TEST(LossEstimatorTest, ClearsCongestionLevelUponFullRecovery) {
   SimulatedClock clock(Timestamp::Seconds(1000));
   Environment env = CreateTestEnvironment({.time = &clock});
   ScreamV2Parameters params(env.field_trials());
-  LossRateEstimator estimator(params);
+  LossEstimator estimator(params);
 
   // Report loss.
   TransportPacketsFeedback feedback1 =
       CreateFeedbackWithLoss(clock.CurrentTime(), /*with_loss=*/true);
   EXPECT_TRUE(estimator.Update(feedback1, TimeDelta::Millis(25)));
 
-  // Trigger RTT boundary update.
-  clock.AdvanceTime(TimeDelta::Millis(25));
-  TransportPacketsFeedback feedback2 =
-      CreateFeedbackWithLoss(clock.CurrentTime(), /*with_loss=*/false);
-  EXPECT_FALSE(estimator.Update(feedback2, TimeDelta::Millis(25)));
-
-  EXPECT_GT(estimator.loss_event_rate(), 0.0);
+  EXPECT_GT(estimator.congestion_level(), 0.0);
 
   // Report recovery.
   TransportPacketsFeedback recovery_feedback;
@@ -97,7 +118,7 @@ TEST(LossRateEstimatorTest, ClearsLossRateUponFullRecovery) {
 
   EXPECT_FALSE(estimator.Update(recovery_feedback, TimeDelta::Millis(25)));
 
-  EXPECT_EQ(estimator.loss_event_rate(), 0.0);
+  EXPECT_EQ(estimator.congestion_level(), 0.0);
 }
 
 }  // namespace

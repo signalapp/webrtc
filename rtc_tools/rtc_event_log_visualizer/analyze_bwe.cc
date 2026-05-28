@@ -819,7 +819,8 @@ void CreateScreamSimulationRatiosGraph(const ParsedRtcEventLog& parsed_log,
                                        Plot* plot) {
   TimeSeries l4s_alpha_series("L4sAlpha", LineStyle::kStep);
   TimeSeries l4s_alpha_v_series("L4sAlphaV", LineStyle::kStep);
-  TimeSeries loss_event_rate_series("LossEventRate", LineStyle::kStep);
+  TimeSeries loss_congestion_level_series("LossCongestionLevel",
+                                          LineStyle::kStep);
   TimeSeries ref_window_scale_factor_due_to_min_delay_variation(
       "RefWindowScaleFactorDueToAvgMinQueueDelay", LineStyle::kStep);
   TimeSeries ref_window_scale_factor_due_to_latency_difference(
@@ -838,8 +839,8 @@ void CreateScreamSimulationRatiosGraph(const ParsedRtcEventLog& parsed_log,
                                          state.l4s_alpha);
     l4s_alpha_v_series.points.emplace_back(config.GetCallTimeSec(state.time),
                                            state.l4s_alpha_v);
-    loss_event_rate_series.points.emplace_back(
-        config.GetCallTimeSec(state.time), state.loss_event_rate);
+    loss_congestion_level_series.points.emplace_back(
+        config.GetCallTimeSec(state.time), state.loss_congestion_level);
     ref_window_scale_factor_due_to_min_delay_variation.points.emplace_back(
         config.GetCallTimeSec(state.time),
         state.ref_window_scale_factor_due_to_avg_min_delay);
@@ -855,7 +856,7 @@ void CreateScreamSimulationRatiosGraph(const ParsedRtcEventLog& parsed_log,
   }
   plot->AppendTimeSeries(std::move(l4s_alpha_series));
   plot->AppendTimeSeries(std::move(l4s_alpha_v_series));
-  plot->AppendTimeSeries(std::move(loss_event_rate_series));
+  plot->AppendTimeSeries(std::move(loss_congestion_level_series));
   plot->AppendTimeSeries(
       std::move(ref_window_scale_factor_due_to_min_delay_variation));
   plot->AppendTimeSeries(
