@@ -659,14 +659,22 @@ void CreateScreamSimulationDelayGraph(const ParsedRtcEventLog& parsed_log,
   simulation.ProcessEventsInLog(parsed_log);
 
   for (const LogScreamSimulation::State& state : simulation.updates()) {
-    smoothed_rtt_series.points.emplace_back(config.GetCallTimeSec(state.time),
-                                            state.smoothed_rtt.ms());
-    queue_delay_series.points.emplace_back(config.GetCallTimeSec(state.time),
-                                           state.queue_delay.ms());
-    queue_delay_min_avg_series.points.emplace_back(
-        config.GetCallTimeSec(state.time), state.queue_delay_min_avg.ms());
-    latency_difference_avg_series.points.emplace_back(
-        config.GetCallTimeSec(state.time), state.latency_difference_avg.ms());
+    if (state.smoothed_rtt.IsFinite()) {
+      smoothed_rtt_series.points.emplace_back(config.GetCallTimeSec(state.time),
+                                              state.smoothed_rtt.ms());
+    }
+    if (state.queue_delay.IsFinite()) {
+      queue_delay_series.points.emplace_back(config.GetCallTimeSec(state.time),
+                                             state.queue_delay.ms());
+    }
+    if (state.queue_delay_min_avg.IsFinite()) {
+      queue_delay_min_avg_series.points.emplace_back(
+          config.GetCallTimeSec(state.time), state.queue_delay_min_avg.ms());
+    }
+    if (state.latency_difference_avg.IsFinite()) {
+      latency_difference_avg_series.points.emplace_back(
+          config.GetCallTimeSec(state.time), state.latency_difference_avg.ms());
+    }
   }
   plot->AppendTimeSeries(std::move(smoothed_rtt_series));
   plot->AppendTimeSeries(std::move(queue_delay_series));
