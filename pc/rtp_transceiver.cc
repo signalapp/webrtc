@@ -103,16 +103,18 @@ RTCError VerifyCodecPreferences(const std::vector<RtpCodecCapability>& codecs,
                                 return IsSameRtpCodec(codec_capability, codec);
                               });
       })) {
-    return LOG_ERROR(RTCError::InvalidModification()
-                     << "Invalid codec preferences: Missing codec from codec "
-                        "capabilities.");
+    return RTC_LOG_ERROR(
+        RTCError::InvalidModification()
+        << "Invalid codec preferences: Missing codec from codec "
+           "capabilities.");
   }
   // If `codecs` only contains entries for RTX, RED, FEC or Comfort Noise, throw
   // InvalidModificationError.
   if (!HasAnyMediaCodec(codecs)) {
-    return LOG_ERROR(RTCError::InvalidModification()
-                     << "Invalid codec preferences: codec list must have a non "
-                        "RTX, RED, FEC or Comfort Noise entry.");
+    return RTC_LOG_ERROR(
+        RTCError::InvalidModification()
+        << "Invalid codec preferences: codec list must have a non "
+           "RTX, RED, FEC or Comfort Noise entry.");
   }
   return RTCError::OK();
 }
@@ -923,15 +925,15 @@ RtpTransceiverDirection RtpTransceiver::direction() const {
 RTCError RtpTransceiver::SetDirectionWithError(
     RtpTransceiverDirection new_direction) {
   if (unified_plan_ && stopping()) {
-    return LOG_ERROR(RTCError::InvalidState()
-                     << "Cannot set direction on a stopping transceiver.");
+    return RTC_LOG_ERROR(RTCError::InvalidState()
+                         << "Cannot set direction on a stopping transceiver.");
   }
   if (new_direction == direction_)
     return RTCError::OK();
 
   if (new_direction == RtpTransceiverDirection::kStopped) {
-    return LOG_ERROR(RTCError::InvalidParameter()
-                     << "The set direction 'stopped' is invalid.");
+    return RTC_LOG_ERROR(RTCError::InvalidParameter()
+                         << "The set direction 'stopped' is invalid.");
   }
 
   direction_ = new_direction;
@@ -956,9 +958,9 @@ RTCError RtpTransceiver::TryToEnableSframe() {
   RTC_DCHECK_RUN_ON(thread_);
 
   if (sframe_enabled_.has_value() && sframe_enabled_.value() == false) {
-    return LOG_ERROR(RTCError::InvalidModification()
-                     << "Cannot enable Sframe after it has been "
-                        "disabled by a completed negotiation.");
+    return RTC_LOG_ERROR(RTCError::InvalidModification()
+                         << "Cannot enable Sframe after it has been "
+                            "disabled by a completed negotiation.");
   }
 
   sframe_enabled_ = true;

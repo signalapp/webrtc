@@ -439,9 +439,9 @@ RtpParameters RtpSenderBase::GetParameters() const {
 std::optional<RTCError> RtpSenderBase::ValidateAndMaybeUpdateInitParameters(
     const RtpParameters& parameters) {
   if (UnimplementedRtpParameterHasValue(parameters)) {
-    return LOG_ERROR(RTCError::UnsupportedParameter()
-                     << "Attempted to set an unimplemented parameter of "
-                        "RtpParameters.");
+    return RTC_LOG_ERROR(RTCError::UnsupportedParameter()
+                         << "Attempted to set an unimplemented parameter of "
+                            "RtpParameters.");
   }
   if (ssrc_ == 0) {
     auto result = CheckRtpParametersInvalidModificationAndValues(
@@ -627,20 +627,21 @@ RTCError RtpSenderBase::SetParametersInternalWithAllLayers(
 RTCError RtpSenderBase::CheckSetParameters(const RtpParameters& parameters) {
   RTC_DCHECK_RUN_ON(signaling_thread_);
   if (stopped_) {
-    return LOG_ERROR(RTCError::InvalidState()
-                     << "Cannot set parameters on a stopped sender.");
+    return RTC_LOG_ERROR(RTCError::InvalidState()
+                         << "Cannot set parameters on a stopped sender.");
   }
   if (!last_transaction_id_) {
-    return LOG_ERROR(RTCError::InvalidState()
-                     << "Failed to set parameters since getParameters() has "
-                        "never been called"
-                        " on this sender");
+    return RTC_LOG_ERROR(
+        RTCError::InvalidState()
+        << "Failed to set parameters since getParameters() has "
+           "never been called"
+           " on this sender");
   }
   if (last_transaction_id_ != parameters.transaction_id) {
-    return LOG_ERROR(RTCError::InvalidModification()
-                     << "Failed to set parameters since the transaction_id "
-                        "doesn't match"
-                        " the last value returned from getParameters()");
+    return RTC_LOG_ERROR(RTCError::InvalidModification()
+                         << "Failed to set parameters since the transaction_id "
+                            "doesn't match"
+                            " the last value returned from getParameters()");
   }
 
   return RTCError::OK();
@@ -992,8 +993,8 @@ RTCError RtpSenderBase::DisableEncodingLayers(
     const std::vector<std::string>& rids) {
   RTC_DCHECK_RUN_ON(signaling_thread_);
   if (stopped_) {
-    return LOG_ERROR(RTCError::InvalidState()
-                     << "Cannot disable encodings on a stopped sender.");
+    return RTC_LOG_ERROR(RTCError::InvalidState()
+                         << "Cannot disable encodings on a stopped sender.");
   }
 
   bool all_already_disabled = true;
@@ -1014,9 +1015,9 @@ RTCError RtpSenderBase::DisableEncodingLayers(
                         [&rid](const RtpEncodingParameters& encoding) {
                           return encoding.rid == rid;
                         })) {
-      return LOG_ERROR(RTCError::InvalidParameter()
-                       << "RID: " << rid
-                       << " does not refer to a valid layer.");
+      return RTC_LOG_ERROR(RTCError::InvalidParameter()
+                           << "RID: " << rid
+                           << " does not refer to a valid layer.");
     }
   }
 
@@ -1393,15 +1394,15 @@ RTCError VideoRtpSender::GenerateKeyFrame(
   const auto parameters = GetParametersInternal();
   for (const auto& rid : rids) {
     if (rid.empty()) {
-      return LOG_ERROR(RTCError::InvalidParameter()
-                       << "Attempted to specify an empty rid.");
+      return RTC_LOG_ERROR(RTCError::InvalidParameter()
+                           << "Attempted to specify an empty rid.");
     }
     if (!absl::c_any_of(parameters.encodings,
                         [&rid](const RtpEncodingParameters& parameters) {
                           return parameters.rid == rid;
                         })) {
-      return LOG_ERROR(RTCError::InvalidParameter()
-                       << "Attempted to specify a rid not configured.");
+      return RTC_LOG_ERROR(RTCError::InvalidParameter()
+                           << "Attempted to specify a rid not configured.");
     }
   }
   worker_thread_->PostTask(SafeTask(worker_safety_, [this, rids, ssrc = ssrc_] {

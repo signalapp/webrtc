@@ -403,8 +403,8 @@ RTCError CreateMediaContentOffer(
   if (!AddStreamParams(media_description_options.sender_options,
                        session_options.rtcp_cname, ssrc_generator,
                        current_streams, offer, field_trials)) {
-    return LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
-                     << "Failed to add stream parameters");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
+                         << "Failed to add stream parameters");
   }
 
   return CreateContentOffer(media_description_options, session_options,
@@ -854,7 +854,7 @@ MediaSessionDescriptionFactory::CreateOfferOrError(
     if (!offer_bundle.content_names().empty()) {
       offer->AddGroup(offer_bundle);
       if (!UpdateTransportInfoForBundle(offer_bundle, offer.get())) {
-        return LOG_ERROR(
+        return RTC_LOG_ERROR(
             RTCError(RTCErrorType::INTERNAL_ERROR)
             << "CreateOffer failed to UpdateTransportInfoForBundle");
       }
@@ -889,8 +889,8 @@ MediaSessionDescriptionFactory::CreateAnswerOrError(
     const MediaSessionOptions& session_options,
     const SessionDescription* current_description) const {
   if (!offer) {
-    return LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
-                     << "Called without offer.");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
+                         << "Called without offer.");
   }
 
   // Must have options for exactly as many sections as in the offer.
@@ -1060,7 +1060,7 @@ MediaSessionDescriptionFactory::CreateAnswerOrError(
         // Share the same ICE credentials and crypto params across all contents,
         // as BUNDLE requires.
         if (!UpdateTransportInfoForBundle(answer_bundle, answer.get())) {
-          return LOG_ERROR(
+          return RTC_LOG_ERROR(
               RTCError(RTCErrorType::INTERNAL_ERROR)
               << "CreateAnswer failed to UpdateTransportInfoForBundle.");
         }
@@ -1407,7 +1407,7 @@ RTCError MediaSessionDescriptionFactory::AddRtpContentForAnswer(
       media_description_options.transport_options, current_description,
       !offer_content->rejected && bundle_transport == nullptr, ice_credentials);
   if (!transport) {
-    return LOG_ERROR(
+    return RTC_LOG_ERROR(
         RTCError(RTCErrorType::INTERNAL_ERROR)
         << "Failed to create transport answer, transport is missing");
   }
@@ -1462,8 +1462,8 @@ RTCError MediaSessionDescriptionFactory::AddRtpContentForAnswer(
                          ssrc_generator(), current_streams,
                          answer_content.get(),
                          transport_desc_factory_->trials())) {
-    return LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
-                     << "Failed to set codecs in answer");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
+                         << "Failed to set codecs in answer");
   }
   RTC_DCHECK(codec_lookup_helper_->PayloadTypeSuggester());
   if (!CreateMediaContentAnswer(
@@ -1475,8 +1475,8 @@ RTCError MediaSessionDescriptionFactory::AddRtpContentForAnswer(
           offer_description->extmap_allow_mixed()
               ? RtpTransceiverIdDomain::kTwoByteAllowed
               : RtpTransceiverIdDomain::kOneByteOnly)) {
-    return LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
-                     << "Failed to create answer");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
+                         << "Failed to create answer");
   }
 
   bool secure = bundle_transport ? bundle_transport->description.secure()
@@ -1517,7 +1517,7 @@ RTCError MediaSessionDescriptionFactory::AddDataContentForAnswer(
       media_description_options.transport_options, current_description,
       !offer_content->rejected && bundle_transport == nullptr, ice_credentials);
   if (!data_transport) {
-    return LOG_ERROR(
+    return RTC_LOG_ERROR(
         RTCError(RTCErrorType::INTERNAL_ERROR)
         << "Failed to create transport answer, data transport is missing");
   }
@@ -1554,8 +1554,8 @@ RTCError MediaSessionDescriptionFactory::AddDataContentForAnswer(
             offer_description->extmap_allow_mixed()
                 ? RtpTransceiverIdDomain::kTwoByteAllowed
                 : RtpTransceiverIdDomain::kOneByteOnly)) {
-      return LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
-                       << "Failed to create answer");
+      return RTC_LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
+                           << "Failed to create answer");
     }
     // Respond with sctpmap if the offer uses sctpmap.
     bool offer_uses_sctpmap = offer_data_description->use_sctpmap();
@@ -1614,9 +1614,9 @@ RTCError MediaSessionDescriptionFactory::AddUnsupportedContentForAnswer(
           !offer_content->rejected && bundle_transport == nullptr,
           ice_credentials);
   if (!unsupported_transport) {
-    return LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
-                     << "Failed to create transport answer, unsupported "
-                        "transport is missing");
+    return RTC_LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
+                         << "Failed to create transport answer, unsupported "
+                            "transport is missing");
   }
   RTC_CHECK(IsMediaContentOfType(offer_content, MediaType::UNSUPPORTED));
 
