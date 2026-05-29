@@ -617,8 +617,11 @@ void WebRtcVoiceEngine::ApplyOptions(const AudioOptions& options_in) {
   AudioOptions options = options_in;  // The options are modified below.
 
 #if defined(WEBRTC_IOS)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   if (options.ios_force_software_aec_HACK &&
       *options.ios_force_software_aec_HACK) {
+#pragma clang diagnostic pop
     // EC may be forced on for a device known to have non-functioning platform
     // AEC.
     options.echo_cancellation = true;
