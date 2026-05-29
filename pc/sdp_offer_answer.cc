@@ -1699,6 +1699,13 @@ SdpOfferAnswerHandler::SdpOfferAnswerHandler(const Environment& env,
             configuration.audio_jitter_buffer_min_delay_ms;
         return options;
       }()),
+      video_options_([&]() {
+        VideoOptions options;
+        const auto& configuration = *pc->configuration();
+        options.screencast_min_bitrate_kbps =
+            configuration.screencast_min_bitrate.value_or(100);
+        return options;
+      }()),
       pt_suggester_(pc_->configuration()->bundle_policy, env_),
       weak_ptr_factory_(this) {
   operations_chain_->SetOnChainEmptyCallback(
@@ -1736,10 +1743,6 @@ void SdpOfferAnswerHandler::Initialize(
   RTC_LOG_THREAD_BLOCK_COUNT();
   RTC_DCHECK_RUN_ON(signaling_thread());
   const auto& configuration = *pc_->configuration();
-  // 100 kbps is used by default, but can be overriden by a non-standard
-  // RTCConfiguration value (not available on Web).
-  video_options_.screencast_min_bitrate_kbps =
-      configuration.screencast_min_bitrate.value_or(100);
 
   // Obtain a certificate from RTCConfiguration if any were provided (optional).
   scoped_refptr<RTCCertificate> certificate;

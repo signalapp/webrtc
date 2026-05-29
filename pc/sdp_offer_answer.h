@@ -111,7 +111,7 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
   }
 
   const AudioOptions& audio_options() const { return audio_options_; }
-  const VideoOptions& video_options() { return video_options_; }
+  const VideoOptions& video_options() const { return video_options_; }
 
   // Change signaling state to Closed, and perform appropriate actions.
   void Close();
@@ -711,7 +711,7 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
 
   // Member variables for caching global options.
   const AudioOptions audio_options_;
-  VideoOptions video_options_ RTC_GUARDED_BY(signaling_thread());
+  const VideoOptions video_options_;
   std::vector<IceParameters> cached_pooled_ice_credentials_
       RTC_GUARDED_BY(signaling_thread());
 
