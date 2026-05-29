@@ -18,10 +18,16 @@ namespace webrtc {
 
 scoped_refptr<LocalAudioSource> LocalAudioSource::Create(
     const AudioOptions* audio_options) {
-  return make_ref_counted<LocalAudioSource>(audio_options);
+  auto source = make_ref_counted<LocalAudioSource>();
+  source->Initialize(audio_options);
+  return source;
 }
 
-LocalAudioSource::LocalAudioSource(const AudioOptions* audio_options)
-    : options_(audio_options ? *audio_options : AudioOptions()) {}
+void LocalAudioSource::Initialize(const AudioOptions* audio_options) {
+  if (!audio_options)
+    return;
+
+  options_ = *audio_options;
+}
 
 }  // namespace webrtc

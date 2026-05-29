@@ -36,11 +36,13 @@ class LocalAudioSource : public Notifier<AudioSourceInterface> {
   void RemoveSink(AudioTrackSinkInterface* sink) override {}
 
  protected:
-  explicit LocalAudioSource(const AudioOptions* audio_options);
+  LocalAudioSource() {}
   ~LocalAudioSource() override {}
 
  private:
-  const AudioOptions options_;
+  void Initialize(const AudioOptions* audio_options);
+
+  AudioOptions options_;
 };
 
 }  // namespace webrtc

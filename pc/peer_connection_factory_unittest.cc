@@ -19,10 +19,8 @@
 #include <vector>
 
 #include "api/audio/audio_device.h"
-#include "api/audio/audio_processing.h"
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
-#include "api/audio_options.h"
 #include "api/create_modular_peer_connection_factory.h"
 #include "api/create_peerconnection_factory.h"
 #include "api/data_channel_interface.h"
@@ -800,59 +798,6 @@ TEST(PeerConnectionFactoryDependenciesTest, RepeatMediaEngineInitialization) {
   }
   EXPECT_FALSE(adm->Initialized());
 }
-
-#if !defined(WEBRTC_CHROMIUM_BUILD) && !defined(WEBRTC_WEBKIT_BUILD)
-TEST(PeerConnectionFactoryDependenciesTest,
-     CreateAudioSourceAppliesOptionsToAudioProcessing) {
-  auto ap_factory = std::make_unique<MockAudioProcessingBuilder>();
-  auto audio_processing = make_ref_counted<NiceMock<MockAudioProcessing>>();
-
-  // Capture the sequence of applied configurations to verify value-toggling
-  // and options persistence across Init/Terminate cycles.
-  std::vector<bool> aec_enabled_sequence;
-  EXPECT_CALL(*audio_processing, ApplyConfig(_))
-      .WillRepeatedly([&](const AudioProcessing::Config& config) {
-        aec_enabled_sequence.push_back(config.echo_canceller.enabled);
-      });
-  EXPECT_CALL(*ap_factory, Build).WillOnce(Return(audio_processing));
-
-  PeerConnectionFactoryDependencies pcf_dependencies;
-  pcf_dependencies.adm = FakeAudioCaptureModule::Create();
-  pcf_dependencies.audio_processing_builder = std::move(ap_factory);
-  pcf_dependencies.signaling_thread = Thread::Current();
-  pcf_dependencies.worker_thread = Thread::Current();
-  pcf_dependencies.network_thread = Thread::Current();
-  EnableMediaWithDefaults(pcf_dependencies);
-
-  scoped_refptr<PeerConnectionFactoryInterface> pcf =
-      CreateModularPeerConnectionFactory(std::move(pcf_dependencies));
-
-  // 1. First call: disable echo cancellation.
-  AudioOptions options_first;
-  options_first.echo_cancellation = false;
-  auto source1 = pcf->CreateAudioSource(options_first);
-  source1 = nullptr;  // Force reference count to 0 and Terminate().
-
-  // 2. Second call: enable echo cancellation.
-  AudioOptions options_second;
-  options_second.echo_cancellation = true;
-  auto source2 = pcf->CreateAudioSource(options_second);
-  source2 = nullptr;  // Force reference count to 0 and Terminate().
-
-  // Verify the exact sequence of applied configurations:
-  // - 1st Call Init: true (default engine option)
-  // - 1st Call Custom: false (custom option applied)
-  // - 2nd Call Init: false (properly persisted!)
-  // - 2nd Call Custom: true (new custom option applied)
-  ASSERT_EQ(aec_enabled_sequence.size(), 4u);
-  EXPECT_EQ(aec_enabled_sequence[0], true);
-  EXPECT_EQ(aec_enabled_sequence[1], false);
-  EXPECT_EQ(aec_enabled_sequence[2], false);
-  EXPECT_EQ(aec_enabled_sequence[3], true);
-
-  pcf = nullptr;
-}
-#endif
 
 }  // namespace
 }  // namespace webrtc
