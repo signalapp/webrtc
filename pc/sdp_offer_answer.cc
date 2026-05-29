@@ -32,6 +32,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
+#include "api/audio_options.h"
 #include "api/candidate.h"
 #include "api/crypto/crypto_options.h"
 #include "api/environment/environment.h"
@@ -1687,6 +1688,17 @@ SdpOfferAnswerHandler::SdpOfferAnswerHandler(const Environment& env,
       operations_chain_(OperationsChain::Create()),
       rtcp_cname_(GenerateRtcpCname()),
       local_ice_credentials_to_replace_(new LocalIceCredentialsToReplace()),
+      audio_options_([&]() {
+        AudioOptions options;
+        const auto& configuration = *pc->configuration();
+        options.audio_jitter_buffer_max_packets =
+            configuration.audio_jitter_buffer_max_packets;
+        options.audio_jitter_buffer_fast_accelerate =
+            configuration.audio_jitter_buffer_fast_accelerate;
+        options.audio_jitter_buffer_min_delay_ms =
+            configuration.audio_jitter_buffer_min_delay_ms;
+        return options;
+      }()),
       pt_suggester_(pc_->configuration()->bundle_policy, env_),
       weak_ptr_factory_(this) {
   operations_chain_->SetOnChainEmptyCallback(
@@ -1703,21 +1715,19 @@ SdpOfferAnswerHandler::~SdpOfferAnswerHandler() {}
 std::unique_ptr<SdpOfferAnswerHandler> SdpOfferAnswerHandler::Create(
     const Environment& env,
     PeerConnectionSdpMethods* pc,
-    const PeerConnectionInterface::RTCConfiguration& configuration,
     std::unique_ptr<RTCCertificateGeneratorInterface> cert_generator,
     std::unique_ptr<VideoBitrateAllocatorFactory>
         video_bitrate_allocator_factory,
     ConnectionContext* context,
     CodecLookupHelper* codec_lookup_helper) {
   auto handler = absl::WrapUnique(new SdpOfferAnswerHandler(env, pc, context));
-  handler->Initialize(configuration, std::move(cert_generator),
+  handler->Initialize(std::move(cert_generator),
                       std::move(video_bitrate_allocator_factory), context,
                       codec_lookup_helper);
   return handler;
 }
 
 void SdpOfferAnswerHandler::Initialize(
-    const PeerConnectionInterface::RTCConfiguration& configuration,
     std::unique_ptr<RTCCertificateGeneratorInterface> cert_generator,
     std::unique_ptr<VideoBitrateAllocatorFactory>
         video_bitrate_allocator_factory,
@@ -1725,19 +1735,11 @@ void SdpOfferAnswerHandler::Initialize(
     CodecLookupHelper* codec_lookup_helper) {
   RTC_LOG_THREAD_BLOCK_COUNT();
   RTC_DCHECK_RUN_ON(signaling_thread());
+  const auto& configuration = *pc_->configuration();
   // 100 kbps is used by default, but can be overriden by a non-standard
   // RTCConfiguration value (not available on Web).
   video_options_.screencast_min_bitrate_kbps =
       configuration.screencast_min_bitrate.value_or(100);
-
-  audio_options_.audio_jitter_buffer_max_packets =
-      configuration.audio_jitter_buffer_max_packets;
-
-  audio_options_.audio_jitter_buffer_fast_accelerate =
-      configuration.audio_jitter_buffer_fast_accelerate;
-
-  audio_options_.audio_jitter_buffer_min_delay_ms =
-      configuration.audio_jitter_buffer_min_delay_ms;
 
   // Obtain a certificate from RTCConfiguration if any were provided (optional).
   scoped_refptr<RTCCertificate> certificate;

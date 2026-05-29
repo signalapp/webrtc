@@ -519,7 +519,7 @@ PeerConnection::PeerConnection(
   }
 
   sdp_handler_ = SdpOfferAnswerHandler::Create(
-      env_, this, configuration_, std::move(dependencies.cert_generator),
+      env_, this, std::move(dependencies.cert_generator),
       std::move(dependencies.video_bitrate_allocator_factory), context_.get(),
       codec_lookup_helper_.get());
   sdp_handler_->UpdateCachedIceCredentials(std::move(pooled_credentials));
