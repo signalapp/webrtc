@@ -2630,11 +2630,16 @@ void WebRtcVoiceReceiveChannel::OnPacketReceived(RtpPacketReceived packet) {
 bool WebRtcVoiceReceiveChannel::MaybeCreateDefaultReceiveStream(
     const RtpPacketReceived& packet) {
   RTC_DCHECK_RUN_ON(worker_thread_);
+  uint32_t ssrc = packet.Ssrc();
+
+  if (absl::c_linear_search(unsignaled_recv_ssrcs_, ssrc)) {
+    RTC_LOG(LS_INFO) << "Unsignaled stream already exists for SSRC=" << ssrc;
+    return true;
+  }
+
   // Create an unsignaled receive stream for this previously not received
   // ssrc. If there already is N unsignaled receive streams, delete the
   // oldest. See: https://bugs.chromium.org/p/webrtc/issues/detail?id=5208
-  uint32_t ssrc = packet.Ssrc();
-  RTC_DCHECK(!absl::c_linear_search(unsignaled_recv_ssrcs_, ssrc));
 
   // Add new stream.
   StreamParams sp = unsignaled_stream_params_;
