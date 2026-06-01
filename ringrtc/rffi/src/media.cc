@@ -177,14 +177,18 @@ RUSTEXPORT VideoFrameBuffer* Rust_copyVideoFrameBufferFromRgba(
   return take_rc(i420);
 }
 
-RUSTEXPORT void Rust_convertVideoFrameBufferToRgba(
+RUSTEXPORT bool Rust_convertVideoFrameBufferToRgba(
     const VideoFrameBuffer* buffer_borrowed_rc,
     uint8_t* rgba_out) {
   const I420BufferInterface* i420 = buffer_borrowed_rc->GetI420();
+  if (!i420) {
+    return false;
+  }
   uint32_t rgba_stride = 4 * i420->width();
   libyuv::I420ToABGR(i420->DataY(), i420->StrideY(), i420->DataU(),
                      i420->StrideU(), i420->DataV(), i420->StrideV(), rgba_out,
                      rgba_stride, i420->width(), i420->height());
+  return true;
 }
 
 RUSTEXPORT const uint8_t* Rust_getVideoFrameBufferAsI420(
@@ -215,7 +219,11 @@ RUSTEXPORT VideoFrameBuffer* Rust_scaleVideoFrameBuffer(
 RUSTEXPORT VideoFrameBuffer* Rust_copyAndRotateVideoFrameBuffer(
     const VideoFrameBuffer* buffer_borrowed_rc,
     VideoRotation rotation) {
-  return take_rc(I420Buffer::Rotate(*buffer_borrowed_rc->GetI420(), rotation));
+  const I420BufferInterface* i420 = buffer_borrowed_rc->GetI420();
+  if (!i420) {
+    return nullptr;
+  }
+  return take_rc(I420Buffer::Rotate(*i420, rotation));
 }
 
 }  // namespace rffi

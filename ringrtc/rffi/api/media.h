@@ -94,7 +94,7 @@ RUSTEXPORT webrtc::VideoFrameBuffer* Rust_copyVideoFrameBufferFromRgba(
     uint8_t* src_borrowed);
 
 // I420 => RGBA
-RUSTEXPORT void Rust_convertVideoFrameBufferToRgba(
+RUSTEXPORT bool Rust_convertVideoFrameBufferToRgba(
     const webrtc::VideoFrameBuffer* buffer,
     uint8_t* rgba_out);
 
