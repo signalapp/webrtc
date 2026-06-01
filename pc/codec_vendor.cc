@@ -371,11 +371,20 @@ RTCError MergeCodecsFromConfigurations(
     if (!error.ok()) {
       return error;
     }
+
+    // Handle Audio RED immediately after the primary codec.
+    if (config.codec.type == Codec::Type::kAudio && config.resiliency.red) {
+      error = MergeRedCodec(config, primary_codec, mid, offered_codecs,
+                            pt_suggester, pick_from_top_of_range);
+      if (!error.ok()) {
+        return error;
+      }
+    }
   }
 
-  // Pass 2: RED
+  // Pass 2: RED for Video
   for (const CodecConfiguration& config : configurations) {
-    if (!config.resiliency.red) {
+    if (!config.resiliency.red || config.codec.type == Codec::Type::kAudio) {
       continue;
     }
     // Find the primary codec in offered_codecs to pass to MergeRedCodec.

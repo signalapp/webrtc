@@ -188,6 +188,10 @@ Codecs CodecsFromConfigurations(
     bool rtx_enabled) {
   Codecs out;
   flat_set<std::string> shared_added;
+  bool video_red_needed = false;
+  bool video_ulpfec_needed = false;
+  bool video_flexfec_needed = false;
+
   for (const auto& config : configurations) {
     out.push_back(config.codec);
     if (type == MediaType::AUDIO) {
@@ -198,21 +202,31 @@ Codecs CodecsFromConfigurations(
       if (config.resiliency.rtx) {
         out.push_back(CreateVideoCodec(PayloadType::NotSet(), kRtxCodecName));
       }
-      if (config.resiliency.red && shared_added.insert(kRedCodecName).second) {
-        out.push_back(CreateVideoCodec(kRedCodecName));
-        // Video RED also gets an RTX codec.
-        if (rtx_enabled) {
-          out.push_back(CreateVideoCodec(PayloadType::NotSet(), kRtxCodecName));
-        }
+      if (config.resiliency.red) {
+        video_red_needed = true;
       }
-      if (config.resiliency.ulpfec &&
-          shared_added.insert(kUlpfecCodecName).second) {
-        out.push_back(CreateVideoCodec(kUlpfecCodecName));
+      if (config.resiliency.ulpfec) {
+        video_ulpfec_needed = true;
       }
-      if (config.resiliency.flexfec &&
-          shared_added.insert(kFlexfecCodecName).second) {
-        out.push_back(CreateVideoCodec(kFlexfecCodecName));
+      if (config.resiliency.flexfec) {
+        video_flexfec_needed = true;
       }
+    }
+  }
+
+  // Add video resiliency codecs at the end, in the order: RED, FEC
+  if (type == MediaType::VIDEO) {
+    if (video_red_needed) {
+      out.push_back(CreateVideoCodec(kRedCodecName));
+      if (rtx_enabled) {
+        out.push_back(CreateVideoCodec(PayloadType::NotSet(), kRtxCodecName));
+      }
+    }
+    if (video_ulpfec_needed) {
+      out.push_back(CreateVideoCodec(kUlpfecCodecName));
+    }
+    if (video_flexfec_needed) {
+      out.push_back(CreateVideoCodec(kFlexfecCodecName));
     }
   }
   return out;
