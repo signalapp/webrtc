@@ -12,11 +12,11 @@
 
 #include <algorithm>
 
-#include "api/transport/network_types.h"
 #include "api/units/data_rate.h"
 #include "api/units/data_size.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
+#include "modules/congestion_controller/scream/scream_feedback.h"
 #include "modules/congestion_controller/scream/scream_v2_parameters.h"
 #include "rtc_base/numerics/windowed_min_filter.h"
 
@@ -31,8 +31,7 @@ class DelayBasedCongestionControl {
  public:
   explicit DelayBasedCongestionControl(ScreamV2Parameters params);
 
-  void OnTransportPacketsFeedback(const TransportPacketsFeedback& msg,
-                                  bool alr);
+  void Update(const ScreamFeedback& feedback, bool alr);
 
   // Set a limit on how much the reference window can be reduced due to
   // increased delay.

@@ -21,6 +21,7 @@
 #include "api/units/timestamp.h"
 #include "modules/congestion_controller/scream/delay_based_congestion_control.h"
 #include "modules/congestion_controller/scream/loss_estimator.h"
+#include "modules/congestion_controller/scream/scream_feedback.h"
 #include "modules/congestion_controller/scream/scream_v2_parameters.h"
 
 namespace webrtc {
@@ -121,10 +122,10 @@ class ScreamV2 {
   bool is_application_limited() const { return is_application_limited_; }
 
  private:
-  void UpdateL4SAlpha(const TransportPacketsFeedback& msg);
-  void UpdateRefWindow(const TransportPacketsFeedback& msg);
-  void UpdateFeedbackHoldTime(const TransportPacketsFeedback& msg);
-  void UpdateTargetRate(const TransportPacketsFeedback& msg);
+  void UpdateL4SAlpha(const ScreamFeedback& parsed);
+  void UpdateRefWindow(const ScreamFeedback& parsed);
+  void UpdateFeedbackHoldTime(const ScreamFeedback& parsed);
+  void UpdateTargetRate(const ScreamFeedback& parsed);
 
   const Environment env_;
   const ScreamV2Parameters params_;

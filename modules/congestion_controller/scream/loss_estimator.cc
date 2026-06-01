@@ -11,9 +11,9 @@
 
 #include <algorithm>
 
-#include "api/transport/network_types.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
+#include "modules/congestion_controller/scream/scream_feedback.h"
 #include "modules/congestion_controller/scream/scream_v2_parameters.h"
 
 namespace webrtc {
@@ -24,13 +24,9 @@ LossEstimator::LossEstimator(const ScreamV2Parameters& params)
           params.rtts_with_loss_before_backoff.Get()),
       lossless_rtts_before_clear_(params.lossless_rtts_before_clear.Get()) {}
 
-bool LossEstimator::Update(const TransportPacketsFeedback& msg, TimeDelta rtt) {
-  if (msg.PacketsWithFeedback().empty()) {
-    return false;
-  }
-
+bool LossEstimator::Update(const ScreamFeedback& parsed, TimeDelta rtt) {
   const TimeDelta max_rtt = std::max(virtual_rtt_, rtt);
-  if (msg.feedback_time - last_loss_or_recovery_time_ > max_rtt) {
+  if (parsed.feedback_time - last_loss_or_recovery_time_ > max_rtt) {
     // Reset the unrecovered lost packet count if no new losses or recoveries
     // were reported for a full RTT. This prevents old, permanently lost
     // packets (which will never be recovered) from keeping this counter
@@ -39,32 +35,27 @@ bool LossEstimator::Update(const TransportPacketsFeedback& msg, TimeDelta rtt) {
   }
 
   bool has_lost_packets = false;
-  for (const PacketResult& packet : msg.PacketsWithFeedback()) {
-    bool is_lost =
-        !packet.IsReceived() && packet.reported_lost_for_the_first_time;
-    bool is_recovered = packet.reported_recovered_for_the_first_time;
-    if (!is_lost && !is_recovered) {
-      continue;
-    }
+  if (parsed.num_lost_packets > 0 || parsed.num_recovered_packets > 0) {
+    last_loss_or_recovery_time_ = parsed.feedback_time;
+  }
 
-    last_loss_or_recovery_time_ = msg.feedback_time;
-
-    if (is_recovered) {
-      unrecovered_lost_packets_--;
-      unrecovered_lost_packets_ = std::max(0, unrecovered_lost_packets_);
-      if (unrecovered_lost_packets_ == 0) {
-        congestion_level_ = 0.0;
-        loss_event_this_rtt_ = false;
-      }
-    } else {
-      has_lost_packets = true;
-      unrecovered_lost_packets_++;
-      loss_event_this_rtt_ = true;
+  if (parsed.num_recovered_packets > 0) {
+    unrecovered_lost_packets_ =
+        std::max(0, unrecovered_lost_packets_ - parsed.num_recovered_packets);
+    if (unrecovered_lost_packets_ == 0) {
+      congestion_level_ = 0.0;
+      loss_event_this_rtt_ = false;
     }
   }
 
-  if (msg.feedback_time - last_rtt_update_time_ >= max_rtt) {
-    last_rtt_update_time_ = msg.feedback_time;
+  if (parsed.num_lost_packets > 0) {
+    has_lost_packets = true;
+    unrecovered_lost_packets_ += parsed.num_lost_packets;
+    loss_event_this_rtt_ = true;
+  }
+
+  if (parsed.feedback_time - last_rtt_update_time_ >= max_rtt) {
+    last_rtt_update_time_ = parsed.feedback_time;
     if (loss_event_this_rtt_) {
       // Asymmetric step filter: increment by 1.0 /
       // rtts_with_loss_before_backoff_ on a [0.0, 1.0] normalized scale. This
