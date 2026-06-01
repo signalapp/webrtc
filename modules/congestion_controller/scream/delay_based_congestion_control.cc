@@ -136,21 +136,7 @@ DelayBasedCongestionControl::ref_window_scale_factor_due_to_latency_difference()
                     1.0);
 }
 
-DataSize DelayBasedCongestionControl::UpdateReferenceWindow(
-    DataSize ref_window,
-    double ref_window_mss_ratio) const {
-  // `min_delay_based_bwe_`put a lower bound on the reference window.
-  DataSize min_allowed_reference_window =
-      min_delay_based_bwe_ * last_smoothed_rtt_;
 
-  if (ref_window < min_allowed_reference_window) {
-    return min_allowed_reference_window;
-  }
-
-  double backoff = l4s_alpha_v() / 2.0;  // Reduce by 50% if l4s_alpha_v = 1.0;
-  backoff /= std::max(1.0, last_smoothed_rtt_ / params_.virtual_rtt);
-  return std::max(min_allowed_reference_window, (1 - backoff) * ref_window);
-}
 
 double DelayBasedCongestionControl::l4s_alpha_v() const {
   // 4.2.2.1

@@ -33,20 +33,11 @@ class DelayBasedCongestionControl {
 
   void Update(const ScreamFeedback& feedback, bool alr);
 
-  // Set a limit on how much the reference window can be reduced due to
-  // increased delay.
-  void SetMinDelayBasedBwe(DataRate min_delay_based_bwe) {
-    min_delay_based_bwe_ = min_delay_based_bwe;
-  }
-
   // Returns true if queue delay is detected and above a threshold.
   bool IsQueueDelayDetected() const {
     return queue_delay_avg_.IsFinite() &&
            queue_delay_avg_ > params_.queue_delay_target.Get() / 2;
   }
-
-  DataSize UpdateReferenceWindow(DataSize rew_window,
-                                 double ref_window_mss_ratio) const;
 
   // Returns false if the minimum queue delay has been above the drain threshold
   // for a prolonged time. This can happen if minimum possible latency has
@@ -93,8 +84,6 @@ class DelayBasedCongestionControl {
   void UpdateLatencyDifferenceAverage(TimeDelta packet_latency_diff);
 
   const ScreamV2Parameters params_;
-
-  DataRate min_delay_based_bwe_;
 
   // For computing min one way delay and compensate for clock drift.
   // Based on https://datatracker.ietf.org/doc/html/rfc6817

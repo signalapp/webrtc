@@ -145,11 +145,11 @@ void ScreamV2::UpdateRefWindow(const ScreamFeedback& parsed) {
           std::min(delay_based_congestion_control_.rtt(),
                    params_.virtual_rtt.Get())) {
     last_reaction_to_congestion_time_ = parsed.feedback_time;
+    double backoff = 0.0;
     if (is_loss) {  // Back off due to loss
-      ref_window_ = ref_window_ * params_.beta_loss.Get();
-    }
-    if (is_ce) {  // Backoff due to ECN-CE marking
-      double backoff = l4s_alpha_ / 2.0;
+      backoff = 1.0 - params_.beta_loss.Get();
+    } else if (is_ce) {  // Backoff due to ECN-CE marking
+      backoff = l4s_alpha_ / 2.0;
       // Scale down backoff when RTT is high as several backoff events occur
       // per RTT
       backoff /= std::max(
@@ -186,11 +186,12 @@ void ScreamV2::UpdateRefWindow(const ScreamFeedback& parsed) {
         // excessive queue delay
         l4s_alpha_ = 0.25;
       }
-      ref_window_ = (1.0 - backoff) * ref_window_;
     } else if (is_virtual_ce) {  // Back off due to delay
-      ref_window_ = delay_based_congestion_control_.UpdateReferenceWindow(
-          ref_window_, ref_window_mss_ratio());
+      backoff = delay_based_congestion_control_.l4s_alpha_v() / 2.0;
+      backoff /= std::max(1.0, delay_based_congestion_control_.rtt() /
+                                   params_.virtual_rtt.Get());
     }
+    ref_window_ = (1.0 - backoff) * ref_window_;
   }
 
   // Increase ref_window.
