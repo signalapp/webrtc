@@ -33,6 +33,13 @@
 
 namespace webrtc {
 
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+constexpr int SamplesPer10msFrame(int sample_rate_hz) {
+  return sample_rate_hz / 100;
+}
+#endif
+
 std::optional<std::string> GetFormatParameter(const SdpAudioFormat& format,
                                               absl::string_view param);
 
@@ -73,7 +80,7 @@ class OpusFrame : public AudioDecoder::EncodedAudioFrame {
 #if WEBRTC_OPUS_SUPPORT_DRED
     if (dred_index_ > 0) {
       // DRED frames are always 10ms.
-      return decoder_->SampleRateHz() / 100;
+      return SamplesPer10msFrame(decoder_->SampleRateHz());
     }
 #endif
     if (is_primary_payload_) {
@@ -105,6 +112,10 @@ class OpusFrame : public AudioDecoder::EncodedAudioFrame {
 // RingRTC change to support Opus DRED
 #if WEBRTC_OPUS_SUPPORT_DRED
     } else if (dred_index_ > 0 && dred_payload_.size() > 0) {
+      if (decoded.size() <
+          SamplesPer10msFrame(decoder_->SampleRateHz()) * decoder_->Channels()) {
+        return std::nullopt;
+      }
       ret = static_cast<AudioDecoderOpusImpl*>(decoder_)->DecodeDred(
           dred_payload_.data(), dred_payload_.size(),
           dred_primary_timestamp_, decoded.data(), dred_index_);

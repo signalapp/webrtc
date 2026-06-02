@@ -260,6 +260,11 @@ std::optional<PacketBuffer::NextLowerTimestampResult> PacketBuffer::NextLowerTim
   }
 
   for (auto rit = buffer_.rbegin(); rit != buffer_.rend(); ++rit) {
+    if (!rit->frame) {
+      // Frameless packets (e.g. CN) are not supported; their slot in the
+      // buffer cannot be replaced by redundancy, so don't claim a gap.
+      return std::nullopt;
+    }
     if (IsNewerTimestamp(timestamp, rit->timestamp)) {
       uint16_t sequence_diff = sequence_number - rit->sequence_number;
       if (sequence_diff > 1 &&
