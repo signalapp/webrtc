@@ -400,6 +400,11 @@ int NetEqImpl::InsertPacket(const RTPHeader& rtp_header,
       buffer_flush_occured = true;
     }
     NetEqController::PacketArrivedInfo info = ToPacketArrivedInfo(packet);
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+    // Capture codec_level before it is moved.
+    const int codec_level = packet.priority.codec_level;
+#endif
     int return_val = packet_buffer_->InsertPacket(std::move(packet));
     if (return_val == PacketBuffer::kFlushed) {
       buffer_flush_occured = true;
@@ -413,7 +418,15 @@ int NetEqImpl::InsertPacket(const RTPHeader& rtp_header,
     auto relative_delay =
         controller_->PacketArrived(fs_hz_, should_update_stats, info);
     if (relative_delay) {
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+      // Only calculate the relative arrival delay on primary packets.
+      if (codec_level == 0) {
+        stats_->RelativePacketArrivalDelay(relative_delay.value());
+      }
+#else
       stats_->RelativePacketArrivalDelay(relative_delay.value());
+#endif
     }
   }
 
