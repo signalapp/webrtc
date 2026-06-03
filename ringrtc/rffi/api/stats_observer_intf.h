@@ -76,7 +76,10 @@ typedef struct {
   double estimated_playout_timestamp;
   uint64_t total_samples_received;
   uint64_t concealed_samples;
+  uint64_t silent_concealed_samples;
   uint64_t fec_packets_received;
+  uint64_t packets_discarded;
+  double relative_packet_arrival_delay;
 } AudioReceiverStatistics;
 
 typedef struct {

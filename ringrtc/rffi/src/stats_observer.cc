@@ -188,8 +188,13 @@ void StatsObserverRffi::OnStatsDelivered(
       audio_receiver.total_samples_received =
           stat->total_samples_received.value_or(0);
       audio_receiver.concealed_samples = stat->concealed_samples.value_or(0);
+      audio_receiver.silent_concealed_samples =
+          stat->silent_concealed_samples.value_or(0);
       audio_receiver.fec_packets_received =
           stat->fec_packets_received.value_or(0);
+      audio_receiver.packets_discarded = stat->packets_discarded.value_or(0);
+      audio_receiver.relative_packet_arrival_delay =
+          stat->relative_packet_arrival_delay.value_or(0.0);
 
       this->audio_receiver_statistics_.push_back(audio_receiver);
     } else if (*stat->kind == "video" &&
