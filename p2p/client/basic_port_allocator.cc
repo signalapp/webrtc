@@ -514,6 +514,20 @@ void BasicPortAllocatorSession::RegatherOnFailedNetworks() {
   Regather(failed_networks, IceRegatheringReason::NETWORK_FAILURE);
 }
 
+// RingRTC change to add RegatherOnAllNetworks()
+void BasicPortAllocatorSession::RegatherOnAllNetworks() {
+  RTC_DCHECK_RUN_ON(network_thread_);
+
+  std::vector<const Network*> networks = GetNetworks();
+  if (networks.empty()) {
+    return;
+  }
+
+  RTC_LOG(LS_INFO) << "Regather candidates on all networks";
+  Regather(networks, IceRegatheringReason::OCCASIONAL_REFRESH);
+}
+//End RingRTC
+
 void BasicPortAllocatorSession::Regather(
     const std::vector<const Network*>& networks,
     IceRegatheringReason reason) {

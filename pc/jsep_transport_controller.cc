@@ -370,6 +370,20 @@ void JsepTransportController::StartGatheringWithSharedIceGatherer(
   }
 }
 
+// RingRTC change to add RegatherOnAllNetworks()
+void JsepTransportController::RegatherOnAllNetworks() {
+  if (!network_thread_->IsCurrent()) {
+    network_thread_->BlockingCall([this] {
+      RegatherOnAllNetworks();
+    });
+    return;
+  }
+  for (auto& dtls : GetDtlsTransports()) {
+    dtls->ice_transport()->RegatherOnAllNetworks();
+  }
+}
+// End RingRTC
+
 // RingRTC change to explicitly control when incoming packets can be processed
 bool JsepTransportController::SetIncomingRtpEnabled(bool enabled) {
   if (!network_thread_->IsCurrent()) {

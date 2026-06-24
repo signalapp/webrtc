@@ -1028,6 +1028,13 @@ class RTC_EXPORT PeerConnectionInterface : public RefCountInterface {
   // https://w3c.github.io/webrtc-pc/#dom-rtcpeerconnection-restartice
   virtual void RestartIce() = 0;
 
+  // RingRTC change to add RegatherOnAllNetworks()
+  // Allocate new ports, gather new local candidates, and reconnect
+  // This is separate from RestartIce(), because RestartIce() changes the ICE
+  // credentials and requires signalling the new credentials. We have no
+  // mechanism to signal changed credentials.
+  virtual void RegatherOnAllNetworks() = 0;
+
   // Create a new offer.
   // The CreateSessionDescriptionObserver callback will be called when done.
   virtual void CreateOffer(CreateSessionDescriptionObserver* observer,

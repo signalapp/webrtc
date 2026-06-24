@@ -216,4 +216,7 @@ RUSTEXPORT void Rust_setRtpPacketObserver(
 RUSTEXPORT void Rust_closePeerConnection(
     webrtc::PeerConnectionInterface* peer_connection_borrowed_rc);
 
+RUSTEXPORT void Rust_regatherOnAllNetworks(
+    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc);
+
 #endif /* RFFI_API_PEER_CONNECTION_INTF_H__ */

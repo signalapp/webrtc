@@ -134,6 +134,8 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
   std::optional<SSLRole> GetDtlsRole(const std::string& mid) const override;
 
   void RestartIce();
+  // RingRTC change to add RegatherOnAllNetworks()
+  void RegatherOnAllNetworks();
 
   // JSEP01
   void CreateOffer(

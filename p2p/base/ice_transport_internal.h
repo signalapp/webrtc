@@ -303,6 +303,8 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
   // Can only be called once.
   virtual void StartGatheringWithSharedGatherer(
       scoped_refptr<IceGathererInterface> gatherer) {}
+  // RingRTC change to add RegatherOnAllNetworks()
+  virtual void RegatherOnAllNetworks() = 0;
   // Just for tests.
   virtual IceGathererInterface* shared_gatherer() { return nullptr; }
 

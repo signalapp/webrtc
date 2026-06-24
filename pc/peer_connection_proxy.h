@@ -128,6 +128,8 @@ BYPASS_PROXY_CONSTMETHOD0(const SessionDescriptionInterface*,
 BYPASS_PROXY_CONSTMETHOD0(const SessionDescriptionInterface*,
                           pending_remote_description)
 PROXY_METHOD0(void, RestartIce)
+// RingRTC change to add RegatherOnAllNetworks()
+PROXY_METHOD0(void, RegatherOnAllNetworks)
 PROXY_METHOD2(void,
               CreateOffer,
               CreateSessionDescriptionObserver*,

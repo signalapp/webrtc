@@ -1538,6 +1538,15 @@ void PeerConnection::RestartIce() {
   sdp_handler_->RestartIce();
 }
 
+// RingRTC change to add RegatherOnAllNetworks()
+void PeerConnection::RegatherOnAllNetworks() {
+  RunOnSignalingThread([this]() mutable {
+    RTC_DCHECK_RUN_ON(signaling_thread());
+    sdp_handler_->RegatherOnAllNetworks();
+  });
+}
+// End RingRTC
+
 void PeerConnection::CreateOffer(CreateSessionDescriptionObserver* observer,
                                  const RTCOfferAnswerOptions& options) {
   RTC_DCHECK_RUN_ON(signaling_thread());

@@ -1147,5 +1147,10 @@ RUSTEXPORT void Rust_closePeerConnection(
   peer_connection_borrowed_rc->Close();
 }
 
+RUSTEXPORT void Rust_regatherOnAllNetworks(
+    PeerConnectionInterface* peer_connection_borrowed_rc) {
+  peer_connection_borrowed_rc->RegatherOnAllNetworks();
+}
+
 }  // namespace rffi
 }  // namespace webrtc

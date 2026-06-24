@@ -248,6 +248,8 @@ class JsepTransportController final {
   // RingRTC change to support ICE forking
   void StartGatheringWithSharedIceGatherer(
       scoped_refptr<IceGathererInterface> shared_ice_gatherer);
+  // RingRTC change to add RegatherOnAllNetworks()
+  void RegatherOnAllNetworks();
   RTCError AddRemoteCandidates(absl::string_view mid,
                                const std::vector<Candidate>& candidates);
   // Must be called on the signaling thread.

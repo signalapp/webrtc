@@ -137,6 +137,8 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
   IceGathererInterface* shared_gatherer() override {
     return shared_gatherer_.get();
   }
+  // RingRTC change to add RegatherOnAllNetworks()
+  void RegatherOnAllNetworks() override;
   IceGatheringState gathering_state() const override;
   void ResolveHostnameCandidate(const Candidate& candidate);
   void AddRemoteCandidate(const Candidate& candidate) override;

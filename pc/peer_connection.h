@@ -210,6 +210,8 @@ class PeerConnection : public PeerConnectionInternal,
       const override;
 
   void RestartIce() override;
+  // RingRTC change to add RegatherOnAllNetworks()
+  void RegatherOnAllNetworks() override;
 
   // JSEP01
   void CreateOffer(CreateSessionDescriptionObserver* observer,

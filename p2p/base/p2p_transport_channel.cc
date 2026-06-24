@@ -999,6 +999,15 @@ void P2PTransportChannel::StartGatheringWithSharedGatherer(
 }
 // end RingRTC
 
+// RingRTC change to add RegatherOnAllNetworks()
+void P2PTransportChannel::RegatherOnAllNetworks() {
+  auto session = allocator_session();
+  if (session) {
+    session->RegatherOnAllNetworks();
+  }
+}
+// End RingRTC
+
 // A new port is available, attempt to make connections for it
 // RingRTC change to support ICE forking
 void P2PTransportChannel::OnPortReady(PortAllocatorSession* session,

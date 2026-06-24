@@ -173,6 +173,8 @@ class RTC_EXPORT BasicPortAllocatorSession : public PortAllocatorSession {
   std::vector<Candidate> ReadyCandidates() const override;
   bool CandidatesAllocationDone() const override;
   void RegatherOnFailedNetworks() override;
+  // RingRTC change to add RegatherOnAllNetworks()
+  void RegatherOnAllNetworks() override;
   void GetCandidateStatsFromReadyPorts(
       CandidateStatsList* candidate_stats_list) const override;
   void SetStunKeepaliveIntervalForReadyPorts(
