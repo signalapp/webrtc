@@ -210,7 +210,7 @@ class JsepTransport {
   // RingRTC: Allow out-of-band / "manual" key negotiation.
   bool SetSrtpCrypto(SrtpTransport* srtp_transport,
                      const std::optional<CryptoParams>& crypto,
-                     const std::vector<int>& encrypted_extension_ids,
+                     const std::vector<RtpHeaderExtensionId>& encrypted_extension_ids,
                      SdpType type,
                      ContentSource source);
 

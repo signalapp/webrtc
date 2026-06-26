@@ -459,7 +459,7 @@ void JsepTransport::ActivateRtcpMux() {
 bool JsepTransport::SetSrtpCrypto(
     SrtpTransport* srtp_transport,
     const std::optional<CryptoParams>& crypto,
-    const std::vector<int>& encrypted_extension_ids,
+    const std::vector<RtpHeaderExtensionId>& encrypted_extension_ids,
     SdpType type,
     ContentSource source) {
   RTC_DCHECK_RUN_ON(&transport_sequence_);

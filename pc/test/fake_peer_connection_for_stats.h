@@ -363,6 +363,11 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase,
     return dependencies;
   }
 
+  // RingRTC change to enable unit tests to build.
+  void RegatherOnAllNetworks() override {
+    // Do nothing for now
+  }
+
   scoped_refptr<StreamCollection> mutable_local_streams() {
     return local_streams_;
   }

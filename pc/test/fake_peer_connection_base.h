@@ -253,6 +253,9 @@ class FakePeerConnectionBase : public PeerConnectionInternal {
   // RingRTC change to add new methods
   void SetRtpPacketObserver(RtpPacketSinkInterface*) override {}
 
+  // RingRTC change to add RegatherOnAllNetworks().
+  void RegatherOnAllNetworks() override {}
+
   bool UseSharedIceGatherer(scoped_refptr<IceGathererInterface>
                                 shared_ice_gatherer) override {
     return false;

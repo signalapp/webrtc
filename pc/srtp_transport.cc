@@ -382,7 +382,7 @@ bool SrtpTransport::UnregisterRtpDemuxerSink(RtpPacketSinkInterface* sink) {
 
 // RingRTC change, copied from  DtlsSrtpTransport, Allow out-of-band / "manual" key negotiation.
 void SrtpTransport::UpdateSendEncryptedHeaderExtensionIds(
-  const std::vector<int>& send_extension_ids) {
+  const std::vector<RtpHeaderExtensionId>& send_extension_ids) {
   if (send_extension_ids_ == send_extension_ids) {
     return;
   }
@@ -390,7 +390,7 @@ void SrtpTransport::UpdateSendEncryptedHeaderExtensionIds(
 }
 
 void SrtpTransport::UpdateRecvEncryptedHeaderExtensionIds(
-    const std::vector<int>& recv_extension_ids) {
+    const std::vector<RtpHeaderExtensionId>& recv_extension_ids) {
   if (recv_extension_ids_ == recv_extension_ids) {
     return;
   }

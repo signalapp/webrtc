@@ -94,8 +94,8 @@ class DtlsSrtpTransport : public SrtpTransport {
 
   // RingRTC - move to SrtpTransport, Allow out-of-band / "manual" key negotiation.
   // The encrypted header extension IDs.
-  // std::optional<std::vector<int>> send_extension_ids_;
-  // std::optional<std::vector<int>> recv_extension_ids_;
+  // std::optional<std::vector<RtpHeaderExtensionId>> send_extension_ids_;
+  // std::optional<std::vector<RtpHeaderExtensionId>> recv_extension_ids_;
   // end RingRTC change
 
   absl::AnyInvocable<void()> on_dtls_state_change_;

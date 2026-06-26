@@ -135,10 +135,11 @@ std::unique_ptr<ModuleRtpRtcpImpl2> CreateRtpRtcpModule(
       .receive_statistics = receive_statistics,
       .outgoing_transport = rtcp_send_transport,
       .rtcp_packet_type_counter_observer = rtcp_packet_type_counter_observer,
+      // RingRTC change to configure the RTCP report interval
+      .rtcp_report_interval_ms = rtcp_report_interval_ms,
       .rtcp_mode = RtcpMode::kCompound,
       .remote_ssrc = remote_ssrc,
       .non_sender_rtt_measurement = enable_non_sender_rtt,
-      .rtcp_report_interval_ms = rtcp_report_interval_ms,
   };
 
   std::unique_ptr<ModuleRtpRtcpImpl2> rtp_rtcp =
@@ -616,6 +617,7 @@ ChannelReceive::ChannelReceive(
                                     enable_non_sender_rtt,
                                     remote_ssrc,
                                     packet_router,
+                                    // RingRTC change to configure the RTCP report interval.
                                     rtcp_report_interval_ms)),
       remote_ssrc_(remote_ssrc),
       source_tracker_(&env_.clock()),
@@ -1251,7 +1253,12 @@ std::unique_ptr<ChannelReceiveInterface> CreateChannelReceive(
   return std::make_unique<ChannelReceive>(
       env, neteq_factory, audio_device_module, rtcp_send_transport, remote_ssrc,
       jitter_buffer_max_packets, jitter_buffer_fast_playout,
-      jitter_buffer_min_delay_ms, enable_non_sender_rtt, decoder_factory,
+      jitter_buffer_min_delay_ms,
+      // RingRTC change to configure the jitter buffer's max target delay.
+      jitter_buffer_max_target_delay_ms,
+      // RingRTC change to configure the RTCP report interval.
+      rtcp_report_interval_ms,
+      enable_non_sender_rtt, decoder_factory,
       std::move(frame_decryptor), crypto_options, std::move(frame_transformer),
       packet_router);
 }

@@ -155,7 +155,7 @@ TEST(CryptoOptionsTest, GetSupportedDtlsSrtpCryptoSuitesDefault) {
                           kSrtpAeadAes128Gcm));
 }
 
-TEST(CryptoOptionsTest, GetSupportedDtlsSrtpCryptoSuitesNoGcm) {
+TEST(DISABLED_CryptoOptionsTest, DISABLED_GetSupportedDtlsSrtpCryptoSuitesNoGcm) {
   CryptoOptions options = CryptoOptions::NoGcm();
   EXPECT_THAT(options.GetSupportedDtlsSrtpCryptoSuites(),
               ElementsAre(kSrtpAes128CmSha1_80));

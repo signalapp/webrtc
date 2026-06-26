@@ -164,11 +164,11 @@ class ChannelReceiveInterface : public RtpPacketSinkInterface {
   virtual void SetFrameDecryptor(
       scoped_refptr<webrtc::FrameDecryptorInterface> frame_decryptor) = 0;
 
+  virtual uint32_t remote_ssrc() const = 0;
+
   // RingRTC change to configure opus
   virtual void ConfigureDecoder(const AudioDecoder::Config& config) = 0;
   // End RingRTC change to configure opus
-
-  virtual uint32_t remote_ssrc() const = 0;
 };
 
 std::unique_ptr<ChannelReceiveInterface> CreateChannelReceive(

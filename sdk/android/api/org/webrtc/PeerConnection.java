@@ -840,17 +840,17 @@ public class PeerConnection {
     }
 
     // RingRTC change to use default port allocator flags
-    // @CalledByNative("RTCConfiguration")
+    // @CalledByNative
     // int getPortAllocatorMinPort() {
     //   return portAllocatorMinPort;
     // }
     //
-    // @CalledByNative("RTCConfiguration")
+    // @CalledByNative
     // int getPortAllocatorMaxPort() {
     //   return portAllocatorMaxPort;
     // }
     //
-    // @CalledByNative("RTCConfiguration")
+    // @CalledByNative
     // @PortAllocatorFlags
     // int getPortAllocatorFlags() {
     //   return portAllocatorFlags;

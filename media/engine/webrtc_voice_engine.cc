@@ -2532,15 +2532,16 @@ bool WebRtcVoiceReceiveChannel::AddRecvStream(const StreamParams& sp) {
   // Create a new channel for receiving audio data.
   AudioReceiveStreamInterface::Config config = BuildReceiveStreamConfig(
       ssrc, recv_nack_enabled_, enable_non_sender_rtt_, recv_rtcp_mode_,
-      sp.stream_ids(), transport(), engine()->decoder_factory_, decoder_map_,
-      audio_config_.audio_jitter_buffer_max_packets_,
-      audio_config_.audio_jitter_buffer_fast_accelerate_,
-      options_.audio_jitter_buffer_min_delay_ms_.value_or(0),
+      sp.stream_ids(), transport(), engine()->decoder_factory(), decoder_map_,
+      audio_config_.audio_jitter_buffer_max_packets,
+      audio_config_.audio_jitter_buffer_fast_accelerate,
+      options_.audio_jitter_buffer_min_delay_ms.value_or(0),
       // RingRTC change to configure the jitter buffer's max target delay.
       audio_config_.jitter_buffer_max_target_delay_ms,
       // RingRTC change to configure the RTCP report interval.
-      audio_config_.rtcp_report_interval_ms, unsignaled_frame_decryptor_,
-      crypto_options_, unsignaled_frame_transformer_);
+      audio_config_.rtcp_report_interval_ms,
+      unsignaled_frame_decryptor_, crypto_options_,
+      unsignaled_frame_transformer_);
 
   recv_streams_.insert(std::make_pair(
       ssrc, new WebRtcAudioReceiveStream(std::move(config), call_)));

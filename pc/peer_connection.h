@@ -249,13 +249,19 @@ class PeerConnection : public PeerConnectionInternal,
                        std::function<void(RTCError)> callback) override;
   bool RemoveIceCandidate(const IceCandidate* candidate) override;
 
-  // RingRTC change to add methods (see interface header)
+  // RingRTC change to support ICE forking
   scoped_refptr<IceGathererInterface> CreateSharedIceGatherer() override;
   bool UseSharedIceGatherer(scoped_refptr<IceGathererInterface>
                             shared_ice_gatherer) override;
+  // end RingRTC change to support ICE forking
+
+  // RingRTC change to explicitly control when incoming packets can be processed
   bool SetIncomingRtpEnabled(bool enabled) override;
 
+  // RingRTC change to send RTP data
   bool SendRtp(std::unique_ptr<RtpPacket> rtp_packet) override;
+
+  // RingRTC change to receive RTP data
   bool ReceiveRtp(uint8_t pt, bool enable_incoming) override;
 
   // RingRTC change to configure opus

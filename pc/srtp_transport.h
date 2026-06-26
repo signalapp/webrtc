@@ -96,10 +96,10 @@ class SrtpTransport : public RtpTransport {
   // RingRTC change, copied from  DtlsSrtpTransport, Allow out-of-band / "manual" key negotiation.
   // Set the header extension ids that should be encrypted.
   void UpdateSendEncryptedHeaderExtensionIds(
-      const std::vector<int>& send_extension_ids);
+      const std::vector<RtpHeaderExtensionId>& send_extension_ids);
 
   void UpdateRecvEncryptedHeaderExtensionIds(
-      const std::vector<int>& recv_extension_ids);
+      const std::vector<RtpHeaderExtensionId>& recv_extension_ids);
 
   // Create new send/recv sessions and set the negotiated crypto keys for RTP
   // packet encryption.
@@ -114,8 +114,8 @@ class SrtpTransport : public RtpTransport {
 
   // RingRTC, moved from  DtlsSrtpTransport, Allow out-of-band / "manual" key negotiation.
   // The encrypted header extension IDs.
-  std::optional<std::vector<int>> send_extension_ids_;
-  std::optional<std::vector<int>> recv_extension_ids_;
+  std::optional<std::vector<RtpHeaderExtensionId>> send_extension_ids_;
+  std::optional<std::vector<RtpHeaderExtensionId>> recv_extension_ids_;
   // end RingRTC change
  private:
   void ConnectToRtpTransport();

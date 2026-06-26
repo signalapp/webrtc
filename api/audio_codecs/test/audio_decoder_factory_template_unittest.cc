@@ -224,7 +224,7 @@ TEST(AudioDecoderFactoryTemplateTest, TwoDecoderTypes) {
 
 // RingRTC change to disable unused audio codecs
 TEST(AudioDecoderFactoryTemplateTest, DISABLED_G711) {
-  const Environment env = CreateEnvironment();
+  const Environment env = CreateTestEnvironment();
   auto factory = CreateAudioDecoderFactory<AudioDecoderG711>();
   EXPECT_THAT(factory->GetSupportedDecoders(),
               ::testing::ElementsAre(
@@ -244,7 +244,7 @@ TEST(AudioDecoderFactoryTemplateTest, DISABLED_G711) {
 
 // RingRTC change to disable unused audio codecs
 TEST(AudioDecoderFactoryTemplateTest, DISABLED_G722) {
-  const Environment env = CreateEnvironment();
+  const Environment env = CreateTestEnvironment();
   auto factory = CreateAudioDecoderFactory<AudioDecoderG722>();
   EXPECT_THAT(factory->GetSupportedDecoders(),
               ::testing::ElementsAre(
@@ -266,7 +266,7 @@ TEST(AudioDecoderFactoryTemplateTest, DISABLED_G722) {
 
 // RingRTC change to disable unused audio codecs
 TEST(AudioDecoderFactoryTemplateTest, DISABLED_L16) {
-  const Environment env = CreateEnvironment();
+  const Environment env = CreateTestEnvironment();
   auto factory = CreateAudioDecoderFactory<AudioDecoderL16>();
   EXPECT_THAT(
       factory->GetSupportedDecoders(),

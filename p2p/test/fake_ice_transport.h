@@ -80,6 +80,11 @@ class FakeIceTransportInternal : public IceTransportInternal {
     }
   }
 
+  // RingRTC change to add RegatherOnAllNetworks().
+  void RegatherOnAllNetworks() override {
+    // Do nothing for now
+  }
+
   // If async, will send packets by "Post"-ing to message queue instead of
   // synchronously "Send"-ing.
   void SetAsync(bool async) {

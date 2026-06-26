@@ -750,6 +750,17 @@ PeerConnection::MakeCloseOnNetworkThreadTask() {
              -> RTCErrorOr<ScopedOperationsBatcher::FinalizerTask> {
     RTC_DCHECK_RUN_ON(network_thread());
     if (network_thread_safety_->alive()) {
+      // RingRTC change to receive RTP data
+      if (rtp_demuxer_sink_registered_ && rtp_packet_observer_ != nullptr) {
+        JsepTransportController* transport_controller =
+            this->transport_controller_n();
+        RtpTransportInternal* rtp_transport =
+            transport_controller->GetBundledRtpTransport();
+        rtp_demuxer_sink_registered_ =
+            !rtp_transport->UnregisterRtpDemuxerSink(rtp_packet_observer_);
+      }
+      rtp_packet_observer_ = nullptr;
+      // end RingRTC change
       // port_allocator_ and transport_controller_ live on the network thread
       // and must be destroyed there.
       TeardownDataChannelTransport_n(RTCError::OK());
@@ -764,35 +775,6 @@ PeerConnection::MakeCloseOnNetworkThreadTask() {
       port_allocator_.reset();
       network_thread_safety_->SetNotAlive();
     }
-  // if (transport_controller_copy_ || !network_tasks.empty()) {
-  //   network_thread()->BlockingCall([&] {
-  //     RTC_DCHECK_RUN_ON(network_thread());
-  //     for (auto& task : network_tasks) {
-  //       std::move(task)();
-  //       task = nullptr;
-  //     }
-  //     if (network_thread_safety_->alive()) {
-  //       // RingRTC change to receive RTP data
-  //       if (rtp_demuxer_sink_registered_ && rtp_packet_observer_ != nullptr) {
-  //         JsepTransportController* transport_controller =
-  //             this->transport_controller_n();
-  //         RtpTransportInternal* rtp_transport =
-  //             transport_controller->GetBundledRtpTransport();
-  //         rtp_demuxer_sink_registered_ =
-  //             !rtp_transport->UnregisterRtpDemuxerSink(rtp_packet_observer_);
-  //       }
-  //       rtp_packet_observer_ = nullptr;
-  //       // end RingRTC change
-  //       // port_allocator_ and transport_controller_ live on the network thread
-  //       // and must be destroyed there.
-  //       TeardownDataChannelTransport_n(RTCError::OK());
-  //       port_allocator_->DiscardCandidatePool();
-  //       transport_controller_.reset();
-  //       port_allocator_.reset();
-  //       network_thread_safety_->SetNotAlive();
-  //     }
-  //   });
-  // }
 
     return ScopedOperationsBatcher::FinalizerTask([this]() {
       RTC_DCHECK_RUN_ON(signaling_thread());
@@ -3179,7 +3161,7 @@ bool PeerConnection::CanAttemptDtlsStunPiggybacking() {
          env_.field_trials().IsEnabled("WebRTC-IceHandshakeDtls");
 }
 
-// RingRTC change to add methods (see interface header)
+// RingRTC change to support ICE forking
 scoped_refptr<IceGathererInterface> PeerConnection::CreateSharedIceGatherer() {
   return network_thread()->BlockingCall([this] {
     RTC_DCHECK_RUN_ON(network_thread());
@@ -3187,6 +3169,7 @@ scoped_refptr<IceGathererInterface> PeerConnection::CreateSharedIceGatherer() {
   });
 }
 
+// RingRTC change to support ICE forking
 bool PeerConnection::UseSharedIceGatherer(
     scoped_refptr<IceGathererInterface> shared_ice_gatherer) {
   RTC_DCHECK(shared_ice_gatherer);
