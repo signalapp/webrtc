@@ -88,6 +88,10 @@ class FrameValidator : public EncodedImageCallback {
     return Result(Result::OK);
   }
 
+  void OnFrameDropped(uint32_t rtp_timestamp,
+                      int spatial_id,
+                      bool is_end_of_temporal_unit) override {}
+
  private:
   // With 4 spatial layers and patterns up to 8 pictures, it should be enough to
   // keep the last 32 frames to validate dependencies.
@@ -188,6 +192,7 @@ class FieldTrials : public FieldTrialsView {
   std::string Lookup(absl::string_view key) const override {
     static constexpr absl::string_view kBinaryFieldTrials[] = {
         "WebRTC-Vp9IssueKeyFrameOnLayerDeactivation",
+        "WebRTC-LibvpxVp9Encoder-PostEncodeFrameDrop",
     };
     for (size_t i = 0; i < std::size(kBinaryFieldTrials); ++i) {
       if (key == kBinaryFieldTrials[i]) {
@@ -571,8 +576,9 @@ void FuzzOneInput(FuzzDataHelper fuzz_data) {
                                   int{codec.width}, int{codec.height}))
                               .build();
 
-  // Start producing frames at random.
-  while (fuzz_data.CanReadBytes(1)) {
+  // Restrict max number of actions to prevent timeout on large inputs.
+  int num_actions = 0;
+  while (fuzz_data.CanReadBytes(1) && ++num_actions <= 1000) {
     uint8_t action = fuzz_data.Read<uint8_t>();
     switch (action & 0b11) {
       case kEncode: {

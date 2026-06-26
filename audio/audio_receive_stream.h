@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
 #include "api/audio/audio_frame.h"
 #include "api/audio/audio_mixer.h"
@@ -57,17 +58,17 @@ class AudioReceiveStreamImpl final : public webrtc::AudioReceiveStreamInterface,
  public:
   AudioReceiveStreamImpl(
       const Environment& env,
-      PacketRouter* packet_router,
-      NetEqFactory* neteq_factory,
+      PacketRouter* absl_nonnull packet_router,
+      NetEqFactory* absl_nullable neteq_factory,
       const webrtc::AudioReceiveStreamInterface::Config& config,
       const scoped_refptr<webrtc::AudioState>& audio_state);
   // For unit tests, which need to supply a mock channel receive.
   AudioReceiveStreamImpl(
       const Environment& env,
-      PacketRouter* packet_router,
       const webrtc::AudioReceiveStreamInterface::Config& config,
       const scoped_refptr<webrtc::AudioState>& audio_state,
-      std::unique_ptr<voe::ChannelReceiveInterface> channel_receive);
+      absl_nonnull std::unique_ptr<voe::ChannelReceiveInterface>
+          channel_receive);
 
   AudioReceiveStreamImpl() = delete;
   AudioReceiveStreamImpl(const AudioReceiveStreamImpl&) = delete;
@@ -132,19 +133,11 @@ class AudioReceiveStreamImpl final : public webrtc::AudioReceiveStreamInterface,
 
   void SetSyncGroup(absl::string_view sync_group);
 
-  uint32_t remote_ssrc() const override {
-    // The remote_ssrc member variable of config_ will never change and can be
-    // considered const.
-    return config_.rtp.remote_ssrc;
-  }
+  uint32_t remote_ssrc() const override;
 
   // Returns a reference to the currently set sync group of the stream.
   // Must be called on the packet delivery thread.
   const std::string& sync_group() const;
-
-  // TODO(tommi): Remove this method.
-  void ReconfigureForTesting(
-      const webrtc::AudioReceiveStreamInterface::Config& config);
 
   // RingRTC change to configure opus
   void ConfigureDecoder(const AudioDecoder::Config& config) override;
@@ -167,7 +160,7 @@ class AudioReceiveStreamImpl final : public webrtc::AudioReceiveStreamInterface,
   RTC_NO_UNIQUE_ADDRESS SequenceChecker packet_sequence_checker_{
       SequenceChecker::kDetached};
   webrtc::AudioReceiveStreamInterface::Config config_;
-  scoped_refptr<webrtc::AudioState> audio_state_;
+  const scoped_refptr<webrtc::AudioState> audio_state_;
   const std::unique_ptr<voe::ChannelReceiveInterface> channel_receive_;
 
   bool playing_ RTC_GUARDED_BY(worker_thread_checker_) = false;

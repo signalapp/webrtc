@@ -21,11 +21,14 @@
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/candidate.h"
+#include "api/crypto/crypto_options.h"
 #include "api/dtls_transport_interface.h"
 #include "api/ice_transport_interface.h"
 #include "api/jsep.h"
 #include "api/make_ref_counted.h"
 #include "api/rtc_error.h"
+#include "api/rtp_header_extension_id.h"
+#include "api/rtp_parameters.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
 #include "media/sctp/sctp_transport_internal.h"
@@ -48,8 +51,6 @@
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/trace_event.h"
 
-using webrtc::SdpType;
-
 namespace webrtc {
 
 JsepTransportDescription::JsepTransportDescription() {}
@@ -58,7 +59,7 @@ JsepTransportDescription::JsepTransportDescription(
     bool rtcp_mux_enabled,
     // RingRTC: Allow out-of-band / "manual" key negotiation.
     const std::optional<CryptoParams>& crypto,
-    const std::vector<int>& encrypted_header_extension_ids,
+    const std::vector<RtpHeaderExtensionId>& encrypted_header_extension_ids,
     const TransportDescription& transport_desc)
     : rtcp_mux_enabled(rtcp_mux_enabled),
       // RingRTC: Allow out-of-band / "manual" key negotiation.
@@ -95,7 +96,8 @@ JsepTransport::JsepTransport(
     std::unique_ptr<RtpTransport> rtp_transport,
     scoped_refptr<DtlsTransport> rtp_dtls_transport,
     std::unique_ptr<SctpTransportInternal> sctp_transport,
-    absl::AnyInvocable<void()> rtcp_mux_active_callback)
+    absl::AnyInvocable<void()> rtcp_mux_active_callback,
+    CryptoOptions::Srtp::CryptexPolicy cryptex_policy)
     : local_certificate_(local_certificate),
       rtp_transport_(std::move(rtp_transport)),
       rtp_dtls_transport_(std::move(rtp_dtls_transport)),
@@ -104,7 +106,8 @@ JsepTransport::JsepTransport(
                                 std::move(sctp_transport),
                                 rtp_dtls_transport_)
                           : nullptr),
-      rtcp_mux_active_callback_(std::move(rtcp_mux_active_callback)) {
+      rtcp_mux_active_callback_(std::move(rtcp_mux_active_callback)),
+      cryptex_policy_(cryptex_policy) {
   TRACE_EVENT0("webrtc", "JsepTransport::JsepTransport");
   RTC_DCHECK(rtp_dtls_transport_);
   RTC_DCHECK(rtp_transport_);
@@ -155,6 +158,11 @@ RTCError JsepTransport::SetLocalJsepTransportDescription(
   if (auto* dtls_srtp_transport = rtp_transport_->AsDtlsSrtpTransportAlwaysNull()) {
     dtls_srtp_transport->UpdateRecvEncryptedHeaderExtensionIds(
         jsep_description.encrypted_header_extension_ids);
+    dtls_srtp_transport->UseCryptex(
+        (cryptex_policy_ != CryptoOptions::Srtp::CryptexPolicy::kDisabled) &&
+            (remote_description_ != nullptr &&
+             remote_description_->transport_desc.cryptex),
+        cryptex_policy_ == CryptoOptions::Srtp::CryptexPolicy::kRequire);
   }
   // RingRTC: Allow out-of-band / "manual" key negotiation.
   // If doing SRTP with manual keys, setup the crypto parameters.
@@ -242,6 +250,10 @@ RTCError JsepTransport::SetRemoteJsepTransportDescription(
   if (auto* dtls_srtp_transport = rtp_transport_->AsDtlsSrtpTransportAlwaysNull()) {
     dtls_srtp_transport->UpdateSendEncryptedHeaderExtensionIds(
         jsep_description.encrypted_header_extension_ids);
+    dtls_srtp_transport->UseCryptex(
+        (cryptex_policy_ != CryptoOptions::Srtp::CryptexPolicy::kDisabled) &&
+            jsep_description.transport_desc.cryptex,
+        cryptex_policy_ == CryptoOptions::Srtp::CryptexPolicy::kRequire);
   }
   // RingRTC: Allow out-of-band / "manual" key negotiation.
   // If doing SRTP, setup the SRTP crypto parameters.
@@ -360,8 +372,7 @@ RTCError JsepTransport::VerifyCertificateFingerprint(
   if (*fp_tmp == *fingerprint) {
     return RTCError::OK();
   }
-  char ss_buf[1024];
-  SimpleStringBuilder desc(ss_buf);
+  StringBuilder desc;
   desc << "Local fingerprint does not match identity. Expected: ";
   desc << fp_tmp->ToString();
   desc << " Got: " << fingerprint->ToString();
@@ -521,6 +532,7 @@ RTCError JsepTransport::NegotiateAndSetDtlsParameters(
   // between future SetRemote/SetLocal invocations and new transport
   // creation, we have the negotiation state saved until a new
   // negotiation happens.
+
   RTC_DCHECK(rtp_dtls_transport());
   RTCError error = SetNegotiatedDtlsParameters(
       rtp_dtls_transport(), negotiated_dtls_role, remote_fingerprint.get());
@@ -532,6 +544,20 @@ RTCError JsepTransport::NegotiateAndSetDtlsParameters(
     error = SetNegotiatedDtlsParameters(
         rtcp_dtls_transport(), negotiated_dtls_role, remote_fingerprint.get());
   }
+
+  bool dtls_in_stun =
+      local_description_->transport_desc.HasOption(ICE_OPTION_GOOG_SPED_V1);
+
+  IceConfig config = rtp_dtls_transport()->ice_transport()->config();
+  config.dtls_handshake_in_stun = dtls_in_stun;
+  rtp_dtls_transport()->ice_transport()->SetIceConfig(config);
+
+  if (rtcp_dtls_transport()) {
+    IceConfig rtcp_config = rtcp_dtls_transport()->ice_transport()->config();
+    rtcp_config.dtls_handshake_in_stun = dtls_in_stun;
+    rtcp_dtls_transport()->ice_transport()->SetIceConfig(rtcp_config);
+  }
+
   return error;
 }
 

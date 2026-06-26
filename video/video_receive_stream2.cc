@@ -11,6 +11,7 @@
 #include "video/video_receive_stream2.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstdint>
 #include <initializer_list>
@@ -76,6 +77,7 @@
 #include "modules/video_coding/utility/vp8_header_parser.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/event.h"
+#include "rtc_base/experiments/corruption_detection_frame_selector_settings.h"
 #include "rtc_base/experiments/field_trial_parser.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/race_checker.h"
@@ -180,6 +182,25 @@ std::string OptionalDelayToLogString(std::optional<TimeDelta> opt) {
   return opt.has_value() ? absl::StrCat(*opt) : "<unset>";
 }
 
+std::unique_ptr<VideoStreamBufferController> CreateBuffer(
+    const Environment& env,
+    Call* call,
+    VCMTiming* timing,
+    ReceiveStatisticsProxy* stats_proxy,
+    FrameSchedulingReceiver* receiver,
+    TimeDelta max_wait_for_keyframe,
+    TimeDelta max_wait_for_frame,
+    DecodeSynchronizer* decode_sync) {
+  std::unique_ptr<FrameDecodeScheduler> scheduler =
+      decode_sync ? decode_sync->CreateSynchronizedFrameScheduler()
+                  : std::make_unique<TaskQueueFrameDecodeScheduler>(
+                        &env.clock(), call->worker_thread());
+  return std::make_unique<VideoStreamBufferController>(
+      &env.clock(), call->worker_thread(), timing, stats_proxy, receiver,
+      max_wait_for_keyframe, max_wait_for_frame, std::move(scheduler),
+      env.field_trials());
+}
+
 }  // namespace
 
 TimeDelta DetermineMaxWaitForFrame(TimeDelta rtp_history, bool is_keyframe) {
@@ -238,7 +259,22 @@ VideoReceiveStream2::VideoReceiveStream2(
       max_wait_for_frame_(DetermineMaxWaitForFrame(
           TimeDelta::Millis(config_.rtp.nack.rtp_history_ms),
           false)),
+      buffer_(CreateBuffer(env_,
+                           call_,
+                           timing_.get(),
+                           &stats_proxy_,
+                           this,
+                           max_wait_for_keyframe_,
+                           max_wait_for_frame_,
+                           decode_sync)),
       frame_evaluator_(FrameInstrumentationEvaluation::Create(&stats_proxy_)),
+      post_decode_queue_(
+          CorruptionDetectionFrameSelectorSettings(env.field_trials())
+                  .use_asynchronous_evaluation()
+              ? env_.task_queue_factory().CreateTaskQueue(
+                    "VideoPostDecodeQueue",
+                    TaskQueueFactory::Priority::kNormal)
+              : nullptr),
       decode_queue_(env_.task_queue_factory().CreateTaskQueue(
           "VideoDecoderQueue",
           env_.field_trials().IsEnabled("WebRTC-MediaTaskQueuePriorities")
@@ -262,15 +298,6 @@ VideoReceiveStream2::VideoReceiveStream2(
   }
 
   timing_->set_render_delay(TimeDelta::Millis(config_.render_delay_ms));
-
-  std::unique_ptr<FrameDecodeScheduler> scheduler =
-      decode_sync ? decode_sync->CreateSynchronizedFrameScheduler()
-                  : std::make_unique<TaskQueueFrameDecodeScheduler>(
-                        &env_.clock(), call_->worker_thread());
-  buffer_ = std::make_unique<VideoStreamBufferController>(
-      &env_.clock(), call_->worker_thread(), timing_.get(), &stats_proxy_, this,
-      max_wait_for_keyframe_, max_wait_for_frame_, std::move(scheduler),
-      env_.field_trials());
 
   if (!config_.rtp.rtx_associated_payload_types.empty()) {
     rtx_receive_stream_ = std::make_unique<RtxReceiveStream>(
@@ -615,11 +642,43 @@ void VideoReceiveStream2::UpdateHistograms() {
 
 void VideoReceiveStream2::CalculateCorruptionScore(
     const VideoFrame& frame,
-    const FrameInstrumentationData& frame_instrumentation_data,
+    FrameInstrumentationData frame_instrumentation_data,
     VideoContentType content_type) {
   RTC_DCHECK_RUNS_SERIALIZED(&decode_callback_race_checker_);
-  frame_evaluator_->OnInstrumentedFrame(frame_instrumentation_data, frame,
-                                        content_type);
+
+  if (post_decode_queue_) {
+    // Set the max number of pending post decode tasks very conservative since
+    // each one has a refcounted VideoFrame.
+    constexpr int kMaxPendingPostDecodeFrames = 2;
+    std::optional<VideoFrame> frame_to_evaluate;
+    if (pending_post_decode_frames_.load() >= kMaxPendingPostDecodeFrames) {
+      RTC_LOG(LS_WARNING)
+          << "Post decode queue too long, discarding frame evaluation data.";
+    } else {
+      frame_to_evaluate = frame;
+      pending_post_decode_frames_.fetch_add(1, std::memory_order_relaxed);
+    }
+
+    post_decode_queue_->PostTask(
+        [this,
+         frame_instrumentation_data = std::move(frame_instrumentation_data),
+         frame_to_evaluate = std::move(frame_to_evaluate),
+         content_type]() mutable {
+          if (frame_to_evaluate) {
+            frame_evaluator_->OnInstrumentedFrame(
+                std::move(frame_instrumentation_data), *frame_to_evaluate,
+                content_type);
+            pending_post_decode_frames_.fetch_sub(1, std::memory_order_relaxed);
+          } else {
+            frame_evaluator_->OnSkippedInstrumentedFrame(
+                std::move(frame_instrumentation_data));
+          }
+        });
+  } else {
+    // Do the frame evaluation synchronously.
+    frame_evaluator_->OnInstrumentedFrame(std::move(frame_instrumentation_data),
+                                          frame, content_type);
+  }
 }
 
 bool VideoReceiveStream2::SetBaseMinimumPlayoutDelayMs(int delay_ms) {

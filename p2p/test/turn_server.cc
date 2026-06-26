@@ -488,11 +488,6 @@ void TurnServer::SendStun(TurnServerConnection* conn,
                           EcnMarking ecn) {
   RTC_DCHECK_RUN_ON(thread_);
   ByteBufferWriter buf;
-  // Add a SOFTWARE attribute if one is set.
-  if (!software_.empty()) {
-    msg->AddAttribute(std::make_unique<StunByteStringAttribute>(
-        STUN_ATTR_SOFTWARE, software_));
-  }
   msg->Write(&buf);
   Send(conn, buf, ecn);
 }
@@ -818,7 +813,7 @@ void TurnServerAllocation::OnExternalPacket(AsyncPacketSocket* socket,
     msg.AddAttribute(std::make_unique<StunXorAddressAttribute>(
         STUN_ATTR_XOR_PEER_ADDRESS, packet.source_address()));
     msg.AddAttribute(std::make_unique<StunByteStringAttribute>(
-        STUN_ATTR_DATA, packet.payload().data(), packet.payload().size()));
+        STUN_ATTR_DATA, packet.payload()));
     server_->SendStun(&conn_, &msg, packet.ecn());
   } else {
     RTC_LOG(LS_WARNING)

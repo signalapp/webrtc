@@ -61,6 +61,7 @@
 #include "modules/rtp_rtcp/include/report_block_data.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "rtc_base/async_packet_socket.h"
+#include "rtc_base/containers/flat_set.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/network/sent_packet.h"
 #include "rtc_base/network_route.h"
@@ -224,6 +225,9 @@ class MediaSendChannelInterface {
   virtual void SetExtmapAllowMixed(bool extmap_allow_mixed) = 0;
   virtual bool ExtmapAllowMixed() const = 0;
 
+  // Starts or stops transmission (and potentially capture) of local media.
+  virtual bool SetSend(bool send) = 0;
+
   // Set the frame encryptor to use on all outgoing frames. This is optional.
   // This pointers lifetime is managed by the set of RtpSender it is attached
   // to.
@@ -240,11 +244,10 @@ class MediaSendChannelInterface {
       uint32_t ssrc,
       scoped_refptr<FrameTransformerInterface> frame_transformer) = 0;
 
-  // note: The encoder_selector object must remain valid for the lifetime of the
-  // MediaChannel, unless replaced.
   virtual void SetEncoderSelector(
       uint32_t /* ssrc */,
-      VideoEncoderFactory::EncoderSelectorInterface* /* encoder_selector */) {}
+      scoped_refptr<VideoEncoderFactory::EncoderSelectorInterface>
+      /*encoder_selector*/) {}
   virtual RtpParameters GetRtpSendParameters(uint32_t ssrc) const = 0;
   // Returns a callback that is to be used to retrieve RTP send parameters
   // in the same way as `GetRtpSendParameters` does.
@@ -262,10 +265,6 @@ class MediaSendChannelInterface {
   // Called whenever the list of sending SSRCs changes.
   virtual void SetSsrcListChangedCallback(
       absl::AnyInvocable<void(const std::set<uint32_t>&)> callback) = 0;
-  // Called whenever the parameters change autonomously on the worker thread.
-  // This is used for cache invalidation on the signaling thread.
-  virtual void SetParametersChangedCallback(
-      absl::AnyInvocable<void()> callback) {}
 };
 
 class MediaReceiveChannelInterface {
@@ -284,15 +283,28 @@ class MediaReceiveChannelInterface {
   // ssrc must be the first SSRC of the media stream if the stream uses
   // multiple SSRCs.
   virtual bool RemoveRecvStream(uint32_t ssrc) = 0;
+  // Starts or stops playout or decoding of received media.
+  virtual void SetReceive(bool receive) = 0;
   // Resets any cached StreamParams for an unsignaled RecvStream, and removes
   // any existing unsignaled streams.
   virtual void ResetUnsignaledRecvStream() = 0;
+  // Returns a callback that can be used to reset unsignaled receive streams.
+  // The purpose is to allow binding the channel's safety flag to a callback
+  // that is run on the worker thread, ensuring the channel is alive.
+  virtual absl::AnyInvocable<void() &&> GetResetUnsignaledRecvStreamTask() = 0;
   // Sets the abstract interface class for sending RTP/RTCP data.
   virtual void SetInterface(MediaChannelNetworkInterface* iface) = 0;
+  virtual void SetReceiveSsrcs_n(const flat_set<uint32_t>& ssrcs) {}
+  // Clears receive sinks on the network thread.
+  // If `ssrcs` is std::nullopt, all receive sinks are cleared (permanent
+  // teardown). Otherwise, only the specified `ssrcs` are cleared.
+  virtual void ClearReceiveSinks_n(std::optional<std::vector<uint32_t>> ssrcs) {
+  }
   // Called on the network when an RTP packet is received.
   virtual void OnPacketReceived(RtpPacketReceived packet) = 0;
   // Gets the current unsignaled receive stream's SSRC, if there is one.
   virtual std::optional<uint32_t> GetUnsignaledSsrc() const = 0;
+  virtual std::vector<uint32_t> GetUnsignaledSsrcs() const = 0;
   // This is currently a workaround because of the demuxer state being managed
   // across two separate threads. Once the state is consistently managed on
   // the same thread (network), this workaround can be removed.
@@ -916,8 +928,7 @@ struct AudioReceiverParameters : MediaChannelParameters {};
 class VoiceMediaSendChannelInterface : public MediaSendChannelInterface {
  public:
   virtual bool SetSenderParameters(const AudioSenderParameter& params) = 0;
-  // Starts or stops sending (and potentially capture) of local audio.
-  virtual void SetSend(bool send) = 0;
+
   // Configure stream for sending.
   virtual bool SetAudioSend(uint32_t ssrc,
                             bool enable,
@@ -944,7 +955,7 @@ class VoiceMediaSendChannelInterface : public MediaSendChannelInterface {
   // during asynchronous teardown where signaling thread and worker thread state
   // may be torn down asynchronously.
   virtual absl::AnyInvocable<std::optional<VoiceMediaSendInfo>()>
-  GetStatsCallback() = 0;
+  GetStatsTask() = 0;
   virtual bool SenderNackEnabled() const = 0;
   virtual bool SenderNonSenderRttEnabled() const = 0;
   virtual bool SetOptions(const AudioOptions& options) = 0;
@@ -959,8 +970,7 @@ class VoiceMediaReceiveChannelInterface : public MediaReceiveChannelInterface {
   // Retrieve the receive parameters for the default receive
   // stream, which is used when SSRCs are not signaled.
   virtual RtpParameters GetDefaultRtpReceiveParameters() const = 0;
-  // Starts or stops playout of received audio.
-  virtual void SetPlayout(bool playout) = 0;
+
   // Set speaker output volume of the specified ssrc.
   virtual bool SetOutputVolume(uint32_t ssrc, double volume) = 0;
   // Set speaker output volume for future unsignaled streams.
@@ -983,7 +993,7 @@ class VoiceMediaReceiveChannelInterface : public MediaReceiveChannelInterface {
   // during asynchronous teardown where signaling thread and worker thread state
   // may be torn down asynchronously.
   virtual absl::AnyInvocable<std::optional<VoiceMediaReceiveInfo>()>
-  GetStatsCallback(bool reset_legacy) = 0;
+  GetStatsTask(bool reset_legacy) = 0;
   virtual enum RtcpMode RtcpMode() const = 0;
   virtual void SetRtcpMode(enum RtcpMode mode) = 0;
   virtual void SetReceiveNackEnabled(bool enabled) = 0;
@@ -1015,8 +1025,7 @@ class VideoMediaSendChannelInterface : public MediaSendChannelInterface {
       absl::AnyInvocable<void(EncoderSwitchRequestAction)>;
 
   virtual bool SetSenderParameters(const VideoSenderParameters& params) = 0;
-  // Starts or stops transmission (and potentially capture) of local video.
-  virtual bool SetSend(bool send) = 0;
+
   // Configure stream for sending and register a source.
   // The `ssrc` must correspond to a registered send stream.
   virtual bool SetVideoSend(uint32_t ssrc,
@@ -1033,7 +1042,7 @@ class VideoMediaSendChannelInterface : public MediaSendChannelInterface {
   // during asynchronous teardown where signaling thread and worker thread state
   // may be torn down asynchronously.
   virtual absl::AnyInvocable<std::optional<VideoMediaSendInfo>()>
-  GetStatsCallback() = 0;
+  GetStatsTask() = 0;
   // This fills the "bitrate parts" (rtx, video bitrate) of the
   // BandwidthEstimationInfo, since that part that isn't possible to get
   // through Call::GetStats, as they are statistics of the send
@@ -1050,8 +1059,7 @@ class VideoMediaReceiveChannelInterface : public MediaReceiveChannelInterface {
   virtual bool SetReceiverParameters(const VideoReceiverParameters& params) = 0;
   // Get the receive parameters for the incoming stream identified by `ssrc`.
   virtual RtpParameters GetRtpReceiverParameters(uint32_t ssrc) const = 0;
-  // Starts or stops decoding of remote video.
-  virtual void SetReceive(bool receive) = 0;
+
   // Retrieve the receive parameters for the default receive
   // stream, which is used when SSRCs are not signaled.
   virtual RtpParameters GetDefaultRtpReceiveParameters() const = 0;
@@ -1077,7 +1085,7 @@ class VideoMediaReceiveChannelInterface : public MediaReceiveChannelInterface {
   // during asynchronous teardown where signaling thread and worker thread state
   // may be torn down asynchronously.
   virtual absl::AnyInvocable<std::optional<VideoMediaReceiveInfo>()>
-  GetStatsCallback() = 0;
+  GetStatsTask() = 0;
   virtual bool AddDefaultRecvStreamForTesting(const StreamParams& sp) = 0;
 };
 

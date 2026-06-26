@@ -12,11 +12,11 @@
 
 #include <algorithm>
 
-#include "api/transport/network_types.h"
 #include "api/units/data_rate.h"
 #include "api/units/data_size.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
+#include "modules/congestion_controller/scream/scream_feedback.h"
 #include "modules/congestion_controller/scream/scream_v2_parameters.h"
 #include "rtc_base/numerics/windowed_min_filter.h"
 
@@ -31,22 +31,13 @@ class DelayBasedCongestionControl {
  public:
   explicit DelayBasedCongestionControl(ScreamV2Parameters params);
 
-  void OnTransportPacketsFeedback(const TransportPacketsFeedback& msg);
-
-  // Set a limit on how much the reference window can be reduced due to
-  // increased delay.
-  void SetMinDelayBasedBwe(DataRate min_delay_based_bwe) {
-    min_delay_based_bwe_ = min_delay_based_bwe;
-  }
+  void Update(const ScreamFeedback& feedback, bool alr);
 
   // Returns true if queue delay is detected and above a threshold.
   bool IsQueueDelayDetected() const {
     return queue_delay_avg_.IsFinite() &&
            queue_delay_avg_ > params_.queue_delay_target.Get() / 2;
   }
-
-  DataSize UpdateReferenceWindow(DataSize rew_window,
-                                 double ref_window_mss_ratio) const;
 
   // Returns false if the minimum queue delay has been above the drain threshold
   // for a prolonged time. This can happen if minimum possible latency has
@@ -87,14 +78,12 @@ class DelayBasedCongestionControl {
   TimeDelta min_base_delay() const {
     return std::min(next_base_delay_, base_delay_history_.GetMin());
   }
-  void UpdateSmoothedRtt(TimeDelta rtt_sample);
+  void UpdateSmoothedRtt(TimeDelta rtt_sample, bool alr);
   void UpdateQueueDelayAverage(TimeDelta one_way_delay);
   void UpdateQueueDelayMinAverage(TimeDelta packet_qdelay);
   void UpdateLatencyDifferenceAverage(TimeDelta packet_latency_diff);
 
   const ScreamV2Parameters params_;
-
-  DataRate min_delay_based_bwe_;
 
   // For computing min one way delay and compensate for clock drift.
   // Based on https://datatracker.ietf.org/doc/html/rfc6817
@@ -104,6 +93,7 @@ class DelayBasedCongestionControl {
 
   Timestamp min_queue_delay_above_threshold_start_ = Timestamp::MinusInfinity();
   TimeDelta last_smoothed_rtt_ = TimeDelta::Zero();
+
   Timestamp last_update_qdelay_avg_time_ = Timestamp::MinusInfinity();
   TimeDelta last_queue_delay_sample_ = TimeDelta::PlusInfinity();
   TimeDelta queue_delay_avg_ = TimeDelta::PlusInfinity();

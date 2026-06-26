@@ -70,8 +70,8 @@ namespace {
 constexpr int kMaxQp = 63;
 constexpr int kNumBuffers = 8;
 constexpr int kMaxReferences = 3;
-constexpr int kMinEffortLevel = -2;
-constexpr int kMaxEffortLevel = 2;
+constexpr int kMinEffortLevel = -2;  // Speed 11.
+constexpr int kMaxEffortLevel = 4;   // Speed 5.
 constexpr int kMaxSpatialLayersLimit = 4;
 constexpr int kMaxTemporalLayers = 4;
 constexpr int kRtpTicksPerSecond = 90000;
@@ -404,8 +404,7 @@ aom_svc_ref_frame_config_t GetSvcRefFrameConfig(
     refresh_view[*settings.update_buffer] = 1;
   }
 
-  char buf[256];
-  SimpleStringBuilder sb(buf);
+  StringBuilder sb;
   sb << " spatial_id=" << settings.spatial_id;
   sb << "  ref_idx=[ ";
   for (auto r : ref_frame_config.ref_idx) {
@@ -514,8 +513,7 @@ aom_svc_params_t GetSvcParams(
         settings.rate_options);
   }
 
-  char buf[512];
-  SimpleStringBuilder sb(buf);
+  StringBuilder sb;
   sb << "GetSvcParams" << " layer bitrates kbps";
   for (int s = 0; s < svc_params.number_spatial_layers; ++s) {
     sb << " S" << s << "=[ ";
@@ -734,9 +732,9 @@ void LibaomAv1EncoderV2::Encode(
       }
 
       if (settings.effort_level != current_effort_level_[settings.spatial_id]) {
-        // For RTC we use speed level 6 to 10, with 8 being the default. Note
+        // For RTC we use speed level 5 to 11, with 9 being the default. Note
         // that low effort means higher speed.
-        SET_OR_RETURN(AOME_SET_CPUUSED, 8 - settings.effort_level);
+        SET_OR_RETURN(AOME_SET_CPUUSED, 9 - settings.effort_level);
         current_effort_level_[settings.spatial_id] = settings.effort_level;
       }
     }

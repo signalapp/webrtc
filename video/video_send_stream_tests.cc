@@ -92,7 +92,6 @@
 #include "modules/video_coding/svc/scalable_video_controller.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/event.h"
-#include "rtc_base/experiments/alr_experiment.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/network_route.h"
 #include "rtc_base/rate_limiter.h"
@@ -101,7 +100,6 @@
 #include "rtc_base/task_queue_for_test.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
-#include "rtc_base/unique_id_generator.h"
 #include "test/call_test.h"
 #include "test/configurable_frame_size_encoder.h"
 #include "test/create_test_field_trials.h"
@@ -119,24 +117,8 @@
 #include "test/video_test_constants.h"
 #include "video/config/video_encoder_config.h"
 #include "video/transport_adapter.h"
-#include "video/video_send_stream_impl.h"
 
 namespace webrtc {
-namespace test {
-class VideoSendStreamPeer {
- public:
-  explicit VideoSendStreamPeer(VideoSendStream* base_class_stream)
-      : internal_stream_(
-            static_cast<internal::VideoSendStreamImpl*>(base_class_stream)) {}
-  std::optional<float> GetPacingFactorOverride() const {
-    return internal_stream_->GetPacingFactorOverride();
-  }
-
- private:
-  internal::VideoSendStreamImpl const* const internal_stream_;
-};
-}  // namespace test
-
 namespace {
 enum : int {  // The first valid value is 1.
   kAbsSendTimeExtensionId = 1,
@@ -1618,8 +1600,8 @@ TEST_F(VideoSendStreamTest, MinTransmitBitrateRespectsRemb) {
       RtpRtcpInterface::Configuration config;
       config.outgoing_transport = feedback_transport_.get();
       config.retransmission_rate_limiter = &retranmission_rate_limiter_;
+      config.rtcp_mode = RtcpMode::kReducedSize;
       rtp_rtcp_ = ModuleRtpRtcpImpl2::CreateSendModule(env_, config);
-      rtp_rtcp_->SetRTCPStatus(RtcpMode::kReducedSize);
     }
 
     void ModifyVideoConfigs(
@@ -1761,111 +1743,6 @@ TEST_F(VideoSendStreamTest, ChangingNetworkRoute) {
     TaskQueueBase* const task_queue_;
     RtpHeaderExtensionMap extensions_;
     Call* call_ RTC_GUARDED_BY(task_queue_thread_);
-  } test(task_queue());
-
-  RunBaseTest(&test);
-}
-
-// Test that if specified, relay cap is lifted on transition to direct
-// connection.
-// TODO(https://bugs.webrtc.org/13353): Test disabled  due to flakiness.
-TEST_F(VideoSendStreamTest, DISABLED_RelayToDirectRoute) {
-  static const int kStartBitrateBps = 300000;
-  static const int kRelayBandwidthCapBps = 800000;
-  static const int kMinPacketsToSend = 100;
-  field_trials().Set(
-      "WebRTC-Bwe-NetworkRouteConstraints",
-      "relay_cap:" + std::to_string(kRelayBandwidthCapBps) + "bps");
-
-  class RelayToDirectRouteTest : public test::EndToEndTest {
-   public:
-    explicit RelayToDirectRouteTest(TaskQueueBase* task_queue)
-        : EndToEndTest(test::VideoTestConstants::kDefaultTimeout),
-          task_queue_(task_queue),
-          call_(nullptr),
-          packets_sent_(0),
-          relayed_phase_(true) {
-      module_process_thread_.Detach();
-      task_queue_thread_.Detach();
-    }
-
-    ~RelayToDirectRouteTest() override {
-      // Block until all already posted tasks run to avoid 'use after free'
-      // when such task accesses `this`.
-      SendTask(task_queue_, [] {});
-    }
-
-    void OnCallsCreated(Call* sender_call, Call* receiver_call) override {
-      RTC_DCHECK_RUN_ON(&task_queue_thread_);
-      RTC_DCHECK(!call_);
-      call_ = sender_call;
-    }
-
-    Action OnSendRtp(std::span<const uint8_t> packet) override {
-      RTC_DCHECK_RUN_ON(&module_process_thread_);
-      task_queue_->PostTask([this]() {
-        RTC_DCHECK_RUN_ON(&task_queue_thread_);
-        if (!call_)
-          return;
-        bool had_time_to_exceed_cap_in_relayed_phase =
-            relayed_phase_ && ++packets_sent_ > kMinPacketsToSend;
-        bool did_exceed_cap =
-            call_->GetStats().send_bandwidth_bps > kRelayBandwidthCapBps;
-        if (did_exceed_cap || had_time_to_exceed_cap_in_relayed_phase)
-          observation_complete_.Set();
-      });
-      return SEND_PACKET;
-    }
-
-    void OnStreamsStopped() override {
-      RTC_DCHECK_RUN_ON(&task_queue_thread_);
-      call_ = nullptr;
-    }
-
-    void PerformTest() override {
-      NetworkRoute route;
-      route.connected = true;
-      route.local = RouteEndpoint::CreateWithNetworkId(10);
-      route.remote = RouteEndpoint::CreateWithNetworkId(20);
-
-      SendTask(task_queue_, [this, &route]() {
-        RTC_DCHECK_RUN_ON(&task_queue_thread_);
-        relayed_phase_ = true;
-        route.remote = route.remote.CreateWithTurn(true);
-        call_->GetTransportControllerSend()->OnNetworkRouteChanged("transport",
-                                                                   route);
-        BitrateConstraints bitrate_config;
-        bitrate_config.start_bitrate_bps = kStartBitrateBps;
-
-        call_->GetTransportControllerSend()->SetSdpBitrateParameters(
-            bitrate_config);
-      });
-
-      EXPECT_TRUE(Wait())
-          << "Timeout waiting for sufficient packets sent count.";
-
-      SendTask(task_queue_, [this, &route]() {
-        RTC_DCHECK_RUN_ON(&task_queue_thread_);
-        EXPECT_LE(call_->GetStats().send_bandwidth_bps, kRelayBandwidthCapBps);
-
-        route.remote = route.remote.CreateWithTurn(false);
-        call_->GetTransportControllerSend()->OnNetworkRouteChanged("transport",
-                                                                   route);
-        relayed_phase_ = false;
-        observation_complete_.Reset();
-      });
-
-      EXPECT_TRUE(Wait())
-          << "Timeout while waiting for bandwidth to outgrow relay cap.";
-    }
-
-   private:
-    SequenceChecker module_process_thread_;
-    SequenceChecker task_queue_thread_;
-    TaskQueueBase* const task_queue_;
-    Call* call_ RTC_GUARDED_BY(task_queue_thread_);
-    int packets_sent_ RTC_GUARDED_BY(task_queue_thread_);
-    bool relayed_phase_ RTC_GUARDED_BY(task_queue_thread_);
   } test(task_queue());
 
   RunBaseTest(&test);
@@ -3837,89 +3714,7 @@ TEST_F(VideoSendStreamTest, RemoveOverheadFromBandwidth) {
   RunBaseTest(&test);
 }
 
-class PacingFactorObserver : public test::SendTest {
- public:
-  PacingFactorObserver(bool configure_send_side,
-                       std::optional<float> expected_pacing_factor)
-      : test::SendTest(test::VideoTestConstants::kDefaultTimeout),
-        configure_send_side_(configure_send_side),
-        expected_pacing_factor_(expected_pacing_factor) {}
 
-  void ModifyVideoConfigs(
-      VideoSendStream::Config* send_config,
-      std::vector<VideoReceiveStreamInterface::Config>* receive_configs,
-      VideoEncoderConfig* encoder_config) override {
-    // Check if send-side bwe extension is already present, and remove it if
-    // it is not desired.
-    bool has_send_side = false;
-    for (auto it = send_config->rtp.extensions.begin();
-         it != send_config->rtp.extensions.end(); ++it) {
-      if (it->uri == RtpExtension::kTransportSequenceNumberUri) {
-        if (configure_send_side_) {
-          has_send_side = true;
-        } else {
-          send_config->rtp.extensions.erase(it);
-        }
-        break;
-      }
-    }
-
-    if (configure_send_side_ && !has_send_side) {
-      UniqueNumberGenerator<int> unique_id_generator;
-      unique_id_generator.AddKnownId(0);  // First valid RTP extension ID is 1.
-      for (const RtpExtension& extension : send_config->rtp.extensions) {
-        unique_id_generator.AddKnownId(extension.id);
-      }
-      // Want send side, not present by default, so add it.
-      send_config->rtp.extensions.emplace_back(
-          RtpExtension::kTransportSequenceNumberUri,
-          unique_id_generator.GenerateNumber());
-    }
-
-    // ALR only enabled for screenshare.
-    encoder_config->content_type = VideoEncoderConfig::ContentType::kScreen;
-  }
-
-  void OnVideoStreamsCreated(VideoSendStream* send_stream,
-                             const std::vector<VideoReceiveStreamInterface*>&
-                                 receive_streams) override {
-    auto internal_send_peer = test::VideoSendStreamPeer(send_stream);
-    // Video streams created, check that pacing factor is correctly configured.
-    EXPECT_EQ(expected_pacing_factor_,
-              internal_send_peer.GetPacingFactorOverride());
-    observation_complete_.Set();
-  }
-
-  void PerformTest() override {
-    EXPECT_TRUE(Wait()) << "Timed out while waiting for stream creation.";
-  }
-
- private:
-  const bool configure_send_side_;
-  const std::optional<float> expected_pacing_factor_;
-};
-
-constexpr absl::string_view kAlrProbingExperimentValue = "1.0,2875,80,40,-60,3";
-constexpr float kAlrProbingExperimentPaceMultiplier = 1.0f;
-
-TEST_F(VideoSendStreamTest, AlrConfiguredWhenSendSideOn) {
-  field_trials().Set(
-      AlrExperimentSettings::kScreenshareProbingBweExperimentName,
-      kAlrProbingExperimentValue);
-  // Send-side bwe on, use pacing factor from `kAlrProbingExperiment` above.
-  PacingFactorObserver test_with_send_side(true,
-                                           kAlrProbingExperimentPaceMultiplier);
-  RunBaseTest(&test_with_send_side);
-}
-
-TEST_F(VideoSendStreamTest, AlrNotConfiguredWhenSendSideOff) {
-  field_trials().Set(
-      AlrExperimentSettings::kScreenshareProbingBweExperimentName,
-      kAlrProbingExperimentValue);
-  // Send-side bwe off, use configuration should not be overridden.
-  PacingFactorObserver test_without_send_side(false, std::nullopt);
-  RunBaseTest(&test_without_send_side);
-}
 
 // Test class takes as argument a function pointer to reset the send
 // stream and call OnVideoStreamsCreated. This is necessary since you cannot
@@ -3983,16 +3778,7 @@ class ContentSwitchTest : public test::SendTest {
       if (done_)
         return;
 
-      auto internal_send_peer = test::VideoSendStreamPeer(send_stream_);
-      float pacing_factor =
-          internal_send_peer.GetPacingFactorOverride().value_or(0.0f);
-      float expected_pacing_factor = 1.1;  // Strict pacing factor.
-      VideoSendStream::Stats stats = send_stream_->GetStats();
-      if (stats.content_type == VideoContentType::SCREENSHARE) {
-        expected_pacing_factor = 1.0f;  // Currently used pacing factor in ALR.
-      }
 
-      EXPECT_NEAR(expected_pacing_factor, pacing_factor, 1e-6);
 
       // Wait until at least kMinPacketsToSend packets to be sent, so that
       // some frames would be encoded.

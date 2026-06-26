@@ -125,6 +125,12 @@ RtpDemuxer::~RtpDemuxer() {
   RTC_DCHECK(sink_by_rsid_.empty());
 }
 
+bool RtpDemuxer::IsEmpty() const {
+  return sink_by_mid_.empty() && sink_by_ssrc_.empty() &&
+         sinks_by_pt_.empty() && sink_by_mid_and_rsid_.empty() &&
+         sink_by_rsid_.empty() && match_any_sink_ == nullptr;
+}
+
 bool RtpDemuxer::AddSink(const RtpDemuxerCriteria& criteria,
                          RtpPacketSinkInterface* sink) {
   RTC_DCHECK(criteria.match_any() || !criteria.payload_types().empty() ||
@@ -193,9 +199,7 @@ bool RtpDemuxer::CriteriaWouldConflict(
   if (criteria.match_any()) {
     // A match_all criteria conflicts if and only if we have another sink
     // already registered.
-    return (!sink_by_mid_.empty() || !sink_by_ssrc_.empty() ||
-            !sinks_by_pt_.empty() || !sink_by_mid_and_rsid_.empty() ||
-            !sink_by_rsid_.empty());
+    return !IsEmpty();
   }
 
   if (!criteria.mid().empty()) {
@@ -274,6 +278,19 @@ bool RtpDemuxer::AddSink(uint32_t ssrc, RtpPacketSinkInterface* sink) {
 void RtpDemuxer::AddSink(absl::string_view rsid, RtpPacketSinkInterface* sink) {
   RtpDemuxerCriteria criteria(absl::string_view() /* mid */, rsid);
   AddSink(criteria, sink);
+}
+
+void RtpDemuxer::RemoveAllSinks() {
+  sink_by_mid_.clear();
+  sink_by_ssrc_.clear();
+  sinks_by_pt_.clear();
+  sink_by_mid_and_rsid_.clear();
+  sink_by_rsid_.clear();
+  signaled_ssrcs_.clear();
+  known_mids_.clear();
+  match_any_sink_ = nullptr;
+  mid_by_ssrc_.clear();
+  rsid_by_ssrc_.clear();
 }
 
 bool RtpDemuxer::RemoveSink(const RtpPacketSinkInterface* sink) {

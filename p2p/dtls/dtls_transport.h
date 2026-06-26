@@ -25,7 +25,6 @@
 #include "api/crypto/crypto_options.h"
 #include "api/dtls_transport_interface.h"
 #include "api/environment/environment.h"
-#include "api/field_trials_view.h"
 #include "api/ice_transport_interface.h"
 #include "api/rtc_error.h"
 #include "api/scoped_refptr.h"
@@ -144,9 +143,9 @@ class DtlsTransportInternalImpl : public DtlsTransportInternal {
 
   // For testing purposes only.
   using SslStreamFactory = std::function<std::unique_ptr<SSLStreamAdapter>(
+      const Environment&,
       std::unique_ptr<StreamInterface>,
-      absl::AnyInvocable<void(SSLHandshakeError)> handshake_error_callback,
-      const FieldTrialsView* field_trials)>;
+      absl::AnyInvocable<void(SSLHandshakeError)> handshake_error_callback)>;
 
   // `ice_transport` is the ICE transport this DTLS transport is wrapping.  It
   // must outlive this DTLS transport.
@@ -307,7 +306,7 @@ class DtlsTransportInternalImpl : public DtlsTransportInternal {
   void SetPiggybackDtlsDataCallback(
       absl::AnyInvocable<void(PacketTransportInternal* transport,
                               const ReceivedIpPacket& packet)> callback);
-  void PeriodicRetransmitDtlsPacketUntilDtlsConnected();
+  void FlushPendingDtlsPacket();
 
   // SetRemoteFingerprint must be called after SetLocalCertificate, and any
   // other methods like SetDtlsRole. It's what triggers the actual DTLS setup.
@@ -367,11 +366,6 @@ class DtlsTransportInternalImpl : public DtlsTransportInternal {
   absl::AnyInvocable<void(PacketTransportInternal*, const ReceivedIpPacket&)>
       piggybacked_dtls_callback_;
 
-  // When ICE get writable during dtls piggybacked handshake
-  // there is currently no safe way of updating the timeout
-  // in boringssl (that is work in progress). Therefore
-  // DtlsTransportInternalImpl has a "hack" to periodically retransmit.
-  bool pending_periodic_retransmit_dtls_packet_ = false;
   ScopedTaskSafetyDetached safety_flag_;
 
   // We reuse this class also in tests that pretend to be ice-lite.

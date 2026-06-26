@@ -38,6 +38,7 @@
 #include "api/rtp_parameters.h"
 #include "api/rtp_transceiver_direction.h"
 #include "api/sctp_transport_interface.h"
+#include "api/uma_metrics.h"
 #include "media/base/codec.h"
 #include "media/base/media_constants.h"
 #include "media/base/rid_description.h"
@@ -61,6 +62,7 @@
 #include "rtc_base/ssl_fingerprint.h"
 #include "rtc_base/string_encode.h"
 #include "rtc_base/strings/string_builder.h"
+#include "system_wrappers/include/metrics.h"
 
 namespace webrtc {
 
@@ -141,11 +143,15 @@ constexpr absl::string_view kAttributeSimulcast = "simulcast";
 constexpr absl::string_view kAttributeRid = "rid";
 const char kAttributePacketization[] = "packetization";
 
+// https://www.rfc-editor.org/rfc/rfc9335.html
+const char kAttributeCryptex[] = "cryptex";
+
 // Experimental flags
 const char kAttributeXGoogleFlag[] = "x-google-flag";
 const char kValueConference[] = "conference";
 
 const char kAttributeRtcpRemoteEstimate[] = "remote-net-estimate";
+const char kAttributeSframe[] = "sframe";
 
 // StringBuilder doesn't have a << overload for chars, while
 // split and tokenize_first both take a char delimiter. To
@@ -203,6 +209,11 @@ bool IsTokenChar(char ch) {
   return ch == 0x21 || (ch >= 0x23 && ch <= 0x27) || ch == 0x2a || ch == 0x2b ||
          ch == 0x2d || ch == 0x2e || (ch >= 0x30 && ch <= 0x39) ||
          (ch >= 0x41 && ch <= 0x5a) || (ch >= 0x5e && ch <= 0x7e);
+}
+
+void ReportSdpBandwidth(SdpBandwidthCategory category) {
+  RTC_HISTOGRAM_ENUMERATION("WebRTC.PeerConnection.SdpBandwidth", category,
+                            kSdpBandwidthMax);
 }
 
 struct SsrcInfo {
@@ -695,6 +706,9 @@ bool ParseSctpPort(absl::string_view line,
   if (!FromString(fields[1], sctp_port)) {
     return ParseFailed(line, "Invalid sctp port value.", error);
   }
+  if (!IsValidPort(*sctp_port)) {
+    return ParseFailed(line, "Invalid sctp port value.", error);
+  }
   return true;
 }
 
@@ -710,6 +724,9 @@ bool ParseSctpMaxMessageSize(absl::string_view line,
     return ParseFailedExpectMinFieldNum(line, expected_min_fields, error);
   }
   if (!FromString(fields[1], max_message_size)) {
+    return ParseFailed(line, "Invalid SCTP max message size.", error);
+  }
+  if (*max_message_size < 0) {
     return ParseFailed(line, "Invalid SCTP max message size.", error);
   }
   return true;
@@ -1065,8 +1082,13 @@ void AddPacketizationLine(const Codec& codec, std::string* message) {
   AddLine(os.str(), message);
 }
 
-void AddRtcpFbLines(const Codec& codec, std::string* message) {
+void AddRtcpFbLines(const Codec& codec,
+                    const FeedbackParams& skip_params,
+                    std::string* message) {
   for (const FeedbackParam& param : codec.feedback_params.params()) {
+    if (skip_params.Has(param)) {
+      continue;
+    }
     StringBuilder os;
     WriteRtcpFbHeader(codec.id, &os);
     os << " " << param.id();
@@ -1122,6 +1144,24 @@ void BuildRtpmap(const MediaContentDescription* media_desc,
                  std::string* message) {
   RTC_DCHECK(message != nullptr);
   RTC_DCHECK(media_desc != nullptr);
+
+  FeedbackParams common_fb_params;
+  if (use_wildcard) {
+    if (media_desc->rtcp_fb_ack_ccfb()) {
+      common_fb_params.Add(FeedbackParam("ack", "ccfb"));
+    }
+    const std::vector<Codec>& codecs = media_desc->codecs();
+    if (!codecs.empty()) {
+      FeedbackParams intersection = codecs[0].feedback_params;
+      for (size_t i = 1; i < codecs.size(); ++i) {
+        intersection.Intersect(codecs[i].feedback_params);
+      }
+      for (const auto& param : intersection.params()) {
+        common_fb_params.Add(param);
+      }
+    }
+  }
+
   StringBuilder os;
   if (media_type == MediaType::VIDEO) {
     for (Codec codec : media_desc->codecs()) {
@@ -1143,7 +1183,7 @@ void BuildRtpmap(const MediaContentDescription* media_desc,
         AddLine(os.str(), message);
       }
       AddPacketizationLine(codec, message);
-      AddRtcpFbLines(codec, message);
+      AddRtcpFbLines(codec, common_fb_params, message);
       AddFmtpLine(codec, message);
     }
   } else if (media_type == MediaType::AUDIO) {
@@ -1170,7 +1210,7 @@ void BuildRtpmap(const MediaContentDescription* media_desc,
         os << "/" << codec.channels;
       }
       AddLine(os.str(), message);
-      AddRtcpFbLines(codec, message);
+      AddRtcpFbLines(codec, common_fb_params, message);
       AddFmtpLine(codec, message);
       int minptime = 0;
       if (GetParameter(kCodecParamMinPTime, codec.params, &minptime)) {
@@ -1202,12 +1242,14 @@ void BuildRtpmap(const MediaContentDescription* media_desc,
     }
   }
   if (use_wildcard) {
-    if (media_desc->rtcp_fb_ack_ccfb()) {
-      // RFC 8888 section 6
-      InitAttrLine(kAttributeRtcpFb, &os);
-      os << kSdpDelimiterColon;
-      os << "* ack ccfb";
-      AddLine(os.str(), message);
+    for (const FeedbackParam& param : common_fb_params.params()) {
+      StringBuilder os_fb;
+      WriteRtcpFbHeader(kWildcardPayloadType, &os_fb);
+      os_fb << " " << param.id();
+      if (!param.param().empty()) {
+        os_fb << " " << param.param();
+      }
+      AddLine(os_fb.str(), message);
     }
   }
 }
@@ -1224,9 +1266,14 @@ void BuildRtpContentAttributes(const MediaContentDescription* media_desc,
   // The attribute MUST be either on session level or media level. We support
   // responding on both levels, however, we don't respond on media level if it's
   // set on session level.
-  if (media_desc->extmap_allow_mixed_enum() ==
-      MediaContentDescription::kMedia) {
+  if (media_desc->extmap_allow_mixed_level() ==
+      MediaContentDescription::AttributeLevel::kMedia) {
     InitAttrLine(kAttributeExtmapAllowMixed, &os);
+    AddLine(os.str(), message);
+  }
+  if (media_desc->cryptex_level() ==
+      MediaContentDescription::AttributeLevel::kMedia) {
+    InitAttrLine(kAttributeCryptex, &os);
     AddLine(os.str(), message);
   }
   BuildRtpHeaderExtensions(media_desc->rtp_header_extensions(), message);
@@ -1304,6 +1351,13 @@ void BuildRtpContentAttributes(const MediaContentDescription* media_desc,
 
   if (media_desc->remote_estimate()) {
     InitAttrLine(kAttributeRtcpRemoteEstimate, &os);
+    AddLine(os.str(), message);
+  }
+
+  // draft-ietf-avtcore-rtp-sframe-02 §6
+  // a=sframe
+  if (media_desc->sframe_enabled()) {
+    InitAttrLine(kAttributeSframe, &os);
     AddLine(os.str(), message);
   }
 
@@ -1387,6 +1441,7 @@ void BuildMediaDescription(const ContentInfo* content_info,
                            const MediaType media_type,
                            const std::vector<Candidate>& candidates,
                            int msid_signaling,
+                           bool use_wildcard,
                            std::string* message) {
   RTC_DCHECK(message);
   if (!content_info) {
@@ -1470,9 +1525,8 @@ void BuildMediaDescription(const ContentInfo* content_info,
   if (IsDtlsSctp(media_desc->protocol())) {
     BuildSctpContentAttributes(media_desc, message);
   } else if (IsRtpProtocol(media_desc->protocol())) {
-    // TODO: issues.webrtc.org/48979442 - Make this field trial controlled
     BuildRtpContentAttributes(media_desc, media_type, msid_signaling,
-                              /* use_wildcard= */ false, message);
+                              use_wildcard, message);
   }
 }
 
@@ -1613,6 +1667,8 @@ bool ParseSessionDescription(absl::string_view message,
 
   desc->set_msid_signaling(kMsidSignalingNotUsed);
   desc->set_extmap_allow_mixed(false);
+  desc->set_cryptex(false);
+
   // RFC 4566
   // v=  (protocol version)
   line = GetLineWithType(message, pos, kLineTypeVersion);
@@ -1764,6 +1820,8 @@ bool ParseSessionDescription(absl::string_view message,
         return false;
       }
       session_extmaps->push_back(extmap);
+    } else if (HasAttribute(*aline, kAttributeCryptex)) {
+      desc->set_cryptex(true);
     }
   }
   return true;
@@ -2566,7 +2624,19 @@ bool ParseContent(absl::string_view message,
       }
       int b = 0;
       if (!GetValueFromString(*line, bandwidth, &b, error)) {
+        ReportSdpBandwidth(kSdpBandwidthParseFailure);
         return false;
+      }
+      if (b == -1) {
+        ReportSdpBandwidth(kSdpBandwidthNegativeOne);
+      } else if (b == 0) {
+        ReportSdpBandwidth(kSdpBandwidthZero);
+      } else if (b > 0 && b <= INT_MAX / 1000) {
+        ReportSdpBandwidth(kSdpBandwidthSmall);
+      } else if (b > INT_MAX / 1000) {
+        ReportSdpBandwidth(kSdpBandwidthLarge);
+      } else {
+        ReportSdpBandwidth(kSdpBandwidthNegative);
       }
       // TODO(deadbeef): Historically, applications may be setting a value
       // of -1 to mean "unset any previously set bandwidth limit", even
@@ -2700,6 +2770,8 @@ bool ParseContent(absl::string_view message,
         media_desc->set_rtcp_reduced_size(true);
       } else if (HasAttribute(*line, kAttributeRtcpRemoteEstimate)) {
         media_desc->set_remote_estimate(true);
+      } else if (HasAttribute(*line, kAttributeSframe)) {
+        media_desc->set_sframe_enabled(true);
       } else if (HasAttribute(*line, kAttributeSsrcGroup)) {
         if (!ParseSsrcGroupAttribute(*line, &ssrc_groups, error)) {
           return false;
@@ -2739,8 +2811,8 @@ bool ParseContent(absl::string_view message,
       } else if (HasAttribute(*line, kAttributeSendRecv)) {
         media_desc->set_direction(RtpTransceiverDirection::kSendRecv);
       } else if (HasAttribute(*line, kAttributeExtmapAllowMixed)) {
-        media_desc->set_extmap_allow_mixed_enum(
-            MediaContentDescription::kMedia);
+        media_desc->set_extmap_allow_mixed_level(
+            MediaContentDescription::AttributeLevel::kMedia);
       } else if (HasAttribute(*line, kAttributeExtmap)) {
         RtpExtension extmap;
         if (!ParseExtmap(*line, &extmap, error)) {
@@ -2811,6 +2883,9 @@ bool ParseContent(absl::string_view message,
         // Ignore and do not log a=rtcp line.
         // JSEP  section 5.8.2 (media section parsing) says to ignore it.
         continue;
+      } else if (HasAttribute(*line, kAttributeCryptex)) {
+        media_desc->set_cryptex_level(
+            MediaContentDescription::AttributeLevel::kMedia);
       } else {
         // Unrecognized attribute in RTP protocol.
         RTC_LOG(LS_VERBOSE) << "Ignored line: " << *line;
@@ -2953,7 +3028,9 @@ std::unique_ptr<MediaContentDescription> ParseContentDescription(
     return nullptr;
   }
 
-  media_desc->set_extmap_allow_mixed_enum(MediaContentDescription::kNo);
+  media_desc->set_extmap_allow_mixed_level(
+      MediaContentDescription::AttributeLevel::kNone);
+  media_desc->set_cryptex_level(MediaContentDescription::AttributeLevel::kNone);
   if (!ParseContent(message, media_type, mline_index, protocol, payload_types,
                     pos, content_name, bundle_only, msid_signaling,
                     media_desc.get(), transport, candidates, error)) {
@@ -3265,6 +3342,10 @@ std::string SdpSerialize(const SessionDescriptionInterface& jdesc) {
     InitAttrLine(kAttributeExtmapAllowMixed, &os);
     AddLine(os.str(), &message);
   }
+  if (desc->cryptex()) {
+    InitAttrLine(kAttributeCryptex, &os);
+    AddLine(os.str(), &message);
+  }
 
   // MediaStream semantics.
   // TODO(bugs.webrtc.org/10421): Change to & kMsidSignalingSemantic
@@ -3312,7 +3393,8 @@ std::string SdpSerialize(const SessionDescriptionInterface& jdesc) {
     GetCandidatesByMindex(jdesc, ++mline_index, &candidates);
     BuildMediaDescription(&content, desc->GetTransportInfoByName(content.mid()),
                           content.media_description()->type(), candidates,
-                          desc->msid_signaling(), &message);
+                          desc->msid_signaling(),
+                          jdesc.encoding_options().use_wildcard, &message);
   }
   return message;
 }

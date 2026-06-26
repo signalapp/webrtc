@@ -659,14 +659,22 @@ void CreateScreamSimulationDelayGraph(const ParsedRtcEventLog& parsed_log,
   simulation.ProcessEventsInLog(parsed_log);
 
   for (const LogScreamSimulation::State& state : simulation.updates()) {
-    smoothed_rtt_series.points.emplace_back(config.GetCallTimeSec(state.time),
-                                            state.smoothed_rtt.ms());
-    queue_delay_series.points.emplace_back(config.GetCallTimeSec(state.time),
-                                           state.queue_delay.ms());
-    queue_delay_min_avg_series.points.emplace_back(
-        config.GetCallTimeSec(state.time), state.queue_delay_min_avg.ms());
-    latency_difference_avg_series.points.emplace_back(
-        config.GetCallTimeSec(state.time), state.latency_difference_avg.ms());
+    if (state.smoothed_rtt.IsFinite()) {
+      smoothed_rtt_series.points.emplace_back(config.GetCallTimeSec(state.time),
+                                              state.smoothed_rtt.ms());
+    }
+    if (state.queue_delay.IsFinite()) {
+      queue_delay_series.points.emplace_back(config.GetCallTimeSec(state.time),
+                                             state.queue_delay.ms());
+    }
+    if (state.queue_delay_min_avg.IsFinite()) {
+      queue_delay_min_avg_series.points.emplace_back(
+          config.GetCallTimeSec(state.time), state.queue_delay_min_avg.ms());
+    }
+    if (state.latency_difference_avg.IsFinite()) {
+      latency_difference_avg_series.points.emplace_back(
+          config.GetCallTimeSec(state.time), state.latency_difference_avg.ms());
+    }
   }
   plot->AppendTimeSeries(std::move(smoothed_rtt_series));
   plot->AppendTimeSeries(std::move(queue_delay_series));
@@ -685,10 +693,15 @@ void CreateScreamSimulationBitrateGraph(const ParsedRtcEventLog& parsed_log,
   TimeSeries target_rate_series("Target rate", LineStyle::kStep);
   TimeSeries pacing_rate_series("Pacing rate", LineStyle::kStep);
   TimeSeries send_rate_series("Send rate", LineStyle::kStep);
+  IntervalSeries app_limited_series("Application limited", "#5092fc",
+                                    IntervalSeries::kHorizontal);
 
   LogScreamSimulation simulation({.rate_window = config.window_duration_},
                                  config.env_);
   simulation.ProcessEventsInLog(parsed_log);
+
+  bool previously_app_limited = false;
+  float app_limited_start_time = 0;
 
   for (const LogScreamSimulation::State& state : simulation.updates()) {
     target_rate_series.points.emplace_back(config.GetCallTimeSec(state.time),
@@ -697,10 +710,25 @@ void CreateScreamSimulationBitrateGraph(const ParsedRtcEventLog& parsed_log,
                                            state.pacing_rate.bps() / 1000);
     send_rate_series.points.emplace_back(config.GetCallTimeSec(state.time),
                                          state.send_rate.bps() / 1000);
+    if (state.is_application_limited && !previously_app_limited) {
+      app_limited_start_time = config.GetCallTimeSec(state.time);
+      previously_app_limited = true;
+    } else if (!state.is_application_limited && previously_app_limited) {
+      app_limited_series.intervals.emplace_back(
+          app_limited_start_time, config.GetCallTimeSec(state.time));
+      previously_app_limited = false;
+    }
   }
+
+  if (previously_app_limited) {
+    app_limited_series.intervals.emplace_back(app_limited_start_time,
+                                              config.CallEndTimeSec());
+  }
+
   plot->AppendTimeSeries(std::move(target_rate_series));
   plot->AppendTimeSeries(std::move(pacing_rate_series));
   plot->AppendTimeSeries(std::move(send_rate_series));
+  plot->AppendIntervalSeries(std::move(app_limited_series));
 
   plot->SetXAxis(config.CallBeginTimeSec(), config.CallEndTimeSec(), "Time (s)",
                  kLeftMargin, kRightMargin);
@@ -789,9 +817,10 @@ void CreateScreamSimulationRefWindowGraph(const ParsedRtcEventLog& parsed_log,
 void CreateScreamSimulationRatiosGraph(const ParsedRtcEventLog& parsed_log,
                                        const AnalyzerConfig& config,
                                        Plot* plot) {
-  TimeSeries queue_delay_dev_norm_series("QueueDelayDevNorm", LineStyle::kStep);
   TimeSeries l4s_alpha_series("L4sAlpha", LineStyle::kStep);
   TimeSeries l4s_alpha_v_series("L4sAlphaV", LineStyle::kStep);
+  TimeSeries loss_congestion_level_series("LossCongestionLevel",
+                                          LineStyle::kStep);
   TimeSeries ref_window_scale_factor_due_to_min_delay_variation(
       "RefWindowScaleFactorDueToAvgMinQueueDelay", LineStyle::kStep);
   TimeSeries ref_window_scale_factor_due_to_latency_difference(
@@ -806,12 +835,12 @@ void CreateScreamSimulationRatiosGraph(const ParsedRtcEventLog& parsed_log,
   simulation.ProcessEventsInLog(parsed_log);
 
   for (const LogScreamSimulation::State& state : simulation.updates()) {
-    queue_delay_dev_norm_series.points.emplace_back(
-        config.GetCallTimeSec(state.time), state.queue_delay_dev_norm);
     l4s_alpha_series.points.emplace_back(config.GetCallTimeSec(state.time),
                                          state.l4s_alpha);
     l4s_alpha_v_series.points.emplace_back(config.GetCallTimeSec(state.time),
                                            state.l4s_alpha_v);
+    loss_congestion_level_series.points.emplace_back(
+        config.GetCallTimeSec(state.time), state.loss_congestion_level);
     ref_window_scale_factor_due_to_min_delay_variation.points.emplace_back(
         config.GetCallTimeSec(state.time),
         state.ref_window_scale_factor_due_to_avg_min_delay);
@@ -825,9 +854,9 @@ void CreateScreamSimulationRatiosGraph(const ParsedRtcEventLog& parsed_log,
         config.GetCallTimeSec(state.time),
         state.ref_window_combined_increase_scale_factor);
   }
-  plot->AppendTimeSeries(std::move(queue_delay_dev_norm_series));
   plot->AppendTimeSeries(std::move(l4s_alpha_series));
   plot->AppendTimeSeries(std::move(l4s_alpha_v_series));
+  plot->AppendTimeSeries(std::move(loss_congestion_level_series));
   plot->AppendTimeSeries(
       std::move(ref_window_scale_factor_due_to_min_delay_variation));
   plot->AppendTimeSeries(
@@ -840,6 +869,60 @@ void CreateScreamSimulationRatiosGraph(const ParsedRtcEventLog& parsed_log,
                  kLeftMargin, kRightMargin);
   plot->SetSuggestedYAxis(0, 1, "Ratios", kBottomMargin, kTopMargin);
   plot->SetTitle("Simulated Scream Ratios");
+}
+
+void CreateScreamSimulationFeedbackEventsPerRttGraph(
+    const ParsedRtcEventLog& parsed_log,
+    const AnalyzerConfig& config,
+    Plot* plot) {
+  TimeSeries lost_series("Lost per smoothed RTT", LineStyle::kLine);
+  TimeSeries recovered_series("Recovered per smoothed RTT", LineStyle::kLine);
+  TimeSeries ce_marked_series("CE marked per smoothed RTT", LineStyle::kLine);
+
+  TimeSeries lost_per_feedback_series("Lost per feedback", LineStyle::kNone,
+                                      PointStyle::kHighlight);
+  TimeSeries recovered_per_feedback_series(
+      "Recovered per feedback", LineStyle::kNone, PointStyle::kHighlight);
+  TimeSeries ce_marked_per_feedback_series(
+      "CE marked per feedback", LineStyle::kNone, PointStyle::kHighlight);
+
+  LogScreamSimulation simulation({.rate_window = config.window_duration_},
+                                 config.env_);
+  simulation.ProcessEventsInLog(parsed_log);
+
+  for (const LogScreamSimulation::State& state : simulation.updates()) {
+    lost_series.points.emplace_back(config.GetCallTimeSec(state.time),
+                                    state.packets_lost_per_rtt);
+    recovered_series.points.emplace_back(config.GetCallTimeSec(state.time),
+                                         state.packets_recovered_per_rtt);
+    ce_marked_series.points.emplace_back(config.GetCallTimeSec(state.time),
+                                         state.ce_marked_per_rtt);
+
+    if (state.packets_lost_per_feedback > 0) {
+      lost_per_feedback_series.points.emplace_back(
+          config.GetCallTimeSec(state.time), state.packets_lost_per_feedback);
+    }
+    if (state.packets_recovered_per_feedback > 0) {
+      recovered_per_feedback_series.points.emplace_back(
+          config.GetCallTimeSec(state.time),
+          state.packets_recovered_per_feedback);
+    }
+    if (state.ce_marked_per_feedback > 0) {
+      ce_marked_per_feedback_series.points.emplace_back(
+          config.GetCallTimeSec(state.time), state.ce_marked_per_feedback);
+    }
+  }
+  plot->AppendTimeSeries(std::move(lost_series));
+  plot->AppendTimeSeries(std::move(recovered_series));
+  plot->AppendTimeSeries(std::move(ce_marked_series));
+  plot->AppendTimeSeriesIfNotEmpty(std::move(lost_per_feedback_series));
+  plot->AppendTimeSeriesIfNotEmpty(std::move(recovered_per_feedback_series));
+  plot->AppendTimeSeriesIfNotEmpty(std::move(ce_marked_per_feedback_series));
+
+  plot->SetXAxis(config.CallBeginTimeSec(), config.CallEndTimeSec(), "Time (s)",
+                 kLeftMargin, kRightMargin);
+  plot->SetSuggestedYAxis(0, 10, "Packets", kBottomMargin, kTopMargin);
+  plot->SetTitle("Simulated Scream feedback events per smoothed RTT");
 }
 
 void CreateScreamRefWindowGraph(const ParsedRtcEventLog& parsed_log,

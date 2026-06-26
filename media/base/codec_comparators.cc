@@ -11,7 +11,6 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
@@ -32,7 +31,6 @@
 #include "media/base/codec.h"
 #include "media/base/media_constants.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/logging.h"
 #include "rtc_base/string_encode.h"
 
 namespace webrtc {
@@ -129,89 +127,6 @@ bool ReferencedCodecsMatch(const std::vector<Codec>& codecs1,
   return codec1 != nullptr && codec2 != nullptr && codec1->Matches(*codec2);
 }
 
-bool MatchesWithReferenceAttributesAndComparator(
-    const Codec& codec_to_match,
-    const Codec& potential_match,
-    absl::AnyInvocable<bool(PayloadType, PayloadType)> reference_comparator) {
-  if (!MatchesWithCodecRules(codec_to_match, potential_match)) {
-    return false;
-  }
-  Codec::ResiliencyType resiliency_type = codec_to_match.GetResiliencyType();
-  if (resiliency_type == Codec::ResiliencyType::kRtx) {
-    int apt_value_1_int = 0;
-    int apt_value_2_int = 0;
-    if (!codec_to_match.GetParam(kCodecParamAssociatedPayloadType,
-                                 &apt_value_1_int) ||
-        !potential_match.GetParam(kCodecParamAssociatedPayloadType,
-                                  &apt_value_2_int)) {
-      RTC_LOG(LS_WARNING) << "RTX missing associated payload type.";
-      return false;
-    }
-    PayloadType apt_value_1 =
-        PayloadType(static_cast<uint8_t>(apt_value_1_int));
-    PayloadType apt_value_2 =
-        PayloadType(static_cast<uint8_t>(apt_value_2_int));
-    if (reference_comparator(apt_value_1, apt_value_2)) {
-      return true;
-    }
-    return false;
-  }
-  if (resiliency_type == Codec::ResiliencyType::kRed) {
-    auto red_parameters_1 =
-        codec_to_match.params.find(kCodecParamNotInNameValueFormat);
-    auto red_parameters_2 =
-        potential_match.params.find(kCodecParamNotInNameValueFormat);
-    bool has_parameters_1 = red_parameters_1 != codec_to_match.params.end();
-    bool has_parameters_2 = red_parameters_2 != potential_match.params.end();
-
-    if (has_parameters_1 && has_parameters_2) {
-      // Different levels of redundancy between offer and answer are OK
-      // since RED is considered to be declarative.
-      std::vector<absl::string_view> redundant_payloads_1 =
-          split(red_parameters_1->second, '/');
-      std::vector<absl::string_view> redundant_payloads_2 =
-          split(red_parameters_2->second, '/');
-      // note: split returns at least 1 string even on empty strings.
-      size_t smallest_size =
-          std::min(redundant_payloads_1.size(), redundant_payloads_2.size());
-      // If the smaller list is equivalent to the longer list, we consider them
-      // equivalent even if size differs.
-      for (size_t i = 0; i < smallest_size; i++) {
-        int red_value_1;
-        int red_value_2;
-        if (FromString(redundant_payloads_1[i], &red_value_1) &&
-            FromString(redundant_payloads_2[i], &red_value_2)) {
-          if (!reference_comparator(red_value_1, red_value_2)) {
-            return false;
-          }
-        } else {
-          // At least one parameter was not an integer.
-          // This is a syntax error, but we allow it here if the whole parameter
-          // equals the other parameter, in order to not generate more errors
-          // by duplicating the bad parameter.
-          return red_parameters_1->second == red_parameters_2->second;
-        }
-      }
-      return true;
-    }
-    if (!has_parameters_1 && !has_parameters_2) {
-      return true;
-    }
-    // Exactly one lacks parameters.
-    // Allow match if it is an audio RED codec and at least one of the
-    // codecs has an unassigned payload type or they have the same ID.
-    if (codec_to_match.type == Codec::Type::kAudio &&
-        codec_to_match.name == kRedCodecName &&
-        (codec_to_match.id == PayloadType::NotSet() ||
-         potential_match.id == PayloadType::NotSet() ||
-         codec_to_match.id == potential_match.id)) {
-      return true;
-    }
-    return false;
-  }
-  return true;  // Not a codec with a PT-valued reference.
-}
-
 CodecParameterMap InsertDefaultParams(const std::string& name,
                                       const CodecParameterMap& params) {
   CodecParameterMap updated_params = params;
@@ -272,30 +187,106 @@ CodecParameterMap InsertDefaultParams(const std::string& name,
 
 }  // namespace
 
+bool MatchesWithReferenceAttributesAndComparator(
+    const Codec& codec_to_match,
+    const Codec& potential_match,
+    absl::AnyInvocable<bool(PayloadType, PayloadType)> reference_comparator) {
+  if (!MatchesWithCodecRules(codec_to_match, potential_match)) {
+    return false;
+  }
+  Codec::ResiliencyType resiliency_type = codec_to_match.GetResiliencyType();
+  if (resiliency_type == Codec::ResiliencyType::kRtx) {
+    int apt_value_1_int = 0;
+    int apt_value_2_int = 0;
+    bool has_apt_1 = codec_to_match.GetParam(kCodecParamAssociatedPayloadType,
+                                             &apt_value_1_int);
+    bool has_apt_2 = potential_match.GetParam(kCodecParamAssociatedPayloadType,
+                                              &apt_value_2_int);
+    if (!has_apt_1 && !has_apt_2) {
+      return true;
+    }
+    if (!has_apt_1 || !has_apt_2) {
+      return false;
+    }
+    return reference_comparator(PayloadType(apt_value_1_int),
+                                PayloadType(apt_value_2_int));
+  }
+  if (resiliency_type == Codec::ResiliencyType::kRed) {
+    auto red_parameters_1 =
+        codec_to_match.params.find(kCodecParamNotInNameValueFormat);
+    auto red_parameters_2 =
+        potential_match.params.find(kCodecParamNotInNameValueFormat);
+    bool has_parameters_1 = red_parameters_1 != codec_to_match.params.end();
+    bool has_parameters_2 = red_parameters_2 != potential_match.params.end();
+
+    if (has_parameters_1 && has_parameters_2) {
+      // Different levels of redundancy between offer and answer are OK
+      // since RED is considered to be declarative.
+      std::vector<absl::string_view> redundant_payloads_1 =
+          split(red_parameters_1->second, '/');
+      std::vector<absl::string_view> redundant_payloads_2 =
+          split(red_parameters_2->second, '/');
+      // note: split returns at least 1 string even on empty strings.
+      size_t smallest_size =
+          std::min(redundant_payloads_1.size(), redundant_payloads_2.size());
+      // If the smaller list is equivalent to the longer list, we consider them
+      // equivalent even if size differs.
+      for (size_t i = 0; i < smallest_size; i++) {
+        int red_value_1;
+        int red_value_2;
+        if (FromString(redundant_payloads_1[i], &red_value_1) &&
+            FromString(redundant_payloads_2[i], &red_value_2)) {
+          if (!reference_comparator(red_value_1, red_value_2)) {
+            return false;
+          }
+        } else {
+          // At least one parameter was not an integer.
+          // This is a syntax error, but we allow it here if the whole parameter
+          // equals the other parameter, in order to not generate more errors
+          // by duplicating the bad parameter.
+          return red_parameters_1->second == red_parameters_2->second;
+        }
+      }
+      return true;
+    }
+    if (!has_parameters_1 && !has_parameters_2) {
+      return true;
+    }
+    // Exactly one lacks parameters.
+    // Allow match if it is an audio RED codec and at least one of the
+    // codecs has an unassigned payload type or they have the same ID.
+    if (codec_to_match.type == Codec::Type::kAudio &&
+        codec_to_match.name == kRedCodecName &&
+        (codec_to_match.id == PayloadType::NotSet() ||
+         potential_match.id == PayloadType::NotSet() ||
+         codec_to_match.id == potential_match.id)) {
+      return true;
+    }
+    return false;
+  }
+  return true;  // Not a codec with a PT-valued reference.
+}
+
 bool MatchesWithCodecRules(const Codec& left_codec, const Codec& right_codec) {
   // Match the codec id/name based on the typical static/dynamic name rules.
   // Matching is case-insensitive.
 
-  // We support the ranges [96, 127] and more recently [35, 65].
+  // We support the ranges [96, 127] and more recently [35, 63].
   // https://www.iana.org/assignments/rtp-parameters/rtp-parameters.xhtml#rtp-parameters-1
   // Within those ranges we match by codec name, outside by codec id.
   // We also match by name if either ID is unassigned.
   // Since no codecs are assigned an id in the range [66, 95] by us, these will
   // never match.
-  const int kLowerDynamicRangeMin = 35;
-  const int kLowerDynamicRangeMax = 65;
-  const int kUpperDynamicRangeMin = 96;
-  const int kUpperDynamicRangeMax = 127;
   const bool is_id_in_dynamic_range =
-      (left_codec.id >= kLowerDynamicRangeMin &&
-       left_codec.id <= kLowerDynamicRangeMax) ||
-      (left_codec.id >= kUpperDynamicRangeMin &&
-       left_codec.id <= kUpperDynamicRangeMax);
+      (left_codec.id >= PayloadType::kLowerDynamicRangeMin &&
+       left_codec.id <= PayloadType::kLowerDynamicRangeMax) ||
+      (left_codec.id >= PayloadType::kUpperDynamicRangeMin &&
+       left_codec.id <= PayloadType::kUpperDynamicRangeMax);
   const bool is_codec_id_in_dynamic_range =
-      (right_codec.id >= kLowerDynamicRangeMin &&
-       right_codec.id <= kLowerDynamicRangeMax) ||
-      (right_codec.id >= kUpperDynamicRangeMin &&
-       right_codec.id <= kUpperDynamicRangeMax);
+      (right_codec.id >= PayloadType::kLowerDynamicRangeMin &&
+       right_codec.id <= PayloadType::kLowerDynamicRangeMax) ||
+      (right_codec.id >= PayloadType::kUpperDynamicRangeMin &&
+       right_codec.id <= PayloadType::kUpperDynamicRangeMax);
 
   if (left_codec.type != right_codec.type) {
     return false;

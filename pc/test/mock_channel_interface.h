@@ -14,7 +14,6 @@
 #include <string>
 #include <vector>
 
-#include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/jsep.h"
 #include "api/media_types.h"
@@ -35,8 +34,7 @@ class RtpPacketReceived;
 class MockChannelInterface : public ChannelInterface {
  public:
   MOCK_METHOD(MediaType, media_type, (), (const, override));
-  MOCK_METHOD(VideoChannel*, AsVideoChannel, (), (override));
-  MOCK_METHOD(VoiceChannel*, AsVoiceChannel, (), (override));
+
   MOCK_METHOD(MediaSendChannelInterface*, media_send_channel, (), (override));
   MOCK_METHOD(VoiceMediaSendChannelInterface*,
               voice_media_send_channel,
@@ -61,18 +59,6 @@ class MockChannelInterface : public ChannelInterface {
   MOCK_METHOD(absl::string_view, transport_name, (), (const, override));
   MOCK_METHOD(const std::string&, mid, (), (const, override));
   MOCK_METHOD(void, Enable, (bool), (override));
-  MOCK_METHOD(void,
-              SetFirstPacketReceivedCallback_n,
-              (absl::AnyInvocable<void(const RtpPacketReceived&) &&>),
-              (override));
-  MOCK_METHOD(void,
-              SetFirstPacketSentCallback_n,
-              (absl::AnyInvocable<void() &&>),
-              (override));
-  MOCK_METHOD(void,
-              SetPacketReceivedCallback_n,
-              (absl::AnyInvocable<void(const RtpPacketReceived&)>),
-              (override));
   MOCK_METHOD(RTCError,
               SetLocalContent,
               (const webrtc::MediaContentDescription*, SdpType),

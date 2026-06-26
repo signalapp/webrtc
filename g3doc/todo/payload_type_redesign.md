@@ -1,5 +1,7 @@
 # Payload type allocation redesign
 
+The bug associated with this work is webrtc:360058654
+
 ## Background: What a payload type is
 
 The payload type is a property of a codec that is established between a sender
@@ -14,6 +16,12 @@ For SDP sendonly media sections, it indicates a willingness to send; for
 recvonly media sections, it indicates a willingness to receive; for sendrecv
 media sections, it indicates a willingness to receive AND a willingness to send.
 Presence in a media section does not guarantee that it will be used. (RFC 3264)
+
+The `Codec` class represents the configuration of a particular payload type as
+represented in an SDP offer/answer, which also controls how the data is
+transferred on the wire. A better name would have been something like
+`RtpPayloadTypeConfiguration`, but the `Codec` name is embedded quite widely in
+the code.
 
 ## Current allocation strategy
 
@@ -31,6 +39,34 @@ Picking a payload type is done in the PayloadTypePicker class. This is preloaded
 with some assignments, so that if a PT is free, the commonly used PT for that
 codec can be used.
 
+```
+          +-----------------------------------+
+          | PeerConnection's PayloadTypePicker|
+          +-----------------+-----------------+
+                            |
+              +-------------+-------------+
+              |                           |
+      +-------v-------+           +-------v-------+
+      |  VoiceEngine  |           |  VideoEngine  |
+      +-------+-------+           +-------+-------+
+              |                           |
+              |      (Initial PTs)        |
+              v                           v
+      +-------------------------------------------+    +-----------------------+
+      |               CodecVendor                 |    |    Media section's    |
+      |      (Munges PTs to avoid collisions)     +---->   PayloadTypePicker   |
+      +-------+-------------+-------+-------------+    +-----------+-----------+
+              |             |       |                              |
+              |             |       |              +---------------v-------+
+              |             |       +-------------->SdpPayloadTypeSuggester|
+              |             |                      +---------------+-------+
+              |             |                                      |
+              v             v                                      v
+      +----------------+ +------------------+<---------------------+
+      |TypedCodecVendor| |PayloadTypeRecorder|
+      +----------------+ +------------------+
+```
+
 ## Desired future strategy
 
 There should be no assignment of payload types in VideoEngine and VoiceEngine.
@@ -39,6 +75,30 @@ assigned permanently in SetLocalDescription / SetRemoteDescription.
 
 Once an assignment is made, it should never need to change (apart from the case
 noted above).
+
+```
+          +-------------+           +-------------+
+          | VoiceEngine |           | VideoEngine |
+          +------+------+           +------+------+
+                 |                         |
+                 |  (CodecConfigurations)  |
+                 |    (No initial PTs)     |
+                 v                         v
+          +-------------------------------------------+    +-----------------------+
+          |               CodecVendor                 |    |    Media section's    |
+          |   (Assigns PTs and expands resiliency)    +---->   PayloadTypePicker   |
+          +-------+-----------------------------------+    +-----------+-----------+
+                  |                                                    |
+                  v                                        +-----------v-----------+
+          +----------------+                               |SdpPayloadTypeSuggester|
+          |TypedCodecVendor|                               +-----------+-----------+
+          +----------------+                                           |
+                                                           +-----------v-----------+
+                                                           | PayloadTypeRecorder & |
+                                                           | PeerConnection's PT   |
+                                                           | Picker                |
+                                                           +-----------------------+
+```
 
 ## Dealing with resiliency mechanisms
 
@@ -58,70 +118,88 @@ the PT of the codec it refers to.
 
 ## Current implementation status
 
-The new strategy is implemented for audio codecs. Several issues that caused
-test failures when enabling the `WebRTC-PayloadTypesInTransport` field trial
-have been identified and fixed:
+The redesign is now largely implemented for both audio and video codecs when the
+`WebRTC-PayloadTypesInTransport` field trial is enabled. Key milestones reached:
 
-- **Audio/Video RED Collision:** RED codecs of different media types were
-  incorrectly matching, leading to payload type conflicts.
-  `MatchesWithCodecRules` now enforces media type equality.
-- **MID Recycling:** When a MID was recycled for a different media type (e.g.,
-  Audio -> Video), `CodecVendor` was incorrectly merging codecs from the old
-  description. This has been fixed by validating the media type before merging.
-- **RED Matching Logic:** Relaxed the matching rules for RED to allow
-  negotiation to proceed even when parameters (linking RED to primary codecs)
-  are not yet populated, as this linking now happens late in the `CodecVendor`.
+- **Bifurcated Negotiation Logic:** `CodecVendor` now has separate paths for
+  legacy and redesigned PT allocation. The redesigned path uses
+  `CodecConfiguration` and `MergeCodecsFromConfigurations` for all media types.
+- **Unified Resiliency Expansion:** Late expansion of RTX, RED, ULPFEC, and
+  FlexFEC is handled uniformly in `pc/codec_vendor.cc`.
+- **Audio/Video RED Collision:** Fixed by enforcing media type equality in
+  matching rules.
+- **MID Recycling:** Correctly handled with media type validation, preventing
+  invalid codec merging when MIDs are reused.
+- **Stable PT Assignment:** Verified to maintain payload type stability across
+  renegotiations and codec preference changes.
+- **Conventional RTX Assignment:** RTX PTs now default to `Primary_PT + 1` to
+  maintain backwards compatibility with legacy expectations.
 
-The new strategy is not yet implemented for video codecs.
+The implementation is verified by a dedicated suite of integration tests in
+`pc/codec_vendor_redesign_unittest.cc`.
 
-## Implementation Strategy for Video
+## Unified Implementation Strategy for Audio and Video
 
-The goal is to transition video codec handling to the same late-assignment model
-used for audio.
+The transition to a unified late-assignment model is nearly complete, using
+internal `CodecConfiguration` objects to represent codecs before they are
+assigned payload types.
 
-### 1. Unified Codec Collection
+### 1. CodecConfiguration and ResiliencyInfo
 
-- Implement `VideoCodecsFromFactory` in `pc/typed_codec_vendor.cc`. This will
-  query the `VideoEncoderFactory` and `VideoDecoderFactory` to gather supported
-  `SdpVideoFormat`s.
-- These codecs will be initialized with `kIdNotSet`, allowing
-  `SdpPayloadTypeSuggester` to assign payload types only during the creation of
-  an offer or answer.
+Introduced in `pc/codec_configuration.h`:
 
-### 2. Payload Type Suggester Integration
+- **`ResiliencyInfo`**: Encapsulates the redundancy requirements (RTX, RED,
+  ULPFEC, FlexFEC).
+- **`CodecConfiguration`**: Stores codec attributes and their associated
+  `ResiliencyInfo`. This allows the engine to express capabilities without
+  pre-assigning payload types.
 
-- Ensure `PayloadTypePicker` has a complete list of preferred payload types for
-  video codecs (VP8, VP9, H.264, AV1, etc.) to maintain stable and conventional
-  assignments.
-- Update `CodecVendor` to use the unassigned video codec list when the
-  `WebRTC-PayloadTypesInTransport` trial is active.
+### 2. Unified Codec Collection
 
-### 3. Resiliency and Parameter Linking
+`TypedCodecVendor` handles the bifurcated collection path:
 
-- Refine `MergeCodecs` and `AssignCodecIdsAndLinkRed` to handle video-specific
-  resiliency:
-  - **RTX:** Correctly link RTX codecs to their primary video codecs by matching
-    names and specific parameters (like `profile-level-id` for H.264).
-  - **RED/ULPFEC:** Ensure parameters for video redundancy are correctly
-    populated once the primary codec PTs are assigned.
+- **Redesigned Path**: Collects `CodecConfiguration` objects from the media
+  engine factories. It also performs a "legacy expansion" to populate the
+  internal `codecs()` list for compatibility with existing code that expects
+  pre-assigned PTs.
+- **Legacy Path**: Continues to use the engine's `LegacySendCodecs` /
+  `LegacyRecvCodecs` methods.
 
-### 4. Verification and Testing
+### 3. Late Expansion and Parameter Linking
 
-- **Integration Tests:** Enable the `WebRTC-PayloadTypesInTransport` trial in
-  `peerconnection_unittests` and `rtc_unittests` to identify any video-specific
-  regressions.
-- **Stable PT Tests:** Add coverage to ensure that payload types remain stable
-  across renegotiations, even when the order of codecs in the transceiver
-  preferences changes.
-- **MID Recycling:** Verify that MID recycling for video-to-audio and vice-versa
-  works correctly without PT collisions or crashes.
+`CodecVendor::MergeCodecsFromConfigurations` performs the following for all
+media types:
 
-## Desired next steps
+1.  Assigns a payload type to the primary media codec via
+    `SdpPayloadTypeSuggester`.
+2.  Expands the `ResiliencyInfo` into redundancy `Codec` objects (RTX, RED,
+    FEC).
+3.  Links redundancy codecs to the primary PT (e.g., setting the `apt` parameter
+    for RTX).
 
-Analyze the current situation. (Done)
+**Current Status:** RTX and RED linking are fully unified. RED linking for audio has been refactored into the unified expansion logic in `MergeRedCodec`.
 
-### Test, isolate and fix failures
+## Testing Strategy
 
-The identified failures in `PeerConnectionEncodingsIntegrationTest` and
-`PeerConnectionIntegrationTest` have been resolved. Next, focus on implementing
-the video strategy outlined above.
+To ensure correctness and prevent regressions while the
+`WebRTC-PayloadTypesInTransport` field trial is being developed, a "Redesign
+Feedback Loop" strategy is used:
+
+1.  **Identify failing tests:** Run full suites (`rtc_unittests`,
+    `peerconnection_unittests`) with the trial enabled.
+2.  **Reproduction and Isolation:** Failing cases are ported to
+    `pc/codec_vendor_redesign_unittest.cc` for focused debugging.
+3.  **Surgical Fixes:** Fixes are verified against the isolated tests and then
+    re-verified against the full suite.
+4.  **Full Re-verification:** Once the tests are stable, run all tests without
+    the field trial flag to ensure there are no regressions, and then either ask
+    to commit this set of changes or loop back to step 1.
+
+## Backwards Compatibility for Unit Testing
+
+Test helpers like `CodecLookupHelperForTesting` are used in legacy unit tests
+to "pre-seed" the `FakePayloadTypeSuggester` with hardcoded PT expectations.
+This allows tests that depend on specific PT values to pass while the
+underlying allocation logic transitions to a more generic, transport-aware
+strategy.
+

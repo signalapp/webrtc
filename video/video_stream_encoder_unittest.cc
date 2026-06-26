@@ -815,6 +815,9 @@ class SimpleVideoStreamEncoderFactory {
         const CodecSpecificInfo* codec_specific_info) override {
       return Result(EncodedImageCallback::Result::OK);
     }
+    void OnFrameDropped(uint32_t rtp_timestamp,
+                        int spatial_id,
+                        bool is_end_of_temporal_unit) override {}
   };
 
   FieldTrials field_trials_ = CreateTestFieldTrials();
@@ -1340,8 +1343,9 @@ class VideoStreamEncoderTest : public ::testing::Test {
         num_encodes_++;
         if (drop_frames_) {
           if (encoded_image_callback_) {
-            encoded_image_callback_->OnDroppedFrame(
-                EncodedImageCallback::DropReason::kDroppedByEncoder);
+            encoded_image_callback_->OnFrameDropped(
+                input_image.rtp_timestamp(), /*spatial_id=*/0,
+                /*is_end_of_temporal_unit=*/true);
           }
           return WEBRTC_VIDEO_CODEC_OK;
         }
@@ -9739,7 +9743,7 @@ TEST_F(VideoStreamEncoderTest, LowComplexityVP9WithTwoCores) {
 }
 
 TEST_F(VideoStreamEncoderTest,
-       NormalComplexityVP9WithDynamicSpeedDespiteLowTierOptimizations) {
+       LowComplexityVP9WithDynamicSpeedAndLowTierOptimizations) {
   FieldTrials trials(field_trials_);
   trials.Set("WebRTC-VP9-LowTierOptimizations", "Enabled");
   trials.Set("WebRTC-EncoderSpeed", "dynamic_speed:true");
@@ -9758,7 +9762,30 @@ TEST_F(VideoStreamEncoderTest,
       CreateFrame(1, /*width=*/320, /*height=*/180));
   WaitForEncodedFrame(1);
   EXPECT_EQ(fake_encoder_.LastEncoderComplexity(),
-            VideoCodecComplexity::kComplexityNormal);
+            VideoCodecComplexity::kComplexityLow);
+  video_stream_encoder_->Stop();
+}
+
+TEST_F(VideoStreamEncoderTest, DynamicSpeedCanOverrideVp9LowComplexity) {
+  FieldTrials trials(field_trials_);
+  trials.Set("WebRTC-VP9-LowTierOptimizations", "Enabled");
+  trials.Set("WebRTC-EncoderSpeed", "dynamic_speed:true,vp9_camera:high");
+
+  ResetEncoder("VP9", /*num_streams=*/1, /*num_temporal_layers=*/1,
+               /*num_spatial_layers=*/1,
+               /*screenshare=*/false,
+               kDefaultFramerate, /*allocation_callback_type=*/
+               VideoStreamEncoder::BitrateAllocationCallbackType::
+                   kVideoBitrateAllocationWhenScreenSharing,
+               /*num_cores=*/2, &trials);
+
+  video_stream_encoder_->OnBitrateUpdatedAndWaitForManagedResources(
+      kTargetBitrate, kTargetBitrate, 0, 0, 0);
+  video_source_.IncomingCapturedFrame(
+      CreateFrame(1, /*width=*/320, /*height=*/180));
+  WaitForEncodedFrame(1);
+  EXPECT_EQ(fake_encoder_.LastEncoderComplexity(),
+            VideoCodecComplexity::kComplexityHigh);
   video_stream_encoder_->Stop();
 }
 
@@ -10484,6 +10511,8 @@ TEST(VideoStreamEncoderSimpleTest, CreateDestroy) {
    public:
     SuperLazyTaskQueue() = default;
     ~SuperLazyTaskQueue() override = default;
+
+    absl::string_view queue_name() const override { return "Lazy"; }
 
    private:
     void Delete() override { delete this; }

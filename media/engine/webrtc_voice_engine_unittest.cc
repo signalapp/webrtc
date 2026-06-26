@@ -42,6 +42,7 @@
 #include "api/priority.h"
 #include "api/ref_count.h"
 #include "api/rtc_error.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_parameters.h"
 #include "api/scoped_refptr.h"
@@ -74,6 +75,7 @@
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/dscp.h"
 #include "rtc_base/numerics/safe_conversions.h"
+#include "test/create_test_environment.h"
 #include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
@@ -208,7 +210,7 @@ std::vector<Codec> ReceiveCodecsWithId(WebRtcVoiceEngine& engine) {
 
 // Tests that our stub library "works".
 TEST(WebRtcVoiceEngineTestStubLibrary, StartupShutdown) {
-  Environment env = CreateEnvironment();
+  Environment env = CreateTestEnvironment();
   for (bool use_null_apm : {false, true}) {
     scoped_refptr<test::MockAudioDeviceModule> adm =
         test::MockAudioDeviceModule::CreateStrict();
@@ -602,7 +604,7 @@ class WebRtcVoiceEngineTestFake : public ::testing::TestWithParam<bool> {
     EXPECT_EQ(0u, GetSendStreamConfig(kSsrcX).rtp.extensions.size());
 
     // Ensure extension is set properly.
-    const int id = 1;
+    const RtpHeaderExtensionId id(1);
     send_parameters_.extensions.push_back(RtpExtension(ext, id));
     SetSenderParameters(send_parameters_);
     EXPECT_EQ(1u, GetSendStreamConfig(kSsrcX).rtp.extensions.size());
@@ -1083,7 +1085,7 @@ TEST_P(WebRtcVoiceEngineTestFake, SetRecvCodecsWhilePlaying) {
   parameters.codecs.push_back(kPcmuCodec);
   parameters.codecs.push_back(kCn16000Codec);
   EXPECT_TRUE(receive_channel_->SetReceiverParameters(parameters));
-  receive_channel_->SetPlayout(true);
+  receive_channel_->SetReceive(true);
   EXPECT_TRUE(receive_channel_->SetReceiverParameters(parameters));
 
   // Remapping a payload type to a different codec should fail.
@@ -1100,7 +1102,7 @@ TEST_P(WebRtcVoiceEngineTestFake, AddRecvCodecsWhilePlaying) {
   parameters.codecs.push_back(kPcmuCodec);
   parameters.codecs.push_back(kCn16000Codec);
   EXPECT_TRUE(receive_channel_->SetReceiverParameters(parameters));
-  receive_channel_->SetPlayout(true);
+  receive_channel_->SetReceive(true);
 
   parameters.codecs.push_back(kOpusCodec);
   EXPECT_TRUE(receive_channel_->SetReceiverParameters(parameters));
@@ -2418,9 +2420,9 @@ TEST_P(WebRtcVoiceEngineTestFake, SendStateWhenStreamsAreRecreated) {
 TEST_P(WebRtcVoiceEngineTestFake, Playout) {
   EXPECT_TRUE(SetupRecvStream());
   EXPECT_TRUE(receive_channel_->SetReceiverParameters(recv_parameters_));
-  receive_channel_->SetPlayout(true);
+  receive_channel_->SetReceive(true);
   EXPECT_TRUE(GetRecvStream(kSsrcX).started());
-  receive_channel_->SetPlayout(false);
+  receive_channel_->SetReceive(false);
   EXPECT_FALSE(GetRecvStream(kSsrcX).started());
 }
 
@@ -2591,7 +2593,7 @@ TEST_P(WebRtcVoiceEngineTestFake, PlayoutWithMultipleStreams) {
 
   // Start playout without a receive stream.
   SetSenderParameters(send_parameters_);
-  receive_channel_->SetPlayout(true);
+  receive_channel_->SetReceive(true);
 
   // Adding another stream should enable playout on the new stream only.
   EXPECT_TRUE(AddRecvStream(kSsrcY));
@@ -2611,12 +2613,12 @@ TEST_P(WebRtcVoiceEngineTestFake, PlayoutWithMultipleStreams) {
   EXPECT_FALSE(GetSendStream(kSsrcX).IsSending());
 
   // Stop playout.
-  receive_channel_->SetPlayout(false);
+  receive_channel_->SetReceive(false);
   EXPECT_FALSE(GetRecvStream(kSsrcY).started());
   EXPECT_FALSE(GetRecvStream(kSsrcZ).started());
 
   // Restart playout and make sure recv streams are played out.
-  receive_channel_->SetPlayout(true);
+  receive_channel_->SetReceive(true);
   EXPECT_TRUE(GetRecvStream(kSsrcY).started());
   EXPECT_TRUE(GetRecvStream(kSsrcZ).started());
 
@@ -2886,6 +2888,28 @@ TEST_P(WebRtcVoiceEngineTestFake,
   receive_channel_->ResetUnsignaledRecvStream();
   const auto& receivers2 = call_.GetAudioReceiveStreams();
   EXPECT_EQ(0u, receivers2.size());
+}
+
+TEST_P(WebRtcVoiceEngineTestFake, GetUnsignaledSsrcs) {
+  ASSERT_TRUE(SetupChannel());
+  // No receive streams to start with.
+  ASSERT_TRUE(call_.GetAudioReceiveStreams().empty());
+  EXPECT_TRUE(receive_channel_->GetUnsignaledSsrcs().empty());
+
+  // Deliver a couple packets with unsignaled SSRCs.
+  uint8_t packet[sizeof(kPcmuFrame)];
+  memcpy(packet, kPcmuFrame, sizeof(kPcmuFrame));
+  SetBE32(std::span<uint8_t>(&packet[8], 4), 0x1234);
+  DeliverPacket(packet);
+  SetBE32(std::span<uint8_t>(&packet[8], 4), 0x5678);
+  DeliverPacket(packet);
+
+  EXPECT_THAT(receive_channel_->GetUnsignaledSsrcs(),
+              testing::ElementsAre(0x1234, 0x5678));
+
+  // Should remove all default streams.
+  receive_channel_->ResetUnsignaledRecvStream();
+  EXPECT_TRUE(receive_channel_->GetUnsignaledSsrcs().empty());
 }
 
 // Test that receiving N unsignaled stream works (streams will be created), and
@@ -3747,7 +3771,7 @@ TEST_P(WebRtcVoiceEngineTestFake,
 // Test that playout is still started after changing parameters
 TEST_P(WebRtcVoiceEngineTestFake, PreservePlayoutWhenRecreateRecvStream) {
   SetupRecvStream();
-  receive_channel_->SetPlayout(true);
+  receive_channel_->SetReceive(true);
   EXPECT_TRUE(GetRecvStream(kSsrcX).started());
 
   // Changing RTP header extensions will recreate the
@@ -3777,7 +3801,7 @@ TEST(WebRtcVoiceEngineTest, StartupShutdown) {
   for (bool use_null_apm : {false, true}) {
     // If the VoiceEngine wants to gather available codecs early, that's fine
     // but we never want it to create a decoder at this stage.
-    Environment env = CreateEnvironment();
+    Environment env = CreateTestEnvironment();
     scoped_refptr<test::MockAudioDeviceModule> adm =
         test::MockAudioDeviceModule::CreateNice();
     scoped_refptr<AudioProcessing> apm =
@@ -3802,7 +3826,7 @@ TEST(WebRtcVoiceEngineTest, StartupShutdown) {
 TEST(WebRtcVoiceEngineTest, StartupShutdownWithExternalADM) {
   test::RunLoop run_loop;
   for (bool use_null_apm : {false, true}) {
-    Environment env = CreateEnvironment();
+    Environment env = CreateTestEnvironment();
     auto adm =
         make_ref_counted<::testing::NiceMock<test::MockAudioDeviceModule>>();
     {
@@ -3830,7 +3854,7 @@ TEST(WebRtcVoiceEngineTest, StartupShutdownWithExternalADM) {
 
 // Verify the payload id of common audio codecs, including CN and G722.
 TEST(WebRtcVoiceEngineTest, HasCorrectPayloadTypeMapping) {
-  Environment env = CreateEnvironment();
+  Environment env = CreateTestEnvironment();
   for (bool use_null_apm : {false, true}) {
     // TODO(ossu): Why are the payload types of codecs with non-static payload
     // type assignments checked here? It shouldn't really matter.
@@ -3879,7 +3903,7 @@ TEST(WebRtcVoiceEngineTest, HasCorrectPayloadTypeMapping) {
 TEST(WebRtcVoiceEngineTest, Has32Channels) {
   test::RunLoop run_loop;
   for (bool use_null_apm : {false, true}) {
-    Environment env = CreateEnvironment();
+    Environment env = CreateTestEnvironment();
     scoped_refptr<test::MockAudioDeviceModule> adm =
         test::MockAudioDeviceModule::CreateNice();
     scoped_refptr<AudioProcessing> apm =
@@ -3908,7 +3932,7 @@ TEST(WebRtcVoiceEngineTest, Has32Channels) {
 TEST(WebRtcVoiceEngineTest, SetRecvCodecs) {
   test::RunLoop run_loop;
   for (bool use_null_apm : {false, true}) {
-    Environment env = CreateEnvironment();
+    Environment env = CreateTestEnvironment();
     // TODO(ossu): I'm not sure of the intent of this test. It's either:
     // - Check that our builtin codecs are usable by Channel.
     // - The codecs provided by the engine is usable by Channel.
@@ -3936,7 +3960,7 @@ TEST(WebRtcVoiceEngineTest, SetRecvCodecs) {
 
 TEST(WebRtcVoiceEngineTest, SetRtpSendParametersMaxBitrate) {
   test::RunLoop run_loop;
-  Environment env = CreateEnvironment();
+  Environment env = CreateTestEnvironment();
   scoped_refptr<test::MockAudioDeviceModule> adm =
       test::MockAudioDeviceModule::CreateNice();
   FakeAudioSource source;
@@ -3978,7 +4002,7 @@ TEST(WebRtcVoiceEngineTest, SetRtpSendParametersMaxBitrate) {
 }
 
 TEST(WebRtcVoiceEngineTest, CollectRecvCodecs) {
-  Environment env = CreateEnvironment();
+  Environment env = CreateTestEnvironment();
   for (bool use_null_apm : {false, true}) {
     std::vector<AudioCodecSpec> specs;
     AudioCodecSpec spec1 = {
