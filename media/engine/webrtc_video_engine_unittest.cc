@@ -39,6 +39,7 @@
 #include "api/payload_type.h"
 #include "api/priority.h"
 #include "api/rtc_error.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_parameters.h"
 #include "api/scoped_refptr.h"
@@ -727,9 +728,9 @@ TEST_F(WebRtcVideoEngineTest, SetSendFailsBeforeSettingCodecs) {
   AddSupportedVideoCodecType("VP8");
 
   std::unique_ptr<VideoMediaSendChannelInterface> send_channel =
-      engine_->CreateSendChannel(env_, call_.get(), GetMediaConfig(),
-                                 VideoOptions(), CryptoOptions(),
-                                 video_bitrate_allocator_factory_.get());
+      engine_->CreateSendChannel(
+          env_, call_.get(), GetMediaConfig(), VideoOptions(), CryptoOptions(),
+          video_bitrate_allocator_factory_.get(), nullptr, nullptr);
 
   EXPECT_TRUE(send_channel->AddSendStream(StreamParams::CreateLegacy(123)));
 
@@ -743,9 +744,9 @@ TEST_F(WebRtcVideoEngineTest, GetStatsWithoutCodecsSetDoesNotCrash) {
   AddSupportedVideoCodecType("VP8");
 
   std::unique_ptr<VideoMediaSendChannelInterface> send_channel =
-      engine_->CreateSendChannel(env_, call_.get(), GetMediaConfig(),
-                                 VideoOptions(), CryptoOptions(),
-                                 video_bitrate_allocator_factory_.get());
+      engine_->CreateSendChannel(
+          env_, call_.get(), GetMediaConfig(), VideoOptions(), CryptoOptions(),
+          video_bitrate_allocator_factory_.get(), nullptr, nullptr);
   EXPECT_TRUE(send_channel->AddSendStream(StreamParams::CreateLegacy(123)));
   VideoMediaSendInfo send_info;
   send_channel->GetStats(&send_info);
@@ -859,7 +860,7 @@ TEST_F(WebRtcVideoEngineTest, EncoderSwitchRequestCallback) {
   std::unique_ptr<VideoMediaSendChannelInterface> send_channel =
       engine_->CreateSendChannel(
           env_, call_.get(), GetMediaConfig(), VideoOptions(), CryptoOptions(),
-          video_bitrate_allocator_factory_.get(), std::move(callback));
+          video_bitrate_allocator_factory_.get(), std::move(callback), nullptr);
 
   VideoSenderParameters parameters;
   parameters.codecs.push_back(GetEngineCodec("VP8"));
@@ -1005,9 +1006,9 @@ void WebRtcVideoEngineTest::AddSupportedVideoCodec(SdpVideoFormat format) {
 std::unique_ptr<VideoMediaSendChannelInterface>
 WebRtcVideoEngineTest::SetSendParamsWithAllSupportedCodecs() {
   std::unique_ptr<VideoMediaSendChannelInterface> channel =
-      engine_->CreateSendChannel(env_, call_.get(), GetMediaConfig(),
-                                 VideoOptions(), CryptoOptions(),
-                                 video_bitrate_allocator_factory_.get());
+      engine_->CreateSendChannel(
+          env_, call_.get(), GetMediaConfig(), VideoOptions(), CryptoOptions(),
+          video_bitrate_allocator_factory_.get(), nullptr, nullptr);
   VideoSenderParameters parameters;
   // We need to look up the codec in the engine to get the correct payload type.
   for (const SdpVideoFormat& format : encoder_factory_->GetSupportedFormats()) {
@@ -1189,9 +1190,9 @@ TEST_F(WebRtcVideoEngineTest, ChannelWithH264CanChangeToVp8) {
                                env_.clock().CurrentTime());
 
   std::unique_ptr<VideoMediaSendChannelInterface> send_channel =
-      engine_->CreateSendChannel(env_, call_.get(), GetMediaConfig(),
-                                 VideoOptions(), CryptoOptions(),
-                                 video_bitrate_allocator_factory_.get());
+      engine_->CreateSendChannel(
+          env_, call_.get(), GetMediaConfig(), VideoOptions(), CryptoOptions(),
+          video_bitrate_allocator_factory_.get(), nullptr, nullptr);
   VideoSenderParameters parameters;
   parameters.codecs.push_back(GetEngineCodec("H264"));
   EXPECT_TRUE(send_channel->SetSenderParameters(parameters));
@@ -1221,9 +1222,9 @@ TEST_F(WebRtcVideoEngineTest,
   AddSupportedVideoCodecType("H264");
 
   std::unique_ptr<VideoMediaSendChannelInterface> send_channel =
-      engine_->CreateSendChannel(env_, call_.get(), GetMediaConfig(),
-                                 VideoOptions(), CryptoOptions(),
-                                 video_bitrate_allocator_factory_.get());
+      engine_->CreateSendChannel(
+          env_, call_.get(), GetMediaConfig(), VideoOptions(), CryptoOptions(),
+          video_bitrate_allocator_factory_.get(), nullptr, nullptr);
   VideoSenderParameters parameters;
   parameters.codecs.push_back(GetEngineCodec("VP8"));
   EXPECT_TRUE(send_channel->SetSenderParameters(parameters));
@@ -1260,9 +1261,9 @@ TEST_F(WebRtcVideoEngineTest,
   AddSupportedVideoCodecType("H264");
 
   std::unique_ptr<VideoMediaSendChannelInterface> send_channel =
-      engine_->CreateSendChannel(env_, call_.get(), GetMediaConfig(),
-                                 VideoOptions(), CryptoOptions(),
-                                 video_bitrate_allocator_factory_.get());
+      engine_->CreateSendChannel(
+          env_, call_.get(), GetMediaConfig(), VideoOptions(), CryptoOptions(),
+          video_bitrate_allocator_factory_.get(), nullptr, nullptr);
   VideoSenderParameters parameters;
   parameters.codecs.push_back(GetEngineCodec("H264"));
   EXPECT_TRUE(send_channel->SetSenderParameters(parameters));
@@ -1291,9 +1292,9 @@ TEST_F(WebRtcVideoEngineTest, SimulcastEnabledForH264) {
   AddSupportedVideoCodecType("H264");
 
   std::unique_ptr<VideoMediaSendChannelInterface> send_channel =
-      engine_->CreateSendChannel(env_, call_.get(), GetMediaConfig(),
-                                 VideoOptions(), CryptoOptions(),
-                                 video_bitrate_allocator_factory_.get());
+      engine_->CreateSendChannel(
+          env_, call_.get(), GetMediaConfig(), VideoOptions(), CryptoOptions(),
+          video_bitrate_allocator_factory_.get(), nullptr, nullptr);
 
   VideoSenderParameters parameters;
   parameters.codecs.push_back(GetEngineCodec("H264"));
@@ -1562,7 +1563,7 @@ TEST(WebRtcVideoEngineNewVideoCodecFactoryTest, Vp8) {
   std::unique_ptr<VideoMediaSendChannelInterface> send_channel =
       engine.CreateSendChannel(env, call.get(), GetMediaConfig(),
                                VideoOptions(), CryptoOptions(),
-                               rate_allocator_factory.get());
+                               rate_allocator_factory.get(), nullptr, nullptr);
 
   VideoSenderParameters send_parameters;
   send_parameters.codecs.push_back(engine_codecs.at(0));
@@ -1703,7 +1704,7 @@ class WebRtcVideoChannelEncodedFrameCallbackTest : public ::testing::Test {
         network_interface_(env_) {
     send_channel_ = engine_.CreateSendChannel(
         env_, call_.get(), MediaConfig(), VideoOptions(), CryptoOptions(),
-        video_bitrate_allocator_factory_.get());
+        video_bitrate_allocator_factory_.get(), nullptr, nullptr);
     receive_channel_ = engine_.CreateReceiveChannel(
         env_, call_.get(), MediaConfig(), VideoOptions(), CryptoOptions());
 
@@ -1888,7 +1889,7 @@ class WebRtcVideoChannelBaseTest : public ::testing::Test {
     media_config.video.enable_cpu_adaptation = false;
     send_channel_ = engine_->CreateSendChannel(
         env_, call_.get(), media_config, VideoOptions(), CryptoOptions(),
-        video_bitrate_allocator_factory_.get());
+        video_bitrate_allocator_factory_.get(), nullptr, nullptr);
     receive_channel_ = engine_->CreateReceiveChannel(
         env_, call_.get(), media_config, VideoOptions(), CryptoOptions());
     send_channel_->OnReadyToSend(true);
@@ -2794,7 +2795,8 @@ class WebRtcVideoChannelTest : public WebRtcVideoEngineTest {
     fake_call_ = std::make_unique<FakeCall>(env_);
     send_channel_ = engine_->CreateSendChannel(
         env_, fake_call_.get(), GetMediaConfig(), VideoOptions(),
-        CryptoOptions(), video_bitrate_allocator_factory_.get());
+        CryptoOptions(), video_bitrate_allocator_factory_.get(), nullptr,
+        nullptr);
     receive_channel_ =
         engine_->CreateReceiveChannel(env_, fake_call_.get(), GetMediaConfig(),
                                       VideoOptions(), CryptoOptions());
@@ -2943,7 +2945,7 @@ class WebRtcVideoChannelTest : public WebRtcVideoEngineTest {
 
   void TestSetSendRtpHeaderExtensions(const std::string& ext_uri) {
     // Enable extension.
-    const int id = 1;
+    const RtpHeaderExtensionId id(1);
     VideoSenderParameters parameters = send_parameters_;
     parameters.extensions.push_back(RtpExtension(ext_uri, id));
     EXPECT_TRUE(send_channel_->SetSenderParameters(parameters));
@@ -3029,12 +3031,13 @@ class WebRtcVideoChannelTest : public WebRtcVideoEngineTest {
   void TestExtensionFilter(const std::vector<std::string>& extensions,
                            const std::string& expected_extension) {
     VideoSenderParameters parameters = send_parameters_;
-    int expected_id = -1;
-    int id = 1;
+    RtpHeaderExtensionId expected_id = RtpHeaderExtensionId::NotSet();
+    RtpHeaderExtensionId id(1);
     for (const std::string& extension : extensions) {
       if (extension == expected_extension)
         expected_id = id;
-      parameters.extensions.push_back(RtpExtension(extension, id++));
+      parameters.extensions.push_back(RtpExtension(extension, id));
+      id = RtpHeaderExtensionId(id.value() + 1);
     }
     EXPECT_TRUE(send_channel_->SetSenderParameters(parameters));
     FakeVideoSendStream* send_stream =
@@ -3332,8 +3335,8 @@ TEST_F(WebRtcVideoChannelTest,
 }
 
 TEST_F(WebRtcVideoChannelTest, IdenticalSendExtensionsDoesntRecreateStream) {
-  const int kAbsSendTimeId = 1;
-  const int kVideoRotationId = 2;
+  constexpr RtpHeaderExtensionId kAbsSendTimeId(1);
+  constexpr RtpHeaderExtensionId kVideoRotationId(2);
   send_parameters_.extensions.push_back(
       RtpExtension(RtpExtension::kAbsSendTimeUri, kAbsSendTimeId));
   send_parameters_.extensions.push_back(
@@ -3362,8 +3365,8 @@ TEST_F(WebRtcVideoChannelTest, IdenticalSendExtensionsDoesntRecreateStream) {
 
 TEST_F(WebRtcVideoChannelTest,
        SetSendRtpHeaderExtensionsExcludeUnsupportedExtensions) {
-  const int kUnsupportedId = 1;
-  const int kTOffsetId = 2;
+  constexpr RtpHeaderExtensionId kUnsupportedId(1);
+  constexpr RtpHeaderExtensionId kTOffsetId(2);
 
   send_parameters_.extensions.push_back(
       RtpExtension(kUnsupportedExtensionName, kUnsupportedId));
@@ -3382,8 +3385,8 @@ TEST_F(WebRtcVideoChannelTest,
 
 TEST_F(WebRtcVideoChannelTest,
        SetRecvRtpHeaderExtensionsExcludeUnsupportedExtensions) {
-  const int kUnsupportedId = 1;
-  const int kTOffsetId = 2;
+  constexpr RtpHeaderExtensionId kUnsupportedId(1);
+  constexpr RtpHeaderExtensionId kTOffsetId(2);
 
   recv_parameters_.extensions.push_back(
       RtpExtension(kUnsupportedExtensionName, kUnsupportedId));
@@ -3619,7 +3622,7 @@ TEST_F(WebRtcVideoChannelTest, SetMediaConfigSuspendBelowMinBitrate) {
 
   send_channel_ = engine_->CreateSendChannel(
       env_, fake_call_.get(), media_config, VideoOptions(), CryptoOptions(),
-      video_bitrate_allocator_factory_.get());
+      video_bitrate_allocator_factory_.get(), nullptr, nullptr);
   receive_channel_ = engine_->CreateReceiveChannel(
       env_, fake_call_.get(), media_config, VideoOptions(), CryptoOptions());
   send_channel_->OnReadyToSend(true);
@@ -3632,7 +3635,7 @@ TEST_F(WebRtcVideoChannelTest, SetMediaConfigSuspendBelowMinBitrate) {
   media_config.video.suspend_below_min_bitrate = false;
   send_channel_ = engine_->CreateSendChannel(
       env_, fake_call_.get(), media_config, VideoOptions(), CryptoOptions(),
-      video_bitrate_allocator_factory_.get());
+      video_bitrate_allocator_factory_.get(), nullptr, nullptr);
   receive_channel_ = engine_->CreateReceiveChannel(
       env_, fake_call_.get(), media_config, VideoOptions(), CryptoOptions());
   send_channel_->OnReadyToSend(true);
@@ -4248,7 +4251,7 @@ TEST_F(WebRtcVideoChannelTest, PreviousAdaptationDoesNotApplyToScreenshare) {
   media_config.video.enable_cpu_adaptation = true;
   send_channel_ = engine_->CreateSendChannel(
       env_, fake_call_.get(), media_config, VideoOptions(), CryptoOptions(),
-      video_bitrate_allocator_factory_.get());
+      video_bitrate_allocator_factory_.get(), nullptr, nullptr);
   receive_channel_ = engine_->CreateReceiveChannel(
       env_, fake_call_.get(), media_config, VideoOptions(), CryptoOptions());
 
@@ -4302,7 +4305,7 @@ void WebRtcVideoChannelTest::TestDegradationPreference(
   media_config.video.enable_cpu_adaptation = true;
   send_channel_ = engine_->CreateSendChannel(
       env_, fake_call_.get(), media_config, VideoOptions(), CryptoOptions(),
-      video_bitrate_allocator_factory_.get());
+      video_bitrate_allocator_factory_.get(), nullptr, nullptr);
   receive_channel_ = engine_->CreateReceiveChannel(
       env_, fake_call_.get(), media_config, VideoOptions(), CryptoOptions());
   send_channel_->OnReadyToSend(true);
@@ -4338,7 +4341,7 @@ void WebRtcVideoChannelTest::TestCpuAdaptation(bool enable_overuse,
   }
   send_channel_ = engine_->CreateSendChannel(
       env_, fake_call_.get(), media_config, VideoOptions(), CryptoOptions(),
-      video_bitrate_allocator_factory_.get());
+      video_bitrate_allocator_factory_.get(), nullptr, nullptr);
   receive_channel_ = engine_->CreateReceiveChannel(
       env_, fake_call_.get(), media_config, VideoOptions(), CryptoOptions());
   send_channel_->OnReadyToSend(true);
@@ -5743,7 +5746,7 @@ TEST_F(WebRtcVideoChannelTest, TestSetDscpOptions) {
 
   send_channel = engine_->CreateSendChannel(
       env_, call_.get(), config, VideoOptions(), CryptoOptions(),
-      video_bitrate_allocator_factory_.get());
+      video_bitrate_allocator_factory_.get(), nullptr, nullptr);
 
   send_channel->SetInterface(network_interface.get());
   // Default value when DSCP is disabled should be DSCP_DEFAULT.
@@ -5755,7 +5758,7 @@ TEST_F(WebRtcVideoChannelTest, TestSetDscpOptions) {
   config.enable_dscp = true;
   send_channel = engine_->CreateSendChannel(
       env_, call_.get(), config, VideoOptions(), CryptoOptions(),
-      video_bitrate_allocator_factory_.get());
+      video_bitrate_allocator_factory_.get(), nullptr, nullptr);
   send_channel->SetInterface(network_interface.get());
   EXPECT_EQ(DSCP_DEFAULT, network_interface->dscp());
 
@@ -5786,7 +5789,7 @@ TEST_F(WebRtcVideoChannelTest, TestSetDscpOptions) {
   config.enable_dscp = false;
   send_channel = engine_->CreateSendChannel(
       env_, call_.get(), config, VideoOptions(), CryptoOptions(),
-      video_bitrate_allocator_factory_.get());
+      video_bitrate_allocator_factory_.get(), nullptr, nullptr);
   send_channel->SetInterface(network_interface.get());
   EXPECT_EQ(DSCP_DEFAULT, network_interface->dscp());
   send_channel->SetInterface(nullptr);
@@ -7149,6 +7152,51 @@ TEST_F(WebRtcVideoChannelTest,
   const auto& receivers2 = fake_call_->GetVideoReceiveStreams();
   ASSERT_EQ(receivers2.size(), 1u);
   EXPECT_EQ(receivers2[0]->GetConfig().rtp.remote_ssrc, kIncomingSignalledSsrc);
+}
+
+TEST_F(WebRtcVideoChannelTest, GetUnsignaledSsrcs) {
+  EXPECT_TRUE(receive_channel_->GetUnsignaledSsrcs().empty());
+
+  // Receive a packet with an unsignaled SSRC.
+  RtpPacketReceived packet;
+  packet.SetSsrc(kIncomingUnsignalledSsrc);
+  ReceivePacketAndAdvanceTime(packet);
+
+  EXPECT_THAT(receive_channel_->GetUnsignaledSsrcs(),
+              testing::ElementsAre(kIncomingUnsignalledSsrc));
+
+  // Resetting the unsignaled stream should clear the SSRCs.
+  receive_channel_->ResetUnsignaledRecvStream();
+  EXPECT_TRUE(receive_channel_->GetUnsignaledSsrcs().empty());
+}
+
+// If the first RTP packet for an unsignaled SSRC arrives before the default
+// sink is attached, a later SetDefaultSink must still bind to the existing
+// unsignaled receive stream.
+TEST_F(WebRtcVideoChannelTest,
+       SetDefaultSinkAfterUnsignaledPacketBindsExistingStream) {
+  // Unsignaled packet arrives with no default sink set.
+  RtpPacketReceived packet;
+  packet.SetSsrc(kIncomingUnsignalledSsrc);
+  ReceivePacketAndAdvanceTime(packet);
+
+  ASSERT_EQ(1u, fake_call_->GetVideoReceiveStreams().size());
+  FakeVideoReceiveStream* recv_stream = fake_call_->GetVideoReceiveStreams()[0];
+  EXPECT_EQ(kIncomingUnsignalledSsrc, recv_stream->GetConfig().rtp.remote_ssrc);
+
+  // Install default sink after the fact; must be bound to the existing stream.
+  FakeVideoRenderer renderer;
+  receive_channel_->SetDefaultSink(&renderer);
+
+  VideoFrame video_frame =
+      VideoFrame::Builder()
+          .set_video_frame_buffer(CreateBlackFrameBuffer(4, 4))
+          .set_rtp_timestamp(100)
+          .set_timestamp_us(0)
+          .set_rotation(kVideoRotation_0)
+          .build();
+  recv_stream->InjectFrame(video_frame);
+  EXPECT_EQ(1, renderer.num_rendered_frames());
 }
 
 TEST_F(WebRtcVideoChannelTest,
@@ -9768,7 +9816,7 @@ class WebRtcVideoChannelSimulcastTest : public ::testing::Test {
     decoder_factory_->AddSupportedVideoCodecType("VP8");
     send_channel_ = engine_.CreateSendChannel(
         env_, &fake_call_, GetMediaConfig(), VideoOptions(), CryptoOptions(),
-        mock_rate_allocator_factory_.get());
+        mock_rate_allocator_factory_.get(), nullptr, nullptr);
     receive_channel_ = engine_.CreateReceiveChannel(
         env_, &fake_call_, GetMediaConfig(), VideoOptions(), CryptoOptions());
     send_channel_->OnReadyToSend(true);
@@ -10035,11 +10083,12 @@ TEST_F(WebRtcVideoChannelBaseTest, EncoderSelectorSwitchCodec) {
   ASSERT_TRUE(codec);
   EXPECT_EQ("VP8", codec->name);
 
-  MockEncoderSelector encoder_selector;
-  EXPECT_CALL(encoder_selector, OnAvailableBitrate)
+  scoped_refptr<MockEncoderSelector> encoder_selector =
+      make_ref_counted<MockEncoderSelector>();
+  EXPECT_CALL(*encoder_selector, OnAvailableBitrate)
       .WillRepeatedly(Return(SdpVideoFormat::VP9Profile0()));
 
-  send_channel_->SetEncoderSelector(kSsrc, &encoder_selector);
+  send_channel_->SetEncoderSelector(kSsrc, encoder_selector);
   time_controller_.AdvanceTime(kFrameDuration);
 
   codec = send_channel_->GetSendCodec();

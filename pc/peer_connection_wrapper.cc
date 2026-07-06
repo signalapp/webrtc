@@ -326,23 +326,28 @@ PeerConnectionWrapper::LookupDtlsTransportByMid(const std::string& mid) {
   return pc()->LookupDtlsTransportByMid(mid);
 }
 
+// RingRTC change to support ICE forking
 scoped_refptr<IceGathererInterface> PeerConnectionWrapper::CreateSharedIceGatherer() {
   return pc()->CreateSharedIceGatherer();
 }
 
+// RingRTC change to support ICE forking
 bool PeerConnectionWrapper::UseSharedIceGatherer(
     scoped_refptr<IceGathererInterface> shared_ice_gatherer) {
   return pc()->UseSharedIceGatherer(shared_ice_gatherer);
 }
 
+// RingRTC change to explicitly control when incoming packets can be processed
 bool PeerConnectionWrapper::SetIncomingRtpEnabled(bool enabled) {
   return pc()->SetIncomingRtpEnabled(enabled);
 }
 
+// RingRTC change to send RTP data
 bool PeerConnectionWrapper::SendRtp(std::unique_ptr<RtpPacket> rtp_packet) {
   return pc()->SendRtp(std::move(rtp_packet));
 }
 
+// RingRTC change to receive RTP data
 bool PeerConnectionWrapper::ReceiveRtp(uint8_t pt, bool enable_incoming) {
   return pc()->ReceiveRtp(pt, enable_incoming);
 }

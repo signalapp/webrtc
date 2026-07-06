@@ -295,9 +295,6 @@ class QualityTestVideoEncoder : public VideoEncoder,
     return callback_->OnEncodedImage(encoded_image, codec_specific_info);
   }
 
-  void OnDroppedFrame(DropReason reason) override {
-    callback_->OnDroppedFrame(reason);
-  }
   void OnFrameDropped(uint32_t rtp_timestamp,
                       int spatial_id,
                       bool is_end_of_temporal_unit) override {
@@ -371,8 +368,7 @@ std::unique_ptr<VideoEncoder> VideoQualityTest::CreateVideoEncoder(
 
   std::vector<std::string> encoded_frame_dump_files;
   if (!params_.logging.encoded_frame_base_path.empty()) {
-    char ss_buf[100];
-    SimpleStringBuilder sb(ss_buf);
+    StringBuilder sb;
     sb << send_logs_++;
     std::string prefix =
         params_.logging.encoded_frame_base_path + "." + sb.str() + ".send.";
@@ -1218,7 +1214,7 @@ VideoQualityTest::CreateSendTransport() {
     network_behavior = std::move(injection_components_.sender_network);
   }
   return std::make_unique<test::LayerFilteringTransport>(
-      env_, task_queue(),
+      env_, network_thread(),
       std::make_unique<FakeNetworkPipe>(&env_.clock(),
                                         std::move(network_behavior)),
       sender_call_.get(), test::VideoTestConstants::kPayloadTypeVP8,
@@ -1239,7 +1235,7 @@ VideoQualityTest::CreateReceiveTransport() {
     network_behavior = std::move(injection_components_.receiver_network);
   }
   return std::make_unique<test::DirectTransport>(
-      env_, task_queue(),
+      env_, network_thread(),
       std::make_unique<FakeNetworkPipe>(&env_.clock(),
                                         std::move(network_behavior)),
       receiver_call_.get(), payload_type_map_, GetRegisteredExtensions(),

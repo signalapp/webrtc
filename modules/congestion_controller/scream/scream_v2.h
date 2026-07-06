@@ -20,6 +20,8 @@
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "modules/congestion_controller/scream/delay_based_congestion_control.h"
+#include "modules/congestion_controller/scream/loss_estimator.h"
+#include "modules/congestion_controller/scream/scream_feedback.h"
 #include "modules/congestion_controller/scream/scream_v2_parameters.h"
 
 namespace webrtc {
@@ -68,6 +70,10 @@ class ScreamV2 {
   // Returns the average fraction of ECN-CE marked data units per RTT.
   double l4s_alpha() const { return l4s_alpha_; }
 
+  double loss_congestion_level() const {
+    return loss_estimator_.congestion_level();
+  }
+
   Timestamp last_reference_window_decrease_time() const {
     return last_ref_window_decrease_time_;
   }
@@ -113,11 +119,13 @@ class ScreamV2 {
                      params_.max_segment_size.Get();
   }
 
+  bool is_application_limited() const { return is_application_limited_; }
+
  private:
-  void UpdateL4SAlpha(const TransportPacketsFeedback& msg);
-  void UpdateRefWindow(const TransportPacketsFeedback& msg);
-  void UpdateFeedbackHoldTime(const TransportPacketsFeedback& msg);
-  void UpdateTargetRate(const TransportPacketsFeedback& msg);
+  void UpdateL4SAlpha(const ScreamFeedback& parsed);
+  void UpdateRefWindow(const ScreamFeedback& parsed);
+  void UpdateFeedbackHoldTime(const ScreamFeedback& parsed);
+  void UpdateTargetRate(const ScreamFeedback& parsed);
 
   const Environment env_;
   const ScreamV2Parameters params_;
@@ -144,6 +152,8 @@ class ScreamV2 {
   double l4s_alpha_ = 0.0;
   Timestamp last_ce_mark_detected_time_ = Timestamp::MinusInfinity();
 
+  LossEstimator loss_estimator_;
+
   TimeDelta feedback_hold_time_ = TimeDelta::Zero();
 
   // Per-RTT stats
@@ -165,6 +175,11 @@ class ScreamV2 {
 
   DelayBasedCongestionControl delay_based_congestion_control_;
   bool first_feedback_processed_ = false;
+
+  // Tracks if the send rate is less than the network path can currently
+  // support. This is done by checking if max_allowed_ref_window() <
+  // ref_window_.
+  bool is_application_limited_ = false;
 };
 
 }  // namespace webrtc

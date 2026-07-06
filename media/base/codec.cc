@@ -21,6 +21,7 @@
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "api/audio_codecs/audio_format.h"
+#include "api/field_trials_view.h"
 #include "api/media_types.h"
 #include "api/payload_type.h"
 #include "api/rtp_parameters.h"
@@ -134,6 +135,8 @@ Codec::Codec(const SdpVideoFormat& c)
     : Codec(Type::kVideo, PayloadType::NotSet(), c.name, kVideoCodecClockrate) {
   params = c.parameters;
   scalability_modes = c.scalability_modes;
+  packetization = c.packetization;
+  tx_mode = c.tx_mode;
 }
 
 Codec::Codec(const Codec& c) = default;
@@ -274,9 +277,7 @@ bool Codec::ValidateCodecFormat() const {
 }
 
 std::string Codec::ToString() const {
-  char buf[256];
-
-  SimpleStringBuilder sb(buf);
+  StringBuilder sb;
   switch (type) {
     case Type::kAudio: {
       sb << "AudioCodec[" << id << ":" << name << ":" << clockrate << ":"
@@ -292,7 +293,7 @@ std::string Codec::ToString() const {
       break;
     }
   }
-  return sb.str();
+  return sb.Release();
 }
 
 Codec CreateAudioRtxCodec(PayloadType rtx_payload_type,
@@ -402,6 +403,25 @@ void AddH264ConstrainedBaselineProfileToSupportedFormats(
   if (supported_formats->size() > original_size) {
     RTC_LOG(LS_INFO) << "Explicitly added H264 constrained baseline to list "
                         "of supported formats.";
+  }
+}
+
+void AddDefaultFeedbackParams(Codec* codec, const FieldTrialsView& trials) {
+  // Don't add any feedback params for RED and ULPFEC.
+  if (codec->name == kRedCodecName || codec->name == kUlpfecCodecName)
+    return;
+  codec->AddFeedbackParam(FeedbackParam(kRtcpFbParamRemb, kParamValueEmpty));
+  codec->AddFeedbackParam(
+      FeedbackParam(kRtcpFbParamTransportCc, kParamValueEmpty));
+  // Don't add any more feedback params for FLEXFEC.
+  if (codec->name == kFlexfecCodecName)
+    return;
+  codec->AddFeedbackParam(FeedbackParam(kRtcpFbParamCcm, kRtcpFbCcmParamFir));
+  codec->AddFeedbackParam(FeedbackParam(kRtcpFbParamNack, kParamValueEmpty));
+  codec->AddFeedbackParam(FeedbackParam(kRtcpFbParamNack, kRtcpFbNackParamPli));
+  if (codec->name == kVp8CodecName &&
+      trials.IsEnabled("WebRTC-RtcpLossNotification")) {
+    codec->AddFeedbackParam(FeedbackParam(kRtcpFbParamLntf, kParamValueEmpty));
   }
 }
 

@@ -24,7 +24,6 @@
 #include "api/audio/audio_device_defines.h"
 #include "api/audio/create_audio_device_module.h"
 #include "api/environment/environment.h"
-#include "api/environment/environment_factory.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
 #include "api/units/time_delta.h"
@@ -33,12 +32,12 @@
 #include "rtc_base/buffer.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/event.h"
-#include "rtc_base/logging.h"
 #include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/race_checker.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread_annotations.h"
 #include "rtc_base/time_utils.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -524,11 +523,7 @@ class MAYBE_AudioDeviceTest
     : public ::testing::TestWithParam<AudioDeviceModule::AudioLayer> {
  protected:
   MAYBE_AudioDeviceTest()
-      : audio_layer_(GetParam()), env_(CreateEnvironment()) {
-    LogMessage::LogToDebug(LS_INFO);
-    // Add extra logging fields here if needed for debugging.
-    LogMessage::LogTimestamps();
-    LogMessage::LogThreads();
+      : audio_layer_(GetParam()), env_(CreateTestEnvironment()) {
     audio_device_ = CreateAudioDevice();
     EXPECT_NE(audio_device_.get(), nullptr);
     AudioDeviceModule::AudioLayer audio_layer;
@@ -672,7 +667,7 @@ class MAYBE_AudioDeviceTest
 // Instead of using the test fixture, verify that the different factory methods
 // work as intended.
 TEST(MAYBE_AudioDeviceTestWin, ConstructDestructWithFactory) {
-  const Environment env = CreateEnvironment();
+  const Environment env = CreateTestEnvironment();
   scoped_refptr<AudioDeviceModule> audio_device;
   // The default environment should work for all platforms when a default ADM is
   // requested.

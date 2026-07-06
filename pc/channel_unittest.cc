@@ -24,7 +24,9 @@
 #include "api/crypto/crypto_options.h"
 #include "api/field_trials.h"
 #include "api/jsep.h"
+#include "api/media_types.h"
 #include "api/rtc_error.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_parameters.h"
 #include "api/rtp_transceiver_direction.h"
@@ -39,7 +41,6 @@
 #include "media/base/rid_description.h"
 #include "media/base/stream_params.h"
 #include "p2p/base/candidate_pair_interface.h"
-#include "p2p/base/ice_transport_internal.h"
 #include "p2p/base/p2p_constants.h"
 #include "p2p/base/packet_transport_internal.h"
 #include "p2p/dtls/dtls_transport_internal.h"
@@ -53,7 +54,6 @@
 #include "rtc_base/buffer.h"
 #include "rtc_base/byte_order.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/network_route.h"
 #include "rtc_base/rtc_certificate.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/ssl_identity.h"
@@ -83,11 +83,10 @@ using ::webrtc::RtpExtension;
 using ::webrtc::RtpTransceiverDirection;
 using ::webrtc::SdpType;
 using ::webrtc::StreamParams;
+using ::webrtc::Thread;
 
-const webrtc::Codec kPcmuCodec = webrtc::CreateAudioCodec(0, "PCMU", 64000, 1);
-const webrtc::Codec kPcmaCodec = webrtc::CreateAudioCodec(8, "PCMA", 64000, 1);
-const webrtc::Codec kIsacCodec =
-    webrtc::CreateAudioCodec(103, "ISAC", 40000, 1);
+const webrtc::Codec kPcmuCodec = webrtc::CreateAudioCodec(0, "PCMU", 8000, 1);
+const webrtc::Codec kPcmaCodec = webrtc::CreateAudioCodec(8, "PCMA", 8000, 1);
 const webrtc::Codec kH264Codec = webrtc::CreateVideoCodec(97, "H264");
 const webrtc::Codec kH264SvcCodec = webrtc::CreateVideoCodec(99, "H264-SVC");
 constexpr uint32_t kSsrc1 = 0x1111;
@@ -120,7 +119,7 @@ class Traits {
   using Options = OptionsT;
 };
 
-class VoiceTraits : public Traits<webrtc::VoiceChannel,
+class VoiceTraits : public Traits<webrtc::BaseChannel,
                                   webrtc::FakeVoiceMediaSendChannel,
                                   webrtc::FakeVoiceMediaReceiveChannel,
                                   webrtc::VoiceMediaSendChannelInterface,
@@ -129,7 +128,7 @@ class VoiceTraits : public Traits<webrtc::VoiceChannel,
                                   webrtc::VoiceMediaInfo,
                                   webrtc::AudioOptions> {};
 
-class VideoTraits : public Traits<webrtc::VideoChannel,
+class VideoTraits : public Traits<webrtc::BaseChannel,
                                   webrtc::FakeVideoMediaSendChannel,
                                   webrtc::FakeVideoMediaReceiveChannel,
                                   webrtc::VideoMediaSendChannelInterface,
@@ -652,11 +651,11 @@ class ChannelTest : public ::testing::Test {
     CreateContent(/*flags=*/0, kPcmuCodec, kH264Codec, &local);
     CreateContent(/*flags=*/0, kPcmuCodec, kH264Codec, &remote);
     local.set_rtp_header_extensions({
-        RtpExtension(RtpExtension::kTransportSequenceNumberUri, 0),
-        RtpExtension(RtpExtension::kVideoRotationUri, 1),
+        RtpExtension(RtpExtension::kTransportSequenceNumberUri, 1),
+        RtpExtension(RtpExtension::kVideoRotationUri, 2),
     });
     remote.set_rtp_header_extensions({
-        RtpExtension(RtpExtension::kVideoRotationUri, 1),
+        RtpExtension(RtpExtension::kVideoRotationUri, 2),
     });
 
     CreateChannels(0, 0);
@@ -664,11 +663,13 @@ class ChannelTest : public ::testing::Test {
     ASSERT_TRUE(channel1_->SetRemoteContent(&remote, SdpType::kAnswer).ok());
 
     EXPECT_THAT(media_receive_channel1_impl()->recv_extensions(),
-                ElementsAre(AllOf(Field("id", &RtpExtension::id, 1),
+                ElementsAre(AllOf(Field("id", &RtpExtension::id,
+                                        webrtc::RtpHeaderExtensionId(2)),
                                   Field("uri", &RtpExtension::uri,
                                         RtpExtension::kVideoRotationUri))));
     EXPECT_THAT(media_send_channel1_impl()->send_extensions(),
-                ElementsAre(AllOf(Field("id", &RtpExtension::id, 1),
+                ElementsAre(AllOf(Field("id", &RtpExtension::id,
+                                        webrtc::RtpHeaderExtensionId(2)),
                                   Field("uri", &RtpExtension::uri,
                                         RtpExtension::kVideoRotationUri))));
   }
@@ -681,7 +682,7 @@ class ChannelTest : public ::testing::Test {
         RtpExtension(RtpExtension::kVideoRotationUri, 1),
     });
     remote.set_rtp_header_extensions({
-        RtpExtension(RtpExtension::kTransportSequenceNumberUri, 0),
+        RtpExtension(RtpExtension::kTransportSequenceNumberUri, 2),
         RtpExtension(RtpExtension::kVideoRotationUri, 1),
     });
 
@@ -690,11 +691,13 @@ class ChannelTest : public ::testing::Test {
     ASSERT_TRUE(channel1_->SetLocalContent(&local, SdpType::kAnswer).ok());
 
     EXPECT_THAT(media_receive_channel1_impl()->recv_extensions(),
-                ElementsAre(AllOf(Field("id", &RtpExtension::id, 1),
+                ElementsAre(AllOf(Field("id", &RtpExtension::id,
+                                        webrtc::RtpHeaderExtensionId(1)),
                                   Field("uri", &RtpExtension::uri,
                                         RtpExtension::kVideoRotationUri))));
     EXPECT_THAT(media_send_channel1_impl()->send_extensions(),
-                ElementsAre(AllOf(Field("id", &RtpExtension::id, 1),
+                ElementsAre(AllOf(Field("id", &RtpExtension::id,
+                                        webrtc::RtpHeaderExtensionId(1)),
                                   Field("uri", &RtpExtension::uri,
                                         RtpExtension::kVideoRotationUri))));
   }
@@ -713,11 +716,24 @@ class ChannelTest : public ::testing::Test {
     EXPECT_THAT(error.message(), HasSubstr("Duplicate extension ID"));
   }
 
-  void TestInvalidRtpHeaderExtensionIds() {
+  void TestRtpHeaderExtensionIdOutOfRangeHigh() {
     typename T::Content local;
     CreateContent(/*flags=*/0, kPcmuCodec, kH264Codec, &local);
     local.set_rtp_header_extensions({
         RtpExtension(RtpExtension::kTransportSequenceNumberUri, 256),
+    });
+
+    CreateChannels(0, 0);
+    RTCError error = channel1_->SetLocalContent(&local, SdpType::kOffer);
+    EXPECT_FALSE(error.ok());
+    EXPECT_THAT(error.message(), HasSubstr("Bad extension ID"));
+  }
+
+  void TestRtpHeaderExtensionIdOutOfRangeLow() {
+    typename T::Content local;
+    CreateContent(/*flags=*/0, kPcmuCodec, kH264Codec, &local);
+    local.set_rtp_header_extensions({
+        RtpExtension(RtpExtension::kTransportSequenceNumberUri, 0),
     });
 
     CreateChannels(0, 0);
@@ -783,11 +799,13 @@ class ChannelTest : public ::testing::Test {
     CreateChannels(0, 0);
     typename T::Content content;
     CreateContent(0, kPcmuCodec, kH264Codec, &content);
-    auto offer_enum = offer ? (T::Content::kSession) : (T::Content::kNo);
-    auto answer_enum = answer ? (T::Content::kSession) : (T::Content::kNo);
-    content.set_extmap_allow_mixed_enum(offer_enum);
+    auto offer_enum = offer ? (T::Content::AttributeLevel::kSession)
+                            : (T::Content::AttributeLevel::kNone);
+    auto answer_enum = answer ? (T::Content::AttributeLevel::kSession)
+                              : (T::Content::AttributeLevel::kNone);
+    content.set_extmap_allow_mixed_level(offer_enum);
     EXPECT_TRUE(channel1_->SetLocalContent(&content, SdpType::kOffer).ok());
-    content.set_extmap_allow_mixed_enum(answer_enum);
+    content.set_extmap_allow_mixed_level(answer_enum);
     EXPECT_TRUE(channel1_->SetRemoteContent(&content, SdpType::kAnswer).ok());
     EXPECT_EQ(answer, media_send_channel1_impl()->ExtmapAllowMixed());
   }
@@ -798,13 +816,15 @@ class ChannelTest : public ::testing::Test {
     CreateChannels(0, 0);
     typename T::Content content;
     CreateContent(0, kPcmuCodec, kH264Codec, &content);
-    auto offer_enum = offer ? (T::Content::kSession) : (T::Content::kNo);
-    auto answer_enum = answer ? (T::Content::kSession) : (T::Content::kNo);
-    content.set_extmap_allow_mixed_enum(offer_enum);
+    auto offer_enum = offer ? (T::Content::AttributeLevel::kSession)
+                            : (T::Content::AttributeLevel::kNone);
+    auto answer_enum = answer ? (T::Content::AttributeLevel::kSession)
+                              : (T::Content::AttributeLevel::kNone);
+    content.set_extmap_allow_mixed_level(offer_enum);
     EXPECT_TRUE(channel1_->SetRemoteContent(&content, SdpType::kOffer).ok());
-    content.set_extmap_allow_mixed_enum(answer_enum);
+    content.set_extmap_allow_mixed_level(answer_enum);
     EXPECT_TRUE(channel1_->SetLocalContent(&content, SdpType::kAnswer).ok());
-    EXPECT_EQ(answer, media_send_channel1()->ExtmapAllowMixed());
+    EXPECT_EQ(answer, channel1_->media_send_channel()->ExtmapAllowMixed());
   }
 
   // Test that SetLocalContent and SetRemoteContent properly deals
@@ -930,6 +950,93 @@ class ChannelTest : public ::testing::Test {
     SendCustomRtp2(kSsrc2, 0);
     WaitForThreads();
     EXPECT_TRUE(CheckCustomRtp1(kSsrc2, 0));
+  }
+
+  class MockReceiveChannel : public T::MediaReceiveChannel {
+   public:
+    MockReceiveChannel(const typename T::Options& options,
+                       Thread* network_thread)
+        : T::MediaReceiveChannel(options, network_thread) {}
+
+    void OnDemuxerCriteriaUpdatePending() override {
+      ++pending_count_;
+      T::MediaReceiveChannel::OnDemuxerCriteriaUpdatePending();
+    }
+
+    void OnDemuxerCriteriaUpdateComplete() override {
+      --pending_count_;
+      T::MediaReceiveChannel::OnDemuxerCriteriaUpdateComplete();
+    }
+
+    bool AddRecvStream(const StreamParams& sp) override {
+      add_stream_called_ = true;
+      if (pending_count_ <= 0) {
+        criteria_not_pending_during_add_stream_ = true;
+      }
+      return T::MediaReceiveChannel::AddRecvStream(sp);
+    }
+
+    bool add_stream_called() const { return add_stream_called_; }
+    bool criteria_not_pending_during_add_stream() const {
+      return criteria_not_pending_during_add_stream_;
+    }
+
+   private:
+    int pending_count_ = 0;
+    bool add_stream_called_ = false;
+    bool criteria_not_pending_during_add_stream_ = false;
+  };
+
+  void TestUpdateRemoteStreamsRaceWithRtpPacket() {
+    auto ch1r = std::make_unique<MockReceiveChannel>(typename T::Options(),
+                                                     network_thread_);
+    MockReceiveChannel* mock_ch1r = ch1r.get();
+
+    CreateChannels(std::make_unique<typename T::MediaSendChannel>(
+                       typename T::Options(), network_thread_),
+                   std::move(ch1r),
+                   std::make_unique<typename T::MediaSendChannel>(
+                       typename T::Options(), network_thread_),
+                   std::make_unique<typename T::MediaReceiveChannel>(
+                       typename T::Options(), network_thread_),
+                   0, 0);
+
+    // Configure a new stream `stream1` to be added
+    StreamParams stream1;
+    stream1.id = "stream1";
+    stream1.ssrcs.push_back(kSsrc1);
+    stream1.cname = "stream1_cname";
+
+    typename T::Content content1;
+    CreateContent(0, kPcmuCodec, kH264Codec, &content1);
+    content1.AddStream(stream1);
+
+    ASSERT_TRUE(channel1_->SetLocalContent(&content1, SdpType::kOffer).ok());
+    channel1_->Enable(true);
+
+    typename T::Content content2;
+    CreateContent(0, kPcmuCodec, kH264Codec, &content2);
+    ASSERT_TRUE(channel2_->SetRemoteContent(&content1, SdpType::kOffer).ok());
+    ConnectFakeTransports();
+
+    // Configure answer adding stream2.
+    StreamParams stream2;
+    stream2.id = "stream2";
+    stream2.ssrcs.push_back(kSsrc2);
+    stream2.cname = "stream2_cname";
+
+    typename T::Content content3;
+    CreateContent(0, kPcmuCodec, kH264Codec, &content3);
+    content3.AddStream(stream2);
+
+    // Call SetRemoteContent.
+    RTCError error = channel1_->SetRemoteContent(&content3, SdpType::kAnswer);
+
+    EXPECT_TRUE(error.ok()) << "SetRemoteContent failed: " << error.message();
+    EXPECT_TRUE(mock_ch1r->add_stream_called());
+    EXPECT_FALSE(mock_ch1r->criteria_not_pending_during_add_stream())
+        << "Race condition detected: demuxer criteria was not pending during "
+           "AddRecvStream!";
   }
 
   // Test that we only start playout and sending at the right times.
@@ -1085,69 +1192,6 @@ class ChannelTest : public ::testing::Test {
       EXPECT_TRUE(media_receive_channel2_impl()->playout());
     }
     EXPECT_TRUE(media_send_channel1_impl()->sending());
-  }
-
-  // Tests that when the transport channel signals a candidate pair change
-  // event, the media channel will receive a call on the network route change.
-  void TestNetworkRouteChanges() {
-    static constexpr uint16_t kLocalNetId = 1;
-    static constexpr uint16_t kRemoteNetId = 2;
-    static constexpr int kLastPacketId = 100;
-    // Ipv4(20) + UDP(8).
-    static constexpr int kTransportOverheadPerPacket = 28;
-    static constexpr int kSrtpOverheadPerPacket = 10;
-
-    CreateChannels(DTLS, DTLS);
-    SendInitiate();
-
-    typename T::MediaSendChannel* media_send_channel1_impl =
-        this->media_send_channel1_impl();
-    ASSERT_TRUE(media_send_channel1_impl);
-
-    // Need to wait for the threads before calling
-    // `set_num_network_route_changes` because the network route would be set
-    // when creating the channel.
-    WaitForThreads();
-    media_send_channel1_impl->set_num_network_route_changes(0);
-    SendTask(network_thread_, [this] {
-      webrtc::NetworkRoute network_route;
-      // The transport channel becomes disconnected.
-      fake_rtp_dtls_transport1_->ice_transport()->NotifyNetworkRouteChanged(
-          std::optional<webrtc::NetworkRoute>(network_route));
-    });
-    WaitForThreads();
-    EXPECT_EQ(1, media_send_channel1_impl->num_network_route_changes());
-    EXPECT_FALSE(media_send_channel1_impl->last_network_route().connected);
-    media_send_channel1_impl->set_num_network_route_changes(0);
-
-    SendTask(network_thread_, [this] {
-      webrtc::NetworkRoute network_route;
-      network_route.connected = true;
-      network_route.local =
-          webrtc::RouteEndpoint::CreateWithNetworkId(kLocalNetId);
-      network_route.remote =
-          webrtc::RouteEndpoint::CreateWithNetworkId(kRemoteNetId);
-      network_route.last_sent_packet_id = kLastPacketId;
-      network_route.packet_overhead = kTransportOverheadPerPacket;
-      // The transport channel becomes connected.
-      fake_rtp_dtls_transport1_->ice_transport()->NotifyNetworkRouteChanged(
-
-          std::optional<webrtc::NetworkRoute>(network_route));
-    });
-    WaitForThreads();
-    EXPECT_EQ(1, media_send_channel1_impl->num_network_route_changes());
-    EXPECT_TRUE(media_send_channel1_impl->last_network_route().connected);
-    EXPECT_EQ(
-        kLocalNetId,
-        media_send_channel1_impl->last_network_route().local.network_id());
-    EXPECT_EQ(
-        kRemoteNetId,
-        media_send_channel1_impl->last_network_route().remote.network_id());
-    EXPECT_EQ(
-        kLastPacketId,
-        media_send_channel1_impl->last_network_route().last_sent_packet_id);
-    EXPECT_EQ(kTransportOverheadPerPacket + kSrtpOverheadPerPacket,
-              media_send_channel1_impl->transport_overhead_per_packet());
   }
 
   // Test setting up a call.
@@ -1522,8 +1566,9 @@ class ChannelTest : public ::testing::Test {
         channel1_->SetLocalContent(&local_media_content1_, SdpType::kOffer)
             .ok());
     EXPECT_EQ(media_send_channel1_impl()->max_bps(), -1);
-    VerifyMaxBitrate(media_send_channel1()->GetRtpSendParameters(kSsrc1),
-                     std::nullopt);
+    VerifyMaxBitrate(
+        channel1_->media_send_channel()->GetRtpSendParameters(kSsrc1),
+        std::nullopt);
   }
 
   // Test that when a channel gets new RtpTransport with a call to
@@ -1635,20 +1680,6 @@ class ChannelTest : public ::testing::Test {
     ProcessThreadQueue(webrtc::Thread::Current());
   }
 
-  // Accessors that return the standard VideoMedia{Send|Receive}ChannelInterface
-  typename T::MediaSendChannelInterface* media_send_channel1() {
-    return channel1_->media_send_channel();
-  }
-  typename T::MediaSendChannelInterface* media_send_channel2() {
-    return channel2_->media_send_channel();
-  }
-  typename T::MediaReceiveChannelInterface* media_receive_channel1() {
-    return channel1_->media_receive_channel();
-  }
-  typename T::MediaReceiveChannelInterface* media_receive_channel2() {
-    return channel2_->media_receive_channel();
-  }
-
   // Accessors that return the FakeMedia<type>SendChannel object.
   // Note that these depend on getting the object back that was
   // passed to the channel constructor.
@@ -1678,6 +1709,82 @@ class ChannelTest : public ::testing::Test {
     RTC_DCHECK(channel2_->media_receive_channel());
     return static_cast<typename T::MediaReceiveChannel*>(
         channel2_->media_receive_channel());
+  }
+
+  void TestSetRtpTransportNullClearsReceiveSinks() {
+    CreateChannels(0, 0);
+    SendTask(channel1_->network_thread(),
+             [this]() { channel1_->SetRtpTransport(nullptr); });
+    EXPECT_TRUE(absl::c_linear_search(
+        media_receive_channel1_impl()->clear_receive_sinks_calls(),
+        std::nullopt));
+  }
+
+  void TestRegisterRtpDemuxerSinkPropagatesReceiveSsrcs() {
+    CreateChannels(0, 0);
+    typename T::Content content;
+    CreateContent(0, kPcmuCodec, kH264Codec, &content);
+    AddLegacyStreamInContent(kSsrc1, 0, &content);
+
+    EXPECT_TRUE(channel1_->SetRemoteContent(&content, SdpType::kOffer).ok());
+    EXPECT_GT(media_receive_channel1_impl()->receive_ssrcs_n().count(kSsrc1),
+              0u);
+  }
+
+  void TestUpdateRemoteStreamsClearsRemovedSinks() {
+    CreateChannels(0, 0);
+    typename T::Content content1;
+    CreateContent(0, kPcmuCodec, kH264Codec, &content1);
+    AddLegacyStreamInContent(kSsrc1, 0, &content1);
+    AddLegacyStreamInContent(kSsrc2, 0, &content1);
+
+    EXPECT_TRUE(channel1_->SetRemoteContent(&content1, SdpType::kOffer).ok());
+    EXPECT_TRUE(media_receive_channel1_impl()->HasRecvStream(kSsrc1));
+    EXPECT_TRUE(media_receive_channel1_impl()->HasRecvStream(kSsrc2));
+
+    typename T::Content content2;
+    CreateContent(0, kPcmuCodec, kH264Codec, &content2);
+    AddLegacyStreamInContent(kSsrc2, 0, &content2);
+
+    EXPECT_TRUE(channel1_->SetRemoteContent(&content2, SdpType::kOffer).ok());
+
+    bool found_cleared_ssrc = false;
+    for (const auto& call :
+         media_receive_channel1_impl()->clear_receive_sinks_calls()) {
+      if (call.has_value() && absl::c_linear_search(*call, kSsrc1)) {
+        found_cleared_ssrc = true;
+        break;
+      }
+    }
+    EXPECT_TRUE(found_cleared_ssrc);
+  }
+
+  void TestUpdateRemoteStreamsClearsUnsignaledSinks() {
+    CreateChannels(0, 0);
+
+    typename T::Content content1;
+    CreateContent(0, kPcmuCodec, kH264Codec, &content1);
+    StreamParams unsignaled_stream;
+    content1.AddStream(unsignaled_stream);
+
+    EXPECT_TRUE(channel1_->SetRemoteContent(&content1, SdpType::kOffer).ok());
+
+    media_receive_channel1_impl()->AddFakeUnsignaledSsrc(kSsrc3);
+
+    typename T::Content content2;
+    CreateContent(0, kPcmuCodec, kH264Codec, &content2);
+
+    EXPECT_TRUE(channel1_->SetRemoteContent(&content2, SdpType::kOffer).ok());
+
+    bool found_cleared_ssrc = false;
+    for (const auto& call :
+         media_receive_channel1_impl()->clear_receive_sinks_calls()) {
+      if (call.has_value() && absl::c_linear_search(*call, kSsrc3)) {
+        found_cleared_ssrc = true;
+        break;
+      }
+    }
+    EXPECT_TRUE(found_cleared_ssrc);
   }
 
   webrtc::test::RunLoop main_thread_;
@@ -1715,7 +1822,7 @@ class ChannelTest : public ::testing::Test {
 };
 
 template <>
-std::unique_ptr<webrtc::VoiceChannel> ChannelTest<VoiceTraits>::CreateChannel(
+std::unique_ptr<webrtc::BaseChannel> ChannelTest<VoiceTraits>::CreateChannel(
     webrtc::Thread* worker_thread,
     webrtc::Thread* network_thread,
     std::unique_ptr<webrtc::FakeVoiceMediaSendChannel> send_ch,
@@ -1723,10 +1830,10 @@ std::unique_ptr<webrtc::VoiceChannel> ChannelTest<VoiceTraits>::CreateChannel(
     webrtc::RtpTransportInternal* rtp_transport,
     int flags) {
   webrtc::Thread* signaling_thread = webrtc::Thread::Current();
-  auto channel = std::make_unique<webrtc::VoiceChannel>(
+  auto channel = std::make_unique<webrtc::BaseChannel>(
       worker_thread, network_thread, signaling_thread, std::move(send_ch),
-      std::move(receive_ch), kAudioMid, (flags & DTLS) != 0,
-      webrtc::CryptoOptions(), &ssrc_generator_);
+      std::move(receive_ch), kAudioMid, webrtc::MediaType::AUDIO,
+      (flags & DTLS) != 0, webrtc::CryptoOptions(), &ssrc_generator_);
   SendTask(network_thread, [&]() {
     RTC_DCHECK_RUN_ON(channel->network_thread());
     channel->SetRtpTransport(rtp_transport);
@@ -1763,14 +1870,20 @@ class VoiceChannelSingleThreadTest : public ChannelTest<VoiceTraits> {
  public:
   using Base = ChannelTest<VoiceTraits>;
   VoiceChannelSingleThreadTest()
-      : Base(true, kPcmuFrame, kRtcpReport, NetworkIsWorker::Yes) {}
+      : Base(true,
+             webrtc::kPcmuFrame,
+             webrtc::kFakeRtcpReport,
+             NetworkIsWorker::Yes) {}
 };
 
 class VoiceChannelDoubleThreadTest : public ChannelTest<VoiceTraits> {
  public:
   using Base = ChannelTest<VoiceTraits>;
   VoiceChannelDoubleThreadTest()
-      : Base(true, kPcmuFrame, kRtcpReport, NetworkIsWorker::No) {}
+      : Base(true,
+             webrtc::kPcmuFrame,
+             webrtc::kFakeRtcpReport,
+             NetworkIsWorker::No) {}
 };
 
 class VoiceChannelWithEncryptedRtpHeaderExtensionsSingleThreadTest
@@ -1779,8 +1892,8 @@ class VoiceChannelWithEncryptedRtpHeaderExtensionsSingleThreadTest
   using Base = ChannelTest<VoiceTraits>;
   VoiceChannelWithEncryptedRtpHeaderExtensionsSingleThreadTest()
       : Base(true,
-             kPcmuFrameWithExtensions,
-             kRtcpReport,
+             webrtc::kPcmuFrameWithExtensions,
+             webrtc::kFakeRtcpReport,
              NetworkIsWorker::Yes) {}
 };
 
@@ -1789,13 +1902,15 @@ class VoiceChannelWithEncryptedRtpHeaderExtensionsDoubleThreadTest
  public:
   using Base = ChannelTest<VoiceTraits>;
   VoiceChannelWithEncryptedRtpHeaderExtensionsDoubleThreadTest()
-      : Base(true, kPcmuFrameWithExtensions, kRtcpReport, NetworkIsWorker::No) {
-  }
+      : Base(true,
+             webrtc::kPcmuFrameWithExtensions,
+             webrtc::kFakeRtcpReport,
+             NetworkIsWorker::No) {}
 };
 
 // override to add NULL parameter
 template <>
-std::unique_ptr<webrtc::VideoChannel> ChannelTest<VideoTraits>::CreateChannel(
+std::unique_ptr<webrtc::BaseChannel> ChannelTest<VideoTraits>::CreateChannel(
     webrtc::Thread* worker_thread,
     webrtc::Thread* network_thread,
     std::unique_ptr<webrtc::FakeVideoMediaSendChannel> send_ch,
@@ -1803,10 +1918,10 @@ std::unique_ptr<webrtc::VideoChannel> ChannelTest<VideoTraits>::CreateChannel(
     webrtc::RtpTransportInternal* rtp_transport,
     int flags) {
   webrtc::Thread* signaling_thread = webrtc::Thread::Current();
-  auto channel = std::make_unique<webrtc::VideoChannel>(
+  auto channel = std::make_unique<webrtc::BaseChannel>(
       worker_thread, network_thread, signaling_thread, std::move(send_ch),
-      std::move(receive_ch), kVideoMid, (flags & DTLS) != 0,
-      webrtc::CryptoOptions(), &ssrc_generator_);
+      std::move(receive_ch), kVideoMid, webrtc::MediaType::VIDEO,
+      (flags & DTLS) != 0, webrtc::CryptoOptions(), &ssrc_generator_);
   SendTask(network_thread, [&]() {
     RTC_DCHECK_RUN_ON(channel->network_thread());
     channel->SetRtpTransport(rtp_transport);
@@ -1843,14 +1958,20 @@ class VideoChannelSingleThreadTest : public ChannelTest<VideoTraits> {
  public:
   using Base = ChannelTest<VideoTraits>;
   VideoChannelSingleThreadTest()
-      : Base(false, kH264Packet, kRtcpReport, NetworkIsWorker::Yes) {}
+      : Base(false,
+             webrtc::kH264Packet,
+             webrtc::kFakeRtcpReport,
+             NetworkIsWorker::Yes) {}
 };
 
 class VideoChannelDoubleThreadTest : public ChannelTest<VideoTraits> {
  public:
   using Base = ChannelTest<VideoTraits>;
   VideoChannelDoubleThreadTest()
-      : Base(false, kH264Packet, kRtcpReport, NetworkIsWorker::No) {}
+      : Base(false,
+             webrtc::kH264Packet,
+             webrtc::kFakeRtcpReport,
+             NetworkIsWorker::No) {}
 };
 
 TEST_F(VoiceChannelSingleThreadTest, TestInit) {
@@ -1911,10 +2032,6 @@ TEST_F(VoiceChannelSingleThreadTest, TestPlayoutAndSendingStates) {
 
 TEST_F(VoiceChannelSingleThreadTest, TestMediaContentDirection) {
   Base::TestMediaContentDirection();
-}
-
-TEST_F(VoiceChannelSingleThreadTest, TestNetworkRouteChanges) {
-  Base::TestNetworkRouteChanges();
 }
 
 TEST_F(VoiceChannelSingleThreadTest, TestCallSetup) {
@@ -2005,9 +2122,27 @@ TEST_F(VoiceChannelSingleThreadTest, DuplicateRtpHeaderExtensionIds) {
   Base::TestDuplicateRtpHeaderExtensionIds();
 }
 
-TEST_F(VoiceChannelSingleThreadTest, InvalidRtpHeaderExtensionIds) {
-  Base::TestInvalidRtpHeaderExtensionIds();
+#if GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
+TEST_F(VoiceChannelSingleThreadTest,
+       RtpHeaderExtensionIdOutOfRangeHighDeathTest) {
+#if RTC_DCHECK_IS_ON
+  // Note - EXPECT_DEBUG_DEATH does not work as expected here.
+  EXPECT_DEATH(Base::TestRtpHeaderExtensionIdOutOfRangeHigh(), "Check failed:");
+#else
+  Base::TestRtpHeaderExtensionIdOutOfRangeHigh();
+#endif
 }
+
+TEST_F(VoiceChannelSingleThreadTest,
+       RtpHeaderExtensionIdOutOfRangeLowDeathTest) {
+#if RTC_DCHECK_IS_ON
+  // Note - EXPECT_DEBUG_DEATH does not work as expected here.
+  EXPECT_DEATH(Base::TestRtpHeaderExtensionIdOutOfRangeLow(), "Check failed:");
+#else
+  Base::TestRtpHeaderExtensionIdOutOfRangeLow();
+#endif
+}
+#endif
 
 TEST_F(VoiceChannelSingleThreadTest, RtpHeaderExtensionIdReassignment) {
   Base::TestRtpHeaderExtensionIdReassignment();
@@ -2016,6 +2151,26 @@ TEST_F(VoiceChannelSingleThreadTest, RtpHeaderExtensionIdReassignment) {
 TEST_F(VoiceChannelSingleThreadTest,
        TestRtpHeaderExtensionIdHistoryReassignment) {
   Base::TestRtpHeaderExtensionIdHistoryReassignment();
+}
+
+TEST_F(VoiceChannelSingleThreadTest,
+       TestSetRtpTransportNullClearsReceiveSinks) {
+  Base::TestSetRtpTransportNullClearsReceiveSinks();
+}
+
+TEST_F(VoiceChannelSingleThreadTest,
+       TestRegisterRtpDemuxerSinkPropagatesReceiveSsrcs) {
+  Base::TestRegisterRtpDemuxerSinkPropagatesReceiveSsrcs();
+}
+
+TEST_F(VoiceChannelSingleThreadTest,
+       TestUpdateRemoteStreamsClearsRemovedSinks) {
+  Base::TestUpdateRemoteStreamsClearsRemovedSinks();
+}
+
+TEST_F(VoiceChannelSingleThreadTest,
+       TestUpdateRemoteStreamsClearsUnsignaledSinks) {
+  Base::TestUpdateRemoteStreamsClearsUnsignaledSinks();
 }
 
 // VoiceChannelDoubleThreadTest
@@ -2071,16 +2226,16 @@ TEST_F(VoiceChannelDoubleThreadTest, TestChangeStreamParamsInContent) {
   Base::TestChangeStreamParamsInContent();
 }
 
+TEST_F(VoiceChannelDoubleThreadTest, TestUpdateRemoteStreamsRaceWithRtpPacket) {
+  Base::TestUpdateRemoteStreamsRaceWithRtpPacket();
+}
+
 TEST_F(VoiceChannelDoubleThreadTest, TestPlayoutAndSendingStates) {
   Base::TestPlayoutAndSendingStates();
 }
 
 TEST_F(VoiceChannelDoubleThreadTest, TestMediaContentDirection) {
   Base::TestMediaContentDirection();
-}
-
-TEST_F(VoiceChannelDoubleThreadTest, TestNetworkRouteChanges) {
-  Base::TestNetworkRouteChanges();
 }
 
 TEST_F(VoiceChannelDoubleThreadTest, TestCallSetup) {
@@ -2214,10 +2369,6 @@ TEST_F(VideoChannelSingleThreadTest, TestMediaContentDirection) {
   Base::TestMediaContentDirection();
 }
 
-TEST_F(VideoChannelSingleThreadTest, TestNetworkRouteChanges) {
-  Base::TestNetworkRouteChanges();
-}
-
 TEST_F(VideoChannelSingleThreadTest, TestCallSetup) {
   Base::TestCallSetup();
 }
@@ -2310,9 +2461,27 @@ TEST_F(VideoChannelSingleThreadTest, DuplicateRtpHeaderExtensionIds) {
   Base::TestDuplicateRtpHeaderExtensionIds();
 }
 
-TEST_F(VideoChannelSingleThreadTest, InvalidRtpHeaderExtensionIds) {
-  Base::TestInvalidRtpHeaderExtensionIds();
+#if GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
+TEST_F(VideoChannelSingleThreadTest,
+       RtpHeaderExtensionIdOutOfRangeHighDeathTest) {
+#if RTC_DCHECK_IS_ON
+  // Note - EXPECT_DEBUG_DEATH does not work as expected here.
+  EXPECT_DEATH(Base::TestRtpHeaderExtensionIdOutOfRangeHigh(), "Check failed:");
+#else
+  Base::TestRtpHeaderExtensionIdOutOfRangeHigh();
+#endif
 }
+
+TEST_F(VideoChannelSingleThreadTest,
+       RtpHeaderExtensionIdOutOfRangeLowDeathTest) {
+#if RTC_DCHECK_IS_ON
+  // Note - EXPECT_DEBUG_DEATH does not work as expected here.
+  EXPECT_DEATH(Base::TestRtpHeaderExtensionIdOutOfRangeLow(), "Check failed:");
+#else
+  Base::TestRtpHeaderExtensionIdOutOfRangeLow();
+#endif
+}
+#endif
 
 TEST_F(VideoChannelSingleThreadTest, RtpHeaderExtensionIdReassignment) {
   Base::TestRtpHeaderExtensionIdReassignment();
@@ -2611,6 +2780,26 @@ TEST_F(VideoChannelSingleThreadTest,
                               webrtc::kPacketizationParamRaw))));
 }
 
+TEST_F(VideoChannelSingleThreadTest,
+       TestSetRtpTransportNullClearsReceiveSinks) {
+  Base::TestSetRtpTransportNullClearsReceiveSinks();
+}
+
+TEST_F(VideoChannelSingleThreadTest,
+       TestRegisterRtpDemuxerSinkPropagatesReceiveSsrcs) {
+  Base::TestRegisterRtpDemuxerSinkPropagatesReceiveSsrcs();
+}
+
+TEST_F(VideoChannelSingleThreadTest,
+       TestUpdateRemoteStreamsClearsRemovedSinks) {
+  Base::TestUpdateRemoteStreamsClearsRemovedSinks();
+}
+
+TEST_F(VideoChannelSingleThreadTest,
+       TestUpdateRemoteStreamsClearsUnsignaledSinks) {
+  Base::TestUpdateRemoteStreamsClearsUnsignaledSinks();
+}
+
 // VideoChannelDoubleThreadTest
 TEST_F(VideoChannelDoubleThreadTest, TestInit) {
   Base::TestInit();
@@ -2666,10 +2855,6 @@ TEST_F(VideoChannelDoubleThreadTest, TestMediaContentDirection) {
   Base::TestMediaContentDirection();
 }
 
-TEST_F(VideoChannelDoubleThreadTest, TestNetworkRouteChanges) {
-  Base::TestNetworkRouteChanges();
-}
-
 TEST_F(VideoChannelDoubleThreadTest, TestCallSetup) {
   Base::TestCallSetup();
 }
@@ -2704,6 +2889,10 @@ TEST_F(VideoChannelDoubleThreadTest, TestSetContentFailure) {
 
 TEST_F(VideoChannelDoubleThreadTest, TestSendTwoOffers) {
   Base::TestSendTwoOffers();
+}
+
+TEST_F(VideoChannelDoubleThreadTest, TestUpdateRemoteStreamsRaceWithRtpPacket) {
+  Base::TestUpdateRemoteStreamsRaceWithRtpPacket();
 }
 
 TEST_F(VideoChannelDoubleThreadTest, TestReceiveTwoOffers) {

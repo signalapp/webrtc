@@ -31,6 +31,7 @@
 #include "api/units/timestamp.h"
 #include "logging/rtc_event_log/mock/mock_rtc_event_log.h"
 #include "modules/audio_device/include/mock_audio_device.h"
+#include "modules/pacing/packet_router.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/rtp_rtcp/source/ntp_time_util.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/receiver_report.h"
@@ -84,7 +85,7 @@ class ChannelReceiveTest : public Test {
         /* rtcp_report_interval_ms= */0,
         /* enable_non_sender_rtt= */ false, audio_decoder_factory_,
         /* frame_decryptor_interface= */ nullptr, crypto_options,
-        /* frame_transformer= */ nullptr);
+        /* frame_transformer= */ nullptr, &packet_router_);
     channel->SetReceiveCodecs(
         {{kPayloadType, {kPayloadName, kSampleRateHz, 1}}});
     return channel;
@@ -176,6 +177,7 @@ class ChannelReceiveTest : public Test {
   scoped_refptr<test::MockAudioDeviceModule> audio_device_module_;
   scoped_refptr<AudioDecoderFactory> audio_decoder_factory_;
   MockTransport transport_;
+  PacketRouter packet_router_;
 };
 
 TEST_F(ChannelReceiveTest, CreateAndDestroy) {

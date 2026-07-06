@@ -333,6 +333,12 @@ MdnsResponderInterface* NetworkManager::GetMdnsResponder() const {
   return nullptr;
 }
 
+NetworkManager::NetworkManager(NetworksChangedCallback callback) {
+  RTC_CHECK(callback.callback != nullptr);
+  networks_changed_callbacks_.AddReceiver(callback.removal_tag,
+                                          std::move(callback.callback));
+}
+
 void NetworkManager::SubscribeNetworksChanged(
     absl::AnyInvocable<void()> callback) {
   networks_changed_callbacks_.AddReceiver(std::move(callback));
@@ -359,6 +365,10 @@ void NetworkManager::UnsubscribeError(void* tag) {
 
 NetworkManagerBase::NetworkManagerBase()
     : enumeration_permission_(NetworkManager::ENUMERATION_ALLOWED) {}
+
+NetworkManagerBase::NetworkManagerBase(NetworksChangedCallback callback)
+    : NetworkManager(std::move(callback)),
+      enumeration_permission_(NetworkManager::ENUMERATION_ALLOWED) {}
 
 NetworkManager::EnumerationPermission
 NetworkManagerBase::enumeration_permission() const {
@@ -603,6 +613,22 @@ BasicNetworkManager::BasicNetworkManager(
   ioctl_socket_ = socket(AF_INET6, SOCK_DGRAM, 0);
   RTC_DCHECK_GE(ioctl_socket_, 0);
 #endif
+}
+
+BasicNetworkManager::BasicNetworkManager(
+    const Environment& env,
+    SocketFactory* absl_nonnull socket_factory,
+    NetworksChangedCallback callback,
+    NetworkMonitorFactory* absl_nullable network_monitor_factory)
+    : NetworkManagerBase(std::move(callback)),
+      env_(env),
+      network_monitor_factory_(network_monitor_factory),
+      socket_factory_(socket_factory),
+      allow_mac_based_ipv6_(
+          env_.field_trials().IsEnabled("WebRTC-AllowMACBasedIPv6")),
+      bind_using_ifname_(
+          !env_.field_trials().IsDisabled("WebRTC-BindUsingInterfaceName")) {
+  RTC_DCHECK(socket_factory_);
 }
 
 BasicNetworkManager::~BasicNetworkManager() {
@@ -1202,6 +1228,7 @@ std::unique_ptr<Network> Network::Clone() const {
   clone->active_ = active_;
   clone->id_ = id_;
   clone->network_preference_ = network_preference_;
+  clone->network_slice_ = network_slice_;
   return clone;
 }
 

@@ -12,10 +12,13 @@
 
 #include <cstdint>
 #include <cstring>
+#include <optional>
 #include <vector>
 
 #include "absl/strings/string_view.h"
 #include "api/field_trials_view.h"
+#include "api/rtp_header_extension_id.h"
+#include "api/sequence_checker.h"
 #include "modules/rtp_rtcp/source/rtp_util.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/byte_order.h"
@@ -35,6 +38,9 @@
 #endif
 
 namespace webrtc {
+
+constexpr uint16_t kRtpOneByteHeaderExtensionProfile = 0xBEDE;
+constexpr uint16_t kRtpTwoByteHeaderExtensionProfile = 0x1000;
 
 namespace {
 class LibSrtpInitializer {
@@ -142,13 +148,12 @@ void LibSrtpInitializer::DecrementLibsrtpUsageCountAndMaybeDeinit() {
 // One more than the maximum libsrtp error code. Required by
 // RTC_HISTOGRAM_ENUMERATION. Keep this in sync with srtp_error_status_t defined
 // in srtp.h.
-constexpr int kSrtpErrorCodeBoundary = 28;
+constexpr int kSrtpErrorCodeBoundary = 29;
 
 SrtpSession::SrtpSession() {}
 
-SrtpSession::SrtpSession(const FieldTrialsView& field_trials) {
-  dump_plain_rtp_ = field_trials.IsEnabled("WebRTC-Debugging-RtpDump");
-}
+SrtpSession::SrtpSession(const FieldTrialsView& field_trials)
+    : dump_plain_rtp_(field_trials.IsEnabled("WebRTC-Debugging-RtpDump")) {}
 
 SrtpSession::~SrtpSession() {
   if (session_) {
@@ -160,32 +165,53 @@ SrtpSession::~SrtpSession() {
   }
 }
 
-bool SrtpSession::SetSend(int crypto_suite,
-                          const ZeroOnFreeBuffer<uint8_t>& key,
-                          const std::vector<int>& extension_ids) {
+bool SrtpSession::UseCryptex(bool enable, bool require, bool sending_session) {
+  RTC_DCHECK_RUN_ON(&thread_checker_);
+  if (session_) {
+    srtp_ssrc_t ssrc;
+    ssrc.type = sending_session ? ssrc_any_outbound : ssrc_any_inbound;
+    int err = srtp_set_stream_use_cryptex(session_, &ssrc, enable);
+    // Should not fail given the usage in libWebRTC.
+    RTC_DCHECK(err == srtp_err_status_ok);
+    if (err != srtp_err_status_ok) {
+      return false;
+    }
+  }
+  use_cryptex_ = enable;
+  require_cryptex_ = require;
+  return true;
+}
+
+bool SrtpSession::SetSend(
+    int crypto_suite,
+    const ZeroOnFreeBuffer<uint8_t>& key,
+    const std::vector<RtpHeaderExtensionId>& extension_ids) {
   return SetKey(ssrc_any_outbound, crypto_suite, key, extension_ids);
 }
 
-bool SrtpSession::UpdateSend(int crypto_suite,
-                             const ZeroOnFreeBuffer<uint8_t>& key,
-                             const std::vector<int>& extension_ids) {
+bool SrtpSession::UpdateSend(
+    int crypto_suite,
+    const ZeroOnFreeBuffer<uint8_t>& key,
+    const std::vector<RtpHeaderExtensionId>& extension_ids) {
   return UpdateKey(ssrc_any_outbound, crypto_suite, key, extension_ids);
 }
 
-bool SrtpSession::SetReceive(int crypto_suite,
-                             const ZeroOnFreeBuffer<uint8_t>& key,
-                             const std::vector<int>& extension_ids) {
+bool SrtpSession::SetReceive(
+    int crypto_suite,
+    const ZeroOnFreeBuffer<uint8_t>& key,
+    const std::vector<RtpHeaderExtensionId>& extension_ids) {
   return SetKey(ssrc_any_inbound, crypto_suite, key, extension_ids);
 }
 
-bool SrtpSession::UpdateReceive(int crypto_suite,
-                                const ZeroOnFreeBuffer<uint8_t>& key,
-                                const std::vector<int>& extension_ids) {
+bool SrtpSession::UpdateReceive(
+    int crypto_suite,
+    const ZeroOnFreeBuffer<uint8_t>& key,
+    const std::vector<RtpHeaderExtensionId>& extension_ids) {
   return UpdateKey(ssrc_any_inbound, crypto_suite, key, extension_ids);
 }
 
 bool SrtpSession::ProtectRtp(CopyOnWriteBuffer& buffer) {
-  RTC_DCHECK(thread_checker_.IsCurrent());
+  RTC_DCHECK_RUN_ON(&thread_checker_);
   if (!session_) {
     RTC_LOG(LS_WARNING) << "Failed to protect SRTP packet: no SRTP Session";
     return false;
@@ -228,7 +254,7 @@ bool SrtpSession::ProtectRtp(CopyOnWriteBuffer& buffer, int64_t* index) {
 }
 
 bool SrtpSession::ProtectRtcp(CopyOnWriteBuffer& buffer) {
-  RTC_DCHECK(thread_checker_.IsCurrent());
+  RTC_DCHECK_RUN_ON(&thread_checker_);
   if (!session_) {
     RTC_LOG(LS_WARNING) << "Failed to protect SRTCP packet: no SRTP Session";
     return false;
@@ -262,14 +288,29 @@ bool SrtpSession::ProtectRtcp(CopyOnWriteBuffer& buffer) {
 
 
 bool SrtpSession::UnprotectRtp(CopyOnWriteBuffer& buffer) {
-  RTC_DCHECK(thread_checker_.IsCurrent());
+  RTC_DCHECK_RUN_ON(&thread_checker_);
   if (!session_) {
     RTC_LOG(LS_WARNING) << "Failed to unprotect SRTP packet: no SRTP Session";
     return false;
   }
   int out_len = buffer.size();
 
+  std::optional<uint16_t> extension_profile;
+  if (require_cryptex_) {
+    // After decryption this will be set to 0xBEDE or 0x1000 for one/two byte
+    // extensions so must be parsed before decryption. If no extensions are
+    // present this returns std::nullopt.
+    extension_profile = ParseRtpExtensionProfile(buffer);
+  }
   int err = srtp_unprotect(session_, buffer.MutableData<char>(), &out_len);
+  if (err == srtp_err_status_ok && require_cryptex_ &&
+      (extension_profile == kRtpOneByteHeaderExtensionProfile ||
+       extension_profile == kRtpTwoByteHeaderExtensionProfile)) {
+    // An additional check whether cryptex is used when required.
+    // TODO: bugs.webrtc.org/455813732 - libSRTP wіll be doing this check
+    // after https://github.com/cisco/libsrtp/pull/805
+    err = srtp_err_status_cryptex_err;
+  }
   if (err != srtp_err_status_ok) {
     // Limit the error logging to avoid excessive logs when there are lots of
     // bad packets.
@@ -292,7 +333,7 @@ bool SrtpSession::UnprotectRtp(CopyOnWriteBuffer& buffer) {
 }
 
 bool SrtpSession::UnprotectRtcp(CopyOnWriteBuffer& buffer) {
-  RTC_DCHECK(thread_checker_.IsCurrent());
+  RTC_DCHECK_RUN_ON(&thread_checker_);
   if (!session_) {
     RTC_LOG(LS_WARNING) << "Failed to unprotect SRTCP packet: no SRTP Session";
     return false;
@@ -314,10 +355,12 @@ bool SrtpSession::UnprotectRtcp(CopyOnWriteBuffer& buffer) {
 }
 
 int SrtpSession::GetSrtpOverhead() const {
+  RTC_DCHECK_RUN_ON(&thread_checker_);
   return rtp_auth_tag_len_;
 }
 
 bool SrtpSession::RemoveSsrcFromSession(uint32_t ssrc) {
+  RTC_DCHECK_RUN_ON(&thread_checker_);
   RTC_DCHECK(session_);
   // libSRTP expects the SSRC to be in network byte order.
   return srtp_remove_stream(session_, htonl(ssrc)) == srtp_err_status_ok;
@@ -325,7 +368,7 @@ bool SrtpSession::RemoveSsrcFromSession(uint32_t ssrc) {
 
 bool SrtpSession::GetSendStreamPacketIndex(CopyOnWriteBuffer& buffer,
                                            int64_t* index) {
-  RTC_DCHECK(thread_checker_.IsCurrent());
+  RTC_DCHECK_RUN_ON(&thread_checker_);
 
   uint32_t ssrc = ParseRtpSsrc(buffer);
   uint32_t roc;
@@ -341,11 +384,12 @@ bool SrtpSession::GetSendStreamPacketIndex(CopyOnWriteBuffer& buffer,
   return true;
 }
 
-bool SrtpSession::DoSetKey(int type,
-                           int crypto_suite,
-                           const ZeroOnFreeBuffer<uint8_t>& key,
-                           const std::vector<int>& extension_ids) {
-  RTC_DCHECK(thread_checker_.IsCurrent());
+bool SrtpSession::DoSetKey(
+    int type,
+    int crypto_suite,
+    const ZeroOnFreeBuffer<uint8_t>& key,
+    const std::vector<RtpHeaderExtensionId>& extension_ids) {
+  RTC_DCHECK_RUN_ON(&thread_checker_);
 
   srtp_policy_t policy;
   memset(&policy, 0, sizeof(policy));
@@ -372,9 +416,17 @@ bool SrtpSession::DoSetKey(int type,
   // TODO(astor) parse window size from WSH session-param
   policy.window_size = 1024;
   policy.allow_repeat_tx = 1;
-  if (!extension_ids.empty()) {
-    policy.enc_xtn_hdr = const_cast<int*>(&extension_ids[0]);
-    policy.enc_xtn_hdr_count = static_cast<int>(extension_ids.size());
+  // If both encrypted extension ids and cryptex are in use,
+  // cryptex takes precedence and encrypted extensions remain
+  // empty for libSRTP.
+  std::vector<int> extension_ids_int;
+  if (!extension_ids.empty() && !use_cryptex_) {
+    extension_ids_int.reserve(extension_ids.size());
+    for (RtpHeaderExtensionId id : extension_ids) {
+      extension_ids_int.push_back(id.value());
+    }
+    policy.enc_xtn_hdr = &extension_ids_int[0];
+    policy.enc_xtn_hdr_count = static_cast<int>(extension_ids_int.size());
   }
   policy.next = nullptr;
 
@@ -393,17 +445,23 @@ bool SrtpSession::DoSetKey(int type,
       return false;
     }
   }
+  int err = srtp_set_stream_use_cryptex(session_, &policy.ssrc, use_cryptex_);
+  if (err != srtp_err_status_ok) {
+    RTC_LOG(LS_ERROR) << "Failed to update SRTP session cryptex, err=" << err;
+    return false;
+  }
 
   rtp_auth_tag_len_ = policy.rtp.auth_tag_len;
   rtcp_auth_tag_len_ = policy.rtcp.auth_tag_len;
   return true;
 }
 
-bool SrtpSession::SetKey(int type,
-                         int crypto_suite,
-                         const ZeroOnFreeBuffer<uint8_t>& key,
-                         const std::vector<int>& extension_ids) {
-  RTC_DCHECK(thread_checker_.IsCurrent());
+bool SrtpSession::SetKey(
+    int type,
+    int crypto_suite,
+    const ZeroOnFreeBuffer<uint8_t>& key,
+    const std::vector<RtpHeaderExtensionId>& extension_ids) {
+  RTC_DCHECK_RUN_ON(&thread_checker_);
   if (session_) {
     RTC_LOG(LS_ERROR) << "Failed to create SRTP session: "
                          "SRTP session already created";
@@ -422,11 +480,12 @@ bool SrtpSession::SetKey(int type,
   return DoSetKey(type, crypto_suite, key, extension_ids);
 }
 
-bool SrtpSession::UpdateKey(int type,
-                            int crypto_suite,
-                            const ZeroOnFreeBuffer<uint8_t>& key,
-                            const std::vector<int>& extension_ids) {
-  RTC_DCHECK(thread_checker_.IsCurrent());
+bool SrtpSession::UpdateKey(
+    int type,
+    int crypto_suite,
+    const ZeroOnFreeBuffer<uint8_t>& key,
+    const std::vector<RtpHeaderExtensionId>& extension_ids) {
+  RTC_DCHECK_RUN_ON(&thread_checker_);
   if (!session_) {
     RTC_LOG(LS_ERROR) << "Failed to update non-existing SRTP session";
     return false;
@@ -440,7 +499,7 @@ void ProhibitLibsrtpInitialization() {
 }
 
 void SrtpSession::HandleEvent(const srtp_event_data_t* ev) {
-  RTC_DCHECK(thread_checker_.IsCurrent());
+  RTC_DCHECK_RUN_ON(&thread_checker_);
   switch (ev->event) {
     case event_ssrc_collision:
       RTC_LOG(LS_INFO) << "SRTP event: SSRC collision";

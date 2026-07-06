@@ -73,7 +73,8 @@ class RingRTCVideoEncoderFactory : public VideoEncoderFactory {
     auto original_format =
         FuzzyMatchSdpVideoFormat(factory_.GetSupportedFormats(), format);
     return original_format
-               ? factory_.QueryCodecSupport(*original_format, scalability_mode)
+               ? factory_.QueryCodecSupport(*original_format, scalability_mode,
+                                            std::nullopt)
                : VideoEncoderFactory::CodecSupport{.is_supported = false};
   }
 

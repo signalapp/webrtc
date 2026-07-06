@@ -63,7 +63,8 @@ class FakeIceTransportInternal : public IceTransportInternal {
                                     int component,
                                     TaskQueueBase* network_thread = nullptr,
                                     absl::string_view field_trials_string = "")
-      : name_(name),
+      : IceTransportInternal(network_thread),
+        name_(name),
         component_(component),
         network_thread_(network_thread ? network_thread
                                        : TaskQueueBase::Current()),
@@ -77,6 +78,11 @@ class FakeIceTransportInternal : public IceTransportInternal {
     if (dest_ && dest_->dest_ == this) {
       dest_->dest_ = nullptr;
     }
+  }
+
+  // RingRTC change to add RegatherOnAllNetworks().
+  void RegatherOnAllNetworks() override {
+    // Do nothing for now
   }
 
   // If async, will send packets by "Post"-ing to message queue instead of
@@ -186,6 +192,8 @@ class FakeIceTransportInternal : public IceTransportInternal {
     RTC_DCHECK_RUN_ON(network_thread_);
     return remote_candidates_;
   }
+
+  TaskQueueBase* network_thread() const { return network_thread_; }
 
   // Fake IceTransportInternal implementation.
   const std::string& transport_name() const override { return name_; }
@@ -521,8 +529,7 @@ class FakeIceTransportInternal : public IceTransportInternal {
                           int flags)
       RTC_EXCLUSIVE_LOCKS_REQUIRED(network_thread_) {
     last_sent_packet_ = packet;
-    bool is_stun =
-        StunMessage::ValidateFingerprint(packet.data<char>(), packet.size());
+    bool is_stun = StunMessage::ValidateFingerprint(packet);
     if (packet_send_filter_func_ &&
         packet_send_filter_func_(packet.data<char>(), packet.size(), options,
                                  flags)) {
@@ -609,7 +616,7 @@ class FakeIceTransportInternal : public IceTransportInternal {
   }
 
   std::unique_ptr<IceMessage> GetStunMessage(const CopyOnWriteBuffer& packet) {
-    if (!StunMessage::ValidateFingerprint(packet.data<char>(), packet.size())) {
+    if (!StunMessage::ValidateFingerprint(packet)) {
       return nullptr;
     }
 

@@ -153,14 +153,19 @@ class PeerConnectionWrapper {
   scoped_refptr<DtlsTransportInterface> LookupDtlsTransportByMid(
       const std::string& mid);
 
+  // RingRTC change to support ICE forking
   scoped_refptr<IceGathererInterface> CreateSharedIceGatherer();
-
   bool UseSharedIceGatherer(
       scoped_refptr<IceGathererInterface> shared_ice_gatherer);
+  // end RingRTC change to support ICE forking
 
+  // RingRTC change to explicitly control when incoming packets can be processed
   bool SetIncomingRtpEnabled(bool enabled);
 
+  // RingRTC change to send RTP data
   bool SendRtp(std::unique_ptr<RtpPacket> rtp_packet);
+
+  // RingRTC change to receive RTP data
   bool ReceiveRtp(uint8_t pt, bool enable_incoming);
 
   // RingRTC change to get audio levels

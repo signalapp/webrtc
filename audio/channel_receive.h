@@ -19,6 +19,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "api/audio/audio_frame.h"
 #include "api/audio/audio_mixer.h"
 #include "api/audio_codecs/audio_decoder_factory.h"
@@ -142,10 +143,6 @@ class ChannelReceiveInterface : public RtpPacketSinkInterface {
   // Produces the transport-related timestamps; current_delay_ms is left unset.
   virtual std::optional<Syncable::Info> GetSyncInfo() const = 0;
 
-  virtual void RegisterReceiverCongestionControlObjects(
-      PacketRouter* packet_router) = 0;
-  virtual void ResetReceiverCongestionControlObjects() = 0;
-
   virtual ChannelReceiveStatistics GetRTCPStatistics() const = 0;
   virtual void SetNACKStatus(bool enable, int max_packets) = 0;
   virtual void SetRtcpMode(webrtc::RtcpMode mode) = 0;
@@ -167,6 +164,8 @@ class ChannelReceiveInterface : public RtpPacketSinkInterface {
   virtual void SetFrameDecryptor(
       scoped_refptr<webrtc::FrameDecryptorInterface> frame_decryptor) = 0;
 
+  virtual uint32_t remote_ssrc() const = 0;
+
   // RingRTC change to configure opus
   virtual void ConfigureDecoder(const AudioDecoder::Config& config) = 0;
   // End RingRTC change to configure opus
@@ -174,9 +173,9 @@ class ChannelReceiveInterface : public RtpPacketSinkInterface {
 
 std::unique_ptr<ChannelReceiveInterface> CreateChannelReceive(
     const Environment& env,
-    NetEqFactory* neteq_factory,
-    AudioDeviceModule* audio_device_module,
-    Transport* rtcp_send_transport,
+    NetEqFactory* absl_nullable neteq_factory,
+    AudioDeviceModule* absl_nonnull audio_device_module,
+    Transport* absl_nonnull rtcp_send_transport,
     uint32_t remote_ssrc,
     size_t jitter_buffer_max_packets,
     bool jitter_buffer_fast_playout,
@@ -189,7 +188,8 @@ std::unique_ptr<ChannelReceiveInterface> CreateChannelReceive(
     scoped_refptr<AudioDecoderFactory> decoder_factory,
     scoped_refptr<FrameDecryptorInterface> frame_decryptor,
     const webrtc::CryptoOptions& crypto_options,
-    scoped_refptr<FrameTransformerInterface> frame_transformer);
+    scoped_refptr<FrameTransformerInterface> frame_transformer,
+    PacketRouter* absl_nonnull packet_router);
 
 }  // namespace voe
 }  // namespace webrtc

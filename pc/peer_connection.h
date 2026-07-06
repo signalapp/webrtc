@@ -67,6 +67,7 @@
 #include "p2p/base/ice_transport_internal.h"
 #include "p2p/base/port.h"
 #include "p2p/base/port_allocator.h"
+#include "p2p/base/transport_description.h"
 #include "p2p/dtls/dtls_transport_factory.h"
 #include "pc/channel_interface.h"
 #include "pc/codec_vendor.h"
@@ -82,6 +83,7 @@
 #include "pc/rtp_transceiver.h"
 #include "pc/rtp_transmission_manager.h"
 #include "pc/rtp_transport_internal.h"
+#include "pc/scoped_operations_batcher.h"
 #include "pc/sdp_offer_answer.h"
 #include "pc/sdp_state_provider.h"
 #include "pc/session_description.h"
@@ -96,9 +98,10 @@
 #include "rtc_base/system/plan_b_only.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
-#include "rtc_base/weak_ptr.h"
 
 namespace webrtc {
+
+class ScopedOperationsBatcher;
 
 // PeerConnection is the implementation of the PeerConnection object as defined
 // by the PeerConnectionInterface API surface.
@@ -246,13 +249,19 @@ class PeerConnection : public PeerConnectionInternal,
                        std::function<void(RTCError)> callback) override;
   bool RemoveIceCandidate(const IceCandidate* candidate) override;
 
-  // RingRTC change to add methods (see interface header)
+  // RingRTC change to support ICE forking
   scoped_refptr<IceGathererInterface> CreateSharedIceGatherer() override;
   bool UseSharedIceGatherer(scoped_refptr<IceGathererInterface>
                             shared_ice_gatherer) override;
+  // end RingRTC change to support ICE forking
+
+  // RingRTC change to explicitly control when incoming packets can be processed
   bool SetIncomingRtpEnabled(bool enabled) override;
 
+  // RingRTC change to send RTP data
   bool SendRtp(std::unique_ptr<RtpPacket> rtp_packet) override;
+
+  // RingRTC change to receive RTP data
   bool ReceiveRtp(uint8_t pt, bool enable_incoming) override;
 
   // RingRTC change to configure opus
@@ -362,8 +371,6 @@ class PeerConnection : public PeerConnectionInternal,
     return !sdp_handler_ ||
            sdp_handler_->signaling_state() == PeerConnectionInterface::kClosed;
   }
-  // Get current SSL role used by SCTP's underlying transport.
-  std::optional<SSLRole> GetSctpSslRole_n() override;
 
   void OnSctpDataChannelStateChanged(
       int channel_id,
@@ -521,11 +528,11 @@ class PeerConnection : public PeerConnectionInternal,
   // network thread and initialize network thread related state (see
   // InitializeTransportController_n). The return value of this function is used
   // to set the initial value of `transport_controller_copy_`.
-  JsepTransportController* InitializeNetworkThread(
-      const ServerAddresses& stun_servers,
-      const std::vector<RelayServerConfig>& turn_servers);
-  void CloseOnNetworkThread(
-      std::vector<absl::AnyInvocable<void() &&>>& network_tasks);
+  std::pair<JsepTransportController*, std::vector<IceParameters>>
+  InitializeNetworkThread(const ServerAddresses& stun_servers,
+                          const std::vector<RelayServerConfig>& turn_servers);
+  ScopedOperationsBatcher::BatchTaskWithFinalizer
+  MakeCloseOnNetworkThreadTask();
   JsepTransportController* InitializeTransportController_n(
       std::unique_ptr<JsepTransportController> controller,
       const RTCConfiguration& configuration) RTC_RUN_ON(network_thread());
@@ -618,7 +625,6 @@ class PeerConnection : public PeerConnectionInternal,
       const std::vector<Candidate>& candidates) RTC_RUN_ON(signaling_thread());
   void OnTransportControllerCandidateChanged(
       const CandidatePairChangeEvent& event) RTC_RUN_ON(signaling_thread());
-  void OnTransportControllerDtlsHandshakeError(SSLHandshakeError error);
 
   // Invoked when TransportController connection completion is signaled.
   // Reports stats for all transports in use.
@@ -817,9 +823,6 @@ class PeerConnection : public PeerConnectionInternal,
       pending_local_description_clone_;
   mutable std::unique_ptr<SessionDescriptionInterface>
       pending_remote_description_clone_;
-
-  // This variable needs to be the last one in the class.
-  WeakPtrFactory<PeerConnection> weak_factory_;
 };
 
 }  // namespace webrtc

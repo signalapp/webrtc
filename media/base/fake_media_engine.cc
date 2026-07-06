@@ -37,12 +37,14 @@
 #include "api/video/video_bitrate_allocator_factory.h"
 #include "api/video/video_sink_interface.h"
 #include "api/video/video_source_interface.h"
+#include "api/video_codecs/sdp_video_format.h"
 #include "call/audio_state.h"
 #include "call/call.h"
 #include "media/base/audio_source.h"
 #include "media/base/codec.h"
 #include "media/base/media_channel.h"
 #include "media/base/media_config.h"
+#include "media/base/media_constants.h"
 #include "media/base/media_engine.h"
 #include "media/base/stream_params.h"
 #include "rtc_base/checks.h"
@@ -109,8 +111,8 @@ bool FakeVoiceMediaReceiveChannel::SetReceiverParameters(
   return (SetRecvCodecs(params.codecs) &&
           SetRecvRtpHeaderExtensions(params.extensions));
 }
-void FakeVoiceMediaReceiveChannel::SetPlayout(bool playout) {
-  set_playout(playout);
+void FakeVoiceMediaReceiveChannel::SetReceive(bool receive) {
+  set_playout(receive);
 }
 bool FakeVoiceMediaReceiveChannel::HasSource(uint32_t ssrc) const {
   return local_sinks_.find(ssrc) != local_sinks_.end();
@@ -175,7 +177,7 @@ bool FakeVoiceMediaReceiveChannel::GetStats(
   return false;
 }
 absl::AnyInvocable<std::optional<VoiceMediaReceiveInfo>()>
-FakeVoiceMediaReceiveChannel::GetStatsCallback(bool reset_legacy) {
+FakeVoiceMediaReceiveChannel::GetStatsTask(bool reset_legacy) {
   return [this, reset_legacy]() -> std::optional<VoiceMediaReceiveInfo> {
     VoiceMediaReceiveInfo info;
     if (GetStats(&info, reset_legacy)) {
@@ -282,8 +284,8 @@ bool FakeVoiceMediaSendChannel::SetSenderParameters(
           SetMaxSendBandwidth(params.max_bandwidth_bps) &&
           SetOptions(params.options));
 }
-void FakeVoiceMediaSendChannel::SetSend(bool send) {
-  set_sending(send);
+bool FakeVoiceMediaSendChannel::SetSend(bool send) {
+  return set_sending(send);
 }
 bool FakeVoiceMediaSendChannel::SetAudioSend(uint32_t ssrc,
                                              bool enable,
@@ -330,7 +332,7 @@ bool FakeVoiceMediaSendChannel::GetStats(VoiceMediaSendInfo* /* info */) {
   return false;
 }
 absl::AnyInvocable<std::optional<VoiceMediaSendInfo>()>
-FakeVoiceMediaSendChannel::GetStatsCallback() {
+FakeVoiceMediaSendChannel::GetStatsTask() {
   return [this]() -> std::optional<VoiceMediaSendInfo> {
     VoiceMediaSendInfo info;
     if (GetStats(&info)) {
@@ -441,7 +443,7 @@ bool FakeVideoMediaSendChannel::GetStats(VideoMediaSendInfo* /* info */) {
   return false;
 }
 absl::AnyInvocable<std::optional<VideoMediaSendInfo>()>
-FakeVideoMediaSendChannel::GetStatsCallback() {
+FakeVideoMediaSendChannel::GetStatsTask() {
   return [this]() -> std::optional<VideoMediaSendInfo> {
     VideoMediaSendInfo info;
     if (GetStats(&info)) {
@@ -591,7 +593,7 @@ bool FakeVideoMediaReceiveChannel::GetStats(VideoMediaReceiveInfo* /* info */) {
   return false;
 }
 absl::AnyInvocable<std::optional<VideoMediaReceiveInfo>()>
-FakeVideoMediaReceiveChannel::GetStatsCallback() {
+FakeVideoMediaReceiveChannel::GetStatsTask() {
   return [this]() -> std::optional<VideoMediaReceiveInfo> {
     VideoMediaReceiveInfo info;
     if (GetStats(&info)) {
@@ -617,11 +619,13 @@ scoped_refptr<AudioState> FakeVoiceEngine::GetAudioState() const {
   return scoped_refptr<AudioState>();
 }
 std::unique_ptr<VoiceMediaSendChannelInterface>
-FakeVoiceEngine::CreateSendChannel(const Environment& /*env*/,
-                                   Call* call,
-                                   const MediaConfig& /* config */,
-                                   const AudioOptions& options,
-                                   const CryptoOptions& /* crypto_options */) {
+FakeVoiceEngine::CreateSendChannel(
+    const Environment& /*env*/,
+    Call* call,
+    const MediaConfig& /* config */,
+    const AudioOptions& options,
+    const CryptoOptions& /* crypto_options */,
+    absl::AnyInvocable<void()> /* parameters_changed_callback */) {
   std::unique_ptr<FakeVoiceMediaSendChannel> ch =
       std::make_unique<FakeVoiceMediaSendChannel>(options,
                                                   call->network_thread());
@@ -678,7 +682,10 @@ void FakeVoiceEngine::SetRtpHeaderExtensions(
   header_extensions_ = std::move(header_extensions);
 }
 
-FakeVideoEngine::FakeVideoEngine() : capture_(false) {
+FakeVideoEngine::FakeVideoEngine()
+    : encoder_factory_(std::make_unique<FakeVideoEncoderFactory>(this)),
+      decoder_factory_(std::make_unique<FakeVideoDecoderFactory>(this)),
+      capture_(false) {
   // Add a fake video codec. Note that the name must not be "" as there are
   // sanity checks against that.
   send_codecs_.push_back(CreateVideoCodec(111, "fake_video_codec"));
@@ -697,7 +704,8 @@ FakeVideoEngine::CreateSendChannel(
     const CryptoOptions& /* crypto_options */,
     VideoBitrateAllocatorFactory* /* video_bitrate_allocator_factory */,
     VideoMediaSendChannelInterface::EncoderSwitchRequestCallback
-    /* video_encoder_switch_request_callback */) {
+    /* video_encoder_switch_request_callback */,
+    absl::AnyInvocable<void()> /* parameters_changed_callback */) {
   std::unique_ptr<FakeVideoMediaSendChannel> ch =
       std::make_unique<FakeVideoMediaSendChannel>(options,
                                                   call->network_thread());
@@ -718,19 +726,36 @@ FakeVideoEngine::CreateReceiveChannel(
 std::vector<Codec> FakeVideoEngine::LegacySendCodecs(bool use_rtx) const {
   if (use_rtx) {
     return send_codecs_;
-  } else {
-    std::vector<Codec> non_rtx_codecs;
-    for (auto& codec : send_codecs_) {
-      if (codec.name != "rtx") {
-        non_rtx_codecs.push_back(codec);
-      }
-    }
-    return non_rtx_codecs;
   }
+  std::vector<Codec> out;
+  for (const auto& codec : send_codecs_) {
+    if (codec.name != kRtxCodecName) {
+      out.push_back(codec);
+    }
+  }
+  return out;
 }
 
-std::vector<Codec> FakeVideoEngine::LegacyRecvCodecs(bool /* use_rtx */) const {
-  return recv_codecs_;
+std::vector<Codec> FakeVideoEngine::LegacyRecvCodecs(bool use_rtx) const {
+  if (use_rtx) {
+    return recv_codecs_;
+  }
+  std::vector<Codec> out;
+  for (const auto& codec : recv_codecs_) {
+    if (codec.name != kRtxCodecName) {
+      out.push_back(codec);
+    }
+  }
+  return out;
+}
+
+std::vector<SdpVideoFormat> FakeVideoEngine::GetSupportedFormats(
+    bool is_decoder) const {
+  if (is_decoder) {
+    return decoder_factory_->GetSupportedFormats();
+  } else {
+    return encoder_factory_->GetSupportedFormats();
+  }
 }
 
 void FakeVideoEngine::SetSendCodecs(const std::vector<Codec>& codecs) {

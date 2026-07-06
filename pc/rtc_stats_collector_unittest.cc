@@ -69,6 +69,7 @@
 #include "pc/peer_connection_internal.h"
 #include "pc/rtp_sender.h"
 #include "pc/rtp_transceiver.h"
+#include "pc/scoped_operations_batcher.h"
 #include "pc/sctp_data_channel.h"
 #include "pc/stream_collection.h"
 #include "pc/test/fake_audio_track.h"
@@ -1744,6 +1745,28 @@ TEST_P(RTCStatsCollectorTest, CollectRTCIceCandidateStats) {
   expected_a_local_host.foundation = "foundationIsAString";
   expected_a_local_host.username_fragment = "iceusernamefragment";
 
+  std::unique_ptr<Candidate> a_local_tcp_slice =
+      CreateFakeCandidate("1.2.3.4", 5, "tcp", ADAPTER_TYPE_VPN,
+                          IceCandidateType::kHost, 0, ADAPTER_TYPE_ETHERNET);
+  a_local_tcp_slice->set_network_slice(NetworkSlice::UNIFIED_COMMUNICATIONS);
+  a_local_tcp_slice->set_tcptype("a_local_tcp_slice's tcptype");
+  RTCLocalIceCandidateStats expected_a_local_tcp_slice(
+      "I" + a_local_tcp_slice->id(), Timestamp::Zero());
+  expected_a_local_tcp_slice.transport_id = "Ta0";
+  expected_a_local_tcp_slice.network_type = "vpn";
+  expected_a_local_tcp_slice.ip = "1.2.3.4";
+  expected_a_local_tcp_slice.address = "1.2.3.4";
+  expected_a_local_tcp_slice.port = 5;
+  expected_a_local_tcp_slice.protocol = "tcp";
+  expected_a_local_tcp_slice.candidate_type = "host";
+  expected_a_local_tcp_slice.priority = 0;
+  expected_a_local_tcp_slice.vpn = true;
+  expected_a_local_tcp_slice.network_adapter_type = "ethernet";
+  expected_a_local_tcp_slice.foundation = "foundationIsAString";
+  expected_a_local_tcp_slice.username_fragment = "iceusernamefragment";
+  expected_a_local_tcp_slice.tcp_type = "a_local_tcp_slice's tcptype";
+  expected_a_local_tcp_slice.network_slice = "unified-communications";
+
   std::unique_ptr<Candidate> a_remote_srflx =
       CreateFakeCandidate("6.7.8.9", 10, "remote_srflx's protocol",
                           ADAPTER_TYPE_UNKNOWN, IceCandidateType::kSrflx, 1);
@@ -1918,6 +1941,8 @@ TEST_P(RTCStatsCollectorTest, CollectRTCIceCandidateStats) {
       .remote_candidate = *a_remote_relay;
   a_transport_channel_stats.ice_transport_stats.candidate_stats_list.push_back(
       CandidateStats(*a_local_host_not_paired));
+  a_transport_channel_stats.ice_transport_stats.candidate_stats_list.push_back(
+      CandidateStats(*a_local_tcp_slice));
 
   RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVoiceChannel("audio", "a");
@@ -1943,6 +1968,11 @@ TEST_P(RTCStatsCollectorTest, CollectRTCIceCandidateStats) {
   ASSERT_TRUE(report->Get(expected_a_local_host.id()));
   EXPECT_EQ(expected_a_local_host, report->Get(expected_a_local_host.id())
                                        ->cast_to<RTCLocalIceCandidateStats>());
+
+  ASSERT_TRUE(report->Get(expected_a_local_tcp_slice.id()));
+  EXPECT_EQ(expected_a_local_tcp_slice,
+            report->Get(expected_a_local_tcp_slice.id())
+                ->cast_to<RTCLocalIceCandidateStats>());
 
   ASSERT_TRUE(report->Get(expected_a_local_host_not_paired.id()));
   EXPECT_EQ(expected_a_local_host_not_paired,
@@ -2171,13 +2201,17 @@ TEST_P(RTCStatsCollectorTest, CollectRTCPeerConnectionStats) {
     EXPECT_EQ(expected, report->Get("P")->cast_to<RTCPeerConnectionStats>());
   }
 
+  ScopedTaskSafety signaling_safety;
+
   FakeDataChannelController controller(pc_->network_thread());
   scoped_refptr<SctpDataChannel> dummy_channel_a = SctpDataChannel::Create(
       controller.weak_ptr(), "DummyChannelA", false, InternalDataChannelInit(),
-      Thread::Current(), Thread::Current());
+      std::nullopt, signaling_safety.flag(), Thread::Current(),
+      Thread::Current());
   scoped_refptr<SctpDataChannel> dummy_channel_b = SctpDataChannel::Create(
       controller.weak_ptr(), "DummyChannelB", false, InternalDataChannelInit(),
-      Thread::Current(), Thread::Current());
+      std::nullopt, signaling_safety.flag(), Thread::Current(),
+      Thread::Current());
 
   stats_->stats_collector().OnSctpDataChannelStateChanged(
       dummy_channel_a->internal_id(), DataChannelInterface::DataState::kOpen);
@@ -3944,14 +3978,17 @@ TEST_P(RTCStatsCollectorTest,
   scoped_refptr<AudioRtpSender> sender = AudioRtpSender::Create(
       env_, pc_->signaling_thread(), pc_->worker_thread(), "sender_id",
       /*stats=*/nullptr, /*set_streams_observer=*/nullptr,
+      /*enable_sframe_at_owner=*/nullptr,
       /*media_channel=*/nullptr);
 
-  worker_thread->BlockingCall([&] {
-    fake_media_channel->AddSendStream(StreamParams::CreateLegacy(1234));
-    sender->SetMediaChannel(fake_media_channel.get());
-  });
-
-  sender->SetSsrc(1234);
+  {
+    ScopedOperationsBatcher worker_tasks(pc_->worker_thread());
+    worker_tasks.Add([&]() {
+      fake_media_channel->AddSendStream(StreamParams::CreateLegacy(1234));
+      sender->SetMediaChannel(fake_media_channel.get());
+    });
+    worker_tasks.AddWithFinalizer(sender->SetSsrcTask(1234));
+  }
   sender->SetTrack(track.get());
 
   RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
@@ -4229,8 +4266,8 @@ TEST(RTCStatsCollectorSafetyTest, CancelPendingRequestReturnsImmediately) {
   // this posts a task to the worker/network threads which will be blocked by
   // the above task.
   wrapper.stats_collector().GetStatsReport(callback);
-  std::vector<absl::AnyInvocable<void() &&>> network_tasks;
-  std::vector<absl::AnyInvocable<void() &&>> worker_tasks;
+  ScopedOperationsBatcher network_tasks(worker_and_network.get());
+  ScopedOperationsBatcher worker_tasks(worker_and_network.get());
 
   // Now cancel any ongoing stats gathering operations.
   // This should cancel the outstanding operations and invoke pending callbacks
@@ -4238,21 +4275,12 @@ TEST(RTCStatsCollectorSafetyTest, CancelPendingRequestReturnsImmediately) {
   wrapper.stats_collector().CancelPendingRequestAndGetShutdownTasks(
       network_tasks, worker_tasks);
 
-  // We should have one callback per conceptual thread.
-  EXPECT_EQ(network_tasks.size(), 1u);
-  EXPECT_EQ(worker_tasks.size(), 1u);
-
   // Resume the network and worker threads.
   blocker.Set();
 
   // Run the cleanup tasks.
-  auto quit = loop.QuitClosure();
-  worker_and_network->PostTask([&]() {
-    std::move(network_tasks[0])();
-    std::move(worker_tasks[0])();
-    loop.task_queue()->PostTask([&]() { quit(); });
-  });
-  loop.Run();
+  network_tasks.Run();
+  worker_tasks.Run();
 }
 
 // This covers the following steps:
@@ -4269,16 +4297,14 @@ TEST(RTCStatsCollectorSafetyTest, NetworkThreadSafetyPreventsCallback) {
   EXPECT_CALL(*callback, OnStatsDelivered(_)).Times(0);
   // Start by canceling any ongoing tasks. There aren't actually any ongoing
   // tasks, but this gives us the network cleanup task.
-  std::vector<absl::AnyInvocable<void() &&>> network_tasks;
-  std::vector<absl::AnyInvocable<void() &&>> worker_tasks;
+  ScopedOperationsBatcher network_tasks(pc->network_thread());
+  ScopedOperationsBatcher worker_tasks(pc->worker_thread());
   wrapper.stats_collector().CancelPendingRequestAndGetShutdownTasks(
       network_tasks, worker_tasks);
   // Clean up the state on the network thread. This will have the effect of
   // dropping any tasks targeting the network thread.
-  ASSERT_EQ(network_tasks.size(), 1u);
-  ASSERT_EQ(worker_tasks.size(), 1u);
-  std::move(network_tasks[0])();
-  std::move(worker_tasks[0])();
+  network_tasks.Run();
+  worker_tasks.Run();
   // Now, attempt to get a stats report. This will try to post a task to the
   // network thread, which will be dropped.
   wrapper.stats_collector().GetStatsReport(callback);

@@ -221,6 +221,8 @@ class MockPeerConnectionInternal : public PeerConnectionInternal {
               (override));
   // RingRTC change to get unit tests building.
   MOCK_METHOD(uint32_t, GetLastBandwidthEstimateBps, (), (override));
+  MOCK_METHOD(void, RegatherOnAllNetworks, (), (override));
+  // end RingRTC change to get unit tests building.
   MOCK_METHOD(RTCError, SetBitrate, (const BitrateSettings&), (override));
   MOCK_METHOD(void,
               ReconfigureBandwidthEstimation,
@@ -298,7 +300,6 @@ class MockPeerConnectionInternal : public PeerConnectionInternal {
               RunWithObserver,
               (absl::AnyInvocable<void(webrtc::PeerConnectionObserver*) &&>),
               (override));
-  MOCK_METHOD(std::optional<SSLRole>, GetSctpSslRole_n, (), (override));
   MOCK_METHOD(PeerConnectionInterface::IceConnectionState,
               ice_connection_state_internal,
               (),

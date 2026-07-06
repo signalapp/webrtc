@@ -253,6 +253,9 @@ class FakePeerConnectionBase : public PeerConnectionInternal {
   // RingRTC change to add new methods
   void SetRtpPacketObserver(RtpPacketSinkInterface*) override {}
 
+  // RingRTC change to add RegatherOnAllNetworks().
+  void RegatherOnAllNetworks() override {}
+
   bool UseSharedIceGatherer(scoped_refptr<IceGathererInterface>
                                 shared_ice_gatherer) override {
     return false;
@@ -410,7 +413,6 @@ class FakePeerConnectionBase : public PeerConnectionInternal {
       absl::AnyInvocable<void(webrtc::PeerConnectionObserver*) &&>) override {
     RTC_DCHECK_NOTREACHED();
   }
-  std::optional<SSLRole> GetSctpSslRole_n() override { return std::nullopt; }
   PeerConnectionInterface::IceConnectionState ice_connection_state_internal()
       override {
     return PeerConnectionInterface::IceConnectionState::kIceConnectionNew;
