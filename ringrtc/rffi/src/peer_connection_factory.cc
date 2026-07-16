@@ -430,8 +430,7 @@ RUSTEXPORT AudioTrackInterface* Rust_createAudioTrack(
 
   AudioOptions options;
   auto source = factory->CreateAudioSource(options);
-  // Note: This must stay "audio1" to stay in sync with V4 signaling.
-  return take_rc(factory->CreateAudioTrack("audio1", source.get()));
+  return take_rc(factory->CreateAudioTrack(kAudioTrackId, source.get()));
 }
 
 // Returns an owned RC.
@@ -445,9 +444,9 @@ RUSTEXPORT VideoTrackInterface* Rust_createVideoTrack(
     VideoTrackSourceInterface* source_borrowed_rc) {
   auto factory = factory_owner_borrowed_rc->peer_connection_factory();
 
-  // Note: This must stay "video1" to stay in sync with V4 signaling.
   return take_rc(factory->CreateVideoTrack(
-      scoped_refptr<VideoTrackSourceInterface>(source_borrowed_rc), "video1"));
+      scoped_refptr<VideoTrackSourceInterface>(source_borrowed_rc),
+      kVideoTrackId));
 }
 
 }  // namespace rffi

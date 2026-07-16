@@ -101,7 +101,8 @@ void StatsObserverRffi::OnStatsDelivered(
       this->audio_sender_statistics_.push_back(audio_sender);
     } else if (*stat->kind == "video" &&
                (*stat->mid == "video" ||
-                absl::StartsWith(*stat->mid, "local-video"))) {
+                absl::StartsWith(*stat->mid, "local-video") ||
+                absl::StartsWith(*stat->mid, "video-mid-"))) {
       VideoSenderStatistics video_sender = {0};
 
       video_sender.ssrc = stat->ssrc.value_or(0);
@@ -199,7 +200,8 @@ void StatsObserverRffi::OnStatsDelivered(
       this->audio_receiver_statistics_.push_back(audio_receiver);
     } else if (*stat->kind == "video" &&
                (*stat->mid == "video" ||
-                absl::StartsWith(*stat->mid, "remote-video"))) {
+                absl::StartsWith(*stat->mid, "remote-video") ||
+                absl::StartsWith(*stat->mid, "video-mid-"))) {
       VideoReceiverStatistics video_receiver = {0};
 
       video_receiver.ssrc = stat->ssrc.value_or(0);

@@ -12,6 +12,10 @@
 #include "rffi/api/sdp_observer_intf.h"
 #include "rffi/api/stats_observer_intf.h"
 
+// These should stay in sync with android/iOS-specific ringrtc code
+constexpr char kAudioTrackId[] = "audio1";
+constexpr char kVideoTrackId[] = "video1";
+
 // TODO: Consider removing all these duplicative declarations.
 // It compiles without it.
 
@@ -31,6 +35,10 @@ RUSTEXPORT void Rust_createOffer(
     webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
     webrtc::rffi::CreateSessionDescriptionObserverRffi*
         csd_observer_borrowed_rc);
+
+// If using asymmetric codecs, add a send-only transceiver for the send stream.
+RUSTEXPORT bool Rust_createSendOnlyTransceiver(
+    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc);
 
 // Borrows the observer until the result is given to the observer,
 // so the observer must stay alive until it's given a result.
@@ -64,15 +72,21 @@ class ConnectionParametersV4 {
  public:
   std::string ice_ufrag;
   std::string ice_pwd;
-  std::vector<RffiVideoCodec> receive_video_codecs;
+  std::vector<RffiVideoCodec> bidirectional_video_codecs;
+  std::vector<RffiVideoCodec> encode_only_video_codecs;
+  std::vector<RffiVideoCodec> decode_only_video_codecs;
 };
 
 typedef struct {
   // These all just refer to the storage
   const char* ice_ufrag_borrowed;
   const char* ice_pwd_borrowed;
-  RffiVideoCodec* receive_video_codecs_borrowed;
-  size_t receive_video_codecs_size;
+  RffiVideoCodec* bidirectional_video_codecs_borrowed;
+  size_t bidirectional_video_codecs_size;
+  RffiVideoCodec* encode_only_video_codecs_borrowed;
+  size_t encode_only_video_codecs_size;
+  RffiVideoCodec* decode_only_video_codecs_borrowed;
+  size_t decode_only_video_codecs_size;
 
   // When this is released, we must release the storage
   ConnectionParametersV4* backing_owned;
@@ -89,11 +103,29 @@ typedef struct {
 // Returns an owned pointer.
 RUSTEXPORT RffiConnectionParametersV4* Rust_sessionDescriptionToV4(
     const webrtc::SessionDescriptionInterface* session_description_borrowed,
+    bool enable_vp9_encode,
+    bool enable_vp9_decode);
+
+// Legacy version of the above - used for communicating with clients that only
+// support symmetric codecs.
+RUSTEXPORT RffiConnectionParametersV4* Rust_sessionDescriptionToV4Legacy(
+    const webrtc::SessionDescriptionInterface* session_description_borrowed,
     bool enable_vp9);
 
 RUSTEXPORT void Rust_deleteV4(RffiConnectionParametersV4* v4_owned);
 
 RUSTEXPORT webrtc::SessionDescriptionInterface* Rust_sessionDescriptionFromV4(
+    bool offer,
+    const RffiConnectionParametersV4* v4_borrowed,
+    bool enable_tcc_audio,
+    bool enable_vp9_encode,
+    bool enable_vp9_decode,
+    bool v4_is_local);
+
+// Legacy version of the above - used for communicating with clients that only
+// support symmetric codecs.
+RUSTEXPORT webrtc::SessionDescriptionInterface*
+Rust_sessionDescriptionFromV4Legacy(
     bool offer,
     const RffiConnectionParametersV4* v4_borrowed,
     bool enable_tcc_audio,
