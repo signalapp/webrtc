@@ -1001,9 +1001,16 @@ void P2PTransportChannel::StartGatheringWithSharedGatherer(
 
 // RingRTC change to add RegatherOnAllNetworks()
 void P2PTransportChannel::RegatherOnAllNetworks() {
-  auto session = allocator_session();
-  if (session) {
-    session->RegatherOnAllNetworks();
+  if (shared_gatherer_) {
+    auto* session = shared_gatherer_->port_allocator_session();
+    if (session) {
+      session->RegatherOnAllNetworks();
+    }
+  } else {
+    auto session = allocator_session();
+    if (session) {
+      session->RegatherOnAllNetworks();
+    }
   }
 }
 // End RingRTC

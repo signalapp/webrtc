@@ -1873,11 +1873,7 @@ void SdpOfferAnswerHandler::RestartIce() {
 void SdpOfferAnswerHandler::RegatherOnAllNetworks() {
   RTC_LOG_THREAD_BLOCK_COUNT();
   RTC_DCHECK_RUN_ON(signaling_thread());
-  if (pc_->shared_ice_gatherer()) {
-    RTC_LOG(LS_ERROR) << "RegatherOnAllNetworks using SharedIceGatherer unimplemented";
-  } else {
-    transport_controller_s()->RegatherOnAllNetworks();
-  }
+  transport_controller_s()->RegatherOnAllNetworks();
 }
 // End RingRTC
 

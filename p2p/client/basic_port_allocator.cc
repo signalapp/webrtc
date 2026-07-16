@@ -1449,7 +1449,10 @@ void AllocationSequence::DisableEquivalentPhases(const Network* network,
       // Already got this STUN servers covered.
       *flags |= PORTALLOCATOR_DISABLE_STUN;
     }
-    if (!config_->relays.empty()) {
+    // RingRTC change to regather relay candidates when we regather host candidates.
+    // *flags & PORTALLOCATOR_DISABLE_UDP is false for new UDP ports
+    if (!config_->relays.empty() &&
+        (*flags & PORTALLOCATOR_DISABLE_UDP)) {
       // Already got relays covered.
       // NOTE: This will even skip a _different_ set of relay servers if we
       // were to be given one, but that never happens in our codebase. Should
