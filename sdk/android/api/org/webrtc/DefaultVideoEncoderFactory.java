@@ -27,7 +27,8 @@ public class DefaultVideoEncoderFactory implements VideoEncoderFactory {
   }
 
   /** Create encoder factory using explicit hardware encoder factory. */
-  DefaultVideoEncoderFactory(VideoEncoderFactory hardwareVideoEncoderFactory) {
+  // RingRTC change to support filtering certain hardware and providing software fallback
+  public DefaultVideoEncoderFactory(VideoEncoderFactory hardwareVideoEncoderFactory) {
     this.hardwareVideoEncoderFactory = hardwareVideoEncoderFactory;
   }
 

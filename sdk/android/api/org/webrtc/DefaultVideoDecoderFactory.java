@@ -33,9 +33,11 @@ public class DefaultVideoDecoderFactory implements VideoDecoderFactory {
   /**
    * Create decoder factory using explicit hardware decoder factory.
    */
-  DefaultVideoDecoderFactory(VideoDecoderFactory hardwareVideoDecoderFactory) {
+  // RingRTC change to support filtering certain hardware and providing software fallback
+  public DefaultVideoDecoderFactory(VideoDecoderFactory hardwareVideoDecoderFactory, VideoDecoderFactory softwareVideoDecoderFactory) {
     this.hardwareVideoDecoderFactory = hardwareVideoDecoderFactory;
-    this.platformSoftwareVideoDecoderFactory = null;
+    // RingRTC change to support filtering certain hardware and providing software fallback
+    this.platformSoftwareVideoDecoderFactory = softwareVideoDecoderFactory;
   }
 
   @Override
