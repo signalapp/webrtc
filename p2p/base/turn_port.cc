@@ -818,9 +818,8 @@ bool TurnPort::HandleIncomingPacket(AsyncPacketSocket* socket,
     return false;
   }
 
-  request_manager_.CheckResponse(packet.payload());
-
-  return true;
+  // RingRTC change to return whether a response actually belongs to given TurnPort
+  return request_manager_.CheckResponse(packet.payload());
 }
 
 void TurnPort::OnReadPacket(AsyncPacketSocket* socket,
