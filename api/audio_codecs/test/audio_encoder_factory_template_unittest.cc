@@ -256,8 +256,7 @@ TEST(AudioEncoderFactoryTemplateTest, TwoEncoderTypes) {
       Pointer(Property(&AudioEncoder::SampleRateHz, 16000)));
 }
 
-// RingRTC change to disable unused audio codecs
-TEST(AudioEncoderFactoryTemplateTest, DISABLED_G711) {
+TEST(AudioEncoderFactoryTemplateTest, G711) {
   const Environment env = CreateTestEnvironment();
   auto factory = CreateAudioEncoderFactory<AudioEncoderG711>();
   EXPECT_THAT(factory->GetSupportedEncoders(),
@@ -275,8 +274,7 @@ TEST(AudioEncoderFactoryTemplateTest, DISABLED_G711) {
               Pointer(Property(&AudioEncoder::SampleRateHz, 8000)));
 }
 
-// RingRTC change to disable unused audio codecs
-TEST(AudioEncoderFactoryTemplateTest, DISABLED_G722) {
+TEST(AudioEncoderFactoryTemplateTest, G722) {
   const Environment env = CreateTestEnvironment();
   auto factory = CreateAudioEncoderFactory<AudioEncoderG722>();
   EXPECT_THAT(factory->GetSupportedEncoders(),
@@ -291,8 +289,7 @@ TEST(AudioEncoderFactoryTemplateTest, DISABLED_G722) {
               Pointer(Property(&AudioEncoder::SampleRateHz, 16000)));
 }
 
-// RingRTC change to disable unused audio codecs
-TEST(AudioEncoderFactoryTemplateTest, DISABLED_L16) {
+TEST(AudioEncoderFactoryTemplateTest, L16) {
   const Environment env = CreateTestEnvironment();
   auto factory = CreateAudioEncoderFactory<AudioEncoderL16>();
   EXPECT_THAT(

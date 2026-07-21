@@ -433,7 +433,14 @@ RtpPacketSinkInterface* RtpDemuxer::ResolveSink(
   //                 is sent without registering an ssrc with webrtc
   // Legacy senders will only signal payload type.
   // Support that as a last resort.
+#if defined(BUILD_WEBRTC_TESTS)
+  if (use_payload_type_demuxing_) {
+    return ResolveSinkByPayloadType(packet.PayloadType(), ssrc);
+  }
+  return nullptr;
+#else
   return ResolveSinkByPayloadType(packet.PayloadType(), ssrc);
+#endif
   // End RingRTC change
 }
 

@@ -733,7 +733,11 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
   // Some tests will be detected as SDP munging, so offer the option
   // to disable.
   // RingRTC change to disable SDP munging checks
+#if defined(BUILD_WEBRTC_TESTS)
+  bool disable_sdp_munging_checks_ = false;
+#else
   bool disable_sdp_munging_checks_ = true;
+#endif
   CodecLookupHelper* codec_lookup_helper_ = nullptr;
 
   // Whether the username fragment or the password of the SDP was munged.

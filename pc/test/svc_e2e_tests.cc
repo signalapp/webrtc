@@ -459,8 +459,9 @@ INSTANTIATE_TEST_SUITE_P(
     SvcTestNameGenerator);
 #endif
 
+// RingRTC change to disable unsupported tests.
 INSTANTIATE_TEST_SUITE_P(
-    SvcTestAV1,
+    DISABLED_SvcTestAV1,
     SvcTest,
     Combine(ValuesIn({
                 SvcTestParameters::Create(kAv1CodecName, "L1T1"),

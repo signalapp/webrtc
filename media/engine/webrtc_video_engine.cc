@@ -108,7 +108,9 @@ namespace webrtc {
 namespace {
 
 // RingRTC change to not process unsignaled SSRCs
-// constexpr int64_t kUnsignaledSsrcCooldownMs = kNumMillisecsPerSec / 2;
+#if defined(BUILD_WEBRTC_TESTS)
+constexpr int64_t kUnsignaledSsrcCooldownMs = kNumMillisecsPerSec / 2;
+#endif
 
 // This constant is really an on/off, lower-level configurable NACK history
 // duration hasn't been implemented.
@@ -865,7 +867,7 @@ std::vector<RtpHeaderExtensionCapability>
 WebRtcVideoEngine::GetRtpHeaderExtensions(
     const FieldTrialsView* field_trials) const {
   // RingRTC change to disable unused header extensions
-#if 0
+#if defined(BUILD_WEBRTC_TESTS)
   // Use field trials from PeerConnection `field_trials` or from
   // PeerConnectionFactory `trials_`.
   const FieldTrialsView& trials =
@@ -881,16 +883,20 @@ WebRtcVideoEngine::GetRtpHeaderExtensions(
         RtpExtension::kVideoRotationUri,
         RtpExtension::kTransportSequenceNumberUri,
         // RingRTC change to disable unused header extensions
-        // RtpExtension::kPlayoutDelayUri, RtpExtension::kVideoContentTypeUri,
-        // RtpExtension::kVideoTimingUri, RtpExtension::kColorSpaceUri,
+#if defined(BUILD_WEBRTC_TESTS)
+        RtpExtension::kPlayoutDelayUri, RtpExtension::kVideoContentTypeUri,
+        RtpExtension::kVideoTimingUri, RtpExtension::kColorSpaceUri,
+#endif
         RtpExtension::kMidUri,
-        // RtpExtension::kRidUri,
-        // RtpExtension::kRepairedRidUri
+#if defined(BUILD_WEBRTC_TESTS)
+        RtpExtension::kRidUri,
+        RtpExtension::kRepairedRidUri,
+#endif
        }) {
     result.emplace_back(uri, id++, RtpTransceiverDirection::kSendRecv);
   }
   // RingRTC change to disable unused header extensions
-#if 0
+#if defined(BUILD_WEBRTC_TESTS)
   result.emplace_back(RtpExtension::kCorruptionDetectionUri, id++,
                       /*preferred_encrypt=*/true,
                       RtpTransceiverDirection::kStopped);
@@ -915,7 +921,8 @@ WebRtcVideoEngine::GetRtpHeaderExtensions(
     result.emplace_back(RtpExtension::kVideoFrameTrackingIdUri, id,
                         RtpTransceiverDirection::kSendRecv);
   }
-#endif // RingRTC change to disable unused header extensions
+#endif  // defined(BUILD_WEBRTC_TESTS)
+  // end RingRTC change
   return result;
 }
 
@@ -3341,7 +3348,7 @@ bool WebRtcVideoReceiveChannel::MaybeCreateDefaultReceiveStream(
   // know what stream it associates with, and we shouldn't ever create an
   // implicit channel for these.
   // RingRTC change to not process unsignaled SSRCs
-#if 0
+#if defined(BUILD_WEBRTC_TESTS)
   bool is_rtx_payload = false;
   for (auto& codec : recv_codecs_) {
     if (packet.PayloadType() == codec.ulpfec.red_rtx_payload_type ||
@@ -3387,8 +3394,11 @@ bool WebRtcVideoReceiveChannel::MaybeCreateDefaultReceiveStream(
   // RTX SSRC not yet known.
   ReCreateDefaultReceiveStream(packet.Ssrc(), std::nullopt);
   last_unsignalled_ssrc_creation_time_ms_ = env_.clock().TimeInMilliseconds();
-#endif // RingRTC change to not process unsignaled SSRCs
+  return true;
+#else
   return false;
+#endif  // defined(BUILD_WEBRTC_TESTS)
+// end RingRTC change
 }
 
 void WebRtcVideoReceiveChannel::ReCreateDefaultReceiveStream(

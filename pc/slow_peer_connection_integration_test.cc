@@ -359,7 +359,9 @@ TEST_P(PeerConnectionIntegrationIceStatesTestWithFakeClock, VerifyIceStates) {
 
 // This test sets up a call that's transferred to a new caller with a different
 // DTLS fingerprint.
-TEST_P(PeerConnectionIntegrationTest, CallTransferredForCallee) {
+// RingRTC change to disable unsupported tests.
+// Disabled because this test is flaky. See https://issues.webrtc.org/issues/42235015.
+TEST_P(PeerConnectionIntegrationTest, DISABLED_CallTransferredForCallee) {
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   ConnectFakeSignaling();
   caller()->AddAudioVideoTracks();

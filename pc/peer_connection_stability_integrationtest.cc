@@ -430,7 +430,8 @@ class PeerConnectionIntegrationTest : public PeerConnectionIntegrationBaseTest {
   }
 };
 
-TEST_F(PeerConnectionIntegrationTest, BasicOfferAnswerPayloadTypesStable) {
+// RingRTC change to disable unsupported tests.
+TEST_F(PeerConnectionIntegrationTest, DISABLED_BasicOfferAnswerPayloadTypesStable) {
   FactorySignature factory_signature(env_.field_trials());
   ASSERT_THAT(factory_signature.id(),
               Not(Eq(FactorySignature::Id::kNotRecognized)));

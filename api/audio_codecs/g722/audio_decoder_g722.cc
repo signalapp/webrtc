@@ -38,7 +38,9 @@ std::optional<AudioDecoderG722::Config> AudioDecoderG722::SdpToConfig(
 void AudioDecoderG722::AppendSupportedDecoders(
     std::vector<AudioCodecSpec>* specs) {
   // RingRTC change to disable unused audio codecs
-  // specs->push_back({.format = {"G722", 8000, 1}, .info = {16000, 1, 64000}});
+#if defined(BUILD_WEBRTC_TESTS)
+  specs->push_back({.format = {"G722", 8000, 1}, .info = {16000, 1, 64000}});
+#endif
 }
 
 std::unique_ptr<AudioDecoder> AudioDecoderG722::MakeAudioDecoder(

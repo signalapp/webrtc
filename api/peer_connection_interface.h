@@ -630,7 +630,11 @@ class RTC_EXPORT PeerConnectionInterface : public RefCountInterface {
     // connectivity checks it becomes inactive. This parameter overrides the
     // default value in the ICE implementation if set.
     // RingRTC change to configure inactive timeout
+#if defined(BUILD_WEBRTC_TESTS)
+    std::optional<int> ice_inactive_timeout;
+#else
     std::optional<int> ice_inactive_timeout = 30 * 1000; // 30 seconds
+#endif
 
     // The interval in milliseconds at which STUN candidates will resend STUN
     // binding requests to keep NAT bindings open.

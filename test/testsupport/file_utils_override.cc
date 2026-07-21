@@ -87,10 +87,6 @@ const absl::string_view kResourcesDirName = "resources";
 // Finds the WebRTC src dir.
 // The returned path always ends with a path separator.
 std::optional<std::string> ProjectRootPath() {
-  // RingRTC change to locate resources directory correctly.
-  const std::string ringrtc_path_change =
-      std::string(kPathDelimiter) + "src" + std::string(kPathDelimiter) +
-      "webrtc" + std::string(kPathDelimiter) + "src";
 #if defined(WEBRTC_ANDROID)
   return std::string(kAndroidChromiumTestsRoot);
 #elif defined WEBRTC_IOS
@@ -101,8 +97,7 @@ std::optional<std::string> ProjectRootPath() {
   std::string exe_dir = DirName(path);
   // On Mac, tests execute in out/Whatever, so src is two levels up except if
   // the test is bundled (which our tests are not), in which case it's 5 levels.
-  // RingRTC change to locate resources directory correctly.
-  return DirName(DirName(exe_dir)) + ringrtc_path_change + std::string(kPathDelimiter);
+  return DirName(DirName(exe_dir)) + std::string(kPathDelimiter);
 #elif defined(WEBRTC_POSIX)
 // Fuchsia uses POSIX defines as well but does not have full POSIX
 // functionality.
@@ -117,8 +112,7 @@ std::optional<std::string> ProjectRootPath() {
   }
   // On POSIX, tests execute in out/Whatever, so src is two levels up.
   std::string exe_dir = DirName(absl::string_view(buf, count));
-  // RingRTC change to locate resources directory correctly.
-  return DirName(DirName(exe_dir)) + ringrtc_path_change + std::string(kPathDelimiter);
+  return DirName(DirName(exe_dir)) + std::string(kPathDelimiter);
 #endif
 #elif defined(WEBRTC_WIN)
   wchar_t buf[MAX_PATH];
@@ -128,8 +122,7 @@ std::optional<std::string> ProjectRootPath() {
 
   std::string exe_path = webrtc::ToUtf8(std::wstring(buf));
   std::string exe_dir = DirName(exe_path);
-  // RingRTC change to locate resources directory correctly.
-  return DirName(DirName(exe_dir)) + ringrtc_path_change + std::string(kPathDelimiter);
+  return DirName(DirName(exe_dir)) + std::string(kPathDelimiter);
 #endif
 }
 
@@ -143,10 +136,7 @@ std::string OutputPath() {
 #else
   std::optional<std::string> path_opt = ProjectRootPath();
   RTC_DCHECK(path_opt);
-  // RingRTC change to locate resources directory correctly.
-  // e.g. ringrtc/src/webrtc/src should become ringrtc/out
-  std::string ringrtc_path_change = DirName(DirName(DirName(*path_opt)));
-  std::string path = ringrtc_path_change + std::string(kPathDelimiter) + "out";
+  std::string path = *path_opt + "out";
   if (!CreateDir(path)) {
     return "./";
   }

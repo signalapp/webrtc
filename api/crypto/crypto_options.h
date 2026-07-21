@@ -64,7 +64,11 @@ struct RTC_EXPORT CryptoOptions {
     // The most commonly used cipher. Can be disabled, mostly for testing
     // purposes.
     // RingRTC change to use GCM by default
+#if defined(BUILD_WEBRTC_TESTS)
+    bool enable_aes128_sha1_80_crypto_cipher = true;
+#else
     bool enable_aes128_sha1_80_crypto_cipher = false;
+#endif
 
     // This feature enables encrypting RTP header extensions using RFC 6904, if
     // requested. For this to work the Chromium field trial

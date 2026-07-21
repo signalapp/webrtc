@@ -248,7 +248,9 @@ bool RTPSenderAudio::SendAudio(const RtpAudioFrame& frame) {
   // RingRTC change to reduce unneeded information on the wire
   // Make the audio level less precise (0, 10, 20, 30, ...).
   uint8_t audio_level_dbov = frame.audio_level_dbov.value_or(127);
+#if !defined(BUILD_WEBRTC_TESTS)
   audio_level_dbov -= (audio_level_dbov % 10);
+#endif
 
   // Set audio level extension, if included.
   packet->SetExtension<AudioLevelExtension>(

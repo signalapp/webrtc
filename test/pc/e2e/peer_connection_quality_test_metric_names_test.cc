@@ -116,8 +116,9 @@ std::vector<MetricValidationInfo> ToValidationInfo(
   return out;
 }
 
+// RingRTC change to disable unsupported tests.
 TEST(PeerConnectionE2EQualityTestMetricNamesTest,
-     ExportedMetricsHasCorrectNamesAndAnnotation) {
+     DISABLED_ExportedMetricsHasCorrectNamesAndAnnotation) {
   std::unique_ptr<NetworkEmulationManager> network_emulation =
       CreateNetworkEmulationManager({.time_mode = TimeMode::kSimulated});
   DefaultMetricsLogger metrics_logger(

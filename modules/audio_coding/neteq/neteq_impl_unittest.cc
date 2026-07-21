@@ -127,6 +127,14 @@ class NetEqImplTest : public ::testing::Test {
       std::unique_ptr<MockPacketBuffer> mock(new MockPacketBuffer(
           config_.max_packets_in_buffer, tick_timer_, deps.stats.get()));
       mock_packet_buffer_ = mock.get();
+// RingRTC change to support Opus DRED
+// Default the DRED virtual functions so they don't use a real PacketBuffer.
+#if WEBRTC_OPUS_SUPPORT_DRED
+      ON_CALL(*mock_packet_buffer_, NextLowerTimestamp)
+          .WillByDefault(Return(std::nullopt));
+      ON_CALL(*mock_packet_buffer_, NewestSequenceNumber)
+          .WillByDefault(Return(std::nullopt));
+#endif
       deps.packet_buffer = std::move(mock);
     }
     packet_buffer_ = deps.packet_buffer.get();

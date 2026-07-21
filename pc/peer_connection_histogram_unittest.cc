@@ -613,7 +613,8 @@ struct IPAddressTypeTestConfig {
 } const kAllCandidateIPAddressTypeTestConfigs[] = {
     {.address = "127.0.0.1", .address_type = IPAddressType::kLoopback},
     {.address = "::1", .address_type = IPAddressType::kLoopback},
-    {.address = "localhost", .address_type = IPAddressType::kLoopback},
+    // RingRTC change to disable unsupported tests.
+    // {.address = "localhost", .address_type = IPAddressType::kLoopback},
     {.address = "10.0.0.3", .address_type = IPAddressType::kPrivate},
     {.address = "FE80::3", .address_type = IPAddressType::kPrivate},
     {.address = "1.1.1.1", .address_type = IPAddressType::kPublic},

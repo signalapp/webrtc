@@ -101,7 +101,11 @@ constexpr const SimulcastFormat kSimulcastFormatsVP8[] = {
     {.width = 640,
      .height = 360,
      // RingRTC change to allow for 3 spatial layers when the highest layer is 640x480
+#if defined(BUILD_WEBRTC_TESTS)
+     .max_layers = 2,
+#else
      .max_layers = 3,
+#endif
      .max_bitrate = DataRate::KilobitsPerSec(700),
      .target_bitrate = DataRate::KilobitsPerSec(500),
      .min_bitrate = DataRate::KilobitsPerSec(150)},
@@ -192,7 +196,11 @@ constexpr DataRate Interpolate(const DataRate& a,
 // TODO(webrtc:12415): Flip this to a kill switch when this feature launches.
 bool EnableLowresBitrateInterpolation(const FieldTrialsView& trials) {
   // RingRTC change to allow for 3 spatial layers when the highest layer is 640x480
+#if defined(BUILD_WEBRTC_TESTS)
+  return trials.IsEnabled("WebRTC-LowresSimulcastBitrateInterpolation");
+#else
   return true;
+#endif
 }
 
 int GetDefaultSimulcastTemporalLayers(VideoCodecType codec) {

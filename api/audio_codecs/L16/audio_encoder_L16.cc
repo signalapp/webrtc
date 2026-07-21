@@ -55,7 +55,9 @@ std::optional<AudioEncoderL16::Config> AudioEncoderL16::SdpToConfig(
 void AudioEncoderL16::AppendSupportedEncoders(
     std::vector<AudioCodecSpec>* specs) {
   // RingRTC change to disable unused audio codecs
-  // Pcm16BAppendSupportedCodecSpecs(specs);
+#if defined(BUILD_WEBRTC_TESTS)
+  Pcm16BAppendSupportedCodecSpecs(specs);
+#endif
 }
 
 AudioCodecInfo AudioEncoderL16::QueryAudioEncoder(

@@ -46,9 +46,11 @@ std::optional<AudioDecoderG711::Config> AudioDecoderG711::SdpToConfig(
 void AudioDecoderG711::AppendSupportedDecoders(
     std::vector<AudioCodecSpec>* specs) {
   // RingRTC change to disable unused audio codecs
-  // for (const char* type : {"PCMU", "PCMA"}) {
-  //   specs->push_back({.format = {type, 8000, 1}, .info = {8000, 1, 64000}});
-  // }
+#if defined(BUILD_WEBRTC_TESTS)
+  for (const char* type : {"PCMU", "PCMA"}) {
+    specs->push_back({.format = {type, 8000, 1}, .info = {8000, 1, 64000}});
+  }
+#endif
 }
 
 std::unique_ptr<AudioDecoder> AudioDecoderG711::MakeAudioDecoder(

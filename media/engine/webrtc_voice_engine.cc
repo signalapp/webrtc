@@ -433,7 +433,7 @@ std::vector<Codec> LegacyCollectCodecs(const std::vector<AudioCodecSpec>& specs,
 
   // Add CN codecs after "proper" audio codecs.
   // RingRTC change to disable comfort noise codecs.
-#if 0
+#if defined(BUILD_WEBRTC_TESTS)
   for (const auto& cn : generate_cn) {
     if (cn.second) {
       Codec cn_codec = CreateAudioCodec({kCnCodecName, cn.first, 1});
@@ -446,7 +446,7 @@ std::vector<Codec> LegacyCollectCodecs(const std::vector<AudioCodecSpec>& specs,
 #endif
   // Add telephone-event codecs last.
   // RingRTC change to disable telephone-event codecs.
-#if 0
+#if defined(BUILD_WEBRTC_TESTS)
   for (const auto& dtmf : generate_dtmf) {
     if (dtmf.second) {
       Codec dtmf_codec = CreateAudioCodec({kDtmfCodecName, dtmf.first, 1});
@@ -559,7 +559,7 @@ void WebRtcVoiceEngine::Init() {
     options.audio_jitter_buffer_fast_accelerate = false;
     options.audio_jitter_buffer_min_delay_ms = 0;
 
-#if !defined(WEBRTC_IOS) && !defined(WEBRTC_ANDROID)
+#if !defined(WEBRTC_IOS) && !defined(WEBRTC_ANDROID) && !defined(BUILD_WEBRTC_TESTS)
     // RingRTC changes to override audio options.
     auto config = apm_->GetConfig();
     options.echo_cancellation = config.echo_canceller.enabled;
@@ -785,7 +785,11 @@ WebRtcVoiceEngine::GetRtpHeaderExtensions(
   int id = 1;
   // RingRTC change to disable unused header extensions
   for (const auto& uri :
-       {RtpExtension::kAbsSendTimeUri,
+       {
+#if defined(BUILD_WEBRTC_TESTS)
+        RtpExtension::kAudioLevelUri,
+#endif
+        RtpExtension::kAbsSendTimeUri,
         RtpExtension::kTransportSequenceNumberUri, RtpExtension::kMidUri}) {
     result.emplace_back(uri, id++, RtpTransceiverDirection::kSendRecv);
   }
@@ -1603,7 +1607,7 @@ bool WebRtcVoiceSendChannel::SetSend(bool send) {
     engine()->ApplyOptions(options_);
 
     // RingRTC change to not do early InitRecording()
-#if false
+#if defined(BUILD_WEBRTC_TESTS)
     // Initialize the ADM for recording (this may take time on some platforms,
     // e.g. Android).
     if (options_.init_recording_on_send.value_or(true) &&
@@ -1818,8 +1822,13 @@ bool WebRtcVoiceSendChannel::MuteStream(uint32_t ssrc, bool muted) {
   }
   AudioProcessing* ap = engine()->apm();
   if (ap) {
+#if defined(BUILD_WEBRTC_TESTS)
+    ap->set_capture_output_used(nullptr, capture_output_used);
+#else
     ap->set_capture_output_used(this, capture_output_used);
+#endif
   }
+  // end RingRTC change
 
   return true;
 }

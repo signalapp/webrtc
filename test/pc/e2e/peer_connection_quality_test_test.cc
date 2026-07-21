@@ -95,7 +95,8 @@ class PeerConnectionE2EQualityTestTest : public Test {
   size_t expected_output_files_count_ = 0;
 };
 
-TEST_F(PeerConnectionE2EQualityTestTest, OutputVideoIsDumpedWhenRequested) {
+// RingRTC change to disable unsupported tests.
+TEST_F(PeerConnectionE2EQualityTestTest, DISABLED_OutputVideoIsDumpedWhenRequested) {
   std::unique_ptr<NetworkEmulationManager> network_emulation =
       CreateNetworkEmulationManager({.time_mode = TimeMode::kSimulated});
   PeerConnectionE2EQualityTest fixture(

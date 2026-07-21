@@ -40,6 +40,14 @@ class MockPacketBuffer : public PacketBuffer {
               NextHigherTimestamp,
               (uint32_t timestamp, uint32_t* next_timestamp),
               (const, override));
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+  MOCK_METHOD(std::optional<NextLowerTimestampResult>,
+              NextLowerTimestamp,
+              (uint16_t sequence_number, uint32_t timestamp),
+              (const, override));
+  MOCK_METHOD(std::optional<uint16_t>, NewestSequenceNumber, (), (const, override));
+#endif
   MOCK_METHOD(const Packet*, PeekNextPacket, (), (const, override));
   MOCK_METHOD(std::optional<Packet>, GetNextPacket, (), (override));
   MOCK_METHOD(int, DiscardNextPacket, (), (override));

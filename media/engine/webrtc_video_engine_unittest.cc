@@ -539,23 +539,19 @@ TEST_F(WebRtcVideoEngineTest, SupportsVideoRotationHeaderExtension) {
   ExpectRtpCapabilitySupport(RtpExtension::kVideoRotationUri, true);
 }
 
-// RingRTC change to disable unused header extensions
-TEST_F(WebRtcVideoEngineTest, DISABLED_SupportsPlayoutDelayHeaderExtension) {
+TEST_F(WebRtcVideoEngineTest, SupportsPlayoutDelayHeaderExtension) {
   ExpectRtpCapabilitySupport(RtpExtension::kPlayoutDelayUri, true);
 }
 
-// RingRTC change to disable unused header extensions
-TEST_F(WebRtcVideoEngineTest, DISABLED_SupportsVideoContentTypeHeaderExtension) {
+TEST_F(WebRtcVideoEngineTest, SupportsVideoContentTypeHeaderExtension) {
   ExpectRtpCapabilitySupport(RtpExtension::kVideoContentTypeUri, true);
 }
 
-// RingRTC change to disable unused header extensions
-TEST_F(WebRtcVideoEngineTest, DISABLED_SupportsVideoTimingHeaderExtension) {
+TEST_F(WebRtcVideoEngineTest, SupportsVideoTimingHeaderExtension) {
   ExpectRtpCapabilitySupport(RtpExtension::kVideoTimingUri, true);
 }
 
-// RingRTC change to disable unused header extensions
-TEST_F(WebRtcVideoEngineTest, DISABLED_SupportsColorSpaceHeaderExtension) {
+TEST_F(WebRtcVideoEngineTest, SupportsColorSpaceHeaderExtension) {
   ExpectRtpCapabilitySupport(RtpExtension::kColorSpaceUri, true);
 }
 
@@ -1097,8 +1093,7 @@ TEST_F(WebRtcVideoEngineTest, TooLowReceiveBufferSizeViaFieldTrial) {
   receive_channel->SetInterface(nullptr);
 }
 
-// RingRTC change to not process unsignaled SSRCs
-TEST_F(WebRtcVideoEngineTest, DISABLED_UpdatesUnsignaledRtxSsrcAndRecoversPayload) {
+TEST_F(WebRtcVideoEngineTest, UpdatesUnsignaledRtxSsrcAndRecoversPayload) {
   // Setup a channel with VP8, RTX and transport sequence number header
   // extension. Receive stream is not explicitly configured.
   AddSupportedVideoCodecType("VP8");

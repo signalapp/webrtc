@@ -301,10 +301,12 @@ int16_t WebRtcOpus_EnableDtx(OpusEncInst* inst) {
   RTC_LOG(LS_INFO) << "WebRtcOpus_EnableDtx";
   if (inst) {
     // RingRTC change to force the Opus signal type to voice
+#if !defined(BUILD_WEBRTC_TESTS)
     int ret = ENCODER_CTL(inst, OPUS_SET_SIGNAL(OPUS_SIGNAL_VOICE));
     if (ret != OPUS_OK) {
       return ret;
     }
+#endif
     return ENCODER_CTL(inst, OPUS_SET_DTX(1));
   } else {
     return -1;

@@ -85,7 +85,7 @@ void PacketBuffer::Flush() {
 
   for (auto& p : buffer_) {
     LogPacketDiscarded(p.priority.codec_level);
-    if (p.packet_info.has_value()) {
+    if (p.packet_info.has_value() && p.packet_info->receive_time().IsFinite()) {
       if (prev_recv_ts.us() > 0) {
         auto gap_us = (p.packet_info->receive_time() - prev_recv_ts).us();
 
@@ -108,7 +108,9 @@ void PacketBuffer::Flush() {
     auto& last = buffer_.back();
 
     auto recv_time_diff =
-        first.packet_info.has_value() && last.packet_info.has_value() ?
+        first.packet_info.has_value() && last.packet_info.has_value() &&
+        first.packet_info->receive_time().IsFinite() &&
+        last.packet_info->receive_time().IsFinite() ?
         (last.packet_info->receive_time() - first.packet_info->receive_time()) : TimeDelta::Micros(0);
 
     RTC_LOG(LS_WARNING) << "Flushing packets... seqnum_diff=" << (last.sequence_number - first.sequence_number)
@@ -121,6 +123,7 @@ void PacketBuffer::Flush() {
       << ", num_gaps_above_90ms=" << num_gaps_above_90ms
       << ", num_no_packet_info=" << num_no_packet_info;
   }
+  // end RingRTC change
   buffer_.clear();
 // RingRTC change to support Opus DRED
 #if WEBRTC_OPUS_SUPPORT_DRED

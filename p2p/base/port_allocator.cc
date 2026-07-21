@@ -109,7 +109,11 @@ void PortAllocatorSession::set_generation(uint32_t generation) {
 
 PortAllocator::PortAllocator()
     // RingRTC change to default flags
+#if defined(BUILD_WEBRTC_TESTS)
+    : flags_(0),
+#else
     : flags_(PeerConnectionInterface::PortAllocatorConfig().flags),
+#endif
       min_port_(0),
       max_port_(0),
       max_ipv6_networks_(kDefaultMaxIPv6Networks),

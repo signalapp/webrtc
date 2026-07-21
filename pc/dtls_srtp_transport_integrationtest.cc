@@ -242,13 +242,15 @@ class DtlsSrtpTransportIntegrationTest : public ::testing::Test {
   TransportObserver srtp_transport_observer_;
 };
 
-TEST_F(DtlsSrtpTransportIntegrationTest, SendRtpFromSrtpToDtlsSrtp) {
+// RingRTC change to disable unsupported tests.
+TEST_F(DtlsSrtpTransportIntegrationTest, DISABLED_SendRtpFromSrtpToDtlsSrtp) {
   Connect();
   SetupClientKeysManually();
   SendRtpPacketFromSrtpToDtlsSrtp();
 }
 
-TEST_F(DtlsSrtpTransportIntegrationTest, SendRtpFromDtlsSrtpToSrtp) {
+// RingRTC change to disable unsupported tests.
+TEST_F(DtlsSrtpTransportIntegrationTest, DISABLED_SendRtpFromDtlsSrtpToSrtp) {
   Connect();
   SetupClientKeysManually();
   SendRtpPacketFromDtlsSrtpToSrtp();

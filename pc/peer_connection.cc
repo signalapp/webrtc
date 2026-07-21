@@ -355,7 +355,11 @@ bool DtlsEnabled(const PeerConnectionInterface::RTCConfiguration& configuration,
                  const PeerConnectionFactoryInterface::Options& options,
                  const PeerConnectionDependencies& dependencies) {
   // RingRTC change to always disable DTLS.
+#if defined(BUILD_WEBRTC_TESTS)
+  return !options.disable_encryption;
+#else
   return false;
+#endif
 }
 
 void NoteServerUsage(UsagePattern& usage_pattern,

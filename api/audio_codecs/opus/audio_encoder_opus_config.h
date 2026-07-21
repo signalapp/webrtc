@@ -23,7 +23,11 @@ namespace webrtc {
 struct RTC_EXPORT AudioEncoderOpusConfig {
   static const int kDefaultLowRateComplexity;
   // RingRTC change to ensure that opus encoders start with 60ms frame size
+#if defined(BUILD_WEBRTC_TESTS)
+  static constexpr int kDefaultFrameSizeMs = 20;
+#else
   static constexpr int kDefaultFrameSizeMs = 60;
+#endif
 
   // Opus API allows a min bitrate of 500bps, but Opus documentation suggests
   // bitrate should be in the range of 6000 to 510000, inclusive.

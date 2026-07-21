@@ -671,9 +671,9 @@ bool IPIsNotGloballyUnique(const IPAddress& ip) {
       return true;
     }
   } else if (ip.family() == AF_INET6) {
-    if (IPIsLoopbackV6(ip) || IPIsV4Mapped(ip) || IPIsV4Compatibility(ip) ||
-        IPIs6To4(ip) || IPIsLinkLocalV6(ip) || IPIsSiteLocal(ip) ||
-        IPIsULA(ip) || IPIs6Bone(ip)) {
+    if (IPIsAny(ip) || IPIsLoopbackV6(ip) || IPIsV4Mapped(ip) ||
+        IPIsV4Compatibility(ip) || IPIs6To4(ip) || IPIsLinkLocalV6(ip) ||
+        IPIsSiteLocal(ip) || IPIsULA(ip) || IPIs6Bone(ip)) {
       return true;
     }
     if (IPIsHelper(ip, ipv4ipv6TranslationPrefix, 96)) {
@@ -693,5 +693,6 @@ bool IPIsNotGloballyUnique(const IPAddress& ip) {
   }
   return false;
 }
+// end RingRTC change
 
 }  // namespace webrtc

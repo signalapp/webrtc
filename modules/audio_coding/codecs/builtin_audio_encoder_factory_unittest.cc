@@ -126,7 +126,8 @@ INSTANTIATE_TEST_SUITE_P(BuiltinAudioEncoderFactoryTest,
                          AudioEncoderFactoryTest,
                          ::testing::Values(CreateBuiltinAudioEncoderFactory()));
 
-TEST(BuiltinAudioEncoderFactoryTest, SupportsTheExpectedFormats) {
+// RingRTC change to disable unsupported tests.
+TEST(BuiltinAudioEncoderFactoryTest, DISABLED_SupportsTheExpectedFormats) {
   using ::testing::ElementsAreArray;
   // Check that we claim to support the formats we expect from build flags, and
   // we've ordered them correctly.

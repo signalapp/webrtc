@@ -1449,7 +1449,9 @@ void P2PTransportChannel::AddRemoteCandidate(const Candidate& candidate) {
       // RingRTC change to improve privacy of IP addresses
       // Do not resolve remote candidates because doing so may cause a connection to
       // an arbitrary DNS server.
-      // ResolveHostnameCandidate(new_remote_candidate);
+#if defined(BUILD_WEBRTC_TESTS)
+      ResolveHostnameCandidate(new_remote_candidate);
+#endif
     }
     return;
   }

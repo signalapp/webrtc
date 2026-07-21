@@ -387,7 +387,8 @@ TEST_P(AudioEncoderOpusTest, PacketLossRateUpperBounded) {
   auto states = CreateCodec(sample_rate_hz_, 2);
 
   states->encoder->OnReceivedUplinkPacketLossFraction(0.5);
-  EXPECT_FLOAT_EQ(0.2f, states->encoder->packet_loss_rate());
+  // RingRTC change to support Opus DRED
+  EXPECT_FLOAT_EQ(0.25f, states->encoder->packet_loss_rate());
 }
 
 TEST_P(AudioEncoderOpusTest, DoNotInvokeSetTargetBitrateIfOverheadUnknown) {

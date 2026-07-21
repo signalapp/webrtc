@@ -148,7 +148,8 @@ TEST(EphemeralKeyExchangeCipherGroupsTest, CopyCryptoOptions) {
   EXPECT_EQ(options, copy2);
 }
 
-TEST(CryptoOptionsTest, GetSupportedDtlsSrtpCryptoSuitesDefault) {
+// RingRTC change to disable unsupported tests.
+TEST(CryptoOptionsTest, DISABLED_GetSupportedDtlsSrtpCryptoSuitesDefault) {
   CryptoOptions options;
   EXPECT_THAT(options.GetSupportedDtlsSrtpCryptoSuites(),
               ElementsAre(kSrtpAes128CmSha1_80, kSrtpAeadAes256Gcm,
@@ -160,7 +161,8 @@ TEST(DISABLED_CryptoOptionsTest, DISABLED_GetSupportedDtlsSrtpCryptoSuitesNoGcm)
   EXPECT_THAT(options.GetSupportedDtlsSrtpCryptoSuites(),
               ElementsAre(kSrtpAes128CmSha1_80));
 }
-TEST(CryptoOptionsTest, GetSupportedDtlsSrtpCryptoSuitesPreferGcm) {
+// RingRTC change to disable unsupported tests.
+TEST(CryptoOptionsTest, DISABLED_GetSupportedDtlsSrtpCryptoSuitesPreferGcm) {
   CryptoOptions options;
   options.srtp.prefer_gcm_crypto_suites = true;
   EXPECT_THAT(options.GetSupportedDtlsSrtpCryptoSuites(),

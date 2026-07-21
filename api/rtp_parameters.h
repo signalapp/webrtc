@@ -657,7 +657,11 @@ struct RTC_EXPORT RtpEncodingParameters {
   // TODO(webrtc.bugs.org/8807): Updating this parameter will trigger an encoder
   // reset, but this isn't necessarily required.
   // RingRTC change to make the RTP encoding disabled by default
+#if defined(BUILD_WEBRTC_TESTS)
+  bool active = true;
+#else
   bool active = false;
+#endif
 
   // Value to use for RID RTP header extension.
   std::string rid;
