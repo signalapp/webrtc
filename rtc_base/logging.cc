@@ -269,7 +269,8 @@ LogMessage::~LogMessage() {
 
   const LoggingConfig& config = GetLoggingConfig();
 
-  if (log_line_.severity() >= config.debug_severity()) {
+  // RingRTC change to use global logging configuration.
+  if (log_line_.severity() >= g_dbg_sev) {
     OutputToDebug(log_line_);
   }
 
@@ -425,7 +426,8 @@ void LogMessage::UpdateMinLogSeverity()
     RTC_EXCLUSIVE_LOCKS_REQUIRED(GetLoggingLock()) {
   LoggingSeverity min_sev = g_dbg_sev;
   const LoggingConfig& config = GetLoggingConfig();
-  min_sev = std::min(min_sev, config.min_severity());
+  // RingRTC change to use global logging configuration.
+  // min_sev = std::min(min_sev, config.min_severity());
   for (const auto& sink : config.sinks()) {
     min_sev = std::min(min_sev, sink->min_severity_);
   }
