@@ -81,6 +81,8 @@ void StatsObserverRffi::OnStatsDelivered(
         auto remote_stat =
             report->GetAs<RTCRemoteInboundRtpStreamStats>(*stat->remote_id);
         if (remote_stat) {
+          audio_sender.remote_fraction_lost =
+              remote_stat->fraction_lost.value_or(0.0);
           audio_sender.remote_packets_lost =
               remote_stat->packets_lost.value_or(0);
           audio_sender.remote_jitter = remote_stat->jitter.value_or(0.0);
@@ -151,6 +153,8 @@ void StatsObserverRffi::OnStatsDelivered(
         auto remote_stat =
             report->GetAs<RTCRemoteInboundRtpStreamStats>(*stat->remote_id);
         if (remote_stat) {
+          video_sender.remote_fraction_lost =
+              remote_stat->fraction_lost.value_or(0.0);
           video_sender.remote_packets_lost =
               remote_stat->packets_lost.value_or(0);
           video_sender.remote_jitter = remote_stat->jitter.value_or(0.0);

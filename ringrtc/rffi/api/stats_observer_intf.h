@@ -32,6 +32,7 @@ typedef struct {
   uint32_t ssrc;
   uint32_t packets_sent;
   uint64_t bytes_sent;
+  double remote_fraction_lost;
   int32_t remote_packets_lost;
   double remote_jitter;
   double remote_round_trip_time;
@@ -55,6 +56,7 @@ typedef struct {
   // 0 - kNone, 1 - kCpu, 2 - kBandwidth, 3 - kOther
   uint32_t quality_limitation_reason;
   uint32_t quality_limitation_resolution_changes;
+  double remote_fraction_lost;
   int32_t remote_packets_lost;
   double remote_jitter;
   double remote_round_trip_time;
