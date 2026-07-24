@@ -86,8 +86,11 @@ config("opus_private_config") {
       # Some systems may have SSE4.1+ support.
       "OPUS_X86_MAY_HAVE_SSE4_1",
 
-      # At present libopus has no AVX functions so no sources are add for this,
-      # if you see linker errors on AVX code the this flag is why.
+      # Some systems may have AVX2 support. libopus provides AVX2 kernels
+      # (celt_pitch_xcorr, silk_NSQ_del_dec, silk_inner_product_FLP) that are
+      # selected at runtime via RTCD; the actual sources are built in the
+      # ":opus_avx2" source_set below. MAY_HAVE (not PRESUME) so non-AVX2 CPUs
+      # fall back to SSE4.1/C at runtime.
       "OPUS_X86_MAY_HAVE_AVX2",
     ]
   }
@@ -194,8 +197,8 @@ if (use_opus_x86_optimization) {
   source_set("opus_avx2") {
     sources = [
       "src/celt/x86/pitch_avx.c",
-      "src/silk/x86/NSQ_del_dec_avx2.c",
       "src/silk/float/x86/inner_product_FLP_avx2.c",
+      "src/silk/x86/NSQ_del_dec_avx2.c",
     ]
     if (rtc_opus_support_dred || rtc_opus_support_deep_plc) {
       sources += [
@@ -216,7 +219,13 @@ if (use_opus_x86_optimization) {
     }
 
     if (!is_win || is_clang) {
-      cflags = [ "-mavx", "-mfma", "-mavx2" ]
+      cflags = [
+        "-mavx",
+        "-mfma",
+        "-mavx2",
+      ]
+    } else {
+      cflags = [ "/arch:AVX2" ]
     }
   }
 }
@@ -522,8 +531,10 @@ static_library("opus") {
         "src/dnn/x86/nnet_sse2.c",
       ]
     }
-    deps += [ ":opus_sse41" ]
-    deps += [ ":opus_avx2" ]
+    deps += [
+      ":opus_avx2",
+      ":opus_sse41",
+    ]
   }
 
   if (use_opus_arm_optimization) {
