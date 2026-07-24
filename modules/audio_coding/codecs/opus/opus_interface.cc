@@ -745,12 +745,10 @@ int WebRtcOpus_DredParse(OpusDecInst* inst,
                          int32_t* dred_end) {
   if (!inst->dred_decoder)
     return 0;
-  // Request one extra 10ms frame to overcome a bug in Opus DRED parsing.
-  int parse_max_samples = max_samples + inst->sample_rate_hz / 100;
   int result = opus_dred_parse(inst->dred_decoder,
                                reinterpret_cast<OpusDRED*>(dred_data), encoded,
                                static_cast<opus_int32>(length_bytes),
-                               parse_max_samples, inst->sample_rate_hz,
+                               max_samples, inst->sample_rate_hz,
                                dred_end, 0);
   return result;
 }
