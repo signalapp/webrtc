@@ -20,7 +20,10 @@ import android.os.Build;
 import androidx.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
+// RingRTC change to include scalability modes begin
+import java.util.Collections;
 import java.util.List;
+// end RingRTC change
 
 /** Factory for android hardware video encoders. */
 @SuppressWarnings("deprecation") // API 16 requires the use of deprecated methods.
@@ -139,15 +142,29 @@ public class HardwareVideoEncoderFactory implements VideoEncoderFactory {
       MediaCodecInfo codec = findCodecForType(type);
       if (codec != null) {
         String name = type.name();
+
+        // RingRTC change to include scalability modes
+        //
+        // The procedure for mapping the hardware encoder capabilities to SVC scalability
+        // mode strings is somewhat of an involved process. We currently do not use
+        // hardware encoding in group calls. Therefore, we'll simply return an empty
+        // list of SVC scalability modes here. In the future we may want to actually
+        // build this set.
+        List<String> scalabilityModes = Collections.emptyList();
+
         // TODO(sakal): Always add H264 HP once WebRTC correctly removes codecs that are not
         // supported by the decoder.
         if (type == VideoCodecMimeType.H264 && isH264HighProfileSupported(codec)) {
           supportedCodecInfos.add(new VideoCodecInfo(
-              name, MediaCodecUtils.getCodecProperties(type, /* highProfile= */ true)));
+              name, MediaCodecUtils.getCodecProperties(type, /* highProfile= */ true),
+              // RingRTC change to include scalability modes
+              scalabilityModes));
         }
 
         supportedCodecInfos.add(new VideoCodecInfo(
-            name, MediaCodecUtils.getCodecProperties(type, /* highProfile= */ false)));
+            name, MediaCodecUtils.getCodecProperties(type, /* highProfile= */ false),
+            // RingRTC change to include scalability modes
+            scalabilityModes));
       }
     }
 

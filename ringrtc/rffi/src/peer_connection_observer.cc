@@ -8,6 +8,7 @@
 #include <span>
 
 #include "pc/webrtc_sdp.h"
+#include "rffi/src/constants.h"
 #include "rffi/src/ptr.h"
 #include "rtc_base/net_helper.h"
 #include "rtc_base/string_encode.h"
@@ -150,42 +151,39 @@ void PeerConnectionObserverRffi::OnTrack(
   auto receiver = transceiver->receiver();
   auto streams = receiver->streams();
 
+  const auto ids = receiver->stream_ids();
+
   // Ownership is transferred to the rust call back
   // handler.  Someone must call RefCountInterface::Release()
   // eventually.
   if (receiver->media_type() == MediaType::AUDIO) {
     if (enable_frame_encryption_) {
-      uint32_t id = 0;
-      if (receiver->stream_ids().size() > 0) {
-        FromString(receiver->stream_ids()[0], &id);
-      }
-      if (id != 0) {
+      uint32_t id;
+      if (!ids.empty() && FromString(ids[0], &id) && id != DISABLED_DEMUX_ID) {
         receiver->SetFrameDecryptor(CreateDecryptor(id));
         callbacks_.onAddAudioRtpReceiver(observer_, take_rc(receiver->track()));
       } else {
         RTC_LOG(LS_WARNING)
             << "Not sending decryptor for RtpReceiver with strange ID: "
-            << receiver->track()->id();
+            << (ids.empty() ? "<empty>" : ids[0]);
       }
     } else {
       callbacks_.onAddAudioRtpReceiver(observer_, take_rc(receiver->track()));
     }
   } else if (receiver->media_type() == MediaType::VIDEO) {
     if (enable_frame_encryption_) {
-      uint32_t id = 0;
-      if (receiver->stream_ids().size() > 0) {
-        FromString(receiver->stream_ids()[0], &id);
-      }
-      if (id != 0) {
+      uint32_t id;
+      if (!ids.empty() && FromString(ids[0], &id) && id != DISABLED_DEMUX_ID) {
         receiver->SetFrameDecryptor(CreateDecryptor(id));
-        AddVideoSink(static_cast<VideoTrackInterface*>(receiver->track().get()),
-                     id);
+        auto video_track =
+            static_cast<VideoTrackInterface*>(receiver->track().get());
+        AddVideoSink(video_track, id);
         callbacks_.onAddVideoRtpReceiver(observer_, take_rc(receiver->track()),
                                          id);
       } else {
         RTC_LOG(LS_WARNING)
             << "Not sending decryptor for RtpReceiver with strange ID: "
-            << receiver->track()->id();
+            << (ids.empty() ? "<empty>" : ids[0]);
       }
     } else {
       AddVideoSink(static_cast<VideoTrackInterface*>(receiver->track().get()),
@@ -306,7 +304,6 @@ void PeerConnectionObserverRffi::OnVideoFrame(uint32_t demux_id,
     metadata.height = frame.width();
   }
   metadata.rotation = kVideoRotation_0;
-
   callbacks_.onVideoFrame(observer_, demux_id, metadata, buffer_owned_rc);
 }
 
@@ -335,32 +332,28 @@ class Decryptor : public FrameDecryptorInterface {
                                                    is_audio, ciphertext_size);
   }
 
-  FrameDecryptorInterface::Result Decrypt(
-      MediaType media_type,
-      // Our encryption mechanism is the same regardless of CSRCs
-      const std::vector<uint32_t>& _csrcs,
-      // This is not supported by our SFU currently, so don't bother trying to
-      // use it.
-      std::span<const uint8_t> _generic_video_header,
-      std::span<const uint8_t> ciphertext,
-      std::span<uint8_t> plaintext_buffer) override {
+  Result Decrypt(MediaType media_type,
+                 // Our encryption mechanism is the same regardless of CSRCs
+                 const std::vector<uint32_t>& _csrcs,
+                 // This is not supported by our SFU currently, so don't bother
+                 // trying to use it.
+                 std::span<const uint8_t> _generic_video_header,
+                 std::span<const uint8_t> ciphertext,
+                 std::span<uint8_t> plaintext_buffer) override {
     bool is_audio = (media_type == MediaType::AUDIO);
     bool is_video = (media_type == MediaType::VIDEO);
     if (!is_audio && !is_video) {
       RTC_LOG(LS_WARNING) << "Decrypt called with weird media type: "
                           << media_type;
-      return FrameDecryptorInterface::Result(
-          FrameDecryptorInterface::Status::kUnknown, 0);
+      return Result(Status::kUnknown, 0);
     }
     size_t plaintext_size = 0;
     if (!callbacks_->decryptMedia(observer_, track_id_, ciphertext.data(),
                                   ciphertext.size(), plaintext_buffer.data(),
                                   plaintext_buffer.size(), &plaintext_size)) {
-      return FrameDecryptorInterface::Result(
-          FrameDecryptorInterface::Status::kFailedToDecrypt, 0);
+      return Result(Status::kFailedToDecrypt, 0);
     }
-    return FrameDecryptorInterface::Result(FrameDecryptorInterface::Status::kOk,
-                                           plaintext_size);
+    return Result(Status::kOk, plaintext_size);
   }
 
  private:

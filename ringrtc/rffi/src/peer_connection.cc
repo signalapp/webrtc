@@ -4,6 +4,7 @@
  */
 
 #include <algorithm>
+#include <array>
 #include <string>
 
 #include "api/ice_gatherer_interface.h"
@@ -13,58 +14,69 @@
 #include "api/video_codecs/vp9_profile.h"
 #include "modules/rtp_rtcp/source/rtp_dependency_descriptor_extension.h"
 #include "modules/rtp_rtcp/source/rtp_header_extensions.h"
-#include "modules/rtp_rtcp/source/rtp_video_layers_allocation_extension.h"
 #include "p2p/base/port.h"
 #include "pc/media_session.h"
 #include "pc/rtp_media_utils.h"
 #include "pc/sdp_utils.h"
 #include "pc/session_description.h"
 #include "rffi/api/peer_connection_intf.h"
+#include "rffi/src/constants.h"
+#include "rffi/src/group_call_sdp_builder.h"
 #include "rffi/src/ptr.h"
 #include "rffi/src/rtp_observer.h"
 #include "rffi/src/sdp_observer.h"
 #include "rffi/src/stats_observer.h"
-#include "rtc_base/message_digest.h"
 #include "rtc_base/net_helper.h"
 #include "sdk/media_constraints.h"
 
 namespace webrtc {
 namespace rffi {
 
-int TRANSPORT_CC1_EXT_ID = 1;
-int VIDEO_ORIENTATION_EXT_ID = 4;
-int AUDIO_LEVEL_EXT_ID = 5;
-int DEPENDENCY_DESCRIPTOR_EXT_ID = 6;
-int ABS_SEND_TIME_EXT_ID = 12;
-// Old clients used this value, so don't use it until they are all gone.
-int TX_TIME_OFFSET_EXT_ID = 13;
-int VIDEO_LAYERS_ALLOCATION_EXT_ID = 14;
-
-// Payload types must be over 96 and less than 128.
-// 101 used by connection.rs
-int DATA_PT = 101;
-int OPUS_PT = 102;
-int VP8_PT = 108;
-int VP8_RTX_PT = 118;
-int VP9_PT = 109;
-int VP9_RTX_PT = 119;
-int H264_CHP_PT = 104;
-int H264_CHP_RTX_PT = 114;
-int H264_CBP_PT = 103;
-int H264_CBP_RTX_PT = 113;
-int RED_PT = 120;
-int RED_RTX_PT = 121;
-int ULPFEC_PT = 122;
-
-const uint32_t DISABLED_DEMUX_ID = 0;
+RUSTEXPORT bool Rust_setScalabilityMode(
+    PeerConnectionInterface* peer_connection_borrowed_rc,
+    const char* scalability_mode,
+    int max_bitrate_bps) {
+  if (scalability_mode == nullptr) {
+    return false;
+  }
+  std::optional<int> max_bitrate =
+      max_bitrate_bps > 0 ? std::make_optional(max_bitrate_bps) : std::nullopt;
+  for (auto transceivers = peer_connection_borrowed_rc->GetTransceivers();
+       auto transceiver : transceivers) {
+    if (transceiver->media_type() == MediaType::VIDEO &&
+        transceiver->direction() != RtpTransceiverDirection::kInactive &&
+        transceiver->direction() != RtpTransceiverDirection::kRecvOnly) {
+      auto sender = transceiver->sender();
+      auto parameters = sender->GetParameters();
+      // Ensure we have encodings for this sender. Not having encodings here
+      // may indicate that SDP negotiation has not completed.
+      if (!parameters.encodings.empty()) {
+        bool supports_svc = std::any_of(
+            parameters.codecs.begin(), parameters.codecs.end(),
+            [](auto& codec) { return codec.name == kVp9CodecName; });
+        if (supports_svc) {
+          parameters.encodings[0].scalability_mode = scalability_mode;
+          parameters.encodings[0].max_bitrate_bps = max_bitrate;
+          parameters.encodings[0].scale_resolution_down_by = 1.0;
+          sender->GenerateKeyFrame({});
+          auto result = sender->SetParameters(parameters);
+          if (!result.ok()) {
+            RTC_LOG(LS_WARNING) << "Failed to enable SVC: " << result.message();
+            return false;
+          }
+        }
+      }
+    }
+  }
+  return true;
+}
 
 RUSTEXPORT bool Rust_updateTransceivers(
     PeerConnectionInterface* peer_connection_borrowed_rc,
-    uint32_t* remote_demux_ids_data_borrowed,
+    const uint32_t* remote_demux_ids_data_borrowed,
     size_t length) {
-  std::vector<uint32_t> remote_demux_ids;
-  remote_demux_ids.assign(remote_demux_ids_data_borrowed,
-                          remote_demux_ids_data_borrowed + length);
+  const std::span remote_demux_ids(remote_demux_ids_data_borrowed,
+                                   remote_demux_ids_data_borrowed + length);
 
   auto transceivers = peer_connection_borrowed_rc->GetTransceivers();
   // There should be at most 2 transceivers for each remote demux ID (there can
@@ -98,7 +110,7 @@ RUSTEXPORT bool Rust_updateTransceivers(
       }
     }
 
-    // The same demux ID is used for both the audio and video transceiver, and
+    // The same demux ID is used for both the audio and video transceivers, and
     // audio is added first. So only advance to the next demux ID after seeing
     // a video transceiver.
     if (transceiver->media_type() == MediaType::VIDEO) {
@@ -109,22 +121,18 @@ RUSTEXPORT bool Rust_updateTransceivers(
   // Create transceivers for the remaining remote_demux_ids.
   for (auto i = remote_demux_ids_i; i < remote_demux_ids.size(); i++) {
     auto remote_demux_id = remote_demux_ids[i];
-
+    auto stream_id = std::to_string(remote_demux_id);
     RtpTransceiverInit init;
     init.direction = RtpTransceiverDirection::kRecvOnly;
-    init.stream_ids = {absl::StrCat(remote_demux_id)};
-
-    auto result =
-        peer_connection_borrowed_rc->AddTransceiver(MediaType::AUDIO, init);
-    if (!result.ok()) {
-      RTC_LOG(LS_ERROR) << "Failed to PeerConnection::AddTransceiver(audio)";
+    init.stream_ids = {stream_id};
+    if (!peer_connection_borrowed_rc->AddTransceiver(MediaType::AUDIO, init)
+             .ok()) {
+      RTC_LOG(LS_ERROR) << "Failed to add audio transceiver";
       return false;
     }
-
-    result =
-        peer_connection_borrowed_rc->AddTransceiver(MediaType::VIDEO, init);
-    if (!result.ok()) {
-      RTC_LOG(LS_ERROR) << "Failed to PeerConnection::AddTransceiver(video)";
+    if (!peer_connection_borrowed_rc->AddTransceiver(MediaType::VIDEO, init)
+             .ok()) {
+      RTC_LOG(LS_ERROR) << "Failed to add video transceiver";
       return false;
     }
   }
@@ -648,8 +656,8 @@ RUSTEXPORT SessionDescriptionInterface* Rust_sessionDescriptionFromV4Legacy(
   auto video_content_name = "video";
 
   auto session = std::make_unique<SessionDescription>();
-  session->AddTransportInfo(TransportInfo(audio_content_name, transport));
-  session->AddTransportInfo(TransportInfo(video_content_name, transport));
+  session->AddTransportInfo({audio_content_name, transport});
+  session->AddTransportInfo({video_content_name, transport});
 
   bool stopped = false;
   session->AddContent(audio_content_name, MediaProtocolType::kRtp, stopped,
@@ -937,337 +945,30 @@ RUSTEXPORT SessionDescriptionInterface* Rust_sessionDescriptionFromV4(
       .release();
 }
 
-SessionDescriptionInterface* CreateSessionDescriptionForGroupCall(
-    bool local,
-    const std::string& ice_ufrag,
-    const std::string& ice_pwd,
-    RffiSrtpKey srtp_key,
-    uint32_t local_demux_id,
-    std::vector<uint32_t> remote_demux_ids) {
-  // Major changes from the default WebRTC behavior:
-  // 1. We remove all codecs except Opus and VP8.
-  // 2. We remove all header extensions except for transport-cc, video
-  //    orientation, abs send time, audio level, and dependency descriptor.
-  // 3. Opus CBR and DTX is enabled.
-
-  auto transport = TransportDescription();
-  transport.ice_mode = ICEMODE_FULL;
-  transport.ice_ufrag = ice_ufrag;
-  transport.ice_pwd = ice_pwd;
-  transport.AddOption(ICE_OPTION_TRICKLE);
-
-  // DTLS is disabled
-  transport.connection_role = CONNECTIONROLE_NONE;
-  transport.identity_fingerprint = nullptr;
-
-  // Use SRTP master key material instead
-  CryptoParams crypto_params;
-  crypto_params.crypto_suite = srtp_key.suite;
-  crypto_params.key_params.SetData(srtp_key.key_borrowed, srtp_key.key_len);
-  crypto_params.key_params.AppendData(srtp_key.salt_borrowed,
-                                      srtp_key.salt_len);
-
-  auto set_rtp_params = [crypto_params](MediaContentDescription* media) {
-    media->set_protocol(kMediaProtocolSavpf);
-    media->set_rtcp_mux(true);
-
-    media->set_manually_specify_keys(true);
-    media->set_crypto(crypto_params);
-  };
-
-  auto local_direction = local ? RtpTransceiverDirection::kSendOnly
-                               : RtpTransceiverDirection::kRecvOnly;
-
-  auto local_audio = std::make_unique<AudioContentDescription>();
-  set_rtp_params(local_audio.get());
-  local_audio.get()->set_direction(local_direction);
-
-  auto local_video = std::make_unique<VideoContentDescription>();
-  set_rtp_params(local_video.get());
-  local_video.get()->set_direction(local_direction);
-
-  auto remote_direction = local ? RtpTransceiverDirection::kRecvOnly
-                                : RtpTransceiverDirection::kSendOnly;
-
-  std::vector<std::unique_ptr<AudioContentDescription>> remote_audios;
-  for (auto demux_id : remote_demux_ids) {
-    auto remote_audio = std::make_unique<AudioContentDescription>();
-    set_rtp_params(remote_audio.get());
-    if (demux_id == DISABLED_DEMUX_ID) {
-      remote_audio.get()->set_direction(RtpTransceiverDirection::kInactive);
-    } else {
-      remote_audio.get()->set_direction(remote_direction);
-    }
-
-    remote_audios.push_back(std::move(remote_audio));
-  }
-
-  std::vector<std::unique_ptr<VideoContentDescription>> remote_videos;
-  for (auto demux_id : remote_demux_ids) {
-    auto remote_video = std::make_unique<VideoContentDescription>();
-    set_rtp_params(remote_video.get());
-    if (demux_id == DISABLED_DEMUX_ID) {
-      remote_video.get()->set_direction(RtpTransceiverDirection::kInactive);
-    } else {
-      remote_video.get()->set_direction(remote_direction);
-    }
-
-    remote_videos.push_back(std::move(remote_video));
-  }
-
-  auto opus = CreateAudioCodec(OPUS_PT, kOpusCodecName, 48000, 2);
-  // These are the current defaults for WebRTC
-  // We set them explicitly to avoid having the defaults change on us.
-  opus.SetParam("stereo", "0");  // "1" would cause non-VOIP mode to be used
-  opus.SetParam("ptime", "60");
-  opus.SetParam("minptime", "60");
-  opus.SetParam("maxptime", "60");
-  opus.SetParam("useinbandfec", "1");
-  // This is not a default. We enable this to help reduce bandwidth because we
-  // are using CBR.
-  opus.SetParam("usedtx", "1");
-  opus.SetParam("maxaveragebitrate", "32000");
-  // This is not a default. We enable this for privacy.
-  opus.SetParam("cbr", "1");
-  opus.AddFeedbackParam(
-      FeedbackParam(kRtcpFbParamTransportCc, kParamValueEmpty));
-
-  local_audio->AddCodec(opus);
-  for (auto& remote_audio : remote_audios) {
-    remote_audio->AddCodec(opus);
-  }
-
-  auto add_video_feedback_params = [](Codec* video_codec) {
-    video_codec->AddFeedbackParam(
-        FeedbackParam(kRtcpFbParamTransportCc, kParamValueEmpty));
-    video_codec->AddFeedbackParam(
-        FeedbackParam(kRtcpFbParamCcm, kRtcpFbCcmParamFir));
-    video_codec->AddFeedbackParam(
-        FeedbackParam(kRtcpFbParamNack, kParamValueEmpty));
-    video_codec->AddFeedbackParam(
-        FeedbackParam(kRtcpFbParamNack, kRtcpFbNackParamPli));
-    video_codec->AddFeedbackParam(
-        FeedbackParam(kRtcpFbParamRemb, kParamValueEmpty));
-  };
-
-  auto vp8 = CreateVideoCodec(VP8_PT, kVp8CodecName);
-  auto vp8_rtx = CreateVideoRtxCodec(VP8_RTX_PT, VP8_PT);
-  add_video_feedback_params(&vp8);
-
-  // These are "meta codecs" for redundancy and FEC.
-  // They are enabled by default currently with WebRTC.
-  auto red = CreateVideoCodec(RED_PT, kRedCodecName);
-  auto red_rtx = CreateVideoRtxCodec(RED_RTX_PT, RED_PT);
-
-  local_video->AddCodec(vp8);
-  local_video->AddCodec(vp8_rtx);
-
-  local_video->AddCodec(red);
-  local_video->AddCodec(red_rtx);
-
-  for (auto& remote_video : remote_videos) {
-    remote_video->AddCodec(vp8);
-    remote_video->AddCodec(vp8_rtx);
-
-    remote_video->AddCodec(red);
-    remote_video->AddCodec(red_rtx);
-  }
-
-  auto audio_level =
-      RtpExtension(AudioLevelExtension::Uri(), AUDIO_LEVEL_EXT_ID);
-  // Note: Do not add transport-cc for audio.  Using transport-cc with audio is
-  // still experimental in WebRTC. And don't add abs_send_time because it's only
-  // used for video.
-  local_audio->AddRtpHeaderExtension(audio_level);
-  for (auto& remote_audio : remote_audios) {
-    remote_audio->AddRtpHeaderExtension(audio_level);
-  }
-
-  auto transport_cc1 =
-      RtpExtension(TransportSequenceNumber::Uri(), TRANSPORT_CC1_EXT_ID);
-  // TransportCC V2 is now enabled by default, but the difference is that V2
-  // doesn't send periodic updates and instead waits for feedback requests.
-  // Since the SFU doesn't currently send feedback requests, we can't enable V2.
-  // We'd have to add it to the SFU to move from V1 to V2.
-  auto video_orientation =
-      RtpExtension(VideoOrientation::Uri(), VIDEO_ORIENTATION_EXT_ID);
-  auto dependency_descriptor = RtpExtension(
-      RtpDependencyDescriptorExtension::Uri(), DEPENDENCY_DESCRIPTOR_EXT_ID);
-  // abs_send_time and tx_time_offset are used for more accurate REMB messages
-  // from the receiver, but the SFU doesn't process REMB messages anyway, nor
-  // does it send or receive these header extensions. So, don't waste bytes on
-  // them.
-  auto video_layers_allocation = RtpExtension(
-      RtpVideoLayersAllocationExtension::Uri(), VIDEO_LAYERS_ALLOCATION_EXT_ID);
-  local_video->AddRtpHeaderExtension(transport_cc1);
-  local_video->AddRtpHeaderExtension(video_orientation);
-  local_video->AddRtpHeaderExtension(dependency_descriptor);
-  local_video->AddRtpHeaderExtension(video_layers_allocation);
-  for (auto& remote_video : remote_videos) {
-    remote_video->AddRtpHeaderExtension(transport_cc1);
-    remote_video->AddRtpHeaderExtension(video_orientation);
-    remote_video->AddRtpHeaderExtension(dependency_descriptor);
-  }
-
-  auto setup_streams = [local](MediaContentDescription* audio,
-                               MediaContentDescription* video,
-                               uint32_t demux_id) {
-    uint32_t audio_ssrc = demux_id + 0;
-    // Leave room for audio RTX
-    uint32_t video1_ssrc = demux_id + 2;
-    uint32_t video1_rtx_ssrc = demux_id + 3;
-    uint32_t video2_ssrc = demux_id + 4;
-    uint32_t video2_rtx_ssrc = demux_id + 5;
-    uint32_t video3_ssrc = demux_id + 6;
-    uint32_t video3_rtx_ssrc = demux_id + 7;
-    // Leave room for some more video layers or FEC
-
-    auto audio_stream = StreamParams();
-
-    // We will use the string version of the demux ID to know which
-    // transceiver is for which remote device.
-    std::string demux_id_str = absl::StrCat(demux_id);
-
-    // For local, this should stay in sync with
-    // PeerConnectionFactory.createAudioTrack
-    audio_stream.id = local ? kAudioTrackId : demux_id_str;
-    audio_stream.add_ssrc(audio_ssrc);
-
-    auto video_stream = StreamParams();
-    // For local, this should stay in sync with
-    // PeerConnectionFactory.createVideoSource
-    video_stream.id = local ? kVideoTrackId : demux_id_str;
-    video_stream.add_ssrc(video1_ssrc);
-    if (local) {
-      // Don't add simulcast for remote descriptions
-      video_stream.add_ssrc(video2_ssrc);
-      video_stream.add_ssrc(video3_ssrc);
-      video_stream.ssrc_groups.push_back(
-          SsrcGroup(kSimSsrcGroupSemantics, video_stream.ssrcs));
-    }
-    video_stream.AddFidSsrc(video1_ssrc, video1_rtx_ssrc);  // AKA RTX
-    if (local) {
-      // Don't add simulcast for remote descriptions
-      video_stream.AddFidSsrc(video2_ssrc, video2_rtx_ssrc);  // AKA RTX
-      video_stream.AddFidSsrc(video3_ssrc, video3_rtx_ssrc);  // AKA RTX
-    }
-    // This makes screen share use 2 layers of the highest resolution
-    // (but different quality/framerate) rather than 3 layers of
-    // differing resolution.
-    video->set_conference_mode(true);
-
-    // Things that are the same for all of them
-    for (auto* stream : {&audio_stream, &video_stream}) {
-      // WebRTC just generates a random 16-byte string for the entire
-      // PeerConnection. It's used to send an SDES RTCP message. The value
-      // doesn't seem to be used for anything else. We'll set it around just in
-      // case. But everything seems to work fine without it.
-      stream->cname = demux_id_str;
-
-      stream->set_stream_ids({demux_id_str});
-    }
-
-    audio->AddStream(audio_stream);
-    video->AddStream(video_stream);
-  };
-
-  // Set up local_demux_id
-  setup_streams(local_audio.get(), local_video.get(), local_demux_id);
-
-  // Set up remote_demux_ids
-  for (size_t i = 0; i < remote_demux_ids.size(); i++) {
-    auto remote_audio = &remote_audios[i];
-    auto remote_video = &remote_videos[i];
-    uint32_t rtp_demux_id = remote_demux_ids[i];
-
-    if (rtp_demux_id == DISABLED_DEMUX_ID) {
-      continue;
-    }
-
-    setup_streams(remote_audio->get(), remote_video->get(), rtp_demux_id);
-  }
-
-  local_video->set_rtcp_reduced_size(true);
-  for (auto& remote_video : remote_videos) {
-    remote_video->set_rtcp_reduced_size(true);
-  }
-
-  // We don't set the crypto keys here.
-  // We expect that will be done later by Rust_disableDtlsAndSetSrtpKey.
-
-  // Keep the order as the WebRTC default: (audio, video).
-  auto local_audio_content_name = "local-audio0";
-  auto local_video_content_name = "local-video0";
-
-  auto remote_audio_content_name = "remote-audio";
-  auto remote_video_content_name = "remote-video";
-
-  auto bundle = ContentGroup(GROUP_TYPE_BUNDLE);
-  bundle.AddContentName(local_audio_content_name);
-  bundle.AddContentName(local_video_content_name);
-
-  auto session = std::make_unique<SessionDescription>();
-  session->AddTransportInfo(TransportInfo(local_audio_content_name, transport));
-  session->AddTransportInfo(TransportInfo(local_video_content_name, transport));
-
-  bool stopped = false;
-  session->AddContent(local_audio_content_name, MediaProtocolType::kRtp,
-                      stopped, std::move(local_audio));
-  session->AddContent(local_video_content_name, MediaProtocolType::kRtp,
-                      stopped, std::move(local_video));
-
-  auto audio_it = remote_audios.begin();
-  auto video_it = remote_videos.begin();
-  for (auto i = 0;
-       audio_it != remote_audios.end() && video_it != remote_videos.end();
-       i++) {
-    auto remote_audio = std::move(*audio_it);
-    audio_it = remote_audios.erase(audio_it);
-
-    std::string audio_name = remote_audio_content_name;
-    audio_name += std::to_string(i);
-    session->AddTransportInfo(TransportInfo(audio_name, transport));
-    session->AddContent(audio_name, MediaProtocolType::kRtp, stopped,
-                        std::move(remote_audio));
-    bundle.AddContentName(audio_name);
-
-    auto remote_video = std::move(*video_it);
-    video_it = remote_videos.erase(video_it);
-
-    std::string video_name = remote_video_content_name;
-    video_name += std::to_string(i);
-    session->AddTransportInfo(TransportInfo(video_name, transport));
-    session->AddContent(video_name, MediaProtocolType::kRtp, stopped,
-                        std::move(remote_video));
-    bundle.AddContentName(video_name);
-  }
-
-  session->AddGroup(bundle);
-
-  session->set_msid_signaling(kMsidSignalingMediaSection);
-
-  auto typ = local ? SdpType::kOffer : SdpType::kAnswer;
-  // The session ID and session version (both "1" here) go into SDP, but are not
-  // used at all.
-  return SessionDescriptionInterface::Create(typ, std::move(session), "1", "1")
-      .release();
-}
-
 // Returns an owned pointer.
 RUSTEXPORT SessionDescriptionInterface* Rust_localDescriptionForGroupCall(
     const char* ice_ufrag_borrowed,
     const char* ice_pwd_borrowed,
     RffiSrtpKey client_srtp_key,
     uint32_t local_demux_id,
-    uint32_t* remote_demux_ids_borrowed,
-    size_t remote_demux_ids_len) {
-  std::vector<uint32_t> remote_demux_ids;
-  remote_demux_ids.assign(remote_demux_ids_borrowed,
-                          remote_demux_ids_borrowed + remote_demux_ids_len);
-  return CreateSessionDescriptionForGroupCall(
-      true /* local */, std::string(ice_ufrag_borrowed),
-      std::string(ice_pwd_borrowed), client_srtp_key, local_demux_id,
-      remote_demux_ids);
+    const uint32_t* remote_demux_ids_borrowed,
+    size_t remote_demux_ids_len,
+    const uint32_t* remote_demux_ids_require_svc_borrowed,
+    size_t remote_demux_ids_needs_svc_len,
+    bool enable_svc_encode) {
+  const std::span remote_demux_ids(
+      remote_demux_ids_borrowed,
+      remote_demux_ids_borrowed + remote_demux_ids_len);
+  const std::span remote_demux_ids_needs_svc(
+      remote_demux_ids_require_svc_borrowed,
+      remote_demux_ids_require_svc_borrowed + remote_demux_ids_needs_svc_len);
+  return LocalGroupCallSessionDescriptionBuilder(local_demux_id,
+                                                 client_srtp_key)
+      .enable_svc_encode(enable_svc_encode)
+      .with_ice_credentials(ice_ufrag_borrowed, ice_pwd_borrowed)
+      .with_remote_demux_ids(remote_demux_ids)
+      .with_remote_demux_ids_require_svc(remote_demux_ids_needs_svc)
+      .Build();
 }
 
 // Returns an owned pointer.
@@ -1276,15 +977,24 @@ RUSTEXPORT SessionDescriptionInterface* Rust_remoteDescriptionForGroupCall(
     const char* ice_pwd_borrowed,
     RffiSrtpKey server_srtp_key,
     uint32_t local_demux_id,
-    uint32_t* remote_demux_ids_borrowed,
-    size_t remote_demux_ids_len) {
-  std::vector<uint32_t> remote_demux_ids;
-  remote_demux_ids.assign(remote_demux_ids_borrowed,
-                          remote_demux_ids_borrowed + remote_demux_ids_len);
-  return CreateSessionDescriptionForGroupCall(
-      false /* local */, std::string(ice_ufrag_borrowed),
-      std::string(ice_pwd_borrowed), server_srtp_key, local_demux_id,
-      remote_demux_ids);
+    const uint32_t* remote_demux_ids_borrowed,
+    size_t remote_demux_ids_len,
+    const uint32_t* remote_demux_ids_require_svc_borrowed,
+    size_t remote_demux_ids_needs_svc_len,
+    bool enable_svc_encode) {
+  const std::span remote_demux_ids(
+      remote_demux_ids_borrowed,
+      remote_demux_ids_borrowed + remote_demux_ids_len);
+  const std::span remote_demux_ids_needs_svc(
+      remote_demux_ids_require_svc_borrowed,
+      remote_demux_ids_require_svc_borrowed + remote_demux_ids_needs_svc_len);
+  return RemoteGroupCallSessionDescriptionBuilder(local_demux_id,
+                                                  server_srtp_key)
+      .enable_svc_encode(enable_svc_encode)
+      .with_ice_credentials(ice_ufrag_borrowed, ice_pwd_borrowed)
+      .with_remote_demux_ids(remote_demux_ids)
+      .with_remote_demux_ids_require_svc(remote_demux_ids_needs_svc)
+      .Build();
 }
 
 RUSTEXPORT void Rust_createAnswer(

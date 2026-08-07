@@ -19,9 +19,14 @@ constexpr char kVideoTrackId[] = "video1";
 // TODO: Consider removing all these duplicative declarations.
 // It compiles without it.
 
+RUSTEXPORT bool Rust_setScalabilityMode(
+    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
+    const char* scalability_mode,
+    int max_bitrate_bps);
+
 RUSTEXPORT bool Rust_updateTransceivers(
     webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
-    uint32_t* remote_demux_ids_data_borrowed,
+    const uint32_t* remote_demux_ids_data_borrowed,
     size_t length);
 
 /**
@@ -132,20 +137,28 @@ Rust_sessionDescriptionFromV4Legacy(
     bool enable_vp9);
 
 RUSTEXPORT webrtc::SessionDescriptionInterface*
-Rust_localDescriptionForGroupCall(const char* ice_ufrag_borrowed,
-                                  const char* ice_pwd_borrowed,
-                                  RffiSrtpKey client_srtp_key,
-                                  uint32_t local_demux_id,
-                                  uint32_t* remote_demux_ids_borrowed,
-                                  size_t remote_demux_ids_len);
+Rust_localDescriptionForGroupCall(
+    const char* ice_ufrag_borrowed,
+    const char* ice_pwd_borrowed,
+    RffiSrtpKey server_srtp_key,
+    uint32_t local_demux_id,
+    const uint32_t* remote_demux_ids_borrowed,
+    size_t remote_demux_ids_len,
+    const uint32_t* remote_demux_ids_require_svc_borrowed,
+    size_t remote_demux_ids_needs_svc_len,
+    bool enable_vp9);
 
 RUSTEXPORT webrtc::SessionDescriptionInterface*
-Rust_remoteDescriptionForGroupCall(const char* ice_ufrag_borrowed,
-                                   const char* ice_pwd_borrowed,
-                                   RffiSrtpKey server_srtp_key,
-                                   uint32_t local_demux_id,
-                                   uint32_t* remote_demux_ids_borrowed,
-                                   size_t remote_demux_ids_len);
+Rust_remoteDescriptionForGroupCall(
+    const char* ice_ufrag_borrowed,
+    const char* ice_pwd_borrowed,
+    RffiSrtpKey server_srtp_key,
+    uint32_t local_demux_id,
+    const uint32_t* remote_demux_ids_borrowed,
+    size_t remote_demux_ids_len,
+    const uint32_t* remote_demux_ids_require_svc_borrowed,
+    size_t remote_demux_ids_needs_svc_len,
+    bool enable_vp9);
 
 RUSTEXPORT void Rust_createAnswer(
     webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,

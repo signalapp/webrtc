@@ -8,6 +8,7 @@ import("//webrtc.gni")
 # C++ source files common to all platforms
 common_sources = [
   "src/audio_device.cc",
+  "src/group_call_sdp_builder.cc",
   "src/injectable_network.cc",
   "src/logging.cc",
   "src/media.cc",

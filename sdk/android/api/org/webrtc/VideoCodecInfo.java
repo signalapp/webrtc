@@ -12,7 +12,9 @@ package org.webrtc;
 
 import androidx.annotation.Nullable;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Locale;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -34,13 +36,22 @@ public class VideoCodecInfo {
 
   public final String name;
   public final Map<String, String> params;
+  // RingRTC change to include scalability modes into VideoCodecInfo
+  public final List<String> scalabilityModes;
   @Deprecated public final int payload;
 
   @CalledByNative
-  public VideoCodecInfo(String name, Map<String, String> params) {
+  public VideoCodecInfo(String name, Map<String, String> params, List<String> scalabilityModes) {
     this.payload = 0;
     this.name = name;
     this.params = params;
+    // RingRTC change to include scalability modes into VideoCodecInfo
+    this.scalabilityModes =
+        scalabilityModes != null ? scalabilityModes : Collections.emptyList();
+  }
+
+  public VideoCodecInfo(String name, Map<String, String> params) {
+    this(name, params, Collections.emptyList());
   }
 
   @Deprecated
@@ -48,6 +59,7 @@ public class VideoCodecInfo {
     this.payload = payload;
     this.name = name;
     this.params = params;
+    this.scalabilityModes = Collections.emptyList();
   }
 
   @Override
@@ -60,18 +72,19 @@ public class VideoCodecInfo {
       return false;
 
     VideoCodecInfo otherInfo = (VideoCodecInfo) obj;
-    return name.equalsIgnoreCase(otherInfo.name) && params.equals(otherInfo.params);
+    return name.equalsIgnoreCase(otherInfo.name) && params.equals(otherInfo.params) &&
+        scalabilityModes.equals(otherInfo.scalabilityModes);
   }
 
   @Override
   public int hashCode() {
-    Object[] values = {name.toUpperCase(Locale.ROOT), params};
+    Object[] values = {name.toUpperCase(Locale.ROOT), params, scalabilityModes};
     return Arrays.hashCode(values);
   }
 
   @Override
   public String toString() {
-    return "VideoCodec{" + name + " " + params + "}";
+    return "VideoCodec{" + name + " " + params + " " + scalabilityModes + "}";
   }
 
   @CalledByNative
@@ -82,5 +95,11 @@ public class VideoCodecInfo {
   @CalledByNative
   Map<String, String> getParams() {
     return params;
+  }
+
+  // RingRTC change to include scalability modes into VideoCodecInfo
+  @CalledByNative
+  List<String> getScalabilityModes() {
+    return scalabilityModes;
   }
 }
