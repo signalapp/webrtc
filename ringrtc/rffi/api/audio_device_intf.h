@@ -17,8 +17,25 @@
  * AudioDevice interface.
  */
 
+// Here and in the next method signature, audio_transport_ptr_ptr is the
+// uintptr_t representation of a pointer to a field in the AudioDevice class
+// that in turn is a pointer to the AudioTransport class where data will flow
+// to and from these callbacks.
+//
+// Specifically, it is a `std::atomic<AudioTransport*>*` converted to uintptr_t.
+//
+// Why a uintptr_t? Because the rust layer does not need to use this as a
+// pointer, just to hold onto it and pass it back to the RFFI. If we passed it
+// as a pointer, the fact that in Rust, pointers are not Send or Sync would
+// make it painful to pass this value to the rust audio callbacks.
+//
+// Why a pointer to a pointer? So that the RingRTC ADM only needs to set the
+// pointer once, at initialization time, rather than also needing to handle
+// updates to it later. This way, the C++ layer can handle any updates without
+// the FFI call.
 RUSTEXPORT int32_t
-Rust_recordedDataIsAvailable(const void* audio_samples,
+Rust_recordedDataIsAvailable(uintptr_t audio_transport_ptr_ptr,
+                             const void* audio_samples,
                              size_t n_samples,
                              size_t n_bytes_per_sample,
                              size_t n_channels,
@@ -30,7 +47,8 @@ Rust_recordedDataIsAvailable(const void* audio_samples,
                              uint32_t* new_mic_level,
                              int64_t estimated_capture_time_ns);
 
-RUSTEXPORT int32_t Rust_needMorePlayData(size_t n_samples,
+RUSTEXPORT int32_t Rust_needMorePlayData(uintptr_t audio_transport_ptr_ptr,
+                                         size_t n_samples,
                                          size_t n_bytes_per_sample,
                                          size_t n_channels,
                                          uint32_t samples_per_sec,
@@ -44,7 +62,7 @@ typedef struct {
       void* adm_borrowed,
       webrtc::AudioDeviceModule::AudioLayer* audio_layer);
   // Main initialization and termination
-  int32_t (*init)(void* adm_borrowed);
+  int32_t (*init)(void* adm_borrowed, uintptr_t audio_transport_ptr_ptr);
   int32_t (*terminate)(void* adm_borrowed);
   bool (*initialized)(void* adm_borrowed);
 

@@ -15,12 +15,9 @@
 namespace webrtc {
 namespace rffi {
 
-namespace {
-std::atomic<AudioTransport*> AUDIO_TRANSPORT;
-}
-
 RUSTEXPORT int32_t
-Rust_recordedDataIsAvailable(const void* audio_samples,
+Rust_recordedDataIsAvailable(uintptr_t audio_transport_ptr_ptr,
+                             const void* audio_samples,
                              size_t n_samples,
                              size_t n_bytes_per_sample,
                              size_t n_channels,
@@ -31,8 +28,14 @@ Rust_recordedDataIsAvailable(const void* audio_samples,
                              bool key_pressed,
                              uint32_t* new_mic_level,
                              int64_t estimated_capture_time_ns) {
-  AudioTransport* audio_callback =
-      AUDIO_TRANSPORT.load(std::memory_order_seq_cst);
+  auto ptr =
+      reinterpret_cast<std::atomic<AudioTransport*>*>(audio_transport_ptr_ptr);
+  if (ptr == nullptr) {
+    RTC_LOG(LS_ERROR) << "Rust_recordedDataIsAvailable: RingRTC passed a "
+                      << "null AudioTransport pointer-pointer";
+    return -1;
+  }
+  AudioTransport* audio_callback = ptr->load(std::memory_order_seq_cst);
   if (!audio_callback) {
     return 0;
   }
@@ -46,7 +49,8 @@ Rust_recordedDataIsAvailable(const void* audio_samples,
       *new_mic_level, estimated_capture_time_ns_opt);
 }
 
-RUSTEXPORT int32_t Rust_needMorePlayData(size_t n_samples,
+RUSTEXPORT int32_t Rust_needMorePlayData(uintptr_t audio_transport_ptr_ptr,
+                                         size_t n_samples,
                                          size_t n_bytes_per_sample,
                                          size_t n_channels,
                                          uint32_t samples_per_sec,
@@ -54,8 +58,14 @@ RUSTEXPORT int32_t Rust_needMorePlayData(size_t n_samples,
                                          size_t* n_samples_out,
                                          int64_t* elapsed_time_ms,
                                          int64_t* ntp_time_ms) {
-  AudioTransport* audio_callback =
-      AUDIO_TRANSPORT.load(std::memory_order_seq_cst);
+  auto ptr =
+      reinterpret_cast<std::atomic<AudioTransport*>*>(audio_transport_ptr_ptr);
+  if (ptr == nullptr) {
+    RTC_LOG(LS_ERROR) << "Rust_needMorePlayData: RingRTC passed a "
+                      << "null AudioTransport pointer-pointer";
+    return -1;
+  }
+  AudioTransport* audio_callback = ptr->load(std::memory_order_seq_cst);
   if (!audio_callback) {
     *n_samples_out = n_samples;
     return 0;
@@ -70,7 +80,6 @@ RingRTCAudioDeviceModule::RingRTCAudioDeviceModule(
     const AudioDeviceCallbacks* callbacks)
     : adm_borrowed_(adm_borrowed), rust_callbacks_(*callbacks) {
   TRACE_LOG;
-  AUDIO_TRANSPORT.store(nullptr, std::memory_order_seq_cst);
   RTC_DCHECK_RUN_ON(&thread_checker_);
 }
 
@@ -110,14 +119,15 @@ int32_t RingRTCAudioDeviceModule::RegisterAudioCallback(
     return -1;
   }
 
-  AUDIO_TRANSPORT.store(audio_callback, std::memory_order_seq_cst);
+  audio_transport_ptr_.store(audio_callback, std::memory_order_seq_cst);
   return 0;
 }
 
 int32_t RingRTCAudioDeviceModule::Init() {
   TRACE_LOG;
   RTC_DCHECK_RUN_ON(&thread_checker_);
-  return rust_callbacks_.init(adm_borrowed_);
+  return rust_callbacks_.init(
+      adm_borrowed_, reinterpret_cast<uintptr_t>(&audio_transport_ptr_));
 }
 
 int32_t RingRTCAudioDeviceModule::Terminate() {

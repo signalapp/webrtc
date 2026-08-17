@@ -6,6 +6,7 @@
 #ifndef RFFI_AUDIO_DEVICE_H__
 #define RFFI_AUDIO_DEVICE_H__
 
+#include <atomic>
 #include <cstdint>
 
 #include "api/audio/audio_device.h"
@@ -70,7 +71,7 @@ class RingRTCAudioDeviceModule : public AudioDeviceModule {
   // Main initialization and termination
   int32_t Init() override;
   // Final so that calling from destructor is safe
-  int32_t Terminate() override final;
+  int32_t Terminate() final;
   bool Initialized() const override;
 
   // Device enumeration
@@ -183,6 +184,8 @@ class RingRTCAudioDeviceModule : public AudioDeviceModule {
 
   void* adm_borrowed_ RTC_GUARDED_BY(&thread_checker_) = nullptr;
   AudioDeviceCallbacks rust_callbacks_ RTC_GUARDED_BY(&thread_checker_);
+
+  std::atomic<AudioTransport*> audio_transport_ptr_ = nullptr;
 };
 
 }  // namespace rffi
