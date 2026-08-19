@@ -68,7 +68,13 @@ class RingRTCAudioDeviceModule : public AudioDeviceModule {
                            int64_t* elapsed_time_ms,
                            int64_t* ntp_time_ms);
 
-  // Main initialization and termination
+  // Our own initialization function. Distinct from Init so that we can ensure
+  // it is called once and only once at the time the ADM is created, rather
+  // than potentially much later when a call is started.
+  int32_t InitInternal();
+
+  // This does not do anything; we want to fully initialize well before webrtc
+  // thinks we do.
   int32_t Init() override;
   // Final so that calling from destructor is safe
   int32_t Terminate() final;

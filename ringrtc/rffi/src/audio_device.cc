@@ -95,7 +95,12 @@ scoped_refptr<RingRTCAudioDeviceModule> RingRTCAudioDeviceModule::Create(
     const AudioDeviceCallbacks* callbacks) {
   TRACE_LOG;
   RTC_DCHECK(callbacks);
-  return make_ref_counted<RingRTCAudioDeviceModule>(adm_borrowed, callbacks);
+  auto adm =
+      make_ref_counted<RingRTCAudioDeviceModule>(adm_borrowed, callbacks);
+  if (adm->InitInternal() != 0) {
+    return nullptr;
+  }
+  return adm;
 }
 
 int32_t RingRTCAudioDeviceModule::ActiveAudioLayer(
@@ -123,11 +128,15 @@ int32_t RingRTCAudioDeviceModule::RegisterAudioCallback(
   return 0;
 }
 
-int32_t RingRTCAudioDeviceModule::Init() {
+int32_t RingRTCAudioDeviceModule::InitInternal() {
   TRACE_LOG;
   RTC_DCHECK_RUN_ON(&thread_checker_);
   return rust_callbacks_.init(
       adm_borrowed_, reinterpret_cast<uintptr_t>(&audio_transport_ptr_));
+}
+
+int32_t RingRTCAudioDeviceModule::Init() {
+  return 0;
 }
 
 int32_t RingRTCAudioDeviceModule::Terminate() {
