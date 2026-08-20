@@ -19,9 +19,7 @@ class RTCCertificite;
 namespace webrtc {
 class PeerConnectionInterface;
 class PeerConnectionFactoryInterface;
-class AudioSourceInterface;
 class AudioTrackInterface;
-class AudioDeviceModule;
 
 // This little indirection is needed so that we can have something
 // that owns the signaling thread (and other threads).
@@ -33,20 +31,6 @@ class PeerConnectionFactoryOwner : public RefCountInterface {
   virtual PeerConnectionFactoryInterface* peer_connection_factory() = 0;
   // If we are using an injectable network, this is it.
   virtual rffi::InjectableNetwork* injectable_network() { return nullptr; }
-  virtual int16_t AudioPlayoutDevices() { return 0; }
-  virtual int32_t AudioPlayoutDeviceName(uint16_t index,
-                                         char* name_out,
-                                         char* uuid_out) {
-    return -1;
-  }
-  virtual bool SetAudioPlayoutDevice(uint16_t index) { return false; }
-  virtual int16_t AudioRecordingDevices() { return 0; }
-  virtual int32_t AudioRecordingDeviceName(uint16_t index,
-                                           char* name_out,
-                                           char* uuid_out) {
-    return -1;
-  }
-  virtual bool SetAudioRecordingDevice(uint16_t index) { return false; }
 };
 
 namespace rffi {
