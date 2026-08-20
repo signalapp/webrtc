@@ -245,14 +245,14 @@ static int codecPriority(const RffiVideoCodec c) {
   }
 }
 
-void sort_codecs(std::vector<RffiVideoCodec>& list) {
+static void sort_codecs(std::vector<RffiVideoCodec>& list) {
   std::stable_sort(list.begin(), list.end(),
                    [](const RffiVideoCodec lhs, const RffiVideoCodec rhs) {
                      return codecPriority(lhs) < codecPriority(rhs);
                    });
 }
 
-void sort_codecs(RffiVideoCodec* first, size_t size) {
+static void sort_codecs(RffiVideoCodec* first, size_t size) {
   std::stable_sort(first, first + size,
                    [](const RffiVideoCodec lhs, const RffiVideoCodec rhs) {
                      return codecPriority(lhs) < codecPriority(rhs);

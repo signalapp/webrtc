@@ -16,9 +16,6 @@
 constexpr char kAudioTrackId[] = "audio1";
 constexpr char kVideoTrackId[] = "video1";
 
-// TODO: Consider removing all these duplicative declarations.
-// It compiles without it.
-
 RUSTEXPORT bool Rust_setScalabilityMode(
     webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
     const char* scalability_mode,

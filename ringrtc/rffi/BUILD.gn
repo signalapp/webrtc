@@ -25,6 +25,11 @@ common_sources = [
 config("ringrtc_rffi_config") {
   include_dirs = [ ".." ]
   defines = [ "ENABLE_RINGRTC" ]
+  cflags = [
+    "-Wmissing-prototypes",
+    "--warning-suppression-mappings=" +
+      rebase_path("suppression_mappings.txt", root_build_dir)
+  ]
 }
 
 if (is_android) {

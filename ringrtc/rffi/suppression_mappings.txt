@@ -1,0 +1,5 @@
+# Suppress missing-prototypes warning for webrtc code we compile (e.g. jni_onload.cc),
+# or (e.g.) for opus, but enable it for anything in ringrtc/rffi
+[missing-prototypes]
+src:*
+src:*ringrtc/rffi*=emit
