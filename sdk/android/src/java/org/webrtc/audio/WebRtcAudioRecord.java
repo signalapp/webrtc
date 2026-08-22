@@ -17,6 +17,8 @@ import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.AudioRecordingConfiguration;
+// RingRTC change to log which microphone route is used.
+import android.media.AudioRouting;
 import android.media.AudioTimestamp;
 import android.media.MediaRecorder.AudioSource;
 import android.os.Build;
@@ -93,6 +95,8 @@ class WebRtcAudioRecord {
   private @Nullable AudioRecord audioRecord;
   private @Nullable AudioRecordThread audioThread;
   private @Nullable AudioDeviceInfo preferredDevice;
+  // RingRTC change to log which microphone route is used.
+  private @Nullable AudioRouting.OnRoutingChangedListener routingChangedListener;
 
   private final ScheduledExecutorService executor;
   private @Nullable ScheduledFuture<String> future;
@@ -392,8 +396,35 @@ class WebRtcAudioRecord {
     audioThread = new AudioRecordThread("AudioRecordJavaThread");
     audioThread.start();
     scheduleLogRecordingConfigurationsTask(audioRecord);
+    // RingRTC change to log which microphone route is used.
+    logRoutedDevice("start");
+    addRoutingChangedListener();
     return true;
   }
+
+  // RingRTC change to log which microphone route is used.
+  @TargetApi(Build.VERSION_CODES.M)
+  private void logRoutedDevice(String event) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || audioRecord == null) {
+      return;
+    }
+    final AudioDeviceInfo device = audioRecord.getRoutedDevice();
+    Logging.w(TAG,
+        "AudioRecord routed device (" + event + "): "
+            + (device == null
+                    ? "null"
+                    : device.getId() + " " + WebRtcAudioUtils.deviceTypeToString(device.getType())));
+  }
+
+  @TargetApi(Build.VERSION_CODES.N)
+  private void addRoutingChangedListener() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N || audioRecord == null) {
+      return;
+    }
+    routingChangedListener = router -> logRoutedDevice("changed");
+    audioRecord.addOnRoutingChangedListener(routingChangedListener, null);
+  }
+  // End RingRTC change
 
   @CalledByNative
   private boolean stopRecording() {
@@ -527,6 +558,12 @@ class WebRtcAudioRecord {
   private void releaseAudioResources() {
     Logging.d(TAG, "releaseAudioResources");
     if (audioRecord != null) {
+      // RingRTC change to log which microphone route is used.
+      if (routingChangedListener != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+        audioRecord.removeOnRoutingChangedListener(routingChangedListener);
+      }
+      routingChangedListener = null;
+      // End RingRTC change
       audioRecord.release();
       audioRecord = null;
     }
