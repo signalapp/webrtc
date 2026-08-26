@@ -20,26 +20,7 @@ typedef struct {
 namespace webrtc {
 namespace rffi {
 
-// An implementation of a VideoTrackSource which pushes frames into an outgoing
-// video track for encoding by calling Rust_pushVideoFrame. The resolution of
-// the frames will be adapted based on network conditions.
-class VideoSource : public AdaptedVideoTrackSource {
- public:
-  VideoSource();
-  ~VideoSource() override;
-
-  void PushVideoFrame(const VideoFrame& frame);
-
-  void OnOutputFormatRequest(int width, int height, int fps);
-
-  SourceState state() const override;
-
-  bool remote() const override;
-
-  bool is_screencast() const override;
-
-  std::optional<bool> needs_denoising() const override;
-};
+class VideoSource;
 
 }  // namespace rffi
 }  // namespace webrtc
@@ -112,5 +93,8 @@ RUSTEXPORT webrtc::VideoFrameBuffer* Rust_scaleVideoFrameBuffer(
 RUSTEXPORT webrtc::VideoFrameBuffer* Rust_copyAndRotateVideoFrameBuffer(
     const webrtc::VideoFrameBuffer* buffer_borrowed_rc,
     webrtc::VideoRotation rotation);
+
+// Returns an owned RC.
+RUSTEXPORT webrtc::rffi::VideoSource* Rust_createVideoSource();
 
 #endif /* RFFI_API_MEDIA_H__ */

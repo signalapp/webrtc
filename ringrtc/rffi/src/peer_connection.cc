@@ -22,6 +22,7 @@
 #include "rffi/api/peer_connection_intf.h"
 #include "rffi/src/constants.h"
 #include "rffi/src/group_call_sdp_builder.h"
+#include "rffi/src/network.h"
 #include "rffi/src/ptr.h"
 #include "rffi/src/rtp_observer.h"
 #include "rffi/src/sdp_observer.h"
@@ -31,6 +32,15 @@
 
 namespace webrtc {
 namespace rffi {
+
+class ConnectionParametersV4 {
+ public:
+  std::string ice_ufrag;
+  std::string ice_pwd;
+  std::vector<RffiVideoCodec> bidirectional_video_codecs;
+  std::vector<RffiVideoCodec> encode_only_video_codecs;
+  std::vector<RffiVideoCodec> decode_only_video_codecs;
+};
 
 RUSTEXPORT bool Rust_setScalabilityMode(
     PeerConnectionInterface* peer_connection_borrowed_rc,

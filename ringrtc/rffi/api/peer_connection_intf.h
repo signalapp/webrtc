@@ -16,6 +16,12 @@
 constexpr char kAudioTrackId[] = "audio1";
 constexpr char kVideoTrackId[] = "video1";
 
+namespace webrtc {
+namespace rffi {
+class ConnectionParametersV4;
+}
+}  // namespace webrtc
+
 RUSTEXPORT bool Rust_setScalabilityMode(
     webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
     const char* scalability_mode,
@@ -70,15 +76,6 @@ typedef struct {
   RffiVideoCodecType type;
 } RffiVideoCodec;
 
-class ConnectionParametersV4 {
- public:
-  std::string ice_ufrag;
-  std::string ice_pwd;
-  std::vector<RffiVideoCodec> bidirectional_video_codecs;
-  std::vector<RffiVideoCodec> encode_only_video_codecs;
-  std::vector<RffiVideoCodec> decode_only_video_codecs;
-};
-
 typedef struct {
   // These all just refer to the storage
   const char* ice_ufrag_borrowed;
@@ -91,7 +88,7 @@ typedef struct {
   size_t decode_only_video_codecs_size;
 
   // When this is released, we must release the storage
-  ConnectionParametersV4* backing_owned;
+  webrtc::rffi::ConnectionParametersV4* backing_owned;
 } RffiConnectionParametersV4;
 
 typedef struct {

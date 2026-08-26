@@ -21,17 +21,7 @@ class PeerConnectionInterface;
 class PeerConnectionFactoryInterface;
 class AudioTrackInterface;
 
-// This little indirection is needed so that we can have something
-// that owns the signaling thread (and other threads).
-// We could make our owner implement the PeerConnectionFactoryInterface,
-// but it's not worth the trouble.  This is easier.
-class PeerConnectionFactoryOwner : public RefCountInterface {
- public:
-  virtual ~PeerConnectionFactoryOwner() {}
-  virtual PeerConnectionFactoryInterface* peer_connection_factory() = 0;
-  // If we are using an injectable network, this is it.
-  virtual rffi::InjectableNetwork* injectable_network() { return nullptr; }
-};
+class PeerConnectionFactoryOwner;
 
 namespace rffi {
 class PeerConnectionObserverRffi;
@@ -105,9 +95,6 @@ RUSTEXPORT webrtc::PeerConnectionInterface* Rust_createPeerConnection(
 // Returns an owned RC.
 RUSTEXPORT webrtc::AudioTrackInterface* Rust_createAudioTrack(
     webrtc::PeerConnectionFactoryOwner* factory_owner_borrowed_rc);
-
-// Returns an owned RC.
-RUSTEXPORT webrtc::rffi::VideoSource* Rust_createVideoSource();
 
 // Returns an owned RC.
 RUSTEXPORT webrtc::VideoTrackInterface* Rust_createVideoTrack(

@@ -9,6 +9,7 @@
 
 #include "pc/webrtc_sdp.h"
 #include "rffi/src/constants.h"
+#include "rffi/src/network.h"
 #include "rffi/src/ptr.h"
 #include "rtc_base/net_helper.h"
 #include "rtc_base/string_encode.h"

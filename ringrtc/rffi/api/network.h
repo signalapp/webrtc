@@ -26,11 +26,6 @@ typedef struct {
   uint16_t port;
 } IpPort;
 
-IPAddress IpToRtcIp(Ip ip);
-SocketAddress IpPortToRtcSocketAddress(IpPort ip_port);
-Ip RtcIpToIp(IPAddress address);
-IpPort RtcSocketAddressToIpPort(const SocketAddress& address);
-
 }  // namespace rffi
 
 }  // namespace webrtc

@@ -5,6 +5,8 @@
 
 #include "rffi/api/network.h"
 
+#include "rffi/src/network.h"
+
 namespace webrtc {
 
 namespace rffi {

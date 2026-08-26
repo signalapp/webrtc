@@ -17,64 +17,61 @@
 namespace webrtc {
 namespace rffi {
 
-VideoSource::VideoSource() : AdaptedVideoTrackSource() {}
+// An implementation of a VideoTrackSource which pushes frames into an outgoing
+// video track for encoding by calling Rust_pushVideoFrame. The resolution of
+// the frames will be adapted based on network conditions.
+class VideoSource : public AdaptedVideoTrackSource {
+ public:
+  VideoSource() : AdaptedVideoTrackSource() {}
+  ~VideoSource() override {}
 
-VideoSource::~VideoSource() {}
+  void PushVideoFrame(const VideoFrame& frame) {
+    int adapted_width;
+    int adapted_height;
+    int crop_width;
+    int crop_height;
+    int crop_x;
+    int crop_y;
+    if (!AdaptFrame(frame.width(), frame.height(), frame.timestamp_us(),
+                    &adapted_width, &adapted_height, &crop_width, &crop_height,
+                    &crop_x, &crop_y)) {
+      return;
+    }
 
-void VideoSource::PushVideoFrame(const VideoFrame& frame) {
-  int adapted_width;
-  int adapted_height;
-  int crop_width;
-  int crop_height;
-  int crop_x;
-  int crop_y;
-  if (!AdaptFrame(frame.width(), frame.height(), frame.timestamp_us(),
-                  &adapted_width, &adapted_height, &crop_width, &crop_height,
-                  &crop_x, &crop_y)) {
-    return;
+    if (adapted_width == frame.width() && adapted_height == frame.height()) {
+      OnFrame(frame);
+      return;
+    }
+
+    scoped_refptr<VideoFrameBuffer> adapted_buffer =
+        frame.video_frame_buffer()->CropAndScale(crop_x, crop_y, crop_width,
+                                                 crop_height, adapted_width,
+                                                 adapted_height);
+
+    OnFrame(VideoFrame::Builder()
+                .set_video_frame_buffer(adapted_buffer)
+                .set_timestamp_us(frame.timestamp_us())
+                .build());
   }
 
-  if (adapted_width == frame.width() && adapted_height == frame.height()) {
-    OnFrame(frame);
-    return;
+  void OnOutputFormatRequest(int width, int height, int fps) {
+    if (width > 0 && height > 0 && fps > 0) {
+      video_adapter()->OnOutputFormatRequest(std::make_pair(width, height),
+                                             width * height, fps);
+    } else {
+      video_adapter()->OnOutputFormatRequest(std::nullopt, std::nullopt,
+                                             std::nullopt);
+    }
   }
 
-  scoped_refptr<VideoFrameBuffer> adapted_buffer =
-      frame.video_frame_buffer()->CropAndScale(crop_x, crop_y, crop_width,
-                                               crop_height, adapted_width,
-                                               adapted_height);
+  MediaSourceInterface::SourceState state() const override { return kLive; }
 
-  OnFrame(VideoFrame::Builder()
-              .set_video_frame_buffer(adapted_buffer)
-              .set_timestamp_us(frame.timestamp_us())
-              .build());
-}
+  bool remote() const override { return false; }
 
-void VideoSource::OnOutputFormatRequest(int width, int height, int fps) {
-  if (width > 0 && height > 0 && fps > 0) {
-    video_adapter()->OnOutputFormatRequest(std::make_pair(width, height),
-                                           width * height, fps);
-  } else {
-    video_adapter()->OnOutputFormatRequest(std::nullopt, std::nullopt,
-                                           std::nullopt);
-  }
-}
+  bool is_screencast() const override { return false; }
 
-MediaSourceInterface::SourceState VideoSource::state() const {
-  return kLive;
-}
-
-bool VideoSource::remote() const {
-  return false;
-}
-
-bool VideoSource::is_screencast() const {
-  return false;
-}
-
-std::optional<bool> VideoSource::needs_denoising() const {
-  return std::nullopt;
-}
+  std::optional<bool> needs_denoising() const override { return std::nullopt; }
+};
 
 RUSTEXPORT void Rust_setAudioTrackEnabled(
     AudioTrackInterface* track_borrowed_rc,
@@ -224,6 +221,11 @@ RUSTEXPORT VideoFrameBuffer* Rust_copyAndRotateVideoFrameBuffer(
     return nullptr;
   }
   return take_rc(I420Buffer::Rotate(*i420, rotation));
+}
+
+// Returns an owned RC.
+RUSTEXPORT rffi::VideoSource* Rust_createVideoSource() {
+  return take_rc(make_ref_counted<rffi::VideoSource>());
 }
 
 }  // namespace rffi

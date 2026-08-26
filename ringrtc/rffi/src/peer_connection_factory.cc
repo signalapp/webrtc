@@ -31,6 +31,7 @@
 #include "rffi/api/peer_connection_factory.h"
 #include "rffi/api/peer_connection_observer_intf.h"
 #include "rffi/src/audio_device.h"
+#include "rffi/src/injectable_network.h"
 #include "rffi/src/peer_connection_observer.h"
 #include "rffi/src/ptr.h"
 #include "rffi/src/rtp_observer.h"
@@ -39,6 +40,19 @@
 #include "rtc_base/message_digest.h"
 
 namespace webrtc {
+
+// This little indirection is needed so that we can have something
+// that owns the signaling thread (and other threads).
+// We could make our owner implement the PeerConnectionFactoryInterface,
+// but it's not worth the trouble.  This is easier.
+class PeerConnectionFactoryOwner : public RefCountInterface {
+ public:
+  virtual ~PeerConnectionFactoryOwner() {}
+  virtual PeerConnectionFactoryInterface* peer_connection_factory() = 0;
+  // If we are using an injectable network, this is it.
+  virtual rffi::InjectableNetwork* injectable_network() { return nullptr; }
+};
+
 namespace rffi {
 
 #if !defined(WEBRTC_IOS) && !defined(WEBRTC_ANDROID)
@@ -431,11 +445,6 @@ RUSTEXPORT AudioTrackInterface* Rust_createAudioTrack(
   AudioOptions options;
   auto source = factory->CreateAudioSource(options);
   return take_rc(factory->CreateAudioTrack(kAudioTrackId, source.get()));
-}
-
-// Returns an owned RC.
-RUSTEXPORT rffi::VideoSource* Rust_createVideoSource() {
-  return take_rc(make_ref_counted<rffi::VideoSource>());
 }
 
 // Returns an owned RC.

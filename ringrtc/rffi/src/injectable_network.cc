@@ -10,6 +10,8 @@
 #include "api/transport/network_types.h"
 #include "p2p/client/basic_port_allocator.h"
 #include "rffi/api/network.h"
+#include "rffi/src/injectable_network.h"
+#include "rffi/src/network.h"
 #include "rtc_base/ip_address.h"
 #include "rtc_base/network/received_packet.h"
 #include "rtc_base/time_utils.h"
