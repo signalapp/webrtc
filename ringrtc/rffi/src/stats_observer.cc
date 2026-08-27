@@ -137,10 +137,12 @@ void StatsObserverRffi::OnStatsDelivered(
         video_sender.codec = kStatsInvalidVideoCodec;
       }
       if (stat->quality_limitation_reason.has_value()) {
-        // "none" = 0 (the default)
-        if (*stat->quality_limitation_reason == "cpu") {
+        const std::string& reason = *stat->quality_limitation_reason;
+        if (reason == "none") {
+          video_sender.quality_limitation_reason = 0;
+        } else if (reason == "cpu") {
           video_sender.quality_limitation_reason = 1;
-        } else if (*stat->quality_limitation_reason == "bandwidth") {
+        } else if (reason == "bandwidth") {
           video_sender.quality_limitation_reason = 2;
         } else {
           video_sender.quality_limitation_reason = 3;
