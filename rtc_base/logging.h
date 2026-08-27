@@ -68,6 +68,9 @@
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/system/inline.h"
 
+// RingRTC change to move LoggingSeverity into the ringrtc directory
+#include "ringrtc/rffi/api/webrtc_common.h"
+
 #if !defined(NDEBUG) || defined(DLOG_ALWAYS_ON)
 #define RTC_DLOG_IS_ON 1
 #else
@@ -82,22 +85,7 @@
 
 namespace webrtc {
 
-//////////////////////////////////////////////////////////////////////
-// The meanings of the levels are:
-//  LS_VERBOSE: This level is for data which we do not want to appear in the
-//   normal debug log, but should appear in diagnostic logs.
-//  LS_INFO: Chatty level used in debugging for all sorts of things, the default
-//   in debug builds.
-//  LS_WARNING: Something that may warrant investigation.
-//  LS_ERROR: Something that should not have occurred.
-//  LS_NONE: Don't log.
-enum LoggingSeverity {
-  LS_VERBOSE,
-  LS_INFO,
-  LS_WARNING,
-  LS_ERROR,
-  LS_NONE,
-};
+// RingRTC change to move LoggingSeverity into the ringrtc directory
 
 // LogErrorContext assists in interpreting the meaning of an error value.
 enum LogErrorContext {

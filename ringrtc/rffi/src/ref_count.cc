@@ -5,6 +5,7 @@
 
 #include "rffi/api/ref_count.h"
 
+#include "api/ref_count.h"
 #include "rtc_base/logging.h"
 
 namespace webrtc {

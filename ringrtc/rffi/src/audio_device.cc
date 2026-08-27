@@ -7,12 +7,15 @@
 
 #include "api/make_ref_counted.h"
 #include "api/scoped_refptr.h"
+#include "modules/audio_device/include/audio_device.h"
 #include "rtc_base/logging.h"
 
 #define TRACE_LOG \
   RTC_LOG(LS_VERBOSE) << "RingRTCAudioDeviceModule::" << __func__
 
 namespace webrtc {
+static_assert(kRffiAdmMaxDeviceNameSize == kAdmMaxDeviceNameSize);
+static_assert(kRffiAdmMaxGuidSize == kAdmMaxGuidSize);
 namespace rffi {
 
 RUSTEXPORT int32_t

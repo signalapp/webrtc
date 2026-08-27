@@ -13,8 +13,11 @@
 #ifndef RFFI_API_SCOPED_REFPTR_H__
 #define RFFI_API_SCOPED_REFPTR_H__
 
-#include "api/ref_count.h"
 #include "rffi/api/rffi_defs.h"
+
+namespace webrtc {
+class RefCountInterface;
+}
 
 // Decrements the ref count of a ref-counted object.
 // If the ref count goes to zero, the object is deleted.

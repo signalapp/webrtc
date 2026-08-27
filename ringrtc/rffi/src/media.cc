@@ -6,6 +6,8 @@
 #include "rffi/api/media.h"
 
 #include "api/video/i420_buffer.h"
+#include "media/base/adapted_video_track_source.h"
+#include "pc/video_track_source.h"
 #include "rffi/src/ptr.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/ref_counted_object.h"

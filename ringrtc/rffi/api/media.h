@@ -6,10 +6,10 @@
 #ifndef RFFI_API_MEDIA_H__
 #define RFFI_API_MEDIA_H__
 
-#include "api/media_stream_interface.h"
-#include "media/base/adapted_video_track_source.h"
-#include "pc/video_track_source.h"
+#include <cstdint>
+
 #include "rffi/api/rffi_defs.h"
+#include "rffi/api/webrtc_common.h"
 
 typedef struct {
   uint32_t width;
@@ -18,6 +18,9 @@ typedef struct {
 } RffiVideoFrameMetadata;
 
 namespace webrtc {
+class AudioTrackInterface;
+class VideoTrackInterface;
+class VideoFrameBuffer;
 namespace rffi {
 
 class VideoSource;

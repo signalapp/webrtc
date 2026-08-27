@@ -68,6 +68,9 @@
 #include "rtc_base/socket.h"
 #include "rtc_base/strings/string_builder.h"
 
+// RingRTC change to get audio levels (ReceivedAudioLevel)
+#include "ringrtc/rffi/api/webrtc_common.h"
+
 namespace webrtc {
 class VideoFrame;
 struct VideoFormat;
@@ -165,12 +168,6 @@ struct VideoOptions {
     }
   }
 };
-
-// RingRTC change to get audio levels
-typedef struct {
-  uint32_t ssrc;
-  uint16_t level;
-} ReceivedAudioLevel;
 
 class MediaChannelNetworkInterface {
  public:

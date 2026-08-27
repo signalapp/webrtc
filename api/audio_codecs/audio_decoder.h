@@ -23,6 +23,8 @@
 #include "rtc_base/buffer.h"
 // RingRTC Change to configure opus
 #include "rtc_base/logging.h"
+#include "ringrtc/rffi/api/webrtc_common.h"
+// End RingRTC change
 
 namespace webrtc {
 
@@ -187,20 +189,7 @@ class AudioDecoder {
   static constexpr int kMaxNumberOfChannels = kMaxNumberOfAudioChannels;
 
   // RingRTC change to configure opus
-  // Very OPUS-specific
-  struct Config {
-    // DNN weights blob
-    const void* dnn_weights_data = nullptr;
-    int32_t dnn_weights_length = 0;
-    // Decoder complexity:
-    // -1: Use NetEq PLC (default)
-    //  0: Use Opus PLC
-    //  4: Use Opus BWE (not supported)
-    //  5: Use Opus Deep PLC
-    //  6: Use Opus Deep PLC and LACE (not supported)
-    //  7: Use Opus Deep PLC and NoLACE (not supported)
-    int32_t complexity = -1;
-  };
+  using Config = ::webrtc::AudioDecoderConfig;
 
   virtual bool Configure(const Config& config) {
     RTC_LOG(LS_WARNING) << "Default AudioDecoder::Configure(...) does nothing!";

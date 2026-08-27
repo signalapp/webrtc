@@ -8,14 +8,14 @@
 
 #include <cstdint>
 
-#include "modules/audio_device/include/audio_device.h"
-#include "modules/audio_device/include/audio_device_defines.h"
 #include "rffi/api/rffi_defs.h"
 
 /**
  * Rust friendly wrapper for creating objects that implement the
  * AudioDevice interface.
  */
+constexpr int kRffiAdmMaxDeviceNameSize = 128;
+constexpr int kRffiAdmMaxGuidSize = 128;
 
 // Here and in the next method signature, audio_transport_ptr_ptr is the
 // uintptr_t representation of a pointer to a field in the AudioDevice class
@@ -58,9 +58,10 @@ RUSTEXPORT int32_t Rust_needMorePlayData(uintptr_t audio_transport_ptr_ptr,
                                          int64_t* ntp_time_ms);
 
 typedef struct {
-  int32_t (*activeAudioLayer)(
-      void* adm_borrowed,
-      webrtc::AudioDeviceModule::AudioLayer* audio_layer);
+  // This method is effectively unimplemented, so we do not need to include
+  // the AudioLayer enum in the API.
+  // TODO: Delete this method and the other unimplemented ones.
+  int32_t (*activeAudioLayer)(void* adm_borrowed, void* audio_layer);
   // Main initialization and termination
   int32_t (*init)(void* adm_borrowed, uintptr_t audio_transport_ptr_ptr);
   int32_t (*terminate)(void* adm_borrowed);
@@ -71,12 +72,12 @@ typedef struct {
   int16_t (*recordingDevices)(void* adm_borrowed);
   int32_t (*playoutDeviceName)(void* adm_borrowed,
                                uint16_t index,
-                               char name[webrtc::kAdmMaxDeviceNameSize],
-                               char guid[webrtc::kAdmMaxGuidSize]);
+                               char name[kRffiAdmMaxDeviceNameSize],
+                               char guid[kRffiAdmMaxGuidSize]);
   int32_t (*recordingDeviceName)(void* adm_borrowed,
                                  uint16_t index,
-                                 char name[webrtc::kAdmMaxDeviceNameSize],
-                                 char guid[webrtc::kAdmMaxGuidSize]);
+                                 char name[kRffiAdmMaxDeviceNameSize],
+                                 char guid[kRffiAdmMaxGuidSize]);
 
   // Audio transport initialization
   int32_t (*playoutIsAvailable)(void* adm_borrowed, bool* available);

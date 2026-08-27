@@ -6,7 +6,6 @@
 #ifndef RFFI_API_PEER_CONNECTION_INTF_H__
 #define RFFI_API_PEER_CONNECTION_INTF_H__
 
-#include "api/peer_connection_interface.h"
 #include "rffi/api/network.h"
 #include "rffi/api/rtp_observer_intf.h"
 #include "rffi/api/sdp_observer_intf.h"
@@ -17,9 +16,13 @@ constexpr char kAudioTrackId[] = "audio1";
 constexpr char kVideoTrackId[] = "video1";
 
 namespace webrtc {
+class IceGathererInterface;
+class PeerConnectionInterface;
+
 namespace rffi {
 class ConnectionParametersV4;
 }
+
 }  // namespace webrtc
 
 RUSTEXPORT bool Rust_setScalabilityMode(
@@ -232,11 +235,11 @@ RUSTEXPORT bool Rust_receiveRtp(
 
 RUSTEXPORT void Rust_configureAudioEncoders(
     webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
-    const webrtc::AudioEncoder::Config* config_borrowed);
+    const webrtc::AudioEncoderConfig* config_borrowed);
 
 RUSTEXPORT void Rust_configureAudioDecoders(
     webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
-    const webrtc::AudioDecoder::Config* config_borrowed);
+    const webrtc::AudioDecoderConfig* config_borrowed);
 
 RUSTEXPORT void Rust_getAudioLevels(
     webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,

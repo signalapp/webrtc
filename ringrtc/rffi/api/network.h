@@ -6,8 +6,7 @@
 #ifndef RFFI_API_NETWORK_H__
 #define RFFI_API_NETWORK_H__
 
-#include "rtc_base/ip_address.h"
-#include "rtc_base/socket_address.h"
+#include <cstdint>
 
 namespace webrtc {
 

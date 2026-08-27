@@ -17,6 +17,9 @@
 
 #include "absl/strings/string_view.h"
 
+// RingRTC change to move AdapterType into the ringrtc directory
+#include "ringrtc/rffi/api/webrtc_common.h"
+
 namespace webrtc {
 
 constexpr uint16_t kNetworkCostMax = 999;
@@ -57,25 +60,7 @@ constexpr uint16_t kNetworkCostCellularVpnSlice =  // 899
 // alias
 constexpr uint16_t kNetworkCostHigh = kNetworkCostCellular;
 
-enum AdapterType {
-  // This enum resembles the one in Chromium net::ConnectionType.
-  ADAPTER_TYPE_UNKNOWN = 0,
-  ADAPTER_TYPE_ETHERNET = 1 << 0,
-  ADAPTER_TYPE_WIFI = 1 << 1,
-  ADAPTER_TYPE_CELLULAR = 1 << 2,  // This is CELLULAR of unknown type.
-  ADAPTER_TYPE_VPN = 1 << 3,
-  ADAPTER_TYPE_LOOPBACK = 1 << 4,
-  // ADAPTER_TYPE_ANY is used for a network, which only contains a single "any
-  // address" IP address (INADDR_ANY for IPv4 or in6addr_any for IPv6), and can
-  // use any/all network interfaces. Whereas ADAPTER_TYPE_UNKNOWN is used
-  // when the network uses a specific interface/IP, but its interface type can
-  // not be determined or not fit in this enum.
-  ADAPTER_TYPE_ANY = 1 << 5,
-  ADAPTER_TYPE_CELLULAR_2G = 1 << 6,
-  ADAPTER_TYPE_CELLULAR_3G = 1 << 7,
-  ADAPTER_TYPE_CELLULAR_4G = 1 << 8,
-  ADAPTER_TYPE_CELLULAR_5G = 1 << 9
-};
+// RingRTC change to move AdapterType to the ringrtc directory
 
 std::string AdapterTypeToString(AdapterType type);
 

@@ -6,6 +6,7 @@
 #include <string>
 
 #include "rffi/api/android/peer_connection_intf.h"
+#include "sdk/android/src/jni/pc/peer_connection.h"
 
 namespace webrtc {
 namespace rffi {

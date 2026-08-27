@@ -8,6 +8,7 @@
 
 #include <atomic>
 
+#include "api/peer_connection_interface.h"
 #include "rffi/api/stats_observer_intf.h"
 
 namespace webrtc {

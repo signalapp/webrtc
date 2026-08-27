@@ -5,6 +5,8 @@
 
 #include "rffi/api/logging.h"
 
+#include "rtc_base/logging.h"
+
 namespace webrtc {
 namespace rffi {
 

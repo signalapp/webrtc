@@ -6,11 +6,11 @@
 #ifndef RFFI_API_PEER_CONNECTION_OBSERVER_INTF_H__
 #define RFFI_API_PEER_CONNECTION_OBSERVER_INTF_H__
 
-#include "api/peer_connection_interface.h"
+#include "rffi/api/injectable_network.h"
 #include "rffi/api/media.h"
 #include "rffi/api/network.h"
 #include "rffi/api/rffi_defs.h"
-#include "rtc_base/network_constants.h"
+#include "rffi/api/webrtc_common.h"
 
 /**
  * Rust friendly wrapper around a custom class that implements the
@@ -19,6 +19,9 @@
  */
 
 namespace webrtc {
+class PeerConnectionInterface;
+class MediaStreamInterface;
+class MediaStreamTrackInterface;
 namespace rffi {
 class PeerConnectionObserverRffi;
 
@@ -40,9 +43,8 @@ typedef struct {
                          const RustIceCandidate* candidate_borrowed);
   void (*onIceCandidateRemoved)(void* observer_borrowed,
                                 const webrtc::rffi::IpPort address_borrowed);
-  void (*onIceConnectionChange)(
-      void* observer_borrowed,
-      webrtc::PeerConnectionInterface::IceConnectionState);
+  void (*onIceConnectionChange)(void* observer_borrowed,
+                                webrtc::rffi::IceConnectionState);
   void (*onIceNetworkRouteChange)(void* observer_borrowed,
                                   webrtc::rffi::NetworkRoute,
                                   const char* local_description_borrowed,

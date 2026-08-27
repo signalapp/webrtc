@@ -157,6 +157,9 @@
 // RingRTC change to receive RTP data
 #include "call/rtp_packet_sink_interface.h"
 
+// RingRTC change to move IceConnectionState into the ringrtc directory
+#include "ringrtc/rffi/api/webrtc_common.h"
+
 namespace webrtc {
 // IWYU pragma: begin_keep
 // MediaFactory class definition is not part of the api.
@@ -225,17 +228,14 @@ class RTC_EXPORT PeerConnectionInterface : public RefCountInterface {
   };
   static constexpr absl::string_view AsString(PeerConnectionState state);
 
-  // See https://w3c.github.io/webrtc-pc/#dom-rtciceconnectionstate
-  enum IceConnectionState {
-    kIceConnectionNew,
-    kIceConnectionChecking,
-    kIceConnectionConnected,
-    kIceConnectionCompleted,
-    kIceConnectionFailed,
-    kIceConnectionDisconnected,
-    kIceConnectionClosed,
-    kIceConnectionMax,
-  };
+  // RingRTC change to move IceConnectionState into the ringrtc directory
+  // Bring in both the enumerator values (e.g. kIceConnectionNew) and the
+  // IceConnectionState symbol into this class, so uses like
+  // PeerConnectionInterface::kIceConnectionNew and
+  // PeerConnectionInterface::IceConnectionState still work.
+  using enum ::webrtc::rffi::IceConnectionState;
+  using IceConnectionState = ::webrtc::rffi::IceConnectionState;
+  // End RingRTC change
   static constexpr absl::string_view AsString(IceConnectionState state);
 
   // TLS certificate policy.

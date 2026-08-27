@@ -10,8 +10,16 @@
 #ifndef ANDROID_MEDIA_STREAM_INTF_H__
 #define ANDROID_MEDIA_STREAM_INTF_H__
 
+#include <jni.h>
+
 #include "rffi/api/rffi_defs.h"
-#include "sdk/android/src/jni/pc/media_stream.h"
+
+namespace webrtc {
+class MediaStreamInterface;
+namespace jni {
+class JavaMediaStream;
+}
+}  // namespace webrtc
 
 // Create a JavaMediaStream C++ object from a
 // webrtc::MediaStreamInterface* object.

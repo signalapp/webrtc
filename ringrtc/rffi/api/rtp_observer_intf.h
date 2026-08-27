@@ -6,7 +6,9 @@
 #ifndef RFFI_API_RTP_OBSERVER_INTF_H__
 #define RFFI_API_RTP_OBSERVER_INTF_H__
 
-#include "api/peer_connection_interface.h"
+#include <cstddef>
+#include <cstdint>
+
 #include "rffi/api/rffi_defs.h"
 
 /**

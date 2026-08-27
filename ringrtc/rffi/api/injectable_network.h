@@ -6,10 +6,11 @@
 #ifndef RFFI_API_INJECTABLE_NETWORK_H__
 #define RFFI_API_INJECTABLE_NETWORK_H__
 
-#include "p2p/base/port_allocator.h"
+#include <cstddef>
+
 #include "rffi/api/network.h"
 #include "rffi/api/rffi_defs.h"
-#include "rtc_base/thread.h"
+#include "rffi/api/webrtc_common.h"
 
 namespace webrtc {
 

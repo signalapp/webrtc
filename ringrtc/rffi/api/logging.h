@@ -7,7 +7,7 @@
 #define RFFI_LOGGING_H__
 
 #include "rffi/api/rffi_defs.h"
-#include "rtc_base/logging.h"
+#include "rffi/api/webrtc_common.h"
 
 typedef struct {
   void (*onLogMessage)(webrtc::LoggingSeverity severity,

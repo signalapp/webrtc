@@ -29,6 +29,9 @@
 #include "rtc_base/buffer.h"
 #include "rtc_base/logging.h"
 
+// RingRTC change to define FFI structs in rffi/api
+#include "ringrtc/rffi/api/webrtc_common.h"
+
 namespace webrtc {
 
 // Statistics related to Audio Network Adaptation.
@@ -118,53 +121,7 @@ class AudioEncoder {
   };
 
   // RingRTC change to configure opus
-  // Very OPUS-specific
-  struct Config {
-    // AKA ptime or frame size
-    // One of 10, 20, 40, 60, 80, 100, 120
-    int32_t initial_packet_size_ms = 60;
-    int32_t min_packet_size_ms = 60;
-    int32_t max_packet_size_ms = 60;
-
-    // 500 to 192000
-    // Start at initial_bitrate_bps, and let the BWE and bitrate allocator
-    // move up to max_bitrate_bps or down to min_bitrate_bps.
-    int32_t initial_bitrate_bps = 32000;
-    int32_t min_bitrate_bps = 32000;
-    int32_t max_bitrate_bps = 32000;
-
-    // 1101 = OPUS_BANDWIDTH_NARROWBAND
-    // 1102 = OPUS_BADWIDTH_MEDIUMBAND
-    // 1103 = OPUS_BANDWIDTH_WIDEBAND
-    // 1104 = OPUS_BANDWIDTH_SUPERWIDEBAND
-    // 1105 = OPUS_BANDWIDTH_FULLBAND
-    int32_t bandwidth = -1000;  // OPUS_AUTO
-
-    // 0 (least complex) to 9 (most complex)
-    int32_t complexity = 9;
-
-    // Adaptation method to use, 0 to disable
-    int32_t adaptation = 0;
-
-    // CBR is used by default
-    bool enable_cbr = true;
-
-    // DTX is enabled by default
-    bool enable_dtx = true;
-
-    // In-band FEC is enabled by default
-    bool enable_fec = true;
-
-    // DRED duration (1 to 100), 0 to disable
-    int32_t dred_duration = 0;
-
-    // Minimum packet loss percentage (0-100)
-    int32_t min_packet_loss_percent = 0;
-
-    // DNN weights blob
-    const void* dnn_weights_data = nullptr;
-    int32_t dnn_weights_length = 0;
-  };
+  using Config = ::webrtc::AudioEncoderConfig;
 
   virtual ~AudioEncoder() = default;
 

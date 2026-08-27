@@ -6,6 +6,7 @@
 #ifndef RFFI_PEER_CONNECTION_OBSERVER_H__
 #define RFFI_PEER_CONNECTION_OBSERVER_H__
 
+#include "api/peer_connection_interface.h"
 #include "rffi/api/peer_connection_observer_intf.h"
 
 /**
