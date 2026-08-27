@@ -165,6 +165,18 @@ void StatsObserverRffi::OnStatsDelivered(
         }
       }
 
+      if (stat->media_source_id.has_value()) {
+        auto video_source_stat =
+            report->GetAs<RTCVideoSourceStats>(*stat->media_source_id);
+        if (video_source_stat) {
+          video_sender.source_frames = video_source_stat->frames.value_or(0);
+          video_sender.source_frame_width =
+              video_source_stat->width.value_or(0);
+          video_sender.source_frame_height =
+              video_source_stat->height.value_or(0);
+        }
+      }
+
       this->video_sender_statistics_.push_back(video_sender);
     }
   }

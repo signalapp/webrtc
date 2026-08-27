@@ -63,6 +63,9 @@ typedef struct {
   double remote_round_trip_time;
   StatsVideoCodecType codec;
   const char* encoder_implementation;
+  uint32_t source_frames;
+  uint32_t source_frame_width;
+  uint32_t source_frame_height;
 } VideoSenderStatistics;
 
 typedef struct {
