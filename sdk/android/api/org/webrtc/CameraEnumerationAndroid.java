@@ -152,10 +152,81 @@ public class CameraEnumerationAndroid {
     }
   }
 
+  // RingRTC change to configure the minimum capture framerate.
+  // Overrides the framerate range scoring below. Specifies a floor for the
+  // capture framerate range.
+  // 0 just uses the default behavior
+  private static volatile int minimumFramerateFps;
+
+  /**
+   * @param fps floor in frames per second, or 0 to restore the default behavior.
+   */
+  public static void setMinimumFramerateFps(int fps) {
+    minimumFramerateFps = Math.max(fps, 0);
+  }
+
+  public static int getMinimumFramerateFps() {
+    return minimumFramerateFps;
+  }
+
+  /**
+   * Picks a range for a requested floor of `minFps`, in this order of preference:
+   *
+   * 1. the closest range where [min >= `minFps`, max >= `requestedFps`]
+   * 2. any range whose floor is at least `minFps`, taking the highest ceiling.
+   *
+   * returns null when the camera advertises nothing with a high enough floor
+   */
+  private static CaptureFormat.FramerateRange rangeWithFloorAtLeast(
+      List<CaptureFormat.FramerateRange> supportedFramerates, final int minFps, final int requestedFps) {
+    final int minMilliFps = minFps * 1000;
+    final int requestedMilliFps = requestedFps * 1000;
+
+    // Check for case 1: Satisfies both constraints
+    CaptureFormat.FramerateRange best = null;
+    for (CaptureFormat.FramerateRange range : supportedFramerates) {
+      if (range.min < minMilliFps || range.max < requestedMilliFps) {
+        continue;
+      }
+      if (best == null || range.min < best.min || (range.min == best.min && range.max < best.max)) {
+        best = range;
+      }
+    }
+    if (best != null) {
+      return best;
+    }
+
+    // Check for case 2: satisfies minimum constraint
+    for (CaptureFormat.FramerateRange range : supportedFramerates) {
+      if (range.min < minMilliFps) {
+        continue;
+      }
+      if (best == null || range.max > best.max || (range.max == best.max && range.min < best.min)) {
+        best = range;
+      }
+    }
+    return best;
+  }
+
   // Prefer a fps range with an upper bound close to `framerate`. Also prefer a fps range with a low
   // lower bound, to allow the framerate to fluctuate based on lightning conditions.
   public static CaptureFormat.FramerateRange getClosestSupportedFramerateRange(
       List<CaptureFormat.FramerateRange> supportedFramerates, final int requestedFps) {
+    final int minFps = minimumFramerateFps;
+    if (minFps > 0) {
+      final CaptureFormat.FramerateRange forced = rangeWithFloorAtLeast(supportedFramerates, minFps, requestedFps);
+      if (forced != null) {
+        Logging.w(TAG,
+            "Forcing fps range " + forced + " for requested " + requestedFps + "fps with a floor of "
+                + minFps + "fps, out of " + supportedFramerates);
+        return forced;
+      }
+      Logging.w(TAG,
+          "No fps range has a floor of " + minFps + "fps, out of " + supportedFramerates
+              + " -- falling back to default scoring");
+    }
+    // end RingRTC change to configure the minimum capture framerate.
+
     return Collections.min(
         supportedFramerates, new ClosestComparator<CaptureFormat.FramerateRange>() {
           // Progressive penalty if the upper bound is further away than `MAX_FPS_DIFF_THRESHOLD`
