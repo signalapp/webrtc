@@ -10,6 +10,8 @@
 
 #include "rffi/api/rffi_defs.h"
 
+using webrtc::rffi::ptr::Borrowed;
+
 /**
  * Rust friendly wrapper for creating objects that implement the
  * AudioDevice interface.
@@ -61,80 +63,99 @@ typedef struct {
   // This method is effectively unimplemented, so we do not need to include
   // the AudioLayer enum in the API.
   // TODO: Delete this method and the other unimplemented ones.
-  int32_t (*activeAudioLayer)(void* adm_borrowed, void* audio_layer);
+  int32_t (*activeAudioLayer)(Borrowed<void> adm_borrowed,
+                              Borrowed<void> audio_layer);
   // Main initialization and termination
-  int32_t (*init)(void* adm_borrowed, uintptr_t audio_transport_ptr_ptr);
-  int32_t (*terminate)(void* adm_borrowed);
-  bool (*initialized)(void* adm_borrowed);
+  int32_t (*init)(Borrowed<void> adm_borrowed,
+                  uintptr_t audio_transport_ptr_ptr);
+  int32_t (*terminate)(Borrowed<void> adm_borrowed);
+  bool (*initialized)(Borrowed<void> adm_borrowed);
 
   // Device enumeration
-  int16_t (*playoutDevices)(void* adm_borrowed);
-  int16_t (*recordingDevices)(void* adm_borrowed);
-  int32_t (*playoutDeviceName)(void* adm_borrowed,
+  int16_t (*playoutDevices)(Borrowed<void> adm_borrowed);
+  int16_t (*recordingDevices)(Borrowed<void> adm_borrowed);
+  int32_t (*playoutDeviceName)(Borrowed<void> adm_borrowed,
                                uint16_t index,
-                               char name[kRffiAdmMaxDeviceNameSize],
-                               char guid[kRffiAdmMaxGuidSize]);
-  int32_t (*recordingDeviceName)(void* adm_borrowed,
+                               Borrowed<char> name,
+                               Borrowed<char> guid);
+  int32_t (*recordingDeviceName)(Borrowed<void> adm_borrowed,
                                  uint16_t index,
-                                 char name[kRffiAdmMaxDeviceNameSize],
-                                 char guid[kRffiAdmMaxGuidSize]);
+                                 Borrowed<char> name,
+                                 Borrowed<char> guid);
 
   // Audio transport initialization
-  int32_t (*playoutIsAvailable)(void* adm_borrowed, bool* available);
-  int32_t (*initPlayout)(void* adm_borrowed);
-  bool (*playoutIsInitialized)(void* adm_borrowed);
-  int32_t (*recordingIsAvailable)(void* adm_borrowed, bool* available);
-  int32_t (*initRecording)(void* adm_borrowed);
-  bool (*recordingIsInitialized)(void* adm_borrowed);
+  int32_t (*playoutIsAvailable)(Borrowed<void> adm_borrowed,
+                                Borrowed<bool> available);
+  int32_t (*initPlayout)(Borrowed<void> adm_borrowed);
+  bool (*playoutIsInitialized)(Borrowed<void> adm_borrowed);
+  int32_t (*recordingIsAvailable)(Borrowed<void> adm_borrowed,
+                                  Borrowed<bool> available);
+  int32_t (*initRecording)(Borrowed<void> adm_borrowed);
+  bool (*recordingIsInitialized)(Borrowed<void> adm_borrowed);
 
   // Audio transport control
-  int32_t (*startPlayout)(void* adm_borrowed);
-  int32_t (*stopPlayout)(void* adm_borrowed);
-  bool (*playing)(void* adm_borrowed);
-  int32_t (*startRecording)(void* adm_borrowed);
-  int32_t (*stopRecording)(void* adm_borrowed);
-  bool (*recording)(void* adm_borrowed);
+  int32_t (*startPlayout)(Borrowed<void> adm_borrowed);
+  int32_t (*stopPlayout)(Borrowed<void> adm_borrowed);
+  bool (*playing)(Borrowed<void> adm_borrowed);
+  int32_t (*startRecording)(Borrowed<void> adm_borrowed);
+  int32_t (*stopRecording)(Borrowed<void> adm_borrowed);
+  bool (*recording)(Borrowed<void> adm_borrowed);
 
   // Audio mixer initialization
-  int32_t (*initSpeaker)(void* adm_borrowed);
-  bool (*speakerIsInitialized)(void* adm_borrowed);
-  int32_t (*initMicrophone)(void* adm_borrowed);
-  bool (*microphoneIsInitialized)(void* adm_borrowed);
+  int32_t (*initSpeaker)(Borrowed<void> adm_borrowed);
+  bool (*speakerIsInitialized)(Borrowed<void> adm_borrowed);
+  int32_t (*initMicrophone)(Borrowed<void> adm_borrowed);
+  bool (*microphoneIsInitialized)(Borrowed<void> adm_borrowed);
 
   // Speaker volume controls
-  int32_t (*speakerVolumeIsAvailable)(void* adm_borrowed, bool* available);
-  int32_t (*setSpeakerVolume)(void* adm_borrowed, uint32_t volume);
-  int32_t (*speakerVolume)(void* adm_borrowed, uint32_t* volume);
-  int32_t (*maxSpeakerVolume)(void* adm_borrowed, uint32_t* max_volume);
-  int32_t (*minSpeakerVolume)(void* adm_borrowed, uint32_t* min_volume);
+  int32_t (*speakerVolumeIsAvailable)(Borrowed<void> adm_borrowed,
+                                      Borrowed<bool> available);
+  int32_t (*setSpeakerVolume)(Borrowed<void> adm_borrowed, uint32_t volume);
+  int32_t (*speakerVolume)(Borrowed<void> adm_borrowed,
+                           Borrowed<uint32_t> volume);
+  int32_t (*maxSpeakerVolume)(Borrowed<void> adm_borrowed,
+                              Borrowed<uint32_t> max_volume);
+  int32_t (*minSpeakerVolume)(Borrowed<void> adm_borrowed,
+                              Borrowed<uint32_t> min_volume);
 
   // Microphone volume controls
-  int32_t (*microphoneVolumeIsAvailable)(void* adm_borrowed, bool* available);
-  int32_t (*setMicrophoneVolume)(void* adm_borrowed, uint32_t volume);
-  int32_t (*microphoneVolume)(void* adm_borrowed, uint32_t* volume);
-  int32_t (*maxMicrophoneVolume)(void* adm_borrowed, uint32_t* max_volume);
-  int32_t (*minMicrophoneVolume)(void* adm_borrowed, uint32_t* min_volume);
+  int32_t (*microphoneVolumeIsAvailable)(Borrowed<void> adm_borrowed,
+                                         Borrowed<bool> available);
+  int32_t (*setMicrophoneVolume)(Borrowed<void> adm_borrowed, uint32_t volume);
+  int32_t (*microphoneVolume)(Borrowed<void> adm_borrowed,
+                              Borrowed<uint32_t> volume);
+  int32_t (*maxMicrophoneVolume)(Borrowed<void> adm_borrowed,
+                                 Borrowed<uint32_t> max_volume);
+  int32_t (*minMicrophoneVolume)(Borrowed<void> adm_borrowed,
+                                 Borrowed<uint32_t> min_volume);
 
   // Speaker mute control
-  int32_t (*speakerMuteIsAvailable)(void* adm_borrowed, bool* available);
-  int32_t (*setSpeakerMute)(void* adm_borrowed, bool enable);
-  int32_t (*speakerMute)(void* adm_borrowed, bool* enabled);
+  int32_t (*speakerMuteIsAvailable)(Borrowed<void> adm_borrowed,
+                                    Borrowed<bool> available);
+  int32_t (*setSpeakerMute)(Borrowed<void> adm_borrowed, bool enable);
+  int32_t (*speakerMute)(Borrowed<void> adm_borrowed, Borrowed<bool> enabled);
 
   // Microphone mute control
-  int32_t (*microphoneMuteIsAvailable)(void* adm_borrowed, bool* available);
-  int32_t (*setMicrophoneMute)(void* adm_borrowed, bool enable);
-  int32_t (*microphoneMute)(void* adm_borrowed, bool* enabled);
+  int32_t (*microphoneMuteIsAvailable)(Borrowed<void> adm_borrowed,
+                                       Borrowed<bool> available);
+  int32_t (*setMicrophoneMute)(Borrowed<void> adm_borrowed, bool enable);
+  int32_t (*microphoneMute)(Borrowed<void> adm_borrowed,
+                            Borrowed<bool> enabled);
 
   // Stereo support
-  int32_t (*stereoPlayoutIsAvailable)(void* adm_borrowed, bool* available);
-  int32_t (*setStereoPlayout)(void* adm_borrowed, bool enable);
-  int32_t (*stereoPlayout)(void* adm_borrowed, bool* enabled);
-  int32_t (*stereoRecordingIsAvailable)(void* adm_borrowed, bool* available);
-  int32_t (*setStereoRecording)(void* adm_borrowed, bool enable);
-  int32_t (*stereoRecording)(void* adm_borrowed, bool* enabled);
+  int32_t (*stereoPlayoutIsAvailable)(Borrowed<void> adm_borrowed,
+                                      Borrowed<bool> available);
+  int32_t (*setStereoPlayout)(Borrowed<void> adm_borrowed, bool enable);
+  int32_t (*stereoPlayout)(Borrowed<void> adm_borrowed, Borrowed<bool> enabled);
+  int32_t (*stereoRecordingIsAvailable)(Borrowed<void> adm_borrowed,
+                                        Borrowed<bool> available);
+  int32_t (*setStereoRecording)(Borrowed<void> adm_borrowed, bool enable);
+  int32_t (*stereoRecording)(Borrowed<void> adm_borrowed,
+                             Borrowed<bool> enabled);
 
   // Playout delay
-  int32_t (*playoutDelay)(void* adm_borrowed, uint16_t* delayMS);
+  int32_t (*playoutDelay)(Borrowed<void> adm_borrowed,
+                          Borrowed<uint16_t> delayMS);
 } AudioDeviceCallbacks;
 
 #endif  // RFFI_API_AUDIO_DEVICE_INTF_H__

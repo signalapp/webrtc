@@ -10,6 +10,9 @@
 #include "rffi/src/ptr.h"
 #include "rtc_base/string_utils.h"
 
+namespace webrtc {
+namespace rffi {
+
 namespace {
 StatsVideoCodecType MimeTypeToCodec(std::string mime_type) {
   if (mime_type == "video/VP9") {
@@ -22,9 +25,6 @@ StatsVideoCodecType MimeTypeToCodec(std::string mime_type) {
   }
 }
 }  // namespace
-
-namespace webrtc {
-namespace rffi {
 
 constexpr char kNoCodecLibraryPresent[] = "NoCodecLibrary";
 

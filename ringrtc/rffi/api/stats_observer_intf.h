@@ -19,8 +19,6 @@
 namespace webrtc {
 namespace rffi {
 class StatsObserverRffi;
-}  // namespace rffi
-}  // namespace webrtc
 
 // Used for stats
 enum StatsVideoCodecType {
@@ -62,7 +60,7 @@ typedef struct {
   double remote_jitter;
   double remote_round_trip_time;
   StatsVideoCodecType codec;
-  const char* encoder_implementation;
+  ptr::Borrowed<const char> encoder_implementation;
   uint32_t source_frames;
   uint32_t source_frame_width;
   uint32_t source_frame_height;
@@ -107,11 +105,11 @@ typedef struct {
   uint64_t jitter_buffer_flushes;
   double estimated_playout_timestamp;
   StatsVideoCodecType codec;
-  const char* decoder_implementation;
+  ptr::Borrowed<const char> decoder_implementation;
 } VideoReceiverStatistics;
 
 typedef struct {
-  const char* raw_candidate_pair_id;
+  ptr::Borrowed<const char> raw_candidate_pair_id;
   double current_round_trip_time;
   double available_outgoing_bitrate;
   uint64_t requests_sent;
@@ -137,17 +135,22 @@ typedef struct {
 
 /* Stats Observer Callback callback function pointers */
 typedef struct {
-  void (*OnStatsComplete)(void* stats_observer_borrowed,
-                          const MediaStatistics* media_statistics_borrowed,
-                          const char* report_json_borrowed);
+  void (*OnStatsComplete)(
+      ptr::Borrowed<void> stats_observer_borrowed,
+      ptr::Borrowed<const MediaStatistics> media_statistics_borrowed,
+      ptr::Borrowed<const char> report_json_borrowed);
 } StatsObserverCallbacks;
 
-RUSTEXPORT webrtc::rffi::StatsObserverRffi* Rust_createStatsObserver(
-    void* stats_observer_borrowed,
-    const StatsObserverCallbacks* stats_observer_cbs_borrowed);
+RUSTEXPORT ptr::OwnedRc<webrtc::rffi::StatsObserverRffi>
+Rust_createStatsObserver(
+    ptr::Borrowed<void> stats_observer_borrowed,
+    ptr::Borrowed<const StatsObserverCallbacks> stats_observer_cbs_borrowed);
 
 RUSTEXPORT void Rust_setCollectRawStatsReport(
-    webrtc::rffi::StatsObserverRffi* stats_observer_borrowed,
+    ptr::BorrowedRc<webrtc::rffi::StatsObserverRffi> stats_observer_borrowed,
     bool collect_raw_stats_report);
+
+}  // namespace rffi
+}  // namespace webrtc
 
 #endif /* RFFI_API_STATS_OBSERVER_INTF_H__ */

@@ -21,18 +21,17 @@ class PeerConnectionInterface;
 
 namespace rffi {
 class ConnectionParametersV4;
-}
-
-}  // namespace webrtc
 
 RUSTEXPORT bool Rust_setScalabilityMode(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
-    const char* scalability_mode,
+    ptr::BorrowedRc<webrtc::PeerConnectionInterface>
+        peer_connection_borrowed_rc,
+    ptr::Borrowed<const char> scalability_mode,
     int max_bitrate_bps);
 
 RUSTEXPORT bool Rust_updateTransceivers(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
-    const uint32_t* remote_demux_ids_data_borrowed,
+    ptr::BorrowedRc<webrtc::PeerConnectionInterface>
+        peer_connection_borrowed_rc,
+    ptr::Borrowed<const uint32_t> remote_demux_ids_data_borrowed,
     size_t length);
 
 /**
@@ -43,31 +42,36 @@ RUSTEXPORT bool Rust_updateTransceivers(
 // Borrows the observer until the result is given to the observer,
 // so the observer must stay alive until it's given a result.
 RUSTEXPORT void Rust_createOffer(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
-    webrtc::rffi::CreateSessionDescriptionObserverRffi*
+    ptr::BorrowedRc<webrtc::PeerConnectionInterface>
+        peer_connection_borrowed_rc,
+    ptr::BorrowedRc<webrtc::rffi::CreateSessionDescriptionObserverRffi>
         csd_observer_borrowed_rc);
 
 // If using asymmetric codecs, add a send-only transceiver for the send stream.
 RUSTEXPORT bool Rust_createSendOnlyTransceiver(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc);
+    ptr::BorrowedRc<webrtc::PeerConnectionInterface>
+        peer_connection_borrowed_rc);
 
 // Borrows the observer until the result is given to the observer,
 // so the observer must stay alive until it's given a result.
 RUSTEXPORT void Rust_setLocalDescription(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
-    webrtc::rffi::SetSessionDescriptionObserverRffi* ssd_observer_borrowed_rc,
-    webrtc::SessionDescriptionInterface* local_description_owned);
+    ptr::BorrowedRc<webrtc::PeerConnectionInterface>
+        peer_connection_borrowed_rc,
+    ptr::BorrowedRc<webrtc::rffi::SetSessionDescriptionObserverRffi>
+        ssd_observer_borrowed_rc,
+    ptr::Owned<webrtc::SessionDescriptionInterface> local_description_owned);
 
-// Returns an owned pointer.
-RUSTEXPORT const char* Rust_toSdp(
-    webrtc::SessionDescriptionInterface* session_description_borrowed);
+RUSTEXPORT ptr::Owned<const char> Rust_toSdp(
+    ptr::Borrowed<webrtc::SessionDescriptionInterface>
+        session_description_borrowed);
 
 RUSTEXPORT bool Rust_disableDtlsAndSetSrtpKey(
-    webrtc::SessionDescriptionInterface* session_description_borrowed,
+    ptr::Borrowed<webrtc::SessionDescriptionInterface>
+        session_description_borrowed,
     int crypto_suite,
-    const char* key_borrowed,
+    ptr::Borrowed<const char> key_borrowed,
     size_t key_len,
-    const char* salt_borrowed,
+    ptr::Borrowed<const char> salt_borrowed,
     size_t salt_len);
 
 enum RffiVideoCodecType {
@@ -81,44 +85,47 @@ typedef struct {
 
 typedef struct {
   // These all just refer to the storage
-  const char* ice_ufrag_borrowed;
-  const char* ice_pwd_borrowed;
-  RffiVideoCodec* bidirectional_video_codecs_borrowed;
+  ptr::Borrowed<const char> ice_ufrag_borrowed;
+  ptr::Borrowed<const char> ice_pwd_borrowed;
+  ptr::Borrowed<RffiVideoCodec> bidirectional_video_codecs_borrowed;
   size_t bidirectional_video_codecs_size;
-  RffiVideoCodec* encode_only_video_codecs_borrowed;
+  ptr::Borrowed<RffiVideoCodec> encode_only_video_codecs_borrowed;
   size_t encode_only_video_codecs_size;
-  RffiVideoCodec* decode_only_video_codecs_borrowed;
+  ptr::Borrowed<RffiVideoCodec> decode_only_video_codecs_borrowed;
   size_t decode_only_video_codecs_size;
 
   // When this is released, we must release the storage
-  webrtc::rffi::ConnectionParametersV4* backing_owned;
+  ptr::Owned<webrtc::rffi::ConnectionParametersV4> backing_owned;
 } RffiConnectionParametersV4;
 
 typedef struct {
   int suite;
-  const char* key_borrowed;
+  ptr::Borrowed<const char> key_borrowed;
   size_t key_len;
-  const char* salt_borrowed;
+  ptr::Borrowed<const char> salt_borrowed;
   size_t salt_len;
 } RffiSrtpKey;
 
-// Returns an owned pointer.
-RUSTEXPORT RffiConnectionParametersV4* Rust_sessionDescriptionToV4(
-    const webrtc::SessionDescriptionInterface* session_description_borrowed,
+RUSTEXPORT ptr::Owned<RffiConnectionParametersV4> Rust_sessionDescriptionToV4(
+    ptr::Borrowed<const webrtc::SessionDescriptionInterface>
+        session_description_borrowed,
     bool enable_vp9_encode,
     bool enable_vp9_decode);
 
 // Legacy version of the above - used for communicating with clients that only
 // support symmetric codecs.
-RUSTEXPORT RffiConnectionParametersV4* Rust_sessionDescriptionToV4Legacy(
-    const webrtc::SessionDescriptionInterface* session_description_borrowed,
+RUSTEXPORT ptr::Owned<RffiConnectionParametersV4>
+Rust_sessionDescriptionToV4Legacy(
+    ptr::Borrowed<const webrtc::SessionDescriptionInterface>
+        session_description_borrowed,
     bool enable_vp9);
 
-RUSTEXPORT void Rust_deleteV4(RffiConnectionParametersV4* v4_owned);
+RUSTEXPORT void Rust_deleteV4(ptr::Owned<RffiConnectionParametersV4> v4_owned);
 
-RUSTEXPORT webrtc::SessionDescriptionInterface* Rust_sessionDescriptionFromV4(
+RUSTEXPORT ptr::Owned<webrtc::SessionDescriptionInterface>
+Rust_sessionDescriptionFromV4(
     bool offer,
-    const RffiConnectionParametersV4* v4_borrowed,
+    ptr::Borrowed<const RffiConnectionParametersV4> v4_borrowed,
     bool enable_tcc_audio,
     bool enable_vp9_encode,
     bool enable_vp9_decode,
@@ -126,139 +133,164 @@ RUSTEXPORT webrtc::SessionDescriptionInterface* Rust_sessionDescriptionFromV4(
 
 // Legacy version of the above - used for communicating with clients that only
 // support symmetric codecs.
-RUSTEXPORT webrtc::SessionDescriptionInterface*
+RUSTEXPORT ptr::Owned<webrtc::SessionDescriptionInterface>
 Rust_sessionDescriptionFromV4Legacy(
     bool offer,
-    const RffiConnectionParametersV4* v4_borrowed,
+    ptr::Borrowed<const RffiConnectionParametersV4> v4_borrowed,
     bool enable_tcc_audio,
     bool enable_vp9);
 
-RUSTEXPORT webrtc::SessionDescriptionInterface*
+RUSTEXPORT ptr::Owned<webrtc::SessionDescriptionInterface>
 Rust_localDescriptionForGroupCall(
-    const char* ice_ufrag_borrowed,
-    const char* ice_pwd_borrowed,
+    ptr::Borrowed<const char> ice_ufrag_borrowed,
+    ptr::Borrowed<const char> ice_pwd_borrowed,
     RffiSrtpKey server_srtp_key,
     uint32_t local_demux_id,
-    const uint32_t* remote_demux_ids_borrowed,
+    ptr::Borrowed<const uint32_t> remote_demux_ids_borrowed,
     size_t remote_demux_ids_len,
-    const uint32_t* remote_demux_ids_require_svc_borrowed,
+    ptr::Borrowed<const uint32_t> remote_demux_ids_require_svc_borrowed,
     size_t remote_demux_ids_needs_svc_len,
     bool enable_vp9);
 
-RUSTEXPORT webrtc::SessionDescriptionInterface*
+RUSTEXPORT ptr::Owned<webrtc::SessionDescriptionInterface>
 Rust_remoteDescriptionForGroupCall(
-    const char* ice_ufrag_borrowed,
-    const char* ice_pwd_borrowed,
+    ptr::Borrowed<const char> ice_ufrag_borrowed,
+    ptr::Borrowed<const char> ice_pwd_borrowed,
     RffiSrtpKey server_srtp_key,
     uint32_t local_demux_id,
-    const uint32_t* remote_demux_ids_borrowed,
+    ptr::Borrowed<const uint32_t> remote_demux_ids_borrowed,
     size_t remote_demux_ids_len,
-    const uint32_t* remote_demux_ids_require_svc_borrowed,
+    ptr::Borrowed<const uint32_t> remote_demux_ids_require_svc_borrowed,
     size_t remote_demux_ids_needs_svc_len,
     bool enable_vp9);
 
 RUSTEXPORT void Rust_createAnswer(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
-    webrtc::rffi::CreateSessionDescriptionObserverRffi*
+    ptr::BorrowedRc<webrtc::PeerConnectionInterface>
+        peer_connection_borrowed_rc,
+    ptr::BorrowedRc<webrtc::rffi::CreateSessionDescriptionObserverRffi>
         csd_observer_borrowed_rc);
 
 RUSTEXPORT void Rust_setRemoteDescription(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
-    webrtc::rffi::SetSessionDescriptionObserverRffi* ssd_observer_borrowed_rc,
-    webrtc::SessionDescriptionInterface* remote_description_owned);
+    ptr::BorrowedRc<webrtc::PeerConnectionInterface>
+        peer_connection_borrowed_rc,
+    ptr::BorrowedRc<webrtc::rffi::SetSessionDescriptionObserverRffi>
+        ssd_observer_borrowed_rc,
+    ptr::Owned<webrtc::SessionDescriptionInterface> remote_description_owned);
 
 RUSTEXPORT void Rust_deleteSessionDescription(
-    webrtc::SessionDescriptionInterface* description_owned);
+    ptr::Owned<webrtc::SessionDescriptionInterface> description_owned);
 
 RUSTEXPORT void Rust_setOutgoingMediaEnabled(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
+    ptr::BorrowedRc<webrtc::PeerConnectionInterface>
+        peer_connection_borrowed_rc,
     bool enabled);
 
 RUSTEXPORT bool Rust_setIncomingMediaEnabled(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
+    ptr::BorrowedRc<webrtc::PeerConnectionInterface>
+        peer_connection_borrowed_rc,
     bool enabled);
 
 RUSTEXPORT void Rust_setAudioPlayoutEnabled(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
+    ptr::BorrowedRc<webrtc::PeerConnectionInterface>
+        peer_connection_borrowed_rc,
     bool enabled);
 
 RUSTEXPORT void Rust_setAudioRecordingEnabled(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
+    ptr::BorrowedRc<webrtc::PeerConnectionInterface>
+        peer_connection_borrowed_rc,
     bool enabled);
 
 RUSTEXPORT bool Rust_addIceCandidateFromSdp(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
-    const char* sdp);
+    ptr::BorrowedRc<webrtc::PeerConnectionInterface>
+        peer_connection_borrowed_rc,
+    ptr::Borrowed<const char> sdp);
 
 RUSTEXPORT bool Rust_addIceCandidateFromServer(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
+    ptr::BorrowedRc<webrtc::PeerConnectionInterface>
+        peer_connection_borrowed_rc,
     webrtc::rffi::Ip,
     uint16_t port,
     bool tcp,
-    const char* hostname);
+    ptr::Borrowed<const char> hostname);
 
 RUSTEXPORT bool Rust_removeIceCandidates(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
-    webrtc::rffi::IpPort* removed_addresses_borrowed,
+    ptr::BorrowedRc<webrtc::PeerConnectionInterface>
+        peer_connection_borrowed_rc,
+    ptr::Borrowed<webrtc::rffi::IpPort> removed_addresses_borrowed,
     size_t length);
 
-RUSTEXPORT webrtc::IceGathererInterface* Rust_createSharedIceGatherer(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc);
+RUSTEXPORT ptr::OwnedRc<webrtc::IceGathererInterface>
+Rust_createSharedIceGatherer(ptr::BorrowedRc<webrtc::PeerConnectionInterface>
+                                 peer_connection_borrowed_rc);
 
 RUSTEXPORT bool Rust_useSharedIceGatherer(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
-    webrtc::IceGathererInterface* ice_gatherer_borrowed_rc);
+    ptr::BorrowedRc<webrtc::PeerConnectionInterface>
+        peer_connection_borrowed_rc,
+    ptr::BorrowedRc<webrtc::IceGathererInterface> ice_gatherer_borrowed_rc);
 
-RUSTEXPORT void Rust_getStats(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
-    webrtc::rffi::StatsObserverRffi* stats_observer_borrowed_rc);
+RUSTEXPORT void Rust_getStats(ptr::BorrowedRc<webrtc::PeerConnectionInterface>
+                                  peer_connection_borrowed_rc,
+                              ptr::BorrowedRc<webrtc::rffi::StatsObserverRffi>
+                                  stats_observer_borrowed_rc);
 
 RUSTEXPORT void Rust_setSendBitrates(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
+    ptr::BorrowedRc<webrtc::PeerConnectionInterface>
+        peer_connection_borrowed_rc,
     int32_t min_bitrate_bps,
     int32_t start_bitrate_bps,
     int32_t max_bitrate_bps);
 
-RUSTEXPORT bool Rust_sendRtp(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
-    uint8_t pt,
-    uint16_t seqnum,
-    uint32_t timestamp,
-    uint32_t ssrc,
-    const uint8_t* payload_data_borrowed,
-    size_t payload_size);
+RUSTEXPORT bool Rust_sendRtp(ptr::BorrowedRc<webrtc::PeerConnectionInterface>
+                                 peer_connection_borrowed_rc,
+                             uint8_t pt,
+                             uint16_t seqnum,
+                             uint32_t timestamp,
+                             uint32_t ssrc,
+                             ptr::Borrowed<const uint8_t> payload_data_borrowed,
+                             size_t payload_size);
 
-RUSTEXPORT bool Rust_receiveRtp(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
-    uint8_t pt,
-    bool enable_incoming);
+RUSTEXPORT bool Rust_receiveRtp(ptr::BorrowedRc<webrtc::PeerConnectionInterface>
+                                    peer_connection_borrowed_rc,
+                                uint8_t pt,
+                                bool enable_incoming);
 
 RUSTEXPORT void Rust_configureAudioEncoders(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
-    const webrtc::AudioEncoderConfig* config_borrowed);
+    ptr::BorrowedRc<webrtc::PeerConnectionInterface>
+        peer_connection_borrowed_rc,
+    ptr::Borrowed<const webrtc::AudioEncoderConfig> config_borrowed);
 
 RUSTEXPORT void Rust_configureAudioDecoders(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
-    const webrtc::AudioDecoderConfig* config_borrowed);
+    ptr::BorrowedRc<webrtc::PeerConnectionInterface>
+        peer_connection_borrowed_rc,
+    ptr::Borrowed<const webrtc::AudioDecoderConfig> config_borrowed);
 
 RUSTEXPORT void Rust_getAudioLevels(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
-    uint16_t* captured_out,
-    webrtc::ReceivedAudioLevel* received_out,
+    ptr::BorrowedRc<webrtc::PeerConnectionInterface>
+        peer_connection_borrowed_rc,
+    ptr::Borrowed<uint16_t> captured_out,
+    ptr::Borrowed<webrtc::ReceivedAudioLevel> received_out,
     size_t received_out_size,
-    size_t* received_size_out);
+    ptr::Borrowed<size_t> received_size_out);
 
 RUSTEXPORT uint32_t Rust_getLastBandwidthEstimateBps(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc);
+    ptr::BorrowedRc<webrtc::PeerConnectionInterface>
+        peer_connection_borrowed_rc);
 
 RUSTEXPORT void Rust_setRtpPacketObserver(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc,
-    webrtc::rffi::RtpObserverRffi* rtp_observer_borrowed);
+    ptr::BorrowedRc<webrtc::PeerConnectionInterface>
+        peer_connection_borrowed_rc,
+    ptr::Borrowed<webrtc::rffi::RtpObserverRffi> rtp_observer_borrowed);
 
 RUSTEXPORT void Rust_closePeerConnection(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc);
+    ptr::BorrowedRc<webrtc::PeerConnectionInterface>
+        peer_connection_borrowed_rc);
 
 RUSTEXPORT void Rust_regatherOnAllNetworks(
-    webrtc::PeerConnectionInterface* peer_connection_borrowed_rc);
+    ptr::BorrowedRc<webrtc::PeerConnectionInterface>
+        peer_connection_borrowed_rc);
+
+}  // namespace rffi
+
+}  // namespace webrtc
 
 #endif /* RFFI_API_PEER_CONNECTION_INTF_H__ */

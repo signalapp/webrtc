@@ -19,21 +19,24 @@ class MediaStreamInterface;
 namespace jni {
 class JavaMediaStream;
 }
-}  // namespace webrtc
 
+namespace rffi {
 // Create a JavaMediaStream C++ object from a
 // webrtc::MediaStreamInterface* object.
-// Returns an owned pointer.
-RUSTEXPORT webrtc::jni::JavaMediaStream* Rust_createJavaMediaStream(
-    webrtc::MediaStreamInterface* media_stream_borrowed_rc);
+RUSTEXPORT ptr::Owned<webrtc::jni::JavaMediaStream> Rust_createJavaMediaStream(
+    // Note that the name doesn't match the type as used in RingRTC
+    ptr::OwnedRc<webrtc::MediaStreamInterface> media_stream_borrowed_rc);
 
 // Delete a JavaMediaStream C++ object.
 RUSTEXPORT void Rust_deleteJavaMediaStream(
-    webrtc::jni::JavaMediaStream* java_media_stream_owned);
+    ptr::Owned<webrtc::jni::JavaMediaStream> java_media_stream_owned);
 
 // Return the Java JNI object contained within the JavaMediaStream C++
 // object.
 RUSTEXPORT jobject Rust_getJavaMediaStreamObject(
-    webrtc::jni::JavaMediaStream* java_media_stream_borrowed);
+    ptr::Borrowed<webrtc::jni::JavaMediaStream> java_media_stream_borrowed);
+
+}  // namespace rffi
+}  // namespace webrtc
 
 #endif /* ANDROID_MEDIA_STREAM_INTF_H__ */

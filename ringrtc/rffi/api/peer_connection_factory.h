@@ -25,19 +25,17 @@ class PeerConnectionFactoryOwner;
 
 namespace rffi {
 class PeerConnectionObserverRffi;
-}
-}  // namespace webrtc
 
 typedef struct {
-  const char* username_borrowed;
-  const char* password_borrowed;
-  const char* hostname_borrowed;
-  const char** urls_borrowed;
+  ptr::Borrowed<const char> username_borrowed;
+  ptr::Borrowed<const char> password_borrowed;
+  ptr::Borrowed<const char> hostname_borrowed;
+  ptr::Borrowed<ptr::Borrowed<const char>> urls_borrowed;
   size_t urls_size;
 } RffiIceServer;
 
 typedef struct {
-  const RffiIceServer* servers;
+  ptr::Borrowed<const RffiIceServer> servers;
   size_t servers_size;
 } RffiIceServers;
 
@@ -52,9 +50,9 @@ typedef struct {
   bool aec_enabled;
   bool ns_enabled;
   bool agc_enabled;
-  void* rust_adm_borrowed;
-  AudioDeviceCallbacks* rust_audio_device_callbacks;
-  void (*free_adm_cb)(const void*);
+  ptr::Borrowed<void> rust_adm_borrowed;
+  ptr::Borrowed<AudioDeviceCallbacks> rust_audio_device_callbacks;
+  void (*free_adm_cb)(ptr::Borrowed<const void>);
 } RffiAudioConfig;
 
 typedef struct {
@@ -64,41 +62,47 @@ typedef struct {
   bool fast_accelerate;
 } RffiAudioJitterBufferConfig;
 
-// Returns an owned RC.
 // You can create more than one, but you should probably only have one unless
 // you want to test separate endpoints that are as independent as possible.
-RUSTEXPORT webrtc::PeerConnectionFactoryOwner* Rust_createPeerConnectionFactory(
-    const RffiAudioConfig* audio_config_borrowed,
+RUSTEXPORT ptr::OwnedRc<webrtc::PeerConnectionFactoryOwner>
+Rust_createPeerConnectionFactory(
+    ptr::Borrowed<const RffiAudioConfig> audio_config_borrowed,
     bool use_injectable_network,
     const char* field_trials_string);
 
-// Returns an owned RC.
-RUSTEXPORT webrtc::PeerConnectionFactoryOwner*
+RUSTEXPORT ptr::OwnedRc<webrtc::PeerConnectionFactoryOwner>
 Rust_createPeerConnectionFactoryWrapper(
-    webrtc::PeerConnectionFactoryInterface* factory_borrowed_rc);
+    ptr::BorrowedRc<webrtc::PeerConnectionFactoryInterface>
+        factory_borrowed_rc);
 
-// Returns a borrowed pointer.
-RUSTEXPORT webrtc::rffi::InjectableNetwork* Rust_getInjectableNetwork(
-    webrtc::PeerConnectionFactoryOwner* factory_owner_borrowed_rc);
+RUSTEXPORT ptr::Borrowed<webrtc::rffi::InjectableNetwork>
+Rust_getInjectableNetwork(ptr::BorrowedRc<webrtc::PeerConnectionFactoryOwner>
+                              factory_owner_borrowed_rc);
 
-// Returns an owned RC.
-RUSTEXPORT webrtc::PeerConnectionInterface* Rust_createPeerConnection(
-    webrtc::PeerConnectionFactoryOwner* factory_owner_borrowed_rc,
-    webrtc::rffi::PeerConnectionObserverRffi* observer_borrowed,
+RUSTEXPORT ptr::OwnedRc<webrtc::PeerConnectionInterface>
+Rust_createPeerConnection(
+    ptr::BorrowedRc<webrtc::PeerConnectionFactoryOwner>
+        factory_owner_borrowed_rc,
+    ptr::Borrowed<webrtc::rffi::PeerConnectionObserverRffi> observer_borrowed,
     RffiPeerConnectionKind kind,
-    const RffiAudioJitterBufferConfig* audio_jitter_buffer_config_borrowed,
+    ptr::Borrowed<const RffiAudioJitterBufferConfig>
+        audio_jitter_buffer_config_borrowed,
     int32_t audio_rtcp_report_interval_ms,
-    const RffiIceServers* ice_servers_borrowed,
-    webrtc::AudioTrackInterface* outgoing_audio_track_borrowed_rc,
-    webrtc::VideoTrackInterface* outgoing_video_track_borrowed_rc);
+    ptr::Borrowed<const RffiIceServers> ice_servers_borrowed,
+    ptr::BorrowedRc<webrtc::AudioTrackInterface>
+        outgoing_audio_track_borrowed_rc,
+    ptr::BorrowedRc<webrtc::VideoTrackInterface>
+        outgoing_video_track_borrowed_rc);
 
-// Returns an owned RC.
-RUSTEXPORT webrtc::AudioTrackInterface* Rust_createAudioTrack(
-    webrtc::PeerConnectionFactoryOwner* factory_owner_borrowed_rc);
+RUSTEXPORT ptr::OwnedRc<webrtc::AudioTrackInterface> Rust_createAudioTrack(
+    ptr::BorrowedRc<webrtc::PeerConnectionFactoryOwner>
+        factory_owner_borrowed_rc);
 
-// Returns an owned RC.
-RUSTEXPORT webrtc::VideoTrackInterface* Rust_createVideoTrack(
-    webrtc::PeerConnectionFactoryOwner* factory_owner_borrowed_rc,
-    webrtc::VideoTrackSourceInterface* source_borrowed_rc);
+RUSTEXPORT ptr::OwnedRc<webrtc::VideoTrackInterface> Rust_createVideoTrack(
+    ptr::BorrowedRc<webrtc::PeerConnectionFactoryOwner>
+        factory_owner_borrowed_rc,
+    ptr::BorrowedRc<webrtc::VideoTrackSourceInterface> source_borrowed_rc);
 
+}  // namespace rffi
+}  // namespace webrtc
 #endif /* RFFI_API_PEER_CONNECTION_FACTORY_H__ */

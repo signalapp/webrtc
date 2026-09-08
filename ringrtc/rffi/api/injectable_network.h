@@ -17,37 +17,37 @@ namespace webrtc {
 namespace rffi {
 
 typedef struct {
-  void* object_owned;
-  int (*SendUdp)(void* object_borrowed,
+  ptr::Owned<void> object_owned;
+  int (*SendUdp)(ptr::Borrowed<void> object_borrowed,
                  IpPort source,
                  IpPort dest,
-                 const uint8_t* data_borrowed,
+                 ptr::Borrowed<const uint8_t> data_borrowed,
                  size_t);
-  int (*Delete)(void* object_owned);
+  int (*Delete)(ptr::Owned<void> object_owned);
 } InjectableNetworkSender;
 
 class InjectableNetwork;
 
 RUSTEXPORT void Rust_InjectableNetwork_SetSender(
-    InjectableNetwork* network_borrowed,
-    const InjectableNetworkSender* sender_borrowed);
+    ptr::Borrowed<InjectableNetwork> network_borrowed,
+    ptr::Borrowed<const InjectableNetworkSender> sender_borrowed);
 
 RUSTEXPORT void Rust_InjectableNetwork_AddInterface(
-    InjectableNetwork* network_borrowed,
-    const char* name_borrowed,
+    ptr::Borrowed<InjectableNetwork> network_borrowed,
+    ptr::Borrowed<const char> name_borrowed,
     AdapterType type,
     Ip ip,
     uint16_t preference);
 
 RUSTEXPORT void Rust_InjectableNetwork_RemoveInterface(
-    InjectableNetwork* network_borrowed,
-    const char* name_borrowed);
+    ptr::Borrowed<InjectableNetwork> network_borrowed,
+    ptr::Borrowed<const char> name_borrowed);
 
 RUSTEXPORT void Rust_InjectableNetwork_ReceiveUdp(
-    InjectableNetwork* network_borrowed,
+    ptr::Borrowed<InjectableNetwork> network_borrowed,
     IpPort source,
     IpPort dest,
-    const uint8_t* data_borrowed,
+    ptr::Borrowed<const uint8_t> data_borrowed,
     size_t size);
 
 }  // namespace rffi

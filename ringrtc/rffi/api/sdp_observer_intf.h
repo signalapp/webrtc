@@ -22,35 +22,38 @@ class SessionDescriptionInterface;
 namespace rffi {
 class CreateSessionDescriptionObserverRffi;
 class SetSessionDescriptionObserverRffi;
-}  // namespace rffi
-}  // namespace webrtc
-
 /* Create Session Description Observer callback function pointers */
 typedef struct {
-  void (*onSuccess)(
-      void* csd_observer_borrowed,
-      webrtc::SessionDescriptionInterface* session_description_owned_rc);
-  void (*onFailure)(void* csd_observer_borrowed,
-                    const char* err_message_borrowed,
+  void (*onSuccess)(ptr::Borrowed<void> csd_observer_borrowed,
+                    // Note: This differs from the name -- rust defines it as
+                    // Owned, not OwnedRc
+                    ptr::Owned<webrtc::SessionDescriptionInterface>
+                        session_description_owned_rc);
+  void (*onFailure)(ptr::Borrowed<void> csd_observer_borrowed,
+                    ptr::Borrowed<const char> err_message_borrowed,
                     int32_t err_type);
 } CreateSessionDescriptionObserverCallbacks;
 
-RUSTEXPORT webrtc::rffi::CreateSessionDescriptionObserverRffi*
+RUSTEXPORT ptr::OwnedRc<webrtc::rffi::CreateSessionDescriptionObserverRffi>
 Rust_createCreateSessionDescriptionObserver(
-    void* csd_observer_borrowed,
-    const CreateSessionDescriptionObserverCallbacks* csd_observer_cbs_borrowed);
+    ptr::Borrowed<void> csd_observer_borrowed,
+    ptr::Borrowed<const CreateSessionDescriptionObserverCallbacks>
+        csd_observer_cbs_borrowed);
 
 /* Set Session Description Observer callback function pointers */
 typedef struct {
-  void (*onSuccess)(void* ssd_observer_borrowed);
-  void (*onFailure)(void* ssd_observer_borrowed,
-                    const char* err_message_borrowed,
+  void (*onSuccess)(ptr::Borrowed<void> ssd_observer_borrowed);
+  void (*onFailure)(ptr::Borrowed<void> ssd_observer_borrowed,
+                    ptr::Borrowed<const char> err_message_borrowed,
                     int32_t err_type);
 } SetSessionDescriptionObserverCallbacks;
 
-RUSTEXPORT webrtc::rffi::SetSessionDescriptionObserverRffi*
+RUSTEXPORT ptr::OwnedRc<webrtc::rffi::SetSessionDescriptionObserverRffi>
 Rust_createSetSessionDescriptionObserver(
-    void* ssd_observer_borrowed,
-    const SetSessionDescriptionObserverCallbacks* ssd_observer_cbs_borrowed);
+    ptr::Borrowed<void> ssd_observer_borrowed,
+    ptr::Borrowed<const SetSessionDescriptionObserverCallbacks>
+        ssd_observer_cbs_borrowed);
+}  // namespace rffi
+}  // namespace webrtc
 
 #endif /* RFFI_API_SDP_OBSERVER_INTF_H__ */

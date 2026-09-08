@@ -9,13 +9,15 @@
 #include "rffi/api/rffi_defs.h"
 #include "rffi/api/webrtc_common.h"
 
+using webrtc::rffi::ptr::Borrowed;
+
 typedef struct {
   void (*onLogMessage)(webrtc::LoggingSeverity severity,
-                       const char* message_borrowed);
+                       Borrowed<const char> message_borrowed);
 } LoggerCallbacks;
 
 // Should only be called once.
-RUSTEXPORT void Rust_setLogger(LoggerCallbacks* cbs_borrowed,
+RUSTEXPORT void Rust_setLogger(Borrowed<LoggerCallbacks> cbs_borrowed,
                                webrtc::LoggingSeverity min_sev);
 
 #endif /* RFFI_LOGGING_H__ */
