@@ -1084,7 +1084,10 @@ RUSTEXPORT bool Rust_addIceCandidateFromSdp(
 RUSTEXPORT bool Rust_removeIceCandidates(
     PeerConnectionInterface* pc_borrowed_rc,
     IpPort* removed_addresses_data_borrowed,
-    size_t removed_addresses_len) {
+    size_t removed_addresses_len,
+    bool group,
+    bool tcp,
+    const char* hostname) {
   if (removed_addresses_len == 0) {
     RTC_LOG(LS_ERROR) << "Rust_removeIceCandidates: no candidates to remove";
     return false;
@@ -1097,19 +1100,29 @@ RUSTEXPORT bool Rust_removeIceCandidates(
     size_t number_removed = 0;
     for (const auto& address_removed : removed_addresses) {
       // This only needs to contain the correct transport_name, component,
-      // protocol, and address. SeeCandidate::MatchesForRemoval and
-      // JsepTransportController::RemoveRemoteCandidates and
-      // JsepTransportController::RemoveRemoteCandidates. But we know (because
-      // we bundle/rtcp-mux everything) that the transport name is "audio", and
-      // the component is 1. We also know (because we don't use TCP candidates)
-      // that the protocol is UDP. So we only need to know the address.
+      // protocol, and address. See Candidate::MatchesForRemoval and
+      // JsepTransportController::RemoveRemoteCandidate and
+      // P2PTransportChannel::RemoveRemoteCandidate. But we know
+      // (because we bundle/rtcp-mux everything) that the transport name is
+      // "audio" for 1:1 and "local-audio0" for group.
+
       Candidate candidate_removed;
       candidate_removed.set_component(ICE_CANDIDATE_COMPONENT_RTP);
-      candidate_removed.set_protocol(UDP_PROTOCOL_NAME);
-      candidate_removed.set_address(IpPortToRtcSocketAddress(address_removed));
+      if (tcp && hostname != NULL) {
+        SocketAddress addr =
+            SocketAddress(std::string(hostname), address_removed.port);
+        addr.SetResolvedIP(IpToRtcIp(address_removed.ip));
+        candidate_removed.set_address(addr);
+        candidate_removed.set_protocol(TLS_PROTOCOL_NAME);
+      } else {
+        candidate_removed.set_address(
+            IpPortToRtcSocketAddress(address_removed));
+        candidate_removed.set_protocol(tcp ? TCP_PROTOCOL_NAME
+                                           : UDP_PROTOCOL_NAME);
+      }
 
-      IceCandidate candidate("audio", /*sdp_mline_index=*/-1,
-                             candidate_removed);
+      IceCandidate candidate(group ? "local-audio0" : "audio",
+                             /*sdp_mline_index=*/-1, candidate_removed);
       if (pc_borrowed_rc->RemoveIceCandidate(&candidate)) {
         number_removed++;
       }
