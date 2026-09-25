@@ -917,10 +917,16 @@ void AudioSendStream::RegisterCngPayloadType(int payload_type,
 void AudioSendStream::ConfigureEncoder(const webrtc::AudioEncoder::Config& config) {
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);
 
-  // This makes it so that if BWE changes cause us to change the bitrate,
-  // it doesn't actually change.
-  config_.min_bitrate_bps = config.initial_bitrate_bps;
-  config_.max_bitrate_bps = config.initial_bitrate_bps;
+  if (config.adaptation > 0) {
+    // Let BWE changes move the bitrate between the configured min and max.
+    config_.min_bitrate_bps = config.min_bitrate_bps;
+    config_.max_bitrate_bps = config.max_bitrate_bps;
+  } else {
+    // This makes it so that if BWE changes cause us to change the bitrate,
+    // it doesn't actually change.
+    config_.min_bitrate_bps = config.initial_bitrate_bps;
+    config_.max_bitrate_bps = config.initial_bitrate_bps;
+  }
   frame_length_range_ = {{TimeDelta::Millis(config.initial_packet_size_ms),
                           TimeDelta::Millis(config.initial_packet_size_ms)}};
   channel_send_->CallEncoder([&](AudioEncoder* encoder) {
