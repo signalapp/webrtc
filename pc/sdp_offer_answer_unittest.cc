@@ -48,8 +48,10 @@
 #include "media/base/codec.h"
 #include "media/base/media_constants.h"
 #include "media/base/stream_params.h"
+#include "p2p/base/p2p_constants.h"
 #include "pc/peer_connection_wrapper.h"
 #include "pc/rtp_transceiver.h"
+#include "pc/sdp_utils.h"
 #include "pc/session_description.h"
 #include "pc/test/fake_audio_capture_module.h"
 #include "pc/test/integration_test_helpers.h"
@@ -2305,6 +2307,51 @@ TEST_F(SdpOfferAnswerTest,
   auto answer3 = pc3->CreateAnswerAndSetAsLocal();
   ASSERT_THAT(answer3, NotNull());
   EXPECT_FALSE(pc1->SetRemoteDescription(std::move(answer3)));
+}
+
+// Verifies that a stopped transceiver does not get a channel.
+TEST_F(SdpOfferAnswerTest, StoppedTransceiverHasNoChannel) {
+  auto caller = CreatePeerConnection();
+  auto callee = CreatePeerConnection();
+
+  caller->AddTransceiver(MediaType::AUDIO);
+  scoped_refptr<RtpTransceiverInterface> stopped_transceiver =
+      caller->AddTransceiver(MediaType::AUDIO);
+  ASSERT_TRUE(stopped_transceiver);
+
+  auto offer = caller->CreateOfferAndSetAsLocal();
+  ASSERT_THAT(offer, NotNull());
+  ASSERT_TRUE(callee->SetRemoteDescription(std::move(offer)));
+  auto answer = callee->CreateAnswerAndSetAsLocal();
+  ASSERT_THAT(answer, NotNull());
+
+  auto pranswer =
+      CloneSessionDescriptionAsType(answer.get(), SdpType::kPrAnswer);
+  ASSERT_THAT(pranswer, NotNull());
+  SessionDescription* pranswer_desc = pranswer->description();
+  ASSERT_THAT(pranswer_desc->contents(), SizeIs(2));
+  ContentInfo& rejected_content = pranswer_desc->contents()[1];
+  rejected_content.rejected = true;
+  const ContentGroup* bundle = pranswer_desc->GetGroupByName(GROUP_TYPE_BUNDLE);
+  ASSERT_THAT(bundle, NotNull());
+  ContentGroup new_bundle = *bundle;
+  new_bundle.RemoveContentName(rejected_content.mid());
+  pranswer_desc->RemoveGroupByName(GROUP_TYPE_BUNDLE);
+  pranswer_desc->AddGroup(new_bundle);
+
+  ASSERT_TRUE(caller->SetRemoteDescription(std::move(pranswer)));
+  EXPECT_TRUE(stopped_transceiver->stopped());
+
+  ASSERT_TRUE(caller->SetRemoteDescription(std::move(answer)));
+  EXPECT_TRUE(stopped_transceiver->stopped());
+
+  bool has_channel = signaling_thread_->BlockingCall([&] {
+    return static_cast<RtpTransceiverProxyWithInternal<RtpTransceiver>*>(
+               stopped_transceiver.get())
+        ->internal()
+        ->HasChannel();
+  });
+  EXPECT_FALSE(has_channel);
 }
 
 TEST_F(SdpOfferAnswerTest, SubsequentOfferDoesNotAddSctpInit) {
