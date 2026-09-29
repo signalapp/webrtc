@@ -724,5 +724,23 @@ TEST(RtpPacketizerH264Test, MultipleStapA) {
   EXPECT_THAT(FetchAllPackets(&packetizer), SizeIs(2));
 }
 
+TEST(RtpPacketizerH264Test, HandlesZeroMaxPayloadLen) {
+  uint8_t frame[100] = {0x00, 0x00, 0x00, 0x01, kSlice};
+  RtpPacketizer::PayloadSizeLimits limits;
+  limits.max_payload_len = 0;
+  RtpPacketizerH264 packetizer(frame, limits,
+                               H264PacketizationMode::NonInterleaved);
+  EXPECT_EQ(packetizer.NumPackets(), 0u);
+}
+
+TEST(RtpPacketizerH264Test, HandlesMaxPayloadLenSmallerThanFuAHeader) {
+  uint8_t frame[100] = {0x00, 0x00, 0x00, 0x01, kSlice};
+  RtpPacketizer::PayloadSizeLimits limits;
+  limits.max_payload_len = 2;  // Equal to kFuAHeaderSize
+  RtpPacketizerH264 packetizer(frame, limits,
+                               H264PacketizationMode::NonInterleaved);
+  EXPECT_EQ(packetizer.NumPackets(), 0u);
+}
+
 }  // namespace
 }  // namespace webrtc

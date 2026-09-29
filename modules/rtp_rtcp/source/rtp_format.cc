@@ -47,6 +47,7 @@ absl_nonnull std::unique_ptr<RtpPacketizer> RtpPacketizer::Create(
     PayloadSizeLimits limits,
     // Codec-specific details.
     const RTPVideoHeader& rtp_video_header) {
+  limits = limits.Sanitize();
   if (payload.empty() ||
       SafeGt(payload.size(), limits.max_payload_len * 0x7000)) {
     // Do not support frames that are so large they need almost half of the RTP

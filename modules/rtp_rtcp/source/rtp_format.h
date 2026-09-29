@@ -13,6 +13,7 @@
 
 #include <stdint.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <memory>
 #include <span>
@@ -33,6 +34,18 @@ class RtpPacketizer {
     int last_packet_reduction_len = 0;
     // Reduction len for packet that is first & last at the same time.
     int single_packet_reduction_len = 0;
+
+    PayloadSizeLimits Sanitize() const {
+      PayloadSizeLimits result = *this;
+      result.max_payload_len = std::max(0, result.max_payload_len);
+      result.single_packet_reduction_len = std::clamp(
+          result.single_packet_reduction_len, 0, result.max_payload_len);
+      result.first_packet_reduction_len = std::clamp(
+          result.first_packet_reduction_len, 0, result.max_payload_len);
+      result.last_packet_reduction_len = std::clamp(
+          result.last_packet_reduction_len, 0, result.max_payload_len);
+      return result;
+    }
   };
 
   enum class PacketizationFormat {

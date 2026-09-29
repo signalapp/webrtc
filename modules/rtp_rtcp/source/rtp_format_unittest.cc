@@ -312,5 +312,33 @@ TEST(RtpPacketizerSplitAboutEqually, CanPutSinglePayloadByteInOnePacket) {
   EXPECT_THAT(RtpPacketizer::SplitAboutEqually(1, limits), ElementsAre(1));
 }
 
+TEST(RtpPacketizerPayloadSizeLimits, SanitizeClampsNegativeValues) {
+  RtpPacketizer::PayloadSizeLimits limits;
+  limits.max_payload_len = -50;
+  limits.single_packet_reduction_len = -10;
+  limits.first_packet_reduction_len = -20;
+  limits.last_packet_reduction_len = -5;
+
+  RtpPacketizer::PayloadSizeLimits sanitized = limits.Sanitize();
+  EXPECT_EQ(sanitized.max_payload_len, 0);
+  EXPECT_EQ(sanitized.single_packet_reduction_len, 0);
+  EXPECT_EQ(sanitized.first_packet_reduction_len, 0);
+  EXPECT_EQ(sanitized.last_packet_reduction_len, 0);
+}
+
+TEST(RtpPacketizerPayloadSizeLimits, SanitizeClampsExcessiveReductions) {
+  RtpPacketizer::PayloadSizeLimits limits;
+  limits.max_payload_len = 100;
+  limits.single_packet_reduction_len = 150;
+  limits.first_packet_reduction_len = 200;
+  limits.last_packet_reduction_len = 101;
+
+  RtpPacketizer::PayloadSizeLimits sanitized = limits.Sanitize();
+  EXPECT_EQ(sanitized.max_payload_len, 100);
+  EXPECT_EQ(sanitized.single_packet_reduction_len, 100);
+  EXPECT_EQ(sanitized.first_packet_reduction_len, 100);
+  EXPECT_EQ(sanitized.last_packet_reduction_len, 100);
+}
+
 }  // namespace
 }  // namespace webrtc
