@@ -1569,6 +1569,11 @@ absl::string_view RtpTransceiver::channel_transport_name() const {
   return channel_->transport_name();
 }
 
+absl::string_view RtpTransceiver::channel_mid() const {
+  RTC_DCHECK_RUN_ON(context()->network_thread());
+  return channel_ ? absl::string_view(channel_->mid()) : absl::string_view();
+}
+
 MediaSendChannelInterface* RtpTransceiver::media_send_channel() {
   RTC_DCHECK_RUN_ON(thread_);
   return channel_ ? channel_->media_send_channel() : nullptr;

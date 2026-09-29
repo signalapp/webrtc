@@ -2354,6 +2354,62 @@ TEST_F(SdpOfferAnswerTest, StoppedTransceiverHasNoChannel) {
   EXPECT_FALSE(has_channel);
 }
 
+// Verifies that a munged local re-offer can not change the MID of a
+// transceiver that is already associated with an m= section.
+TEST_F(SdpOfferAnswerTest, RejectsMidChangeOfAssociatedTransceiver) {
+  auto caller = CreatePeerConnection();
+  auto callee = CreatePeerConnection();
+
+  // Negotiate without BUNDLE so that each m= section gets its own transport.
+  auto negotiate = [&] {
+    auto offer = caller->CreateOffer();
+    ASSERT_THAT(offer, NotNull());
+    offer->description()->RemoveGroupByName(GROUP_TYPE_BUNDLE);
+    ASSERT_TRUE(caller->SetLocalDescription(offer->Clone()));
+    ASSERT_TRUE(callee->SetRemoteDescription(std::move(offer)));
+    auto answer = callee->CreateAnswerAndSetAsLocal();
+    ASSERT_THAT(answer, NotNull());
+    ASSERT_TRUE(caller->SetRemoteDescription(std::move(answer)));
+  };
+
+  auto set_mid = [](SessionDescriptionInterface* sdesc, size_t index,
+                    absl::string_view mid) {
+    SessionDescription* desc = sdesc->description();
+    desc->contents()[index].set_mid(mid);
+    desc->transport_infos()[index].content_name = std::string(mid);
+  };
+
+  caller->AddTransceiver(MediaType::AUDIO);
+  scoped_refptr<RtpTransceiverInterface> stopped_transceiver =
+      caller->AddTransceiver(MediaType::AUDIO);
+  ASSERT_NO_FATAL_FAILURE(negotiate());
+
+  // Reject the second m= section in both the local and remote descriptions.
+  ASSERT_TRUE(stopped_transceiver->StopStandard().ok());
+  ASSERT_NO_FATAL_FAILURE(negotiate());
+  ASSERT_THAT(caller->pc()->GetTransceivers(), SizeIs(1));
+
+  // A new transceiver recycles the rejected m= section and gets associated
+  // with it (and gets a channel) by a local offer.
+  scoped_refptr<RtpTransceiverInterface> recycled_transceiver =
+      caller->AddTransceiver(MediaType::AUDIO);
+  auto offer = caller->CreateOffer();
+  ASSERT_THAT(offer, NotNull());
+  ASSERT_THAT(offer->description()->contents(), SizeIs(2));
+  offer->description()->RemoveGroupByName(GROUP_TYPE_BUNDLE);
+  ASSERT_TRUE(caller->SetLocalDescription(std::move(offer)));
+  const std::optional<std::string> recycled_mid = recycled_transceiver->mid();
+  ASSERT_TRUE(recycled_mid.has_value());
+
+  // Munged re-offer that changes the MID of the recycled m= section.
+  auto renamed_offer = caller->CreateOffer();
+  ASSERT_THAT(renamed_offer, NotNull());
+  renamed_offer->description()->RemoveGroupByName(GROUP_TYPE_BUNDLE);
+  set_mid(renamed_offer.get(), 1, "renamed");
+  EXPECT_FALSE(caller->SetLocalDescription(std::move(renamed_offer)));
+  EXPECT_EQ(recycled_transceiver->mid(), recycled_mid);
+}
+
 TEST_F(SdpOfferAnswerTest, SubsequentOfferDoesNotAddSctpInit) {
   auto pc1 = CreatePeerConnection("WebRTC-Sctp-Snap/Enabled/");
   auto pc2 = CreatePeerConnection("WebRTC-Sctp-Snap/Enabled/");

@@ -85,11 +85,12 @@ RtpTransceiverProxyRefPtr TransceiverList::FindByMid(
   return nullptr;
 }
 
-RtpTransceiverProxyRefPtr TransceiverList::FindByMLineIndex(
+RtpTransceiverProxyRefPtr TransceiverList::FindUnassociatedByMLineIndex(
     size_t mline_index) const {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
   for (auto transceiver : transceivers_) {
-    if (transceiver->internal()->mline_index() == mline_index) {
+    RtpTransceiver* internal = transceiver->internal();
+    if (!internal->mid() && internal->mline_index() == mline_index) {
       return transceiver;
     }
   }

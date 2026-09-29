@@ -3127,7 +3127,10 @@ bool PeerConnection::OnTransportChanged(
     for (const auto& transceiver :
          rtp_manager()->transceivers()->UnsafeList()) {
       auto internal = transceiver->internal();
-      if (internal->mid() == mid) {
+      // Match on the MID that the channel was created for rather than on the
+      // transceiver's current MID. The channel is bound to the transport of
+      // that MID and must be notified when that transport changes.
+      if (internal->channel_mid() == mid) {
         ret = internal->SetRtpTransport(rtp_transport);
       }
     }
