@@ -426,6 +426,10 @@ class RtpTransceiver : public RtpTransceiverInterface {
   const std::vector<StreamParams>& channel_local_streams() const;
   const std::vector<StreamParams>& channel_remote_streams() const;
   absl::string_view channel_transport_name() const;
+  // Returns the MID that the channel was created for, or an empty string if
+  // there is no channel. The channel stays bound to the transport of this MID
+  // for its lifetime. Must be called on the network thread.
+  absl::string_view channel_mid() const;
 
   // Accessors for media channels. These return null if there is no channel.
   MediaSendChannelInterface* media_send_channel();
