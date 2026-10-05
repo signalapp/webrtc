@@ -24,6 +24,7 @@
 #include "net/dcsctp/common/internal_types.h"
 #include "net/dcsctp/public/dcsctp_handover_state.h"
 #include "net/dcsctp/public/dcsctp_message.h"
+#include "net/dcsctp/public/dcsctp_options.h"
 #include "net/dcsctp/public/dcsctp_socket.h"
 #include "net/dcsctp/public/types.h"
 #include "net/dcsctp/tx/send_queue.h"
@@ -59,7 +60,8 @@ class RRSendQueue : public SendQueue {
               DcSctpSocketCallbacks* callbacks,
               size_t mtu,
               StreamPriority default_priority,
-              size_t total_buffered_amount_low_threshold);
+              size_t total_buffered_amount_low_threshold,
+              const DcSctpOptions& options = {});
 
   // Indicates if the buffer is full. Note that it's up to the caller to ensure
   // that the buffer is not full prior to adding new items to it.
@@ -98,8 +100,10 @@ class RRSendQueue : public SendQueue {
   void SetStreamPriority(StreamID stream_id, StreamPriority priority);
   StreamPriority GetStreamPriority(StreamID stream_id) const;
   HandoverReadinessStatus GetHandoverReadiness() const;
-  void AddHandoverState(DcSctpSocketHandoverState& state);
-  void RestoreFromState(const DcSctpSocketHandoverState& state);
+  void AddHandoverState(webrtc::Timestamp now,
+                        DcSctpSocketHandoverState& state) const override;
+  void RestoreFromState(webrtc::Timestamp now,
+                        const DcSctpSocketHandoverState& state) override;
 
  private:
   struct MessageAttributes {
@@ -154,6 +158,10 @@ class RRSendQueue : public SendQueue {
     // Enqueues a message to this stream.
     void Add(DcSctpMessage message, MessageAttributes attributes);
 
+    void RestoreItemFromState(
+        webrtc::Timestamp now,
+        const DcSctpSocketHandoverState::StreamMessage& msg);
+
     // Implementing `StreamScheduler::StreamProducer`.
     std::optional<SendQueue::DataToSend> Produce(webrtc::Timestamp now,
                                                  size_t max_size) override;
@@ -195,6 +203,9 @@ class RRSendQueue : public SendQueue {
 
     void AddHandoverState(
         DcSctpSocketHandoverState::OutgoingStream& state) const;
+    void AddQueuedMessagesToHandoverState(
+        webrtc::Timestamp now,
+        DcSctpSocketHandoverState& state) const;
 
    private:
     // Streams are paused before they can be reset. To reset a stream, the
@@ -272,6 +283,7 @@ class RRSendQueue : public SendQueue {
   const absl::string_view log_prefix_;
   DcSctpSocketCallbacks& callbacks_;
   const StreamPriority default_priority_;
+  const DcSctpOptions options_;
   OutgoingMessageId current_message_id = OutgoingMessageId(0);
   StreamScheduler scheduler_;
 

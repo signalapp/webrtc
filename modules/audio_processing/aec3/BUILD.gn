@@ -283,21 +283,133 @@ if (current_cpu == "x86" || current_cpu == "x64") {
 }
 
 if (rtc_include_tests) {
-  rtc_library("aec3_unittests") {
+  rtc_library("mock_block_processor") {
     testonly = true
-
     configs += [ "..:apm_debug_dump" ]
     sources = [
       "mock/mock_block_processor.cc",
       "mock/mock_block_processor.h",
+    ]
+    deps = [
+      ":aec3",
+      ":aec3_block",
+      "../../../api/audio:echo_control",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("mock_echo_remover") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [
       "mock/mock_echo_remover.cc",
       "mock/mock_echo_remover.h",
+    ]
+    deps = [
+      ":aec3",
+      ":aec3_block",
+      ":render_buffer",
+      "../../../api/audio:echo_control",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("mock_render_delay_buffer") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [
       "mock/mock_render_delay_buffer.cc",
       "mock/mock_render_delay_buffer.h",
+    ]
+    deps = [
+      ":aec3",
+      ":aec3_block",
+      ":aec3_common",
+      ":render_buffer",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("mock_render_delay_controller") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [
       "mock/mock_render_delay_controller.cc",
       "mock/mock_render_delay_controller.h",
     ]
+    deps = [
+      ":aec3",
+      ":aec3_block",
+      "../../../test:test_support",
+    ]
+  }
 
+  rtc_library("aec3_unittests") {
+    testonly = true
+    configs += [ "//third_party/tflite:tflite_config_no_undef" ]
+    deps = [
+      ":adaptive_fir_filter_erl_unittest",
+      ":adaptive_fir_filter_unittest",
+      ":aec3_fft_unittest",
+      ":aec_state_unittest",
+      ":alignment_mixer_unittest",
+      ":api_call_jitter_metrics_unittest",
+      ":block_delay_buffer_unittest",
+      ":block_framer_unittest",
+      ":block_processor_metrics_unittest",
+      ":block_processor_unittest",
+      ":clockdrift_detector_unittest",
+      ":coarse_filter_update_gain_unittest",
+      ":comfort_noise_generator_unittest",
+      ":config_selector_unittest",
+      ":decimator_unittest",
+      ":echo_canceller3_unittest",
+      ":echo_path_delay_estimator_unittest",
+      ":echo_path_variability_unittest",
+      ":echo_remover_metrics_unittest",
+      ":echo_remover_unittest",
+      ":erl_estimator_unittest",
+      ":erle_estimator_unittest",
+      ":fft_data_unittest",
+      ":filter_analyzer_unittest",
+      ":frame_blocker_unittest",
+      ":matched_filter_lag_aggregator_unittest",
+      ":matched_filter_unittest",
+      ":moving_average_spectrum_unittest",
+      ":multi_channel_content_detector_unittest",
+      ":refined_filter_update_gain_unittest",
+      ":render_buffer_unittest",
+      ":render_delay_buffer_unittest",
+      ":render_delay_controller_metrics_unittest",
+      ":render_delay_controller_unittest",
+      ":render_signal_analyzer_unittest",
+      ":residual_echo_estimator_unittest",
+      ":reverb_model_estimator_unittest",
+      ":signal_dependent_erle_estimator_unittest",
+      ":subtractor_unittest",
+      ":suppression_filter_unittest",
+      ":suppression_gain_unittest",
+      ":vector_math_unittest",
+    ]
+  }
+
+  rtc_library("adaptive_fir_filter_erl_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "adaptive_fir_filter_erl_unittest.cc" ]
+    deps = [
+      ":adaptive_fir_filter_erl",
+      ":aec3_common",
+      "../../../rtc_base:cpu_info",
+      "../../../rtc_base/system:arch",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("adaptive_fir_filter_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "adaptive_fir_filter_unittest.cc" ]
     deps = [
       ":adaptive_fir_filter",
       ":adaptive_fir_filter_erl",
@@ -306,9 +418,215 @@ if (rtc_include_tests) {
       ":aec3_common",
       ":aec3_fft",
       ":fft_data",
-      ":matched_filter",
+      "..:apm_logging",
+      "..:echo_canceller_test_tools",
+      "../../../api/audio:aec3_config",
+      "../../../rtc_base:checks",
+      "../../../rtc_base:cpu_info",
+      "../../../rtc_base:random",
+      "../../../rtc_base:safe_minmax",
+      "../../../rtc_base:stringutils",
+      "../../../rtc_base/system:arch",
+      "../../../test:create_test_environment",
+      "../../../test:test_support",
+      "../utility:cascaded_biquad_filter",
+    ]
+  }
+
+  rtc_library("aec3_fft_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "aec3_fft_unittest.cc" ]
+    deps = [
+      ":aec3_common",
+      ":aec3_fft",
+      ":fft_data",
+      "../../../rtc_base:checks",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("aec_state_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "aec_state_unittest.cc" ]
+    deps = [
+      ":aec3",
+      ":aec3_block",
+      ":aec3_common",
+      ":aec3_fft",
+      "..:apm_logging",
+      "../../../api/audio:aec3_config",
+      "../../../test:create_test_environment",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("alignment_mixer_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "alignment_mixer_unittest.cc" ]
+    deps = [
+      ":aec3",
+      ":aec3_block",
+      ":aec3_common",
+      "../../../rtc_base:checks",
+      "../../../rtc_base:stringutils",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("api_call_jitter_metrics_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "api_call_jitter_metrics_unittest.cc" ]
+    deps = [
+      ":aec3",
+      ":aec3_common",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("block_delay_buffer_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "block_delay_buffer_unittest.cc" ]
+    deps = [
+      ":aec3",
+      ":aec3_common",
+      "..:audio_buffer",
+      "../../../rtc_base:stringutils",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("block_framer_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "block_framer_unittest.cc" ]
+    deps = [
+      ":aec3",
+      ":aec3_block",
+      ":aec3_common",
+      "../../../rtc_base:checks",
+      "../../../rtc_base:stringutils",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("block_processor_metrics_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "block_processor_metrics_unittest.cc" ]
+    deps = [
+      ":aec3",
+      ":aec3_common",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("block_processor_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "block_processor_unittest.cc" ]
+    deps = [
+      ":aec3",
+      ":aec3_block",
+      ":aec3_common",
+      ":mock_echo_remover",
+      ":mock_render_delay_buffer",
+      ":mock_render_delay_controller",
       ":render_buffer",
-      ":vector_math",
+      "..:echo_canceller_test_tools",
+      "../../../api/audio:aec3_config",
+      "../../../api/environment",
+      "../../../rtc_base:checks",
+      "../../../rtc_base:random",
+      "../../../rtc_base:stringutils",
+      "../../../test:create_test_environment",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("clockdrift_detector_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "clockdrift_detector_unittest.cc" ]
+    deps = [
+      ":aec3",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("coarse_filter_update_gain_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "coarse_filter_update_gain_unittest.cc" ]
+    deps = [
+      ":adaptive_fir_filter",
+      ":aec3",
+      ":aec3_block",
+      ":aec3_common",
+      ":aec3_fft",
+      ":fft_data",
+      ":render_buffer",
+      "..:echo_canceller_test_tools",
+      "../../../api/audio:aec3_config",
+      "../../../rtc_base:checks",
+      "../../../rtc_base:random",
+      "../../../rtc_base:safe_minmax",
+      "../../../rtc_base:stringutils",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("comfort_noise_generator_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "comfort_noise_generator_unittest.cc" ]
+    deps = [
+      ":aec3",
+      ":aec3_common",
+      ":fft_data",
+      "../../../api/audio:aec3_config",
+      "../../../test:create_test_environment",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("config_selector_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "config_selector_unittest.cc" ]
+    deps = [
+      ":aec3",
+      "../../../api/audio:aec3_config",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("decimator_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "decimator_unittest.cc" ]
+    deps = [
+      ":aec3",
+      ":aec3_common",
+      "../../../rtc_base:checks",
+      "../../../rtc_base:stringutils",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("echo_canceller3_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "echo_canceller3_unittest.cc" ]
+    deps = [
+      ":aec3",
+      ":aec3_block",
+      ":aec3_common",
+      ":mock_block_processor",
       "..:apm_logging",
       "..:audio_buffer",
       "..:high_pass_filter",
@@ -317,71 +635,408 @@ if (rtc_include_tests) {
       "../../../api/audio:echo_control",
       "../../../api/audio:neural_residual_echo_estimator_api",
       "../../../api/environment",
-      "../../../api/environment:environment_factory",
       "../../../rtc_base:checks",
-      "../../../rtc_base:cpu_info",
-      "../../../rtc_base:random",
-      "../../../rtc_base:safe_minmax",
       "../../../rtc_base:stringutils",
-      "../../../rtc_base/system:arch",
-      "../../../system_wrappers:metrics",
       "../../../test:create_test_environment",
       "../../../test:create_test_field_trials",
       "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("echo_path_delay_estimator_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "echo_path_delay_estimator_unittest.cc" ]
+    deps = [
+      ":aec3",
+      ":aec3_block",
+      ":aec3_common",
+      "..:apm_logging",
+      "..:echo_canceller_test_tools",
+      "../../../api/audio:aec3_config",
+      "../../../rtc_base:checks",
+      "../../../rtc_base:random",
+      "../../../rtc_base:stringutils",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("echo_path_variability_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "echo_path_variability_unittest.cc" ]
+    deps = [
+      ":aec3",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("echo_remover_metrics_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "echo_remover_metrics_unittest.cc" ]
+    deps = [
+      ":aec3",
+      ":aec3_common",
+      ":aec3_fft",
+      ":fft_data",
+      "../../../api/audio:aec3_config",
+      "../../../rtc_base:checks",
+      "../../../test:create_test_environment",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("echo_remover_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "echo_remover_unittest.cc" ]
+    deps = [
+      ":aec3",
+      ":aec3_block",
+      ":aec3_common",
+      "..:echo_canceller_test_tools",
+      "../../../api/audio:aec3_config",
+      "../../../api/environment",
+      "../../../rtc_base:checks",
+      "../../../rtc_base:random",
+      "../../../rtc_base:stringutils",
+      "../../../test:create_test_environment",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("erl_estimator_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "erl_estimator_unittest.cc" ]
+    deps = [
+      ":aec3",
+      ":aec3_common",
+      "../../../rtc_base:stringutils",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("erle_estimator_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "erle_estimator_unittest.cc" ]
+    deps = [
+      ":aec3",
+      ":aec3_block",
+      ":aec3_common",
+      ":render_buffer",
+      "../../../api/audio:aec3_config",
+      "../../../rtc_base:checks",
+      "../../../test:create_test_environment",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("fft_data_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "fft_data_unittest.cc" ]
+    deps = [
+      ":aec3_common",
+      ":fft_data",
+      "../../../rtc_base:checks",
+      "../../../rtc_base:cpu_info",
+      "../../../rtc_base/system:arch",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("filter_analyzer_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "filter_analyzer_unittest.cc" ]
+    deps = [
+      ":aec3",
+      "../../../api/audio:aec3_config",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("frame_blocker_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "frame_blocker_unittest.cc" ]
+    deps = [
+      ":aec3",
+      ":aec3_block",
+      ":aec3_common",
+      "../../../rtc_base:checks",
+      "../../../rtc_base:stringutils",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("matched_filter_lag_aggregator_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "matched_filter_lag_aggregator_unittest.cc" ]
+    deps = [
+      ":aec3",
+      ":matched_filter",
+      "..:apm_logging",
+      "../../../api/audio:aec3_config",
+      "../../../rtc_base:checks",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("matched_filter_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "matched_filter_unittest.cc" ]
+    deps = [
+      ":aec3",
+      ":aec3_block",
+      ":aec3_common",
+      ":matched_filter",
+      "..:apm_logging",
+      "..:echo_canceller_test_tools",
+      "../../../api/audio:aec3_config",
+      "../../../rtc_base:checks",
+      "../../../rtc_base:cpu_info",
+      "../../../rtc_base:random",
+      "../../../rtc_base:stringutils",
+      "../../../rtc_base/system:arch",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("moving_average_spectrum_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "moving_average_spectrum_unittest.cc" ]
+    deps = [
+      ":aec3",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("multi_channel_content_detector_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "multi_channel_content_detector_unittest.cc" ]
+    deps = [
+      ":aec3",
+      "../../../system_wrappers:metrics",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("refined_filter_update_gain_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "refined_filter_update_gain_unittest.cc" ]
+    deps = [
+      ":adaptive_fir_filter",
+      ":adaptive_fir_filter_erl",
+      ":aec3",
+      ":aec3_block",
+      ":aec3_common",
+      ":aec3_fft",
+      "..:apm_logging",
+      "..:echo_canceller_test_tools",
+      "../../../api/audio:aec3_config",
+      "../../../api/environment",
+      "../../../rtc_base:checks",
+      "../../../rtc_base:random",
+      "../../../rtc_base:safe_minmax",
+      "../../../rtc_base:stringutils",
+      "../../../test:create_test_environment",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("render_buffer_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "render_buffer_unittest.cc" ]
+    deps = [
+      ":render_buffer",
+      "../../../rtc_base:checks",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("render_delay_buffer_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "render_delay_buffer_unittest.cc" ]
+    deps = [
+      ":aec3",
+      ":aec3_block",
+      ":aec3_common",
+      "../../../api/audio:aec3_config",
+      "../../../rtc_base:checks",
+      "../../../rtc_base:stringutils",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("render_delay_controller_metrics_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "render_delay_controller_metrics_unittest.cc" ]
+    deps = [
+      ":aec3",
+      ":aec3_common",
+      "../../../system_wrappers:metrics",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("render_delay_controller_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "render_delay_controller_unittest.cc" ]
+    deps = [
+      ":aec3",
+      ":aec3_block",
+      ":aec3_common",
+      "..:echo_canceller_test_tools",
+      "../../../api/audio:aec3_config",
+      "../../../rtc_base:checks",
+      "../../../rtc_base:random",
+      "../../../rtc_base:stringutils",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("render_signal_analyzer_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "render_signal_analyzer_unittest.cc" ]
+    deps = [
+      ":aec3",
+      ":aec3_block",
+      ":aec3_common",
+      ":aec3_fft",
+      "..:echo_canceller_test_tools",
+      "../../../api/audio:aec3_config",
+      "../../../rtc_base:checks",
+      "../../../rtc_base:random",
+      "../../../rtc_base:stringutils",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("residual_echo_estimator_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "residual_echo_estimator_unittest.cc" ]
+    deps = [
+      ":aec3",
+      ":aec3_block",
+      ":aec3_common",
+      "..:echo_canceller_test_tools",
+      "../../../api/audio:aec3_config",
+      "../../../api/environment",
+      "../../../rtc_base:random",
+      "../../../test:create_test_environment",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("reverb_model_estimator_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "reverb_model_estimator_unittest.cc" ]
+    deps = [
+      ":aec3",
+      ":aec3_common",
+      ":aec3_fft",
+      ":fft_data",
+      "../../../api/audio:aec3_config",
+      "../../../rtc_base:checks",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("signal_dependent_erle_estimator_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "signal_dependent_erle_estimator_unittest.cc" ]
+    deps = [
+      ":aec3",
+      ":aec3_block",
+      ":aec3_common",
+      ":render_buffer",
+      "../../../api/audio:aec3_config",
+      "../../../rtc_base:checks",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("subtractor_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "subtractor_unittest.cc" ]
+    deps = [
+      ":aec3",
+      ":aec3_block",
+      ":aec3_common",
+      ":aec3_fft",
+      "..:echo_canceller_test_tools",
+      "../../../api/audio:aec3_config",
+      "../../../api/environment",
+      "../../../rtc_base:checks",
+      "../../../rtc_base:random",
+      "../../../rtc_base:stringutils",
+      "../../../test:create_test_environment",
+      "../../../test:test_support",
       "../utility:cascaded_biquad_filter",
     ]
+  }
 
-    defines = []
+  rtc_library("suppression_filter_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "suppression_filter_unittest.cc" ]
+    deps = [
+      ":aec3",
+      ":aec3_block",
+      ":aec3_common",
+      ":aec3_fft",
+      ":fft_data",
+      "../../../rtc_base:checks",
+      "../../../test:test_support",
+    ]
+  }
 
-    if (rtc_enable_protobuf) {
-      configs += [ "//third_party/tflite:tflite_config_no_undef" ]
-      sources += [
-        "adaptive_fir_filter_erl_unittest.cc",
-        "adaptive_fir_filter_unittest.cc",
-        "aec3_fft_unittest.cc",
-        "aec_state_unittest.cc",
-        "alignment_mixer_unittest.cc",
-        "api_call_jitter_metrics_unittest.cc",
-        "block_delay_buffer_unittest.cc",
-        "block_framer_unittest.cc",
-        "block_processor_metrics_unittest.cc",
-        "block_processor_unittest.cc",
-        "clockdrift_detector_unittest.cc",
-        "coarse_filter_update_gain_unittest.cc",
-        "comfort_noise_generator_unittest.cc",
-        "config_selector_unittest.cc",
-        "decimator_unittest.cc",
-        "echo_canceller3_unittest.cc",
-        "echo_path_delay_estimator_unittest.cc",
-        "echo_path_variability_unittest.cc",
-        "echo_remover_metrics_unittest.cc",
-        "echo_remover_unittest.cc",
-        "erl_estimator_unittest.cc",
-        "erle_estimator_unittest.cc",
-        "fft_data_unittest.cc",
-        "filter_analyzer_unittest.cc",
-        "frame_blocker_unittest.cc",
-        "matched_filter_lag_aggregator_unittest.cc",
-        "matched_filter_unittest.cc",
-        "moving_average_spectrum_unittest.cc",
-        "multi_channel_content_detector_unittest.cc",
-        "refined_filter_update_gain_unittest.cc",
-        "render_buffer_unittest.cc",
-        "render_delay_buffer_unittest.cc",
-        "render_delay_controller_metrics_unittest.cc",
-        "render_delay_controller_unittest.cc",
-        "render_signal_analyzer_unittest.cc",
-        "residual_echo_estimator_unittest.cc",
-        "reverb_model_estimator_unittest.cc",
-        "signal_dependent_erle_estimator_unittest.cc",
-        "subtractor_unittest.cc",
-        "suppression_filter_unittest.cc",
-        "suppression_gain_unittest.cc",
-        "vector_math_unittest.cc",
-      ]
-    }
-    if (!build_with_chromium) {
-      deps += [ "..:audio_processing_unittests" ]
-    }
+  rtc_library("suppression_gain_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "suppression_gain_unittest.cc" ]
+    deps = [
+      ":aec3",
+      ":aec3_block",
+      ":aec3_common",
+      ":fft_data",
+      "..:apm_logging",
+      "../../../api/audio:aec3_config",
+      "../../../api/environment",
+      "../../../rtc_base:checks",
+      "../../../test:create_test_environment",
+      "../../../test:test_support",
+    ]
+  }
+
+  rtc_library("vector_math_unittest") {
+    testonly = true
+    configs += [ "..:apm_debug_dump" ]
+    sources = [ "vector_math_unittest.cc" ]
+    deps = [
+      ":aec3_common",
+      ":vector_math",
+      "../../../rtc_base:cpu_info",
+      "../../../rtc_base/system:arch",
+      "../../../test:test_support",
+    ]
   }
 }

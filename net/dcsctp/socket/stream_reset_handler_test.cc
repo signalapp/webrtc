@@ -195,7 +195,7 @@ class StreamResetHandlerTest : public testing::Test {
     data_tracker_->AddHandoverState(state);
     reasm_->AddHandoverState(state);
 
-    retransmission_queue_->AddHandoverState(state);
+    retransmission_queue_->AddHandoverState(callbacks_.Now(), state);
 
     g_handover_state_transformer_for_test(&state);
 
@@ -209,7 +209,7 @@ class StreamResetHandlerTest : public testing::Test {
         [](TimeDelta /* rtt */) {}, []() {}, *t3_rtx_timer_, DcSctpOptions(),
         /*supports_partial_reliability=*/true,
         /*use_message_interleaving=*/false);
-    retransmission_queue_->RestoreFromState(state);
+    retransmission_queue_->RestoreFromState(callbacks_.Now(), state);
     handler_ = std::make_unique<StreamResetHandler>(
         "log: ", &ctx_, &timer_manager_, data_tracker_.get(), reasm_.get(),
         retransmission_queue_.get(), &state);

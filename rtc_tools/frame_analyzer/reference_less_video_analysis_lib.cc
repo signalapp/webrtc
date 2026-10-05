@@ -12,6 +12,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <numeric>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -28,8 +29,8 @@
 #define strtok_r strtok_s
 #endif
 
-bool frozen_frame(std::vector<double> psnr_per_frame,
-                  std::vector<double> ssim_per_frame,
+bool frozen_frame(std::span<const double> psnr_per_frame,
+                  std::span<const double> ssim_per_frame,
                   size_t frame) {
   if (psnr_per_frame[frame] >= PSNR_FREEZE_THRESHOLD ||
       ssim_per_frame[frame] >= SSIM_FREEZE_THRESHOLD)

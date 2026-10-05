@@ -52,3 +52,5 @@ std::unique_ptr<MediaConstraints> JavaToNativeMediaConstraints(
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(MediaConstraints)

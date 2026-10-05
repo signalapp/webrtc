@@ -66,6 +66,7 @@ class PeerConnectionWrapper {
   MockPeerConnectionObserver* observer();
 
   PeerConnection* GetInternalPeerConnection();
+  const PeerConnection* GetInternalPeerConnection() const;
 
   // Calls the underlying PeerConnection's CreateOffer method and returns the
   // resulting SessionDescription once it is available. If the method call

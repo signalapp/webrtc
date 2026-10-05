@@ -81,3 +81,5 @@ JNI_CallSessionFileRotatingLogSink_GetLogData(
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(CallSessionFileRotatingLogSink)

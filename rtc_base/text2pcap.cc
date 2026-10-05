@@ -36,7 +36,7 @@ std::string Text2Pcap::DumpPacket(bool outbound,
   for (uint8_t byte : payload) {
     s.AppendFormat(" %02x", byte);
   }
-  return s.str();
+  return s.Release();
 }
 
 }  // namespace webrtc

@@ -20,6 +20,7 @@
 #include "net/dcsctp/packet/chunk/data_chunk.h"
 #include "net/dcsctp/packet/chunk/forward_tsn_chunk.h"
 #include "net/dcsctp/packet/chunk/sack_chunk.h"
+#include "net/dcsctp/public/dcsctp_handover_state.h"
 #include "net/dcsctp/public/types.h"
 #include "net/dcsctp/testing/data_generator.h"
 #include "net/dcsctp/testing/testing_macros.h"
@@ -37,6 +38,7 @@ using ::testing::IsEmpty;
 using ::testing::Pair;
 using ::testing::Property;
 using ::testing::Return;
+using ::testing::SizeIs;
 using ::testing::StrictMock;
 using ::testing::UnorderedElementsAre;
 using ::webrtc::TimeDelta;
@@ -342,15 +344,15 @@ TEST_F(OutstandingDataTest, AckWithGapBlocksFromRFC4960Section334) {
   buf_.Insert(kMessageId, gen_.Ordered({1}, "E"), kNow);
 
   EXPECT_THAT(buf_.GetChunkStatesForTesting(),
-              testing::ElementsAre(Pair(TSN(9), State::kAcked),      //
-                                   Pair(TSN(10), State::kInFlight),  //
-                                   Pair(TSN(11), State::kInFlight),  //
-                                   Pair(TSN(12), State::kInFlight),  //
-                                   Pair(TSN(13), State::kInFlight),  //
-                                   Pair(TSN(14), State::kInFlight),  //
-                                   Pair(TSN(15), State::kInFlight),  //
-                                   Pair(TSN(16), State::kInFlight),  //
-                                   Pair(TSN(17), State::kInFlight)));
+              ElementsAre(Pair(TSN(9), State::kAcked),      //
+                          Pair(TSN(10), State::kInFlight),  //
+                          Pair(TSN(11), State::kInFlight),  //
+                          Pair(TSN(12), State::kInFlight),  //
+                          Pair(TSN(13), State::kInFlight),  //
+                          Pair(TSN(14), State::kInFlight),  //
+                          Pair(TSN(15), State::kInFlight),  //
+                          Pair(TSN(16), State::kInFlight),  //
+                          Pair(TSN(17), State::kInFlight)));
 
   std::vector<SackChunk::GapAckBlock> gab = {SackChunk::GapAckBlock(2, 3),
                                              SackChunk::GapAckBlock(5, 5)};
@@ -522,11 +524,11 @@ TEST_F(OutstandingDataTest, LifecycleReturnsAbandonedAfterT3rtxExpired) {
               Timestamp::PlusInfinity(), LifecycleId(42));
 
   EXPECT_THAT(buf_.GetChunkStatesForTesting(),
-              testing::ElementsAre(Pair(TSN(9), State::kAcked),      //
-                                   Pair(TSN(10), State::kInFlight),  //
-                                   Pair(TSN(11), State::kInFlight),  //
-                                   Pair(TSN(12), State::kInFlight),  //
-                                   Pair(TSN(13), State::kInFlight)));
+              ElementsAre(Pair(TSN(9), State::kAcked),      //
+                          Pair(TSN(10), State::kInFlight),  //
+                          Pair(TSN(11), State::kInFlight),  //
+                          Pair(TSN(12), State::kInFlight),  //
+                          Pair(TSN(13), State::kInFlight)));
 
   std::vector<SackChunk::GapAckBlock> gab1 = {SackChunk::GapAckBlock(2, 4)};
   EXPECT_FALSE(
@@ -534,11 +536,11 @@ TEST_F(OutstandingDataTest, LifecycleReturnsAbandonedAfterT3rtxExpired) {
   EXPECT_FALSE(buf_.has_data_to_be_retransmitted());
 
   EXPECT_THAT(buf_.GetChunkStatesForTesting(),
-              testing::ElementsAre(Pair(TSN(9), State::kAcked),    //
-                                   Pair(TSN(10), State::kNacked),  //
-                                   Pair(TSN(11), State::kAcked),   //
-                                   Pair(TSN(12), State::kAcked),   //
-                                   Pair(TSN(13), State::kAcked)));
+              ElementsAre(Pair(TSN(9), State::kAcked),    //
+                          Pair(TSN(10), State::kNacked),  //
+                          Pair(TSN(11), State::kAcked),   //
+                          Pair(TSN(12), State::kAcked),   //
+                          Pair(TSN(13), State::kAcked)));
 
   // T3-rtx triggered.
   EXPECT_CALL(on_discard_, Call(StreamID(1), kMessageId))
@@ -546,11 +548,11 @@ TEST_F(OutstandingDataTest, LifecycleReturnsAbandonedAfterT3rtxExpired) {
   buf_.NackAll();
 
   EXPECT_THAT(buf_.GetChunkStatesForTesting(),
-              testing::ElementsAre(Pair(TSN(9), State::kAcked),       //
-                                   Pair(TSN(10), State::kAbandoned),  //
-                                   Pair(TSN(11), State::kAbandoned),  //
-                                   Pair(TSN(12), State::kAbandoned),  //
-                                   Pair(TSN(13), State::kAbandoned)));
+              ElementsAre(Pair(TSN(9), State::kAcked),       //
+                          Pair(TSN(10), State::kAbandoned),  //
+                          Pair(TSN(11), State::kAbandoned),  //
+                          Pair(TSN(12), State::kAbandoned),  //
+                          Pair(TSN(13), State::kAbandoned)));
 
   // This will generate a FORWARD-TSN, which is acked
   EXPECT_TRUE(buf_.ShouldSendForwardTsn());
@@ -770,6 +772,108 @@ TEST_F(OutstandingDataTest, HandlesSacksWithOutOfBoundsTsns) {
                   /*is_in_fast_recovery=*/true);
   // Packet 11 has been acknowledged.
   EXPECT_EQ(buf_.unacked_items(), 2u);  // 13, 15
+}
+
+TEST_F(OutstandingDataTest, RestoreFromStateOverridesDummyInitialTsn) {
+  buf_.Insert(kMessageId, gen_.Ordered({1}, "B"), kNow);
+  buf_.Insert(kMessageId, gen_.Ordered({1}, ""), kNow);
+
+  DcSctpSocketHandoverState state;
+  buf_.AddHandoverState(kNow, state);
+
+  EXPECT_THAT(state.tx.outstanding_data, SizeIs(2));
+
+  // In production, OutstandingData is instantiated before the socket has fully
+  // restored from state, so it receives a stale/dummy initial TSN.
+  // RestoreFromState is later called with the true last_cumulative_tsn_ack.
+  OutstandingData restored_buf(DataChunk::kHeaderSize,
+                               unwrapper_.Unwrap(TSN(0)),
+                               on_discard_.AsStdFunction());
+  restored_buf.RestoreFromState(kNow, unwrapper_.Unwrap(TSN(9)), state);
+
+  EXPECT_EQ(restored_buf.unacked_items(), 0u);
+  EXPECT_EQ(restored_buf.last_cumulative_tsn_ack().Wrap(), TSN(9));
+}
+
+TEST_F(OutstandingDataTest, HandoverAndRestorePreservesRetransmissionCount) {
+  buf_.Insert(kMessageId, gen_.Ordered({1}, "BE"), kNow);
+  buf_.NackAll();
+  buf_.GetChunksToBeRetransmitted(1000);
+
+  DcSctpSocketHandoverState state;
+  buf_.AddHandoverState(kNow, state);
+  ASSERT_THAT(state.tx.outstanding_data, SizeIs(1));
+  EXPECT_EQ(state.tx.outstanding_data[0].retransmission_count, 1u);
+  EXPECT_TRUE(state.tx.outstanding_data[0].is_to_be_retransmitted);
+
+  OutstandingData restored_buf(DataChunk::kHeaderSize,
+                               unwrapper_.Unwrap(TSN(0)),
+                               on_discard_.AsStdFunction());
+  restored_buf.RestoreFromState(kNow, unwrapper_.Unwrap(TSN(9)), state);
+
+  EXPECT_THAT(restored_buf.GetChunkStatesForTesting(),
+              ElementsAre(Pair(TSN(9), State::kAcked),
+                          Pair(TSN(10), State::kToBeRetransmitted)));
+  EXPECT_EQ(restored_buf.unacked_payload_bytes(), 0u);
+  EXPECT_EQ(restored_buf.unacked_packet_bytes(), 0u);
+  EXPECT_EQ(restored_buf.unacked_items(), 0u);
+
+  DcSctpSocketHandoverState restored_state;
+  restored_buf.AddHandoverState(kNow, restored_state);
+  ASSERT_THAT(restored_state.tx.outstanding_data, SizeIs(1));
+  EXPECT_EQ(restored_state.tx.outstanding_data[0].retransmission_count, 1u);
+  EXPECT_TRUE(restored_state.tx.outstanding_data[0].is_to_be_retransmitted);
+}
+
+TEST_F(OutstandingDataTest, HandoverAndRestorePreservesAbandonedState) {
+  EXPECT_CALL(on_discard_, Call(StreamID(1), kMessageId))
+      .WillOnce(Return(false));
+  buf_.Insert(kMessageId, gen_.Ordered({1}, "BE"), kNow, MaxRetransmits(0));
+  buf_.NackAll();
+
+  DcSctpSocketHandoverState state;
+  buf_.AddHandoverState(kNow, state);
+  ASSERT_THAT(state.tx.outstanding_data, SizeIs(1));
+  EXPECT_TRUE(state.tx.outstanding_data[0].is_abandoned);
+
+  OutstandingData restored_buf(DataChunk::kHeaderSize,
+                               unwrapper_.Unwrap(TSN(0)),
+                               on_discard_.AsStdFunction());
+  restored_buf.RestoreFromState(kNow, unwrapper_.Unwrap(TSN(9)), state);
+
+  EXPECT_THAT(restored_buf.GetChunkStatesForTesting(),
+              ElementsAre(Pair(TSN(9), State::kAcked),
+                          Pair(TSN(10), State::kAbandoned)));
+
+  DcSctpSocketHandoverState restored_state;
+  restored_buf.AddHandoverState(kNow, restored_state);
+  ASSERT_THAT(restored_state.tx.outstanding_data, SizeIs(1));
+  EXPECT_TRUE(restored_state.tx.outstanding_data[0].is_abandoned);
+}
+
+TEST_F(OutstandingDataTest, HandoverAndRestorePreservesNackedState) {
+  buf_.Insert(kMessageId, gen_.Ordered({1}, "B"), kNow);
+  buf_.Insert(kMessageId, gen_.Ordered({1}, "E"), kNow);
+
+  std::vector<SackChunk::GapAckBlock> gab = {SackChunk::GapAckBlock(2, 2)};
+  buf_.HandleSack(unwrapper_.Unwrap(TSN(9)), gab, false);
+
+  DcSctpSocketHandoverState state;
+  buf_.AddHandoverState(kNow, state);
+
+  // We expect chunk 10 to be Nacked
+  ASSERT_THAT(state.tx.outstanding_data, SizeIs(2));
+  EXPECT_TRUE(state.tx.outstanding_data[0].is_nacked);
+
+  OutstandingData restored_buf(DataChunk::kHeaderSize,
+                               unwrapper_.Unwrap(TSN(0)),
+                               on_discard_.AsStdFunction());
+  restored_buf.RestoreFromState(kNow, unwrapper_.Unwrap(TSN(9)), state);
+
+  EXPECT_THAT(restored_buf.GetChunkStatesForTesting(),
+              ElementsAre(Pair(TSN(9), State::kAcked),
+                          Pair(TSN(10), State::kToBeRetransmitted),
+                          Pair(TSN(11), State::kAcked)));
 }
 
 }  // namespace

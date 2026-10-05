@@ -1038,7 +1038,6 @@ void P2PTransportChannel::OnPortReady(PortAllocatorSession* session,
   // if one is pending.
 
   port->SetIceRole(ice_role_);
-  port->SetIceTiebreaker(allocator_->ice_tiebreaker());
   // RingRTC change to support ICE forking
   scoped_refptr<PendingTaskSafetyFlag> flag = safety_flag_;
   if (IsSharedSession(session)) {

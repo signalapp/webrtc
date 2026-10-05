@@ -166,3 +166,5 @@ static jboolean JNI_DataChannel_Send(JNIEnv* jni,
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(DataChannel)

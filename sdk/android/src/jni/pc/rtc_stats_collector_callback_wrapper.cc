@@ -144,3 +144,7 @@ void RTCStatsCollectorCallbackWrapper::OnStatsDelivered(
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(RTCStatsCollectorCallback)
+DEFINE_JNI(RTCStatsReport)
+DEFINE_JNI(RTCStats)

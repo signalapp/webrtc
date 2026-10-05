@@ -27,12 +27,12 @@ MockRenderDelayBuffer::MockRenderDelayBuffer(int sample_rate_hz,
       fft_buffer_(block_buffer_.buffer.size(), num_channels),
       render_buffer_(&block_buffer_, &spectrum_buffer_, &fft_buffer_),
       downsampled_render_buffer_(GetDownSampledBufferSize(4, 4)) {
-  ON_CALL(*this, GetRenderBuffer())
-      .WillByDefault(
-          ::testing::Invoke(this, &MockRenderDelayBuffer::FakeGetRenderBuffer));
-  ON_CALL(*this, GetDownsampledRenderBuffer())
-      .WillByDefault(::testing::Invoke(
-          this, &MockRenderDelayBuffer::FakeGetDownsampledRenderBuffer));
+  ON_CALL(*this, GetRenderBuffer()).WillByDefault([this] {
+    return FakeGetRenderBuffer();
+  });
+  ON_CALL(*this, GetDownsampledRenderBuffer()).WillByDefault([this] {
+    return FakeGetDownsampledRenderBuffer();
+  });
 }
 
 MockRenderDelayBuffer::~MockRenderDelayBuffer() = default;

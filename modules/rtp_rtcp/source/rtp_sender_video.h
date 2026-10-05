@@ -112,6 +112,16 @@ class RTPSenderVideo : public RTPVideoFrameSenderInterface {
                  TimeDelta expected_retransmission_time,
                  std::vector<uint32_t> csrcs) override;
 
+  bool SendVideoFrame(int payload_type,
+                      VideoCodecType codec_type,
+                      RtpTimestampInfo rtp_timestamp_info,
+                      Timestamp capture_time,
+                      std::span<const uint8_t> payload,
+                      size_t encoder_output_size,
+                      RTPVideoHeader video_header,
+                      TimeDelta expected_retransmission_time,
+                      std::vector<uint32_t> csrcs) override;
+
   bool SendEncodedImage(int payload_type,
                         VideoCodecType codec_type,
                         uint32_t rtp_timestamp,
@@ -240,6 +250,8 @@ class RTPSenderVideo : public RTPVideoFrameSenderInterface {
       RTC_GUARDED_BY(stats_mutex_);
 
   OneTimeEvent first_frame_sent_;
+  Timestamp last_fail_packetize_log_ RTC_GUARDED_BY(send_checker_) =
+      Timestamp::MinusInfinity();
 
   // E2EE Custom Video Frame Encryptor (optional)
   FrameEncryptorInterface* const frame_encryptor_ = nullptr;

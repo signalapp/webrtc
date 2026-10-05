@@ -75,6 +75,7 @@ struct ProbeControllerConfig {
 
   // Configures the probes emitted by changed to the allocated bitrate.
   FieldTrialParameter<bool> probe_on_max_allocated_bitrate_change;
+  FieldTrialParameter<bool> probe_on_max_allocated_bitrate_change_without_alr;
   FieldTrialOptional<double> first_allocation_probe_scale;
   FieldTrialOptional<double> second_allocation_probe_scale;
   FieldTrialParameter<double> allocation_probe_limit_by_current_scale;

@@ -1,3 +1,9 @@
+// DEPRECATED: THIS PROTOBUF SCHEMA IS DEPRECATED (V1 EVENT LOG FORMAT).
+// WebRTC exclusively produces V2 event logs (rtc_event_log2.proto) in runtime code.
+// This definition (webrtc.rtclog.EventStream) is retained purely for offline
+// tools, historical log analysis, and test suites (e.g., RtcEventLogParser).
+// DO NOT use or link this proto in production runtime libraries or new encoding targets.
+
 syntax = "proto2";
 option optimize_for = LITE_RUNTIME;
 package webrtc.rtclog;

@@ -44,3 +44,5 @@ jlong JNI_VideoEncoderFallback_Create(
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(VideoEncoderFallback)

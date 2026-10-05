@@ -69,6 +69,9 @@ std::optional<SpsParser::SpsState> SpsParser::ParseSpsUpToVui(
   reader.ConsumeBits(16);
   // seq_parameter_set_id: ue(v)
   sps.id = reader.ReadExponentialGolomb();
+  if (!reader.Ok() || sps.id > H264::kMaxSpsId) {
+    return std::nullopt;
+  }
   sps.separate_colour_plane_flag = 0;
   // See if profile_idc has chroma format information.
   if (profile_idc == 100 || profile_idc == 110 || profile_idc == 122 ||

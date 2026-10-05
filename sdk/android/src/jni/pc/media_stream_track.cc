@@ -62,3 +62,5 @@ static jboolean JNI_MediaStreamTrack_SetEnabled(JNIEnv* jni,
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(MediaStreamTrack)

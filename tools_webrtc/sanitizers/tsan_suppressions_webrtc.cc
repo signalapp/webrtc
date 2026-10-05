@@ -23,32 +23,12 @@ char kTSanDefaultSuppressions[] =
 
     // WebRTC specific suppressions.
 
-    // Split up suppressions covered previously by thread.cc and
-    // messagequeue.cc.
-    "race:vp8cx_remove_encoder_threads\n"
-    "race:third_party/libvpx/source/libvpx/vp9/common/vp9_scan.h\n"
-
-    // rtc_unittests
-    // https://code.google.com/p/webrtc/issues/detail?id=2080
-    "race:rtc_base/logging.cc\n"
-
-    // Potential deadlocks detected after roll in r6516.
-    // https://code.google.com/p/webrtc/issues/detail?id=3509
-    "deadlock:webrtc::test::UdpSocketManagerPosixImpl::RemoveSocket\n"
-
     // TODO(pbos): Trace events are racy due to lack of proper POD atomics.
     // https://code.google.com/p/webrtc/issues/detail?id=2497
     "race:*trace_event_unique_catstatic*\n"
 
-    // Race between InitCpuFlags and TestCpuFlag in libyuv.
-    // https://code.google.com/p/libyuv/issues/detail?id=508
-    "race:InitCpuFlags\n"
-
     // http://crbug.com/244856
     "race:libpulsecommon*.so\n"
-
-    // https://crbug.com/1158622
-    "race:absl::synchronization_internal::Waiter::Post\n"
 
     // End of suppressions.
     ;  // Please keep this semicolon.

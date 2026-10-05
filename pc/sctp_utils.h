@@ -15,6 +15,7 @@
 #include <optional>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "api/data_channel_interface.h"
 #include "api/priority.h"
 #include "net/dcsctp/public/types.h"
@@ -57,14 +58,14 @@ bool ParseDataChannelOpenMessage(const CopyOnWriteBuffer& payload,
 
 bool ParseDataChannelOpenAckMessage(const CopyOnWriteBuffer& payload);
 
-bool WriteDataChannelOpenMessage(const std::string& label,
-                                 const std::string& protocol,
+bool WriteDataChannelOpenMessage(absl::string_view label,
+                                 absl::string_view protocol,
                                  std::optional<PriorityValue> priority,
                                  bool ordered,
                                  std::optional<int> max_retransmits,
                                  std::optional<int> max_retransmit_time,
                                  CopyOnWriteBuffer* payload);
-bool WriteDataChannelOpenMessage(const std::string& label,
+bool WriteDataChannelOpenMessage(absl::string_view label,
                                  const DataChannelInit& config,
                                  CopyOnWriteBuffer* payload);
 void WriteDataChannelOpenAckMessage(CopyOnWriteBuffer* payload);

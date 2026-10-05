@@ -226,4 +226,15 @@ TEST(H264SpsParserTest, TestLog2MaxPicOrderCntMinus4) {
   EXPECT_FALSE(SpsParser::ParseSps(buffer));
 }
 
+TEST(H264SpsParserTest, TestInvalidSpsId) {
+  Buffer buffer;
+  // Valid sps.id = 31
+  GenerateFakeSps(320u, 180u, 31, 0, 0, &buffer);
+  EXPECT_NE(SpsParser::ParseSps(buffer), std::nullopt);
+
+  // Invalid sps.id = 32
+  GenerateFakeSps(320u, 180u, 32, 0, 0, &buffer);
+  EXPECT_EQ(SpsParser::ParseSps(buffer), std::nullopt);
+}
+
 }  // namespace webrtc

@@ -12,6 +12,7 @@
 #define PC_VIDEO_TRACK_H_
 
 #include <string>
+#include <vector>
 
 #include "absl/strings/string_view.h"
 #include "api/media_stream_interface.h"
@@ -21,7 +22,6 @@
 #include "api/video/video_frame.h"
 #include "api/video/video_sink_interface.h"
 #include "api/video/video_source_interface.h"
-#include "media/base/video_source_base.h"
 #include "pc/video_track_source_proxy.h"
 #include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/thread.h"
@@ -34,7 +34,6 @@ namespace webrtc {
 // conflicting access, so we'd need to override those methods anyway in this
 // class in order to make sure things are correctly checked.
 class VideoTrack : public MediaStreamTrack<VideoTrackInterface>,
-                   public VideoSourceBaseGuarded,
                    public ObserverInterface {
  public:
   static scoped_refptr<VideoTrack> Create(
@@ -81,6 +80,17 @@ class VideoTrack : public MediaStreamTrack<VideoTrackInterface>,
   // be queried without blocking on the worker thread by callers that don't
   // use an api proxy to call the `enabled()` method.
   bool enabled_w_ RTC_GUARDED_BY(worker_thread_) = true;
+
+  struct SinkPair {
+    SinkPair(VideoSinkInterface<VideoFrame>* sink, VideoSinkWants wants)
+        : sink(sink), wants(wants) {}
+    VideoSinkInterface<VideoFrame>* sink;
+    VideoSinkWants wants;
+  };
+  SinkPair* FindSinkPair(const VideoSinkInterface<VideoFrame>* sink)
+      RTC_RUN_ON(worker_thread_);
+
+  std::vector<SinkPair> sinks_ RTC_GUARDED_BY(worker_thread_);
 };
 
 }  // namespace webrtc

@@ -49,7 +49,7 @@ void SourceTracker::OnFrameDelivered(const RtpPacketInfos& packet_infos,
   }
 
   std::optional<uint32_t> prev_ssrc = last_received_ssrc_;
-  std::vector<uint32_t> prev_csrcs = last_received_csrcs_;
+  std::vector<uint32_t> prev_csrcs = std::move(last_received_csrcs_);
   last_received_csrcs_.clear();
   for (const RtpPacketInfo& packet_info : packet_infos) {
     for (uint32_t csrc : packet_info.csrcs()) {

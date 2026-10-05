@@ -31,7 +31,6 @@
 #include "rtc_base/time_utils.h"
 #include "rtc_base/trace_event.h"
 #include "system_wrappers/include/clock.h"
-#include "third_party/libyuv/include/libyuv/convert.h"
 #include "third_party/libyuv/include/libyuv/rotate.h"
 
 namespace webrtc {
@@ -94,6 +93,7 @@ VideoCaptureImpl::VideoCaptureImpl(Clock* clock)
       _lastProcessFrameTimeNanos(clock->TimeInMicroseconds() * 1000),
       _rotateFrame(kVideoRotation_0),
       apply_rotation_(false),
+      stride_(0),
       clock_(clock) {
   _requestedCapability.width = kDefaultWidth;
   _requestedCapability.height = kDefaultHeight;
@@ -220,11 +220,11 @@ int32_t VideoCaptureImpl::IncomingFrame(uint8_t* videoFrame,
     }
   }
 
-  const int conversionResult = libyuv::ConvertToI420(
+  const int conversionResult = ConvertToI420(
       videoFrame, videoFrameLength, buffer->MutableDataY(), buffer->StrideY(),
       buffer->MutableDataU(), buffer->StrideU(), buffer->MutableDataV(),
-      buffer->StrideV(), 0, 0,  // No Cropping
-      width, height, target_width, target_height, rotation_mode,
+      buffer->StrideV(), width, height, stride_, target_width, target_height,
+      static_cast<uint32_t>(rotation_mode),
       ConvertVideoType(frameInfo.videoType));
   if (conversionResult != 0) {
     RTC_LOG(LS_ERROR) << "Failed to convert capture frame from type "
@@ -281,6 +281,16 @@ bool VideoCaptureImpl::SetApplyRotation(bool enable) {
 bool VideoCaptureImpl::GetApplyRotation() {
   MutexLock lock(&api_lock_);
   return apply_rotation_;
+}
+
+void VideoCaptureImpl::SetStride(int32_t stride) {
+  MutexLock lock(&api_lock_);
+  stride_ = stride;
+}
+
+int32_t VideoCaptureImpl::GetStride() {
+  MutexLock lock(&api_lock_);
+  return stride_;
 }
 
 void VideoCaptureImpl::UpdateFrameCount() {

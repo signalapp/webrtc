@@ -242,8 +242,6 @@ class VideoSendStreamImpl : public webrtc::VideoSendStream,
   DataRate configured_max_bitrate_ RTC_GUARDED_BY(thread_checker_);
   DataRate encoder_target_rate_ RTC_GUARDED_BY(thread_checker_);
   double encoder_bitrate_priority_ RTC_GUARDED_BY(thread_checker_);
-  const int encoder_av1_priority_bitrate_override_bps_
-      RTC_GUARDED_BY(thread_checker_);
 
   ScopedTaskSafety worker_queue_safety_;
 

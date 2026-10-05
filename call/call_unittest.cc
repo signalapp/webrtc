@@ -83,7 +83,8 @@ struct CallHelper {
             : make_ref_counted<NiceMock<MockAudioProcessing>>();
     audio_state_config.audio_device_module =
         make_ref_counted<MockAudioDeviceModule>();
-    CallConfig config(CreateTestEnvironment({.event_log = &log_}));
+    CallConfig config = CallConfig::CreateSingleThreaded(
+        CreateTestEnvironment({.event_log = &log_}));
     config.audio_state = AudioState::Create(audio_state_config);
     call_ = Call::Create(std::move(config));
   }
@@ -137,7 +138,7 @@ TEST(CallTest, CreateDestroy_AudioReceiveStream) {
     config.rtcp_send_transport = &rtcp_send_transport;
     config.decoder_factory = make_ref_counted<MockAudioDecoderFactory>();
     AudioReceiveStreamInterface* stream =
-        call->CreateAudioReceiveStream(config);
+        call->CreateAudioReceiveStream(std::move(config));
     EXPECT_NE(stream, nullptr);
     call->DestroyAudioReceiveStream(stream);
   }
@@ -171,16 +172,17 @@ TEST(CallTest, CreateDestroy_AudioSendStreams) {
 TEST(CallTest, CreateDestroy_AudioReceiveStreams) {
   for (bool use_null_audio_processing : {false, true}) {
     CallHelper call(use_null_audio_processing);
-    AudioReceiveStreamInterface::Config config;
     MockTransport rtcp_send_transport;
-    config.rtcp_send_transport = &rtcp_send_transport;
-    config.decoder_factory = make_ref_counted<MockAudioDecoderFactory>();
+    auto decoder_factory = make_ref_counted<MockAudioDecoderFactory>();
     std::list<AudioReceiveStreamInterface*> streams;
     for (int i = 0; i < 2; ++i) {
       for (uint32_t ssrc = 0; ssrc < 1234567; ssrc += 34567) {
+        AudioReceiveStreamInterface::Config config;
+        config.rtcp_send_transport = &rtcp_send_transport;
+        config.decoder_factory = decoder_factory;
         config.rtp.remote_ssrc = ssrc;
         AudioReceiveStreamInterface* stream =
-            call->CreateAudioReceiveStream(config);
+            call->CreateAudioReceiveStream(std::move(config));
         EXPECT_NE(stream, nullptr);
         if (ssrc & 1) {
           streams.push_back(stream);
@@ -502,7 +504,7 @@ class CallRtcEventLogTest : public ::testing::Test {
     // Needed for DCHECKs.
     audio_config.rtcp_send_transport = &transport_;
     audio_config.decoder_factory = audio_decoder_factory_;
-    audio_stream_ = call_->CreateAudioReceiveStream(audio_config);
+    audio_stream_ = call_->CreateAudioReceiveStream(std::move(audio_config));
 
     // Video.
     VideoReceiveStreamInterface::Config video_config(&transport_);
@@ -626,7 +628,7 @@ TEST(CallTest, HandlesAudioSyncGroupUpdate) {
   audio_state_config.audio_mixer = make_ref_counted<MockAudioMixer>();
   audio_state_config.audio_device_module =
       make_ref_counted<MockAudioDeviceModule>();
-  CallConfig config(env);
+  CallConfig config = CallConfig::CreateSingleThreaded(env);
   config.audio_state = AudioState::Create(audio_state_config);
   std::unique_ptr<Call> call(Call::Create(std::move(config)));
 
@@ -637,7 +639,7 @@ TEST(CallTest, HandlesAudioSyncGroupUpdate) {
   audio_config.decoder_factory = make_ref_counted<MockAudioDecoderFactory>();
   audio_config.sync_group = "group1";
   AudioReceiveStreamInterface* audio_stream =
-      call->CreateAudioReceiveStream(audio_config);
+      call->CreateAudioReceiveStream(std::move(audio_config));
   ASSERT_NE(audio_stream, nullptr);
 
   MockTransport video_rtcp_transport;

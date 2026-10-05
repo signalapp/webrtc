@@ -62,7 +62,7 @@ std::string SerializeLittleEndian(uint64_t value, uint8_t bytes) {
 
 }  // namespace
 
-std::string EncodeOptionalValuePositions(std::vector<bool> positions) {
+std::string EncodeOptionalValuePositions(const std::vector<bool>& positions) {
   BitWriter writer((positions.size() + 7) / 8);
   for (bool position : positions) {
     writer.WriteBits(position ? 1u : 0u, 1);

@@ -381,8 +381,7 @@ class PeerConnectionEncodingsIntegrationTest : public ::testing::Test {
       scoped_refptr<PeerConnectionTestWrapper> pc_wrapper) {
     auto observer = make_ref_counted<MockCreateSessionDescriptionObserver>();
     pc_wrapper->pc()->CreateOffer(observer.get(), {});
-    EXPECT_THAT(WaitUntil([&] { return observer->called(); }, IsTrue()),
-                IsRtcOk());
+    EXPECT_TRUE(WaitUntil([&] { return observer->called(); }));
     return observer->MoveDescription();
   }
 
@@ -390,8 +389,7 @@ class PeerConnectionEncodingsIntegrationTest : public ::testing::Test {
       scoped_refptr<PeerConnectionTestWrapper> pc_wrapper) {
     auto observer = make_ref_counted<MockCreateSessionDescriptionObserver>();
     pc_wrapper->pc()->CreateAnswer(observer.get(), {});
-    EXPECT_THAT(WaitUntil([&] { return observer->called(); }, IsTrue()),
-                IsRtcOk());
+    EXPECT_TRUE(WaitUntil([&] { return observer->called(); }));
     return observer->MoveDescription();
   }
 
@@ -659,6 +657,14 @@ TEST_F(PeerConnectionEncodingsIntegrationTest,
       GetCapabilitiesAndRestrictToCodec(remote_pc_wrapper, "VP9");
   transceiver->SetCodecPreferences(codecs);
 
+  scoped_refptr<RtpSenderInterface> sender = transceiver->sender();
+  RtpParameters parameters = sender->GetParameters();
+  // Keep this legacy SVC test independent of simulcast's default scaling.
+  for (RtpEncodingParameters& encoding : parameters.encodings) {
+    encoding.scale_resolution_down_by = 1.0;
+  }
+  ASSERT_TRUE(sender->SetParameters(parameters).ok());
+
   NegotiateWithSimulcastTweaks(local_pc_wrapper, remote_pc_wrapper);
   local_pc_wrapper->WaitForConnection();
   remote_pc_wrapper->WaitForConnection();
@@ -680,7 +686,6 @@ TEST_F(PeerConnectionEncodingsIntegrationTest,
   // Despite SVC being used on a single RTP stream, GetParameters() returns the
   // three encodings that we configured earlier (this is not spec-compliant but
   // it is how legacy SVC behaves).
-  scoped_refptr<RtpSenderInterface> sender = transceiver->sender();
   std::vector<RtpEncodingParameters> encodings =
       sender->GetParameters().encodings;
   ASSERT_EQ(encodings.size(), 3u);
@@ -1231,6 +1236,10 @@ TEST_F(PeerConnectionEncodingsIntegrationTest, VP9_TargetBitrate_LegacyL1T3) {
   // disabling the bottom two spatial layers resulting in L1T3.
   scoped_refptr<RtpSenderInterface> sender = transceiver->sender();
   RtpParameters parameters = sender->GetParameters();
+  // Keep this legacy SVC test independent of simulcast's default scaling.
+  for (RtpEncodingParameters& encoding : parameters.encodings) {
+    encoding.scale_resolution_down_by = 1.0;
+  }
   parameters.encodings[0].active = false;
   parameters.encodings[1].active = false;
   parameters.encodings[2].active = true;
@@ -1877,8 +1886,10 @@ TEST_F(PeerConnectionEncodingsIntegrationTest,
 // still work.
 TEST_F(PeerConnectionEncodingsIntegrationTest,
        SetParametersAcceptsMungedCodecFromGetParameters) {
-  scoped_refptr<PeerConnectionTestWrapper> local_pc_wrapper = CreatePc();
-  scoped_refptr<PeerConnectionTestWrapper> remote_pc_wrapper = CreatePc();
+  scoped_refptr<PeerConnectionTestWrapper> local_pc_wrapper =
+      CreatePc("WebRTC-NoSdpMangleAllowForTesting/Enabled,85/");
+  scoped_refptr<PeerConnectionTestWrapper> remote_pc_wrapper =
+      CreatePc("WebRTC-NoSdpMangleAllowForTesting/Enabled,85/");
   ExchangeIceCandidates(local_pc_wrapper, remote_pc_wrapper);
 
   auto transceiver_or_error =

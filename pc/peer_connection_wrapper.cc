@@ -29,7 +29,6 @@
 #include "api/rtp_transceiver_interface.h"
 #include "api/scoped_refptr.h"
 #include "api/stats/rtc_stats_report.h"
-#include "api/test/rtc_error_matchers.h"
 #include "api/units/time_delta.h"
 #include "pc/peer_connection.h"
 #include "pc/peer_connection_proxy.h"
@@ -83,6 +82,13 @@ PeerConnection* PeerConnectionWrapper::GetInternalPeerConnection() {
       static_cast<PeerConnectionProxyWithInternal<PeerConnectionInterface>*>(
           pc());
   return static_cast<PeerConnection*>(pci->internal());
+}
+
+const PeerConnection* PeerConnectionWrapper::GetInternalPeerConnection() const {
+  const auto* pci = static_cast<
+      const PeerConnectionProxyWithInternal<PeerConnectionInterface>*>(
+      pc_.get());
+  return static_cast<const PeerConnection*>(pci->internal());
 }
 
 std::unique_ptr<SessionDescriptionInterface>
@@ -164,9 +170,7 @@ std::unique_ptr<SessionDescriptionInterface> PeerConnectionWrapper::CreateSdp(
       [&]() { done.Set(); });
   fn(observer.get());
   if (signaling_is_current) {
-    EXPECT_THAT(
-        WaitUntil([&] { return observer->called(); }, ::testing::IsTrue()),
-        IsRtcOk());
+    EXPECT_TRUE(WaitUntil([&] { return observer->called(); }));
   } else {
     done.Wait(Event::kForever);
     EXPECT_TRUE(observer->called());
@@ -192,9 +196,7 @@ bool PeerConnectionWrapper::SetLocalDescription(
     RTCError* error_out) {
   auto observer = make_ref_counted<FakeSetLocalDescriptionObserver>();
   pc()->SetLocalDescription(std::move(desc), observer);
-  EXPECT_THAT(
-      WaitUntil([&] { return observer->called(); }, ::testing::IsTrue()),
-      IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return observer->called(); }));
   bool ok = observer->error().ok();
   if (error_out)
     *error_out = std::move(observer->error());
@@ -216,9 +218,7 @@ bool PeerConnectionWrapper::SetRemoteDescription(
     RTCError* error_out) {
   auto observer = make_ref_counted<FakeSetRemoteDescriptionObserver>();
   pc()->SetRemoteDescription(std::move(desc), observer);
-  EXPECT_THAT(
-      WaitUntil([&] { return observer->called(); }, ::testing::IsTrue()),
-      IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return observer->called(); }));
   bool ok = observer->error().ok();
   if (error_out)
     *error_out = std::move(observer->error());
@@ -230,9 +230,7 @@ bool PeerConnectionWrapper::SetSdp(
     std::string* error_out) {
   auto observer = make_ref_counted<MockSetSessionDescriptionObserver>();
   fn(observer.get());
-  EXPECT_THAT(
-      WaitUntil([&] { return observer->called(); }, ::testing::IsTrue()),
-      IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return observer->called(); }));
   if (error_out && !observer->result()) {
     *error_out = observer->error();
   }
@@ -433,9 +431,7 @@ bool PeerConnectionWrapper::IsIceConnected() {
 scoped_refptr<const RTCStatsReport> PeerConnectionWrapper::GetStats() {
   auto callback = make_ref_counted<MockRTCStatsCollectorCallback>();
   pc()->GetStats(callback.get());
-  EXPECT_THAT(
-      WaitUntil([&] { return callback->called(); }, ::testing::IsTrue()),
-      IsRtcOk());
+  EXPECT_TRUE(WaitUntil([&] { return callback->called(); }));
   return callback->report();
 }
 

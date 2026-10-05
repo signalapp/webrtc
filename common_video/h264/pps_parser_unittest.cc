@@ -242,4 +242,46 @@ TEST_F(PpsParserTest, ParseSliceHeader) {
   }
 }
 
+TEST_F(PpsParserTest, ParsePpsIdsInvalid) {
+  uint32_t pps_id;
+  uint32_t sps_id;
+
+  // Valid pps_id=255, sps_id=31
+  buffer_.Clear();
+  generated_pps_.id = 255;
+  generated_pps_.sps_id = 31;
+  WritePps(generated_pps_, 0, 1, 0, &buffer_);
+  EXPECT_TRUE(PpsParser::ParsePpsIds(buffer_, &pps_id, &sps_id));
+
+  // Invalid pps_id=256
+  buffer_.Clear();
+  generated_pps_.id = 256;
+  generated_pps_.sps_id = 0;
+  WritePps(generated_pps_, 0, 1, 0, &buffer_);
+  EXPECT_FALSE(PpsParser::ParsePpsIds(buffer_, &pps_id, &sps_id));
+
+  // Invalid sps_id=32
+  buffer_.Clear();
+  generated_pps_.id = 0;
+  generated_pps_.sps_id = 32;
+  WritePps(generated_pps_, 0, 1, 0, &buffer_);
+  EXPECT_FALSE(PpsParser::ParsePpsIds(buffer_, &pps_id, &sps_id));
+}
+
+TEST_F(PpsParserTest, ParsePpsInvalidSpsPpsId) {
+  // Invalid pps_id=256
+  buffer_.Clear();
+  generated_pps_.id = 256;
+  generated_pps_.sps_id = 0;
+  WritePps(generated_pps_, 0, 1, 0, &buffer_);
+  EXPECT_EQ(PpsParser::ParsePps(buffer_), std::nullopt);
+
+  // Invalid sps_id=32
+  buffer_.Clear();
+  generated_pps_.id = 0;
+  generated_pps_.sps_id = 32;
+  WritePps(generated_pps_, 0, 1, 0, &buffer_);
+  EXPECT_EQ(PpsParser::ParsePps(buffer_), std::nullopt);
+}
+
 }  // namespace webrtc

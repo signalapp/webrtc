@@ -296,3 +296,6 @@ std::unique_ptr<VideoDecoder> JavaToNativeVideoDecoder(
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(VideoDecoderWrapper)
+DEFINE_JNI(VideoDecoder)

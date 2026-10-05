@@ -29,9 +29,9 @@ struct MediaConfig {
   // necessarily monotonically increasing, or from a monotonic clock that is
   // set to TimeUTCMicros() at first call, and then procceeds to
   // increase monotonically.
-  // TODO: bugs.webrtc.org/370535296 - Change default value to true and delete
-  // this flag once downstream projects have migrated.
-  bool stats_timestamp_with_environment_clock = false;
+  // TODO: bugs.webrtc.org/370535296 - delete this flag once downstream projects
+  // have migrated.
+  bool stats_timestamp_with_environment_clock = true;
 
   // Video-specific config.
   struct Video {

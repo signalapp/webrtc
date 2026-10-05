@@ -218,6 +218,10 @@ PeerConnectionFactoryDependencies CreatePCFDependencies(
   if (pcf_dependencies->neteq_factory != nullptr) {
     pcf_deps.neteq_factory = std::move(pcf_dependencies->neteq_factory);
   }
+  if (pcf_dependencies->video_jitter_timing_factory != nullptr) {
+    pcf_deps.video_jitter_timing_factory =
+        std::move(pcf_dependencies->video_jitter_timing_factory);
+  }
 
   // Media dependencies
   pcf_deps.adm = std::move(audio_device_module);

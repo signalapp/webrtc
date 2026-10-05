@@ -40,3 +40,6 @@ static jboolean JNI_LibvpxVp9Decoder_IsSupported(JNIEnv* jni) {
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(LibvpxVp9Decoder)
+DEFINE_JNI(LibvpxVp9Encoder)

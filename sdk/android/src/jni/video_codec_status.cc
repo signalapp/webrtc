@@ -28,3 +28,5 @@ int32_t JavaToNativeVideoCodecStatus(
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(VideoCodecStatus)

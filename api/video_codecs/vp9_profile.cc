@@ -14,6 +14,7 @@
 #include <optional>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "api/rtp_parameters.h"
 #include "rtc_base/string_to_number.h"
 
@@ -36,7 +37,7 @@ std::string VP9ProfileToString(VP9Profile profile) {
   return "0";
 }
 
-std::optional<VP9Profile> StringToVP9Profile(const std::string& str) {
+std::optional<VP9Profile> StringToVP9Profile(absl::string_view str) {
   const std::optional<int> i = StringToNumber<int>(str);
   if (!i.has_value())
     return std::nullopt;

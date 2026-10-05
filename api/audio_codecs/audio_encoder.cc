@@ -13,11 +13,11 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
-#include <optional>
 #include <span>
 
 #include "absl/strings/string_view.h"
 #include "api/call/bitrate_allocation.h"
+#include "api/units/data_rate.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/trace_event.h"
@@ -97,17 +97,13 @@ void AudioEncoder::OnReceivedUplinkRecoverablePacketLossFraction(
 }
 
 void AudioEncoder::OnReceivedTargetAudioBitrate(int target_audio_bitrate_bps) {
-  OnReceivedUplinkBandwidth(target_audio_bitrate_bps, std::nullopt);
+  BitrateAllocationUpdate update;
+  update.target_bitrate = DataRate::BitsPerSec(target_audio_bitrate_bps);
+  OnReceivedUplinkAllocation(update);
 }
 
-void AudioEncoder::OnReceivedUplinkBandwidth(
-    int /* target_audio_bitrate_bps */,
-    std::optional<int64_t> /* bwe_period_ms */) {}
-
-void AudioEncoder::OnReceivedUplinkAllocation(BitrateAllocationUpdate update) {
-  OnReceivedUplinkBandwidth(update.target_bitrate.bps(),
-                            update.bwe_period.ms());
-}
+void AudioEncoder::OnReceivedUplinkAllocation(
+    BitrateAllocationUpdate /* update */) {}
 
 void AudioEncoder::OnReceivedRtt(int /* rtt_ms */) {}
 

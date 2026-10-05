@@ -12,6 +12,7 @@
 #define RTC_TOOLS_FRAME_ANALYZER_REFERENCE_LESS_VIDEO_ANALYSIS_LIB_H_
 
 #include <cstddef>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -20,8 +21,8 @@
 
 // Returns true if the frame is frozen based on psnr and ssim freezing
 // threshold values.
-bool frozen_frame(std::vector<double> psnr_per_frame,
-                  std::vector<double> ssim_per_frame,
+bool frozen_frame(std::span<const double> psnr_per_frame,
+                  std::span<const double> ssim_per_frame,
                   size_t frame);
 
 // Returns the vector of identical cluster of frames that are frozen

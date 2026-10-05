@@ -123,3 +123,5 @@ int64_t GetJavaEncodedImageCaptureTimeNs(
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(EncodedImage)

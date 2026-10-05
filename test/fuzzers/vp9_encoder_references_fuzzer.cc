@@ -59,11 +59,10 @@ class FrameValidator : public EncodedImageCallback {
     if (codec_specific_info->codecSpecific.VP9.first_frame_in_picture) {
       ++picture_id_;
     }
-    int64_t frame_id = frame_id_++;
-    LayerFrame& layer_frame = frames_[frame_id % kMaxFrameHistorySize];
+    int64_t frame_id = frames_.size();
+    LayerFrame& layer_frame = frames_.emplace_back();
     layer_frame.picture_id = picture_id_;
     layer_frame.spatial_id = encoded_image.SpatialIndex().value_or(0);
-    layer_frame.frame_id = frame_id;
     layer_frame.temporal_id =
         codec_specific_info->codecSpecific.VP9.temporal_idx;
     if (layer_frame.temporal_id == kNoTemporalIdx) {
@@ -71,7 +70,8 @@ class FrameValidator : public EncodedImageCallback {
     }
     layer_frame.vp9_non_ref_for_inter_layer_pred =
         codec_specific_info->codecSpecific.VP9.non_ref_for_inter_layer_pred;
-    CheckVp9References(layer_frame, codec_specific_info->codecSpecific.VP9);
+    CheckVp9References(frame_id, layer_frame,
+                       codec_specific_info->codecSpecific.VP9);
 
     if (codec_specific_info->generic_frame_info.has_value()) {
       absl::InlinedVector<int64_t, 5> frame_dependencies =
@@ -93,23 +93,20 @@ class FrameValidator : public EncodedImageCallback {
                       bool is_end_of_temporal_unit) override {}
 
  private:
-  // With 4 spatial layers and patterns up to 8 pictures, it should be enough to
-  // keep the last 32 frames to validate dependencies.
-  static constexpr size_t kMaxFrameHistorySize = 32;
   struct LayerFrame {
-    int64_t frame_id;
     int64_t picture_id;
     int spatial_id;
     int temporal_id;
     bool vp9_non_ref_for_inter_layer_pred;
   };
 
-  void CheckVp9References(const LayerFrame& layer_frame,
+  void CheckVp9References(int64_t frame_id,
+                          const LayerFrame& layer_frame,
                           const CodecSpecificInfoVP9& vp9_info) {
-    if (layer_frame.frame_id == 0) {
+    if (frame_id == 0) {
       RTC_CHECK(!vp9_info.inter_layer_predicted);
     } else {
-      const LayerFrame& previous_frame = Frame(layer_frame.frame_id - 1);
+      const LayerFrame& previous_frame = Frame(frame_id - 1);
       if (vp9_info.inter_layer_predicted) {
         RTC_CHECK(!previous_frame.vp9_non_ref_for_inter_layer_pred);
         RTC_CHECK_EQ(layer_frame.picture_id, previous_frame.picture_id);
@@ -171,16 +168,21 @@ class FrameValidator : public EncodedImageCallback {
   }
 
   const LayerFrame& Frame(int64_t frame_id) const {
-    auto& frame = frames_[frame_id % kMaxFrameHistorySize];
-    RTC_CHECK_EQ(frame.frame_id, frame_id);
-    return frame;
+    RTC_CHECK_GE(frame_id, 0);
+    RTC_CHECK_LT(frame_id, static_cast<int64_t>(frames_.size()));
+    return frames_[frame_id];
   }
 
   GofInfoVP9 gof_;
-  int64_t frame_id_ = 0;
   int64_t picture_id_ = 1;
   FrameDependenciesCalculator dependencies_calculator_;
-  LayerFrame frames_[kMaxFrameHistorySize];
+  // Storing the entire frame history in a vector is needed because dynamic
+  // layer deactivation/reactivation can cause a reactivated layer to reference
+  // a frame from arbitrarily many pictures ago while other spatial layers
+  // continued encoding. Since LayerFrame is small and the fuzzer caps the
+  // number of actions to 1000, storing all frames uses negligible memory
+  // and avoids false-positive dependency verification failures.
+  std::vector<LayerFrame> frames_;
 };
 
 class FieldTrials : public FieldTrialsView {
@@ -204,7 +206,6 @@ class FieldTrials : public FieldTrialsView {
     if (key == "WebRTC-CongestionWindow" ||
         key == "WebRTC-UseBaseHeavyVP8TL3RateAllocation" ||
         key == "WebRTC-VideoRateControl" ||
-        key == "WebRTC-Video-CalculatePsnr" ||
         key == "WebRTC-GetEncoderInfoOverride" ||
         key == "WebRTC-VP9-GetEncoderInfoOverride" ||
         key == "WebRTC-VP9-PerformanceFlags" ||

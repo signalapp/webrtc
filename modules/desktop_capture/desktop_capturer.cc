@@ -138,7 +138,7 @@ std::unique_ptr<DesktopCapturer> DesktopCapturer::CreateGenericCapturer(
   std::unique_ptr<DesktopCapturer> capturer;
 
 #if defined(WEBRTC_USE_PIPEWIRE)
-  if (options.allow_pipewire() && DesktopCapturer::IsRunningUnderWayland()) {
+  if (options.allow_pipewire() && BaseCapturerPipeWire::IsSupported()) {
     capturer = std::make_unique<BaseCapturerPipeWire>(
         options, CaptureType::kAnyScreenContent);
   }

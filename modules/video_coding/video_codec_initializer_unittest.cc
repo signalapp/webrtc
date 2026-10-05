@@ -54,6 +54,8 @@ constexpr uint32_t kScreenshareDefaultFramerate = 5;
 // Bitrates for the temporal layers of the higher screenshare simulcast stream.
 constexpr uint32_t kHighScreenshareTl0Bps = 800000;
 constexpr uint32_t kHighScreenshareTl1Bps = 1200000;
+// Mirrors kEncoderMinBitrateKbps in video_codec_initializer.cc.
+constexpr uint32_t kEncoderMinBitrateKbps = 30;
 }  // namespace
 
 // TODO(sprang): Extend coverage to handle the rest of the codec initializer.
@@ -804,6 +806,39 @@ TEST_F(VideoCodecInitializerTest,
   // Top level scalability mode should be kL1T2 since active streams have the
   // same scalability mode.
   EXPECT_EQ(codec.GetScalabilityMode(), ScalabilityMode::kL1T2);
+}
+
+// `VideoCodec::maxBitrate` is the sum of the per-stream maximums in kbps, so it
+// is zero when the configured maximums are zero or round down to zero. A
+// configured zero means the application asked for no bitrate and must not be
+// uncapped, see
+// https://w3c.github.io/webrtc-pc/#dom-rtcrtpencodingparameters-maxbitrate
+// The "unset max bitrate -> cap to one bit per pixel" fallback below must
+// therefore not kick in; today it is inert anyway because it reads
+// `video_codec.maxFramerate` before that field is assigned.
+TEST_F(VideoCodecInitializerTest, ZeroMaxBitrateIsNotUncapped) {
+  SetUpFor(VideoCodecType::kVideoCodecVP8, 1, std::nullopt, 1, false);
+  VideoStream stream = DefaultStream();
+  stream.min_bitrate_bps = 0;
+  stream.target_bitrate_bps = 0;
+  stream.max_bitrate_bps = 0;
+  streams_.push_back(stream);
+  InitializeCodec();
+
+  // A working one-bit-per-pixel fallback would give 1280 * 720 * 30 / 1000.
+  EXPECT_EQ(codec_out_.maxBitrate, kEncoderMinBitrateKbps);
+}
+
+TEST_F(VideoCodecInitializerTest, SubKilobitMaxBitrateIsNotUncapped) {
+  SetUpFor(VideoCodecType::kVideoCodecVP8, 1, std::nullopt, 1, false);
+  VideoStream stream = DefaultStream();
+  stream.min_bitrate_bps = 0;
+  stream.target_bitrate_bps = 0;
+  stream.max_bitrate_bps = 500;
+  streams_.push_back(stream);
+  InitializeCodec();
+
+  EXPECT_EQ(codec_out_.maxBitrate, kEncoderMinBitrateKbps);
 }
 
 }  // namespace webrtc

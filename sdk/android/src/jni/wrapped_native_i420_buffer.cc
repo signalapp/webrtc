@@ -45,3 +45,5 @@ ScopedJavaLocalRef<jobject> WrapI420Buffer(
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(WrappedNativeI420Buffer)

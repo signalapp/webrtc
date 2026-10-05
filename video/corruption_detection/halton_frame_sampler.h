@@ -13,6 +13,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <vector>
 
 #include "api/scoped_refptr.h"
@@ -45,6 +46,7 @@ class HaltonFrameSampler {
   HaltonFrameSampler& operator=(const HaltonFrameSampler&) = default;
   HaltonFrameSampler& operator=(HaltonFrameSampler&&) = default;
 
+  bool ShouldSampleFrame(bool is_key_frame, uint32_t rtp_timestamp);
   std::vector<Coordinates> GetSampleCoordinatesForFrameIfFrameShouldBeSampled(
       bool is_key_frame,
       uint32_t rtp_timestamp,
@@ -70,7 +72,7 @@ class HaltonFrameSampler {
 // 4. Fetch the values at the scaled coordinates in the filtered frame.
 std::vector<FilteredSample> GetSampleValuesForFrame(
     const VideoFrame& frame,
-    std::vector<HaltonFrameSampler::Coordinates> sample_coordinates,
+    std::span<const HaltonFrameSampler::Coordinates> sample_coordinates,
     int scaled_width,
     int scaled_height,
     double std_dev_gaussian_blur);
@@ -79,7 +81,7 @@ std::vector<FilteredSample> GetSampleValuesForFrame(
 // TODO(bugs.webrtc.org/398100): Remove when downstream usage is gone.
 [[deprecated]] std::vector<FilteredSample> GetSampleValuesForFrame(
     scoped_refptr<I420BufferInterface> i420_frame_buffer,
-    std::vector<HaltonFrameSampler::Coordinates> sample_coordinates,
+    std::span<const HaltonFrameSampler::Coordinates> sample_coordinates,
     int scaled_width,
     int scaled_height,
     double std_dev_gaussian_blur);

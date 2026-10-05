@@ -61,7 +61,7 @@ class RTC_EXPORT RTCStats {
   virtual std::unique_ptr<RTCStats> copy() const = 0;
 
   const std::string& id() const { return id_; }
-  // Time relative to the UNIX epoch (Jan 1, 1970, UTC), in microseconds.
+  // Timestamp based on the Environment clock()'s monotonic timeline.
   Timestamp timestamp() const { return timestamp_; }
   void set_timestamp(Timestamp timestamp) { timestamp_ = timestamp; }
 

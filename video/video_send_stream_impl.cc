@@ -255,18 +255,6 @@ std::optional<float> GetConfiguredPacingFactor(
       .value_or(default_pacing_config.pacing_factor);
 }
 
-int GetEncoderPriorityBitrate(std::string codec_name,
-                              const FieldTrialsView& field_trials) {
-  int priority_bitrate = 0;
-  if (PayloadStringToCodecType(codec_name) == VideoCodecType::kVideoCodecAV1) {
-    FieldTrialParameter<int> av1_priority_bitrate("bitrate", 0);
-    ParseFieldTrial({&av1_priority_bitrate},
-                    field_trials.Lookup("WebRTC-AV1-OverridePriorityBitrate"));
-    priority_bitrate = av1_priority_bitrate;
-  }
-  return priority_bitrate;
-}
-
 DataRate GetDefaultMinVideoBitrate(VideoCodecType codec_type) {
   if (codec_type == VideoCodecType::kVideoCodecAV1) {
     return DataRate::BitsPerSec(kMinDefaultAv1BitrateBps);
@@ -479,7 +467,8 @@ VideoSendStreamImpl::VideoSendStreamImpl(
       encoder_feedback_(
           env_,
           SupportsPerLayerPictureLossIndication(
-              encoder_config.video_format.parameters),
+              encoder_config.video_format.parameters) ||
+              env_.field_trials().IsEnabled("WebRTC-Video-PerSsrcKeyframes"),
           config_.rtp.ssrcs,
           video_stream_encoder_.get(),
           [this](uint32_t ssrc, const std::vector<uint16_t>& seq_nums) {
@@ -513,10 +502,7 @@ VideoSendStreamImpl::VideoSendStreamImpl(
       configured_max_bitrate_(
           DataRate::BitsPerSec(std::max(0, encoder_config.max_bitrate_bps))),
       encoder_target_rate_(DataRate::Zero()),
-      encoder_bitrate_priority_(encoder_config.bitrate_priority),
-      encoder_av1_priority_bitrate_override_bps_(
-          GetEncoderPriorityBitrate(config_.rtp.payload_name,
-                                    env_.field_trials())) {
+      encoder_bitrate_priority_(encoder_config.bitrate_priority) {
   RTC_DCHECK_GE(config_.rtp.payload_type, 0);
   RTC_DCHECK_LE(config_.rtp.payload_type, 127);
   RTC_DCHECK(!config_.rtp.ssrcs.empty());
@@ -667,6 +653,10 @@ void VideoSendStreamImpl::StopPermanentlyAndGetRtpStates(
 void VideoSendStreamImpl::GenerateKeyFrame(
     const std::vector<std::string>& rids) {
   RTC_DCHECK_RUN_ON(&thread_checker_);
+  if (!video_stream_encoder_) {
+    return;
+  }
+
   // Map rids to layers. If rids is empty, generate a keyframe for all layers.
   std::vector<VideoFrameType> next_frames(config_.rtp.ssrcs.size(),
                                           VideoFrameType::kVideoFrameKey);
@@ -676,15 +666,16 @@ void VideoSendStreamImpl::GenerateKeyFrame(
     for (const auto& rid : rids) {
       for (size_t i = 0; i < config_.rtp.rids.size(); i++) {
         if (config_.rtp.rids[i] == rid) {
-          next_frames[i] = VideoFrameType::kVideoFrameKey;
+          if (i < next_frames.size()) {
+            next_frames[i] = VideoFrameType::kVideoFrameKey;
+          }
           break;
         }
       }
     }
   }
-  if (video_stream_encoder_) {
-    video_stream_encoder_->SendKeyFrame(next_frames);
-  }
+
+  video_stream_encoder_->SendKeyFrame(next_frames);
 }
 
 void VideoSendStreamImpl::DeliverRtcp(std::span<const uint8_t> packet) {
@@ -850,7 +841,7 @@ MediaStreamAllocationConfig VideoSendStreamImpl::GetAllocationConfig() const {
           encoder_max_bitrate_.value_or(DataRate::Zero()).bps<uint32_t>(),
       .pad_up_bitrate_bps =
           static_cast<uint32_t>(disable_padding_ ? 0 : max_padding_bitrate_),
-      .priority_bitrate_bps = encoder_av1_priority_bitrate_override_bps_,
+      .priority_bitrate_bps = 0,
       .enforce_min_bitrate = !config_.suspend_below_min_bitrate,
       .bitrate_priority = encoder_bitrate_priority_,
       .rate_elasticity =

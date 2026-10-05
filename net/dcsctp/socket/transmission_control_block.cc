@@ -270,8 +270,8 @@ void TransmissionControlBlock::SendBufferedPackets(SctpPacket::Builder& builder,
     // "When an end point sends a packet containing a COOKIE ECHO chunk, it MUST
     // include a correct CRC32c checksum in the packet containing the COOKIE
     // ECHO chunk."
-    bool write_checksum =
-        !capabilities_.zero_checksum || cookie_echo_chunk_.has_value();
+    bool write_checksum = !capabilities_.zero_checksum_enabled() ||
+                          cookie_echo_chunk_.has_value();
     if (!packet_sender_.Send(builder, write_checksum)) {
       break;
     }
@@ -301,7 +301,7 @@ std::string TransmissionControlBlock::ToString() const {
   if (capabilities_.reconfig) {
     sb << "Reconfig,";
   }
-  if (capabilities_.zero_checksum) {
+  if (capabilities_.zero_checksum_enabled()) {
     sb << "ZeroChecksum,";
   }
   sb << " max_in=" << capabilities_.negotiated_maximum_incoming_streams;
@@ -320,11 +320,12 @@ HandoverReadinessStatus TransmissionControlBlock::GetHandoverReadiness() const {
 }
 
 void TransmissionControlBlock::AddHandoverState(
+    webrtc::Timestamp now,
     DcSctpSocketHandoverState& state) {
   state.capabilities.partial_reliability = capabilities_.partial_reliability;
   state.capabilities.message_interleaving = capabilities_.message_interleaving;
   state.capabilities.reconfig = capabilities_.reconfig;
-  state.capabilities.zero_checksum = capabilities_.zero_checksum;
+  state.capabilities.zero_checksum = capabilities_.zero_checksum_enabled();
   state.capabilities.negotiated_maximum_incoming_streams =
       capabilities_.negotiated_maximum_incoming_streams;
   state.capabilities.negotiated_maximum_outgoing_streams =
@@ -339,13 +340,14 @@ void TransmissionControlBlock::AddHandoverState(
   data_tracker_.AddHandoverState(state);
   stream_reset_handler_.AddHandoverState(state);
   reassembly_queue_.AddHandoverState(state);
-  retransmission_queue_.AddHandoverState(state);
+  retransmission_queue_.AddHandoverState(now, state);
 }
 
 void TransmissionControlBlock::RestoreFromState(
+    webrtc::Timestamp now,
     const DcSctpSocketHandoverState& state) {
   data_tracker_.RestoreFromState(state);
-  retransmission_queue_.RestoreFromState(state);
+  retransmission_queue_.RestoreFromState(now, state);
   reassembly_queue_.RestoreFromState(state);
 }
 }  // namespace dcsctp

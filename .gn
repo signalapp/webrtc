@@ -38,6 +38,8 @@ no_check_targets = [
 exec_script_allowlist = build_dotfile_settings.exec_script_allowlist +
                         [ "//build_overrides/build.gni" ]
 
+expand_directory_allowlist = build_dotfile_settings.expand_directory_allowlist
+
 export_compile_commands = [ "*" ]
 
 default_args = {
@@ -101,4 +103,7 @@ default_args = {
 
   # WebRTC must stay in C++20 for longer compared to Chromium.
   use_cxx23 = false
+
+  # Perfetto with zstd doesn't build when build_with_chromium=false
+  enable_perfetto_zstd = false
 }

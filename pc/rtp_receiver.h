@@ -30,7 +30,7 @@
 #include "api/rtp_receiver_interface.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
-#include "api/sframe/sframe_decrypter_interface.h"
+#include "api/sframe/sframe_decryptor_interface.h"
 #include "api/sframe/sframe_types.h"
 #include "media/base/media_channel.h"
 #include "rtc_base/system/no_unique_address.h"
@@ -79,9 +79,12 @@ class RtpReceiverInternal : public RtpReceiverInterface {
 
   virtual void set_transport(
       scoped_refptr<DtlsTransportInterface> dtls_transport) = 0;
-  // This SSRC is used as an identifier for the receiver between the API layer
-  // and the WebRtcVideoEngine, WebRtcVoiceEngine layer.
+  // Worker-thread getter for the current SSRC.
   virtual std::optional<uint32_t> ssrc() const = 0;
+  // Signaling-thread accessors for the SSRC. Used by RtpTransceiver on the
+  // signaling thread to track and bind SSRCs without cross-thread hops.
+  virtual std::optional<uint32_t> ssrc_s() const = 0;
+  virtual void SetSsrc_s(uint32_t ssrc) = 0;
 
   // Call this to notify the RtpReceiver when the first packet has been received
   // on the corresponding channel.
@@ -113,10 +116,12 @@ class RtpReceiverInternal : public RtpReceiverInterface {
 
 class RtpReceiverBase : public RtpReceiverInternal {
  public:
-  RTCErrorOr<scoped_refptr<SframeDecrypterInterface>>
-  CreateSframeDecrypterOrError(SframeCipherSuite cipher_suite) override;
+  RTCErrorOr<scoped_refptr<SframeDecryptorInterface>>
+  CreateSframeDecryptorOrError(SframeCipherSuite cipher_suite) override;
 
   std::optional<uint32_t> ssrc() const override;
+  std::optional<uint32_t> ssrc_s() const override;
+  void SetSsrc_s(uint32_t ssrc) override;
 
   void SetFrameDecryptor(
       scoped_refptr<FrameDecryptorInterface> frame_decryptor) override;
@@ -133,6 +138,7 @@ class RtpReceiverBase : public RtpReceiverInternal {
   RTC_NO_UNIQUE_ADDRESS SequenceChecker signaling_thread_checker_;
   Thread* const worker_thread_;
   std::optional<uint32_t> signaled_ssrc_ RTC_GUARDED_BY(worker_thread_);
+  std::optional<uint32_t> ssrc_s_ RTC_GUARDED_BY(signaling_thread_checker_);
   scoped_refptr<FrameDecryptorInterface> frame_decryptor_
       RTC_GUARDED_BY(worker_thread_);
   scoped_refptr<FrameTransformerInterface> frame_transformer_

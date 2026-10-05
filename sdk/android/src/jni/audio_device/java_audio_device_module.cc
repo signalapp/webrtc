@@ -60,3 +60,5 @@ static jlong JNI_JavaAudioDeviceModule_CreateAudioDeviceModule(
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(JavaAudioDeviceModule)

@@ -53,10 +53,10 @@ class PipeWireNode {
                                 const spa_dict* props);
 
   uint32_t id() const { return id_; }
-  std::string display_name() const { return display_name_; }
-  std::string unique_id() const { return unique_id_; }
-  std::string model_id() const { return model_id_; }
-  std::vector<VideoCaptureCapability> capabilities() const {
+  const std::string& display_name() const { return display_name_; }
+  const std::string& unique_id() const { return unique_id_; }
+  const std::string& model_id() const { return model_id_; }
+  const std::vector<VideoCaptureCapability>& capabilities() const {
     return capabilities_;
   }
 

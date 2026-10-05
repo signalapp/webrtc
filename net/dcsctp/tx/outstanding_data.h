@@ -28,6 +28,7 @@
 #include "net/dcsctp/packet/chunk/iforward_tsn_chunk.h"
 #include "net/dcsctp/packet/chunk/sack_chunk.h"
 #include "net/dcsctp/packet/data.h"
+#include "net/dcsctp/public/dcsctp_handover_state.h"
 #include "net/dcsctp/public/types.h"
 #include "rtc_base/containers/flat_set.h"
 
@@ -177,6 +178,12 @@ class OutstandingData {
   // as a breakpoint that a FORWARD-TSN shouldn't cross.
   void BeginResetStreams();
 
+  void AddHandoverState(webrtc::Timestamp now,
+                        DcSctpSocketHandoverState& state) const;
+  void RestoreFromState(webrtc::Timestamp now,
+                        UnwrappedTSN last_cumulative_tsn_ack,
+                        const DcSctpSocketHandoverState& state);
+
  private:
   // A fragmented message's DATA chunk while in the retransmission queue, and
   // its associated metadata.
@@ -193,10 +200,12 @@ class OutstandingData {
          webrtc::Timestamp time_sent,
          MaxRetransmits max_retransmissions,
          webrtc::Timestamp expires_at,
-         LifecycleId lifecycle_id)
+         LifecycleId lifecycle_id,
+         uint16_t num_retransmissions = 0)
         : message_id_(message_id),
           time_sent_(time_sent),
           max_retransmissions_(max_retransmissions),
+          num_retransmissions_(num_retransmissions),
           expires_at_(expires_at),
           lifecycle_id_(lifecycle_id),
           data_(std::move(data)) {}
@@ -207,6 +216,10 @@ class OutstandingData {
     OutgoingMessageId message_id() const { return message_id_; }
 
     webrtc::Timestamp time_sent() const { return time_sent_; }
+    webrtc::Timestamp expires_at() const { return expires_at_; }
+
+    MaxRetransmits max_retransmissions() const { return max_retransmissions_; }
+    uint16_t num_retransmissions() const { return num_retransmissions_; }
 
     const Data& data() const { return data_; }
 
@@ -223,11 +236,21 @@ class OutstandingData {
     // clears all nack counters.
     void MarkAsRetransmitted();
 
-    // Marks this item as abandoned.
+    void MarkAsToBeRetransmitted() {
+      lifecycle_ = Lifecycle::kToBeRetransmitted;
+      ack_state_ = AckState::kNacked;
+    }
+
+    void MarkAsNacked() { ack_state_ = AckState::kNacked; }
+
     void Abandon();
 
     bool is_outstanding() const {
       return ack_state_ != AckState::kAcked && lifecycle_ == Lifecycle::kActive;
+    }
+    bool is_unacked() const {
+      return ack_state_ == AckState::kUnacked &&
+             lifecycle_ == Lifecycle::kActive;
     }
     bool is_acked() const { return ack_state_ == AckState::kAcked; }
     bool is_nacked() const { return ack_state_ == AckState::kNacked; }

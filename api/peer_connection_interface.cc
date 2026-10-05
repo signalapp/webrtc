@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "api/crypto/crypto_options.h"
+#include "api/peer_connection_tracer_interface.h"  // IWYU pragma: keep
 #include "api/scoped_refptr.h"
 #include "api/transport/enums.h"
 #include "api/turn_customizer.h"

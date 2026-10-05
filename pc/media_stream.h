@@ -15,6 +15,7 @@
 
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "api/media_stream_interface.h"
 #include "api/notifier.h"
 #include "api/scoped_refptr.h"
@@ -23,7 +24,7 @@ namespace webrtc {
 
 class MediaStream : public Notifier<MediaStreamInterface> {
  public:
-  static scoped_refptr<MediaStream> Create(const std::string& id);
+  static scoped_refptr<MediaStream> Create(absl::string_view id);
 
   std::string id() const override { return id_; }
 
@@ -40,7 +41,7 @@ class MediaStream : public Notifier<MediaStreamInterface> {
   VideoTrackVector GetVideoTracks() override { return video_tracks_; }
 
  protected:
-  explicit MediaStream(const std::string& id);
+  explicit MediaStream(absl::string_view id);
 
  private:
   template <typename TrackVector, typename Track>

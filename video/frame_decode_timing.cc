@@ -14,34 +14,19 @@
 #include <cstdint>
 #include <optional>
 
-#include "api/field_trials_view.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "modules/video_coding/timing/timing.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/experiments/field_trial_parser.h"
 #include "rtc_base/logging.h"
 #include "system_wrappers/include/clock.h"
 
 namespace webrtc {
-namespace {
 
-// Default pacing that is used for the low-latency renderer path.
-constexpr TimeDelta kZeroPlayoutDelayDefaultMinPacing = TimeDelta::Millis(8);
-
-}  // namespace
-
-FrameDecodeTiming::FrameDecodeTiming(Clock* clock,
-                                     VCMTiming const* timing,
-                                     const FieldTrialsView& field_trials)
-    : clock_(clock),
-      timing_(timing),
-      zero_playout_delay_min_pacing_("min_pacing",
-                                     kZeroPlayoutDelayDefaultMinPacing) {
+FrameDecodeTiming::FrameDecodeTiming(Clock* clock, VCMTiming const* timing)
+    : clock_(clock), timing_(timing) {
   RTC_DCHECK(clock_);
   RTC_DCHECK(timing_);
-  ParseFieldTrial({&zero_playout_delay_min_pacing_},
-                  field_trials.Lookup("WebRTC-ZeroPlayoutDelay"));
 }
 
 std::optional<FrameDecodeTiming::FrameSchedule>
@@ -84,19 +69,18 @@ TimeDelta FrameDecodeTiming::MaxWaitingTime(Timestamp render_time,
                                             Timestamp now,
                                             bool too_many_frames_queued) const {
   const VCMTiming::VideoDelayTimings timings = timing_->GetTimings();
-  if (render_time.IsZero() && zero_playout_delay_min_pacing_->us() > 0 &&
-      timings.min_playout_delay.IsZero() &&
+  if (render_time.IsZero() && timings.min_playout_delay.IsZero() &&
       timings.max_playout_delay > TimeDelta::Zero()) {
     // `render_time` == 0 indicates that the frame should be decoded and
     // rendered as soon as possible. However, the decoder can be choked if too
     // many frames are sent at once. Therefore, limit the interframe delay to
-    // `zero_playout_delay_min_pacing_` unless too many frames are queued in
+    // `kZeroPlayoutDelayMinPacing` unless too many frames are queued in
     // which case the frames are sent to the decoder at once.
     if (too_many_frames_queued) {
       return TimeDelta::Zero();
     }
     Timestamp earliest_next_decode_start_time =
-        last_decode_scheduled_ + zero_playout_delay_min_pacing_;
+        last_decode_scheduled_ + kZeroPlayoutDelayMinPacing;
     TimeDelta max_wait_time = now >= earliest_next_decode_start_time
                                   ? TimeDelta::Zero()
                                   : earliest_next_decode_start_time - now;

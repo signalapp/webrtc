@@ -78,17 +78,36 @@ class RtpStreamReceiverController : public RtpStreamReceiverControllerInterface,
   bool IsEmpty() const;
 
  private:
+  // ProxySink guarantees a unique pointer address per receiver instance.
+  // Because it is a unique_ptr owned by Receiver, its address cannot be reused
+  // across different streams even if the underlying sink is reallocated at the
+  // exact same memory address. This prevents a race condition where
+  // a packet resolved on the network thread might be incorrectly validated
+  // by ReceiveSinkRegistry on the worker thread if the raw sink address was
+  // reused by a newly created stream before the packet was delivered.
+  class ProxySink : public RtpPacketSinkInterface {
+   public:
+    explicit ProxySink(RtpPacketSinkInterface* sink) : sink_(sink) {}
+    void OnRtpPacket(const RtpPacketReceived& packet) override {
+      sink_->OnRtpPacket(packet);
+    }
+    RtpPacketSinkInterface* sink() const { return sink_; }
+
+   private:
+    RtpPacketSinkInterface* const sink_;
+  };
+
   class Receiver : public RtpStreamReceiverInterface {
    public:
     Receiver(RtpStreamReceiverController* controller,
              uint32_t ssrc,
-             RtpPacketSinkInterface* sink);
+             std::unique_ptr<ProxySink> proxy_sink);
 
     ~Receiver() override;
 
    private:
     RtpStreamReceiverController* const controller_;
-    RtpPacketSinkInterface* const sink_;
+    std::unique_ptr<ProxySink> proxy_sink_;
   };
 
   bool AddSink(uint32_t ssrc, RtpPacketSinkInterface* sink);

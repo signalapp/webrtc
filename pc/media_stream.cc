@@ -14,6 +14,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "api/make_ref_counted.h"
 #include "api/media_stream_interface.h"
 #include "api/scoped_refptr.h"
@@ -32,11 +33,11 @@ static typename V::iterator FindTrack(V* vector, const std::string& track_id) {
   return it;
 }
 
-scoped_refptr<MediaStream> MediaStream::Create(const std::string& id) {
+scoped_refptr<MediaStream> MediaStream::Create(absl::string_view id) {
   return make_ref_counted<MediaStream>(id);
 }
 
-MediaStream::MediaStream(const std::string& id) : id_(id) {}
+MediaStream::MediaStream(absl::string_view id) : id_(id) {}
 
 bool MediaStream::AddTrack(scoped_refptr<AudioTrackInterface> track) {
   return AddTrack<AudioTrackVector, AudioTrackInterface>(&audio_tracks_, track);

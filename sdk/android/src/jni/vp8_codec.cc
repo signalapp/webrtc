@@ -34,3 +34,6 @@ static jlong JNI_LibvpxVp8Decoder_CreateDecoder(JNIEnv* jni,
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(LibvpxVp8Decoder)
+DEFINE_JNI(LibvpxVp8Encoder)

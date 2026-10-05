@@ -133,7 +133,7 @@ H264Packet& H264Packet::Slice(std::vector<uint8_t> payload) {
 H264Packet& H264Packet::Sps(std::vector<uint8_t> payload, int sps_id) {
   auto& h264_header = H264Header();
   auto nalu_info = MakeNaluInfo(kSps);
-  nalu_info.pps_id = sps_id;
+  nalu_info.sps_id = sps_id;
   h264_header.nalus.push_back(nalu_info);
   nalu_payloads_.push_back(std::move(payload));
   return *this;

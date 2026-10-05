@@ -142,3 +142,5 @@ static void JNI_RtpReceiver_SetFrameDecryptor(JNIEnv* jni,
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(RtpReceiver)

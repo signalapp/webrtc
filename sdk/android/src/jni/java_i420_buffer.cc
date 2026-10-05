@@ -67,3 +67,5 @@ static void JNI_JavaI420Buffer_CropAndScaleI420(
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(JavaI420Buffer)

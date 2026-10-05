@@ -10,7 +10,9 @@
 #ifndef NET_DCSCTP_PUBLIC_DCSCTP_HANDOVER_STATE_H_
 #define NET_DCSCTP_PUBLIC_DCSCTP_HANDOVER_STATE_H_
 
+#include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -24,6 +26,26 @@ namespace dcsctp {
 // for serialization. Serialization is not provided by dcSCTP. If needed it has
 // to be implemented in the calling client.
 struct DcSctpSocketHandoverState {
+  // StreamMessage represents a message in SendQueue that needs to be persisted
+  // during handover.
+  struct StreamMessage {
+    uint16_t stream_id = 0;
+    uint32_t ppid = 0;
+    std::vector<uint8_t> payload;
+    std::optional<int32_t> expires_in_ms;
+    uint16_t max_retransmissions = 0;
+    bool unordered = false;
+    uint64_t lifecycle_id = 0;
+    // The message_id refers to RRSendQueue::OutgoingStream::Item::message_id,
+    // which is used to identify messages within the send queue - mainly for
+    // discarding messages using OutgoingMessageId.
+    uint64_t message_id = 0;
+    size_t remaining_offset = 0;
+    std::optional<uint32_t> mid;
+    std::optional<uint16_t> ssn;
+    uint32_t fsn = 0;
+  };
+
   enum class SocketState {
     kClosed,
     kConnected,
@@ -46,6 +68,28 @@ struct DcSctpSocketHandoverState {
   };
   Capabilities capabilities;
 
+  struct OutstandingData {
+    uint32_t mid = 0;
+    uint16_t stream_id = 0;
+    uint16_t ssn = 0;
+    uint32_t fsn = 0;
+    uint32_t ppid = 0;
+    std::vector<uint8_t> payload;
+    std::optional<int32_t> expires_in_ms;
+    uint16_t max_retransmissions = 0;
+    bool is_beginning = false;
+    bool is_end = false;
+    bool is_unordered = false;
+    uint64_t lifecycle_id = 0;
+    int32_t time_since_sent_ms = 0;
+    uint16_t retransmission_count = 0;
+    bool acked = false;
+    bool is_abandoned = false;
+    bool is_nacked = false;
+    bool is_to_be_retransmitted = false;
+    uint64_t message_id = 0;
+  };
+
   struct OutgoingStream {
     uint32_t id = 0;
     uint32_t next_ssn = 0;
@@ -55,12 +99,16 @@ struct DcSctpSocketHandoverState {
   };
   struct Transmission {
     uint32_t next_tsn = 0;
+    uint64_t next_outgoing_message_id = 1;
     uint32_t next_reset_req_sn = 0;
     uint32_t cwnd = 0;
     uint32_t rwnd = 0;
     uint32_t ssthresh = 0;
     uint32_t partial_bytes_acked = 0;
     std::vector<OutgoingStream> streams;
+    std::vector<StreamMessage> queued_messages;
+    std::vector<OutstandingData> outstanding_data;
+    uint32_t last_cumulative_tsn_ack = 0;
   };
   Transmission tx;
 

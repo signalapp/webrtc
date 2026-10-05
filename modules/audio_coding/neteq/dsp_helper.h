@@ -14,6 +14,8 @@
 #include <stdint.h>
 #include <string.h>
 
+#include <span>
+
 #include "modules/audio_coding/neteq/audio_multi_vector.h"
 #include "modules/audio_coding/neteq/audio_vector.h"
 
@@ -102,7 +104,7 @@ class DspHelper {
   // assumed to be from a 4 kHz signal, while the maximum, written to
   // `peak_index` and `peak_value` is given in the full sample rate, as
   // indicated by the sample rate multiplier `fs_mult`.
-  static void ParabolicFit(int16_t* signal_points,
+  static void ParabolicFit(std::span<const int16_t> signal_points,
                            int fs_mult,
                            size_t* peak_index,
                            int16_t* peak_value);

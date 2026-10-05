@@ -94,16 +94,10 @@ class NackRequester final : public NackRequesterBase {
   // as well as the meta data about when it should be nacked and how many times
   // we have tried to nack this packet.
   struct NackInfo {
-    NackInfo();
-    NackInfo(uint16_t seq_num,
-             uint16_t send_at_seq_num,
-             Timestamp created_at_time);
-
-    uint16_t seq_num;
-    uint16_t send_at_seq_num;
-    Timestamp created_at_time;
-    Timestamp sent_at_time;
-    int retries;
+    uint16_t seq_num = 0;
+    uint16_t send_at_seq_num = 0;
+    Timestamp sent_at_time = Timestamp::MinusInfinity();
+    int retries = 0;
   };
 
   void AddPacketsToNack(uint16_t seq_num_start, uint16_t seq_num_end)
@@ -137,9 +131,6 @@ class NackRequester final : public NackRequesterBase {
   bool initialized_ RTC_GUARDED_BY(worker_thread_);
   TimeDelta rtt_ RTC_GUARDED_BY(worker_thread_);
   uint16_t newest_seq_num_ RTC_GUARDED_BY(worker_thread_);
-
-  // Adds a delay before send nack on packet received.
-  const TimeDelta send_nack_delay_;
 
   ScopedNackPeriodicProcessorRegistration processor_registration_;
 

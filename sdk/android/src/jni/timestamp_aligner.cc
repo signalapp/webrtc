@@ -61,3 +61,5 @@ static jlong JNI_TimestampAligner_TranslateTimestamp(JNIEnv* env,
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(TimestampAligner)

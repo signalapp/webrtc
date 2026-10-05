@@ -170,7 +170,7 @@ struct ConfigHelper {
 
   std::unique_ptr<AudioReceiveStreamImpl> CreateAudioReceiveStream() {
     auto ret = std::make_unique<AudioReceiveStreamImpl>(
-        CreateTestEnvironment(), stream_config_, audio_state_,
+        CreateTestEnvironment(), std::move(stream_config_), audio_state_,
         std::unique_ptr<voe::ChannelReceiveInterface>(channel_receive_));
     ret->RegisterWithTransport(&rtp_stream_receiver_controller_);
     return ret;
@@ -181,9 +181,6 @@ struct ConfigHelper {
   MockChannelReceive* channel_receive() { return channel_receive_; }
 
   void SetupMockForGetStats() {
-    using ::testing::DoAll;
-    using ::testing::SetArgPointee;
-
     ASSERT_TRUE(channel_receive_);
     EXPECT_CALL(*channel_receive_, GetRTCPStatistics())
         .WillOnce(Return(kChannelStats));
@@ -410,13 +407,12 @@ TEST(AudioReceiveStreamTest, ReconfigureWithUpdatedConfig) {
                         use_null_audio_processing);
     auto recv_stream = helper.CreateAudioReceiveStream();
 
-    auto new_config = helper.config();
-
     MockChannelReceive& channel_receive = *helper.channel_receive();
 
-    new_config.decoder_map.emplace(1, SdpAudioFormat("foo", 8000, 1));
-    EXPECT_CALL(channel_receive, SetReceiveCodecs(new_config.decoder_map));
-    recv_stream->SetDecoderMap(new_config.decoder_map);
+    std::map<int, SdpAudioFormat> new_decoder_map;
+    new_decoder_map.emplace(1, SdpAudioFormat("foo", 8000, 1));
+    EXPECT_CALL(channel_receive, SetReceiveCodecs(new_decoder_map));
+    recv_stream->SetDecoderMap(new_decoder_map);
 
     EXPECT_CALL(channel_receive, SetNACKStatus(true, 15 + 1)).Times(1);
     recv_stream->SetNackHistory(300 + 20);

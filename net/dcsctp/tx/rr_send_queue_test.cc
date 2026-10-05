@@ -30,6 +30,8 @@
 
 namespace dcsctp {
 namespace {
+using ::testing::ElementsAre;
+using ::testing::NiceMock;
 using ::testing::SizeIs;
 using ::testing::UnorderedElementsAre;
 using ::webrtc::TimeDelta;
@@ -45,14 +47,14 @@ constexpr size_t kTwoFragmentPacketSize = 101;
 constexpr size_t kMtu = 1100;
 
 TEST(RRSendQueueTest, EmptyBuffer) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   EXPECT_TRUE(q.IsEmpty());
   EXPECT_FALSE(q.Produce(kNow, kOneFragmentPacketSize).has_value());
 }
 
 TEST(RRSendQueueTest, AddAndGetSingleChunk) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   q.Add(kNow, DcSctpMessage(kStreamID, kPPID, {1, 2, 4, 5, 6}));
 
@@ -65,7 +67,7 @@ TEST(RRSendQueueTest, AddAndGetSingleChunk) {
 }
 
 TEST(RRSendQueueTest, CarveOutBeginningMiddleAndEnd) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   std::vector<uint8_t> payload(60);
   q.Add(kNow, DcSctpMessage(kStreamID, kPPID, payload));
@@ -92,7 +94,7 @@ TEST(RRSendQueueTest, CarveOutBeginningMiddleAndEnd) {
 }
 
 TEST(RRSendQueueTest, GetChunksFromTwoMessages) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   std::vector<uint8_t> payload(60);
   q.Add(kNow, DcSctpMessage(kStreamID, kPPID, payload));
@@ -116,7 +118,7 @@ TEST(RRSendQueueTest, GetChunksFromTwoMessages) {
 }
 
 TEST(RRSendQueueTest, BufferBecomesFullAndEmptied) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   std::vector<uint8_t> payload(600);
   EXPECT_LT(q.total_buffered_amount(), 1000u);
@@ -155,7 +157,7 @@ TEST(RRSendQueueTest, BufferBecomesFullAndEmptied) {
 }
 
 TEST(RRSendQueueTest, DefaultsToOrderedSend) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   std::vector<uint8_t> payload(20);
 
@@ -177,7 +179,7 @@ TEST(RRSendQueueTest, DefaultsToOrderedSend) {
 }
 
 TEST(RRSendQueueTest, ProduceWithLifetimeExpiry) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   std::vector<uint8_t> payload(20);
 
@@ -219,7 +221,7 @@ TEST(RRSendQueueTest, ProduceWithLifetimeExpiry) {
 }
 
 TEST(RRSendQueueTest, DiscardPartialPackets) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   std::vector<uint8_t> payload(120);
 
@@ -252,7 +254,7 @@ TEST(RRSendQueueTest, DiscardPartialPackets) {
 }
 
 TEST(RRSendQueueTest, PrepareResetStreamsDiscardsStream) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   q.Add(kNow, DcSctpMessage(kStreamID, kPPID, {1, 2, 3}));
   q.Add(kNow, DcSctpMessage(StreamID(2), PPID(54), {1, 2, 3, 4, 5}));
@@ -268,7 +270,7 @@ TEST(RRSendQueueTest, PrepareResetStreamsDiscardsStream) {
 }
 
 TEST(RRSendQueueTest, PrepareResetStreamsNotPartialPackets) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   std::vector<uint8_t> payload(120);
 
@@ -285,7 +287,7 @@ TEST(RRSendQueueTest, PrepareResetStreamsNotPartialPackets) {
 }
 
 TEST(RRSendQueueTest, EnqueuedItemsArePausedDuringStreamReset) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   std::vector<uint8_t> payload(50);
 
@@ -312,7 +314,7 @@ TEST(RRSendQueueTest, EnqueuedItemsArePausedDuringStreamReset) {
 }
 
 TEST(RRSendQueueTest, PausedStreamsStillSendPartialMessagesUntilEnd) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   constexpr size_t kPayloadSize = 100;
   constexpr size_t kFragmentSize = 50;
@@ -343,7 +345,7 @@ TEST(RRSendQueueTest, PausedStreamsStillSendPartialMessagesUntilEnd) {
 }
 
 TEST(RRSendQueueTest, CommittingResetsSSN) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   std::vector<uint8_t> payload(50);
 
@@ -376,7 +378,7 @@ TEST(RRSendQueueTest, CommittingResetsSSN) {
 }
 
 TEST(RRSendQueueTest, CommittingDoesNotResetMessageId) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   std::vector<uint8_t> payload(50);
 
@@ -404,7 +406,7 @@ TEST(RRSendQueueTest, CommittingDoesNotResetMessageId) {
 }
 
 TEST(RRSendQueueTest, CommittingResetsSSNForPausedStreamsOnly) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   std::vector<uint8_t> payload(50);
 
@@ -448,7 +450,7 @@ TEST(RRSendQueueTest, CommittingResetsSSNForPausedStreamsOnly) {
 }
 
 TEST(RRSendQueueTest, RollBackResumesSSN) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   std::vector<uint8_t> payload(50);
 
@@ -481,7 +483,7 @@ TEST(RRSendQueueTest, RollBackResumesSSN) {
 }
 
 TEST(RRSendQueueTest, ReturnsFragmentsForOneMessageBeforeMovingToNext) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   std::vector<uint8_t> payload(200);
   q.Add(kNow, DcSctpMessage(StreamID(1), kPPID, payload));
@@ -505,7 +507,7 @@ TEST(RRSendQueueTest, ReturnsFragmentsForOneMessageBeforeMovingToNext) {
 }
 
 TEST(RRSendQueueTest, ReturnsAlsoSmallFragmentsBeforeMovingToNext) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   std::vector<uint8_t> payload(kTwoFragmentPacketSize);
   q.Add(kNow, DcSctpMessage(StreamID(1), kPPID, payload));
@@ -535,7 +537,7 @@ TEST(RRSendQueueTest, ReturnsAlsoSmallFragmentsBeforeMovingToNext) {
 }
 
 TEST(RRSendQueueTest, WillCycleInRoundRobinFashionBetweenStreams) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   q.Add(kNow, DcSctpMessage(StreamID(1), kPPID, std::vector<uint8_t>(1)));
   q.Add(kNow, DcSctpMessage(StreamID(1), kPPID, std::vector<uint8_t>(2)));
@@ -588,14 +590,14 @@ TEST(RRSendQueueTest, WillCycleInRoundRobinFashionBetweenStreams) {
 }
 
 TEST(RRSendQueueTest, DoesntTriggerOnBufferedAmountLowWhenSetToZero) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   EXPECT_CALL(cb, OnBufferedAmountLow).Times(0);
   q.SetBufferedAmountLowThreshold(StreamID(1), 0u);
 }
 
 TEST(RRSendQueueTest, TriggersOnBufferedAmountAtZeroLowWhenSent) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   q.Add(kNow, DcSctpMessage(StreamID(1), kPPID, std::vector<uint8_t>(1)));
   EXPECT_EQ(q.buffered_amount(StreamID(1)), 1u);
@@ -610,7 +612,7 @@ TEST(RRSendQueueTest, TriggersOnBufferedAmountAtZeroLowWhenSent) {
 }
 
 TEST(RRSendQueueTest, WillRetriggerOnBufferedAmountLowIfAddingMore) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   q.Add(kNow, DcSctpMessage(StreamID(1), kPPID, std::vector<uint8_t>(1)));
 
@@ -635,7 +637,7 @@ TEST(RRSendQueueTest, WillRetriggerOnBufferedAmountLowIfAddingMore) {
 }
 
 TEST(RRSendQueueTest, OnlyTriggersWhenTransitioningFromAboveToBelowOrEqual) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   q.SetBufferedAmountLowThreshold(StreamID(1), 1000);
 
@@ -660,7 +662,7 @@ TEST(RRSendQueueTest, OnlyTriggersWhenTransitioningFromAboveToBelowOrEqual) {
 }
 
 TEST(RRSendQueueTest, WillTriggerOnBufferedAmountLowSetAboveZero) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   EXPECT_CALL(cb, OnBufferedAmountLow).Times(0);
 
@@ -700,7 +702,7 @@ TEST(RRSendQueueTest, WillTriggerOnBufferedAmountLowSetAboveZero) {
 }
 
 TEST(RRSendQueueTest, WillRetriggerOnBufferedAmountLowSetAboveZero) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   EXPECT_CALL(cb, OnBufferedAmountLow).Times(0);
 
@@ -729,7 +731,7 @@ TEST(RRSendQueueTest, WillRetriggerOnBufferedAmountLowSetAboveZero) {
 }
 
 TEST(RRSendQueueTest, TriggersOnBufferedAmountLowOnThresholdChanged) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   EXPECT_CALL(cb, OnBufferedAmountLow).Times(0);
 
@@ -757,7 +759,7 @@ TEST(RRSendQueueTest, TriggersOnBufferedAmountLowOnThresholdChanged) {
 }
 
 TEST(RRSendQueueTest, OnTotalBufferedAmountLowDoesNotTriggerOnBufferFillingUp) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   EXPECT_CALL(cb, OnTotalBufferedAmountLow).Times(0);
   std::vector<uint8_t> payload(kBufferedAmountLowThreshold - 1);
@@ -770,7 +772,7 @@ TEST(RRSendQueueTest, OnTotalBufferedAmountLowDoesNotTriggerOnBufferFillingUp) {
 }
 
 TEST(RRSendQueueTest, TriggersOnTotalBufferedAmountLowWhenCrossing) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   EXPECT_CALL(cb, OnTotalBufferedAmountLow).Times(0);
   std::vector<uint8_t> payload(kBufferedAmountLowThreshold);
@@ -787,7 +789,7 @@ TEST(RRSendQueueTest, TriggersOnTotalBufferedAmountLowWhenCrossing) {
 }
 
 TEST(RRSendQueueTest, WillStayInAStreamAsLongAsThatMessageIsSending) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   q.Add(kNow, DcSctpMessage(StreamID(5), kPPID, std::vector<uint8_t>(1)));
 
@@ -825,7 +827,7 @@ TEST(RRSendQueueTest, WillStayInAStreamAsLongAsThatMessageIsSending) {
 }
 
 TEST(RRSendQueueTest, StreamsHaveInitialPriority) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   EXPECT_EQ(q.GetStreamPriority(StreamID(1)), kDefaultPriority);
 
@@ -834,7 +836,7 @@ TEST(RRSendQueueTest, StreamsHaveInitialPriority) {
 }
 
 TEST(RRSendQueueTest, CanChangeStreamPriority) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   q.SetStreamPriority(StreamID(1), StreamPriority(42));
   EXPECT_EQ(q.GetStreamPriority(StreamID(1)), StreamPriority(42));
@@ -845,7 +847,7 @@ TEST(RRSendQueueTest, CanChangeStreamPriority) {
 }
 
 TEST(RRSendQueueTest, WillHandoverPriority) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   q.SetStreamPriority(StreamID(1), StreamPriority(42));
 
@@ -853,17 +855,137 @@ TEST(RRSendQueueTest, WillHandoverPriority) {
   q.SetStreamPriority(StreamID(2), StreamPriority(42));
 
   DcSctpSocketHandoverState state;
-  q.AddHandoverState(state);
+  q.AddHandoverState(webrtc::Timestamp::Zero(), state);
 
   RRSendQueue q2("log: ", &cb, kMtu, kDefaultPriority,
                  kBufferedAmountLowThreshold);
-  q2.RestoreFromState(state);
+  q2.RestoreFromState(webrtc::Timestamp::Zero(), state);
   EXPECT_EQ(q2.GetStreamPriority(StreamID(1)), StreamPriority(42));
   EXPECT_EQ(q2.GetStreamPriority(StreamID(2)), StreamPriority(42));
 }
 
+TEST(RRSendQueueTest, RestoreFromHandoverStateQueuedMessages) {
+  NiceMock<MockDcSctpSocketCallbacks> cb;
+  DcSctpSocketHandoverState state;
+  state.tx.next_outgoing_message_id = 2;
+  state.tx.streams = {{.id = kStreamID.value(),
+                       .next_ssn = 11,
+                       .next_unordered_mid = 33,
+                       .next_ordered_mid = 22,
+                       .priority = 42}};
+  state.tx.queued_messages = {{.stream_id = kStreamID.value(),
+                               .ppid = kPPID.value(),
+                               .payload = {1, 2, 3},
+                               .expires_in_ms = std::nullopt,
+                               .max_retransmissions = 0,
+                               .unordered = false,
+                               .lifecycle_id = 0,
+                               .message_id = 0,
+                               .remaining_offset = 1,
+                               .mid = 21,
+                               .ssn = 10,
+                               .fsn = 1},
+                              {.stream_id = kStreamID.value(),
+                               .ppid = kPPID.value(),
+                               .payload = {4, 5, 6},
+                               .expires_in_ms = std::nullopt,
+                               .max_retransmissions = 0,
+                               .unordered = false,
+                               .lifecycle_id = 0,
+                               .message_id = 1,
+                               .remaining_offset = 0,
+                               .mid = std::nullopt,
+                               .ssn = std::nullopt,
+                               .fsn = 0}};
+
+  RRSendQueue q("log: ", &cb, kMtu, kDefaultPriority,
+                kBufferedAmountLowThreshold);
+  q.RestoreFromState(webrtc::Timestamp::Zero(), state);
+  EXPECT_EQ(q.GetStreamPriority(kStreamID), StreamPriority(42));
+  // Message 1 has payload of 3 bytes, but remaining_offset=1, so 2 bytes left.
+  // Message 2 has payload of 3 bytes, with remaining_offset=0, so 3 bytes left.
+  // Total buffered amount is the sum of remaining bytes to be sent.
+  EXPECT_EQ(q.buffered_amount(kStreamID), 2u + 3u);
+  ASSERT_HAS_VALUE_AND_ASSIGN(SendQueue::DataToSend chunk1,
+                              q.Produce(kNow, 100));
+  EXPECT_EQ(chunk1.data.stream_id, kStreamID);
+  EXPECT_EQ(chunk1.data.ppid, kPPID);
+  EXPECT_EQ(chunk1.message_id, OutgoingMessageId(0));
+  EXPECT_THAT(chunk1.data.payload, ElementsAre(2, 3));
+  EXPECT_EQ(chunk1.data.mid, MID(21));
+  EXPECT_EQ(chunk1.data.ssn, SSN(10));
+  EXPECT_EQ(chunk1.data.fsn, FSN(1));
+  EXPECT_FALSE(chunk1.data.is_beginning);
+  EXPECT_TRUE(chunk1.data.is_end);
+
+  ASSERT_HAS_VALUE_AND_ASSIGN(SendQueue::DataToSend chunk2,
+                              q.Produce(kNow, 100));
+  EXPECT_EQ(chunk2.data.stream_id, kStreamID);
+  EXPECT_EQ(chunk2.data.ppid, kPPID);
+  EXPECT_EQ(chunk2.message_id, OutgoingMessageId(1));
+  EXPECT_THAT(chunk2.data.payload, SizeIs(3));
+  EXPECT_EQ(chunk2.data.payload[0], 4);
+  EXPECT_EQ(chunk2.data.mid, MID(22));
+  EXPECT_EQ(chunk2.data.ssn, SSN(11));
+  EXPECT_EQ(chunk2.data.fsn, FSN(0));
+  EXPECT_TRUE(chunk2.data.is_beginning);
+  EXPECT_TRUE(chunk2.data.is_end);
+  EXPECT_EQ(q.Produce(kNow, 1), std::nullopt);
+}
+
+TEST(RRSendQueueTest, HandoverPartiallySentMessage) {
+  NiceMock<MockDcSctpSocketCallbacks> cb;
+  RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
+
+  // Message 1: Will be partially sent.
+  q.Add(kNow, DcSctpMessage(kStreamID, kPPID, {1, 2, 3, 4, 5, 6}));
+  // Message 2: Will not be sent.
+  q.Add(kNow, DcSctpMessage(kStreamID, kPPID, {7, 8, 9}));
+
+  // Produce first fragment of message 1.
+  ASSERT_HAS_VALUE_AND_ASSIGN(SendQueue::DataToSend chunk1, q.Produce(kNow, 4));
+  EXPECT_EQ(chunk1.message_id, OutgoingMessageId(0));
+  EXPECT_TRUE(chunk1.data.is_beginning);
+  EXPECT_FALSE(chunk1.data.is_end);
+  EXPECT_THAT(chunk1.data.payload, SizeIs(4));
+  EXPECT_EQ(chunk1.data.payload[0], 1);
+  EXPECT_EQ(q.buffered_amount(kStreamID),
+            5u);  // 2 bytes from msg1, 3 from msg2
+
+  DcSctpSocketHandoverState state;
+  q.AddHandoverState(webrtc::Timestamp::Zero(), state);
+
+  RRSendQueue q2("log: ", &cb, kMtu, kDefaultPriority,
+                 kBufferedAmountLowThreshold);
+  q2.RestoreFromState(webrtc::Timestamp::Zero(), state);
+
+  EXPECT_EQ(q2.buffered_amount(kStreamID), 5u);
+
+  // Produce second fragment of message 1 from restored queue.
+  ASSERT_HAS_VALUE_AND_ASSIGN(SendQueue::DataToSend chunk2,
+                              q2.Produce(kNow, 4));
+  EXPECT_EQ(chunk2.message_id, OutgoingMessageId(0));
+  EXPECT_FALSE(chunk2.data.is_beginning);
+  EXPECT_TRUE(chunk2.data.is_end);
+  EXPECT_THAT(chunk2.data.payload, SizeIs(2));
+  EXPECT_EQ(chunk2.data.payload[0], 5);
+  EXPECT_EQ(q2.buffered_amount(kStreamID), 3u);
+
+  // Produce message 2 from restored queue.
+  ASSERT_HAS_VALUE_AND_ASSIGN(SendQueue::DataToSend chunk3,
+                              q2.Produce(kNow, 4));
+  EXPECT_EQ(chunk3.message_id, OutgoingMessageId(1));
+  EXPECT_TRUE(chunk3.data.is_beginning);
+  EXPECT_TRUE(chunk3.data.is_end);
+  EXPECT_THAT(chunk3.data.payload, SizeIs(3));
+  EXPECT_EQ(chunk3.data.payload[0], 7);
+  EXPECT_EQ(q2.buffered_amount(kStreamID), 0u);
+
+  EXPECT_EQ(q2.Produce(kNow, 1), std::nullopt);
+}
+
 TEST(RRSendQueueTest, WillSendMessagesByPrio) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   q.EnableMessageInterleaving(true);
   q.SetStreamPriority(StreamID(1), StreamPriority(10));
@@ -884,7 +1006,7 @@ TEST(RRSendQueueTest, WillSendMessagesByPrio) {
 }
 
 TEST(RRSendQueueTest, WillSendLifecycleExpireWhenExpiredInSendQueue) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   std::vector<uint8_t> payload(kOneFragmentPacketSize);
   q.Add(kNow, DcSctpMessage(StreamID(2), kPPID, payload),
@@ -899,7 +1021,7 @@ TEST(RRSendQueueTest, WillSendLifecycleExpireWhenExpiredInSendQueue) {
 }
 
 TEST(RRSendQueueTest, WillSendLifecycleExpireWhenDiscardingDuringPause) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   std::vector<uint8_t> payload(120);
 
@@ -921,7 +1043,7 @@ TEST(RRSendQueueTest, WillSendLifecycleExpireWhenDiscardingDuringPause) {
 }
 
 TEST(RRSendQueueTest, WillSendLifecycleExpireWhenDiscardingExplicitly) {
-  testing::NiceMock<MockDcSctpSocketCallbacks> cb;
+  NiceMock<MockDcSctpSocketCallbacks> cb;
   RRSendQueue q("", &cb, kMtu, kDefaultPriority, kBufferedAmountLowThreshold);
   std::vector<uint8_t> payload(kOneFragmentPacketSize + 20);
 

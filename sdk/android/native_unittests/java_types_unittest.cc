@@ -83,3 +83,5 @@ TEST(JavaTypesTest, TestNativeToJavaToNativeByteArrayLeakTest) {
 }  // namespace
 }  // namespace test
 }  // namespace webrtc
+
+DEFINE_JNI(JavaTypesTestHelper)

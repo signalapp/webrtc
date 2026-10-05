@@ -338,11 +338,11 @@ void TurnPort::SetTurnLoggingId(absl::string_view turn_logging_id) {
   turn_logging_id_ = std::string(turn_logging_id);
 }
 
-std::vector<std::string> TurnPort::GetTlsAlpnProtocols() const {
+const std::vector<std::string>& TurnPort::GetTlsAlpnProtocols() const {
   return tls_alpn_protocols_;
 }
 
-std::vector<std::string> TurnPort::GetTlsEllipticCurves() const {
+const std::vector<std::string>& TurnPort::GetTlsEllipticCurves() const {
   return tls_elliptic_curves_;
 }
 
@@ -997,7 +997,7 @@ void TurnPort::HandleRefreshError() {
   request_manager_.Clear();
   state_ = STATE_RECEIVEONLY;
   // Fail and prune all connections; stop sending data.
-  for (auto kv : connections()) {
+  for (auto& kv : connections()) {
     kv.second->FailAndPrune();
   }
 }

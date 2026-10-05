@@ -11,8 +11,12 @@
 #ifndef API_RTP_HEADER_EXTENSION_ID_H_
 #define API_RTP_HEADER_EXTENSION_ID_H_
 
+#include <cstdint>
+#include <optional>
+#include <utility>
+
 #include "absl/strings/str_format.h"
-#include "rtc_base/strong_alias.h"
+#include "rtc_base/checks.h"
 
 namespace webrtc {
 
@@ -22,10 +26,7 @@ namespace webrtc {
 // association with an URI for all RTP packets in an RTP session,
 // such as that defined by a BUNDLE.
 // We allow the value 0 to mean "not set".
-// TODO: bugs.webrtc.org/514817938 - change to underlying "uint8_t"
-// once initialization prevents creation of illegal values.
-class RtpHeaderExtensionId
-    : public StrongAlias<class RtpHeaderExtensionIdTag, int> {
+class RtpHeaderExtensionId final {
  public:
   static const RtpHeaderExtensionId kMinId;
   static const RtpHeaderExtensionId kMaxId;
@@ -33,22 +34,35 @@ class RtpHeaderExtensionId
 
   // Factory function for the NotSet value.
   static constexpr RtpHeaderExtensionId NotSet() {
-    return RtpHeaderExtensionId(Internal{}, 0);
+    return RtpHeaderExtensionId();
   }
 
+  // Returns `RtpHeaderExtensionId` when id is valid, std::nullopt otherwise.
+  // In particular, returns std::nullopt when id is 0.
+  static constexpr std::optional<RtpHeaderExtensionId> Create(int id);
+
   // The default constructor makes a NotSet.
-  constexpr RtpHeaderExtensionId() : StrongAlias(0) {}
-  // Implicit conversion from and to int, required for downstream
-  // during conversion.
-  // TODO: bugs.webrtc.org/514817938 - make explicit when downstream fixed.
-  constexpr RtpHeaderExtensionId(int id)  // NOLINT: explicit
-      : StrongAlias(id) {
-    // TODO: bugs.webrtc.org/514817938 - enable these checks when tests fixed.
-    // RTC_DCHECK_GE(id, kMinId.value());
-    // RTC_DCHECK_LE(id, kMaxId.value());
+  constexpr RtpHeaderExtensionId() = default;
+
+  constexpr RtpHeaderExtensionId(const RtpHeaderExtensionId&) = default;
+  constexpr RtpHeaderExtensionId& operator=(const RtpHeaderExtensionId&) =
+      default;
+
+  explicit constexpr RtpHeaderExtensionId(int id)
+      : value_(static_cast<uint8_t>(id)) {
+    // For convenience allow all valid ids + special value 0 that represents
+    // 'NotSet'.
+    RTC_DCHECK_GE(id, 0);
+    RTC_DCHECK_LE(id, 255);
   }
-  // TODO: bugs.webrtc.org/514817938 - RTC_DCHECK(id is valid).
-  constexpr operator int() const& { return value(); }  // NOLINT: explicit
+
+  constexpr int value() const { return value_; }
+  constexpr explicit operator int() const { return value_; }
+
+  constexpr friend bool operator==(const RtpHeaderExtensionId&,
+                                   const RtpHeaderExtensionId&) = default;
+  constexpr friend auto operator<=>(const RtpHeaderExtensionId&,
+                                    const RtpHeaderExtensionId&) = default;
 
   // Returns true for an extension id that is set and is in the legal range.
   constexpr bool Valid() const {
@@ -62,19 +76,30 @@ class RtpHeaderExtensionId
     absl::Format(&sink, "%d", id.value());
   }
 
+  template <typename H>
+  friend H AbslHashValue(H h, RtpHeaderExtensionId id) {
+    return H::combine(std::move(h), id.value());
+  }
+
  private:
-  class Internal {};
-  explicit constexpr RtpHeaderExtensionId(Internal tag, int id)
-      : StrongAlias(id) {}
+  uint8_t value_ = 0;
 };
 
 inline constexpr RtpHeaderExtensionId RtpHeaderExtensionId::kMinId =
-    RtpHeaderExtensionId(Internal{}, 1);
+    RtpHeaderExtensionId(1);
 inline constexpr RtpHeaderExtensionId RtpHeaderExtensionId::kMaxId =
-    RtpHeaderExtensionId(Internal{}, 255);
+    RtpHeaderExtensionId(255);
 inline constexpr RtpHeaderExtensionId
     RtpHeaderExtensionId::kOneByteHeaderExtensionMaxId =
-        RtpHeaderExtensionId(Internal{}, 14);
+        RtpHeaderExtensionId(14);
+
+inline constexpr std::optional<RtpHeaderExtensionId>
+RtpHeaderExtensionId::Create(int id) {
+  if (id >= kMinId.value() && id <= kMaxId.value()) {
+    return RtpHeaderExtensionId(id);
+  }
+  return std::nullopt;
+}
 
 }  // namespace webrtc
 

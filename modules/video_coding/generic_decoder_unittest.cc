@@ -16,7 +16,7 @@
 #include <utility>
 #include <vector>
 
-#include "api/field_trials.h"
+#include "api/environment/environment.h"
 #include "api/rtp_packet_infos.h"
 #include "api/scoped_refptr.h"
 #include "api/units/time_delta.h"
@@ -37,7 +37,7 @@
 #include "modules/video_coding/include/video_coding_defines.h"
 #include "modules/video_coding/timing/timing.h"
 #include "system_wrappers/include/clock.h"
-#include "test/create_test_field_trials.h"
+#include "test/create_test_environment.h"
 #include "test/fake_decoder.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
@@ -94,12 +94,13 @@ class GenericDecoderTest : public ::testing::Test {
   GenericDecoderTest()
       : time_controller_(Timestamp::Zero()),
         clock_(time_controller_.GetClock()),
-        field_trials_(CreateTestFieldTrials()),
-        timing_(time_controller_.GetClock(), field_trials_),
+        env_(CreateTestEnvironment({.time = clock_})),
+        timing_(env_,
+                /*render_delay=*/TimeDelta::Millis(10)),
         decoder_(time_controller_.GetTaskQueueFactory()),
         vcm_callback_(&timing_,
                       time_controller_.GetClock(),
-                      field_trials_,
+                      env_.field_trials(),
                       &corruption_score_calculator_),
         generic_decoder_(&decoder_) {}
 
@@ -115,7 +116,7 @@ class GenericDecoderTest : public ::testing::Test {
 
   GlobalSimulatedTimeController time_controller_;
   Clock* const clock_;
-  FieldTrials field_trials_;
+  Environment env_;
   VCMTiming timing_;
   test::FakeDecoder decoder_;
   VCMDecodedFrameCallback vcm_callback_;

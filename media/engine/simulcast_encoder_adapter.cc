@@ -437,6 +437,10 @@ int SimulcastEncoderAdapter::InitEncode(
   // The use of the nonstandard x-google-per-layer-pli fmtp parameter also
   // forces the use of SEA with separate encoders to support per-layer
   // handling of PLIs.
+  // We do not force separate encoders when WebRTC-Video-PerSsrcKeyframes is
+  // enabled, because using a single encoder that supports simulcast is more
+  // efficient (less CPU overhead) than running multiple encoders, and the
+  // single encoder might natively support per-layer keyframe generation.
   bool separate_encoders_needed =
       is_mixed_codec ||
       !encoder_context->encoder().GetEncoderInfo().supports_simulcast ||
@@ -661,7 +665,7 @@ int SimulcastEncoderAdapter::Encode(
             });
       } else {
         size_t stream_idx = static_cast<size_t>(layer.stream_idx());
-        if (frame_types->size() >= stream_idx &&
+        if (frame_types->size() > stream_idx &&
             (*frame_types)[stream_idx] == VideoFrameType::kVideoFrameKey) {
           stream_frame_types[0] = VideoFrameType::kVideoFrameKey;
           keyframe_requested = true;

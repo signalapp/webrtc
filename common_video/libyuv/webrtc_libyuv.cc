@@ -10,8 +10,10 @@
 
 #include "common_video/libyuv/include/webrtc_libyuv.h"
 
+#include <climits>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 
 #include "api/scoped_refptr.h"
 #include "api/video/i420_buffer.h"
@@ -23,6 +25,7 @@
 #include "third_party/libyuv/include/libyuv/convert.h"
 #include "third_party/libyuv/include/libyuv/convert_from.h"
 #include "third_party/libyuv/include/libyuv/planar_functions.h"
+#include "third_party/libyuv/include/libyuv/rotate.h"
 #include "third_party/libyuv/include/libyuv/scale.h"
 #include "third_party/libyuv/include/libyuv/video_common.h"
 
@@ -135,6 +138,323 @@ int ConvertFromI420(const VideoFrame& src_frame,
       i420_buffer->StrideU(), i420_buffer->DataV(), i420_buffer->StrideV(),
       dst_frame, dst_sample_size, src_frame.width(), src_frame.height(),
       ConvertVideoType(dst_video_type));
+}
+
+int ConvertToI420(const uint8_t* sample,
+                  size_t sample_size,
+                  uint8_t* dst_y,
+                  int dst_stride_y,
+                  uint8_t* dst_u,
+                  int dst_stride_u,
+                  uint8_t* dst_v,
+                  int dst_stride_v,
+                  int src_width,
+                  int src_height,
+                  int src_stride,
+                  int dst_width,
+                  int dst_height,
+                  uint32_t rotation,
+                  uint32_t fourcc) {
+  if (src_height == INT_MIN || dst_height == INT_MIN) {
+    return -1;
+  }
+
+  const int abs_src_height = (src_height < 0) ? -src_height : src_height;
+  const int abs_dst_height = (dst_height < 0) ? -dst_height : dst_height;
+
+  if (!dst_y || !dst_u || !dst_v || !sample || src_width <= 0 ||
+      src_width > INT_MAX / 4 || dst_width <= 0 || src_height == 0 ||
+      dst_height == 0 || dst_width > src_width ||
+      abs_dst_height > abs_src_height) {
+    return -1;
+  }
+
+  uint32_t format = libyuv::CanonicalFourCC(fourcc);
+
+  // Calculate the unpadded stride if no explicit value is set.
+  if (src_stride == 0) {
+    switch (format) {
+      case libyuv::FOURCC_YUY2:
+      case libyuv::FOURCC_UYVY:
+      case libyuv::FOURCC_RGBP:
+      case libyuv::FOURCC_RGBO:
+      case libyuv::FOURCC_R444:
+        src_stride = src_width * 2;
+        break;
+      case libyuv::FOURCC_24BG:
+      case libyuv::FOURCC_RAW:
+        src_stride = src_width * 3;
+        break;
+      case libyuv::FOURCC_ARGB:
+      case libyuv::FOURCC_BGRA:
+      case libyuv::FOURCC_ABGR:
+      case libyuv::FOURCC_RGBA:
+        src_stride = src_width * 4;
+        break;
+      case libyuv::FOURCC_I400:
+      case libyuv::FOURCC_NV12:
+      case libyuv::FOURCC_NV21:
+      case libyuv::FOURCC_I420:
+      case libyuv::FOURCC_YV12:
+      case libyuv::FOURCC_I422:
+      case libyuv::FOURCC_YV16:
+        // Follow the V4L2 definition for strides of subsampled formats:
+        // > To avoid ambiguities drivers must return a bytesperline value
+        // > rounded up to a multiple of the scale factor.
+        // https://www.kernel.org/doc/html/v7.1/userspace-api/media/v4l/pixfmt-v4l2.html
+        src_stride = (src_width + 1) & ~1;
+        break;
+      case libyuv::FOURCC_I444:
+      case libyuv::FOURCC_YV24:
+        src_stride = src_width;
+        break;
+      case libyuv::FOURCC_MJPG:
+        break;
+      default:
+        return -1;
+    }
+  } else {
+    switch (format) {
+      case libyuv::FOURCC_YUY2:
+      case libyuv::FOURCC_UYVY:
+      case libyuv::FOURCC_I400:
+      case libyuv::FOURCC_NV12:
+      case libyuv::FOURCC_NV21:
+      case libyuv::FOURCC_I420:
+      case libyuv::FOURCC_YV12:
+      case libyuv::FOURCC_I422:
+      case libyuv::FOURCC_YV16:
+        // Follow the V4L2 definition for strides of subsampled formats:
+        // > To avoid ambiguities drivers must return a bytesperline value
+        // > rounded up to a multiple of the scale factor.
+        // https://www.kernel.org/doc/html/v7.1/userspace-api/media/v4l/pixfmt-v4l2.html
+        if ((src_stride % 2) != 0)
+          return -1;
+        break;
+      default:
+        break;
+    }
+  }
+
+  int r = 0;
+  const bool need_buf =
+      (rotation && format != libyuv::FOURCC_I420 &&
+       format != libyuv::FOURCC_NV12 && format != libyuv::FOURCC_NV21 &&
+       format != libyuv::FOURCC_YV12) ||
+      dst_y == sample;
+  const int inv_dst_height =
+      (src_height < 0) ? -abs_dst_height : abs_dst_height;
+  uint8_t* rotate_buffer = NULL;
+  uint8_t* tmp_y;
+  uint8_t* tmp_u;
+  uint8_t* tmp_v;
+  int tmp_y_stride;
+  int tmp_u_stride;
+  int tmp_v_stride;
+
+  // One pass rotation is available for some formats. For the rest, convert
+  // to I420 (with optional vertical flipping) into a temporary I420 buffer,
+  // and then rotate the I420 to the final destination buffer.
+  // For in-place conversion, if destination dst_y is same as source sample,
+  // also enable temporary buffer.
+  if (need_buf) {
+    size_t y_size = (size_t)dst_width * abs_dst_height;
+    size_t uv_size = (size_t)((dst_width + 1) / 2) * ((abs_dst_height + 1) / 2);
+    if (uv_size > SIZE_MAX / 2 || y_size > SIZE_MAX - uv_size * 2) {
+      return -1;  // Invalid size.
+    }
+    const size_t rotate_buffer_size = y_size + uv_size * 2;
+    rotate_buffer = new uint8_t[rotate_buffer_size];
+    if (!rotate_buffer) {
+      return 1;  // Out of memory runtime error.
+    }
+    tmp_y = dst_y;
+    tmp_u = dst_u;
+    tmp_v = dst_v;
+    tmp_y_stride = dst_stride_y;
+    tmp_u_stride = dst_stride_u;
+    tmp_v_stride = dst_stride_v;
+    dst_y = rotate_buffer;
+    dst_u = dst_y + y_size;
+    dst_v = dst_u + uv_size;
+    dst_stride_y = dst_width;
+    dst_stride_u = dst_stride_v = ((dst_width + 1) / 2);
+  }
+
+  switch (format) {
+    // Single plane formats
+    case libyuv::FOURCC_YUY2: {
+      r = libyuv::YUY2ToI420(sample, src_stride, dst_y, dst_stride_y, dst_u,
+                             dst_stride_u, dst_v, dst_stride_v, dst_width,
+                             inv_dst_height);
+      break;
+    }
+    case libyuv::FOURCC_UYVY: {
+      r = libyuv::UYVYToI420(sample, src_stride, dst_y, dst_stride_y, dst_u,
+                             dst_stride_u, dst_v, dst_stride_v, dst_width,
+                             inv_dst_height);
+      break;
+    }
+    case libyuv::FOURCC_RGBP:
+      r = libyuv::RGB565ToI420(sample, src_stride, dst_y, dst_stride_y, dst_u,
+                               dst_stride_u, dst_v, dst_stride_v, dst_width,
+                               inv_dst_height);
+      break;
+    case libyuv::FOURCC_RGBO:
+      r = libyuv::ARGB1555ToI420(sample, src_stride, dst_y, dst_stride_y, dst_u,
+                                 dst_stride_u, dst_v, dst_stride_v, dst_width,
+                                 inv_dst_height);
+      break;
+    case libyuv::FOURCC_R444:
+      r = libyuv::ARGB4444ToI420(sample, src_stride, dst_y, dst_stride_y, dst_u,
+                                 dst_stride_u, dst_v, dst_stride_v, dst_width,
+                                 inv_dst_height);
+      break;
+    case libyuv::FOURCC_24BG:
+      r = libyuv::RGB24ToI420(sample, src_stride, dst_y, dst_stride_y, dst_u,
+                              dst_stride_u, dst_v, dst_stride_v, dst_width,
+                              inv_dst_height);
+      break;
+    case libyuv::FOURCC_RAW:
+      r = libyuv::RAWToI420(sample, src_stride, dst_y, dst_stride_y, dst_u,
+                            dst_stride_u, dst_v, dst_stride_v, dst_width,
+                            inv_dst_height);
+      break;
+    case libyuv::FOURCC_ARGB:
+      r = libyuv::ARGBToI420(sample, src_stride, dst_y, dst_stride_y, dst_u,
+                             dst_stride_u, dst_v, dst_stride_v, dst_width,
+                             inv_dst_height);
+      break;
+    case libyuv::FOURCC_BGRA:
+      r = libyuv::BGRAToI420(sample, src_stride, dst_y, dst_stride_y, dst_u,
+                             dst_stride_u, dst_v, dst_stride_v, dst_width,
+                             inv_dst_height);
+      break;
+    case libyuv::FOURCC_ABGR:
+      r = libyuv::ABGRToI420(sample, src_stride, dst_y, dst_stride_y, dst_u,
+                             dst_stride_u, dst_v, dst_stride_v, dst_width,
+                             inv_dst_height);
+      break;
+    case libyuv::FOURCC_RGBA:
+      r = libyuv::RGBAToI420(sample, src_stride, dst_y, dst_stride_y, dst_u,
+                             dst_stride_u, dst_v, dst_stride_v, dst_width,
+                             inv_dst_height);
+      break;
+    case libyuv::FOURCC_I400:
+      r = libyuv::I400ToI420(sample, src_stride, dst_y, dst_stride_y, dst_u,
+                             dst_stride_u, dst_v, dst_stride_v, dst_width,
+                             inv_dst_height);
+      break;
+    // Biplanar formats
+    case libyuv::FOURCC_NV12: {
+      const uint8_t* src_y = sample;
+      const uint8_t* src_uv = src_y + ((ptrdiff_t)src_stride * abs_src_height);
+      r = libyuv::NV12ToI420Rotate(src_y, src_stride, src_uv, src_stride, dst_y,
+                                   dst_stride_y, dst_u, dst_stride_u, dst_v,
+                                   dst_stride_v, dst_width, inv_dst_height,
+                                   (libyuv::RotationMode)rotation);
+      break;
+    }
+    case libyuv::FOURCC_NV21: {
+      const uint8_t* src_y = sample;
+      const uint8_t* src_uv = src_y + ((ptrdiff_t)src_stride * abs_src_height);
+      // Call NV12 but with dst_u and dst_v parameters swapped.
+      r = libyuv::NV12ToI420Rotate(src_y, src_stride, src_uv, src_stride, dst_y,
+                                   dst_stride_y, dst_v, dst_stride_v, dst_u,
+                                   dst_stride_u, dst_width, inv_dst_height,
+                                   (libyuv::RotationMode)rotation);
+      break;
+    }
+    // Triplanar formats
+    case libyuv::FOURCC_I420:
+    case libyuv::FOURCC_YV12: {
+      const uint8_t* src_y = sample;
+      const uint8_t* src_u;
+      const uint8_t* src_v;
+      // Follow the V4L2 definition:
+      // > When the image format is planar the bytesperline value applies to the
+      // > first plane and is divided by the same factor as the width field for
+      // > the other planes.
+      // https://www.kernel.org/doc/html/v7.1/userspace-api/media/v4l/pixfmt-v4l2.html
+      int halfstride = src_stride / 2;
+      int halfheight = (abs_src_height + 1) / 2;
+      if (format == libyuv::FOURCC_YV12) {
+        src_v = src_y + (ptrdiff_t)src_stride * abs_src_height;
+        src_u = src_v + halfstride * (ptrdiff_t)halfheight;
+      } else {
+        src_u = src_y + (ptrdiff_t)src_stride * abs_src_height;
+        src_v = src_u + halfstride * (ptrdiff_t)halfheight;
+      }
+      r = libyuv::I420Rotate(src_y, src_stride, src_u, halfstride, src_v,
+                             halfstride, dst_y, dst_stride_y, dst_u,
+                             dst_stride_u, dst_v, dst_stride_v, dst_width,
+                             inv_dst_height, (libyuv::RotationMode)rotation);
+      break;
+    }
+    case libyuv::FOURCC_I422:
+    case libyuv::FOURCC_YV16: {
+      const uint8_t* src_y = sample;
+      const uint8_t* src_u;
+      const uint8_t* src_v;
+      // Follow the V4L2 definition:
+      // > When the image format is planar the bytesperline value applies to the
+      // > first plane and is divided by the same factor as the width field for
+      // > the other planes.
+      // https://www.kernel.org/doc/html/v7.1/userspace-api/media/v4l/pixfmt-v4l2.html
+      int halfstride = src_stride / 2;
+      if (format == libyuv::FOURCC_YV16) {
+        src_v = src_y + (ptrdiff_t)src_stride * abs_src_height;
+        src_u = src_v + halfstride * (ptrdiff_t)abs_src_height;
+      } else {
+        src_u = src_y + (ptrdiff_t)src_stride * abs_src_height;
+        src_v = src_u + halfstride * (ptrdiff_t)abs_src_height;
+      }
+      r = libyuv::I422ToI420(src_y, src_stride, src_u, halfstride, src_v,
+                             halfstride, dst_y, dst_stride_y, dst_u,
+                             dst_stride_u, dst_v, dst_stride_v, dst_width,
+                             inv_dst_height);
+      break;
+    }
+    case libyuv::FOURCC_I444:
+    case libyuv::FOURCC_YV24: {
+      const uint8_t* src_y = sample;
+      const uint8_t* src_u;
+      const uint8_t* src_v;
+      if (format == libyuv::FOURCC_YV24) {
+        src_v = src_y + src_stride * (ptrdiff_t)abs_src_height;
+        src_u = src_v + src_stride * (ptrdiff_t)abs_src_height;
+      } else {
+        src_u = src_y + src_stride * (ptrdiff_t)abs_src_height;
+        src_v = src_u + src_stride * (ptrdiff_t)abs_src_height;
+      }
+      r = libyuv::I444ToI420(src_y, src_stride, src_u, src_stride, src_v,
+                             src_stride, dst_y, dst_stride_y, dst_u,
+                             dst_stride_u, dst_v, dst_stride_v, dst_width,
+                             inv_dst_height);
+      break;
+    }
+#ifdef HAVE_LIBYUV_JPEG
+    case libyuv::FOURCC_MJPG:
+      r = libyuv::MJPGToI420(sample, sample_size, dst_y, dst_stride_y, dst_u,
+                             dst_stride_u, dst_v, dst_stride_v, src_width,
+                             abs_src_height, dst_width, inv_dst_height);
+      break;
+#endif
+    default:
+      r = -1;  // unknown fourcc - return failure code.
+  }
+
+  if (need_buf) {
+    if (!r) {
+      r = libyuv::I420Rotate(dst_y, dst_stride_y, dst_u, dst_stride_u, dst_v,
+                             dst_stride_v, tmp_y, tmp_y_stride, tmp_u,
+                             tmp_u_stride, tmp_v, tmp_v_stride, dst_width,
+                             abs_dst_height, (libyuv::RotationMode)rotation);
+    }
+    free(rotate_buffer);
+  }
+
+  return r;
 }
 
 scoped_refptr<I420ABufferInterface> ScaleI420ABuffer(

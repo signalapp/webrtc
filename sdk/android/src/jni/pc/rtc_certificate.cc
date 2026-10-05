@@ -13,11 +13,14 @@
 #include <jni.h>
 
 #include <cstdint>
+#include <memory>
 
 #include "api/scoped_refptr.h"
 #include "rtc_base/rtc_certificate.h"
 #include "rtc_base/rtc_certificate_generator.h"
+#include "rtc_base/ssl_fingerprint.h"
 #include "rtc_base/ssl_identity.h"
+#include "sdk/android/generated_peerconnection_jni/DtlsFingerprint_jni.h"
 #include "sdk/android/generated_peerconnection_jni/RtcCertificatePem_jni.h"
 #include "sdk/android/native_api/jni/java_types.h"
 #include "sdk/android/native_api/jni/scoped_java_ref.h"
@@ -62,5 +65,30 @@ JNI_RtcCertificatePem_GenerateCertificate(
       NativeToJavaString(jni, pem.certificate()));
 }
 
+static jni_zero::ScopedJavaLocalRef<jobject>
+JNI_RtcCertificatePem_GetFingerprint(
+    JNIEnv* jni,
+    const jni_zero::JavaRef<jstring>& j_private_key,
+    const jni_zero::JavaRef<jstring>& j_certificate) {
+  // The fingerprint is not stored on the PEM representation, so the native
+  // certificate is reconstructed from the PEM strings in order to compute it.
+  RTCCertificatePEM pem(JavaToNativeString(jni, j_private_key),
+                        JavaToNativeString(jni, j_certificate));
+  scoped_refptr<RTCCertificate> certificate = RTCCertificate::FromPEM(pem);
+  if (!certificate) {
+    return nullptr;
+  }
+  std::unique_ptr<SSLFingerprint> fingerprint =
+      SSLFingerprint::CreateFromCertificate(*certificate);
+  if (!fingerprint) {
+    return nullptr;
+  }
+  return Java_DtlsFingerprint_Constructor(
+      jni, NativeToJavaString(jni, fingerprint->algorithm),
+      NativeToJavaString(jni, fingerprint->GetRfc4572Fingerprint()));
+}
+
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(RtcCertificatePem)

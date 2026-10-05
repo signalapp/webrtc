@@ -54,7 +54,7 @@ class PayloadTypePicker final {
   class MapEntry final {
    public:
     MapEntry(PayloadType payload_type, Codec codec)
-        : payload_type_(payload_type), codec_(codec) {}
+        : payload_type_(payload_type), codec_(std::move(codec)) {}
     PayloadType payload_type() const { return payload_type_; }
     Codec codec() const { return codec_; }
 

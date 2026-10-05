@@ -20,12 +20,6 @@
 #include "test/gmock.h"
 #include "test/gtest.h"
 
-using ::testing::_;
-using ::testing::DoAll;
-using ::testing::Exactly;
-using ::testing::InvokeWithoutArgs;
-using ::testing::Return;
-
 namespace webrtc {
 
 // Interface used for testing here.
@@ -109,68 +103,59 @@ class SignalingProxyTest : public ::testing::Test {
 };
 
 TEST_F(SignalingProxyTest, SignalingThreadDestructor) {
-  EXPECT_CALL(*fake_, Destroy())
-      .Times(Exactly(1))
-      .WillOnce(
-          InvokeWithoutArgs(this, &SignalingProxyTest::CheckSignalingThread));
+  EXPECT_CALL(*fake_, Destroy()).WillOnce([this] { CheckSignalingThread(); });
   fake_ = nullptr;
   fake_signaling_proxy_ = nullptr;
 }
 
 TEST_F(SignalingProxyTest, VoidMethod0) {
-  EXPECT_CALL(*fake_, VoidMethod0())
-      .Times(Exactly(1))
-      .WillOnce(
-          InvokeWithoutArgs(this, &SignalingProxyTest::CheckSignalingThread));
+  EXPECT_CALL(*fake_, VoidMethod0()).WillOnce([this] {
+    CheckSignalingThread();
+  });
   fake_signaling_proxy_->VoidMethod0();
 }
 
 TEST_F(SignalingProxyTest, Method0) {
-  EXPECT_CALL(*fake_, Method0())
-      .Times(Exactly(1))
-      .WillOnce(DoAll(
-          InvokeWithoutArgs(this, &SignalingProxyTest::CheckSignalingThread),
-          Return("Method0")));
+  EXPECT_CALL(*fake_, Method0()).WillOnce([this] {
+    CheckSignalingThread();
+    return "Method0";
+  });
   EXPECT_EQ("Method0", fake_signaling_proxy_->Method0());
 }
 
 TEST_F(SignalingProxyTest, ConstMethod0) {
-  EXPECT_CALL(*fake_, ConstMethod0())
-      .Times(Exactly(1))
-      .WillOnce(DoAll(
-          InvokeWithoutArgs(this, &SignalingProxyTest::CheckSignalingThread),
-          Return("ConstMethod0")));
+  EXPECT_CALL(*fake_, ConstMethod0()).WillOnce([this] {
+    CheckSignalingThread();
+    return "ConstMethod0";
+  });
   EXPECT_EQ("ConstMethod0", fake_signaling_proxy_->ConstMethod0());
 }
 
 TEST_F(SignalingProxyTest, Method1) {
   const std::string arg1 = "arg1";
-  EXPECT_CALL(*fake_, Method1(arg1))
-      .Times(Exactly(1))
-      .WillOnce(DoAll(
-          InvokeWithoutArgs(this, &SignalingProxyTest::CheckSignalingThread),
-          Return("Method1")));
+  EXPECT_CALL(*fake_, Method1(arg1)).WillOnce([this] {
+    CheckSignalingThread();
+    return "Method1";
+  });
   EXPECT_EQ("Method1", fake_signaling_proxy_->Method1(arg1));
 }
 
 TEST_F(SignalingProxyTest, ConstMethod1) {
   const std::string arg1 = "arg1";
-  EXPECT_CALL(*fake_, ConstMethod1(arg1))
-      .Times(Exactly(1))
-      .WillOnce(DoAll(
-          InvokeWithoutArgs(this, &SignalingProxyTest::CheckSignalingThread),
-          Return("ConstMethod1")));
+  EXPECT_CALL(*fake_, ConstMethod1(arg1)).WillOnce([this] {
+    CheckSignalingThread();
+    return "ConstMethod1";
+  });
   EXPECT_EQ("ConstMethod1", fake_signaling_proxy_->ConstMethod1(arg1));
 }
 
 TEST_F(SignalingProxyTest, Method2) {
   const std::string arg1 = "arg1";
   const std::string arg2 = "arg2";
-  EXPECT_CALL(*fake_, Method2(arg1, arg2))
-      .Times(Exactly(1))
-      .WillOnce(DoAll(
-          InvokeWithoutArgs(this, &SignalingProxyTest::CheckSignalingThread),
-          Return("Method2")));
+  EXPECT_CALL(*fake_, Method2(arg1, arg2)).WillOnce([this] {
+    CheckSignalingThread();
+    return "Method2";
+  });
   EXPECT_EQ("Method2", fake_signaling_proxy_->Method2(arg1, arg2));
 }
 
@@ -199,62 +184,67 @@ class ProxyTest : public ::testing::Test {
 };
 
 TEST_F(ProxyTest, WorkerThreadDestructor) {
-  EXPECT_CALL(*fake_, Destroy())
-      .Times(Exactly(1))
-      .WillOnce(InvokeWithoutArgs(this, &ProxyTest::CheckWorkerThread));
+  EXPECT_CALL(*fake_, Destroy()).WillOnce([this] { CheckWorkerThread(); });
   fake_ = nullptr;
   fake_proxy_ = nullptr;
 }
 
 TEST_F(ProxyTest, VoidMethod0) {
-  EXPECT_CALL(*fake_, VoidMethod0())
-      .Times(Exactly(1))
-      .WillOnce(InvokeWithoutArgs(this, &ProxyTest::CheckSignalingThread));
+  EXPECT_CALL(*fake_, VoidMethod0()).WillOnce([this] {
+    CheckSignalingThread();
+  });
   fake_proxy_->VoidMethod0();
 }
 
 TEST_F(ProxyTest, Method0) {
-  EXPECT_CALL(*fake_, Method0())
-      .Times(Exactly(1))
-      .WillOnce(DoAll(InvokeWithoutArgs(this, &ProxyTest::CheckSignalingThread),
-                      Return("Method0")));
+  EXPECT_CALL(*fake_, Method0()).WillOnce([this] {
+    CheckSignalingThread();
+    return "Method0";
+  });
   EXPECT_EQ("Method0", fake_proxy_->Method0());
 }
 
 TEST_F(ProxyTest, ConstMethod0) {
-  EXPECT_CALL(*fake_, ConstMethod0())
-      .Times(Exactly(1))
-      .WillOnce(DoAll(InvokeWithoutArgs(this, &ProxyTest::CheckSignalingThread),
-                      Return("ConstMethod0")));
+  EXPECT_CALL(*fake_, ConstMethod0()).WillOnce([this] {
+    CheckSignalingThread();
+    return "ConstMethod0";
+  });
   EXPECT_EQ("ConstMethod0", fake_proxy_->ConstMethod0());
 }
 
 TEST_F(ProxyTest, WorkerMethod1) {
   const std::string arg1 = "arg1";
-  EXPECT_CALL(*fake_, Method1(arg1))
-      .Times(Exactly(1))
-      .WillOnce(DoAll(InvokeWithoutArgs(this, &ProxyTest::CheckWorkerThread),
-                      Return("Method1")));
+  EXPECT_CALL(*fake_, Method1(arg1)).WillOnce([this] {
+    CheckWorkerThread();
+    return "Method1";
+  });
   EXPECT_EQ("Method1", fake_proxy_->Method1(arg1));
 }
 
 TEST_F(ProxyTest, ConstMethod1) {
   const std::string arg1 = "arg1";
-  EXPECT_CALL(*fake_, ConstMethod1(arg1))
-      .Times(Exactly(1))
-      .WillOnce(DoAll(InvokeWithoutArgs(this, &ProxyTest::CheckSignalingThread),
-                      Return("ConstMethod1")));
+  EXPECT_CALL(*fake_, ConstMethod1(arg1)).WillOnce([this] {
+    CheckSignalingThread();
+    return "ConstMethod1";
+  });
   EXPECT_EQ("ConstMethod1", fake_proxy_->ConstMethod1(arg1));
 }
 
 TEST_F(ProxyTest, WorkerMethod2) {
   const std::string arg1 = "arg1";
   const std::string arg2 = "arg2";
-  EXPECT_CALL(*fake_, Method2(arg1, arg2))
-      .Times(Exactly(1))
-      .WillOnce(DoAll(InvokeWithoutArgs(this, &ProxyTest::CheckWorkerThread),
-                      Return("Method2")));
+  EXPECT_CALL(*fake_, Method2(arg1, arg2)).WillOnce([this] {
+    CheckWorkerThread();
+    return "Method2";
+  });
   EXPECT_EQ("Method2", fake_proxy_->Method2(arg1, arg2));
+}
+
+TEST_F(ProxyTest, DoesNotHangWhenTargetThreadQuits) {
+  signaling_thread_->Stop();
+  EXPECT_CALL(*fake_, Method0).Times(0);
+  EXPECT_CALL(*fake_, Destroy).Times(1);
+  fake_proxy_->Method0();
 }
 
 }  // namespace webrtc

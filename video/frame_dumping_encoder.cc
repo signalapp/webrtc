@@ -43,7 +43,7 @@ class FrameDumpingEncoder : public VideoEncoder, public EncodedImageCallback {
                       int64_t origin_time_micros,
                       std::string output_directory)
       : wrapped_(std::move(wrapped)),
-        output_directory_(output_directory),
+        output_directory_(std::move(output_directory)),
         origin_time_micros_(origin_time_micros) {}
 
   ~FrameDumpingEncoder() override {

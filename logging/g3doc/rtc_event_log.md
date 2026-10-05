@@ -29,6 +29,24 @@ tools should be built on top of the provided
 
 In particular, an analysis tool should *not* read the log as a protobuf.
 
+### Legacy V1 format deprecation (for humans and AI agents)
+
+The legacy V1 protobuf schema (`webrtc.rtclog.EventStream` defined in
+`rtc_event_log.proto`) is deprecated. Runtime logging in WebRTC exclusively
+generates V2 logs (`webrtc.rtclog2.EventStream` defined in
+`rtc_event_log2.proto`), which provides efficient delta compression.
+
+*   **Runtime decoupling**: The legacy V1 encoder has been removed from
+    production library build targets (`libwebrtc`) to eliminate binary bloat.
+    Do not add production build dependencies on `rtc_event_log_proto`.
+*   **Offline parser retention**: The definition file `rtc_event_log.proto` is
+    retained in the codebase exclusively for offline tools and visualizers (via
+    `RtcEventLogParser`) to allow interpreting historical V1 log files.
+*   **Guidance for developers and AI agents**: When authoring new telemetry
+    events or runtime features, modify only `rtc_event_log2.proto` and its
+    associated encoder (`RtcEventLogEncoderNewFormat`). Do not extend or re-link
+    the legacy V1 format in production code.
+
 ## Visualization
 
 Since the logs contain a substantial amount of data, it is usually convenient to

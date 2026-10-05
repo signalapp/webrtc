@@ -28,15 +28,6 @@ HistogramPercentileCounter::HistogramPercentileCounter(
 
 HistogramPercentileCounter::~HistogramPercentileCounter() = default;
 
-void HistogramPercentileCounter::Add(const HistogramPercentileCounter& other) {
-  for (uint32_t value = 0; value < other.long_tail_boundary_; ++value) {
-    Add(value, other.histogram_low_[value]);
-  }
-  for (const auto& it : histogram_high_) {
-    Add(it.first, it.second);
-  }
-}
-
 void HistogramPercentileCounter::Add(uint32_t value, size_t count) {
   if (value < long_tail_boundary_) {
     histogram_low_[value] += count;

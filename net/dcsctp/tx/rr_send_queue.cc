@@ -29,6 +29,7 @@
 #include "net/dcsctp/packet/data.h"
 #include "net/dcsctp/public/dcsctp_handover_state.h"
 #include "net/dcsctp/public/dcsctp_message.h"
+#include "net/dcsctp/public/dcsctp_options.h"
 #include "net/dcsctp/public/dcsctp_socket.h"
 #include "net/dcsctp/public/types.h"
 #include "net/dcsctp/tx/send_queue.h"
@@ -45,10 +46,12 @@ RRSendQueue::RRSendQueue(absl::string_view log_prefix,
                          DcSctpSocketCallbacks* callbacks,
                          size_t mtu,
                          StreamPriority default_priority,
-                         size_t total_buffered_amount_low_threshold)
+                         size_t total_buffered_amount_low_threshold,
+                         const DcSctpOptions& options)
     : log_prefix_(log_prefix),
       callbacks_(*callbacks),
       default_priority_(default_priority),
+      options_(options),
       scheduler_(log_prefix_, mtu),
       total_buffered_amount_(
           [this]() { callbacks_.OnTotalBufferedAmountLow(); }) {
@@ -75,6 +78,71 @@ void RRSendQueue::OutgoingStream::AddHandoverState(
   state.next_ordered_mid = next_ordered_mid_.value();
   state.next_unordered_mid = next_unordered_mid_.value();
   state.priority = *scheduler_stream_->priority();
+}
+
+void RRSendQueue::OutgoingStream::AddQueuedMessagesToHandoverState(
+    Timestamp now,
+    DcSctpSocketHandoverState& state) const {
+  for (const Item& item : items_) {
+    DcSctpSocketHandoverState::StreamMessage msg;
+    msg.stream_id = item.message.stream_id().value();
+    msg.ppid = item.message.ppid().value();
+    msg.payload.assign(item.message.payload().begin(),
+                       item.message.payload().end());
+    msg.expires_in_ms = item.attributes.expires_at.IsInfinite()
+                            ? std::nullopt
+                            : std::optional<int32_t>(static_cast<int32_t>(
+                                  (item.attributes.expires_at - now).ms()));
+    msg.max_retransmissions = item.attributes.max_retransmissions.value();
+    msg.unordered = item.attributes.unordered.value();
+    msg.lifecycle_id = item.attributes.lifecycle_id.value();
+    msg.message_id = item.message_id.value();
+    msg.remaining_offset = item.remaining_offset;
+    msg.mid =
+        item.mid.has_value() ? std::optional(item.mid->value()) : std::nullopt;
+    msg.ssn =
+        item.ssn.has_value() ? std::optional(item.ssn->value()) : std::nullopt;
+    msg.fsn = item.current_fsn.value();
+    state.tx.queued_messages.push_back(msg);
+  }
+}
+
+void RRSendQueue::OutgoingStream::RestoreItemFromState(
+    Timestamp now,
+    const DcSctpSocketHandoverState::StreamMessage& msg) {
+  StreamID stream_id(msg.stream_id);
+  DcSctpMessage message(stream_id, PPID(msg.ppid), msg.payload);
+  RRSendQueue::MessageAttributes attributes = {
+      .unordered = IsUnordered(msg.unordered),
+      .max_retransmissions = MaxRetransmits(msg.max_retransmissions),
+      .expires_at = msg.expires_in_ms.has_value()
+                        ? now + TimeDelta::Millis(*msg.expires_in_ms)
+                        : Timestamp::PlusInfinity(),
+      .lifecycle_id = LifecycleId(msg.lifecycle_id),
+  };
+  OutgoingMessageId message_id(msg.message_id);
+  size_t remaining_offset = msg.remaining_offset;
+  std::optional<MID> mid =
+      msg.mid.has_value() ? std::optional(MID(*msg.mid)) : std::nullopt;
+  std::optional<SSN> ssn =
+      msg.ssn.has_value() ? std::optional(SSN(*msg.ssn)) : std::nullopt;
+  FSN fsn(msg.fsn);
+  bool was_active = bytes_to_send_in_next_message() > 0;
+  size_t remaining_size = message.payload().size() - remaining_offset;
+  buffered_amount_.Increase(remaining_size);
+  parent_.total_buffered_amount_.Increase(remaining_size);
+  Item& item = items_.emplace_back(message_id, std::move(message),
+                                   std::move(attributes));
+  item.remaining_offset = remaining_offset;
+  item.remaining_size = remaining_size;
+  item.mid = mid;
+  item.ssn = ssn;
+  item.current_fsn = fsn;
+
+  if (!was_active) {
+    scheduler_stream_->MaybeMakeActive();
+  }
+  RTC_DCHECK(IsConsistent());
 }
 
 bool RRSendQueue::IsConsistent() const {
@@ -519,22 +587,29 @@ StreamPriority RRSendQueue::GetStreamPriority(StreamID stream_id) const {
 
 HandoverReadinessStatus RRSendQueue::GetHandoverReadiness() const {
   HandoverReadinessStatus status;
-  if (!IsEmpty()) {
+  bool block_on_outstanding_data =
+      !options_.enable_handover_with_outstanding_data;
+  if (block_on_outstanding_data && !IsEmpty()) {
     status.Add(HandoverUnreadinessReason::kSendQueueNotEmpty);
   }
   return status;
 }
 
-void RRSendQueue::AddHandoverState(DcSctpSocketHandoverState& state) {
+void RRSendQueue::AddHandoverState(Timestamp now,
+                                   DcSctpSocketHandoverState& state) const {
+  state.tx.next_outgoing_message_id = current_message_id.value();
   for (const auto& [stream_id, stream] : streams_) {
     DcSctpSocketHandoverState::OutgoingStream state_stream;
     state_stream.id = stream_id.value();
     stream.AddHandoverState(state_stream);
     state.tx.streams.push_back(std::move(state_stream));
+    stream.AddQueuedMessagesToHandoverState(now, state);
   }
 }
 
-void RRSendQueue::RestoreFromState(const DcSctpSocketHandoverState& state) {
+void RRSendQueue::RestoreFromState(Timestamp now,
+                                   const DcSctpSocketHandoverState& state) {
+  current_message_id = OutgoingMessageId(state.tx.next_outgoing_message_id);
   for (const DcSctpSocketHandoverState::OutgoingStream& state_stream :
        state.tx.streams) {
     StreamID stream_id(state_stream.id);
@@ -544,6 +619,11 @@ void RRSendQueue::RestoreFromState(const DcSctpSocketHandoverState& state) {
             this, &scheduler_, stream_id, StreamPriority(state_stream.priority),
             [this, stream_id]() { callbacks_.OnBufferedAmountLow(stream_id); },
             &state_stream));
+  }
+  for (const DcSctpSocketHandoverState::StreamMessage& msg :
+       state.tx.queued_messages) {
+    StreamID stream_id(msg.stream_id);
+    GetOrCreateStreamInfo(stream_id).RestoreItemFromState(now, msg);
   }
 }
 }  // namespace dcsctp

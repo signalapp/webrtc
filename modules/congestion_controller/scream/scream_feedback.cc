@@ -48,6 +48,7 @@ ScreamFeedback ParseScreamFeedback(const TransportPacketsFeedback& msg) {
 
     // Update received-packet metrics.
     if (packet.IsReceived()) {
+      parsed.received += packet.sent_packet.size;
       parsed.num_received_packets++;
       if (packet.ecn == EcnMarking::kCe) {
         parsed.num_ce_marked_packets++;
@@ -73,6 +74,7 @@ ScreamFeedback ParseScreamFeedback(const TransportPacketsFeedback& msg) {
 
   // Directly calculate feedback hold time of this feedback.
   if (first_packet && last_packet) {
+    parsed.last_packet_receive_time = last_packet->receive_time;
     parsed.feedback_hold_time =
         last_packet->receive_time +
         last_packet->arrival_time_offset.value_or(TimeDelta::Zero()) -

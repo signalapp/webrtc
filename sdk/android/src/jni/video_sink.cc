@@ -40,3 +40,5 @@ void VideoSinkWrapper::OnFrame(const VideoFrame& frame) {
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(VideoSink)

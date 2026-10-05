@@ -122,6 +122,7 @@
 #include "api/transport/network_control.h"
 #include "api/transport/sctp_transport_factory_interface.h"
 #include "api/turn_customizer.h"
+#include "api/video/timing/video_jitter_timing_factory.h"
 #include "api/video/video_bitrate_allocator_factory.h"
 #include "api/video_codecs/video_decoder_factory.h"
 #include "api/video_codecs/video_encoder_factory.h"
@@ -164,6 +165,12 @@ namespace webrtc {
 // IWYU pragma: begin_keep
 // MediaFactory class definition is not part of the api.
 class MediaFactory;
+
+// Forward-declared so PeerConnectionDependencies can hold a
+// std::unique_ptr<PeerConnectionTracerInterface> without including
+// api/peer_connection_tracer_interface.h (which itself includes this
+// header).
+class PeerConnectionTracerInterface;
 
 // IWYU pragma: end_keep
 // MediaStream container interface.
@@ -1498,6 +1505,14 @@ struct RTC_EXPORT PeerConnectionDependencies final {
   // Optional field trials to use.
   // Overrides those from PeerConnectionFactoryDependencies.
   std::unique_ptr<FieldTrialsView> trials;
+
+  // Optional passive observer of PeerConnection lifecycle and operation
+  // events, intended for diagnostics / trace surfaces such as
+  // chrome://webrtc-internals. See api/peer_connection_tracer_interface.h.
+  // Convention: set once at construction; the PeerConnection owns the tracer
+  // for its entire lifetime. Not intended to be shared across multiple
+  // PeerConnections.
+  std::unique_ptr<PeerConnectionTracerInterface> tracer;
 };
 
 // PeerConnectionFactoryDependencies holds all of the PeerConnectionFactory
@@ -1544,6 +1559,9 @@ struct RTC_EXPORT PeerConnectionFactoryDependencies final {
   // called without a `port_allocator`, and the above `network_manager' is null.
   std::unique_ptr<NetworkMonitorFactory> network_monitor_factory;
   std::unique_ptr<NetEqFactory> neteq_factory;
+  // Factory for creating VideoJitterTiming instances, used to track and
+  // manage video frame timing for rendering.
+  std::unique_ptr<VideoJitterTimingFactory> video_jitter_timing_factory;
   std::unique_ptr<SctpTransportFactoryInterface> sctp_factory;
   // Metronome used for decoding, must be called on the worker thread.
   std::unique_ptr<Metronome> decode_metronome;
@@ -1636,7 +1654,10 @@ class RTC_EXPORT PeerConnectionFactoryInterface : public RefCountInterface {
       const std::string& stream_id) = 0;
 
   // Creates an AudioSourceInterface.
-  // `options` decides audio processing settings.
+  // The `options` specified here are elevated and applied globally at the media
+  // engine level to configure global audio processing settings (like APM
+  // options for AEC, AGC, and NS). These options persist reliably across stream
+  // lifecycles.
   virtual scoped_refptr<AudioSourceInterface> CreateAudioSource(
       const AudioOptions& options) = 0;
 

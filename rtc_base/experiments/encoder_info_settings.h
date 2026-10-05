@@ -39,8 +39,8 @@ class EncoderInfoSettings {
   bool apply_alignment_to_all_simulcast_layers() const {
     return apply_alignment_to_all_simulcast_layers_.Get();
   }
-  std::vector<VideoEncoder::ResolutionBitrateLimits> resolution_bitrate_limits()
-      const {
+  const std::vector<VideoEncoder::ResolutionBitrateLimits>&
+  resolution_bitrate_limits() const {
     return resolution_bitrate_limits_;
   }
 

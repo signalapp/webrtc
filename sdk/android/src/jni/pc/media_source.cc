@@ -26,3 +26,5 @@ static jni_zero::ScopedJavaLocalRef<jobject> JNI_MediaSource_GetState(
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(MediaSource)

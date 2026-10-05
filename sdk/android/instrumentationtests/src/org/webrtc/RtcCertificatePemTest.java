@@ -13,6 +13,7 @@ package org.webrtc;
 import static com.google.common.truth.Truth.assertThat;
 
 import androidx.test.filters.SmallTest;
+import java.util.List;
 import org.junit.Before;
 import org.junit.Test;
 import org.webrtc.PeerConnection;
@@ -66,5 +67,43 @@ public class RtcCertificatePemTest {
         RtcCertificatePem.generateCertificate(PeerConnection.KeyType.RSA, 60 * 60 * 24);
     assertThat(rtcCertificate.privateKey).isNotEmpty();
     assertThat(rtcCertificate.certificate).isNotEmpty();
+  }
+
+  @Test
+  @SmallTest
+  public void testGeneratedCertificateHasFingerprint() {
+    RtcCertificatePem rtcCertificate = RtcCertificatePem.generateCertificate();
+    List<DtlsFingerprint> fingerprints = rtcCertificate.getFingerprints();
+    assertThat(fingerprints).hasSize(1);
+
+    DtlsFingerprint fingerprint = fingerprints.get(0);
+    // The algorithm is an IANA hash function textual name, e.g. "sha-256".
+    assertThat(fingerprint.algorithm).matches("[a-z0-9\\-]+");
+    // The value is colon-separated hexadecimal per RFC 4572, e.g. "AB:CD:...".
+    assertThat(fingerprint.value).matches("([0-9A-F]{2}:)+[0-9A-F]{2}");
+  }
+
+  @Test
+  @SmallTest
+  public void testFingerprintSurvivesPemRoundTrip() {
+    RtcCertificatePem original = RtcCertificatePem.generateCertificate();
+    RtcCertificatePem recreated = new RtcCertificatePem(original.privateKey, original.certificate);
+
+    List<DtlsFingerprint> originalFingerprints = original.getFingerprints();
+    List<DtlsFingerprint> recreatedFingerprints = recreated.getFingerprints();
+    assertThat(originalFingerprints).hasSize(1);
+    assertThat(recreatedFingerprints).hasSize(1);
+    assertThat(originalFingerprints.get(0).algorithm)
+        .isEqualTo(recreatedFingerprints.get(0).algorithm);
+    assertThat(originalFingerprints.get(0).value).isEqualTo(recreatedFingerprints.get(0).value);
+  }
+
+  @Test
+  @SmallTest
+  public void testCertificateFromInvalidPemHasNoFingerprint() {
+    // A certificate built from PEM strings that are not valid certificates has
+    // no computable fingerprint.
+    RtcCertificatePem rtcCertificate = new RtcCertificatePem("private", "certificate");
+    assertThat(rtcCertificate.getFingerprints()).isEmpty();
   }
 }

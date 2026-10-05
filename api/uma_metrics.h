@@ -217,11 +217,14 @@ enum SdpMungingType {
   kSframe = 35,
   kMsidStream = 36,
   kMsidTrack = 37,
+  kIceOptionsRemoved = 38,
+  kRejected = 39,
   // RTP header extension munging.
   kRtpHeaderExtensionRemoved = 40,
   kRtpHeaderExtensionAdded = 41,
   kRtpHeaderExtensionModified = 42,
   kCryptex = 43,
+  kRtcpXrRcvrRtt = 44,
   // Audio-related munging.
   kAudioCodecsRemoved = 60,
   kAudioCodecsAdded = 61,

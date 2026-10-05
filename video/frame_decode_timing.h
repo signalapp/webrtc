@@ -15,20 +15,16 @@
 
 #include <optional>
 
-#include "api/field_trials_view.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "modules/video_coding/timing/timing.h"
-#include "rtc_base/experiments/field_trial_parser.h"
 #include "system_wrappers/include/clock.h"
 
 namespace webrtc {
 
 class FrameDecodeTiming {
  public:
-  FrameDecodeTiming(Clock* clock,
-                    VCMTiming const* timing,
-                    const FieldTrialsView& field_trials);
+  FrameDecodeTiming(Clock* clock, VCMTiming const* timing);
   ~FrameDecodeTiming() = default;
   FrameDecodeTiming(const FrameDecodeTiming&) = delete;
   FrameDecodeTiming& operator=(const FrameDecodeTiming&) = delete;
@@ -36,6 +32,7 @@ class FrameDecodeTiming {
   // Any frame that has decode delay more than this in the past can be
   // fast-forwarded.
   static constexpr TimeDelta kMaxAllowedFrameDelay = TimeDelta::Millis(5);
+  static constexpr TimeDelta kZeroPlayoutDelayMinPacing = TimeDelta::Millis(8);
 
   struct FrameSchedule {
     Timestamp latest_decode_time;
@@ -64,11 +61,6 @@ class FrameDecodeTiming {
  private:
   Clock* const clock_;
   VCMTiming const* const timing_;
-
-  // Set by the field trial WebRTC-ZeroPlayoutDelay. The parameter min_pacing
-  // determines the minimum delay between frames scheduled for decoding that is
-  // used when min playout delay=0 and max playout delay>=0.
-  FieldTrialParameter<TimeDelta> zero_playout_delay_min_pacing_;
 
   // Timestamp at which the last frame was scheduled to be sent to the decoder.
   // Used only when the RTP header extension playout delay is set to min=0 ms

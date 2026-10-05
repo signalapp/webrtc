@@ -24,6 +24,7 @@
 #include "absl/memory/memory.h"
 #include "api/crypto/frame_encryptor_interface.h"
 #include "api/field_trials_view.h"
+#include "api/frame_transformer_interface.h"
 #include "api/make_ref_counted.h"
 #include "api/media_types.h"
 #include "api/task_queue/task_queue_factory.h"
@@ -532,7 +533,28 @@ bool RTPSenderVideo::SendVideo(int payload_type,
                                RTPVideoHeader video_header,
                                TimeDelta expected_retransmission_time,
                                std::vector<uint32_t> csrcs) {
+  return SendVideoFrame(payload_type, codec_type,
+                        RtpTimestampWithOffset{rtp_timestamp}, capture_time,
+                        payload, encoder_output_size, video_header,
+                        expected_retransmission_time, csrcs);
+}
+
+bool RTPSenderVideo::SendVideoFrame(int payload_type,
+                                    VideoCodecType codec_type,
+                                    RtpTimestampInfo rtp_timestamp_info,
+                                    Timestamp capture_time,
+                                    std::span<const uint8_t> payload,
+                                    size_t encoder_output_size,
+                                    RTPVideoHeader video_header,
+                                    TimeDelta expected_retransmission_time,
+                                    std::vector<uint32_t> csrcs) {
   RTC_CHECK_RUNS_SERIALIZED(&send_checker_);
+
+  uint32_t rtp_timestamp =
+      std::holds_alternative<RtpTimestampWithoutOffset>(rtp_timestamp_info)
+          ? std::get<RtpTimestampWithoutOffset>(rtp_timestamp_info) +
+                rtp_sender_->TimestampOffset()
+          : std::get<RtpTimestampWithOffset>(rtp_timestamp_info);
 
   if (video_header.frame_type == VideoFrameType::kEmptyFrame)
     return true;
@@ -660,15 +682,21 @@ bool RTPSenderVideo::SendVideo(int payload_type,
 
   RTC_DCHECK_GE(single_packet->headers_size(), middle_packet->headers_size());
   limits.single_packet_reduction_len =
-      single_packet->headers_size() - middle_packet->headers_size();
+      single_packet->headers_size() > middle_packet->headers_size()
+          ? single_packet->headers_size() - middle_packet->headers_size()
+          : 0;
 
   RTC_DCHECK_GE(first_packet->headers_size(), middle_packet->headers_size());
   limits.first_packet_reduction_len =
-      first_packet->headers_size() - middle_packet->headers_size();
+      first_packet->headers_size() > middle_packet->headers_size()
+          ? first_packet->headers_size() - middle_packet->headers_size()
+          : 0;
 
   RTC_DCHECK_GE(last_packet->headers_size(), middle_packet->headers_size());
   limits.last_packet_reduction_len =
-      last_packet->headers_size() - middle_packet->headers_size();
+      last_packet->headers_size() > middle_packet->headers_size()
+          ? last_packet->headers_size() - middle_packet->headers_size()
+          : 0;
 
   bool has_generic_descriptor =
       first_packet->HasExtension<RtpGenericFrameDescriptorExtension00>() ||
@@ -715,8 +743,16 @@ bool RTPSenderVideo::SendVideo(int payload_type,
 
   const size_t num_packets = packetizer->NumPackets();
 
-  if (num_packets == 0)
+  if (num_packets == 0) {
+    Timestamp now = clock_->CurrentTime();
+    if (now >= last_fail_packetize_log_ + TimeDelta::Seconds(10)) {
+      RTC_LOG(LS_WARNING) << "Failed to packetize " << codec_type
+                          << " video frame of size " << payload.size()
+                          << ". Frame is dropped.";
+      last_fail_packetize_log_ = now;
+    }
     return false;
+  }
 
   bool first_frame = first_frame_sent_();
   std::vector<std::unique_ptr<RtpPacketToSend>> rtp_packets;
@@ -831,10 +867,11 @@ bool RTPSenderVideo::SendEncodedImage(int payload_type,
         payload_type, codec_type, rtp_timestamp, encoded_image, video_header,
         expected_retransmission_time, csrcs);
   }
-  return SendVideo(payload_type, codec_type, rtp_timestamp,
-                   encoded_image.CaptureTime(), encoded_image,
-                   encoded_image.size(), video_header,
-                   expected_retransmission_time, csrcs);
+  return SendVideoFrame(payload_type, codec_type,
+                        RtpTimestampInfo(RtpTimestampWithOffset{rtp_timestamp}),
+                        encoded_image.CaptureTime(), encoded_image,
+                        encoded_image.size(), video_header,
+                        expected_retransmission_time, csrcs);
 }
 
 DataRate RTPSenderVideo::PostEncodeOverhead() const {

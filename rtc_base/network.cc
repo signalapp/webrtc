@@ -290,7 +290,11 @@ AdapterType GetAdapterTypeFromName(absl::string_view network_name) {
   if (MatchTypeNameWithIndexPattern(network_name, "ipsec") ||
       MatchTypeNameWithIndexPattern(network_name, "tun") ||
       MatchTypeNameWithIndexPattern(network_name, "utun") ||
-      MatchTypeNameWithIndexPattern(network_name, "tap")) {
+      MatchTypeNameWithIndexPattern(network_name, "tap") ||
+      // Tailscale on Linux; on macOS and iOS it uses utun<index>.
+      MatchTypeNameWithIndexPattern(network_name, "tailscale") ||
+      // Tailscale on Windows.
+      MatchTypeNameWithIndexPattern(network_name, "Tailscale")) {
     return ADAPTER_TYPE_VPN;
   }
 #if defined(WEBRTC_IOS)
@@ -418,14 +422,6 @@ std::vector<const Network*> NetworkManagerBase::GetNetworks() const {
 void NetworkManagerBase::MergeNetworkList(
     std::vector<std::unique_ptr<Network>> new_networks,
     bool* changed) {
-  NetworkManager::Stats stats;
-  MergeNetworkList(std::move(new_networks), changed, &stats);
-}
-
-void NetworkManagerBase::MergeNetworkList(
-    std::vector<std::unique_ptr<Network>> new_networks,
-    bool* changed,
-    NetworkManager::Stats* stats) {
   *changed = false;
   // AddressList in this map will track IP addresses for all Networks
   // with the same key.
@@ -433,7 +429,6 @@ void NetworkManagerBase::MergeNetworkList(
   absl::c_sort(new_networks, webrtc_network_internal::CompareNetworks);
   // First, build a set of network-keys to the ipaddresses.
   for (auto& network : new_networks) {
-    bool might_add_to_merged_list = false;
     std::string key = MakeNetworkKey(network->name(), network->prefix(),
                                      network->prefix_length());
     const std::vector<InterfaceAddress>& addresses = network->GetIPs();
@@ -442,19 +437,10 @@ void NetworkManagerBase::MergeNetworkList(
       AddressList addrlist;
       addrlist.net = std::move(network);
       consolidated_address_list[key] = std::move(addrlist);
-      might_add_to_merged_list = true;
     }
     AddressList& current_list = consolidated_address_list[key];
     for (const InterfaceAddress& address : addresses) {
       current_list.ips.push_back(address);
-    }
-    if (might_add_to_merged_list) {
-      if (current_list.ips[0].family() == AF_INET) {
-        stats->ipv4_network_count++;
-      } else {
-        RTC_DCHECK(current_list.ips[0].family() == AF_INET6);
-        stats->ipv6_network_count++;
-      }
     }
   }
 
@@ -1153,8 +1139,7 @@ void BasicNetworkManager::UpdateNetworksOnce() {
     NotifyError();
   } else {
     bool changed;
-    NetworkManager::Stats stats;
-    MergeNetworkList(std::move(list), &changed, &stats);
+    MergeNetworkList(std::move(list), &changed);
     set_default_local_addresses(QueryDefaultLocalAddress(AF_INET),
                                 QueryDefaultLocalAddress(AF_INET6));
     if (changed || !sent_first_update_) {

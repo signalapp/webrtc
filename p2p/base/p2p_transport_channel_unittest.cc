@@ -92,7 +92,6 @@
 #include "rtc_base/virtual_socket_server.h"
 #include "system_wrappers/include/metrics.h"
 #include "test/create_test_environment.h"
-#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/run_loop.h"
@@ -108,7 +107,6 @@ namespace {
 using ::testing::_;
 using ::testing::Assign;
 using ::testing::Contains;
-using ::testing::DoAll;
 using ::testing::Eq;
 using ::testing::Gt;
 using ::testing::MockFunction;
@@ -254,7 +252,10 @@ class ResolverFactoryFixture : public MockAsyncDnsResolverFactory {
 
   void SetAddressToReturn(SocketAddress address_to_return) {
     EXPECT_CALL(mock_async_dns_resolver_result_, GetResolvedAddress(_, _))
-        .WillOnce(DoAll(SetArgPointee<1>(address_to_return), Return(true)));
+        .WillOnce([address_to_return](int /*family*/, SocketAddress* addr) {
+          *addr = address_to_return;
+          return true;
+        });
   }
   void DelayResolution() {
     // This function must be called before Create().
@@ -2399,8 +2400,7 @@ TEST_F(P2PTransportChannelTest,
 TEST_F(P2PTransportChannelTest,
        CanConnectWithPiggybackCheckAcknowledgementWhenCheckResponseBlocked) {
   env_ = CreateTestEnvironment(
-      {.field_trials = CreateTestFieldTrialsPtr(
-           "WebRTC-PiggybackIceCheckAcknowledgement/Enabled/"),
+      {.field_trials = "WebRTC-PiggybackIceCheckAcknowledgement/Enabled/",
        .time = &time_controller_});
   ConfigureEndpoints(OPEN, OPEN, kOnlyLocalPorts, kOnlyLocalPorts);
   IceConfig ep1_config;
@@ -4170,9 +4170,8 @@ TEST_F(P2PTransportChannelPingTest, TestSelectConnectionBeforeNomination) {
 // i.e on the ICE_CONTROLLED-side.
 TEST_F(P2PTransportChannelPingTest, TestPingOnNomination) {
   env_ = CreateTestEnvironment(
-      {.field_trials = CreateTestFieldTrialsPtr(
-           "WebRTC-IceFieldTrials/"
-           "send_ping_on_nomination_ice_controlled:true/"),
+      {.field_trials = "WebRTC-IceFieldTrials/"
+                       "send_ping_on_nomination_ice_controlled:true/",
        .time = &time_controller_});
   FakePortAllocator pa(env_, ss());
   P2PTransportChannel ch(env_, "receiving state change", 1, &pa);
@@ -4219,8 +4218,8 @@ TEST_F(P2PTransportChannelPingTest, TestPingOnNomination) {
 // on the ICE_CONTROLLING-side.
 TEST_F(P2PTransportChannelPingTest, TestPingOnSwitch) {
   env_ = CreateTestEnvironment(
-      {.field_trials = CreateTestFieldTrialsPtr(
-           "WebRTC-IceFieldTrials/send_ping_on_switch_ice_controlling:true/"),
+      {.field_trials =
+           "WebRTC-IceFieldTrials/send_ping_on_switch_ice_controlling:true/",
        .time = &time_controller_});
   FakePortAllocator pa(env_, ss());
   P2PTransportChannel ch(env_, "receiving state change", 1, &pa);
@@ -4264,8 +4263,8 @@ TEST_F(P2PTransportChannelPingTest, TestPingOnSwitch) {
 // on the ICE_CONTROLLING-side (i.e also initial selection).
 TEST_F(P2PTransportChannelPingTest, TestPingOnSelected) {
   env_ = CreateTestEnvironment(
-      {.field_trials = CreateTestFieldTrialsPtr(
-           "WebRTC-IceFieldTrials/send_ping_on_selected_ice_controlling:true/"),
+      {.field_trials =
+           "WebRTC-IceFieldTrials/send_ping_on_selected_ice_controlling:true/",
        .time = &time_controller_});
   FakePortAllocator pa(env_, ss());
   P2PTransportChannel ch(env_, "receiving state change", 1, &pa);
@@ -5065,8 +5064,7 @@ TEST_F(P2PTransportChannelPingTest, TestPortDestroyedAfterTimeoutAndPruned) {
 
 TEST_F(P2PTransportChannelPingTest, TestMaxOutstandingPingsFieldTrial) {
   env_ = CreateTestEnvironment(
-      {.field_trials = CreateTestFieldTrialsPtr(
-           "WebRTC-IceFieldTrials/max_outstanding_pings:3/"),
+      {.field_trials = "WebRTC-IceFieldTrials/max_outstanding_pings:3/",
        .time = &time_controller_});
   FakePortAllocator pa(env_, ss());
   P2PTransportChannel ch(env_, "max", 1, &pa);
@@ -5337,8 +5335,8 @@ TEST_F(P2PTransportChannelMostLikelyToWorkFirstTest,
 TEST_F(P2PTransportChannelMostLikelyToWorkFirstTest,
        TestSkipRelayToNonRelayConnectionsFieldTrial) {
   env_ = CreateTestEnvironment(
-      {.field_trials = CreateTestFieldTrialsPtr(
-           "WebRTC-IceFieldTrials/skip_relay_to_non_relay_connections:true/"),
+      {.field_trials =
+           "WebRTC-IceFieldTrials/skip_relay_to_non_relay_connections:true/",
        .time = &time_controller_});
   CreatePortAllocator(env_);
   P2PTransportChannel& ch =
@@ -5946,7 +5944,6 @@ TEST_F(P2PTransportChannelTest,
   // ignoring the completion callback.
   auto mock_mdns_responder = std::make_unique<MockMdnsResponder>();
   EXPECT_CALL(*mock_mdns_responder, CreateNameForAddress(_, _))
-      .Times(1)
       .WillOnce(Return());
   GetEndpoint(0)->network_manager().set_mdns_responder(
       std::move(mock_mdns_responder));
@@ -6206,8 +6203,8 @@ TEST_F(P2PTransportChannelTest,
 // coordination outside of webrtc to function properly.
 TEST_F(P2PTransportChannelTest, SurfaceRequiresCoordination) {
   env_ = CreateTestEnvironment(
-      {.field_trials = CreateTestFieldTrialsPtr(
-           "WebRTC-IceFieldTrials/skip_relay_to_non_relay_connections:true/"),
+      {.field_trials =
+           "WebRTC-IceFieldTrials/skip_relay_to_non_relay_connections:true/",
        .time = &time_controller_});
 
   ConfigureEndpoints(
@@ -6273,8 +6270,7 @@ TEST_F(P2PTransportChannelTest, SurfaceRequiresCoordination) {
 TEST_F(P2PTransportChannelPingTest, TestInitialSelectDampening0) {
   time_controller_.AdvanceTime(TimeDelta::Seconds(1));
   env_ = CreateTestEnvironment(
-      {.field_trials = CreateTestFieldTrialsPtr(
-           "WebRTC-IceFieldTrials/initial_select_dampening:0/"),
+      {.field_trials = "WebRTC-IceFieldTrials/initial_select_dampening:0/",
        .time = &time_controller_});
 
   FakePortAllocator pa(env_, ss());
@@ -6299,8 +6295,7 @@ TEST_F(P2PTransportChannelPingTest, TestInitialSelectDampening0) {
 TEST_F(P2PTransportChannelPingTest, TestInitialSelectDampening) {
   time_controller_.AdvanceTime(TimeDelta::Seconds(1));
   env_ = CreateTestEnvironment(
-      {.field_trials = CreateTestFieldTrialsPtr(
-           "WebRTC-IceFieldTrials/initial_select_dampening:100/"),
+      {.field_trials = "WebRTC-IceFieldTrials/initial_select_dampening:100/",
        .time = &time_controller_});
 
   FakePortAllocator pa(env_, ss());
@@ -6325,8 +6320,8 @@ TEST_F(P2PTransportChannelPingTest, TestInitialSelectDampening) {
 TEST_F(P2PTransportChannelPingTest, TestInitialSelectDampeningPingReceived) {
   time_controller_.AdvanceTime(TimeDelta::Seconds(1));
   env_ = CreateTestEnvironment(
-      {.field_trials = CreateTestFieldTrialsPtr(
-           "WebRTC-IceFieldTrials/initial_select_dampening_ping_received:100/"),
+      {.field_trials =
+           "WebRTC-IceFieldTrials/initial_select_dampening_ping_received:100/",
        .time = &time_controller_});
 
   FakePortAllocator pa(env_, ss());
@@ -6351,11 +6346,11 @@ TEST_F(P2PTransportChannelPingTest, TestInitialSelectDampeningPingReceived) {
 
 TEST_F(P2PTransportChannelPingTest, TestInitialSelectDampeningBoth) {
   time_controller_.AdvanceTime(TimeDelta::Seconds(1));
-  env_ = CreateTestEnvironment({.field_trials = CreateTestFieldTrialsPtr(
+  env_ = CreateTestEnvironment({.field_trials =
                                     "WebRTC-IceFieldTrials/"
                                     "initial_select_dampening:100,initial_"
                                     "select_dampening_ping_received:"
-                                    "50/"),
+                                    "50/",
                                 .time = &time_controller_});
 
   FakePortAllocator pa(env_, ss());
@@ -6749,8 +6744,7 @@ TEST_P(GatherAfterConnectedTest, GatherAfterConnected) {
       (stop_gather_on_strongly_connected ? "true/" : "false/");
 
   env_ = CreateTestEnvironment(
-      {.field_trials = CreateTestFieldTrialsPtr(field_trial),
-       .time = &time_controller_});
+      {.field_trials = field_trial, .time = &time_controller_});
   // Use local + relay
   constexpr uint32_t flags =
       kDefaultPortAllocatorFlags | PORTALLOCATOR_ENABLE_SHARED_SOCKET |
@@ -6814,8 +6808,7 @@ TEST_P(GatherAfterConnectedTest, GatherAfterConnectedMultiHomed) {
       (stop_gather_on_strongly_connected ? "true/" : "false/");
 
   env_ = CreateTestEnvironment(
-      {.field_trials = CreateTestFieldTrialsPtr(field_trial),
-       .time = &time_controller_});
+      {.field_trials = field_trial, .time = &time_controller_});
 
   // Use local + relay
   constexpr uint32_t flags =

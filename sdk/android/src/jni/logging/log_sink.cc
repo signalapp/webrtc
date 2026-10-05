@@ -49,3 +49,5 @@ void JNILogSink::OnLogMessage(absl::string_view msg,
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(JNILogging)

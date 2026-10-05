@@ -55,3 +55,5 @@ static jint JNI_DtmfSender_InterToneGap(JNIEnv* jni,
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(DtmfSender)

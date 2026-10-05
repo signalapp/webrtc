@@ -694,4 +694,125 @@ TEST(EncoderStreamFactory, VP9SetsMaxBitrateToConfiguredEncodingValue) {
   EXPECT_EQ(streams[0].max_bitrate_bps, 5000000);
 }
 
+// A configured max bitrate of zero is a valid value that means "do not
+// allocate bitrate to this encoding", see
+// https://w3c.github.io/webrtc-pc/#dom-rtcrtpencodingparameters-maxbitrate
+// It must not be confused with an unset max bitrate, which falls back to
+// GetMaxDefaultVideoBitrateKbps().
+TEST(EncoderStreamFactory, SinglecastMaxBitrateZeroIsNotTreatedAsUnset) {
+  VideoEncoderConfig encoder_config;
+  encoder_config.number_of_streams = 1;
+  encoder_config.simulcast_layers.resize(1);
+  encoder_config.simulcast_layers[0].max_bitrate_bps = 0;
+  auto streams = CreateEncoderStreams(
+      CreateTestFieldTrials(), {.width = 1280, .height = 720}, encoder_config);
+  ASSERT_THAT(streams, SizeIs(1));
+  EXPECT_EQ(streams[0].max_bitrate_bps, 0);
+  EXPECT_EQ(streams[0].target_bitrate_bps, 0);
+  EXPECT_EQ(streams[0].min_bitrate_bps, 0);
+}
+
+TEST(EncoderStreamFactory, SinglecastUnsetMaxBitrateUsesDefault) {
+  VideoEncoderConfig encoder_config;
+  encoder_config.number_of_streams = 1;
+  encoder_config.simulcast_layers.resize(1);
+  ASSERT_EQ(encoder_config.simulcast_layers[0].max_bitrate_bps, -1);
+  auto streams = CreateEncoderStreams(
+      CreateTestFieldTrials(), {.width = 1280, .height = 720}, encoder_config);
+  ASSERT_THAT(streams, SizeIs(1));
+  EXPECT_EQ(streams[0].max_bitrate_bps, 2'500'000);
+  EXPECT_EQ(streams[0].min_bitrate_bps, kDefaultMinVideoBitrateBps);
+}
+
+TEST(EncoderStreamFactory, SinglecastMaxBitrateZeroIsNotRaisedBySdpMaxBitrate) {
+  VideoEncoderConfig encoder_config;
+  encoder_config.number_of_streams = 1;
+  encoder_config.simulcast_layers.resize(1);
+  encoder_config.simulcast_layers[0].max_bitrate_bps = 0;
+  // "b=AS" or "x-google-max-bitrate".
+  encoder_config.max_bitrate_bps = 1'000'000;
+  auto streams = CreateEncoderStreams(
+      CreateTestFieldTrials(), {.width = 1280, .height = 720}, encoder_config);
+  ASSERT_THAT(streams, SizeIs(1));
+  EXPECT_EQ(streams[0].max_bitrate_bps, 0);
+}
+
+TEST(EncoderStreamFactory, SinglecastMaxBitrateZeroIsNotRaisedByMinBitrate) {
+  VideoEncoderConfig encoder_config;
+  encoder_config.number_of_streams = 1;
+  encoder_config.simulcast_layers.resize(1);
+  encoder_config.simulcast_layers[0].max_bitrate_bps = 0;
+  encoder_config.simulcast_layers[0].min_bitrate_bps = 600'000;
+  auto streams = CreateEncoderStreams(
+      CreateTestFieldTrials(), {.width = 1280, .height = 720}, encoder_config);
+  ASSERT_THAT(streams, SizeIs(1));
+  EXPECT_EQ(streams[0].max_bitrate_bps, 0);
+  EXPECT_EQ(streams[0].min_bitrate_bps, 0);
+}
+
+TEST(EncoderStreamFactory, SimulcastMaxBitrateZeroOnMiddleLayer) {
+  VideoEncoderConfig unmodified_config;
+  unmodified_config.codec_type = VideoCodecType::kVideoCodecVP8;
+  unmodified_config.number_of_streams = 3;
+  unmodified_config.simulcast_layers.resize(3);
+  auto expected =
+      CreateEncoderStreams(CreateTestFieldTrials(),
+                           {.width = 1280, .height = 720}, unmodified_config);
+  ASSERT_THAT(expected, SizeIs(3));
+
+  VideoEncoderConfig encoder_config;
+  encoder_config.codec_type = VideoCodecType::kVideoCodecVP8;
+  encoder_config.number_of_streams = 3;
+  encoder_config.simulcast_layers.resize(3);
+  encoder_config.simulcast_layers[1].max_bitrate_bps = 0;
+  auto streams = CreateEncoderStreams(
+      CreateTestFieldTrials(), {.width = 1280, .height = 720}, encoder_config);
+  ASSERT_THAT(streams, SizeIs(3));
+  EXPECT_EQ(streams[1].max_bitrate_bps, 0);
+  EXPECT_EQ(streams[1].target_bitrate_bps, 0);
+  EXPECT_EQ(streams[1].min_bitrate_bps, 0);
+  // The other layers keep the values they would have had anyway.
+  EXPECT_EQ(streams[0].max_bitrate_bps, expected[0].max_bitrate_bps);
+  EXPECT_EQ(streams[0].min_bitrate_bps, expected[0].min_bitrate_bps);
+  EXPECT_EQ(streams[2].max_bitrate_bps, expected[2].max_bitrate_bps);
+  EXPECT_EQ(streams[2].min_bitrate_bps, expected[2].min_bitrate_bps);
+}
+
+TEST(EncoderStreamFactory, SimulcastMaxBitrateZeroOnHighestLayerIsNotBoosted) {
+  VideoEncoderConfig encoder_config;
+  encoder_config.codec_type = VideoCodecType::kVideoCodecVP8;
+  encoder_config.number_of_streams = 3;
+  encoder_config.simulcast_layers.resize(3);
+  encoder_config.simulcast_layers[2].max_bitrate_bps = 0;
+  // Leftover bitrate is only given to the highest layer if that layer has no
+  // application-configured maximum; zero is such a configured maximum.
+  encoder_config.max_bitrate_bps = 10'000'000;
+  auto streams = CreateEncoderStreams(
+      CreateTestFieldTrials(), {.width = 1280, .height = 720}, encoder_config);
+  ASSERT_THAT(streams, SizeIs(3));
+  EXPECT_EQ(streams[2].max_bitrate_bps, 0);
+  EXPECT_EQ(streams[2].target_bitrate_bps, 0);
+  EXPECT_EQ(streams[2].min_bitrate_bps, 0);
+}
+
+TEST(EncoderStreamFactory, VP9SetsMaxBitrateToConfiguredEncodingValueZero) {
+  VideoEncoderConfig encoder_config;
+  VideoCodecVP9 vp9_settings = VideoEncoder::GetDefaultVp9Settings();
+  encoder_config.encoder_specific_settings =
+      make_ref_counted<VideoEncoderConfig::Vp9EncoderSpecificSettings>(
+          vp9_settings);
+  encoder_config.codec_type = VideoCodecType::kVideoCodecVP9;
+  encoder_config.number_of_streams = 1;
+  encoder_config.simulcast_layers.resize(3);
+  encoder_config.simulcast_layers[0].max_bitrate_bps = 0;
+  auto streams = CreateEncoderStreams(
+      CreateTestFieldTrials(), {.width = 1280, .height = 720}, encoder_config);
+  ASSERT_THAT(streams, SizeIs(1));
+  // Neither the SvcConfig bitrate sum nor the min bitrate floor may raise a
+  // configured zero.
+  EXPECT_EQ(streams[0].max_bitrate_bps, 0);
+  EXPECT_EQ(streams[0].target_bitrate_bps, 0);
+  EXPECT_EQ(streams[0].min_bitrate_bps, 0);
+}
+
 }  // namespace webrtc

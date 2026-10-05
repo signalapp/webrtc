@@ -198,7 +198,11 @@ jobject NativeToJavaPeerConnectionFactory(
 
 static void JNI_PeerConnectionFactory_InitializeAndroidGlobals(JNIEnv* jni) {
   if (!factory_static_initialized) {
-    JVM::Initialize(GetJVM());
+    if (JVM::IsInitialized()) {
+      RTC_LOG(LS_WARNING) << "Trying to initialize the JVM more than once!";
+    } else {
+      JVM::Initialize(GetJVM());
+    }
     factory_static_initialized = true;
   }
 }
@@ -584,3 +588,5 @@ static void JNI_PeerConnectionFactory_PrintStackTrace(JNIEnv* env, jint tid) {
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(PeerConnectionFactory)

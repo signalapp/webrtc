@@ -396,9 +396,6 @@ FakeVideoMediaSendChannel::~FakeVideoMediaSendChannel() = default;
 const std::vector<Codec>& FakeVideoMediaSendChannel::send_codecs() const {
   return send_codecs_;
 }
-const std::vector<Codec>& FakeVideoMediaSendChannel::codecs() const {
-  return send_codecs();
-}
 const VideoOptions& FakeVideoMediaSendChannel::options() const {
   return options_;
 }
@@ -476,13 +473,10 @@ void FakeVideoMediaSendChannel::GenerateSendKeyFrame(
     const std::vector<std::string>& /* rids */) {}
 
 FakeVideoMediaReceiveChannel::FakeVideoMediaReceiveChannel(
-    const VideoOptions& options,
     TaskQueueBase* network_thread)
     : RtpReceiveChannelHelper<VideoMediaReceiveChannelInterface>(
           network_thread),
-      max_bps_(-1) {
-  SetOptions(options);
-}
+      max_bps_(-1) {}
 FakeVideoMediaReceiveChannel::~FakeVideoMediaReceiveChannel() = default;
 const std::vector<Codec>& FakeVideoMediaReceiveChannel::recv_codecs() const {
   return recv_codecs_;
@@ -490,9 +484,7 @@ const std::vector<Codec>& FakeVideoMediaReceiveChannel::recv_codecs() const {
 bool FakeVideoMediaReceiveChannel::rendering() const {
   return playout();
 }
-const VideoOptions& FakeVideoMediaReceiveChannel::options() const {
-  return options_;
-}
+
 const std::map<uint32_t, VideoSinkInterface<VideoFrame>*>&
 FakeVideoMediaReceiveChannel::sinks() const {
   return sinks_;
@@ -570,10 +562,6 @@ bool FakeVideoMediaReceiveChannel::SetRecvCodecs(
   recv_codecs_ = codecs;
   return true;
 }
-bool FakeVideoMediaReceiveChannel::SetOptions(const VideoOptions& options) {
-  options_ = options;
-  return true;
-}
 
 bool FakeVideoMediaReceiveChannel::SetMaxSendBandwidth(int bps) {
   max_bps_ = bps;
@@ -637,7 +625,8 @@ FakeVoiceEngine::CreateReceiveChannel(
     Call* call,
     const MediaConfig& /* config */,
     const AudioOptions& options,
-    const CryptoOptions& /* crypto_options */) {
+    const CryptoOptions& /* crypto_options */,
+    absl::AnyInvocable<void(uint32_t ssrc)> /*on_first_packet*/) {
   std::unique_ptr<FakeVoiceMediaReceiveChannel> ch =
       std::make_unique<FakeVoiceMediaReceiveChannel>(options,
                                                      call->network_thread());
@@ -716,11 +705,10 @@ FakeVideoEngine::CreateReceiveChannel(
     const Environment& /* env */,
     Call* call,
     const MediaConfig& /* config */,
-    const VideoOptions& options,
-    const CryptoOptions& /* crypto_options */) {
+    const CryptoOptions& /* crypto_options */,
+    absl::AnyInvocable<void(uint32_t ssrc)> /*on_first_packet*/) {
   std::unique_ptr<FakeVideoMediaReceiveChannel> ch =
-      std::make_unique<FakeVideoMediaReceiveChannel>(options,
-                                                     call->network_thread());
+      std::make_unique<FakeVideoMediaReceiveChannel>(call->network_thread());
   return ch;
 }
 std::vector<Codec> FakeVideoEngine::LegacySendCodecs(bool use_rtx) const {

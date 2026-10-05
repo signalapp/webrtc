@@ -29,13 +29,13 @@ namespace webrtc {
 RtpStreamReceiverController::Receiver::Receiver(
     RtpStreamReceiverController* controller,
     uint32_t ssrc,
-    RtpPacketSinkInterface* sink)
-    : controller_(controller), sink_(sink) {
-  controller_->sink_validator_->OnSinkAdded(sink_);
+    std::unique_ptr<ProxySink> proxy_sink)
+    : controller_(controller), proxy_sink_(std::move(proxy_sink)) {
+  controller_->sink_validator_->OnSinkAdded(proxy_sink_.get());
   auto add_sink =
-      [controller = controller_, ssrc, sink = sink_] {
+      [controller = controller_, ssrc, proxy = proxy_sink_.get()] {
         RTC_DCHECK_RUN_ON(controller->network_thread_);
-        if (!controller->AddSink(ssrc, sink)) {
+        if (!controller->AddSink(ssrc, proxy)) {
           RTC_LOG(LS_ERROR)
               << "RtpStreamReceiverController::Receiver::Receiver: Sink "
                  "could not be added for SSRC="
@@ -51,10 +51,20 @@ RtpStreamReceiverController::Receiver::Receiver(
 }
 
 RtpStreamReceiverController::Receiver::~Receiver() {
-  controller_->sink_validator_->OnSinkRemoved(sink_);
-  auto remove_sink = [controller = controller_, sink = sink_] {
+  controller_->sink_validator_->OnSinkRemoved(proxy_sink_.get());
+  auto remove_sink = [controller = controller_,
+                      proxy = std::move(proxy_sink_)]() mutable {
     RTC_DCHECK_RUN_ON(controller->network_thread_);
-    controller->RemoveSink(sink);
+    controller->RemoveSink(proxy.get());
+    // Bounce the proxy sink destruction to the worker thread.
+    // Since this remove task executes on the network thread, any earlier
+    // DeliverRtpPacket_w tasks have already been posted to the worker thread.
+    // Posting the destruction of proxy_sink back to the worker thread
+    // guarantees it outlives those DeliverRtpPacket_w tasks, preventing a race
+    // condition where a stale pointer could be incorrectly validated.
+    auto delete_proxy = [p = std::move(proxy)]() {};
+    controller->worker_thread_->PostTask(
+        SafeTask(controller->worker_safety_, std::move(delete_proxy)));
   };
   if (controller_->network_thread_->IsCurrent()) {
     remove_sink();
@@ -83,7 +93,8 @@ RtpStreamReceiverController::~RtpStreamReceiverController() {
 std::unique_ptr<RtpStreamReceiverInterface>
 RtpStreamReceiverController::CreateReceiver(uint32_t ssrc,
                                             RtpPacketSinkInterface* sink) {
-  return std::make_unique<Receiver>(this, ssrc, sink);
+  return std::make_unique<Receiver>(this, ssrc,
+                                    std::make_unique<ProxySink>(sink));
 }
 
 void RtpStreamReceiverController::DisconnectFromNetworkThread() {
@@ -112,8 +123,8 @@ void RtpStreamReceiverController::OnRecoveredPacket(
     const RtpPacketReceived& packet) {
   auto demux_and_post = [this, packet]() mutable {
     RTC_DCHECK_RUN_ON(network_thread_);
-    if (RtpPacketSinkInterface* sink = demuxer_.ResolveSink(packet)) {
-      auto deliver_task = [sink, validator = sink_validator_,
+    if (RtpPacketSinkInterface* proxy_sink = demuxer_.ResolveSink(packet)) {
+      auto deliver_task = [sink = proxy_sink, validator = sink_validator_,
                            packet = std::move(packet)]() mutable {
         if (validator->IsValidSink(sink)) {
           sink->OnRtpPacket(packet);

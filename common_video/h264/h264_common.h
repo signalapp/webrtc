@@ -25,17 +25,23 @@ namespace webrtc {
 namespace H264 {
 // The size of a full NALU start sequence {0 0 0 1}, used for the first NALU
 // of an access unit, and for SPS and PPS blocks.
-const size_t kNaluLongStartSequenceSize = 4;
+inline constexpr size_t kNaluLongStartSequenceSize = 4;
 
 // The size of a shortened NALU start sequence {0 0 1}, that may be used if
 // not the first NALU of an access unit or an SPS or PPS block.
-const size_t kNaluShortStartSequenceSize = 3;
+inline constexpr size_t kNaluShortStartSequenceSize = 3;
 
 // The size of the NALU type byte (1).
-const size_t kNaluTypeSize = 1;
+inline constexpr size_t kNaluTypeSize = 1;
 
 // Maximum reference index for reference pictures.
-constexpr int kMaxReferenceIndex = 31;
+inline constexpr int kMaxReferenceIndex = 31;
+
+// Maximum SPS ID allowed by H.264 spec (Table 7-1 / 7.4.2.1.1).
+inline constexpr int kMaxSpsId = 31;
+
+// Maximum PPS ID allowed by H.264 spec (Table 7-1 / 7.4.2.2).
+inline constexpr int kMaxPpsId = 255;
 
 enum NaluType : uint8_t {
   kSlice = 1,

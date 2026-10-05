@@ -97,7 +97,8 @@ class TurnPort : public Port {
                       .ice_username_fragment = args.username,
                       .ice_password = args.password,
                       .content_name = args.content_name,
-                      .lna_permission_factory = args.lna_permission_factory},
+                      .lna_permission_factory = args.lna_permission_factory,
+                      .ice_tiebreaker = args.ice_tiebreaker},
                      socket, *args.server_address, args.config->credentials,
                      args.relative_priority, args.config->tls_alpn_protocols,
                      args.config->tls_elliptic_curves, args.turn_customizer,
@@ -147,8 +148,8 @@ class TurnPort : public Port {
 
   void SetTurnLoggingId(absl::string_view turn_logging_id);
 
-  virtual std::vector<std::string> GetTlsAlpnProtocols() const;
-  virtual std::vector<std::string> GetTlsEllipticCurves() const;
+  virtual const std::vector<std::string>& GetTlsAlpnProtocols() const;
+  virtual const std::vector<std::string>& GetTlsEllipticCurves() const;
 
   // Release a TURN allocation by sending a refresh with lifetime 0.
   // Sets state to STATE_RECEIVEONLY.

@@ -533,3 +533,6 @@ JavaToNativeResolutionBitrateLimits(
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(VideoEncoderWrapper)
+DEFINE_JNI(VideoEncoder)

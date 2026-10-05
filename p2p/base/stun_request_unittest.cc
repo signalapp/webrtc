@@ -18,11 +18,13 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "api/environment/environment.h"
 #include "api/test/rtc_error_matchers.h"
 #include "api/transport/stun.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
+#include "rtc_base/byte_buffer.h"
 #include "rtc_base/logging.h"
 #include "test/create_test_environment.h"
 #include "test/gmock.h"
@@ -111,6 +113,47 @@ class StunRequestThunker : public StunRequest {
 
   StunRequestTest* test_;
 };
+
+class AuthenticatedStunRequestThunker : public StunRequest {
+ public:
+  AuthenticatedStunRequestThunker(const Environment& env,
+                                  StunRequestManager& manager,
+                                  StunRequestTest* test,
+                                  absl::string_view password)
+      : StunRequest(env, manager, CreateRequestMessage(password)), test_(test) {
+    SetAuthenticationRequired(true);
+  }
+
+  static std::unique_ptr<StunMessage> CreateRequestMessage(
+      absl::string_view password) {
+    auto req = CreateStunMessage(STUN_BINDING_REQUEST);
+    req->AddMessageIntegrity(password);
+    return req;
+  }
+
+ private:
+  void OnResponse(StunMessage* res) override { test_->OnResponse(res); }
+  void OnErrorResponse(StunMessage* res) override {
+    test_->OnErrorResponse(res);
+  }
+  void OnTimeout() override { test_->OnTimeout(); }
+
+  StunRequestTest* test_;
+};
+
+std::unique_ptr<StunMessage> CreateParsedStunMessage(
+    StunMessageType type,
+    const std::string& transaction_id,
+    absl::string_view password) {
+  StunMessage msg(type, transaction_id);
+  msg.AddMessageIntegrity(password);
+  ByteBufferWriter writer;
+  msg.Write(&writer);
+  ByteBufferReader reader(writer);
+  auto parsed_msg = std::make_unique<StunMessage>();
+  parsed_msg->Read(&reader);
+  return parsed_msg;
+}
 
 std::unique_ptr<StunRequestThunker> StunRequestTest::CreateStunRequest() {
   return std::make_unique<StunRequestThunker>(env_, manager_, this);
@@ -242,6 +285,75 @@ TEST_F(StunRequestTest, TestUnrecognizedComprehensionRequiredAttribute) {
   EXPECT_FALSE(success_);
   EXPECT_FALSE(failure_);
   EXPECT_FALSE(timeout_);
+}
+
+// Test handling of a response when the password has changed between ping and
+// response. If the response was checked with a different password prior to
+// CheckResponse (e.g. Connection::OnReadPacket checking against updated remote
+// candidate password), CheckResponse should revalidate against the request
+// password and not crash.
+TEST_F(StunRequestTest, ResponseValidatedWithDifferentPasswordRevalidates) {
+  constexpr absl::string_view kOldPassword = "old_password";
+  constexpr absl::string_view kNewPassword = "new_password";
+
+  auto request = std::make_unique<AuthenticatedStunRequestThunker>(
+      env_, manager_, this, kOldPassword);
+  std::string transaction_id = request->id();
+  manager_.Send(std::move(request));
+
+  // Response was signed with kOldPassword, but pre-validated with kNewPassword.
+  std::unique_ptr<StunMessage> res = CreateParsedStunMessage(
+      STUN_BINDING_RESPONSE, transaction_id, kOldPassword);
+  EXPECT_EQ(res->ValidateMessageIntegrity(std::string(kNewPassword)),
+            StunMessage::IntegrityStatus::kIntegrityBad);
+  EXPECT_EQ(res->password(), kNewPassword);
+
+  // CheckResponse should revalidate with kOldPassword and succeed.
+  EXPECT_TRUE(manager_.CheckResponse(res.get()));
+  EXPECT_EQ(response_, res.get());
+  EXPECT_TRUE(success_);
+}
+
+TEST_F(StunRequestTest, ResponseWithNewPasswordDoesNotMatchOldRequest) {
+  constexpr absl::string_view kOldPassword = "old_password";
+  constexpr absl::string_view kNewPassword = "new_password";
+
+  auto request = std::make_unique<AuthenticatedStunRequestThunker>(
+      env_, manager_, this, kOldPassword);
+  std::string transaction_id = request->id();
+  manager_.Send(std::move(request));
+
+  // Response was signed with kNewPassword, and pre-validated with kNewPassword.
+  std::unique_ptr<StunMessage> res = CreateParsedStunMessage(
+      STUN_BINDING_RESPONSE, transaction_id, kNewPassword);
+  EXPECT_EQ(res->ValidateMessageIntegrity(std::string(kNewPassword)),
+            StunMessage::IntegrityStatus::kIntegrityOk);
+  EXPECT_EQ(res->password(), kNewPassword);
+
+  // CheckResponse should revalidate with kOldPassword, fail integrity check,
+  // and not crash.
+  EXPECT_FALSE(manager_.CheckResponse(res.get()));
+  EXPECT_EQ(response_, nullptr);
+  EXPECT_FALSE(success_);
+}
+
+TEST_F(StunRequestTest, ResponseValidatedWithMatchingPassword) {
+  constexpr absl::string_view kPassword = "password";
+
+  auto request = std::make_unique<AuthenticatedStunRequestThunker>(
+      env_, manager_, this, kPassword);
+  std::string transaction_id = request->id();
+  manager_.Send(std::move(request));
+
+  std::unique_ptr<StunMessage> res =
+      CreateParsedStunMessage(STUN_BINDING_RESPONSE, transaction_id, kPassword);
+  EXPECT_EQ(res->ValidateMessageIntegrity(std::string(kPassword)),
+            StunMessage::IntegrityStatus::kIntegrityOk);
+  EXPECT_EQ(res->password(), kPassword);
+
+  EXPECT_TRUE(manager_.CheckResponse(res.get()));
+  EXPECT_EQ(response_, res.get());
+  EXPECT_TRUE(success_);
 }
 
 class StunRequestReentranceTest : public StunRequestTest {

@@ -428,7 +428,7 @@ class FakeDescriptionObserver {
       RTC_DCHECK_RUN_ON(thread_);
       error_ = std::move(error);
     } else {
-      thread_->PostTask([this, error = std::move(error)]() {
+      thread_->PostTask([this, error = std::move(error)]() mutable {
         RTC_DCHECK_RUN_ON(thread_);
         error_ = std::move(error);
       });

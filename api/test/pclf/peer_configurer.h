@@ -35,6 +35,7 @@
 #include "api/test/peer_network_dependencies.h"
 #include "api/transport/bitrate_settings.h"
 #include "api/transport/network_control.h"
+#include "api/video/timing/video_jitter_timing_factory.h"
 #include "api/video_codecs/video_decoder_factory.h"
 #include "api/video_codecs/video_encoder_factory.h"
 #include "rtc_base/rtc_certificate_generator.h"
@@ -77,6 +78,8 @@ class PeerConfigurer {
       scoped_refptr<webrtc::AudioDecoderFactory> audio_decoder_factory);
   // Set a custom NetEqFactory to be used in the call.
   PeerConfigurer* SetNetEqFactory(std::unique_ptr<NetEqFactory> neteq_factory);
+  PeerConfigurer* SetVideoJitterTimingFactory(
+      std::unique_ptr<VideoJitterTimingFactory> video_jitter_timing_factory);
   PeerConfigurer* SetAudioProcessing(
       std::unique_ptr<AudioProcessingBuilderInterface> audio_processing);
   PeerConfigurer* SetAudioMixer(scoped_refptr<webrtc::AudioMixer> audio_mixer);

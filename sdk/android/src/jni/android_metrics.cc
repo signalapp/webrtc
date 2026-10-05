@@ -53,3 +53,5 @@ static ScopedJavaLocalRef<jobject> JNI_Metrics_GetAndReset(JNIEnv* jni) {
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(Metrics)
