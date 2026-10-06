@@ -723,7 +723,7 @@ rtc_library("srtp_key_carrier") {
   ]
   deps = [
     ":session_description",
-    "../api:libjingle_peerconnection_api",
+    "../api:jsep",
     "../rtc_base:logging",
     "../rtc_base:ssl",
   ]
