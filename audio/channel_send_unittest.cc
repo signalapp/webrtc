@@ -232,7 +232,6 @@ TEST_F(ChannelSendTest, FrameTransformerGetsCorrectTimestamp) {
   EXPECT_THAT(WaitUntil([&] { return sent_timestamp.has_value(); }, IsTrue(),
                        {.clock = static_cast<SimulatedClock*>(time_controller_.GetClock())}),
               IsRtcOk());
-  //EXPECT_TRUE(WaitUntil([&] { return sent_timestamp.has_value(); }));
   // end RingRTC change to prevent hang
   EXPECT_EQ(*sent_timestamp, transformable_frame_timestamp);
 }

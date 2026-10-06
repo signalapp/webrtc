@@ -171,8 +171,6 @@ void AudioReceiveStreamImpl::UnregisterFromTransport() {
   rtp_stream_receiver_.reset();
 }
 
-
-
 // RingRTC change to configure opus
 void AudioReceiveStreamImpl::ConfigureDecoder(const AudioDecoder::Config& config) {
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);

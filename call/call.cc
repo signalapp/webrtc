@@ -1140,7 +1140,9 @@ Call::Stats Call::GetStats() const {
 
 // RingRTC change to get upload bandwidth estimate
 uint32_t Call::GetLastBandwidthEstimateBps() const {
-  return last_bandwidth_bps_.load(std::memory_order_relaxed);
+  // stats are updated on the worker thread, so read them there
+  RTC_DCHECK_RUN_ON(worker_thread_);
+  return last_bandwidth_bps_;
 }
 
 void Call::SetPreferredRtcpCcAckType(

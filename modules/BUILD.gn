@@ -19,7 +19,9 @@ group("modules") {
     "pacing",
     "remote_bitrate_estimator",
     "rtp_rtcp",
-    "sframe",
+
+    # RingRTC change to not link SFrame, which we don't use.
+    # "sframe",
     "utility",
     "video_coding",
   ]

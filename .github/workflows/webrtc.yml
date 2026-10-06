@@ -14,7 +14,7 @@ jobs:
           - check: 'ringrtc'
             exclude: '(oboe|opus)'
           - check: 'sdk'
-            exclude: '(objc|jni_helpers\.h)'
+            exclude: '(objc|jni_helpers\.h|android_network_monitor\.(h|cc))'
     steps:
       - uses: actions/checkout@v4
       - name: Run clang-format
