@@ -101,6 +101,7 @@ if (is_linux || is_mac || is_win) {
 
     deps = [
       "//api:field_trials",
+      "//api/video:adapted_video_track_source",
       "//sdk:media_constraints",
       "//media:rtc_simulcast_encoder_adapter",
     ]
