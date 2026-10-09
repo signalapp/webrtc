@@ -58,6 +58,30 @@ if (is_android) {
       ":video_java",
       "../../rtc_base:base_java",
       "../../third_party/jni_zero:jni_zero_java",
+
+      # RingRTC change to include the JNI Zero generated proxy classes
+      # (<Class>Jni) and the registration for libringrtc_rffi.so, which
+      # direct_deps_only would otherwise leave out of the jar.
+      ":generated_audio_device_module_base_jni_java",
+      ":generated_base_jni_java",
+      ":generated_builtin_audio_codecs_jni_java",
+      ":generated_dav1d_jni_java",
+      ":generated_environment_jni_java",
+      ":generated_java_audio_device_module_native_jni_java",
+      ":generated_java_audio_jni_java",
+      ":generated_libaom_av1_encoder_jni_java",
+      ":generated_libvpx_vp8_jni_java",
+      ":generated_libvpx_vp9_jni_java",
+      ":generated_logging_jni_java",
+      ":generated_metrics_jni_java",
+      ":generated_native_api_jni_java",
+      ":generated_peerconnection_jni_java",
+      ":generated_rtcerror_jni_java",
+      ":generated_swcodecs_jni_java",
+      ":generated_video_egl_jni_java",
+      ":generated_video_jni_java",
+      "../../rtc_base:base_java_jni_java",
+      "//ringrtc/rffi:libringrtc_rffi_jni_registration_java",
     ]
   }
 

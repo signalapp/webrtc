@@ -38,7 +38,9 @@ if (is_android) {
 
   rtc_shared_library("libringrtc_rffi") {
 
-    visibility = [ "//ringrtc:*" ]
+    # RingRTC change to let the JNI Zero registration java target below
+    # depend on libringrtc_rffi__jni_registration.
+    visibility = [ "//ringrtc:*", ":*" ]
 
     android_sdk = "//sdk/android"
     # jni_onload.cc -- taken from webrtc/sdk/android/BUILD.gn.
@@ -63,9 +65,26 @@ if (is_android) {
     deps = [
       "${android_sdk}:libjingle_peerconnection_jni",
       "${android_sdk}:libjingle_peerconnection_metrics_default_jni",
-      "//pc:libjingle_peerconnection",
+      "//third_party/jni_zero",
     ]
     output_extension = "so"
+
+    # Required by JNI Zero (shared_library_with_jni), taken from
+    # libjingle_peerconnection_so in webrtc/sdk/android/BUILD.gn.
+    java_targets = [ "${android_sdk}:libjingle_peerconnection_metrics_default_java" ]
+
+    # RingRTC change: we don't link dav1d_av1_jni or video_egl_jni, so stub the
+    # natives of Dav1dDecoder and EglBase10Impl (they throw if ever called,
+    # like an unresolved legacy native did before JNI Zero).
+    add_stubs_for_missing_jni = true
+  }
+
+  # RingRTC change to package the JNI Zero registration (the J.N class
+  # declaring the natives exported by libringrtc_rffi.so) into libwebrtc.jar.
+  rtc_android_library("libringrtc_rffi_jni_registration_java") {
+    visibility = [ "//sdk/android:*" ]
+    srcjar_deps = [ ":libringrtc_rffi__jni_registration" ]
+    deps = [ "//third_party/jni_zero:jni_zero_java" ]
   }
 }
 
