@@ -1153,7 +1153,12 @@ TEST_F(NetEqImplTest, UnsupportedDecoder) {
   ::testing::NiceMock<MockAudioDecoder> decoder;
 
   CreateInstance(make_ref_counted<test::AudioDecoderProxyFactory>(&decoder));
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+  static const size_t kNetEqMaxFrameSize = 6720;  // 140 ms @ 48 kHz.
+#else
   static const size_t kNetEqMaxFrameSize = 5760;  // 120 ms @ 48 kHz.
+#endif
   static const size_t kChannels = 2;
 
   const uint8_t kPayloadType = 17;  // Just an arbitrary number.

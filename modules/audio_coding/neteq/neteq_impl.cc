@@ -148,7 +148,8 @@ NetEqImpl::NetEqImpl(const NetEq::Config& config,
       stats_(std::move(deps.stats)),
       controller_(std::move(deps.neteq_controller)),
       last_mode_(Mode::kNormal),
-      decoded_buffer_length_(kMaxFrameSize),
+      // RingRTC change to support Opus DRED
+      decoded_buffer_length_(kMaxDecodedSize),
       decoded_buffer_(new int16_t[decoded_buffer_length_]),
       playout_timestamp_(0),
       new_codec_(false),
@@ -1409,7 +1410,9 @@ int NetEqImpl::DecodeLoop(PacketList* packet_list,
     // The number of channels in the `sync_buffer_` should be the same as the
     // number decoder channels.
     RTC_DCHECK_EQ(sync_buffer_->Channels(), decoder->Channels());
-    RTC_DCHECK_GE(decoded_buffer_length_, kMaxFrameSize * decoder->Channels());
+    // RingRTC change to support Opus DRED
+    RTC_DCHECK_GE(decoded_buffer_length_,
+                  kMaxDecodedSize * decoder->Channels());
     RTC_DCHECK(operation == Operation::kNormal ||
                operation == Operation::kAccelerate ||
                operation == Operation::kFastAccelerate ||
@@ -2037,9 +2040,10 @@ void NetEqImpl::SetSampleRateAndChannels(int fs_hz, size_t channels) {
       new ComfortNoise(fs_hz, decoder_database_.get(), sync_buffer_.get()));
 
   // Verify that `decoded_buffer_` is long enough.
-  if (decoded_buffer_length_ < kMaxFrameSize * channels) {
+  // RingRTC change to support Opus DRED
+  if (decoded_buffer_length_ < kMaxDecodedSize * channels) {
     // Reallocate to larger size.
-    decoded_buffer_length_ = kMaxFrameSize * channels;
+    decoded_buffer_length_ = kMaxDecodedSize * channels;
     decoded_buffer_.reset(new int16_t[decoded_buffer_length_]);
   }
   RTC_CHECK(controller_) << "Unexpectedly found no NetEqController";

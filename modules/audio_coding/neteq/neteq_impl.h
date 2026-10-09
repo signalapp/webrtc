@@ -207,6 +207,13 @@ class NetEqImpl : public NetEq {
  protected:
   static const int kOutputSizeMs = 10;
   static const size_t kMaxFrameSize = 5760;  // 120 ms @ 48 kHz.
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+  // Up to 20 ms of short frames plus one maximum frame: 140 ms @ 48 kHz.
+  static const size_t kMaxDecodedSize = kMaxFrameSize + 960;
+#else
+  static const size_t kMaxDecodedSize = kMaxFrameSize;
+#endif
   // TODO(hlundin): Provide a better value for kSyncBufferSize.
   // Current value is kMaxFrameSize + 60 ms * 48 kHz, which is enough for
   // calculating correlations of current frame against history.
