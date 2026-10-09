@@ -7,6 +7,7 @@
 #include "sdk/android/generated_java_audio_jni/OboeAudioDeviceModule_jni.h"
 #include "sdk/android/src/jni/audio_device/audio_device_module_oboe.h"
 #include "sdk/android/src/jni/jni_helpers.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace webrtc {
 namespace jni {
@@ -29,3 +30,5 @@ static jlong JNI_OboeAudioDeviceModule_CreateAudioDeviceModule(
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(OboeAudioDeviceModule)
