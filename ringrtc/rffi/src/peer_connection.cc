@@ -612,20 +612,20 @@ RUSTEXPORT SessionDescriptionInterface* Rust_sessionDescriptionFromV4Legacy(
   video->AddCodec(red_rtx);
   video->AddCodec(ulpfec);
 
-  auto transport_cc1 =
-      RtpExtension(TransportSequenceNumber::Uri(), TRANSPORT_CC1_EXT_ID);
+  auto transport_cc1 = RtpExtension(TransportSequenceNumber::Uri(),
+                                    RtpHeaderExtensionId(TRANSPORT_CC1_EXT_ID));
   // TransportCC V2 is now enabled by default, but the difference is that V2
   // doesn't send periodic updates and instead waits for feedback requests.
   // Since the existing clients don't send feedback requests, we can't enable
   // V2. We'd have to add it to signaling to move from V1 to V2.
-  auto video_orientation =
-      RtpExtension(VideoOrientation ::Uri(), VIDEO_ORIENTATION_EXT_ID);
+  auto video_orientation = RtpExtension(
+      VideoOrientation::Uri(), RtpHeaderExtensionId(VIDEO_ORIENTATION_EXT_ID));
   // abs_send_time and tx_time_offset are used for more accurate REMB messages
   // from the receiver, which are used by googcc in some small ways. So, keep
   // it enabled. But it doesn't make sense to enable both abs_send_time and
   // tx_time_offset, so only use abs_send_time.
-  auto abs_send_time =
-      RtpExtension(AbsoluteSendTime::Uri(), ABS_SEND_TIME_EXT_ID);
+  auto abs_send_time = RtpExtension(AbsoluteSendTime::Uri(),
+                                    RtpHeaderExtensionId(ABS_SEND_TIME_EXT_ID));
 
   // Note: Using transport-cc with audio is still experimental in WebRTC.
   // And don't add abs_send_time because it's only used for video.
@@ -850,20 +850,20 @@ RUSTEXPORT SessionDescriptionInterface* Rust_sessionDescriptionFromV4(
   auto red_rtx = CreateVideoRtxCodec(RED_RTX_PT, RED_PT);
   auto ulpfec = CreateVideoCodec(ULPFEC_PT, kUlpfecCodecName);
 
-  auto transport_cc1 =
-      RtpExtension(TransportSequenceNumber::Uri(), TRANSPORT_CC1_EXT_ID);
+  auto transport_cc1 = RtpExtension(TransportSequenceNumber::Uri(),
+                                    RtpHeaderExtensionId(TRANSPORT_CC1_EXT_ID));
   // TransportCC V2 is now enabled by default, but the difference is that V2
   // doesn't send periodic updates and instead waits for feedback requests.
   // Since the existing clients don't send feedback requests, we can't enable
   // V2. We'd have to add it to signaling to move from V1 to V2.
-  auto video_orientation =
-      RtpExtension(VideoOrientation ::Uri(), VIDEO_ORIENTATION_EXT_ID);
+  auto video_orientation = RtpExtension(
+      VideoOrientation::Uri(), RtpHeaderExtensionId(VIDEO_ORIENTATION_EXT_ID));
   // abs_send_time and tx_time_offset are used for more accurate REMB messages
   // from the receiver, which are used by googcc in some small ways. So, keep
   // it enabled. But it doesn't make sense to enable both abs_send_time and
   // tx_time_offset, so only use abs_send_time.
-  auto abs_send_time =
-      RtpExtension(AbsoluteSendTime::Uri(), ABS_SEND_TIME_EXT_ID);
+  auto abs_send_time = RtpExtension(AbsoluteSendTime::Uri(),
+                                    RtpHeaderExtensionId(ABS_SEND_TIME_EXT_ID));
 
   for (auto* video : {video_send.get(), video_recv.get()}) {
     video->AddCodec(red);
