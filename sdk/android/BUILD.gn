@@ -59,9 +59,7 @@ if (is_android) {
       "../../rtc_base:base_java",
       "../../third_party/jni_zero:jni_zero_java",
 
-      # RingRTC change to include the JNI Zero generated proxy classes
-      # (<Class>Jni) and the registration for libringrtc_rffi.so, which
-      # direct_deps_only would otherwise leave out of the jar.
+      # RingRTC change to fix JNI Zero linking.
       ":generated_audio_device_module_base_jni_java",
       ":generated_base_jni_java",
       ":generated_builtin_audio_codecs_jni_java",

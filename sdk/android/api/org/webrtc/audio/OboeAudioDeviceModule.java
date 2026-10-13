@@ -5,6 +5,7 @@
 
 package org.webrtc.audio;
 
+// RingRTC change to fix JNI Zero linking.
 import org.jni_zero.NativeMethods;
 import org.webrtc.JniCommon;
 import org.webrtc.Logging;
@@ -128,6 +129,7 @@ public class OboeAudioDeviceModule implements AudioDeviceModule {
     Logging.w(TAG, "getNative");
     synchronized (nativeLock) {
       if (nativeAudioDeviceModule == 0) {
+        // RingRTC change to fix JNI Zero linking.
         Logging.w(TAG, "calling createAudioDeviceModule");
         nativeAudioDeviceModule = OboeAudioDeviceModuleJni.get().createAudioDeviceModule(
             useSoftwareAcousticEchoCanceler, useSoftwareNoiseSuppressor, useExclusiveSharingMode,
@@ -164,6 +166,7 @@ public class OboeAudioDeviceModule implements AudioDeviceModule {
     return false;
   }
 
+  // RingRTC change to fix JNI Zero linking.
   @NativeMethods
   interface Natives {
     long createAudioDeviceModule(boolean useSoftwareAcousticEchoCanceler,
