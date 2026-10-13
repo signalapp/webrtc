@@ -1402,6 +1402,13 @@ hooks = [
                ],
   },
   # end RingRTC change to download Opus DNN models
+  # RingRTC change to compile Java for JDK 21 instead of 25
+  {
+    'name': 'ringrtc_patch_java_release',
+    'pattern': '.',
+    'condition': 'checkout_android',
+    'action': ['python3', 'src/ringrtc/patch_java_release.py'],
+  },
 ]
 
 recursedeps = [
