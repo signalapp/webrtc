@@ -4747,7 +4747,10 @@ SdpOfferAnswerHandler::AssociateTransceiver(
     // mapping between transceivers and m= section indices established when
     // creating the offer.
     if (!transceiver) {
-      transceiver = transceivers()->FindByMLineIndex(mline_index);
+      // Only consider transceivers that are not yet associated. The channel of
+      // an associated transceiver stays bound to the MID it was created for
+      // (and to the transport of that MID), so the MID must not change.
+      transceiver = transceivers()->FindUnassociatedByMLineIndex(mline_index);
     }
     if (!transceiver) {
       // This may happen normally when media sections are rejected.
