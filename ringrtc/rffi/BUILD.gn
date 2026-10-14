@@ -38,7 +38,6 @@ if (is_android) {
 
   rtc_shared_library("libringrtc_rffi") {
 
-    # RingRTC change to fix JNI Zero linking.
     visibility = [ "//ringrtc:*", ":*" ]
 
     android_sdk = "//sdk/android"
@@ -64,21 +63,17 @@ if (is_android) {
     deps = [
       "${android_sdk}:libjingle_peerconnection_jni",
       "${android_sdk}:libjingle_peerconnection_metrics_default_jni",
-      # RingRTC change to fix JNI Zero linking.
       "//third_party/jni_zero",
     ]
     output_extension = "so"
 
-    # RingRTC change to fix JNI Zero linking.
     java_targets = [ "${android_sdk}:libjingle_peerconnection_metrics_default_java" ]
 
-    # RingRTC change to fix JNI Zero linking.
     # We don't link dav1d_av1_jni or video_egl_jni, so stub the natives of
     # Dav1dDecoder and EglBase10Impl
     add_stubs_for_missing_jni = true
   }
 
-  # RingRTC change to fix JNI Zero linking.
   java_library("libringrtc_rffi_jni_registration_java") {
     supports_android = true
     requires_android = true
