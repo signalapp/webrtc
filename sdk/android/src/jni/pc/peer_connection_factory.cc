@@ -590,3 +590,21 @@ static void JNI_PeerConnectionFactory_PrintStackTrace(JNIEnv* env, jint tid) {
 }  // namespace webrtc
 
 DEFINE_JNI(PeerConnectionFactory)
+
+// RingRTC change to fix JNI Zero linking.
+// RingRTC's Rust code cannot use the JNI Zero proxy native names which are
+// hashed in a release build, so export it here under a stable name.
+extern "C" JNIEXPORT jlong JNICALL
+Java_org_webrtc_PeerConnectionFactory_nativeCreatePeerConnection(
+    JNIEnv* env,
+    jclass,
+    jlong factory,
+    jobject j_rtc_config,
+    jobject j_constraints,
+    jlong observer_p,
+    jobject j_ssl_certificate_verifier) {
+  return webrtc::jni::JNI_PeerConnectionFactory_CreatePeerConnection(
+      env, factory, jni_zero::JavaRef<jobject>::CreateLeaky(env, j_rtc_config),
+      jni_zero::JavaRef<jobject>::CreateLeaky(env, j_constraints), observer_p,
+      jni_zero::JavaRef<jobject>::CreateLeaky(env, j_ssl_certificate_verifier));
+}
