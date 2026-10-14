@@ -63,7 +63,6 @@ if (is_android) {
       ":generated_audio_device_module_base_jni_java",
       ":generated_base_jni_java",
       ":generated_builtin_audio_codecs_jni_java",
-      ":generated_dav1d_jni_java",
       ":generated_environment_jni_java",
       ":generated_java_audio_device_module_native_jni_java",
       ":generated_java_audio_jni_java",

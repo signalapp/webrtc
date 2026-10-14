@@ -79,7 +79,9 @@ if (is_android) {
   }
 
   # RingRTC change to fix JNI Zero linking.
-  rtc_android_library("libringrtc_rffi_jni_registration_java") {
+  java_library("libringrtc_rffi_jni_registration_java") {
+    supports_android = true
+    requires_android = true
     visibility = [ "//sdk/android:*" ]
     srcjar_deps = [ ":libringrtc_rffi__jni_registration" ]
     deps = [ "//third_party/jni_zero:jni_zero_java" ]
