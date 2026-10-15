@@ -398,6 +398,13 @@
 }
 
 // RingRTC changes for low-level FFI
+- (RTC_OBJC_TYPE(RTCMediaStream) *)mediaStreamFromNativeStream:(void *)nativeStream {
+  webrtc::scoped_refptr<webrtc::MediaStreamInterface> stream(
+      (webrtc::MediaStreamInterface *)nativeStream);
+  return [[RTC_OBJC_TYPE(RTCMediaStream) alloc] initWithFactory:self nativeMediaStream:stream];
+}
+
+// RingRTC changes for low-level FFI
 - (RTC_OBJC_TYPE(RTCPeerConnection) *)
     peerConnectionWithConfiguration:(RTC_OBJC_TYPE(RTCConfiguration) *)configuration
                         constraints:(RTC_OBJC_TYPE(RTCMediaConstraints) *)constraints
