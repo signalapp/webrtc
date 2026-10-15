@@ -44,3 +44,5 @@ static void JNI_JniCommon_FreeByteBuffer(
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(JniCommon)

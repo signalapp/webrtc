@@ -21,11 +21,13 @@
 #include <utility>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "api/call/transport.h"
 #include "api/crypto/crypto_options.h"
 #include "api/crypto/frame_decryptor_interface.h"
 #include "api/frame_transformer_interface.h"
 #include "api/rtp_headers.h"
+#include "api/rtp_packet_infos.h"
 #include "api/scoped_refptr.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
@@ -96,7 +98,6 @@ class VideoReceiveStreamInterface : public MediaReceiveStreamInterface {
     // Decoder stats.
     std::optional<std::string> decoder_implementation_name;
     std::optional<bool> power_efficient_decoder;
-    FrameCounts frame_counts;
     int decode_ms = 0;
     int max_decode_ms = 0;
     int current_delay_ms = 0;
@@ -116,11 +117,17 @@ class VideoReceiveStreamInterface : public MediaReceiveStreamInterface {
     // Frames dropped due to decoding failures or if the system is too slow.
     // https://www.w3.org/TR/webrtc-stats/#dom-rtcvideoreceiverstats-framesdropped
     uint32_t frames_dropped = 0;
+    // https://w3c.github.io/webrtc-stats/#dom-rtcinboundrtpstreamstats-framesdecoded
     uint32_t frames_decoded = 0;
+    // https://w3c.github.io/webrtc-stats/#dom-rtcinboundrtpstreamstats-keyframesdecoded
+    uint32_t key_frames_decoded = 0;
     // https://w3c.github.io/webrtc-stats/#dom-rtcinboundrtpstreamstats-totaldecodetime
     TimeDelta total_decode_time = TimeDelta::Zero();
     // https://w3c.github.io/webrtc-stats/#dom-rtcinboundrtpstreamstats-totalprocessingdelay
     TimeDelta total_processing_delay = TimeDelta::Zero();
+
+    // Counted when inserted into the frame buffer, before decoding.
+    FrameCounts received_frame_counts;
 
     // https://w3c.github.io/webrtc-stats/#dom-rtcinboundrtpstreamstats-totalassemblytime
     TimeDelta total_assembly_time = TimeDelta::Zero();
@@ -185,25 +192,29 @@ class VideoReceiveStreamInterface : public MediaReceiveStreamInterface {
     uint32_t sender_reports_packets_sent = 0;
     uint64_t sender_reports_bytes_sent = 0;
     uint64_t sender_reports_reports_count = 0;
+    // Non-sender RTT (RRTR/DLRR), surfaced into
+    // RTCRemoteOutboundRtpStreamStats for recvonly endpoints.
+    std::optional<TimeDelta> round_trip_time;
+    TimeDelta total_round_trip_time = TimeDelta::Zero();
+    int round_trip_time_measurements = 0;
   };
 
   struct Config {
-   private:
-    // Access to the copy constructor is private to force use of the Copy()
-    // method for those exceptional cases where we do use it.
-    Config(const Config&);
-
    public:
     Config() = delete;
+    Config(const Config&) = delete;
+    Config& operator=(const Config&) = delete;
     Config(Config&&);
     Config(Transport* rtcp_send_transport,
-           VideoDecoderFactory* decoder_factory = nullptr);
+           VideoDecoderFactory* decoder_factory = nullptr,
+           absl::AnyInvocable<void(const RtpPacketInfos&, Timestamp) const>
+               on_frame_delivered_callback = nullptr);
     Config& operator=(Config&&);
-    Config& operator=(const Config&) = delete;
     ~Config();
 
-    // Mostly used by tests.  Avoid creating copies if you can.
-    Config Copy() const { return Config(*this); }
+    // Mostly used by tests. Avoid creating copies if you can.
+    // Note that this method will not copy move-only fields.
+    Config Copy() const;
 
     std::string ToString() const;
 
@@ -293,6 +304,15 @@ class VideoReceiveStreamInterface : public MediaReceiveStreamInterface {
     CryptoOptions crypto_options;
 
     scoped_refptr<webrtc::FrameTransformerInterface> frame_transformer;
+
+    // Callback invoked on the first received packet for this stream. Note that
+    // this is a move-only callback and is not copied when calling Copy().
+    absl::AnyInvocable<void(uint32_t ssrc) &&> on_first_packet;
+
+    // Callback invoked when a frame has been delivered. Note that this is a
+    // move-only callback and is not copied when calling Copy().
+    absl::AnyInvocable<void(const RtpPacketInfos&, Timestamp) const>
+        on_frame_delivered_callback;
   };
 
   // TODO(pbos): Add info on currently-received codec to Stats.
@@ -345,6 +365,10 @@ class VideoReceiveStreamInterface : public MediaReceiveStreamInterface {
 
   virtual void SetAssociatedPayloadTypes(
       std::map<int, int> associated_payload_types) = 0;
+
+  virtual void SetDecoders(std::vector<Decoder> decoders) = 0;
+
+  virtual void SetRawPayloadTypes(std::set<int> raw_payload_types) = 0;
 
   virtual void UpdateRtxSsrc(uint32_t ssrc) = 0;
 

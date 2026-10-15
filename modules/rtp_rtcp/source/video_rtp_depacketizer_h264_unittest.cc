@@ -597,5 +597,13 @@ TEST(VideoRtpDepacketizerH264Test, EmptyNaluPayload) {
   ASSERT_TRUE(parsed);
 }
 
+TEST(VideoRtpDepacketizerH264Test, OutOfSpecPpsIdRejected) {
+  // PPS NALU with pps_id=1000 (0x68 0x00 0x7d 0x38 in RBSP), exceeding spec max
+  // 255.
+  const uint8_t kPayload[] = {H264::kPps, 0x00, 0x7D, 0x38};
+  EXPECT_EQ(VideoRtpDepacketizerH264().Parse(CopyOnWriteBuffer(kPayload)),
+            std::nullopt);
+}
+
 }  // namespace
 }  // namespace webrtc

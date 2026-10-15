@@ -12,7 +12,6 @@ modules_tests_resources = [
   "audio_coding/testfile16kHz.pcm",
   "audio_coding/testfile32kHz.pcm",
   "audio_coding/teststereo32kHz.pcm",
-  "foreman_cif.yuv",
 ]
 group("modules_tests_data") {
   data = modules_tests_resources
@@ -171,4 +170,21 @@ video_engine_tests_resources = [
 ]
 group("video_engine_tests_data") {
   data = video_engine_tests_resources
+}
+
+scenario_config_resources = [
+  "difficult_photo_1850_1110.yuv",
+  "photo_1850_1110.yuv",
+  "presentation_1850_1110.yuv",
+  "web_screenshot_1850_1110.yuv",
+]
+group("scenario_config_resources") {
+  data = scenario_config_resources
+}
+if (is_ios) {
+  bundle_data("scenario_config_resources_bundle_data") {
+    testonly = true
+    sources = scenario_config_resources
+    outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
+  }
 }

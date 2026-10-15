@@ -43,3 +43,5 @@ jlong JNI_Environment_Create(JNIEnv* env,
 }
 
 }  // namespace webrtc::jni
+
+DEFINE_JNI(Environment)

@@ -20,7 +20,6 @@
 
 #include "absl/strings/string_view.h"
 #include "api/environment/environment.h"
-#include "api/field_trials_view.h"
 #include "api/rtc_event_log/rtc_event.h"
 #include "api/rtc_event_log/rtc_event_log.h"
 #include "api/rtc_event_log_output.h"
@@ -29,7 +28,6 @@
 #include "api/task_queue/task_queue_factory.h"
 #include "api/units/time_delta.h"
 #include "logging/rtc_event_log/encoder/rtc_event_log_encoder.h"
-#include "logging/rtc_event_log/encoder/rtc_event_log_encoder_legacy.h"
 #include "logging/rtc_event_log/encoder/rtc_event_log_encoder_new_format.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/event.h"
@@ -42,13 +40,8 @@ namespace webrtc {
 namespace {
 
 std::unique_ptr<RtcEventLogEncoder> CreateEncoder(const Environment& env) {
-  if (env.field_trials().IsDisabled("WebRTC-RtcEventLogNewFormat")) {
-    RTC_DLOG(LS_INFO) << "Creating legacy encoder for RTC event log.";
-    return std::make_unique<RtcEventLogEncoderLegacy>();
-  } else {
-    RTC_DLOG(LS_INFO) << "Creating new format encoder for RTC event log.";
-    return std::make_unique<RtcEventLogEncoderNewFormat>(env.field_trials());
-  }
+  RTC_DLOG(LS_INFO) << "Creating new format encoder for RTC event log.";
+  return std::make_unique<RtcEventLogEncoderNewFormat>(env.field_trials());
 }
 
 }  // namespace

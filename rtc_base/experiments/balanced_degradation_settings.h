@@ -112,7 +112,7 @@ class BalancedDegradationSettings {
   };
 
   // Returns configurations from field trial on success (default on failure).
-  std::vector<Config> GetConfigs() const;
+  const std::vector<Config>& GetConfigs() const;
 
   // Gets the min/max framerate from `configs_` based on `pixels`.
   int MinFps(VideoCodecType type, int pixels) const;

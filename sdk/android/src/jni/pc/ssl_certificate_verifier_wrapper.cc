@@ -47,3 +47,5 @@ bool SSLCertificateVerifierWrapper::Verify(const SSLCertificate& certificate) {
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(SSLCertificateVerifier)

@@ -56,7 +56,9 @@ class RtpTransport : public RtpTransportInternal {
   RtpTransport& operator=(const RtpTransport&) = delete;
 
   RtpTransport(bool rtcp_mux_enabled, const FieldTrialsView& field_trials)
-      : rtcp_mux_enabled_(rtcp_mux_enabled) {}
+      : update_network_route_on_srtp_activation_(field_trials.IsEnabled(
+            "WebRTC-UpdateNetworkRouteOnSrtpActivation")),
+        rtcp_mux_enabled_(rtcp_mux_enabled) {}
 
   // RingRTC: Allow out-of-band / "manual" key negotiation.
   virtual DtlsSrtpTransport* AsDtlsSrtpTransportAlwaysNull() { return nullptr; }
@@ -139,6 +141,9 @@ class RtpTransport : public RtpTransportInternal {
   // Overridden by SrtpTransport and DtlsSrtpTransport.
   virtual void OnWritableState(PacketTransportInternal* packet_transport);
 
+  // TODO(bugs.webrtc.org/461532446): Remove once the experiment is evaluated.
+  const bool update_network_route_on_srtp_activation_;
+
  private:
   bool SendPacket(bool rtcp,
                   CopyOnWriteBuffer* packet,
@@ -147,6 +152,7 @@ class RtpTransport : public RtpTransportInternal {
   // Helper function for SetRt(c)pPacketTransport
   void ChangePacketTransport(PacketTransportInternal* new_transport,
                              PacketTransportInternal*& transport_to_change);
+  void NotifyNetworkRouteChanged(std::optional<NetworkRoute> network_route);
   void OnReadyToSend(PacketTransportInternal* transport);
   void OnSentPacket(PacketTransportInternal* packet_transport,
                     const SentPacketInfo& sent_packet);

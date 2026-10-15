@@ -56,6 +56,7 @@ std::optional<TargetTransferRate> CongestionControlHandler::GetUpdate() {
     new_outgoing.target_rate = DataRate::Zero();
   if (!last_reported_ ||
       last_reported_->target_rate != new_outgoing.target_rate ||
+      last_reported_->cwnd_reduce_ratio != new_outgoing.cwnd_reduce_ratio ||
       (!new_outgoing.target_rate.IsZero() &&
        (last_reported_->network_estimate.loss_rate_ratio !=
             new_outgoing.network_estimate.loss_rate_ratio ||

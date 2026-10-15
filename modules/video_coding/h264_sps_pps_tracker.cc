@@ -51,12 +51,23 @@ H264SpsPpsTracker::FixedBitstream H264SpsPpsTracker::CopyAndFixBitstream(
   for (const NaluInfo& nalu : h264_header.nalus) {
     switch (nalu.type) {
       case H264::NaluType::kSps: {
+        if (nalu.sps_id < 0 || nalu.sps_id > H264::kMaxSpsId) {
+          RTC_LOG(LS_WARNING) << "SPS id out of bounds: " << nalu.sps_id;
+          return {.action = kDrop};
+        }
         SpsInfo& sps_info = sps_data_[nalu.sps_id];
         sps_info.width = video_header->width;
         sps_info.height = video_header->height;
         break;
       }
       case H264::NaluType::kPps: {
+        if (nalu.pps_id < 0 || nalu.pps_id > H264::kMaxPpsId ||
+            nalu.sps_id < 0 || nalu.sps_id > H264::kMaxSpsId) {
+          RTC_LOG(LS_WARNING)
+              << "PPS or SPS id out of bounds: pps_id=" << nalu.pps_id
+              << " sps_id=" << nalu.sps_id;
+          return {.action = kDrop};
+        }
         pps_data_[nalu.pps_id].sps_id = nalu.sps_id;
         break;
       }
@@ -219,6 +230,12 @@ void H264SpsPpsTracker::InsertSpsPpsNalus(const std::vector<uint8_t>& sps,
   }
 
   if (!parsed_pps || !parsed_sps) {
+    return;
+  }
+
+  if (parsed_sps->id > H264::kMaxSpsId || parsed_pps->id > H264::kMaxPpsId ||
+      parsed_pps->sps_id > H264::kMaxSpsId) {
+    RTC_LOG(LS_WARNING) << "Parsed SPS/PPS ID out of bounds.";
     return;
   }
 

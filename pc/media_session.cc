@@ -34,7 +34,6 @@
 #include "call/payload_type.h"
 #include "media/base/codec.h"
 #include "media/base/media_constants.h"
-#include "media/base/media_engine.h"
 #include "media/base/rid_description.h"
 #include "media/base/stream_params.h"
 #include "p2p/base/ice_credentials_iterator.h"
@@ -363,9 +362,12 @@ RTCError CreateContentOffer(
     const RtpHeaderExtensions& rtp_extensions,
     UniqueRandomIdGenerator* ssrc_generator,
     StreamParamsVec* current_streams,
-    MediaContentDescription* offer) {
+    MediaContentDescription* offer,
+    const FieldTrialsView& field_trials) {
   offer->set_rtcp_mux(session_options.rtcp_mux_enabled);
   offer->set_rtcp_reduced_size(true);
+  offer->set_receive_non_sender_rtt(
+      !field_trials.IsDisabled("WebRTC-RtcpXrReceiverReferenceTime"));
 
   // Build the vector of header extensions with directions for this
   // media_description's options.
@@ -409,7 +411,7 @@ RTCError CreateMediaContentOffer(
 
   return CreateContentOffer(media_description_options, session_options,
                             rtp_extensions, ssrc_generator, current_streams,
-                            offer);
+                            offer, field_trials);
 }
 
 // Adds all extensions from `reference_extensions` to `offered_extensions` that
@@ -603,7 +605,8 @@ bool CreateMediaContentAnswer(
     bool bundle_enabled,
     MediaContentDescription* answer,
     PayloadTypeSuggester& suggester,
-    RtpTransceiverIdDomain id_domain) {
+    RtpTransceiverIdDomain id_domain,
+    const FieldTrialsView& field_trials) {
   answer->set_extmap_allow_mixed_level(offer->extmap_allow_mixed_level());
   const RtpExtension::Filter extensions_filter =
       enable_encrypted_rtp_header_extensions
@@ -646,6 +649,9 @@ bool CreateMediaContentAnswer(
 
   answer->set_rtcp_mux(session_options.rtcp_mux_enabled && offer->rtcp_mux());
   answer->set_rtcp_reduced_size(offer->rtcp_reduced_size());
+  answer->set_receive_non_sender_rtt(
+      offer->receive_non_sender_rtt() &&
+      !field_trials.IsDisabled("WebRTC-RtcpXrReceiverReferenceTime"));
   answer->set_remote_estimate(offer->remote_estimate());
 
   AddSimulcastToMediaDescription(media_description_options, answer);
@@ -733,8 +739,6 @@ bool AcceptOfferWithRfc8888(const FieldTrialsView& field_trials) {
 
 MediaSessionDescriptionFactory::MediaSessionDescriptionFactory(
     const Environment& env,
-    const MediaEngineInterface* media_engine,
-    bool rtx_enabled,
     UniqueRandomIdGenerator* ssrc_generator,
     const TransportDescriptionFactory* transport_desc_factory,
     SctpTransportFactoryInterface* sctp_factory,
@@ -1274,6 +1278,7 @@ RTCError MediaSessionDescriptionFactory::AddRtpContentForOffer(
   }
   // RFC 8888 support.
   content_description->set_rtcp_fb_ack_ccfb(offer_rfc_8888_);
+
   auto error = CreateMediaContentOffer(
       media_description_options, session_options, codecs_to_include,
       header_extensions, ssrc_generator(), current_streams,
@@ -1335,9 +1340,9 @@ RTCError MediaSessionDescriptionFactory::AddDataContentForOffer(
     }
   }
 
-  auto error = CreateContentOffer(media_description_options, session_options,
-                                  RtpHeaderExtensions(), ssrc_generator(),
-                                  current_streams, data.get());
+  auto error = CreateContentOffer(
+      media_description_options, session_options, RtpHeaderExtensions(),
+      ssrc_generator(), current_streams, data.get(), env_.field_trials());
   if (!error.ok()) {
     return error;
   }
@@ -1482,7 +1487,8 @@ RTCError MediaSessionDescriptionFactory::AddRtpContentForAnswer(
           *codec_lookup_helper_->PayloadTypeSuggester(),
           offer_description->extmap_allow_mixed()
               ? RtpTransceiverIdDomain::kTwoByteAllowed
-              : RtpTransceiverIdDomain::kOneByteOnly)) {
+              : RtpTransceiverIdDomain::kOneByteOnly,
+          env_.field_trials())) {
     return RTC_LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
                          << "Failed to create answer");
   }
@@ -1561,7 +1567,8 @@ RTCError MediaSessionDescriptionFactory::AddDataContentForAnswer(
             *codec_lookup_helper_->PayloadTypeSuggester(),
             offer_description->extmap_allow_mixed()
                 ? RtpTransceiverIdDomain::kTwoByteAllowed
-                : RtpTransceiverIdDomain::kOneByteOnly)) {
+                : RtpTransceiverIdDomain::kOneByteOnly,
+            env_.field_trials())) {
       return RTC_LOG_ERROR(RTCError(RTCErrorType::INTERNAL_ERROR)
                            << "Failed to create answer");
     }

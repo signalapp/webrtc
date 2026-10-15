@@ -37,6 +37,7 @@
 #include "api/test/peer_network_dependencies.h"
 #include "api/transport/bitrate_settings.h"
 #include "api/transport/network_control.h"
+#include "api/video/timing/video_jitter_timing_factory.h"
 #include "api/video_codecs/video_decoder_factory.h"
 #include "api/video_codecs/video_encoder_factory.h"
 #include "p2p/base/port_allocator.h"
@@ -186,6 +187,12 @@ PeerConfigurer* PeerConfigurer::SetVideoEncoderBitrateMultiplier(
 PeerConfigurer* PeerConfigurer::SetNetEqFactory(
     std::unique_ptr<NetEqFactory> neteq_factory) {
   components_->pcf_dependencies->neteq_factory = std::move(neteq_factory);
+  return this;
+}
+PeerConfigurer* PeerConfigurer::SetVideoJitterTimingFactory(
+    std::unique_ptr<VideoJitterTimingFactory> video_jitter_timing_factory) {
+  components_->pcf_dependencies->video_jitter_timing_factory =
+      std::move(video_jitter_timing_factory);
   return this;
 }
 PeerConfigurer* PeerConfigurer::SetAudioProcessing(

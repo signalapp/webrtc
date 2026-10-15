@@ -97,6 +97,10 @@ rtc_library("common_video") {
       "../rtc_base/containers:flat_map",
     ]
   }
+
+  if (!is_ios) {
+    defines = [ "HAVE_LIBYUV_JPEG" ]
+  }
 }
 
 rtc_source_set("frame_counts") {
@@ -165,9 +169,6 @@ if (rtc_include_tests && !build_with_chromium) {
     ]
 
     data = common_video_resources
-    if (is_android) {
-      shard_timeout = 900
-    }
 
     if (is_ios) {
       deps += [ ":common_video_unittests_bundle_data" ]

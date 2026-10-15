@@ -25,7 +25,7 @@ std::string ComErrorToString(const _com_error& error) {
   _bstr_t error_message(error.ErrorMessage());
   string_builder.AppendFormat("HRESULT: 0x%08X, Message: %s", error.Error(),
                               static_cast<const char*>(error_message));
-  return string_builder.str();
+  return string_builder.Release();
 }
 
 }  // namespace utils

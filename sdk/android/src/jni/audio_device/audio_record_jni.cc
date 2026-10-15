@@ -280,3 +280,5 @@ void AudioRecordJni::DataIsRecorded(JNIEnv* env,
 }  // namespace jni
 
 }  // namespace webrtc
+
+DEFINE_JNI(WebRtcAudioRecord)

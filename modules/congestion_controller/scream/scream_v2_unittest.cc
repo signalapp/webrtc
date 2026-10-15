@@ -609,5 +609,70 @@ TEST(ScreamV2Test, LossEventsAreNotIgnoredIfQueueDelayIsDetected) {
   EXPECT_LT(scream.ref_window(), ref_window_before_loss);
 }
 
+TEST(ScreamV2Test, KeepsTrackOfReceivedRateOver100msWindow) {
+  SimulatedClock clock(Timestamp::Seconds(1'234));
+  Environment env = CreateTestEnvironment({.time = &clock});
+  ScreamV2 scream(env);
+
+  // Initialize constraints
+  scream.SetTargetBitrateConstraints(DataRate::Zero(),
+                                     DataRate::KilobitsPerSec(2000),
+                                     DataRate::KilobitsPerSec(300));
+
+  // First feedback
+  TransportPacketsFeedback feedback1 =
+      CreateFeedback(clock.CurrentTime(), /*rtt=*/TimeDelta::Millis(100),
+                     /*number_of_ect1_packets=*/5,
+                     /*number_of_packets_in_flight=*/20);
+  scream.OnTransportPacketsFeedback(feedback1);
+
+  // feedback1 has 5 packets of 1000 bytes each = 5000 bytes.
+  // At the first feedback, received_rate is initialized to PlusInfinity.
+  EXPECT_EQ(scream.received_rate(), DataRate::PlusInfinity());
+
+  // Advance sender clock by 200ms (feedback delayed on return path), but remote
+  // packet receive time only advances by 50ms (less than 100ms window on the
+  // receiver clock).
+  clock.AdvanceTime(TimeDelta::Millis(200));
+  TransportPacketsFeedback feedback2 =
+      CreateFeedback(clock.CurrentTime(), /*rtt=*/TimeDelta::Millis(100),
+                     /*number_of_ect1_packets=*/3,
+                     /*number_of_packets_in_flight=*/20);
+  for (auto& pkt : feedback2.packet_feedbacks) {
+    pkt.receive_time =
+        feedback1.packet_feedbacks.back().receive_time + TimeDelta::Millis(50);
+  }
+  scream.OnTransportPacketsFeedback(feedback2);
+
+  // feedback2 has 3 packets of 1000 bytes each = 3000 bytes.
+  // No new calculation because only 50ms has passed on the remote receive
+  // clock, even though 200ms passed on the sender clock.
+  // received_rate remains PlusInfinity.
+  EXPECT_EQ(scream.received_rate(), DataRate::PlusInfinity());
+
+  // Advance sender clock by another 250ms, but remote packet receive time only
+  // advances by 51ms (so total 101ms has passed on the remote receive clock
+  // since the last window update).
+  clock.AdvanceTime(TimeDelta::Millis(250));
+  TransportPacketsFeedback feedback3 =
+      CreateFeedback(clock.CurrentTime(), /*rtt=*/TimeDelta::Millis(100),
+                     /*number_of_ect1_packets=*/2,
+                     /*number_of_packets_in_flight=*/20);
+  for (auto& pkt : feedback3.packet_feedbacks) {
+    pkt.receive_time =
+        feedback2.packet_feedbacks.back().receive_time + TimeDelta::Millis(51);
+  }
+  scream.OnTransportPacketsFeedback(feedback3);
+
+  // feedback3 has 2 packets of 1000 bytes each = 2000 bytes.
+  // Total accumulated bytes since last calculation: 3000 (feedback2) + 2000
+  // (feedback3) = 5000 bytes.
+  // Total time duration passed on remote receive clock: 50ms + 51ms = 101ms
+  // (sender local duration was 200ms + 250ms = 450ms).
+  // Rate is calculated using remote receive duration: 5000 bytes / 101ms.
+  EXPECT_EQ(scream.received_rate(),
+            DataSize::Bytes(5000) / TimeDelta::Millis(101));
+}
+
 }  // namespace
 }  // namespace webrtc

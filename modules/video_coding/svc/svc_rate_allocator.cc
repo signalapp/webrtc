@@ -15,6 +15,7 @@
 #include <cstddef>
 #include <numeric>
 #include <optional>
+#include <span>
 #include <vector>
 
 #include "absl/container/inlined_vector.h"
@@ -128,16 +129,16 @@ std::vector<DataRate> SplitBitrate(size_t num_layers,
 }
 
 VideoBitrateAllocation DistributeAllocationToTemporalLayers(
-    std::vector<DataRate> spatial_layer_birates,
+    std::span<const DataRate> spatial_layer_bitrates,
     size_t first_active_layer,
     size_t num_temporal_layers) {
   // Distribute rate across temporal layers. Allocate more bits to lower
   // layers since they are used for prediction of higher layers and their
   // references are far apart.
   VideoBitrateAllocation bitrate_allocation;
-  for (size_t sl_idx = 0; sl_idx < spatial_layer_birates.size(); ++sl_idx) {
+  for (size_t sl_idx = 0; sl_idx < spatial_layer_bitrates.size(); ++sl_idx) {
     std::vector<DataRate> temporal_layer_bitrates =
-        SplitBitrate(num_temporal_layers, spatial_layer_birates[sl_idx],
+        SplitBitrate(num_temporal_layers, spatial_layer_bitrates[sl_idx],
                      kTemporalLayeringRateScalingFactor);
 
     if (num_temporal_layers == 1) {

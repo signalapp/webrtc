@@ -114,6 +114,9 @@ class VideoCaptureModule : public RefCountInterface {
   // Return whether the rotation is applied or left pending.
   virtual bool GetApplyRotation() = 0;
 
+  virtual void SetStride(int32_t stride) {}
+  virtual int32_t GetStride() { return 0; }
+
  protected:
   ~VideoCaptureModule() override {}
 };

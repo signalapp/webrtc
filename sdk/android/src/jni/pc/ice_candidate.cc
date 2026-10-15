@@ -260,3 +260,5 @@ std::optional<AdapterType> JavaToNativeNetworkPreference(
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(IceCandidate)

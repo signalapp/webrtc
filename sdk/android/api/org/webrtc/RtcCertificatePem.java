@@ -10,7 +10,10 @@
 
 package org.webrtc;
 
-import org.webrtc.PeerConnection;
+import androidx.annotation.Nullable;
+import java.util.Collections;
+import java.util.List;
+import org.jni_zero.NativeMethods;
 
 /**
  * Easily storable/serializable version of a native C++ RTCCertificatePEM.
@@ -41,11 +44,27 @@ public class RtcCertificatePem {
   }
 
   /**
+   * Returns the fingerprints of the certificate, mirroring the WebIDL
+   * RTCCertificate.getFingerprints(). The fingerprints are derived from the PEM
+   * representation; an empty list is returned if they cannot be computed.
+   * Native WebRTC tracks a single fingerprint per certificate, so the list
+   * holds at most one entry. See
+   * https://w3c.github.io/webrtc-pc/#dom-rtccertificate-getfingerprints
+   */
+  public List<DtlsFingerprint> getFingerprints() {
+    DtlsFingerprint fingerprint =
+        RtcCertificatePemJni.get().getFingerprint(privateKey, certificate);
+    return fingerprint == null ? Collections.emptyList()
+                               : Collections.singletonList(fingerprint);
+  }
+
+  /**
    * Generate a new RtcCertificatePem with the default settings of KeyType = ECDSA and
    * expires = 30 days.
    */
   public static RtcCertificatePem generateCertificate() {
-    return nativeGenerateCertificate(PeerConnection.KeyType.ECDSA, DEFAULT_EXPIRY);
+    return RtcCertificatePemJni.get()
+        .generateCertificate(PeerConnection.KeyType.ECDSA, DEFAULT_EXPIRY);
   }
 
   /**
@@ -53,7 +72,7 @@ public class RtcCertificatePem {
    * expires = 30 days.
    */
   public static RtcCertificatePem generateCertificate(PeerConnection.KeyType keyType) {
-    return nativeGenerateCertificate(keyType, DEFAULT_EXPIRY);
+    return RtcCertificatePemJni.get().generateCertificate(keyType, DEFAULT_EXPIRY);
   }
 
   /**
@@ -61,15 +80,19 @@ public class RtcCertificatePem {
    * KeyType = ECDSA.
    */
   public static RtcCertificatePem generateCertificate(long expires) {
-    return nativeGenerateCertificate(PeerConnection.KeyType.ECDSA, expires);
+    return RtcCertificatePemJni.get().generateCertificate(PeerConnection.KeyType.ECDSA, expires);
   }
 
   /** Generate a new RtcCertificatePem with a custom KeyType and a custom expires. */
   public static RtcCertificatePem generateCertificate(
       PeerConnection.KeyType keyType, long expires) {
-    return nativeGenerateCertificate(keyType, expires);
+    return RtcCertificatePemJni.get().generateCertificate(keyType, expires);
   }
 
-  private static native RtcCertificatePem nativeGenerateCertificate(
-      PeerConnection.KeyType keyType, long expires);
+  @NativeMethods
+  interface Natives {
+    RtcCertificatePem generateCertificate(PeerConnection.KeyType keyType, long expires);
+    @Nullable
+    DtlsFingerprint getFingerprint(String privateKey, String certificate);
+  }
 }

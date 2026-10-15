@@ -50,47 +50,9 @@ char kLSanDefaultSuppressions[] =
     // impossible, i.e. when enabling leak detection for the first time for a
     // test target with pre-existing leaks.
 
-    // rtc_unittest
-    // https://code.google.com/p/webrtc/issues/detail?id=3827 for details.
-    "leak:webrtc::unstarted_task_test_DoNotDeleteTask2_Test::TestBody\n"
-    "leak:webrtc::HttpServer::HandleConnection\n"
-    "leak:webrtc::HttpServer::Connection::onHttpHeaderComplete\n"
-    "leak:webrtc::HttpResponseData::set_success\n"
-    "leak:webrtc::HttpData::changeHeader\n"
-    // https://code.google.com/p/webrtc/issues/detail?id=4149 for details.
-    "leak:StartDNSLookup\n"
-
-    // rtc_media_unittests
-    "leak:webrtc::FakeNetworkInterface::SetOption\n"
-    "leak:CodecTest_TestCodecOperators_Test::TestBody\n"
-    "leak:VideoEngineTest*::ConstrainNewCodecBody\n"
-    "leak:VideoMediaChannelTest*::AddRemoveRecvStreams\n"
-    "leak:WebRtcVideoCapturerTest_TestCapture_Test::TestBody\n"
-    "leak:WebRtcVideoEngineTestFake_MultipleSendStreamsWithOneCapturer_Test::"
-    "TestBody\n"
-    "leak:WebRtcVideoEngineTestFake_SetBandwidthInConference_Test::TestBody\n"
-    "leak:WebRtcVideoEngineTestFake_SetSendCodecsRejectBadFormat_Test::"
-    "TestBody\n"
-
-    // peerconnection_unittests
-    // https://code.google.com/p/webrtc/issues/detail?id=2528
-    "leak:webrtc::FakeVideoMediaChannel::~FakeVideoMediaChannel\n"
-    "leak:DtmfSenderTest_InsertEmptyTonesToCancelPreviousTask_Test::TestBody\n"
-    "leak:testing::internal::CmpHelperEQ\n"
+    // ALSA Linux system library leaks.
     "leak:webrtc::AudioDeviceLinuxALSA::InitMicrophone\n"
     "leak:webrtc::AudioDeviceLinuxALSA::InitSpeaker\n"
-    "leak:webrtc::CreateIceCandidate\n"
-    "leak:webrtc::WebRtcIdentityRequestObserver::OnSuccess\n"
-    "leak:PeerConnectionInterfaceTest_SsrcInOfferAnswer_Test::TestBody\n"
-    "leak:PeerConnectionInterfaceTest_CloseAndTestMethods_Test::TestBody\n"
-    "leak:WebRtcSdpTest::TestDeserializeRtcpFb\n"
-    "leak:WebRtcSdpTest::TestSerialize\n"
-    "leak:WebRtcSdpTest_SerializeSessionDescriptionWithDataChannelAndBandwidth_"
-    "Test::TestBody\n"
-    "leak:WebRtcSdpTest_SerializeSessionDescriptionWithBandwidth_Test::"
-    "TestBody\n"
-    "leak:WebRtcSessionTest::SetLocalDescriptionExpectError\n"
-    "leak:WebRtcSessionTest_TestAVOfferWithAudioOnlyAnswer_Test::TestBody\n"
 
     // PLEASE READ ABOVE BEFORE ADDING NEW SUPPRESSIONS.
 

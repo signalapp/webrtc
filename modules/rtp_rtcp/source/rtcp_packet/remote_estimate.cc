@@ -82,7 +82,7 @@ class DataRateSerializer {
 class RemoteEstimateSerializerImpl : public RemoteEstimateSerializer {
  public:
   explicit RemoteEstimateSerializerImpl(std::vector<DataRateSerializer> fields)
-      : fields_(fields) {}
+      : fields_(std::move(fields)) {}
 
   Buffer Serialize(const NetworkStateEstimate& src) const override {
     size_t max_size = fields_.size() * kFieldSize;

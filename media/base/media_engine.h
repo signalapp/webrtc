@@ -15,6 +15,7 @@
 #include <memory>
 #include <optional>
 #include <span>
+#include <utility>
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
@@ -26,8 +27,10 @@
 #include "api/environment/environment.h"
 #include "api/field_trials_view.h"
 #include "api/rtc_error.h"
+#include "api/rtp_packet_infos.h"
 #include "api/rtp_parameters.h"
 #include "api/scoped_refptr.h"
+#include "api/units/timestamp.h"
 #include "api/video/video_bitrate_allocator_factory.h"
 #include "api/video_codecs/sdp_video_format.h"
 #include "api/video_codecs/video_decoder_factory.h"
@@ -94,6 +97,9 @@ class VoiceChannelFactoryInterface {
   virtual ~VoiceChannelFactoryInterface() = default;
 
   // Safe to be called from the signaling thread.
+  // The `options` parameter configures stream/channel-specific settings (e.g.,
+  // jitter buffer, ANA). Global options (like AEC, AGC, NS) should be
+  // configured directly at the engine level via ApplyGlobalOptions.
   virtual std::unique_ptr<VoiceMediaSendChannelInterface> CreateSendChannel(
       const Environment& env,
       Call* call,
@@ -103,12 +109,30 @@ class VoiceChannelFactoryInterface {
       absl::AnyInvocable<void()> parameters_changed_callback = nullptr) = 0;
 
   // Safe to be called from the signaling thread.
+  // The `options` parameter configures stream/channel-specific settings (e.g.,
+  // jitter buffer). Global options (like AEC, AGC, NS) should be configured
+  // directly at the engine level via ApplyGlobalOptions.
   virtual std::unique_ptr<VoiceMediaReceiveChannelInterface>
-  CreateReceiveChannel(const Environment& env,
-                       Call* call,
-                       const MediaConfig& config,
-                       const AudioOptions& options,
-                       const CryptoOptions& crypto_options) = 0;
+  CreateReceiveChannel(
+      const Environment& env,
+      Call* call,
+      const MediaConfig& config,
+      const AudioOptions& options,
+      const CryptoOptions& crypto_options,
+      absl::AnyInvocable<void(uint32_t ssrc)> on_first_packet,
+      absl::AnyInvocable<void(uint32_t ssrc, const RtpPacketInfos&, Timestamp)
+                             const> on_frame_delivered_callback) {
+    return CreateReceiveChannel(env, call, config, options, crypto_options,
+                                std::move(on_first_packet));
+  }
+  virtual std::unique_ptr<VoiceMediaReceiveChannelInterface>
+  CreateReceiveChannel(
+      const Environment& env,
+      Call* call,
+      const MediaConfig& config,
+      const AudioOptions& options,
+      const CryptoOptions& crypto_options,
+      absl::AnyInvocable<void(uint32_t ssrc)> on_first_packet) = 0;
 };
 
 // Interface for creating video media channels.
@@ -134,11 +158,24 @@ class VideoChannelFactoryInterface {
 
   // Safe to be called from the signaling thread.
   virtual std::unique_ptr<VideoMediaReceiveChannelInterface>
-  CreateReceiveChannel(const Environment& env,
-                       Call* call,
-                       const MediaConfig& config,
-                       const VideoOptions& options,
-                       const CryptoOptions& crypto_options) = 0;
+  CreateReceiveChannel(
+      const Environment& env,
+      Call* call,
+      const MediaConfig& config,
+      const CryptoOptions& crypto_options,
+      absl::AnyInvocable<void(uint32_t ssrc)> on_first_packet,
+      absl::AnyInvocable<void(uint32_t ssrc, const RtpPacketInfos&, Timestamp)
+                             const> on_frame_delivered_callback) {
+    return CreateReceiveChannel(env, call, config, crypto_options,
+                                std::move(on_first_packet));
+  }
+  virtual std::unique_ptr<VideoMediaReceiveChannelInterface>
+  CreateReceiveChannel(
+      const Environment& env,
+      Call* call,
+      const MediaConfig& config,
+      const CryptoOptions& crypto_options,
+      absl::AnyInvocable<void(uint32_t ssrc)> on_first_packet) = 0;
 };
 
 class VoiceEngineInterface : public RtpHeaderExtensionQueryInterface,
@@ -155,6 +192,8 @@ class VoiceEngineInterface : public RtpHeaderExtensionQueryInterface,
   virtual void Init() = 0;
   // Stops the engine.
   virtual void Terminate() = 0;
+  // Applies global options (like APM settings) to the engine.
+  virtual void ApplyGlobalOptions(const AudioOptions& options) = 0;
 
   // TODO(solenberg): Remove once VoE API refactoring is done.
   virtual scoped_refptr<AudioState> GetAudioState() const = 0;
@@ -169,12 +208,15 @@ class VoiceEngineInterface : public RtpHeaderExtensionQueryInterface,
       absl::AnyInvocable<void()> parameters_changed_callback =
           nullptr) override = 0;
 
+  using VoiceChannelFactoryInterface::CreateReceiveChannel;
+
   std::unique_ptr<VoiceMediaReceiveChannelInterface> CreateReceiveChannel(
       const Environment& env,
       Call* call,
       const MediaConfig& config,
       const AudioOptions& options,
-      const CryptoOptions& crypto_options) override = 0;
+      const CryptoOptions& crypto_options,
+      absl::AnyInvocable<void(uint32_t ssrc)> on_first_packet) override = 0;
 
   // Legacy: Retrieve list of supported codecs.
   // + protection codecs, and assigns PT numbers that may have to be
@@ -222,12 +264,14 @@ class VideoEngineInterface : public RtpHeaderExtensionQueryInterface,
           video_encoder_switch_request_callback,
       absl::AnyInvocable<void()> parameters_changed_callback) override = 0;
 
+  using VideoChannelFactoryInterface::CreateReceiveChannel;
+
   std::unique_ptr<VideoMediaReceiveChannelInterface> CreateReceiveChannel(
       const Environment& env,
       Call* call,
       const MediaConfig& config,
-      const VideoOptions& options,
-      const CryptoOptions& crypto_options) override = 0;
+      const CryptoOptions& crypto_options,
+      absl::AnyInvocable<void(uint32_t ssrc)> on_first_packet) override = 0;
 
   // Legacy: Retrieve list of supported codecs.
   // + protection codecs, and assigns PT numbers that may have to be
@@ -303,7 +347,8 @@ RtpParameters CreateRtpParametersWithEncodings(StreamParams sp);
 // GetCapabilities(). The returned vector only shows what will definitely be
 // offered by default, i.e. the list of extensions returned from
 // GetRtpHeaderExtensions() that are not kStopped.
-std::vector<RtpExtension> GetDefaultEnabledRtpHeaderExtensions(
+std::vector<RtpHeaderExtensionCapability>
+GetDefaultEnabledRtpHeaderCapabilities(
     const RtpHeaderExtensionQueryInterface& query_interface,
     const FieldTrialsView* field_trials);
 

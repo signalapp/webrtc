@@ -57,3 +57,5 @@ std::vector<SdpVideoFormat> VideoDecoderFactoryWrapper::GetSupportedFormats()
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(VideoDecoderFactory)

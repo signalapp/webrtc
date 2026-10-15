@@ -25,3 +25,5 @@ static void JNI_AudioTrack_SetVolume(JNIEnv*, jlong j_p, jdouble volume) {
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(AudioTrack)

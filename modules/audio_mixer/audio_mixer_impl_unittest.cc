@@ -36,7 +36,6 @@
 
 using ::testing::_;
 using ::testing::Exactly;
-using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::UnorderedElementsAre;
 
@@ -79,8 +78,9 @@ class MockMixerAudioSource : public ::testing::NiceMock<AudioMixer::Source> {
   MockMixerAudioSource()
       : fake_audio_frame_info_(AudioMixer::Source::AudioFrameInfo::kNormal) {
     ON_CALL(*this, GetAudioFrameWithInfo(_, _))
-        .WillByDefault(
-            Invoke(this, &MockMixerAudioSource::FakeAudioFrameWithInfo));
+        .WillByDefault([this](int sample_rate_hz, AudioFrame* audio_frame) {
+          return FakeAudioFrameWithInfo(sample_rate_hz, audio_frame);
+        });
     ON_CALL(*this, PreferredSampleRate())
         .WillByDefault(Return(kDefaultSampleRateHz));
   }

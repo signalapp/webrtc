@@ -30,3 +30,5 @@ ScopedJavaLocalRef<jobject> CreateJavaNativeCapturerObserver(
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(NativeCapturerObserver)

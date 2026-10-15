@@ -8,6 +8,10 @@
 # be found in the AUTHORS file in the root of the source tree.
 """
 This script is a wrapper that loads "pipewire" library.
+
+PipeWire is built from source (third_party/pipewire).
+WirePlumber is taken from the CIPD package at
+third_party/wireplumber/linux-amd64.
 """
 
 import os
@@ -15,49 +19,57 @@ import subprocess
 import sys
 
 
-def _get_pipewire_dir():
+def _get_out_dir():
+    if len(sys.argv) > 1:
+        candidate = os.path.dirname(os.path.abspath(sys.argv[1]))
+        if os.path.isdir(candidate):
+            return candidate
+    return os.getcwd()
+
+
+def _get_wireplumber_dir():
     script_dir = os.path.dirname(os.path.realpath(__file__))
     src_dir = os.path.dirname(script_dir)
-
-    pipewire_dir = os.path.join(src_dir, 'third_party', 'pipewire',
-                                'linux-amd64')
-
-    return pipewire_dir
-
-
-def _configure_pipewire_paths(path):
-    library_dir = os.path.join(path, 'lib64')
-    pipewire_binary_dir = os.path.join(path, 'bin')
-    pipewire_config_prefix = os.path.join(path, 'share', 'pipewire')
-    pipewire_module_dir = os.path.join(library_dir, 'pipewire-0.3')
-    spa_plugin_dir = os.path.join(library_dir, 'spa-0.2')
-    wireplumber_config_dir = os.path.join(path, 'share', 'wireplumber')
-    wireplumber_data_dir = os.path.join(path, 'share', 'wireplumber')
-    wireplumber_module_dir = os.path.join(library_dir, 'wireplumber-0.5')
-
-    env_vars = os.environ
-    env_vars['LD_LIBRARY_PATH'] = library_dir
-    env_vars['PIPEWIRE_CONFIG_PREFIX'] = pipewire_config_prefix
-    env_vars['PIPEWIRE_MODULE_DIR'] = pipewire_module_dir
-    env_vars['SPA_PLUGIN_DIR'] = spa_plugin_dir
-    env_vars['PIPEWIRE_RUNTIME_DIR'] = '/tmp'
-    env_vars['PATH'] = env_vars['PATH'] + ':' + pipewire_binary_dir
-    env_vars['WIREPLUMBER_CONFIG_DIR'] = wireplumber_config_dir
-    env_vars['WIREPLUMBER_DATA_DIR'] = wireplumber_data_dir
-    env_vars['WIREPLUMBER_MODULE_DIR'] = wireplumber_module_dir
+    return os.path.join(src_dir, 'third_party', 'wireplumber', 'linux-amd64')
 
 
 def main():
-    pipewire_dir = _get_pipewire_dir()
+    out_dir = _get_out_dir()
+    wireplumber_dir = _get_wireplumber_dir()
 
-    if not os.path.isdir(pipewire_dir):
-        print('configure-pipewire: Couldn\'t find directory %s' % pipewire_dir)
+    if not os.path.isdir(wireplumber_dir):
+        print('configure-pipewire: WirePlumber directory not found: %s' %
+              wireplumber_dir)
         return 1
 
-    _configure_pipewire_paths(pipewire_dir)
+    wireplumber_lib_dir = os.path.join(wireplumber_dir, 'lib64')
 
-    pipewire_process = subprocess.Popen(["pipewire"], stdout=None)
-    wireplumber_process = subprocess.Popen(["wireplumber"], stdout=None)
+    env = os.environ
+    # dlopen looks for the versioned soname libpipewire-0.3.so.0; GN produces
+    # only libpipewire-0.3.so, so create the symlink if it doesn't exist yet.
+    versioned = os.path.join(out_dir, 'libpipewire-0.3.so.0')
+    if not os.path.exists(versioned):
+        os.symlink(os.path.join(out_dir, 'libpipewire-0.3.so'), versioned)
+
+    env['LD_LIBRARY_PATH'] = (out_dir + ':' +
+                              os.path.join(out_dir, 'pipewire-0.3') + ':' +
+                              wireplumber_lib_dir)
+    env['PIPEWIRE_MODULE_DIR'] = os.path.join(out_dir, 'pipewire-0.3')
+    env['SPA_PLUGIN_DIR'] = os.path.join(out_dir, 'spa-0.2')
+    env['PIPEWIRE_CONFIG_DIR'] = os.path.join(out_dir, 'pipewire-conf')
+    env['PIPEWIRE_RUNTIME_DIR'] = '/tmp'
+    env['PATH'] = (out_dir + ':' + os.path.join(wireplumber_dir, 'bin') + ':' +
+                   env['PATH'])
+    env['WIREPLUMBER_CONFIG_DIR'] = os.path.join(wireplumber_dir, 'share',
+                                                 'wireplumber')
+    env['WIREPLUMBER_DATA_DIR'] = os.path.join(wireplumber_dir, 'share',
+                                               'wireplumber')
+    env['WIREPLUMBER_MODULE_DIR'] = os.path.join(wireplumber_lib_dir,
+                                                 'wireplumber-0.5')
+
+    pipewire_process = subprocess.Popen([os.path.join(out_dir, 'pipewire')])
+    wireplumber_process = subprocess.Popen(
+        [os.path.join(wireplumber_dir, 'bin', 'wireplumber')])
 
     return_value = subprocess.call(sys.argv[1:])
 

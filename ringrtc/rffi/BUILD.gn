@@ -38,7 +38,7 @@ if (is_android) {
 
   rtc_shared_library("libringrtc_rffi") {
 
-    visibility = [ "//ringrtc:*" ]
+    visibility = [ "//ringrtc:*", ":*" ]
 
     android_sdk = "//sdk/android"
     # jni_onload.cc -- taken from webrtc/sdk/android/BUILD.gn.
@@ -63,9 +63,23 @@ if (is_android) {
     deps = [
       "${android_sdk}:libjingle_peerconnection_jni",
       "${android_sdk}:libjingle_peerconnection_metrics_default_jni",
-      "//pc:libjingle_peerconnection",
+      "//third_party/jni_zero",
     ]
     output_extension = "so"
+
+    java_targets = [ "${android_sdk}:libjingle_peerconnection_metrics_default_java" ]
+
+    # We don't link dav1d_av1_jni or video_egl_jni, so stub the natives of
+    # Dav1dDecoder and EglBase10Impl
+    add_stubs_for_missing_jni = true
+  }
+
+  java_library("libringrtc_rffi_jni_registration_java") {
+    supports_android = true
+    requires_android = true
+    visibility = [ "//sdk/android:*" ]
+    srcjar_deps = [ ":libringrtc_rffi__jni_registration" ]
+    deps = [ "//third_party/jni_zero:jni_zero_java" ]
   }
 }
 
@@ -101,6 +115,7 @@ if (is_linux || is_mac || is_win) {
 
     deps = [
       "//api:field_trials",
+      "//api/video:adapted_video_track_source",
       "//sdk:media_constraints",
       "//media:rtc_simulcast_encoder_adapter",
     ]

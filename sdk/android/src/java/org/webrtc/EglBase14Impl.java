@@ -32,6 +32,7 @@ class EglBase14Impl implements EglBase14 {
 
   private EGLSurface eglSurface = EGL14.EGL_NO_SURFACE;
   private EglConnection eglConnection;
+  private boolean detachSurfaceOnRelease = false;
 
   public static class Context implements EglBase14.Context {
     private final EGLContext egl14Context;
@@ -142,10 +143,14 @@ class EglBase14Impl implements EglBase14 {
     this.eglConnection = new EglConnection(sharedContext, configAttributes);
   }
 
-  // Create a new EglBase using an existing, possibly externally managed, EglConnection.
   public EglBase14Impl(EglConnection eglConnection) {
     this.eglConnection = eglConnection;
     this.eglConnection.retain();
+  }
+
+  @Override
+  public void setDetachSurfaceOnRelease(boolean detach) {
+    this.detachSurfaceOnRelease = detach;
   }
 
   // Create EGLSurface from the Android Surface.
@@ -172,7 +177,8 @@ class EglBase14Impl implements EglBase14 {
     int[] surfaceAttribs = {EGL14.EGL_NONE};
     eglSurface = EGL14.eglCreateWindowSurface(
         eglConnection.getDisplay(), eglConnection.getConfig(), surface, surfaceAttribs, 0);
-    if (eglSurface == EGL14.EGL_NO_SURFACE) {
+    if (eglSurface == null || eglSurface == EGL14.EGL_NO_SURFACE) {
+      eglSurface = EGL14.EGL_NO_SURFACE;
       throw new GLException(EGL14.eglGetError(),
           "Failed to create window surface: 0x" + Integer.toHexString(EGL14.eglGetError()));
     }
@@ -192,7 +198,8 @@ class EglBase14Impl implements EglBase14 {
     int[] surfaceAttribs = {EGL14.EGL_WIDTH, width, EGL14.EGL_HEIGHT, height, EGL14.EGL_NONE};
     eglSurface = EGL14.eglCreatePbufferSurface(
         eglConnection.getDisplay(), eglConnection.getConfig(), surfaceAttribs, 0);
-    if (eglSurface == EGL14.EGL_NO_SURFACE) {
+    if (eglSurface == null || eglSurface == EGL14.EGL_NO_SURFACE) {
+      eglSurface = EGL14.EGL_NO_SURFACE;
       throw new GLException(EGL14.eglGetError(),
           "Failed to create pixel buffer surface with size " + width + "x" + height + ": 0x"
               + Integer.toHexString(EGL14.eglGetError()));
@@ -226,6 +233,11 @@ class EglBase14Impl implements EglBase14 {
   @Override
   public void releaseSurface() {
     if (eglSurface != EGL14.EGL_NO_SURFACE) {
+      if (detachSurfaceOnRelease) {
+        if (eglSurface.equals(EGL14.eglGetCurrentSurface(EGL14.EGL_DRAW))) {
+          detachCurrent();
+        }
+      }
       EGL14.eglDestroySurface(eglConnection.getDisplay(), eglSurface);
       eglSurface = EGL14.EGL_NO_SURFACE;
     }

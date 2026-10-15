@@ -11,7 +11,10 @@
 #include "modules/desktop_capture/desktop_capture_options.h"
 
 #include "api/make_ref_counted.h"  // IWYU pragma: keep
+
+#if defined(WEBRTC_USE_X11)
 #include "modules/desktop_capture/linux/x11/shared_x_display.h"
+#endif
 
 #if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
 #include "modules/desktop_capture/mac/full_screen_mac_application_handler.h"

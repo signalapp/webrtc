@@ -12,12 +12,14 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "api/audio_codecs/audio_decoder_factory.h"
 #include "api/audio_codecs/audio_encoder_factory.h"
 #include "api/call/transport.h"
 #include "api/media_types.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_parameters.h"
 #include "api/scoped_refptr.h"
@@ -43,10 +45,8 @@
 namespace webrtc {
 namespace test {
 namespace {
-enum : int {  // The first valid value is 1.
-  kTransportSequenceNumberExtensionId = 1,
-  kAbsSendTimeExtensionId
-};
+constexpr RtpHeaderExtensionId kTransportSequenceNumberExtensionId(1);
+constexpr RtpHeaderExtensionId kAbsSendTimeExtensionId(2);
 
 std::optional<std::string> CreateAdaptationString(
     AudioStreamConfig::NetworkAdaptation config) {
@@ -89,12 +89,12 @@ std::vector<RtpExtension> GetAudioRtpExtensions(
     const AudioStreamConfig& config) {
   std::vector<RtpExtension> extensions;
   if (config.stream.in_bandwidth_estimation) {
-    extensions.push_back({RtpExtension::kTransportSequenceNumberUri,
-                          kTransportSequenceNumberExtensionId});
+    extensions.push_back(RtpExtension(RtpExtension::kTransportSequenceNumberUri,
+                                      kTransportSequenceNumberExtensionId));
   }
   if (config.stream.abs_send_time) {
     extensions.push_back(
-        {RtpExtension::kAbsSendTimeUri, kAbsSendTimeExtensionId});
+        RtpExtension(RtpExtension::kAbsSendTimeUri, kAbsSendTimeExtensionId));
   }
   return extensions;
 }
@@ -157,8 +157,6 @@ SendAudioStream::SendAudioStream(
 
   sender_->SendTask([&] {
     send_stream_ = sender_->call_->CreateAudioSendStream(send_config);
-    sender->call_->OnAudioTransportOverheadChanged(
-        sender_->transport_->packet_overhead().bytes());
   });
 }
 
@@ -210,7 +208,8 @@ ReceiveAudioStream::ReceiveAudioStream(
       {VideoTestConstants::kAudioSendPayloadType, {"opus", 48000, 2}}};
   recv_config.sync_group = config.render.sync_group;
   receiver_->SendTask([&] {
-    receive_stream_ = receiver_->call_->CreateAudioReceiveStream(recv_config);
+    receive_stream_ =
+        receiver_->call_->CreateAudioReceiveStream(std::move(recv_config));
   });
 }
 ReceiveAudioStream::~ReceiveAudioStream() {

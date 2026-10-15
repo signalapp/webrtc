@@ -11,13 +11,18 @@
 #include "modules/portal/pipewire_utils.h"
 
 #include <pipewire/pipewire.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
 
+#include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <tuple>
 #include <vector>
 
+#include "rtc_base/checks.h"
 #include "rtc_base/sanitizer.h"
 #include "rtc_base/string_encode.h"
 #include "rtc_base/string_to_number.h"
@@ -108,6 +113,43 @@ PipeWireInitializer::~PipeWireInitializer() {
       PipeWireVersion::Parse(pw_get_library_version());
   if (pw_client_version >= kReentrantDeinitMinVersion) {
     pw_deinit();
+  }
+}
+
+void ScopedBuf::initialize(int fd,
+                           size_t maxsize,
+                           off_t mapoffset,
+                           BufferType buffer_type,
+                           AccessMode mode) {
+  // PipeWire supports shared memory mappings <= 4GB in size.
+  RTC_CHECK_GE(mapoffset, 0);
+  RTC_CHECK_LE(mapoffset, UINT32_MAX);
+  RTC_CHECK_LE(maxsize, UINT32_MAX);
+
+  if (buffer_type == BufferType::kMemFd) {
+    struct stat sb;
+    if (fstat(fd, &sb) != 0 ||
+        static_cast<int64_t>(mapoffset) + static_cast<int64_t>(maxsize) >
+            static_cast<int64_t>(sb.st_size)) {
+      return;
+    }
+  }
+
+  int prot =
+      mode == AccessMode::kReadWrite ? (PROT_READ | PROT_WRITE) : PROT_READ;
+  int flags =
+      (buffer_type == BufferType::kDmaBuf || mode == AccessMode::kReadWrite)
+          ? MAP_SHARED
+          : MAP_PRIVATE;
+
+  map_ =
+      static_cast<uint8_t*>(mmap(nullptr, maxsize, prot, flags, fd, mapoffset));
+  map_size_ = maxsize;
+  fd_ = fd;
+  buffer_type_ = buffer_type;
+
+  if (buffer_type_ == BufferType::kDmaBuf && map_ != MAP_FAILED) {
+    SyncDmaBuf(fd_, DMA_BUF_SYNC_START);
   }
 }
 

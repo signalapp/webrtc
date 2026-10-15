@@ -18,10 +18,13 @@ if ((is_linux || is_chromeos) && rtc_use_pipewire) {
     ]
   }
 
-  pkg_config("pipewire") {
-    packages = [ "libpipewire-0.3" ]
-    if (!rtc_link_pipewire) {
-      ignore_libs = true
+  if (rtc_link_pipewire) {
+    pkg_config("pipewire") {
+      packages = [ "libpipewire-0.3" ]
+    }
+  } else {
+    config("pipewire") {
+      configs = [ "//third_party/pipewire:pipewire_public_config" ]
     }
   }
 
@@ -41,8 +44,8 @@ if ((is_linux || is_chromeos) && rtc_use_pipewire) {
   }
 
   if (!rtc_link_pipewire) {
-    # When libpipewire is not directly linked, use stubs to allow for dlopening of
-    # the binary.
+    # When libpipewire is not directly linked, use stubs to allow for dlopening
+    # of the binary.
     generate_stubs("pipewire_stubs") {
       configs = [
         "../../:common_config",

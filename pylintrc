@@ -49,6 +49,7 @@ disable=
 
 # Don't write out full reports, just messages.
 reports=no
+score=no
 
 
 [VARIABLES]

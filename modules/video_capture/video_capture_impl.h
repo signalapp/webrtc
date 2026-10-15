@@ -70,6 +70,8 @@ class RTC_EXPORT VideoCaptureImpl : public VideoCaptureModule {
   int32_t SetCaptureRotation(VideoRotation rotation) override;
   bool SetApplyRotation(bool enable) override;
   bool GetApplyRotation() override;
+  void SetStride(int32_t stride) override;
+  int32_t GetStride() override;
 
   const char* CurrentDeviceName() const override;
 
@@ -128,6 +130,10 @@ class RTC_EXPORT VideoCaptureImpl : public VideoCaptureModule {
 
   // Indicate whether rotation should be applied before delivered externally.
   bool apply_rotation_ RTC_GUARDED_BY(api_lock_);
+
+  // Explicit input buffer stride. Left to 0 implies implicit stride based on
+  // format and width.
+  int32_t stride_ RTC_GUARDED_BY(api_lock_);
 
   Clock* const clock_;
 };

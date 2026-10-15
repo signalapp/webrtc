@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/audio_options.h"
 #include "api/candidate.h"
@@ -48,7 +49,6 @@
 #include "pc/data_channel_controller.h"
 #include "pc/jsep_transport_controller.h"
 #include "pc/media_options.h"
-#include "pc/media_session.h"
 #include "pc/media_stream_observer.h"
 #include "pc/rtp_receiver.h"
 #include "pc/rtp_transceiver.h"
@@ -60,6 +60,7 @@
 #include "pc/stream_collection.h"
 #include "pc/transceiver_list.h"
 #include "pc/webrtc_session_description_factory.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/containers/flat_map.h"
 #include "rtc_base/containers/flat_set.h"
 #include "rtc_base/operations_chain.h"
@@ -184,6 +185,10 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
 
   std::optional<bool> is_caller() const;
   bool HasNewIceCredentials();
+  // Updates the negotiation needed flag and generates the onnegotiationneeded
+  // event if needed. Also increments the internal state version counter, which
+  // is used to invalidate cached/unapplied offers or answers when state
+  // changes.
   void UpdateNegotiationNeeded();
   void AllocateSctpSids();
   // Based on the negotiation state, guess what the SSLRole might be without
@@ -221,6 +226,9 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
   class ImplicitCreateSessionDescriptionObserver;
 
   friend class ImplicitCreateSessionDescriptionObserver;
+  class CreateSessionDescriptionObserverOperationWrapper;
+
+  friend class CreateSessionDescriptionObserverOperationWrapper;
   class SetSessionDescriptionObserverAdapter;
 
   friend class SetSessionDescriptionObserverAdapter;
@@ -309,6 +317,15 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
       scoped_refptr<SetLocalDescriptionObserverInterface> observer);
   void DoSetRemoteDescription(
       std::unique_ptr<RemoteDescriptionOperation> operation);
+
+  // Fire `OnSessionDescription{Success,Failure}` for the given action through
+  // the tracer if one is attached.
+  void TraceCreateSessionDescriptionComplete(
+      SdpType type,
+      const SessionDescriptionInterface* desc,
+      const RTCError& error);
+  void TraceSetLocalDescriptionComplete(const RTCError& error);
+  void TraceSetRemoteDescriptionComplete(const RTCError& error);
 
   // Called after a DoSetRemoteDescription operation completes.
   void SetRemoteDescriptionPostProcess(bool was_answer)
@@ -642,10 +659,26 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
       RTC_GUARDED_BY(signaling_thread());
   std::unique_ptr<SessionDescriptionInterface> pending_remote_description_
       RTC_GUARDED_BY(signaling_thread());
+  // The last generated offer and answer, cached for reuse by parameterless
+  // SetLocalDescription.
   std::unique_ptr<SessionDescriptionInterface> last_created_offer_
       RTC_GUARDED_BY(signaling_thread());
   std::unique_ptr<SessionDescriptionInterface> last_created_answer_
       RTC_GUARDED_BY(signaling_thread());
+  // Monotonically increasing version counter that tracks changes to the
+  // PeerConnection's negotiation state.
+  uint64_t state_version_ RTC_GUARDED_BY(signaling_thread()) = 0;
+  // The state version at the time the last offer or answer was created.
+  // Used to determine if the cached offer or answer is still valid (i.e.
+  // matches the current state version).
+  uint64_t last_created_offer_version_ RTC_GUARDED_BY(signaling_thread()) = 0;
+  uint64_t last_created_answer_version_ RTC_GUARDED_BY(signaling_thread()) = 0;
+#if RTC_DCHECK_IS_ON
+  PeerConnectionInterface::RTCOfferAnswerOptions last_created_offer_options_
+      RTC_GUARDED_BY(signaling_thread());
+  PeerConnectionInterface::RTCOfferAnswerOptions last_created_answer_options_
+      RTC_GUARDED_BY(signaling_thread());
+#endif
   SdpMungingType last_sdp_munging_type_ = SdpMungingType::kNoModification;
 
   PeerConnectionInterface::SignalingState signaling_state_
@@ -746,6 +779,17 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
   SdpPayloadTypeSuggester pt_suggester_;
 
   int max_sctp_streams_;
+
+#if RTC_DCHECK_IS_ON
+  // Generates a new offer in the background and structurally compares it with
+  // the cached `last_created_offer_` to verify cache validity.
+  void VerifyCachedOffer(absl::AnyInvocable<void() &&> on_verified)
+      RTC_RUN_ON(signaling_thread());
+  // Generates a new answer in the background and structurally compares it with
+  // the cached `last_created_answer_` to verify cache validity.
+  void VerifyCachedAnswer(absl::AnyInvocable<void() &&> on_verified)
+      RTC_RUN_ON(signaling_thread());
+#endif
 
   WeakPtrFactory<SdpOfferAnswerHandler> weak_ptr_factory_
       RTC_GUARDED_BY(signaling_thread());

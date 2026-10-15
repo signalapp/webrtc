@@ -138,7 +138,6 @@ int GetNumSpatialLayers(const VideoCodec& codec) {
   }
 }
 
-
 bool RequiresEncoderReset(const VideoCodec& prev_send_codec,
                           const VideoCodec& new_send_codec,
                           bool was_encode_called_since_last_initialization) {
@@ -407,8 +406,7 @@ VideoLayersAllocation CreateVideoLayersAllocation(
 
 VideoEncoder::EncoderInfo GetEncoderInfoWithBitrateLimitUpdate(
     const VideoEncoder::EncoderInfo& info,
-    const VideoEncoderConfig& encoder_config,
-    bool default_limits_allowed) {
+    const VideoEncoderConfig& encoder_config) {
   bool are_all_bitrate_limits_zero = true;
   // Hardware encoders commonly only report resolution limits, while reporting
   // the bitrate limits as 0. In such case, we should not use them for setting
@@ -422,7 +420,7 @@ VideoEncoder::EncoderInfo GetEncoderInfoWithBitrateLimitUpdate(
         });
   }
 
-  if (!default_limits_allowed || !are_all_bitrate_limits_zero ||
+  if (!are_all_bitrate_limits_zero ||
       encoder_config.simulcast_layers.size() <= 1) {
     return info;
   }
@@ -740,8 +738,6 @@ VideoStreamEncoder::VideoStreamEncoder(
                                env_.field_trials()),
       video_source_sink_controller_(/*sink=*/frame_cadence_adapter_.get(),
                                     /*source=*/nullptr),
-      default_limits_allowed_(!env_.field_trials().IsEnabled(
-          "WebRTC-DefaultBitrateLimitsKillSwitch")),
       qp_parsing_allowed_(
           !env_.field_trials().IsEnabled("WebRTC-QpParsingKillSwitch")),
       switch_encoder_on_init_failures_(!env_.field_trials().IsDisabled(
@@ -1011,7 +1007,8 @@ void VideoStreamEncoder::ConfigureEncoder(VideoEncoderConfig config,
     //
     // Note: zero-hertz mode isn't enabled by this alone. Constraints also
     // have to be set up with min_fps = 0 and max_fps > 0.
-    if (config.content_type == VideoEncoderConfig::ContentType::kScreen) {
+    if (config.content_type == VideoEncoderConfig::ContentType::kScreen ||
+        config.allow_zero_hertz_video) {
       frame_cadence_adapter_->SetZeroHertzModeEnabled(
           FrameCadenceAdapterInterface::ZeroHertzModeParams{});
     } else {
@@ -1255,8 +1252,8 @@ void VideoStreamEncoder::ReconfigureEncoder() {
   }
 
   ApplyEncoderBitrateLimitsIfSingleActiveStream(
-      GetEncoderInfoWithBitrateLimitUpdate(
-          encoder_->GetEncoderInfo(), encoder_config_, default_limits_allowed_),
+      GetEncoderInfoWithBitrateLimitUpdate(encoder_->GetEncoderInfo(),
+                                           encoder_config_),
       encoder_config_.simulcast_layers, &streams);
 
   VideoCodec codec = VideoCodecInitializer::SetupCodec(
@@ -1276,8 +1273,7 @@ void VideoStreamEncoder::ReconfigureEncoder() {
     crop_height_ = last_frame_info_->height - codec.height;
     ApplySpatialLayerBitrateLimits(
         GetEncoderInfoWithBitrateLimitUpdate(encoder_->GetEncoderInfo(),
-                                             encoder_config_,
-                                             default_limits_allowed_),
+                                             encoder_config_),
         encoder_config_, &codec);
   }
 
@@ -1341,7 +1337,7 @@ void VideoStreamEncoder::ReconfigureEncoder() {
   worker_queue_->PostTask(SafeTask(
       task_safety_.flag(),
       [this, alignment,
-       encoder_resolutions = std::move(encoder_resolutions)]() {
+       encoder_resolutions = std::move(encoder_resolutions)]() mutable {
         RTC_DCHECK_RUN_ON(worker_queue_);
         if (alignment != video_source_sink_controller_.resolution_alignment() ||
             encoder_resolutions !=
@@ -1591,15 +1587,16 @@ void VideoStreamEncoder::RequestEncoderSwitch() {
 
 void VideoStreamEncoder::OnEncoderSettingsChanged() {
   EncoderSettings encoder_settings(
-      GetEncoderInfoWithBitrateLimitUpdate(
-          encoder_->GetEncoderInfo(), encoder_config_, default_limits_allowed_),
+      GetEncoderInfoWithBitrateLimitUpdate(encoder_->GetEncoderInfo(),
+                                           encoder_config_),
       encoder_config_.Copy(), send_codec_);
   stream_resource_manager_.SetEncoderSettings(encoder_settings);
   input_state_provider_.OnEncoderSettingsChanged(encoder_settings);
   bool is_screenshare = encoder_settings.encoder_config().content_type ==
                         VideoEncoderConfig::ContentType::kScreen;
   degradation_preference_manager_->SetIsScreenshare(is_screenshare);
-  if (is_screenshare) {
+  if (is_screenshare ||
+      encoder_settings.encoder_config().allow_zero_hertz_video) {
     frame_cadence_adapter_->SetZeroHertzModeEnabled(
         FrameCadenceAdapterInterface::ZeroHertzModeParams{
             send_codec_.numberOfSimulcastStreams});
@@ -2250,10 +2247,21 @@ void VideoStreamEncoder::SendKeyFrame(
   }
 
   if (!layers.empty()) {
-    // RingRTC change to enable per-layer PLI for screen sharing
-    // RTC_DCHECK_EQ(layers.size(), next_frame_types_.size());
-    for (size_t i = 0; i < layers.size() && i < next_frame_types_.size(); i++) {
-      next_frame_types_[i] = layers[i];
+    // In single-stream or SVC configurations (`next_frame_types_.size() == 1`),
+    // the number of RTP SSRCs in `layers` can exceed the number of encoded
+    // streams. Any keyframe requested on any SSRC layer must trigger a keyframe
+    // on that single encoded stream.
+    if (next_frame_types_.size() == 1) {
+      if (absl::c_linear_search(layers, VideoFrameType::kVideoFrameKey)) {
+        next_frame_types_[0] = VideoFrameType::kVideoFrameKey;
+      }
+    } else {
+      for (size_t i = 0;
+           i < layers.size() && i < next_frame_types_.size(); i++) {
+        if (layers[i] == VideoFrameType::kVideoFrameKey) {
+          next_frame_types_[i] = VideoFrameType::kVideoFrameKey;
+        }
+      }
     }
   } else {
     std::fill(next_frame_types_.begin(), next_frame_types_.end(),
@@ -2283,8 +2291,8 @@ EncodedImage VideoStreamEncoder::AugmentEncodedImage(
   // TODO(https://crbug.com/webrtc/14891): If we want to support a mix of
   // simulcast and SVC we'll also need to consider the case where we have both
   // simulcast and spatial indices.
-  int stream_idx = encoded_image.SpatialIndex().value_or(
-      encoded_image.SimulcastIndex().value_or(0));
+  int stream_idx = std::max(encoded_image.SpatialIndex().value_or(0),
+                            encoded_image.SimulcastIndex().value_or(0));
 
   frame_encode_metadata_writer_.FillMetadataAndTimingInfo(stream_idx,
                                                           &image_copy);
@@ -2568,8 +2576,8 @@ bool VideoStreamEncoder::DropDueToSize(uint32_t source_pixel_count) const {
           encoder_target_bitrate_bps_.value());
 
   std::optional<VideoEncoder::ResolutionBitrateLimits> encoder_bitrate_limits =
-      GetEncoderInfoWithBitrateLimitUpdate(
-          encoder_->GetEncoderInfo(), encoder_config_, default_limits_allowed_)
+      GetEncoderInfoWithBitrateLimitUpdate(encoder_->GetEncoderInfo(),
+                                           encoder_config_)
           .GetEncoderBitrateLimitsForResolution(pixel_count);
 
   if (encoder_bitrate_limits.has_value()) {
@@ -2621,7 +2629,8 @@ void VideoStreamEncoder::OnVideoSourceRestrictionsUpdated(
   }
 
   worker_queue_->PostTask(SafeTask(
-      task_safety_.flag(), [this, restrictions = std::move(restrictions)]() {
+      task_safety_.flag(),
+      [this, restrictions = std::move(restrictions)]() mutable {
         RTC_DCHECK_RUN_ON(worker_queue_);
         video_source_sink_controller_.SetRestrictions(std::move(restrictions));
         video_source_sink_controller_.PushSourceSinkSettings();
@@ -2740,6 +2749,10 @@ void VideoStreamEncoder::ProcessDroppedFrame(
   accumulated_update_rect_is_valid_ &= frame.has_update_rect();
   stream_resource_manager_.OnFrameDropped(reason);
   encoder_stats_observer_->OnFrameDropped(reason);
+  if (reason == VideoStreamEncoderObserver::DropReason::kMediaOptimization &&
+      bitrate_adjuster_) {
+    bitrate_adjuster_->OnFrameDropped();
+  }
 }
 
 }  // namespace webrtc

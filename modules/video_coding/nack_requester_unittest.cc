@@ -264,45 +264,4 @@ TEST_F(TestNackRequester, SendNackWithoutDelay) {
   EXPECT_EQ(99u, sent_nacks_.size());
 }
 
-class TestNackRequesterWithFieldTrial : public ::testing::Test,
-                                        public NackSender,
-                                        public KeyFrameRequestSender {
- protected:
-  TestNackRequesterWithFieldTrial()
-      : clock_(new SimulatedClock(0)),
-        nack_module_(TaskQueueBase::Current(),
-                     &nack_periodic_processor_,
-                     clock_.get(),
-                     this,
-                     this,
-                     CreateTestFieldTrials("WebRTC-SendNackDelayMs/10/")),
-        keyframes_requested_(0) {}
-
-  void SendNack(const std::vector<uint16_t>& sequence_numbers,
-                bool /* buffering_allowed */) override {
-    sent_nacks_.insert(sent_nacks_.end(), sequence_numbers.begin(),
-                       sequence_numbers.end());
-  }
-
-  void RequestKeyFrame() override { ++keyframes_requested_; }
-
-  test::RunLoop main_thread_;
-  std::unique_ptr<SimulatedClock> clock_;
-  NackPeriodicProcessor nack_periodic_processor_;
-  NackRequester nack_module_;
-  std::vector<uint16_t> sent_nacks_;
-  int keyframes_requested_;
-};
-
-TEST_F(TestNackRequesterWithFieldTrial, SendNackWithDelay) {
-  nack_module_.OnReceivedPacket(0);
-  nack_module_.OnReceivedPacket(100);
-  EXPECT_EQ(0u, sent_nacks_.size());
-  clock_->AdvanceTimeMilliseconds(10);
-  nack_module_.OnReceivedPacket(106);
-  EXPECT_EQ(99u, sent_nacks_.size());
-  clock_->AdvanceTimeMilliseconds(10);
-  nack_module_.OnReceivedPacket(109);
-  EXPECT_EQ(104u, sent_nacks_.size());
-}
 }  // namespace webrtc

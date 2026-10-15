@@ -437,6 +437,31 @@ TEST(RtpPacketizerH265Test, ApRespectsLastPacketReduction) {
   EXPECT_THAT(packets[2].payload(), ElementsAreArray(nalus[3]));
 }
 
+TEST(RtpPacketizerH265Test, NegativeReductionLengthsClamped) {
+  RtpPacketizer::PayloadSizeLimits limits;
+  limits.max_payload_len = 100;
+  limits.single_packet_reduction_len = -50;
+  limits.first_packet_reduction_len = -50;
+  limits.last_packet_reduction_len = -50;
+
+  Buffer nalus[] = {GenerateNalUnit({.nal_unit_type = H265::NaluType::kIdrNLp,
+                                     .nuh_layer_id = 32,
+                                     .nuh_temporal_id_plus1 = 2},
+                                    /*size=*/70),
+                    GenerateNalUnit({.nal_unit_type = H265::NaluType::kIdrNLp,
+                                     .nuh_layer_id = 32,
+                                     .nuh_temporal_id_plus1 = 2},
+                                    /*size=*/70)};
+  Buffer frame = CreateFrame(nalus);
+
+  RtpPacketizerH265 packetizer(frame, limits);
+  std::vector<RtpPacketToSend> packets = FetchAllPackets(&packetizer);
+
+  // Negative reductions must not cause the fragments to be aggregated into a
+  // single overflowing packet.
+  EXPECT_GT(packets.size(), 1u);
+}
+
 TEST(RtpPacketizerH265Test, TooSmallForApHeaders) {
   RtpPacketizer::PayloadSizeLimits limits;
   limits.max_payload_len = 1000;
@@ -701,6 +726,22 @@ INSTANTIATE_TEST_SUITE_P(
                  .payload_size = 79,
                  .start_offset = 79},
                 {.aggregated = true, .nalu_index = 3, .nalu_number = 2}}}));
+
+TEST(RtpPacketizerH265Test, HandlesZeroMaxPayloadLen) {
+  const uint8_t frame[100] = {0x00, 0x00, 0x00, 0x01, 0x00, 0x01};
+  RtpPacketizer::PayloadSizeLimits limits;
+  limits.max_payload_len = 0;
+  RtpPacketizerH265 packetizer(frame, limits);
+  EXPECT_EQ(packetizer.NumPackets(), 0u);
+}
+
+TEST(RtpPacketizerH265Test, HandlesMaxPayloadLenSmallerThanFuHeader) {
+  const uint8_t frame[100] = {0x00, 0x00, 0x00, 0x01, 0x00, 0x01};
+  RtpPacketizer::PayloadSizeLimits limits;
+  limits.max_payload_len = 3;  // Equal to FU overhead (3)
+  RtpPacketizerH265 packetizer(frame, limits);
+  EXPECT_EQ(packetizer.NumPackets(), 0u);
+}
 
 }  // namespace
 }  // namespace webrtc

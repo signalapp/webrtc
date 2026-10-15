@@ -359,7 +359,6 @@ rtc_library("rtc_event_log_impl_encoder") {
       ":rtc_event_log_api",
       ":rtc_event_log_blob_encoding",
       ":rtc_event_log_delta_encoding",
-      ":rtc_event_log_proto",
       ":rtc_event_pacing",
       ":rtc_event_rtp_rtcp",
       ":rtc_event_video",
@@ -375,8 +374,6 @@ rtc_library("rtc_event_log_impl_encoder") {
       "../modules/rtp_rtcp:rtp_rtcp_format",
     ]
     sources += [
-      "rtc_event_log/encoder/rtc_event_log_encoder_legacy.cc",
-      "rtc_event_log/encoder/rtc_event_log_encoder_legacy.h",
       "rtc_event_log/encoder/rtc_event_log_encoder_new_format.cc",
       "rtc_event_log/encoder/rtc_event_log_encoder_new_format.h",
       "rtc_event_log/encoder/rtc_event_log_encoder_v3.cc",
@@ -396,7 +393,6 @@ if (rtc_enable_protobuf) {
       ":rtc_event_log_delta_encoding",
       ":rtc_event_log_optional_blob_encoding",
       ":rtc_event_log_parse_status",
-      ":rtc_event_log_proto",  # Why does this need to be included here?
       "../rtc_base:bitstream_reader",
       "../rtc_base:checks",
       "../rtc_base:logging",
@@ -471,6 +467,8 @@ rtc_library("fake_rtc_event_log") {
 
 if (rtc_enable_protobuf) {
   proto_library("rtc_event_log_proto") {
+    # Deprecated V1 event log format. Retained for offline parsing tools and
+    # historical log analysis pipelines (do not link into production binaries).
     visibility = [ "*" ]
     sources = [ "rtc_event_log/rtc_event_log.proto" ]
     proto_out_dir = "logging/rtc_event_log"
@@ -514,6 +512,7 @@ if (rtc_enable_protobuf) {
       "../api:candidate",
       "../api:dtls_transport_interface",
       "../api:function_view",
+      "../api:rtp_header_extension_id",
       "../api:rtp_headers",
       "../api:rtp_parameters",
       "../api/rtc_event_log",

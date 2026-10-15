@@ -226,6 +226,10 @@ struct DcSctpOptions {
   ZeroChecksumAlternateErrorDetectionMethod
       zero_checksum_alternate_error_detection_method =
           ZeroChecksumAlternateErrorDetectionMethod::None();
+
+  // EXPERIMENTAL: If true, allows handover even if there is outstanding data
+  // on the connection.
+  bool enable_handover_with_outstanding_data = false;
 };
 }  // namespace dcsctp
 

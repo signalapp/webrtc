@@ -139,3 +139,5 @@ VideoEncoderFactoryWrapper::GetEncoderSelector() const {
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(VideoEncoderFactory)

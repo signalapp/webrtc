@@ -104,3 +104,5 @@ ScopedJavaLocalRef<jclass> GetClass(JNIEnv* env, const char* c_name) {
 }
 
 }  // namespace webrtc
+
+DEFINE_JNI(WebRtcClassLoader)

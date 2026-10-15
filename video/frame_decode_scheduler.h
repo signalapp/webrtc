@@ -46,6 +46,9 @@ class FrameDecodeScheduler {
 
   // Stop() Must be called before destruction.
   virtual void Stop() = 0;
+
+  // Returns true if Stop() has been called.
+  virtual bool stopped() const = 0;
 };
 
 }  // namespace webrtc

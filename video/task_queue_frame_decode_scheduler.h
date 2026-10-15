@@ -40,6 +40,7 @@ class TaskQueueFrameDecodeScheduler : public FrameDecodeScheduler {
                      FrameReleaseCallback cb) override;
   void CancelOutstanding() override;
   void Stop() override;
+  bool stopped() const override;
 
  private:
   Clock* const clock_;

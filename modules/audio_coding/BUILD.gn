@@ -91,6 +91,7 @@ rtc_library("audio_encoder_cng") {
 
   deps = [
     ":webrtc_cng",
+    "../../api:bitrate_allocation",
     "../../api/audio_codecs:audio_codecs_api",
     "../../api/units:time_delta",
     "../../common_audio",
@@ -595,6 +596,7 @@ rtc_library("neteq_test_tools") {
     ":neteq_tools",
     ":neteq_tools_minimal",
     ":pcm16b",
+    "../../api:rtp_header_extension_id",
     "../../api:rtp_headers",
     "../../api/units:timestamp",
     "../../common_audio",
@@ -725,6 +727,7 @@ rtc_library("audio_coding_modules_tests_shared") {
     "../../rtc_base:digest",
     "../../rtc_base:stringutils",
     "../../system_wrappers",
+    "../../test:create_test_environment",
     "../../test:fileutils",
     "../../test:test_support",
     "../rtp_rtcp:rtp_rtcp_format",
@@ -770,39 +773,33 @@ if (rtc_include_tests) {
       "../../test:test_support",
     ]
   }
-
-  if (!build_with_chromium) {
-    group("audio_coding_tests") {
-      visibility += webrtc_default_visibility
-      testonly = true
-      public_deps = [  # no-presubmit-check TODO(webrtc:8603)
-        ":acm_receive_test",
-        ":acm_send_test",
-        ":audio_codec_speed_tests",
-        ":audio_decoder_unittests",
-        ":g711_test",
-        ":g722_test",
-        ":neteq_opus_quality_test",
-        ":neteq_pcm16b_quality_test",
-        ":neteq_pcmu_quality_test",
-        ":neteq_speed_test",
-        ":rtp_analyze",
-        ":rtp_encode",
-        ":rtp_jitter",
-        ":rtpcat",
-        ":webrtc_opus_fec_test",
-      ]
-      if (rtc_enable_protobuf) {
-        public_deps +=  # no-presubmit-check TODO(webrtc:8603)
-            [ ":neteq_rtpplay" ]
-      }
+  group("audio_coding_tests") {
+    visibility += webrtc_default_visibility
+    testonly = true
+    public_deps = [  # no-presubmit-check TODO(webrtc:8603)
+      ":acm_receive_test",
+      ":acm_send_test",
+      ":audio_codec_speed_tests",
+      ":audio_decoder_unittests",
+      ":g711_test",
+      ":g722_test",
+      ":neteq_opus_quality_test",
+      ":neteq_pcm16b_quality_test",
+      ":neteq_pcmu_quality_test",
+      ":neteq_speed_test",
+      ":rtp_analyze",
+      ":rtp_encode",
+      ":rtp_jitter",
+      ":rtpcat",
+      ":webrtc_opus_fec_test",
+    ]
+    if (rtc_enable_protobuf) {
+      public_deps +=  # no-presubmit-check TODO(webrtc:8603)
+          [ ":neteq_rtpplay" ]
     }
   }
 
-  rtc_library("audio_coding_modules_tests") {
-    testonly = true
-    visibility += webrtc_default_visibility
-
+  rtc_cc_test("audio_coding_modules_tests") {
     sources = [
       "test/Channel.cc",
       "test/Channel.h",
@@ -843,7 +840,6 @@ if (rtc_include_tests) {
       "../../api/audio_codecs/opus:audio_decoder_opus",
       "../../api/audio_codecs/opus:audio_encoder_opus",
       "../../api/environment",
-      "../../api/environment:environment_factory",
       "../../api/neteq:default_neteq_factory",
       "../../api/neteq:neteq_api",
       "../../api/units:timestamp",
@@ -852,7 +848,6 @@ if (rtc_include_tests) {
       "../../rtc_base:ip_address",
       "../../rtc_base:macromagic",
       "../../rtc_base:stringutils",
-      "../../rtc_base:timeutils",
       "../../rtc_base/synchronization:mutex",
       "../../test:create_test_environment",
       "../../test:create_test_field_trials",
@@ -861,6 +856,10 @@ if (rtc_include_tests) {
       "//third_party/abseil-cpp/absl/strings",
       "//third_party/abseil-cpp/absl/strings:string_view",
     ]
+    data_deps = [ "../../resources:modules_tests_data" ]
+    if (is_ios) {
+      deps += [ "../../resources:modules_tests_bundle_data" ]
+    }
     defines = audio_coding_defines
   }
 
@@ -868,26 +867,10 @@ if (rtc_include_tests) {
     testonly = true
     visibility += webrtc_default_visibility
 
-    sources = [
-      "codecs/opus/opus_complexity_unittest.cc",
-      "neteq/test/neteq_performance_unittest.cc",
-    ]
+    sources = []
     deps = [
-      ":neteq_test_support",
-      ":neteq_test_tools",
-      "../../api/audio_codecs:audio_codecs_api",
-      "../../api/audio_codecs/opus:audio_encoder_opus",
-      "../../api/audio_codecs/opus:audio_encoder_opus_config",
-      "../../api/environment",
-      "../../api/environment:environment_factory",
-      "../../api/test/metrics:global_metrics_logger_and_exporter",
-      "../../api/test/metrics:metric",
-      "../../rtc_base:buffer",
-      "../../test:create_test_environment",
-      "../../test:fileutils",
-      "../../test:test_flags",
-      "../../test:test_support",
-      "//third_party/abseil-cpp/absl/flags:flag",
+      ":neteq_performance_unittest",
+      ":opus_complexity_unittest",
     ]
   }
 
@@ -906,9 +889,10 @@ if (rtc_include_tests) {
       "../../api:scoped_refptr",
       "../../api/audio_codecs:audio_codecs_api",
       "../../api/audio_codecs:builtin_audio_decoder_factory",
-      "../../api/environment:environment_factory",
+      "../../api/environment",
       "../../api/neteq:default_neteq_factory",
       "../../api/neteq:neteq_api",
+      "../../test:create_test_environment",
       "../../test:test_support",
       "../rtp_rtcp:rtp_rtcp_format",
       "//testing/gtest",
@@ -935,8 +919,8 @@ if (rtc_include_tests) {
       "../../api/audio_codecs:audio_codecs_api",
       "../../api/audio_codecs:builtin_audio_encoder_factory",
       "../../api/environment",
-      "../../api/environment:environment_factory",
       "../../rtc_base:checks",
+      "../../test:create_test_environment",
       "../rtp_rtcp:rtp_rtcp_format",
       "//testing/gtest",
       "//third_party/abseil-cpp/absl/strings",
@@ -945,49 +929,46 @@ if (rtc_include_tests) {
     deps += audio_coding_deps
   }
 
-  if (!build_with_chromium) {
-    audio_decoder_unittests_resources =
-        [ "../../resources/audio_coding/testfile32kHz.pcm" ]
+  audio_decoder_unittests_resources =
+      [ "../../resources/audio_coding/testfile32kHz.pcm" ]
 
-    if (is_ios) {
-      bundle_data("audio_decoder_unittests_bundle_data") {
-        testonly = true
-        sources = audio_decoder_unittests_resources
-        outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
-      }
-    }
-
-    rtc_test("audio_decoder_unittests") {
+  if (is_ios) {
+    bundle_data("audio_decoder_unittests_bundle_data") {
       testonly = true
-      sources = [ "neteq/audio_decoder_unittest.cc" ]
+      sources = audio_decoder_unittests_resources
+      outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
+    }
+  }
 
-      defines = neteq_defines
+  rtc_test("audio_decoder_unittests") {
+    testonly = true
+    sources = [ "neteq/audio_decoder_unittest.cc" ]
 
-      deps = [
-               ":neteq_input_audio_tools",
-               "../../api/audio_codecs:audio_codecs_api",
-               "../../api/audio_codecs/g722:audio_encoder_g722_config",
-               "../../api/audio_codecs/opus:audio_encoder_opus",
-               "../../api/audio_codecs/opus:audio_encoder_opus_config",
-               "../../api/environment:environment_factory",
-               "../../rtc_base:buffer",
-               "../../rtc_base:checks",
-               "../../test:create_test_environment",
-               "../../test:create_test_field_trials",
-               "../../test:fileutils",
-               "../../test:test_support",
-             ] + audio_coding_deps
+    defines = neteq_defines
 
-      data = audio_decoder_unittests_resources
+    deps = [
+             ":neteq_input_audio_tools",
+             "../../api:bitrate_allocation",
+             "../../api/audio_codecs:audio_codecs_api",
+             "../../api/audio_codecs/g722:audio_encoder_g722_config",
+             "../../api/audio_codecs/opus:audio_encoder_opus",
+             "../../api/audio_codecs/opus:audio_encoder_opus_config",
+             "../../api/units:data_rate",
+             "../../rtc_base:buffer",
+             "../../rtc_base:checks",
+             "../../test:create_test_environment",
+             "../../test:create_test_field_trials",
+             "../../test:fileutils",
+             "../../test:test_support",
+           ] + audio_coding_deps
 
-      if (is_android) {
-        use_default_launcher = false
-        deps += [ "//build/android/gtest_apk:native_test_instrumentation_test_runner_java" ]
-        shard_timeout = 900
-      }
-      if (is_ios) {
-        deps += [ ":audio_decoder_unittests_bundle_data" ]
-      }
+    data = audio_decoder_unittests_resources
+
+    if (is_android) {
+      deps += [ "//build/android/gtest_apk:native_test_instrumentation_test_runner_java" ]
+    }
+    if (is_ios) {
+      deps += [ ":audio_decoder_unittests_bundle_data" ]
     }
   }
 
@@ -1021,7 +1002,7 @@ if (rtc_include_tests) {
     }
   }
 
-  if (rtc_enable_protobuf && !build_with_chromium) {
+  if (rtc_enable_protobuf) {
     rtc_executable("neteq_rtpplay") {
       testonly = true
       visibility += [ "*" ]
@@ -1039,55 +1020,51 @@ if (rtc_include_tests) {
     }
   }
 
-  if (!build_with_chromium) {
-    audio_codec_speed_tests_resources = [
-      "//resources/audio_coding/music_stereo_48kHz.pcm",
-      "//resources/audio_coding/speech_mono_16kHz.pcm",
-      "//resources/audio_coding/speech_mono_32_48kHz.pcm",
+  audio_codec_speed_tests_resources = [
+    "//resources/audio_coding/music_stereo_48kHz.pcm",
+    "//resources/audio_coding/speech_mono_16kHz.pcm",
+    "//resources/audio_coding/speech_mono_32_48kHz.pcm",
+  ]
+
+  if (is_ios) {
+    bundle_data("audio_codec_speed_tests_data") {
+      testonly = true
+      sources = audio_codec_speed_tests_resources
+      outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
+    }
+  }
+
+  rtc_test("audio_codec_speed_tests") {
+    testonly = true
+    defines = []
+    deps = [
+      "../../test:fileutils",
+      # RingRTC change to use a fork of opus
+      "//ringrtc/opus",
+    ]
+    sources = [
+      "codecs/opus/opus_speed_test.cc",
+      "codecs/tools/audio_codec_speed_test.cc",
+      "codecs/tools/audio_codec_speed_test.h",
     ]
 
+    data = audio_codec_speed_tests_resources
+
+    if (is_android) {
+      deps += [ "//build/android/gtest_apk:native_test_instrumentation_test_runner_java" ]
+    }
+
     if (is_ios) {
-      bundle_data("audio_codec_speed_tests_data") {
-        testonly = true
-        sources = audio_codec_speed_tests_resources
-        outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
-      }
+      deps += [ ":audio_codec_speed_tests_data" ]
     }
 
-    rtc_test("audio_codec_speed_tests") {
-      testonly = true
-      defines = []
-      deps = [
-        "../../test:fileutils",
-        # RingRTC change to use a fork of opus
-        "//ringrtc/opus",
-      ]
-      sources = [
-        "codecs/opus/opus_speed_test.cc",
-        "codecs/tools/audio_codec_speed_test.cc",
-        "codecs/tools/audio_codec_speed_test.h",
-      ]
-
-      data = audio_codec_speed_tests_resources
-
-      if (is_android) {
-        use_default_launcher = false
-        deps += [ "//build/android/gtest_apk:native_test_instrumentation_test_runner_java" ]
-        shard_timeout = 900
-      }
-
-      if (is_ios) {
-        deps += [ ":audio_codec_speed_tests_data" ]
-      }
-
-      deps += [
-        ":webrtc_opus",
-        "../../rtc_base:checks",
-        "../../test:test_support",
-        "../audio_processing",
-        "//testing/gtest",
-      ]
-    }
+    deps += [
+      ":webrtc_opus",
+      "../../rtc_base:checks",
+      "../../test:test_support",
+      "../audio_processing",
+      "//testing/gtest",
+    ]
   }
 
   rtc_library("neteq_test_support") {
@@ -1112,184 +1089,184 @@ if (rtc_include_tests) {
       "../../api/units:timestamp",
       "../../rtc_base:checks",
       "../../system_wrappers",
+      "../../test:create_test_environment",
       "../../test:fileutils",
       "//testing/gtest",
     ]
   }
 
-  if (!build_with_chromium) {
-    rtc_library("neteq_quality_test_support") {
-      testonly = true
-      sources = [
-        "neteq/tools/neteq_quality_test.cc",
-        "neteq/tools/neteq_quality_test.h",
-      ]
+  rtc_library("neteq_quality_test_support") {
+    testonly = true
+    sources = [
+      "neteq/tools/neteq_quality_test.cc",
+      "neteq/tools/neteq_quality_test.h",
+    ]
 
-      deps = [
-        ":neteq_input_audio_tools",
-        ":neteq_test_tools",
-        ":neteq_tools_minimal",
-        "../../api:rtp_headers",
-        "../../api:scoped_refptr",
-        "../../api/audio_codecs:audio_codecs_api",
-        "../../api/audio_codecs:builtin_audio_decoder_factory",
-        "../../api/environment:environment_factory",
-        "../../api/neteq:default_neteq_factory",
-        "../../api/neteq:neteq_api",
-        "../../api/units:timestamp",
-        "../../rtc_base:buffer",
-        "../../rtc_base:checks",
-        "../../rtc_base:stringutils",
-        "../../test:fileutils",
-        "../../test:test_support",
-        "//testing/gtest",
-        "//third_party/abseil-cpp/absl/flags:flag",
-        "//third_party/abseil-cpp/absl/strings",
-        "//third_party/abseil-cpp/absl/strings:string_view",
-      ]
-    }
+    deps = [
+      ":neteq_input_audio_tools",
+      ":neteq_test_tools",
+      ":neteq_tools_minimal",
+      "../../api:rtp_headers",
+      "../../api:scoped_refptr",
+      "../../api/audio_codecs:audio_codecs_api",
+      "../../api/audio_codecs:builtin_audio_decoder_factory",
+      "../../api/neteq:default_neteq_factory",
+      "../../api/neteq:neteq_api",
+      "../../api/units:timestamp",
+      "../../rtc_base:buffer",
+      "../../rtc_base:checks",
+      "../../rtc_base:stringutils",
+      "../../test:create_test_environment",
+      "../../test:fileutils",
+      "../../test:test_support",
+      "//testing/gtest",
+      "//third_party/abseil-cpp/absl/flags:flag",
+      "//third_party/abseil-cpp/absl/strings",
+      "//third_party/abseil-cpp/absl/strings:string_view",
+    ]
+  }
 
-    rtc_executable("rtp_encode") {
-      testonly = true
+  rtc_executable("rtp_encode") {
+    testonly = true
 
-      deps = [
-        ":audio_coding",
-        ":audio_coding_module_typedefs",
-        ":neteq_input_audio_tools",
-        "../../api/audio:audio_frame_api",
-        "../../api/audio_codecs/L16:audio_encoder_L16",
-        "../../api/audio_codecs/g711:audio_encoder_g711",
-        "../../api/audio_codecs/g722:audio_encoder_g722",
-        "../../api/audio_codecs/opus:audio_encoder_opus",
-        "../../api/environment:environment_factory",
-        "../../rtc_base:checks",
-        "../../rtc_base:ip_address",
-        "../../rtc_base:safe_conversions",
-        "//third_party/abseil-cpp/absl/flags:flag",
-        "//third_party/abseil-cpp/absl/flags:parse",
-      ]
+    deps = [
+      ":audio_coding",
+      ":audio_coding_module_typedefs",
+      ":neteq_input_audio_tools",
+      "../../api/audio:audio_frame_api",
+      "../../api/audio_codecs/L16:audio_encoder_L16",
+      "../../api/audio_codecs/g711:audio_encoder_g711",
+      "../../api/audio_codecs/g722:audio_encoder_g722",
+      "../../api/audio_codecs/opus:audio_encoder_opus",
+      "../../api/environment:environment_factory",
+      "../../rtc_base:checks",
+      "../../rtc_base:ip_address",
+      "../../rtc_base:safe_conversions",
+      "//third_party/abseil-cpp/absl/flags:flag",
+      "//third_party/abseil-cpp/absl/flags:parse",
+    ]
 
-      deps += audio_coding_deps
+    deps += audio_coding_deps
 
-      sources = [ "neteq/tools/rtp_encode.cc" ]
+    sources = [ "neteq/tools/rtp_encode.cc" ]
 
-      defines = audio_coding_defines
-    }
+    defines = audio_coding_defines
+  }
 
-    rtc_executable("rtp_jitter") {
-      testonly = true
+  rtc_executable("rtp_jitter") {
+    testonly = true
 
-      deps = [
-        "../../rtc_base:buffer",
-        "../../rtc_base:checks",
-        "../rtp_rtcp:rtp_rtcp_format",
-      ]
+    deps = [
+      "../../rtc_base:buffer",
+      "../../rtc_base:checks",
+      "../rtp_rtcp:rtp_rtcp_format",
+    ]
 
-      deps += audio_coding_deps
+    deps += audio_coding_deps
 
-      sources = [ "neteq/tools/rtp_jitter.cc" ]
+    sources = [ "neteq/tools/rtp_jitter.cc" ]
 
-      defines = audio_coding_defines
-    }
+    defines = audio_coding_defines
+  }
 
-    rtc_executable("rtpcat") {
-      testonly = true
+  rtc_executable("rtpcat") {
+    testonly = true
 
-      sources = [ "neteq/tools/rtpcat.cc" ]
+    sources = [ "neteq/tools/rtpcat.cc" ]
 
-      deps = [
-        "../../rtc_base:checks",
-        "../../test:rtp_test_utils",
-        "//testing/gtest",
-      ]
-    }
+    deps = [
+      "../../rtc_base:checks",
+      "../../test:rtp_test_utils",
+      "//testing/gtest",
+    ]
+  }
 
-    rtc_executable("rtp_analyze") {
-      testonly = true
+  rtc_executable("rtp_analyze") {
+    testonly = true
 
-      sources = [ "neteq/tools/rtp_analyze.cc" ]
+    sources = [ "neteq/tools/rtp_analyze.cc" ]
 
-      deps = [
-        ":neteq_test_tools",
-        "../../api:rtp_headers",
-        "../../rtc_base:checks",
-        "../rtp_rtcp:rtp_rtcp_format",
-        "//testing/gtest",
-        "//third_party/abseil-cpp/absl/flags:flag",
-        "//third_party/abseil-cpp/absl/flags:parse",
-      ]
-    }
+    deps = [
+      ":neteq_test_tools",
+      "../../api:rtp_header_extension_id",
+      "../../api:rtp_headers",
+      "../../rtc_base:checks",
+      "../rtp_rtcp:rtp_rtcp_format",
+      "//testing/gtest",
+      "//third_party/abseil-cpp/absl/flags:flag",
+      "//third_party/abseil-cpp/absl/flags:parse",
+    ]
+  }
 
-    rtc_test("neteq_opus_quality_test") {
-      testonly = true
+  rtc_test("neteq_opus_quality_test") {
+    testonly = true
 
-      sources = [ "neteq/test/neteq_opus_quality_test.cc" ]
+    sources = [ "neteq/test/neteq_opus_quality_test.cc" ]
 
-      deps = [
-        ":neteq",
-        ":neteq_quality_test_support",
-        ":neteq_tools",
-        ":webrtc_opus",
-        "../../api:rtp_parameters",
-        "../../api/audio_codecs:audio_codecs_api",
-        "../../rtc_base:buffer",
-        "../../rtc_base:checks",
-        "../../test:test_support",
-        "//testing/gtest",
-        "//third_party/abseil-cpp/absl/flags:flag",
-        # RingRTC change to use a fork of opus
-        "//ringrtc/opus",
-      ]
-    }
+    deps = [
+      ":neteq",
+      ":neteq_quality_test_support",
+      ":neteq_tools",
+      ":webrtc_opus",
+      "../../api:rtp_parameters",
+      "../../api/audio_codecs:audio_codecs_api",
+      "../../rtc_base:buffer",
+      "../../rtc_base:checks",
+      "../../test:test_support",
+      "//testing/gtest",
+      "//third_party/abseil-cpp/absl/flags:flag",
+      # RingRTC change to use a fork of opus
+      "//ringrtc/opus",
+    ]
+  }
 
-    rtc_executable("neteq_speed_test") {
-      testonly = true
+  rtc_executable("neteq_speed_test") {
+    testonly = true
 
-      sources = [ "neteq/test/neteq_speed_test.cc" ]
+    sources = [ "neteq/test/neteq_speed_test.cc" ]
 
-      deps = [
-        ":neteq_test_support",
-        "../../rtc_base:checks",
-        "//third_party/abseil-cpp/absl/flags:flag",
-        "//third_party/abseil-cpp/absl/flags:parse",
-      ]
-    }
+    deps = [
+      ":neteq_test_support",
+      "../../rtc_base:checks",
+      "//third_party/abseil-cpp/absl/flags:flag",
+      "//third_party/abseil-cpp/absl/flags:parse",
+    ]
+  }
 
-    rtc_test("neteq_pcmu_quality_test") {
-      testonly = true
+  rtc_test("neteq_pcmu_quality_test") {
+    testonly = true
 
-      sources = [ "neteq/test/neteq_pcmu_quality_test.cc" ]
+    sources = [ "neteq/test/neteq_pcmu_quality_test.cc" ]
 
-      deps = [
-        ":g711",
-        ":neteq_quality_test_support",
-        "../../api/audio_codecs:audio_codecs_api",
-        "../../rtc_base:buffer",
-        "../../rtc_base:checks",
-        "../../rtc_base:safe_conversions",
-        "../../test:test_support",
-        "//testing/gtest",
-        "//third_party/abseil-cpp/absl/flags:flag",
-      ]
-    }
+    deps = [
+      ":g711",
+      ":neteq_quality_test_support",
+      "../../api/audio_codecs:audio_codecs_api",
+      "../../rtc_base:buffer",
+      "../../rtc_base:checks",
+      "../../rtc_base:safe_conversions",
+      "../../test:test_support",
+      "//testing/gtest",
+      "//third_party/abseil-cpp/absl/flags:flag",
+    ]
+  }
 
-    rtc_test("neteq_pcm16b_quality_test") {
-      testonly = true
+  rtc_test("neteq_pcm16b_quality_test") {
+    testonly = true
 
-      sources = [ "neteq/test/neteq_pcm16b_quality_test.cc" ]
+    sources = [ "neteq/test/neteq_pcm16b_quality_test.cc" ]
 
-      deps = [
-        ":neteq_quality_test_support",
-        ":pcm16b",
-        "../../api/audio_codecs:audio_codecs_api",
-        "../../rtc_base:buffer",
-        "../../rtc_base:checks",
-        "../../rtc_base:safe_conversions",
-        "../../test:test_support",
-        "//testing/gtest",
-        "//third_party/abseil-cpp/absl/flags:flag",
-      ]
-    }
+    deps = [
+      ":neteq_quality_test_support",
+      ":pcm16b",
+      "../../api/audio_codecs:audio_codecs_api",
+      "../../rtc_base:buffer",
+      "../../rtc_base:checks",
+      "../../rtc_base:safe_conversions",
+      "../../test:test_support",
+      "//testing/gtest",
+      "//third_party/abseil-cpp/absl/flags:flag",
+    ]
   }
 
   rtc_executable("g711_test") {
@@ -1308,194 +1285,118 @@ if (rtc_include_tests) {
     deps = [ ":g722" ]
   }
 
-  if (!build_with_chromium) {
-    rtc_test("webrtc_opus_fec_test") {
-      testonly = true
+  rtc_test("webrtc_opus_fec_test") {
+    testonly = true
 
-      sources = [ "codecs/opus/opus_fec_test.cc" ]
+    sources = [ "codecs/opus/opus_fec_test.cc" ]
 
-      deps = [
-        ":webrtc_opus",
-        "../../common_audio",
-        "../../test:fileutils",
-        "../../test:test_support",
-        "//testing/gtest",
-      ]
-    }
+    deps = [
+      ":webrtc_opus",
+      "../../common_audio",
+      "../../test:fileutils",
+      "../../test:test_support",
+      "//testing/gtest",
+    ]
+  }
 
-    rtc_library("audio_coding_unittests") {
-      testonly = true
-      visibility += webrtc_default_visibility
+  rtc_library("audio_coding_unittests_helper") {
+    testonly = true
+    sources = [
+      "neteq/mock/mock_buffer_level_filter.h",
+      "neteq/mock/mock_decoder_database.h",
+      "neteq/mock/mock_delay_manager.h",
+      "neteq/mock/mock_dtmf_buffer.h",
+      "neteq/mock/mock_dtmf_tone_generator.h",
+      "neteq/mock/mock_expand.h",
+      "neteq/mock/mock_histogram.h",
+      "neteq/mock/mock_neteq_controller.h",
+      "neteq/mock/mock_packet_arrival_history.h",
+      "neteq/mock/mock_packet_buffer.h",
+      "neteq/mock/mock_red_payload_splitter.h",
+      "neteq/mock/mock_statistics_calculator.h",
+    ]
+    deps = [
+      ":neteq",
+      ":webrtc_cng",
+      "../../api:field_trials_view",
+      "../../api/audio_codecs:audio_codecs_api",
+      "../../api/neteq:neteq_api",
+      "../../api/neteq:neteq_controller_api",
+      "../../api/neteq:tick_timer",
+      "../../test:create_test_environment",
+      "../../test:test_support",
+      "//third_party/abseil-cpp/absl/strings:string_view",
+    ]
+  }
 
-      sources = [
-        "acm2/acm_remixing_unittest.cc",
-        "acm2/acm_resampler_unittest.cc",
-        "acm2/audio_coding_module_unittest.cc",
-        "acm2/call_statistics_unittest.cc",
-        "audio_network_adaptor/audio_network_adaptor_impl_unittest.cc",
-        "audio_network_adaptor/bitrate_controller_unittest.cc",
-        "audio_network_adaptor/channel_controller_unittest.cc",
-        "audio_network_adaptor/controller_manager_unittest.cc",
-        "audio_network_adaptor/dtx_controller_unittest.cc",
-        "audio_network_adaptor/event_log_writer_unittest.cc",
-        "audio_network_adaptor/fec_controller_plr_based_unittest.cc",
-        "audio_network_adaptor/frame_length_controller_unittest.cc",
-        "audio_network_adaptor/frame_length_controller_v2_unittest.cc",
-        "audio_network_adaptor/util/threshold_curve_unittest.cc",
-        "codecs/builtin_audio_decoder_factory_unittest.cc",
-        "codecs/builtin_audio_encoder_factory_unittest.cc",
-        "codecs/cng/audio_encoder_cng_unittest.cc",
-        "codecs/cng/cng_unittest.cc",
-        "codecs/legacy_encoded_audio_frame_unittest.cc",
-        "codecs/opus/audio_decoder_multi_channel_opus_unittest.cc",
-        "codecs/opus/audio_decoder_opus_unittest.cc",
-        "codecs/opus/audio_encoder_multi_channel_opus_unittest.cc",
-        "codecs/opus/audio_encoder_opus_unittest.cc",
-        "codecs/opus/opus_bandwidth_unittest.cc",
-        "codecs/opus/opus_unittest.cc",
-        "codecs/red/audio_encoder_copy_red_unittest.cc",
-        "neteq/audio_multi_vector_unittest.cc",
-        "neteq/audio_vector_unittest.cc",
-        "neteq/background_noise_unittest.cc",
-        "neteq/buffer_level_filter_unittest.cc",
-        "neteq/comfort_noise_unittest.cc",
-        "neteq/decision_logic_unittest.cc",
-        "neteq/decoder_database_unittest.cc",
-        "neteq/delay_constraints_unittest.cc",
-        "neteq/delay_manager_unittest.cc",
-        "neteq/dsp_helper_unittest.cc",
-        "neteq/dtmf_buffer_unittest.cc",
-        "neteq/dtmf_tone_generator_unittest.cc",
-        "neteq/expand_unittest.cc",
-        "neteq/histogram_unittest.cc",
-        "neteq/merge_unittest.cc",
-        "neteq/mock/mock_buffer_level_filter.h",
-        "neteq/mock/mock_decoder_database.h",
-        "neteq/mock/mock_delay_manager.h",
-        "neteq/mock/mock_dtmf_buffer.h",
-        "neteq/mock/mock_dtmf_tone_generator.h",
-        "neteq/mock/mock_expand.h",
-        "neteq/mock/mock_histogram.h",
-        "neteq/mock/mock_neteq_controller.h",
-        "neteq/mock/mock_packet_arrival_history.h",
-        "neteq/mock/mock_packet_buffer.h",
-        "neteq/mock/mock_red_payload_splitter.h",
-        "neteq/mock/mock_statistics_calculator.h",
-        "neteq/neteq_decoder_plc_unittest.cc",
-        "neteq/neteq_impl_unittest.cc",
-        "neteq/neteq_network_stats_unittest.cc",
-        "neteq/neteq_stereo_unittest.cc",
-        "neteq/neteq_unittest.cc",
-        "neteq/normal_unittest.cc",
-        "neteq/packet_arrival_history_unittest.cc",
-        "neteq/packet_buffer_unittest.cc",
-        "neteq/random_vector_unittest.cc",
-        "neteq/red_payload_splitter_unittest.cc",
-        "neteq/reorder_optimizer_unittest.cc",
-        "neteq/statistics_calculator_unittest.cc",
-        "neteq/sync_buffer_unittest.cc",
-        "neteq/time_stretch_unittest.cc",
-        "neteq/timestamp_scaler_unittest.cc",
-        "neteq/tools/input_audio_file_unittest.cc",
-        "neteq/underrun_optimizer_unittest.cc",
-      ]
+  rtc_library("audio_coding_unittests") {
+    testonly = true
+    visibility += webrtc_default_visibility
 
-      deps = [
-        ":acm_receive_test",
-        ":acm_send_test",
-        ":audio_coding",
-        ":audio_coding_module_typedefs",
-        ":audio_coding_modules_tests_shared",
-        ":audio_coding_opus_common",
-        ":audio_encoder_cng",
-        ":audio_network_adaptor",
-        ":audio_network_adaptor_config",
-        ":g711",
-        ":legacy_encoded_audio_frame",
-        ":mocks",
-        ":neteq",
-        ":neteq_input_audio_tools",
-        ":neteq_test_tools",
-        ":neteq_tools_minimal",
-        ":pcm16b",
-        ":pcm16b_c",
-        ":red",
-        ":webrtc_cng",
-        ":webrtc_opus",
-        ":webrtc_opus_wrapper",
-        "..:module_api_public",
-        "../../api:bitrate_allocation",
-        "../../api:field_trials",
-        "../../api:field_trials_view",
-        "../../api:make_ref_counted",
-        "../../api:rtp_headers",
-        "../../api:rtp_packet_info",
-        "../../api:rtp_parameters",
-        "../../api:scoped_refptr",
-        "../../api:time_controller",
-        "../../api/audio:audio_frame_api",
-        "../../api/audio_codecs:audio_codecs_api",
-        "../../api/audio_codecs:builtin_audio_decoder_factory",
-        "../../api/audio_codecs:builtin_audio_encoder_factory",
-        "../../api/audio_codecs/opus:audio_decoder_multiopus",
-        "../../api/audio_codecs/opus:audio_decoder_opus",
-        "../../api/audio_codecs/opus:audio_encoder_multiopus",
-        "../../api/audio_codecs/opus:audio_encoder_opus",
-        "../../api/audio_codecs/opus:audio_encoder_opus_config",
-        "../../api/environment",
-        "../../api/environment:environment_factory",
-        "../../api/neteq:default_neteq_controller_factory",
-        "../../api/neteq:default_neteq_factory",
-        "../../api/neteq:neteq_api",
-        "../../api/neteq:neteq_controller_api",
-        "../../api/neteq:tick_timer",
-        "../../api/neteq:tick_timer_unittest",
-        "../../api/rtc_event_log",
-        "../../api/units:data_rate",
-        "../../api/units:time_delta",
-        "../../api/units:timestamp",
-        "../../common_audio",
-        "../../common_audio:mock_common_audio",
-        "../../logging:mocks",
-        "../../logging:rtc_event_audio",
-        "../../rtc_base:buffer",
-        "../../rtc_base:checks",
-        "../../rtc_base:digest",
-        "../../rtc_base:ip_address",
-        "../../rtc_base:random",
-        "../../rtc_base:rtc_base_tests_utils",
-        "../../rtc_base:safe_conversions",
-        "../../rtc_base:stringutils",
-        "../../rtc_base/system:arch",
-        "../../system_wrappers",
-        "../../test:audio_codec_mocks",
-        "../../test:audio_test_common",
-        "../../test:create_test_environment",
-        "../../test:create_test_field_trials",
-        "../../test:fileutils",
-        "../../test:rtc_expect_death",
-        "../../test:test_support",
-        "../../test/time_controller",
-        "../rtp_rtcp:rtp_rtcp_format",
-        "codecs/opus/test",
-        "codecs/opus/test:test_unittest",
-        "//third_party/abseil-cpp/absl/flags:flag",
-        "//third_party/abseil-cpp/absl/memory",
-        "//third_party/abseil-cpp/absl/strings:string_view",
-        # RingRTC change to use a fork of opus
-        "//ringrtc/opus",
-      ]
+    sources = []
 
-      defines = audio_coding_defines
-
-      if (rtc_enable_protobuf) {
-        defines += [ "WEBRTC_NETEQ_UNITTEST_BITEXACT" ]
-        deps += [
-          ":ana_config_proto",
-          ":neteq_unittest_proto",
-        ]
-      }
-    }
+    deps = [
+      ":acm_remixing_unittest",
+      ":acm_resampler_unittest",
+      ":audio_coding_module_unittest",
+      ":audio_decoder_multi_channel_opus_unittest",
+      ":audio_decoder_opus_unittest",
+      ":audio_encoder_cng_unittest",
+      ":audio_encoder_copy_red_unittest",
+      ":audio_encoder_multi_channel_opus_unittest",
+      ":audio_encoder_opus_unittest",
+      ":audio_multi_vector_unittest",
+      ":audio_network_adaptor_impl_unittest",
+      ":audio_vector_unittest",
+      ":background_noise_unittest",
+      ":bitrate_controller_unittest",
+      ":buffer_level_filter_unittest",
+      ":builtin_audio_decoder_factory_unittest",
+      ":builtin_audio_encoder_factory_unittest",
+      ":call_statistics_unittest",
+      ":channel_controller_unittest",
+      ":cng_unittest",
+      ":comfort_noise_unittest",
+      ":controller_manager_unittest",
+      ":decision_logic_unittest",
+      ":decoder_database_unittest",
+      ":delay_constraints_unittest",
+      ":delay_manager_unittest",
+      ":dsp_helper_unittest",
+      ":dtmf_buffer_unittest",
+      ":dtmf_tone_generator_unittest",
+      ":dtx_controller_unittest",
+      ":event_log_writer_unittest",
+      ":expand_unittest",
+      ":fec_controller_plr_based_unittest",
+      ":frame_length_controller_unittest",
+      ":frame_length_controller_v2_unittest",
+      ":histogram_unittest",
+      ":input_audio_file_unittest",
+      ":legacy_encoded_audio_frame_unittest",
+      ":merge_unittest",
+      ":neteq_decoder_plc_unittest",
+      ":neteq_impl_unittest",
+      ":neteq_network_stats_unittest",
+      ":neteq_stereo_unittest",
+      ":neteq_unittest",
+      ":normal_unittest",
+      ":opus_bandwidth_unittest",
+      ":opus_unittest",
+      ":packet_arrival_history_unittest",
+      ":packet_buffer_unittest",
+      ":random_vector_unittest",
+      ":red_payload_splitter_unittest",
+      ":reorder_optimizer_unittest",
+      ":statistics_calculator_unittest",
+      ":sync_buffer_unittest",
+      ":threshold_curve_unittest",
+      ":time_stretch_unittest",
+      ":timestamp_scaler_unittest",
+      ":underrun_optimizer_unittest",
+      "codecs/opus/test",
+      "codecs/opus/test:test_unittest",
+    ]
   }
 }
 
@@ -1515,4 +1416,928 @@ rtc_source_set("audio_encoder_interface") {
   visibility += [ "*" ]
   sources = [ "codecs/audio_encoder.h" ]
   deps = [ "../../api/audio_codecs:audio_codecs_api" ]
+}
+
+if (rtc_include_tests) {
+  rtc_library("acm_remixing_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "acm2/acm_remixing_unittest.cc" ]
+    deps = [
+      ":audio_coding",
+      "../../api/audio:audio_frame_api",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("acm_resampler_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "acm2/acm_resampler_unittest.cc" ]
+    deps = [
+      ":audio_coding",
+      "../../api/audio:audio_frame_api",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("audio_coding_module_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "acm2/audio_coding_module_unittest.cc" ]
+    deps = [
+      ":acm_receive_test",
+      ":acm_send_test",
+      ":audio_coding",
+      ":audio_coding_module_typedefs",
+      ":audio_encoder_cng",
+      ":g711",
+      ":neteq_input_audio_tools",
+      ":neteq_test_tools",
+      ":neteq_tools_minimal",
+      "../../api:make_ref_counted",
+      "../../api:scoped_refptr",
+      "../../api/audio_codecs:audio_codecs_api",
+      "../../api/audio_codecs:builtin_audio_decoder_factory",
+      "../../api/audio_codecs:builtin_audio_encoder_factory",
+      "../../api/audio_codecs/opus:audio_decoder_multiopus",
+      "../../api/audio_codecs/opus:audio_encoder_multiopus",
+      "../../api/audio_codecs/opus:audio_encoder_opus",
+      "../../api/audio_codecs/opus:audio_encoder_opus_config",
+      "../../api/environment",
+      "../../api/neteq:default_neteq_factory",
+      "../../api/neteq:neteq_api",
+      "../../api/units:timestamp",
+      "../../common_audio",
+      "../../rtc_base:buffer",
+      "../../rtc_base:digest",
+      "../../rtc_base:safe_conversions",
+      "../../rtc_base:stringutils",
+      "../../rtc_base/system:arch",
+      "../../test:audio_codec_mocks",
+      "../../test:audio_test_common",
+      "../../test:create_test_environment",
+      "../../test:fileutils",
+      "../../test:test_support",
+      "../rtp_rtcp:rtp_rtcp_format",
+      "//third_party/abseil-cpp/absl/strings:string_view",
+    ]
+  }
+
+  rtc_library("call_statistics_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "acm2/call_statistics_unittest.cc" ]
+    deps = [
+      ":audio_coding",
+      ":audio_coding_module_typedefs",
+      "../../api/audio:audio_frame_api",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("audio_network_adaptor_impl_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "audio_network_adaptor/audio_network_adaptor_impl_unittest.cc" ]
+    deps = [
+      ":audio_network_adaptor",
+      ":mocks",
+      "../../api:time_controller",
+      "../../api/rtc_event_log",
+      "../../api/units:time_delta",
+      "../../api/units:timestamp",
+      "../../logging:mocks",
+      "../../logging:rtc_event_audio",
+      "../../test:create_test_environment",
+      "../../test:test_support",
+      "../../test/time_controller",
+    ]
+    if (rtc_enable_protobuf) {
+      deps += [
+        ":ana_config_proto",
+        ":ana_debug_dump_proto",
+      ]
+    }
+  }
+
+  rtc_library("bitrate_controller_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "audio_network_adaptor/bitrate_controller_unittest.cc" ]
+    deps = [
+      ":audio_network_adaptor",
+      ":audio_network_adaptor_config",
+      "../../rtc_base:safe_conversions",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("channel_controller_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "audio_network_adaptor/channel_controller_unittest.cc" ]
+    deps = [
+      ":audio_network_adaptor",
+      ":audio_network_adaptor_config",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("controller_manager_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "audio_network_adaptor/controller_manager_unittest.cc" ]
+    deps = [
+      ":audio_network_adaptor",
+      ":audio_network_adaptor_config",
+      ":mocks",
+      "../../api/environment",
+      "../../api/units:time_delta",
+      "../../api/units:timestamp",
+      "../../rtc_base:checks",
+      "../../system_wrappers",
+      "../../test:create_test_environment",
+      "../../test:test_support",
+      "//third_party/abseil-cpp/absl/strings:string_view",
+    ]
+    if (rtc_enable_protobuf) {
+      deps += [ ":ana_config_proto" ]
+    }
+  }
+
+  rtc_library("dtx_controller_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "audio_network_adaptor/dtx_controller_unittest.cc" ]
+    deps = [
+      ":audio_network_adaptor",
+      ":audio_network_adaptor_config",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("event_log_writer_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "audio_network_adaptor/event_log_writer_unittest.cc" ]
+    deps = [
+      ":audio_network_adaptor",
+      "../../api/rtc_event_log",
+      "../../logging:mocks",
+      "../../logging:rtc_event_audio",
+      "../../rtc_base:checks",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("fec_controller_plr_based_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "audio_network_adaptor/fec_controller_plr_based_unittest.cc" ]
+    deps = [
+      ":audio_network_adaptor",
+      ":audio_network_adaptor_config",
+      "../../common_audio:mock_common_audio",
+      "../../rtc_base:checks",
+      "../../test:create_test_environment",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("frame_length_controller_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "audio_network_adaptor/frame_length_controller_unittest.cc" ]
+    deps = [
+      ":audio_network_adaptor",
+      ":audio_network_adaptor_config",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("frame_length_controller_v2_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "audio_network_adaptor/frame_length_controller_v2_unittest.cc" ]
+    deps = [
+      ":audio_network_adaptor",
+      ":audio_network_adaptor_config",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("threshold_curve_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "audio_network_adaptor/util/threshold_curve_unittest.cc" ]
+    deps = [
+      ":audio_network_adaptor",
+      "../../rtc_base:checks",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("builtin_audio_decoder_factory_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "codecs/builtin_audio_decoder_factory_unittest.cc" ]
+    deps = [
+      "../../api:rtp_parameters",
+      "../../api:scoped_refptr",
+      "../../api/audio_codecs:audio_codecs_api",
+      "../../api/audio_codecs:builtin_audio_decoder_factory",
+      "../../api/environment",
+      "../../test:create_test_environment",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("builtin_audio_encoder_factory_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "codecs/builtin_audio_encoder_factory_unittest.cc" ]
+    deps = [
+      "../../api:scoped_refptr",
+      "../../api/audio_codecs:audio_codecs_api",
+      "../../api/audio_codecs:builtin_audio_encoder_factory",
+      "../../api/environment",
+      "../../rtc_base:buffer",
+      "../../rtc_base:safe_conversions",
+      "../../test:create_test_environment",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("audio_encoder_cng_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "codecs/cng/audio_encoder_cng_unittest.cc" ]
+    deps = [
+      ":audio_encoder_cng",
+      "../../api/audio_codecs:audio_codecs_api",
+      "../../api/units:time_delta",
+      "../../common_audio",
+      "../../common_audio:mock_common_audio",
+      "../../rtc_base:buffer",
+      "../../rtc_base:safe_conversions",
+      "../../test:audio_codec_mocks",
+      "../../test:rtc_expect_death",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("cng_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "codecs/cng/cng_unittest.cc" ]
+    deps = [
+      ":webrtc_cng",
+      "../../rtc_base:buffer",
+      "../../rtc_base:checks",
+      "../../test:fileutils",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("legacy_encoded_audio_frame_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "codecs/legacy_encoded_audio_frame_unittest.cc" ]
+    deps = [
+      ":legacy_encoded_audio_frame",
+      "../../rtc_base:buffer",
+      "../../rtc_base:checks",
+      "../../rtc_base:safe_conversions",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("audio_decoder_multi_channel_opus_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "codecs/opus/audio_decoder_multi_channel_opus_unittest.cc" ]
+    deps = [
+      ":audio_coding_opus_common",
+      "../../api/audio_codecs:audio_codecs_api",
+      "../../api/audio_codecs/opus:audio_decoder_multiopus",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("audio_decoder_opus_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "codecs/opus/audio_decoder_opus_unittest.cc" ]
+    deps = [
+      ":audio_coding_modules_tests_shared",
+      ":webrtc_opus",
+      "../../api/audio:audio_frame_api",
+      "../../api/audio_codecs:audio_codecs_api",
+      "../../api/audio_codecs/opus:audio_encoder_opus_config",
+      "../../api/environment",
+      "../../rtc_base:buffer",
+      "../../rtc_base:checks",
+      "../../rtc_base:random",
+      "../../rtc_base:safe_conversions",
+      "../../test:create_test_environment",
+      "../../test:fileutils",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("audio_encoder_multi_channel_opus_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "codecs/opus/audio_encoder_multi_channel_opus_unittest.cc" ]
+    deps = [
+      "../../api/audio_codecs:audio_codecs_api",
+      "../../api/audio_codecs/opus:audio_encoder_multiopus",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("audio_encoder_opus_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "codecs/opus/audio_encoder_opus_unittest.cc" ]
+    deps = [
+      ":audio_network_adaptor_config",
+      ":mocks",
+      ":neteq_test_tools",
+      ":webrtc_opus",
+      ":webrtc_opus_wrapper",
+      "../../api:bitrate_allocation",
+      "../../api:field_trials",
+      "../../api:field_trials_view",
+      "../../api:rtp_parameters",
+      "../../api/audio_codecs:audio_codecs_api",
+      "../../api/audio_codecs/opus:audio_encoder_opus",
+      "../../api/audio_codecs/opus:audio_encoder_opus_config",
+      "../../api/units:data_rate",
+      "../../api/units:time_delta",
+      "../../api/units:timestamp",
+      "../../common_audio:mock_common_audio",
+      "../../rtc_base:buffer",
+      "../../rtc_base:checks",
+      "../../test:create_test_environment",
+      "../../test:create_test_field_trials",
+      "../../test:fileutils",
+      "../../test:test_support",
+      "../../test/time_controller",
+      "//third_party/abseil-cpp/absl/strings:string_view",
+    ]
+  }
+
+  rtc_library("opus_bandwidth_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "codecs/opus/opus_bandwidth_unittest.cc" ]
+    deps = [
+      ":neteq_test_tools",
+      "../../api:field_trials",
+      "../../api/audio_codecs:audio_codecs_api",
+      "../../api/audio_codecs/opus:audio_decoder_opus",
+      "../../api/audio_codecs/opus:audio_encoder_opus",
+      "../../api/audio_codecs/opus:audio_encoder_opus_config",
+      "../../api/environment",
+      "../../api/environment:environment_factory",
+      "../../common_audio",
+      "../../rtc_base:buffer",
+      "../../test:create_test_field_trials",
+      "../../test:fileutils",
+      "../../test:test_support",
+      "codecs/opus/test",
+    ]
+  }
+
+  rtc_library("opus_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "codecs/opus/opus_unittest.cc" ]
+    deps = [
+      ":neteq_test_tools",
+      ":webrtc_opus_wrapper",
+      "../../rtc_base:checks",
+      "../../rtc_base:safe_conversions",
+      "../../test:fileutils",
+      "../../test:test_support",
+      # RingRTC change to use a fork of opus
+      "//ringrtc/opus",
+    ]
+  }
+
+  rtc_library("audio_encoder_copy_red_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "codecs/red/audio_encoder_copy_red_unittest.cc" ]
+    deps = [
+      ":red",
+      "../../api:field_trials",
+      "../../api/audio_codecs:audio_codecs_api",
+      "../../api/units:time_delta",
+      "../../rtc_base:buffer",
+      "../../rtc_base:safe_conversions",
+      "../../test:audio_codec_mocks",
+      "../../test:create_test_field_trials",
+      "../../test:rtc_expect_death",
+      "../../test:test_support",
+      "//third_party/abseil-cpp/absl/strings:string_view",
+    ]
+  }
+
+  rtc_library("audio_multi_vector_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "neteq/audio_multi_vector_unittest.cc" ]
+    deps = [
+      ":neteq",
+      "../../api/audio:audio_frame_api",
+      "../../rtc_base:safe_conversions",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("audio_vector_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "neteq/audio_vector_unittest.cc" ]
+    deps = [
+      ":neteq",
+      "../../api/audio:audio_frame_api",
+      "../../rtc_base:safe_conversions",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("background_noise_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "neteq/background_noise_unittest.cc" ]
+    deps = [
+      ":neteq",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("buffer_level_filter_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "neteq/buffer_level_filter_unittest.cc" ]
+    deps = [
+      ":neteq",
+      "../../rtc_base:stringutils",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("comfort_noise_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "neteq/comfort_noise_unittest.cc" ]
+    deps = [
+      ":audio_coding_unittests_helper",
+      ":neteq",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("decision_logic_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "neteq/decision_logic_unittest.cc" ]
+    deps = [
+      ":audio_coding_unittests_helper",
+      ":neteq",
+      "../../api/neteq:neteq_api",
+      "../../api/neteq:neteq_controller_api",
+      "../../api/neteq:tick_timer",
+      "../../test:create_test_field_trials",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("decoder_database_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "neteq/decoder_database_unittest.cc" ]
+    deps = [
+      ":neteq",
+      ":webrtc_cng",
+      "../../api:make_ref_counted",
+      "../../api/audio_codecs:audio_codecs_api",
+      "../../api/audio_codecs:builtin_audio_decoder_factory",
+      "../../test:audio_codec_mocks",
+      "../../test:create_test_environment",
+      "../../test:test_support",
+      "//third_party/abseil-cpp/absl/memory",
+    ]
+  }
+
+  rtc_library("delay_constraints_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "neteq/delay_constraints_unittest.cc" ]
+    deps = [
+      ":neteq",
+      "../../rtc_base:checks",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("delay_manager_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "neteq/delay_manager_unittest.cc" ]
+    deps = [
+      ":neteq",
+      "../../api/neteq:neteq_controller_api",
+      "../../api/neteq:tick_timer",
+      "../../test:create_test_field_trials",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("dsp_helper_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "neteq/dsp_helper_unittest.cc" ]
+    deps = [
+      ":neteq",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("dtmf_buffer_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "neteq/dtmf_buffer_unittest.cc" ]
+    deps = [
+      ":neteq",
+      "../../rtc_base:ip_address",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("dtmf_tone_generator_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "neteq/dtmf_tone_generator_unittest.cc" ]
+    deps = [
+      ":neteq",
+      "../../common_audio",
+      "../../rtc_base:stringutils",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("expand_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "neteq/expand_unittest.cc" ]
+    deps = [
+      ":neteq",
+      ":neteq_input_audio_tools",
+      "../../api/neteq:tick_timer",
+      "../../rtc_base:safe_conversions",
+      "../../test:fileutils",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("histogram_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "neteq/histogram_unittest.cc" ]
+    deps = [
+      ":neteq",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("merge_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "neteq/merge_unittest.cc" ]
+    deps = [
+      ":neteq",
+      ":neteq_input_audio_tools",
+      "../../api/neteq:tick_timer",
+      "../../test:fileutils",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("neteq_decoder_plc_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "neteq/neteq_decoder_plc_unittest.cc" ]
+    deps = [
+      ":neteq_input_audio_tools",
+      ":neteq_test_tools",
+      ":neteq_tools_minimal",
+      ":pcm16b",
+      "../../api:field_trials",
+      "../../api:make_ref_counted",
+      "../../api/audio_codecs:audio_codecs_api",
+      "../../api/neteq:neteq_api",
+      "../../rtc_base:buffer",
+      "../../rtc_base:checks",
+      "../../rtc_base:safe_conversions",
+      "../../test:audio_test_common",
+      "../../test:create_test_field_trials",
+      "../../test:fileutils",
+      "../../test:test_support",
+      "../rtp_rtcp:rtp_rtcp_format",
+    ]
+  }
+
+  rtc_library("neteq_impl_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "neteq/neteq_impl_unittest.cc" ]
+    deps = [
+      ":audio_coding_unittests_helper",
+      ":g711",
+      ":neteq",
+      "../../api:make_ref_counted",
+      "../../api:rtp_headers",
+      "../../api:rtp_packet_info",
+      "../../api:scoped_refptr",
+      "../../api/audio:audio_frame_api",
+      "../../api/audio_codecs:audio_codecs_api",
+      "../../api/audio_codecs:builtin_audio_decoder_factory",
+      "../../api/environment",
+      "../../api/neteq:default_neteq_controller_factory",
+      "../../api/neteq:default_neteq_factory",
+      "../../api/neteq:neteq_api",
+      "../../api/neteq:neteq_controller_api",
+      "../../api/neteq:tick_timer",
+      "../../rtc_base:checks",
+      "../../rtc_base:safe_conversions",
+      "../../system_wrappers",
+      "../../test:audio_codec_mocks",
+      "../../test:audio_test_common",
+      "../../test:create_test_environment",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("neteq_network_stats_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "neteq/neteq_network_stats_unittest.cc" ]
+    deps = [
+      ":neteq_test_tools",
+      "../../api:make_ref_counted",
+      "../../api:rtp_headers",
+      "../../api:scoped_refptr",
+      "../../api/audio:audio_frame_api",
+      "../../api/audio_codecs:audio_codecs_api",
+      "../../api/neteq:default_neteq_factory",
+      "../../api/neteq:neteq_api",
+      "../../api/units:timestamp",
+      "../../rtc_base:buffer",
+      "../../rtc_base:checks",
+      "../../test:audio_test_common",
+      "../../test:create_test_environment",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("neteq_stereo_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "neteq/neteq_stereo_unittest.cc" ]
+    deps = [
+      ":neteq_input_audio_tools",
+      ":neteq_test_tools",
+      ":pcm16b_c",
+      "../../api:rtp_headers",
+      "../../api/audio:audio_frame_api",
+      "../../api/audio_codecs:audio_codecs_api",
+      "../../api/audio_codecs:builtin_audio_decoder_factory",
+      "../../api/environment",
+      "../../api/neteq:default_neteq_factory",
+      "../../api/neteq:neteq_api",
+      "../../api/units:timestamp",
+      "../../rtc_base:checks",
+      "../../rtc_base:stringutils",
+      "../../system_wrappers",
+      "../../test:create_test_environment",
+      "../../test:fileutils",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("neteq_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "neteq/neteq_unittest.cc" ]
+    deps = [
+      ":audio_coding_modules_tests_shared",
+      ":neteq_test_tools",
+      ":neteq_tools_minimal",
+      ":pcm16b_c",
+      "..:module_api_public",
+      "../../api:field_trials",
+      "../../api:rtp_headers",
+      "../../api/audio:audio_frame_api",
+      "../../api/audio_codecs:builtin_audio_decoder_factory",
+      "../../api/neteq:neteq_api",
+      "../../api/units:time_delta",
+      "../../rtc_base:safe_conversions",
+      "../../rtc_base:stringutils",
+      "../../rtc_base/system:arch",
+      "../../test:create_test_field_trials",
+      "../../test:fileutils",
+      "../../test:test_support",
+      "../rtp_rtcp:rtp_rtcp_format",
+      "//third_party/abseil-cpp/absl/flags:flag",
+    ]
+  }
+
+  rtc_library("normal_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "neteq/normal_unittest.cc" ]
+    deps = [
+      ":audio_coding_unittests_helper",
+      ":neteq",
+      "../../api/neteq:neteq_api",
+      "../../api/neteq:tick_timer",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("packet_arrival_history_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "neteq/packet_arrival_history_unittest.cc" ]
+    deps = [
+      ":neteq",
+      "../../api/neteq:tick_timer",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("packet_buffer_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "neteq/packet_buffer_unittest.cc" ]
+    deps = [
+      ":audio_coding_unittests_helper",
+      ":neteq",
+      "../../api:field_trials",
+      "../../api:field_trials_view",
+      "../../api/audio_codecs:audio_codecs_api",
+      "../../api/neteq:tick_timer",
+      "../../rtc_base:checks",
+      "../../test:create_test_field_trials",
+      "../../test:test_support",
+      "//third_party/abseil-cpp/absl/strings:string_view",
+    ]
+  }
+
+  rtc_library("random_vector_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "neteq/random_vector_unittest.cc" ]
+    deps = [
+      ":neteq",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("red_payload_splitter_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "neteq/red_payload_splitter_unittest.cc" ]
+    deps = [
+      ":neteq",
+      "../../api:make_ref_counted",
+      "../../api/audio_codecs:audio_codecs_api",
+      "../../api/environment",
+      "../../rtc_base:checks",
+      "../../rtc_base:safe_conversions",
+      "../../test:audio_codec_mocks",
+      "../../test:create_test_environment",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("reorder_optimizer_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "neteq/reorder_optimizer_unittest.cc" ]
+    deps = [
+      ":neteq",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("statistics_calculator_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "neteq/statistics_calculator_unittest.cc" ]
+    deps = [
+      ":neteq",
+      "../../api/neteq:neteq_api",
+      "../../api/neteq:tick_timer",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("sync_buffer_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "neteq/sync_buffer_unittest.cc" ]
+    deps = [
+      ":neteq",
+      "../../api/audio:audio_frame_api",
+      "../../rtc_base:safe_conversions",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("time_stretch_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "neteq/time_stretch_unittest.cc" ]
+    deps = [
+      ":neteq",
+      ":neteq_input_audio_tools",
+      "../../rtc_base:checks",
+      "../../test:fileutils",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("timestamp_scaler_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "neteq/timestamp_scaler_unittest.cc" ]
+    deps = [
+      ":audio_coding_unittests_helper",
+      ":neteq",
+      "../../api/audio_codecs:audio_codecs_api",
+      "../../api/audio_codecs:builtin_audio_decoder_factory",
+      "../../api/environment",
+      "../../test:create_test_environment",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("input_audio_file_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "neteq/tools/input_audio_file_unittest.cc" ]
+    deps = [
+      ":neteq_input_audio_tools",
+      "../../rtc_base:safe_conversions",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("underrun_optimizer_unittest") {
+    testonly = true
+    defines = audio_coding_defines
+    sources = [ "neteq/underrun_optimizer_unittest.cc" ]
+    deps = [
+      ":neteq",
+      "../../api/neteq:tick_timer",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("opus_complexity_unittest") {
+    testonly = true
+    sources = [ "codecs/opus/opus_complexity_unittest.cc" ]
+    deps = [
+      ":neteq_test_tools",
+      "../../api/audio_codecs:audio_codecs_api",
+      "../../api/audio_codecs/opus:audio_encoder_opus",
+      "../../api/audio_codecs/opus:audio_encoder_opus_config",
+      "../../api/environment",
+      "../../api/test/metrics:global_metrics_logger_and_exporter",
+      "../../api/test/metrics:metric",
+      "../../rtc_base:buffer",
+      "../../test:create_test_environment",
+      "../../test:fileutils",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("neteq_performance_unittest") {
+    testonly = true
+    sources = [ "neteq/test/neteq_performance_unittest.cc" ]
+    deps = [
+      ":neteq_test_support",
+      "../../api/test/metrics:global_metrics_logger_and_exporter",
+      "../../api/test/metrics:metric",
+      "../../test:test_flags",
+      "../../test:test_support",
+      "//third_party/abseil-cpp/absl/flags:flag",
+    ]
+  }
 }

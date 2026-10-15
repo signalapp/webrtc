@@ -418,6 +418,16 @@ class PeerConnection : public PeerConnectionInternal,
   Call* call_ptr() override { return call_ptr_; }
 
   ConnectionContext* context() { return context_.get(); }
+
+  PeerConnectionTracerInterface* tracer() override {
+    RTC_DCHECK_RUN_ON(signaling_thread());
+    return tracer_.get();
+  }
+  const PeerConnectionTracerInterface* tracer() const override {
+    RTC_DCHECK_RUN_ON(signaling_thread());
+    return tracer_.get();
+  }
+
   const PeerConnectionFactoryInterface::Options* options() const override {
     return &options_;
   }
@@ -773,6 +783,11 @@ class PeerConnection : public PeerConnectionInternal,
       RTC_GUARDED_BY(network_thread());
   JsepTransportController* transport_controller_copy_
       RTC_GUARDED_BY(signaling_thread()) = nullptr;
+
+  // Embedder-supplied tracer; null if none was attached. Declared before
+  // `sdp_handler_` so that it outlives its users.
+  const std::unique_ptr<PeerConnectionTracerInterface> tracer_
+      RTC_GUARDED_BY(signaling_thread()) RTC_PT_GUARDED_BY(signaling_thread());
 
   // The machinery for handling offers and answers. Const after initialization.
   std::unique_ptr<SdpOfferAnswerHandler> sdp_handler_

@@ -29,6 +29,7 @@ struct ScreamFeedback {
   int num_ce_marked_packets = 0;
   int num_lost_packets = 0;
   int num_recovered_packets = 0;
+  DataSize received = DataSize::Zero();
 
   // Sum of the sizes of all packets in the feedback that are NOT ECN CE-marked.
   // This explicitly includes packets reported as lost (since lost packets do
@@ -46,6 +47,9 @@ struct ScreamFeedback {
 
   // The calculated RTT sample of this feedback.
   TimeDelta rtt_sample = TimeDelta::Zero();
+
+  // Receive timestamp of the latest packet received in this feedback.
+  Timestamp last_packet_receive_time = Timestamp::MinusInfinity();
 };
 
 // Free function helper to convert original feedback into the flat struct.

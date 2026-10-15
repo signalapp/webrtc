@@ -22,3 +22,5 @@ static jlong JNI_EglBase10Impl_GetCurrentNativeEGLContext(JNIEnv* jni) {
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(EglBase10Impl)

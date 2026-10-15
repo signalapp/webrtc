@@ -41,7 +41,6 @@
 namespace webrtc {
 namespace {
 
-using ::testing::Invoke;
 using ::testing::NotNull;
 
 class MockInitialize : public AudioProcessingImpl {
@@ -170,8 +169,9 @@ int ProcessInputVolume(AudioProcessing& apm,
 
 TEST(AudioProcessingImplTest, AudioParameterChangeTriggersInit) {
   MockInitialize mock;
-  ON_CALL(mock, InitializeLocked)
-      .WillByDefault(Invoke(&mock, &MockInitialize::RealInitializeLocked));
+  ON_CALL(mock, InitializeLocked).WillByDefault([&] {
+    mock.RealInitializeLocked();
+  });
 
   EXPECT_CALL(mock, InitializeLocked).Times(1);
   mock.Initialize();

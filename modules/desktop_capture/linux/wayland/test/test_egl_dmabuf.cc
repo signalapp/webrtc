@@ -60,10 +60,9 @@ bool TestEglDrmDevice::ImageFromDmaBuf(
   const size_t plane_stride = plane.stride;
   const size_t buffer_size_bytes = plane_stride * size.height();
 
-  uint8_t* map = static_cast<uint8_t*>(
-      mmap(nullptr, buffer_size_bytes, PROT_READ, MAP_SHARED, plane.fd, 0));
   ScopedBuf scoped_buf;
-  scoped_buf.initialize(map, buffer_size_bytes, plane.fd, true);
+  scoped_buf.initialize(plane.fd, buffer_size_bytes, 0,
+                        ScopedBuf::BufferType::kDmaBuf);
 
   if (!scoped_buf) {
     RTC_LOG(LS_ERROR) << "TestEglDrmDevice: Failed to mmap DMA-BUF";

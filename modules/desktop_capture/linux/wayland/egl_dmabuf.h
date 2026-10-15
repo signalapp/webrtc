@@ -70,6 +70,9 @@ class EglDrmDevice {
  private:
   friend class TestEglDrmDevice;
 
+  std::vector<uint64_t> FilterFailedModifiers(uint32_t format,
+                                              std::vector<uint64_t> modifiers);
+
   EGLStruct egl_;
   bool initialized_ = false;
   bool has_image_dma_buf_import_ext_ = false;

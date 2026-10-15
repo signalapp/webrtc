@@ -50,3 +50,5 @@ static void JNI_VideoTrack_FreeSink(JNIEnv* jni, jlong j_native_sink) {
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(VideoTrack)

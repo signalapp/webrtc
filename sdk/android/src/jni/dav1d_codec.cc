@@ -23,3 +23,5 @@ static jlong JNI_Dav1dDecoder_CreateDecoder(JNIEnv* jni) {
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(Dav1dDecoder)

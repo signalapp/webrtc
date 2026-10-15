@@ -70,3 +70,5 @@ static void JNI_NV21Buffer_CropAndScale(
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(NV21Buffer)

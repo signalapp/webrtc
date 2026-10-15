@@ -19,6 +19,7 @@
 #include "absl/algorithm/container.h"
 #include "common_video/h264/h264_common.h"
 #include "modules/rtp_rtcp/source/byte_io.h"
+#include "modules/rtp_rtcp/source/rtp_format.h"
 #include "modules/rtp_rtcp/source/rtp_packet_to_send.h"
 #include "modules/video_coding/codecs/h264/include/h264_globals.h"
 #include "rtc_base/checks.h"
@@ -36,7 +37,7 @@ constexpr size_t kLengthFieldSize = 2;
 RtpPacketizerH264::RtpPacketizerH264(std::span<const uint8_t> payload,
                                      PayloadSizeLimits limits,
                                      H264PacketizationMode packetization_mode)
-    : limits_(limits), num_packets_left_(0) {
+    : limits_(limits.Sanitize()), num_packets_left_(0) {
   // Guard against uninitialized memory in packetization_mode.
   RTC_CHECK(packetization_mode == H264PacketizationMode::NonInterleaved ||
             packetization_mode == H264PacketizationMode::SingleNalUnit);
@@ -102,6 +103,10 @@ bool RtpPacketizerH264::PacketizeFuA(size_t fragment_index) {
   // Fragment payload into packets (FU-A).
   std::span<const uint8_t> fragment = input_fragments_[fragment_index];
 
+  if (limits_.max_payload_len <= static_cast<int>(kFuAHeaderSize)) {
+    return false;
+  }
+
   PayloadSizeLimits limits = limits_;
   // Leave room for the FU-A header.
   limits.max_payload_len -= kFuAHeaderSize;
@@ -159,15 +164,15 @@ size_t RtpPacketizerH264::PacketizeStapA(size_t fragment_index) {
   auto payload_size_needed = [&] {
     size_t fragment_size = fragment.size() + fragment_headers_length;
     bool has_last_fragment = fragment_index == input_fragments_.size() - 1;
+    int reduction_len = 0;
     if (has_first_fragment && has_last_fragment) {
-      return fragment_size + limits_.single_packet_reduction_len;
+      reduction_len = limits_.single_packet_reduction_len;
     } else if (has_first_fragment) {
-      return fragment_size + limits_.first_packet_reduction_len;
+      reduction_len = limits_.first_packet_reduction_len;
     } else if (has_last_fragment) {
-      return fragment_size + limits_.last_packet_reduction_len;
-    } else {
-      return fragment_size;
+      reduction_len = limits_.last_packet_reduction_len;
     }
+    return fragment_size + reduction_len;
   };
   while (payload_size_left >= payload_size_needed()) {
     RTC_CHECK_GT(fragment.size(), 0);

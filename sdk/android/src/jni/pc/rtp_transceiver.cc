@@ -207,3 +207,6 @@ jboolean JNI_RtpTransceiver_SetDirection(
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(RtpTransceiver)
+DEFINE_JNI(RtcError)

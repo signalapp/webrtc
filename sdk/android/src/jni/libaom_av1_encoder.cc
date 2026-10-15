@@ -28,3 +28,5 @@ jlong JNI_LibaomAv1Encoder_Create(JNIEnv* jni, jlong j_webrtc_env_ref) {
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(LibaomAv1Encoder)

@@ -62,33 +62,29 @@ TEST_P(PeerConnectionIntegrationTest,
   callee()->AddAudioVideoTracks();
   // Start offer/answer exchange and wait for it to complete.
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(
-      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
-      IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
   // Should be one receiver each for audio/video.
   EXPECT_EQ(2U, caller()->rtp_receiver_observers().size());
   EXPECT_EQ(2U, callee()->rtp_receiver_observers().size());
   // Wait for all "first packet received" callbacks to be fired.
-  EXPECT_THAT(WaitUntil(
-                  [&] {
-                    return absl::c_all_of(
-                        caller()->rtp_receiver_observers(),
-                        [](const std::unique_ptr<MockRtpReceiverObserver>& o) {
-                          return o->first_packet_received();
-                        });
-                  },
-                  ::testing::IsTrue(), {.timeout = kMaxWaitForFrames}),
-              IsRtcOk());
-  EXPECT_THAT(WaitUntil(
-                  [&] {
-                    return absl::c_all_of(
-                        callee()->rtp_receiver_observers(),
-                        [](const std::unique_ptr<MockRtpReceiverObserver>& o) {
-                          return o->first_packet_received();
-                        });
-                  },
-                  ::testing::IsTrue(), {.timeout = kMaxWaitForFrames}),
-              IsRtcOk());
+  EXPECT_TRUE(WaitUntil(
+      [&] {
+        return absl::c_all_of(
+            caller()->rtp_receiver_observers(),
+            [](const std::unique_ptr<MockRtpReceiverObserver>& o) {
+              return o->first_packet_received();
+            });
+      },
+      {.timeout = kMaxWaitForFrames}));
+  EXPECT_TRUE(WaitUntil(
+      [&] {
+        return absl::c_all_of(
+            callee()->rtp_receiver_observers(),
+            [](const std::unique_ptr<MockRtpReceiverObserver>& o) {
+              return o->first_packet_received();
+            });
+      },
+      {.timeout = kMaxWaitForFrames}));
   // If new observers are set after the first packet was already received, the
   // callback should still be invoked.
   caller()->ResetRtpReceiverObservers();
@@ -202,9 +198,7 @@ TEST_P(PeerConnectionIntegrationTest, GetCaptureStartNtpTimeWithOldStatsApi) {
 
   // Do offer/answer, wait for the callee to receive some frames.
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(
-      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
-      IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
 
   // Get the remote audio track created on the receiver, so they can be used as
   // GetStats filters.
@@ -367,9 +361,7 @@ TEST_P(PeerConnectionIntegrationTest, DISABLED_CallTransferredForCallee) {
   caller()->AddAudioVideoTracks();
   callee()->AddAudioVideoTracks();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(
-      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
-      IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
 
   // Keep the original peer around which will still send packets to the
   // receiving client. These SRTP packets will be dropped.
@@ -383,9 +375,7 @@ TEST_P(PeerConnectionIntegrationTest, DISABLED_CallTransferredForCallee) {
   ConnectFakeSignaling();
   caller()->AddAudioVideoTracks();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(
-      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
-      IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
   // Wait for some additional frames to be transmitted end-to-end.
   MediaExpectations media_expectations;
   media_expectations.ExpectBidirectionalAudioAndVideo();
@@ -400,9 +390,7 @@ TEST_P(PeerConnectionIntegrationTest, CallTransferredForCaller) {
   caller()->AddAudioVideoTracks();
   callee()->AddAudioVideoTracks();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(
-      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
-      IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
 
   // Keep the original peer around which will still send packets to the
   // receiving client. These SRTP packets will be dropped.
@@ -417,9 +405,7 @@ TEST_P(PeerConnectionIntegrationTest, CallTransferredForCaller) {
   callee()->AddAudioVideoTracks();
   caller()->SetOfferAnswerOptions(IceRestartOfferAnswerOptions());
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_THAT(
-      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
-      IsRtcOk());
+  ASSERT_TRUE(WaitUntil([&] { return SignalingStateStable(); }));
   // Wait for some additional frames to be transmitted end-to-end.
   MediaExpectations media_expectations;
   media_expectations.ExpectBidirectionalAudioAndVideo();

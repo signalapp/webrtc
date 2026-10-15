@@ -127,7 +127,10 @@ class TransceiverList {
   RtpTransceiverProxyRefPtr FindBySender(
       scoped_refptr<RtpSenderInterface> sender) const;
   RtpTransceiverProxyRefPtr FindByMid(absl::string_view mid) const;
-  RtpTransceiverProxyRefPtr FindByMLineIndex(size_t mline_index) const;
+  // Returns the transceiver that is not yet associated with an m= section
+  // (i.e. has no MID) and has been assigned `mline_index` by CreateOffer.
+  RtpTransceiverProxyRefPtr FindUnassociatedByMLineIndex(
+      size_t mline_index) const;
 
   // Find or create the stable state for a transceiver.
   TransceiverStableState* StableState(RtpTransceiverProxyRefPtr transceiver) {

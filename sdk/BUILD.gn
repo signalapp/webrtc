@@ -65,8 +65,8 @@ if (is_ios || is_mac) {
     }
   }
 
-  # TODO(bugs.webrtc.org/9627): Remove this when unused. Targets should depend on base_objc
-  # or helpers_objc directly instead.
+  # TODO(bugs.webrtc.org/9627): Remove this when unused. Targets should depend
+  # on base_objc or helpers_objc directly instead.
   rtc_library("common_objc") {
     visibility = [ "*" ]
 
@@ -476,7 +476,6 @@ if (is_ios || is_mac) {
           "../api/video:video_frame",
           "../api/video:video_rtp_headers",
           "../common_video",
-          "../media:rtc_media_base",
           "../rtc_base:checks",
           "../rtc_base:logging",
         ]
@@ -582,7 +581,6 @@ if (is_ios || is_mac) {
         "../api/video:video_frame",
         "../api/video:video_rtp_headers",
         "../common_video",
-        "../media:rtc_media_base",
         "../pc:video_track_source_proxy",
         "../rtc_base:checks",
         "../rtc_base:threading",
@@ -740,7 +738,6 @@ if (is_ios || is_mac) {
         "../api/video_codecs:video_codecs_api",
         "../common_video",
         "../media:media_constants",
-        "../media:rtc_media_base",
         "../modules/video_coding:video_codec_interface",
         "../rtc_base:checks",
       ]
@@ -791,7 +788,6 @@ if (is_ios || is_mac) {
       deps = [
         ":base_objc",
         "../media:media_constants",
-        "../media:rtc_media_base",
       ]
     }
 
@@ -851,7 +847,6 @@ if (is_ios || is_mac) {
         ":base_objc",
         ":wrapped_native_codec_objc",
         "../api/video_codecs:video_codecs_api",
-        "../media:rtc_media_base",
         "../modules/video_coding/codecs/av1:dav1d_decoder",
       ]
     }
@@ -999,6 +994,8 @@ if (is_ios || is_mac) {
         "objc/api/peerconnection/RTCDataChannelConfiguration+Private.h",
         "objc/api/peerconnection/RTCDataChannelConfiguration.h",
         "objc/api/peerconnection/RTCDataChannelConfiguration.mm",
+        "objc/api/peerconnection/RTCDtlsFingerprint.h",
+        "objc/api/peerconnection/RTCDtlsFingerprint.mm",
         "objc/api/peerconnection/RTCDtmfSender+Private.h",
         "objc/api/peerconnection/RTCDtmfSender.h",
         "objc/api/peerconnection/RTCDtmfSender.mm",
@@ -1155,7 +1152,6 @@ if (is_ios || is_mac) {
         "../api/video_codecs:video_codecs_api",
         "../common_video",
         "../media:media_constants",
-        "../media:rtc_media_base",
         "../modules/video_coding:video_codec_interface",
         "../pc:peer_connection_factory",
         "../pc:webrtc_sdp",
@@ -1171,7 +1167,6 @@ if (is_ios || is_mac) {
         "../rtc_base:threading",
         "../rtc_base:timeutils",
         "../rtc_base/system:plan_b_only",
-        "../stats:rtc_stats",
         "../system_wrappers:metrics",
       ]
 
@@ -1261,7 +1256,6 @@ if (is_ios || is_mac) {
             "../api/video_codecs:video_codecs_api",
             "../common_video",
             "../media:codec",
-            "../media:rtc_media_base",
             "../media:rtc_media_tests_utils",
             "../modules/video_coding:video_codec_interface",
             "../rtc_base:refcount",
@@ -1301,16 +1295,12 @@ if (is_ios || is_mac) {
         rtc_test("sdk_unittests") {
           is_xctest = true
           info_plist = "//test/ios/Info.plist"
-          sources = [ "objc/unittests/main.mm" ]
 
           extra_substitutions = [ "GTEST_BUNDLE_ID_SUFFIX=generic-unit-test" ]
           deps = [
             ":peerconnectionfactory_base_objc",
             ":sdk_unittests_bundle_data",
             ":sdk_unittests_sources",
-            "../rtc_base:threading",
-            "../test:run_loop",
-            "//test:test_support_objc",
           ]
           ldflags = [ "-all_load" ]
         }
@@ -1321,16 +1311,12 @@ if (is_ios || is_mac) {
           info_plist = "//test/ios/Info.plist"
           sources = [
             "objc/unittests/RTCDoNotPutCPlusPlusInFrameworkHeaders_xctest.m",
-            "objc/unittests/main.mm",
           ]
 
           extra_substitutions = [ "GTEST_BUNDLE_ID_SUFFIX=generic-unit-test" ]
           deps = [
             ":framework_objc+link",
             ":ios_framework_bundle",
-            "../rtc_base:threading",
-            "../test:run_loop",
-            "//test:test_support_objc",
           ]
         }
       }
@@ -1421,6 +1407,7 @@ if (is_ios || is_mac) {
           "objc/api/peerconnection/RTCTracing.h",
           "objc/api/peerconnection/RTCCertificate.h",
           "objc/api/peerconnection/RTCCryptoOptions.h",
+          "objc/api/peerconnection/RTCDtlsFingerprint.h",
           "objc/api/peerconnection/RTCVideoSource.h",
           "objc/api/peerconnection/RTCVideoTrack.h",
           "objc/api/video_codec/RTCVideoCodecConstants.h",
@@ -1506,6 +1493,7 @@ if (is_ios || is_mac) {
           "objc/api/peerconnection/RTCCryptoOptions.h",
           "objc/api/peerconnection/RTCDataChannel.h",
           "objc/api/peerconnection/RTCDataChannelConfiguration.h",
+          "objc/api/peerconnection/RTCDtlsFingerprint.h",
           "objc/api/peerconnection/RTCDtmfSender.h",
           "objc/api/peerconnection/RTCFieldTrials.h",
           "objc/api/peerconnection/RTCIceCandidate.h",
@@ -1756,14 +1744,13 @@ if (is_ios || is_mac) {
         ":wrapped_native_codec_objc",
         "../api:make_ref_counted",
         "../api/environment",
+        "../api/video:adapted_video_track_source",
         "../api/video:video_frame",
         "../api/video:video_rtp_headers",
         "../api/video_codecs:video_codecs_api",
         "../common_video",
-        "../media:adapted_video_track_source",
         "../media:codec",
         "../media:rtc_audio_video",
-        "../media:rtc_media_base",
         "../modules/video_coding:video_codec_interface",
         "../rtc_base:checks",
         "../rtc_base:logging",

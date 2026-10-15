@@ -75,7 +75,7 @@ void StatesPrinter::PrintRow() {
   }
   sb << "\n";
   if (writer_)
-    writer_->Write(sb.str());
+    writer_->Write(sb.Release());
 }
 }  // namespace test
 }  // namespace webrtc

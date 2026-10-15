@@ -20,7 +20,6 @@
 #include <utility>
 #include <vector>
 
-#include "absl/strings/string_view.h"
 #include "api/rtc_event_log/rtc_event_log_factory.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
@@ -113,18 +112,6 @@ struct EventCounts {
     return total_nonconfig_events() + total_config_events();
   }
 };
-
-absl::string_view FieldTrialsFor(RtcEventLog::EncodingType encoding_type) {
-  switch (encoding_type) {
-    case RtcEventLog::EncodingType::Legacy:
-      return "WebRTC-RtcEventLogNewFormat/Disabled/";
-    case RtcEventLog::EncodingType::NewFormat:
-      return "WebRTC-RtcEventLogNewFormat/Enabled/";
-    case RtcEventLog::EncodingType::ProtoFree:
-      RTC_CHECK_NOTREACHED();
-      return "";
-  }
-}
 
 class RtcEventLogSession
     : public ::testing::TestWithParam<
@@ -364,8 +351,7 @@ void RtcEventLogSession::WriteLog(EventCounts count,
 
   // The log will be flushed to output when the event_log goes out of scope.
   std::unique_ptr<RtcEventLog> event_log =
-      RtcEventLogFactory().Create(CreateTestEnvironment(
-          {.field_trials = FieldTrialsFor(encoding_type_), .time = &clock_}));
+      RtcEventLogFactory().Create(CreateTestEnvironment({.time = &clock_}));
 
   // We can't send or receive packets without configured streams.
   RTC_CHECK_GE(count.video_recv_streams, 1);
@@ -908,8 +894,7 @@ TEST_P(RtcEventLogCircularBufferTest, KeepsMostRecentEvents) {
   SimulatedClock clock(Timestamp::Seconds(1));
 
   std::unique_ptr<RtcEventLog> log =
-      RtcEventLogFactory().Create(CreateTestEnvironment(
-          {.field_trials = FieldTrialsFor(encoding_type), .time = &clock}));
+      RtcEventLogFactory().Create(CreateTestEnvironment({.time = &clock}));
 
   for (size_t i = 0; i < kNumEvents; i++) {
     // The purpose of the test is to verify that the log can handle

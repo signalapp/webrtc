@@ -279,3 +279,5 @@ void AudioTrackJni::GetPlayoutData(JNIEnv* env, size_t length) {
 }  // namespace jni
 
 }  // namespace webrtc
+
+DEFINE_JNI(WebRtcAudioTrack)

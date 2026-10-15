@@ -64,9 +64,12 @@ void ScreamV2::OnTransportPacketsFeedback(const TransportPacketsFeedback& msg) {
   }
   max_data_in_flight_this_rtt_ =
       std::max(max_data_in_flight_this_rtt_, feedback.data_in_flight);
+  UpdateReceiveRate(feedback);
 
   if (params_.enable_alr.Get()) {
-    is_application_limited_ = max_allowed_ref_window() < ref_window_;
+    is_application_limited_ =
+        max_allowed_ref_window() < ref_window_ &&
+        received_rate_ < params_.alr_threshold.Get() * target_rate_;
   }
 
   delay_based_congestion_control_.Update(feedback, is_application_limited_);
@@ -362,6 +365,28 @@ void ScreamV2::UpdateTargetRate(const ScreamFeedback& parsed) {
       std::clamp(target_rate, min_target_bitrate_, max_target_bitrate_);
 
   target_rate_ = target_rate;
+}
+
+void ScreamV2::UpdateReceiveRate(const ScreamFeedback& feedback) {
+  if (feedback.last_packet_receive_time.IsInfinite()) {
+    return;
+  }
+  accumulated_received_bytes_ += feedback.received;
+
+  if (last_window_receive_time_.IsInfinite()) {
+    // At the first feedback, set the received rate to infinite to ensure ALR
+    // can not be entered until a valid receive rate estimate exists.
+    last_window_receive_time_ = feedback.last_packet_receive_time;
+    received_rate_ = DataRate::PlusInfinity();
+    accumulated_received_bytes_ = DataSize::Zero();
+  } else if (feedback.last_packet_receive_time - last_window_receive_time_ >=
+             params_.received_rate_window.Get()) {
+    TimeDelta duration =
+        feedback.last_packet_receive_time - last_window_receive_time_;
+    received_rate_ = accumulated_received_bytes_ / duration;
+    accumulated_received_bytes_ = DataSize::Zero();
+    last_window_receive_time_ = feedback.last_packet_receive_time;
+  }
 }
 
 }  // namespace webrtc

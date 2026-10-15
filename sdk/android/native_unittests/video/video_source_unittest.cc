@@ -192,3 +192,5 @@ TEST(JavaVideoSourceTest, CapturerStoppedStateBecomesEnded) {
 
 }  // namespace test
 }  // namespace webrtc
+
+DEFINE_JNI(JavaVideoSourceTestHelper)

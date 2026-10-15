@@ -33,8 +33,6 @@
 namespace webrtc {
 namespace {
 
-using ::testing::InvokeWithoutArgs;
-
 constexpr int kWidth = 640;
 constexpr int kHeight = 480;
 // Corresponds to load of 15%
@@ -440,11 +438,10 @@ TEST_F(OveruseFrameDetectorTest, RunOnTqNormalUsage) {
   Event event;
   // Expect NormalUsage(). When called, stop the `overuse_detector_` and then
   // set `event` to end the test.
-  EXPECT_CALL(mock_observer_, AdaptUp())
-      .WillOnce(InvokeWithoutArgs([this, &event] {
-        overuse_detector_->StopCheckForOveruse();
-        event.Set();
-      }));
+  EXPECT_CALL(mock_observer_, AdaptUp()).WillOnce([this, &event] {
+    overuse_detector_->StopCheckForOveruse();
+    event.Set();
+  });
 
   queue.PostTask([this] {
     const TimeDelta kDelayUs1 = TimeDelta::Millis(5);
@@ -919,11 +916,10 @@ TEST_F(OveruseFrameDetectorTest2, RunOnTqNormalUsage) {
   Event event;
   // Expect NormalUsage(). When called, stop the `overuse_detector_` and then
   // set `event` to end the test.
-  EXPECT_CALL(mock_observer_, AdaptUp())
-      .WillOnce(InvokeWithoutArgs([this, &event] {
-        overuse_detector_->StopCheckForOveruse();
-        event.Set();
-      }));
+  EXPECT_CALL(mock_observer_, AdaptUp()).WillOnce([this, &event] {
+    overuse_detector_->StopCheckForOveruse();
+    event.Set();
+  });
 
   queue.PostTask([this] {
     const TimeDelta kDelayUs1 = TimeDelta::Millis(5);

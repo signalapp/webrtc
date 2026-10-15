@@ -81,8 +81,9 @@ class TransmissionControlBlock : public Context {
     return tx_error_counter_.IsExhausted();
   }
   void Send(SctpPacket::Builder& builder) override {
-    packet_sender_.Send(builder,
-                        /*write_checksum=*/!capabilities_.zero_checksum);
+    packet_sender_.Send(
+        builder,
+        /*write_checksum=*/!capabilities_.zero_checksum_enabled());
   }
 
   // Other accessors
@@ -145,8 +146,10 @@ class TransmissionControlBlock : public Context {
 
   HandoverReadinessStatus GetHandoverReadiness() const;
 
-  void AddHandoverState(DcSctpSocketHandoverState& state);
-  void RestoreFromState(const DcSctpSocketHandoverState& handover_state);
+  void AddHandoverState(webrtc::Timestamp now,
+                        DcSctpSocketHandoverState& state);
+  void RestoreFromState(webrtc::Timestamp now,
+                        const DcSctpSocketHandoverState& handover_state);
 
  private:
   // Will be called when the retransmission timer (t3-rtx) expires.

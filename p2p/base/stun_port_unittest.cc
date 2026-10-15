@@ -67,13 +67,11 @@ namespace webrtc {
 namespace {
 
 using ::testing::_;
-using ::testing::DoAll;
 using ::testing::Eq;
 using ::testing::Field;
 using ::testing::IsTrue;
 using ::testing::Return;
 using ::testing::ReturnPointee;
-using ::testing::SetArgPointee;
 
 const SocketAddress kPrivateIP("192.168.1.12", 0);
 const SocketAddress kMsdnAddress("unittest-mdns-host-name.local", 0);
@@ -204,9 +202,9 @@ class StunPortTest : public ::testing::Test {
                           .socket_factory = socket_factory(),
                           .network = network_,
                           .ice_username_fragment = CreateRandomString(16),
-                          .ice_password = CreateRandomString(22)},
+                          .ice_password = CreateRandomString(22),
+                          .ice_tiebreaker = kTiebreakerDefault},
                          0, 0, stun_servers, std::nullopt);
-    stun_port_->SetIceTiebreaker(kTiebreakerDefault);
     stun_port_->set_stun_keepalive_delay(stun_keepalive_delay_);
     // If `stun_keepalive_lifetime_` is not set, let the stun port choose its
     // lifetime from the network type.
@@ -249,11 +247,11 @@ class StunPortTest : public ::testing::Test {
                          .socket_factory = socket_factory(),
                          .network = network_,
                          .ice_username_fragment = CreateRandomString(16),
-                         .ice_password = CreateRandomString(22)},
+                         .ice_password = CreateRandomString(22),
+                         .ice_tiebreaker = kTiebreakerDefault},
                         socket_.get(), false, std::nullopt);
     stun_port_->set_server_addresses(stun_servers);
     ASSERT_TRUE(stun_port_ != nullptr);
-    stun_port_->SetIceTiebreaker(kTiebreakerDefault);
     stun_port_->SubscribePortComplete(
         this, [this](Port* port) { OnPortComplete(port); });
     stun_port_->SubscribePortError(this,
@@ -420,7 +418,10 @@ TEST_F(StunPortWithMockDnsResolverTest, TestPrepareAddressHostname) {
         .WillRepeatedly(ReturnPointee(resolver_result));
     EXPECT_CALL(*resolver_result, GetError).WillOnce(Return(0));
     EXPECT_CALL(*resolver_result, GetResolvedAddress(AF_INET, _))
-        .WillOnce(DoAll(SetArgPointee<1>(kStunServerAddr1), Return(true)));
+        .WillOnce([](int /*family*/, SocketAddress* addr) {
+          *addr = kStunServerAddr1;
+          return true;
+        });
   });
   CreateStunPort(kValidHostnameAddr);
   PrepareAddress();
@@ -444,7 +445,10 @@ TEST_F(StunPortWithMockDnsResolverTest,
         .WillRepeatedly(ReturnPointee(resolver_result));
     EXPECT_CALL(*resolver_result, GetError).WillOnce(Return(0));
     EXPECT_CALL(*resolver_result, GetResolvedAddress(AF_INET, _))
-        .WillOnce(DoAll(SetArgPointee<1>(kStunServerAddr1), Return(true)));
+        .WillOnce([](int /*family*/, SocketAddress* addr) {
+          *addr = kStunServerAddr1;
+          return true;
+        });
   });
   CreateStunPort(kValidHostnameAddr, &field_trials);
   PrepareAddress();
@@ -688,8 +692,10 @@ TEST_P(StunPortIPAddressTypeMetricsTest, TestIPAddressTypeMetrics) {
         .WillRepeatedly(ReturnPointee(resolver_result));
     EXPECT_CALL(*resolver_result, GetError).WillOnce(Return(0));
     EXPECT_CALL(*resolver_result, GetResolvedAddress(AF_INET, _))
-        .WillOnce(DoAll(SetArgPointee<1>(SocketAddress("127.0.0.1", 5000)),
-                        Return(true)));
+        .WillOnce([](int /*family*/, SocketAddress* addr) {
+          *addr = SocketAddress("127.0.0.1", 5000);
+          return true;
+        });
   });
 
   metrics::Reset();
@@ -871,8 +877,10 @@ TEST_F(StunIPv6PortTestWithMockDnsResolver, TestPrepareAddressHostname) {
         .WillRepeatedly(ReturnPointee(resolver_result));
     EXPECT_CALL(*resolver_result, GetError).WillOnce(Return(0));
     EXPECT_CALL(*resolver_result, GetResolvedAddress(AF_INET6, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(kStunServerAddrIPv6Addr), Return(true)));
+        .WillOnce([](int /*family*/, SocketAddress* addr) {
+          *addr = kStunServerAddrIPv6Addr;
+          return true;
+        });
   });
   CreateStunPort(kValidHostnameAddr);
   PrepareAddress();
@@ -897,8 +905,10 @@ TEST_F(StunIPv6PortTestWithMockDnsResolver,
         .WillRepeatedly(ReturnPointee(resolver_result));
     EXPECT_CALL(*resolver_result, GetError).WillOnce(Return(0));
     EXPECT_CALL(*resolver_result, GetResolvedAddress(AF_INET6, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(kStunServerAddrIPv6Addr), Return(true)));
+        .WillOnce([](int /*family*/, SocketAddress* addr) {
+          *addr = kStunServerAddrIPv6Addr;
+          return true;
+        });
   });
   CreateStunPort(kValidHostnameAddr, &field_trials);
   PrepareAddress();

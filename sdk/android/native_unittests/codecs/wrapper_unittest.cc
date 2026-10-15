@@ -113,3 +113,5 @@ TEST(JavaCodecsWrapperTest, EncodeNullFrame) {
 }  // namespace
 }  // namespace test
 }  // namespace webrtc
+
+DEFINE_JNI(CodecsWrapperTestHelper)

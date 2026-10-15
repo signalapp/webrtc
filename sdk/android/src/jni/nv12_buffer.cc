@@ -80,3 +80,5 @@ static void JNI_NV12Buffer_CropAndScale(
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(NV12Buffer)

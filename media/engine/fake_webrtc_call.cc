@@ -110,8 +110,8 @@ AudioSendStream::Stats FakeAudioSendStream::GetStats(
 
 FakeAudioReceiveStream::FakeAudioReceiveStream(
     int id,
-    const AudioReceiveStreamInterface::Config& config)
-    : id_(id), config_(config) {}
+    AudioReceiveStreamInterface::Config config)
+    : id_(id), config_(std::move(config)) {}
 
 const AudioReceiveStreamInterface::Config& FakeAudioReceiveStream::GetConfig()
     const {
@@ -568,9 +568,9 @@ void FakeCall::DestroyAudioSendStream(AudioSendStream* send_stream) {
 }
 
 AudioReceiveStreamInterface* FakeCall::CreateAudioReceiveStream(
-    const AudioReceiveStreamInterface::Config& config) {
+    AudioReceiveStreamInterface::Config config) {
   audio_receive_streams_.push_back(
-      new FakeAudioReceiveStream(next_stream_id_++, config));
+      new FakeAudioReceiveStream(next_stream_id_++, std::move(config)));
   ++num_created_receive_streams_;
   return audio_receive_streams_.back();
 }
@@ -752,9 +752,6 @@ void FakeCall::SignalChannelNetworkState(MediaType media, NetworkState state) {
           << "SignalChannelNetworkState called with unknown parameter.";
   }
 }
-
-void FakeCall::OnAudioTransportOverheadChanged(
-    int /* transport_overhead_per_packet */) {}
 
 void FakeCall::OnUpdateSyncGroup(AudioReceiveStreamInterface& stream,
                                  absl::string_view sync_group) {

@@ -67,7 +67,6 @@
 
 using ::testing::_;
 using ::testing::AtLeast;
-using ::testing::Invoke;
 
 namespace webrtc {
 
@@ -1099,26 +1098,25 @@ TEST_F(AcmSenderBitExactnessOldApi, External_Pcmu_20ms) {
   // real encoder.
   EXPECT_CALL(*mock_encoder, SampleRateHz())
       .Times(AtLeast(1))
-      .WillRepeatedly(Invoke(&encoder, &AudioEncoderPcmU::SampleRateHz));
+      .WillRepeatedly([&] { return encoder.SampleRateHz(); });
   EXPECT_CALL(*mock_encoder, NumChannels())
       .Times(AtLeast(1))
-      .WillRepeatedly(Invoke(&encoder, &AudioEncoderPcmU::NumChannels));
+      .WillRepeatedly([&] { return encoder.NumChannels(); });
   EXPECT_CALL(*mock_encoder, RtpTimestampRateHz())
       .Times(AtLeast(1))
-      .WillRepeatedly(Invoke(&encoder, &AudioEncoderPcmU::RtpTimestampRateHz));
+      .WillRepeatedly([&] { return encoder.RtpTimestampRateHz(); });
   EXPECT_CALL(*mock_encoder, Num10MsFramesInNextPacket())
       .Times(AtLeast(1))
-      .WillRepeatedly(
-          Invoke(&encoder, &AudioEncoderPcmU::Num10MsFramesInNextPacket));
+      .WillRepeatedly([&] { return encoder.Num10MsFramesInNextPacket(); });
   EXPECT_CALL(*mock_encoder, GetTargetBitrate())
       .Times(AtLeast(1))
-      .WillRepeatedly(Invoke(&encoder, &AudioEncoderPcmU::GetTargetBitrate));
+      .WillRepeatedly([&] { return encoder.GetTargetBitrate(); });
   EXPECT_CALL(*mock_encoder, EncodeImpl(_, _, _))
       .Times(AtLeast(1))
-      .WillRepeatedly(Invoke(
-          &encoder, static_cast<AudioEncoder::EncodedInfo (AudioEncoder::*)(
-                        uint32_t, std::span<const int16_t>, Buffer*)>(
-                        &AudioEncoderPcmU::Encode)));
+      .WillRepeatedly([&](uint32_t rtp_timestamp,
+                          std::span<const int16_t> audio, Buffer* encoded) {
+        return encoder.Encode(rtp_timestamp, audio, encoded);
+      });
   ASSERT_TRUE(SetUpSender(kTestFileMono32kHz, 32000));
   ASSERT_NO_FATAL_FAILURE(
       SetUpTestExternalEncoder(std::move(mock_encoder), config.payload_type));

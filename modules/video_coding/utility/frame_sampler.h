@@ -25,6 +25,9 @@ namespace webrtc {
 // on the RTP timestamp difference.
 class FrameSampler {
  public:
+  static constexpr TimeDelta kDefaultPsnrFrameSamplingInterval =
+      TimeDelta::Seconds(1);
+
   explicit FrameSampler(TimeDelta interval);
   FrameSampler(const FrameSampler&) = delete;
   FrameSampler& operator=(const FrameSampler&) = delete;

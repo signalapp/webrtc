@@ -16,12 +16,11 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <tuple>
 #include <utility>
 #include <variant>
 #include <vector>
 
-#include "api/field_trials.h"
+#include "api/environment/environment.h"
 #include "api/metronome/test/fake_metronome.h"
 #include "api/units/frequency.h"
 #include "api/units/time_delta.h"
@@ -32,7 +31,7 @@
 #include "modules/video_coding/timing/timing.h"
 #include "rtc_base/checks.h"
 #include "system_wrappers/include/clock.h"
-#include "test/create_test_field_trials.h"
+#include "test/create_test_environment.h"
 #include "test/fake_encoded_frame.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
@@ -82,20 +81,6 @@ std::unique_ptr<test::FakeEncodedFrame> WithReceiveTimeFromRtpTimestamp(
   return frame;
 }
 
-class VCMTimingTest : public VCMTiming {
- public:
-  using VCMTiming::VCMTiming;
-  void OnCompleteTemporalUnit(uint32_t rtp_timestamp, Timestamp now) override {
-    OnCompleteTemporalUnitMocked(rtp_timestamp, now);
-    VCMTiming::OnCompleteTemporalUnit(rtp_timestamp, now);
-  }
-
-  MOCK_METHOD(void,
-              OnCompleteTemporalUnitMocked,
-              (uint32_t rtp_timestamp, Timestamp now),
-              ());
-};
-
 class VideoStreamBufferControllerStatsObserverMock
     : public VideoStreamBufferControllerStatsObserver {
  public:
@@ -128,21 +113,20 @@ class VideoStreamBufferControllerStatsObserverMock
 constexpr auto kMaxWaitForKeyframe = TimeDelta::Millis(500);
 constexpr auto kMaxWaitForFrame = TimeDelta::Millis(1500);
 class VideoStreamBufferControllerFixture
-    : public ::testing::WithParamInterface<std::tuple<bool, std::string>>,
+    : public ::testing::WithParamInterface<bool>,
       public FrameSchedulingReceiver {
  public:
   VideoStreamBufferControllerFixture()
-      : sync_decoding_(std::get<0>(GetParam())),
-        field_trials_(CreateTestFieldTrials(std::get<1>(GetParam()))),
+      : sync_decoding_(GetParam()),
         time_controller_(kClockStart),
-        clock_(time_controller_.GetClock()),
+        env_(CreateTestEnvironment({.time = &time_controller_})),
         fake_metronome_(TimeDelta::Millis(16)),
-        decode_sync_(clock_,
+        decode_sync_(&env_.clock(),
                      &fake_metronome_,
                      time_controller_.GetMainThread()),
-        timing_(clock_, field_trials_),
+        timing_(env_, /*render_delay=*/TimeDelta::Millis(10)),
         buffer_(std::make_unique<VideoStreamBufferController>(
-            clock_,
+            &env_.clock(),
             time_controller_.GetMainThread(),
             &timing_,
             &stats_callback_,
@@ -151,9 +135,9 @@ class VideoStreamBufferControllerFixture
             kMaxWaitForFrame,
             sync_decoding_ ? decode_sync_.CreateSynchronizedFrameScheduler()
                            : std::make_unique<TaskQueueFrameDecodeScheduler>(
-                                 clock_,
+                                 &env_.clock(),
                                  time_controller_.GetMainThread()),
-            field_trials_)) {
+            env_.field_trials())) {
     // Avoid starting with negative render times.
     timing_.set_min_playout_delay(TimeDelta::Millis(10));
 
@@ -190,7 +174,7 @@ class VideoStreamBufferControllerFixture
       return std::move(wait_result_);
     }
 
-    Timestamp now = clock_->CurrentTime();
+    Timestamp now = env_.clock().CurrentTime();
     // TODO(bugs.webrtc.org/13756): Remove this when Thread uses uses
     // Timestamp instead of an integer milliseconds. This extra wait is needed
     // for some tests that use the metronome. This is due to rounding
@@ -222,13 +206,12 @@ class VideoStreamBufferControllerFixture
 
  protected:
   const bool sync_decoding_;
-  FieldTrials field_trials_;
   GlobalSimulatedTimeController time_controller_;
-  Clock* const clock_;
+  Environment env_;
   test::FakeMetronome fake_metronome_;
   DecodeSynchronizer decode_sync_;
 
-  ::testing::NiceMock<VCMTimingTest> timing_;
+  VCMTiming timing_;
   ::testing::NiceMock<VideoStreamBufferControllerStatsObserverMock>
       stats_callback_;
   std::unique_ptr<VideoStreamBufferController> buffer_;
@@ -621,6 +604,17 @@ TEST_P(VideoStreamBufferControllerTest, SameFrameNotScheduledTwice) {
   EXPECT_EQ(dropped_frames(), 1);
 }
 
+TEST_P(VideoStreamBufferControllerTest, InsertFrameUpdatesMinimumDelay) {
+  StartNextDecodeForceKeyframe();
+  buffer_->InsertFrame(test::FakeFrameBuilder().Id(0).Time(0).AsLast().Build());
+  EXPECT_THAT(WaitForFrameOrTimeout(TimeDelta::Zero()), Frame(test::WithId(0)));
+
+  EXPECT_GT(timing_.GetTimings().minimum_delay, TimeDelta::Zero());
+
+  // Flush stats posted on the decode queue.
+  time_controller_.AdvanceTime(TimeDelta::Zero());
+}
+
 TEST_P(VideoStreamBufferControllerTest, TestStatsCallback) {
   EXPECT_CALL(stats_callback_,
               OnCompleteFrame(true, kFrameSize, VideoContentType::UNSPECIFIED));
@@ -628,7 +622,8 @@ TEST_P(VideoStreamBufferControllerTest, TestStatsCallback) {
   EXPECT_CALL(stats_callback_, OnFrameBufferTimingsUpdated);
 
   // Fake timing having received decoded frame.
-  timing_.StopDecodeTimer(TimeDelta::Millis(1), clock_->CurrentTime());
+  timing_.UpdateDecodeTimeEstimate(TimeDelta::Millis(1),
+                                   env_.clock().CurrentTime());
   StartNextDecodeForceKeyframe();
   buffer_->InsertFrame(test::FakeFrameBuilder().Id(0).Time(0).AsLast().Build());
   EXPECT_THAT(WaitForFrameOrTimeout(TimeDelta::Zero()), Frame(test::WithId(0)));
@@ -716,7 +711,7 @@ TEST_P(VideoStreamBufferControllerTest, NextFrameWithOldTimestamp) {
   buffer_->InsertFrame(test::FakeFrameBuilder()
                            .Id(0)
                            .Time(kBaseRtp)
-                           .ReceivedTime(clock_->CurrentTime())
+                           .ReceivedTime(env_.clock().CurrentTime())
                            .AsLast()
                            .Build());
   EXPECT_THAT(WaitForFrameOrTimeout(kFps30Delay), Frame(test::WithId(0)));
@@ -726,7 +721,7 @@ TEST_P(VideoStreamBufferControllerTest, NextFrameWithOldTimestamp) {
   buffer_->InsertFrame(test::FakeFrameBuilder()
                            .Id(1)
                            .Time(kBaseRtp + kFps30Rtp)
-                           .ReceivedTime(clock_->CurrentTime())
+                           .ReceivedTime(env_.clock().CurrentTime())
                            .AsLast()
                            .Build());
   EXPECT_THAT(WaitForFrameOrTimeout(kFps30Delay), Frame(test::WithId(1)));
@@ -751,7 +746,7 @@ TEST_P(VideoStreamBufferControllerTest, NextFrameWithOldTimestamp) {
   buffer_->InsertFrame(test::FakeFrameBuilder()
                            .Id(2)
                            .Time(kRolloverRtp)
-                           .ReceivedTime(clock_->CurrentTime())
+                           .ReceivedTime(env_.clock().CurrentTime())
                            .AsLast()
                            .Build());
   // FrameBuffer2 drops the frame, while FrameBuffer3 will continue the stream.
@@ -802,13 +797,33 @@ TEST_P(VideoStreamBufferControllerTest,
   EXPECT_THAT(WaitForFrameOrTimeout(kFps30Delay), Frame(test::WithId(10)));
 }
 
+TEST_P(VideoStreamBufferControllerTest,
+       OutOfOrderSpatialLayersTriggersKeyframeRequest) {
+  StartNextDecodeForceKeyframe();
+
+  // Insert two spatial layers for the same frame, but out of order.
+  // FrameBuffer sorts by Frame ID, so we insert Spatial 1 with ID 1 and
+  // Spatial 0 with ID 2. We must insert ID 1 first so it doesn't trigger
+  // decoding of a partial temporal unit.
+  buffer_->InsertFrame(WithReceiveTimeFromRtpTimestamp(
+      test::FakeFrameBuilder().Id(1).SpatialLayer(1).Time(0).Build()));
+  buffer_->InsertFrame(WithReceiveTimeFromRtpTimestamp(
+      test::FakeFrameBuilder().Id(2).SpatialLayer(0).Time(0).AsLast().Build()));
+
+  // Since Spatial 1 (ID 1) is extracted before Spatial 0 (ID 2), they are out
+  // of order. CombineAndDeleteFrames should fail and return nullptr, which
+  // triggers an immediate keyframe request (OnDecodableFrameTimeout with Zero
+  // delay).
+  EXPECT_THAT(WaitForFrameOrTimeout(TimeDelta::Zero()),
+              Optional(VariantWith<TimeDelta>(TimeDelta::Zero())));
+}
+
 INSTANTIATE_TEST_SUITE_P(VideoStreamBufferController,
                          VideoStreamBufferControllerTest,
-                         ::testing::Combine(::testing::Bool(),
-                                            ::testing::Values("")),
+                         ::testing::Bool(),
                          [](const auto& info) {
-                           return std::get<0>(info.param) ? "SyncDecoding"
-                                                          : "UnsyncedDecoding";
+                           return info.param ? "SyncDecoding"
+                                             : "UnsyncedDecoding";
                          });
 
 class LowLatencyVideoStreamBufferControllerTest
@@ -840,10 +855,19 @@ TEST_P(LowLatencyVideoStreamBufferControllerTest,
               .AsLast()
               .Build();
   buffer_->InsertFrame(std::move(frame));
-  // Pacing is set to 16ms in the field trial so we should not decode yet.
-  EXPECT_THAT(WaitForFrameOrTimeout(TimeDelta::Zero()), Eq(std::nullopt));
-  time_controller_.AdvanceTime(TimeDelta::Millis(16));
-  EXPECT_THAT(WaitForFrameOrTimeout(TimeDelta::Zero()), Frame(test::WithId(1)));
+  if (sync_decoding_) {
+    // With synchronous decoding and default pacing (8ms), the latest decode
+    // time is before the next metronome tick minus allowed frame delay
+    // (16ms - 5ms = 11ms), so the frame is decoded right away.
+    EXPECT_THAT(WaitForFrameOrTimeout(TimeDelta::Zero()),
+                Frame(test::WithId(1)));
+  } else {
+    // Pacing is 8ms so we should not decode yet.
+    EXPECT_THAT(WaitForFrameOrTimeout(TimeDelta::Zero()), Eq(std::nullopt));
+    time_controller_.AdvanceTime(TimeDelta::Millis(8));
+    EXPECT_THAT(WaitForFrameOrTimeout(TimeDelta::Zero()),
+                Frame(test::WithId(1)));
+  }
 }
 
 TEST_P(LowLatencyVideoStreamBufferControllerTest, ZeroPlayoutDelayFullQueue) {
@@ -860,8 +884,9 @@ TEST_P(LowLatencyVideoStreamBufferControllerTest, ZeroPlayoutDelayFullQueue) {
   buffer_->InsertFrame(std::move(frame));
   EXPECT_THAT(WaitForFrameOrTimeout(TimeDelta::Zero()), Frame(test::WithId(0)));
 
-  // Queue up 5 frames (configured max queue size for 0-playout delay pacing).
-  for (int id = 1; id <= 6; ++id) {
+  // Queue up frames beyond the default max decode queue size (8) for
+  // zero-playout delay pacing.
+  for (int id = 1; id <= 9; ++id) {
     frame = test::FakeFrameBuilder()
                 .Id(id)
                 .Time(kFps30Rtp * id)
@@ -875,6 +900,12 @@ TEST_P(LowLatencyVideoStreamBufferControllerTest, ZeroPlayoutDelayFullQueue) {
   // should be ignored and the next frame should be decoded instantly.
   StartNextDecode();
   EXPECT_THAT(WaitForFrameOrTimeout(TimeDelta::Zero()), Frame(test::WithId(1)));
+}
+
+TEST_P(VideoStreamBufferControllerTest, StoppedState) {
+  EXPECT_FALSE(buffer_->stopped());
+  buffer_->Stop();
+  EXPECT_TRUE(buffer_->stopped());
 }
 
 TEST_P(LowLatencyVideoStreamBufferControllerTest,
@@ -907,42 +938,12 @@ TEST_P(LowLatencyVideoStreamBufferControllerTest,
   EXPECT_THAT(WaitForFrameOrTimeout(TimeDelta::Zero()), Frame(test::WithId(1)));
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    VideoStreamBufferController,
-    LowLatencyVideoStreamBufferControllerTest,
-    ::testing::Combine(
-        ::testing::Bool(),
-        ::testing::Values(
-            "WebRTC-ZeroPlayoutDelay/min_pacing:16ms,max_decode_queue_size:5/",
-            "WebRTC-ZeroPlayoutDelay/"
-            "min_pacing:16ms,max_decode_queue_size:5/")));
-
-class IncomingTimestampVideoStreamBufferControllerTest
-    : public ::testing::Test,
-      public VideoStreamBufferControllerFixture {};
-
-TEST_P(IncomingTimestampVideoStreamBufferControllerTest,
-       IncomingTimestampOnMarkerBitOnly) {
-  StartNextDecodeForceKeyframe();
-  EXPECT_CALL(timing_, OnCompleteTemporalUnitMocked)
-      .Times(field_trials_.IsDisabled("WebRTC-IncomingTimestampOnMarkerBitOnly")
-                 ? 3
-                 : 1);
-  buffer_->InsertFrame(WithReceiveTimeFromRtpTimestamp(
-      test::FakeFrameBuilder().Id(0).SpatialLayer(0).Time(0).Build()));
-  buffer_->InsertFrame(WithReceiveTimeFromRtpTimestamp(
-      test::FakeFrameBuilder().Id(1).SpatialLayer(1).Time(0).Build()));
-  buffer_->InsertFrame(WithReceiveTimeFromRtpTimestamp(
-      test::FakeFrameBuilder().Id(2).SpatialLayer(2).Time(0).AsLast().Build()));
-}
-
-INSTANTIATE_TEST_SUITE_P(
-    VideoStreamBufferController,
-    IncomingTimestampVideoStreamBufferControllerTest,
-    ::testing::Combine(
-        ::testing::Bool(),
-        ::testing::Values(
-            "WebRTC-IncomingTimestampOnMarkerBitOnly/Enabled/",
-            "WebRTC-IncomingTimestampOnMarkerBitOnly/Disabled/")));
+INSTANTIATE_TEST_SUITE_P(VideoStreamBufferController,
+                         LowLatencyVideoStreamBufferControllerTest,
+                         ::testing::Bool(),
+                         [](const auto& info) {
+                           return info.param ? "SyncDecoding"
+                                             : "UnsyncedDecoding";
+                         });
 
 }  // namespace webrtc

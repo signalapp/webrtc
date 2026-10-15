@@ -39,8 +39,8 @@ ABSL_FLAG(std::string,
           force_fieldtrials,
           "",
           "Field trials control experimental feature code which can be forced. "
-          "E.g. running with --force_fieldtrials=WebRTC-FooFeature/Enable/"
-          " will assign the group Enable to field trial WebRTC-FooFeature.");
+          "E.g. running with --force_fieldtrials=WebRTC-FooFeature/Enabled/"
+          " will assign the group Enabled to field trial WebRTC-FooFeature.");
 ABSL_FLAG(int, pcmu, TestConfig::default_pcmu(), "RTP payload type for PCM-u");
 ABSL_FLAG(int, pcma, TestConfig::default_pcma(), "RTP payload type for PCM-a");
 ABSL_FLAG(int, isac, TestConfig::default_isac(), "RTP payload type for iSAC");
@@ -286,13 +286,13 @@ std::optional<std::string> CreateOptionalOutputFileName(
     // Override the automatic assignment.
     webrtc::StringBuilder sb(basename);
     sb << suffix;
-    return sb.str();
+    return sb.Release();
   }
   if (!output_audio_filename.empty()) {
     // Automatically assign name.
     webrtc::StringBuilder sb(output_audio_filename);
     sb << suffix;
-    return sb.str();
+    return sb.Release();
   }
   std::cout << "Error: invalid text log file parameters.";
   return std::nullopt;

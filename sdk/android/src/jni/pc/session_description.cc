@@ -63,3 +63,5 @@ ScopedJavaLocalRef<jobject> NativeToJavaSessionDescription(
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(SessionDescription)

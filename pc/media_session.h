@@ -21,7 +21,6 @@
 #include "api/media_types.h"
 #include "api/rtc_error.h"
 #include "api/transport/sctp_transport_factory_interface.h"
-#include "media/base/media_engine.h"
 #include "media/base/stream_params.h"
 #include "p2p/base/ice_credentials_iterator.h"
 #include "p2p/base/transport_description.h"
@@ -35,27 +34,16 @@
 
 namespace webrtc {
 
-// Forward declaration due to circular dependecy.
-class ConnectionContext;
-
-}  // namespace webrtc
-
-namespace webrtc {
-
 // Creates media session descriptions according to the supplied codecs and
 // other fields, as well as the supplied per-call options.
 // When creating answers, performs the appropriate negotiation
 // of the various fields to determine the proper result.
 class MediaSessionDescriptionFactory {
  public:
-  // This constructor automatically sets up the factory to get its configuration
-  // from the specified MediaEngine (when provided).
   // The TransportDescriptionFactory, the UniqueRandomIdGenerator, and the
   // PayloadTypeSuggester are not owned by MediaSessionDescriptionFactory, so
   // they must be kept alive by the user of this class.
   MediaSessionDescriptionFactory(const Environment& env,
-                                 const MediaEngineInterface* media_engine,
-                                 bool rtx_enabled,
                                  UniqueRandomIdGenerator* ssrc_generator,
                                  const TransportDescriptionFactory* factory,
                                  SctpTransportFactoryInterface* sctp_factory,

@@ -405,5 +405,44 @@ TEST_F(TestH264SpsPpsTracker, SaveRestoreWidthHeight) {
   EXPECT_EQ(idr_header.height, 240);
 }
 
+TEST_F(TestH264SpsPpsTracker, OutOfBoundsSpsPpsIds) {
+  std::vector<uint8_t> data = {H264::NaluType::kSps, 0};
+
+  // Invalid SPS ID = 32
+  H264VideoHeader invalid_sps_header;
+  NaluInfo sps_info;
+  sps_info.type = H264::NaluType::kSps;
+  sps_info.sps_id = 32;
+  sps_info.pps_id = -1;
+  invalid_sps_header.h264().nalus.push_back(sps_info);
+  EXPECT_EQ(tracker_.CopyAndFixBitstream(data, &invalid_sps_header).action,
+            H264SpsPpsTracker::kDrop);
+
+  // Invalid SPS ID = -2
+  H264VideoHeader invalid_neg_sps_header;
+  sps_info.sps_id = -2;
+  invalid_neg_sps_header.h264().nalus.push_back(sps_info);
+  EXPECT_EQ(tracker_.CopyAndFixBitstream(data, &invalid_neg_sps_header).action,
+            H264SpsPpsTracker::kDrop);
+
+  // Invalid PPS ID = 256
+  data = {H264::NaluType::kPps, 0};
+  H264VideoHeader invalid_pps_header;
+  NaluInfo pps_info;
+  pps_info.type = H264::NaluType::kPps;
+  pps_info.sps_id = 0;
+  pps_info.pps_id = 256;
+  invalid_pps_header.h264().nalus.push_back(pps_info);
+  EXPECT_EQ(tracker_.CopyAndFixBitstream(data, &invalid_pps_header).action,
+            H264SpsPpsTracker::kDrop);
+
+  // Invalid PPS ID = -1
+  H264VideoHeader invalid_neg_pps_header;
+  pps_info.pps_id = -1;
+  invalid_neg_pps_header.h264().nalus.push_back(pps_info);
+  EXPECT_EQ(tracker_.CopyAndFixBitstream(data, &invalid_neg_pps_header).action,
+            H264SpsPpsTracker::kDrop);
+}
+
 }  // namespace video_coding
 }  // namespace webrtc

@@ -18,6 +18,7 @@
 #include <span>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "api/frame_transformer_interface.h"
@@ -57,6 +58,19 @@ class MockRTPVideoFrameSenderInterface : public RTPVideoFrameSenderInterface {
               (int payload_type,
                VideoCodecType codec_type,
                uint32_t rtp_timestamp,
+               Timestamp capture_time,
+               std::span<const uint8_t> payload,
+               size_t encoder_output_size,
+               RTPVideoHeader video_header,
+               TimeDelta expected_retransmission_time,
+               std::vector<uint32_t> csrcs),
+              (override));
+
+  MOCK_METHOD(bool,
+              SendVideoFrame,
+              (int payload_type,
+               VideoCodecType codec_type,
+               RtpTimestampInfo rtp_timestamp_info,
                Timestamp capture_time,
                std::span<const uint8_t> payload,
                size_t encoder_output_size,
@@ -183,7 +197,7 @@ TEST_F(RtpSenderVideoFrameTransformerDelegateTest,
   EXPECT_STRCASEEQ("video/VP8", frame->GetMimeType().c_str());
 
   Event event;
-  EXPECT_CALL(test_sender_, SendVideo).WillOnce(WithoutArgs([&] {
+  EXPECT_CALL(test_sender_, SendVideoFrame).WillOnce(WithoutArgs([&] {
     event.Set();
     return true;
   }));
@@ -211,7 +225,13 @@ TEST_F(RtpSenderVideoFrameTransformerDelegateTest, CloneSenderVideoFrame) {
   EXPECT_EQ(clone->GetPayloadType(), video_frame.GetPayloadType());
   EXPECT_EQ(clone->GetMimeType(), video_frame.GetMimeType());
   EXPECT_EQ(clone->GetSsrc(), video_frame.GetSsrc());
-  EXPECT_EQ(clone->GetTimestamp(), video_frame.GetTimestamp());
+  EXPECT_TRUE(std::holds_alternative<RtpTimestampWithOffset>(
+      clone->GetRtpTimestampInfo()));
+  EXPECT_TRUE(std::holds_alternative<RtpTimestampWithOffset>(
+      video_frame.GetRtpTimestampInfo()));
+  EXPECT_EQ(
+      std::get<RtpTimestampWithOffset>(clone->GetRtpTimestampInfo()),
+      std::get<RtpTimestampWithOffset>(video_frame.GetRtpTimestampInfo()));
   EXPECT_EQ(clone->Metadata(), video_frame.Metadata());
   EXPECT_EQ(clone->Rid(), video_frame.Rid());
 }
@@ -234,7 +254,13 @@ TEST_F(RtpSenderVideoFrameTransformerDelegateTest, CloneKeyFrame) {
   EXPECT_EQ(clone->GetPayloadType(), video_frame.GetPayloadType());
   EXPECT_EQ(clone->GetMimeType(), video_frame.GetMimeType());
   EXPECT_EQ(clone->GetSsrc(), video_frame.GetSsrc());
-  EXPECT_EQ(clone->GetTimestamp(), video_frame.GetTimestamp());
+  EXPECT_TRUE(std::holds_alternative<RtpTimestampWithOffset>(
+      clone->GetRtpTimestampInfo()));
+  EXPECT_TRUE(std::holds_alternative<RtpTimestampWithOffset>(
+      video_frame.GetRtpTimestampInfo()));
+  EXPECT_EQ(
+      std::get<RtpTimestampWithOffset>(clone->GetRtpTimestampInfo()),
+      std::get<RtpTimestampWithOffset>(video_frame.GetRtpTimestampInfo()));
   EXPECT_EQ(clone->Metadata(), video_frame.Metadata());
   EXPECT_EQ(clone->Rid(), video_frame.Rid());
 }
@@ -275,7 +301,7 @@ TEST_F(RtpSenderVideoFrameTransformerDelegateTest,
       time_controller_.CreateTaskQueueFactory().get());
 
   const uint8_t payload_type = 1;
-  const uint32_t timestamp = 2;
+  const RtpTimestampInfo timestamp = RtpTimestampWithOffset{2};
   const std::vector<uint32_t> frame_csrcs = {123, 456, 789};
   const std::array<uint8_t, 3> buffer = {3, 2, 1};
 
@@ -291,7 +317,8 @@ TEST_F(RtpSenderVideoFrameTransformerDelegateTest,
   ON_CALL(*mock_receiver_frame, GetData).WillByDefault(Return(buffer));
   ON_CALL(*mock_receiver_frame, GetPayloadType)
       .WillByDefault(Return(payload_type));
-  ON_CALL(*mock_receiver_frame, GetTimestamp).WillByDefault(Return(timestamp));
+  ON_CALL(*mock_receiver_frame, GetRtpTimestampInfo)
+      .WillByDefault(Return(timestamp));
 
   scoped_refptr<TransformedFrameCallback> callback;
   EXPECT_CALL(*frame_transformer_, RegisterTransformedFrameSinkCallback)
@@ -300,12 +327,13 @@ TEST_F(RtpSenderVideoFrameTransformerDelegateTest,
   ASSERT_TRUE(callback);
 
   Event event;
-  EXPECT_CALL(test_sender_,
-              SendVideo(payload_type, kVideoCodecVP8, timestamp,
-                        /*capture_time=*/Timestamp::MinusInfinity(),
-                        ElementsAreArray(buffer), _, _,
-                        /*expected_retransmission_time=*/TimeDelta::Millis(10),
-                        frame_csrcs))
+  EXPECT_CALL(
+      test_sender_,
+      SendVideoFrame(payload_type, kVideoCodecVP8, timestamp,
+                     /*capture_time=*/Timestamp::MinusInfinity(),
+                     ElementsAreArray(buffer), _, _,
+                     /*expected_retransmission_time=*/TimeDelta::Millis(10),
+                     frame_csrcs))
       .WillOnce(WithoutArgs([&] {
         event.Set();
         return true;
@@ -328,10 +356,16 @@ TEST_F(RtpSenderVideoFrameTransformerDelegateTest, SettingRTPTimestamp) {
   auto& video_frame = static_cast<TransformableVideoFrameInterface&>(*frame);
 
   uint32_t rtp_timestamp = 12345;
-  ASSERT_FALSE(video_frame.GetTimestamp() == rtp_timestamp);
+  ASSERT_TRUE(std::holds_alternative<RtpTimestampWithOffset>(
+      video_frame.GetRtpTimestampInfo()));
+  ASSERT_FALSE(std::get<RtpTimestampWithOffset>(
+                   video_frame.GetRtpTimestampInfo()) == rtp_timestamp);
 
   video_frame.SetRTPTimestamp(rtp_timestamp);
-  EXPECT_EQ(video_frame.GetTimestamp(), rtp_timestamp);
+  EXPECT_TRUE(std::holds_alternative<RtpTimestampWithOffset>(
+      video_frame.GetRtpTimestampInfo()));
+  EXPECT_EQ(std::get<RtpTimestampWithOffset>(video_frame.GetRtpTimestampInfo()),
+            rtp_timestamp);
 }
 
 TEST_F(RtpSenderVideoFrameTransformerDelegateTest,
@@ -351,7 +385,7 @@ TEST_F(RtpSenderVideoFrameTransformerDelegateTest,
   EXPECT_CALL(*frame_transformer_, Transform).Times(0);
   // Will pass the frame straight to the reciever.
   EXPECT_CALL(test_sender_,
-              SendVideo(_, _, _, _, _, _, _, _, ElementsAreArray(csrcs)));
+              SendVideoFrame(_, _, _, _, _, _, _, _, ElementsAreArray(csrcs)));
 
   EncodedImage encoded_image;
   encoded_image.SetEncodedData(EncodedImageBuffer::Create(1));
@@ -359,6 +393,42 @@ TEST_F(RtpSenderVideoFrameTransformerDelegateTest,
       /*payload_type=*/1, VideoCodecType::kVideoCodecVP8, /*rtp_timestamp=*/2,
       encoded_image, RTPVideoHeader(),
       /*expected_retransmission_time=*/TimeDelta::Millis(10), csrcs);
+}
+
+TEST_F(RtpSenderVideoFrameTransformerDelegateTest, CreateSenderVideoFrame) {
+  const uint8_t payload_data[] = {1, 2, 3};
+  std::vector<uint32_t> csrcs = {1, 2};
+  RTPVideoHeader video_header;
+  video_header.codec = VideoCodecType::kVideoCodecVP8;
+  RTPVideoHeaderVP8 vp8;
+  vp8.InitRTPVideoHeaderVP8();
+  video_header.video_type_header = vp8;
+
+  auto encoded_image_buffer =
+      EncodedImageBuffer::Create(payload_data, sizeof(payload_data));
+  EncodedImage encoded_image;
+  encoded_image.SetEncodedData(std::move(encoded_image_buffer));
+  encoded_image.set_frame_type(VideoFrameType::kVideoFrameKey);
+  encoded_image.capture_time_ms_ = 123;
+  encoded_image.SetPresentationTimestamp(Timestamp::Micros(7890));
+
+  auto frame = CreateSenderVideoFrame(
+      encoded_image, video_header, /*payload_type=*/99,
+      VideoCodecType::kVideoCodecVP8, RtpTimestampWithOffset{456}, csrcs);
+
+  ASSERT_TRUE(frame);
+  EXPECT_TRUE(frame->IsKeyFrame());
+  EXPECT_EQ(frame->CaptureTime(), Timestamp::Millis(123));
+  EXPECT_THAT(frame->GetData(), ElementsAreArray(payload_data));
+  EXPECT_EQ(frame->GetPayloadType(), 99);
+  EXPECT_EQ(frame->GetSsrc(), 0u);
+  EXPECT_THAT(frame->Metadata().GetCsrcs(), ElementsAreArray(csrcs));
+  EXPECT_EQ(frame->Rid(), "");
+  EXPECT_EQ(frame->GetPresentationTimestamp(), Timestamp::Micros(7890));
+  auto rtp_timestamp_info = frame->GetRtpTimestampInfo();
+  ASSERT_TRUE(
+      std::holds_alternative<RtpTimestampWithOffset>(rtp_timestamp_info));
+  EXPECT_EQ(std::get<RtpTimestampWithOffset>(rtp_timestamp_info), 456u);
 }
 
 }  // namespace

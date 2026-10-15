@@ -131,3 +131,5 @@ static jni_zero::ScopedJavaLocalRef<jstring> JNI_RtpSender_GetMediaType(
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(RtpSender)

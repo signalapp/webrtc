@@ -77,3 +77,6 @@ void StatsObserverJni::OnComplete(const StatsReports& reports) {
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(StatsObserver)
+DEFINE_JNI(StatsReport)

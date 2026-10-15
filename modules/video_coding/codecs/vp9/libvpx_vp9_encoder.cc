@@ -9,6 +9,8 @@
  *
  */
 
+#include "api/units/time_delta.h"
+#include "modules/video_coding/utility/frame_sampler.h"
 #ifdef RTC_ENABLE_VP9
 
 #include "modules/video_coding/codecs/vp9/libvpx_vp9_encoder.h"
@@ -66,7 +68,6 @@
 #include "rtc_base/containers/flat_map.h"
 #include "rtc_base/experiments/field_trial_list.h"
 #include "rtc_base/experiments/field_trial_parser.h"
-#include "rtc_base/experiments/psnr_experiment.h"
 #include "rtc_base/experiments/rate_control_settings.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/numerics/safe_conversions.h"
@@ -293,8 +294,7 @@ LibvpxVp9Encoder::LibvpxVp9Encoder(const Environment& env,
       num_steady_state_frames_(0),
       config_changed_(true),
       encoder_info_override_(env.field_trials()),
-      psnr_experiment_(env.field_trials()),
-      psnr_frame_sampler_(psnr_experiment_.SamplingInterval()),
+      psnr_frame_sampler_(FrameSampler::kDefaultPsnrFrameSamplingInterval),
       post_encode_frame_drop_(!env.field_trials().IsDisabled(
           "WebRTC-LibvpxVp9Encoder-PostEncodeFrameDrop")) {
   codec_ = {};
@@ -1009,11 +1009,11 @@ int LibvpxVp9Encoder::Encode(const VideoFrame& input_image,
     return WEBRTC_VIDEO_CODEC_OK;
   }
 
-  // We only support one stream at the moment.
-  if (frame_types && !frame_types->empty()) {
-    if ((*frame_types)[0] == VideoFrameType::kVideoFrameKey) {
-      force_key_frame_ = true;
-    }
+  // A keyframe request on any stream triggers a keyframe on all streams
+  // in order to keep the temporal layering structure aligned.
+  if (frame_types &&
+      absl::c_linear_search(*frame_types, VideoFrameType::kVideoFrameKey)) {
+    force_key_frame_ = true;
   }
 
   if (pics_since_key_ + 1 ==
@@ -1253,8 +1253,7 @@ int LibvpxVp9Encoder::Encode(const VideoFrame& input_image,
     flags = VPX_EFLAG_FORCE_KF;
   }
 #if defined(WEBRTC_ENCODER_PSNR_STATS) && defined(VPX_EFLAG_CALCULATE_PSNR)
-  if (psnr_experiment_.IsEnabled() &&
-      psnr_frame_sampler_.ShouldBeSampled(input_image)) {
+  if (psnr_frame_sampler_.ShouldBeSampled(input_image)) {
     flags |= VPX_EFLAG_CALCULATE_PSNR;
   }
 #endif

@@ -44,15 +44,6 @@ class VideoBitrateAllocator {
   virtual void SetLegacyConferenceMode(bool enabled);
 };
 
-class VideoBitrateAllocationObserver {
- public:
-  VideoBitrateAllocationObserver() {}
-  virtual ~VideoBitrateAllocationObserver() {}
-
-  virtual void OnBitrateAllocationUpdated(
-      const VideoBitrateAllocation& allocation) = 0;
-};
-
 }  // namespace webrtc
 
 #endif  // API_VIDEO_VIDEO_BITRATE_ALLOCATOR_H_

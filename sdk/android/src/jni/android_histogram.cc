@@ -49,3 +49,5 @@ static void JNI_Histogram_AddSample(JNIEnv* jni, jlong histogram, jint sample) {
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(Histogram)

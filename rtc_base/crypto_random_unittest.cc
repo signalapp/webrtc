@@ -24,12 +24,8 @@ namespace webrtc {
 namespace {
 
 using ::testing::_;
-using ::testing::DoAll;
 using ::testing::IsEmpty;
 using ::testing::Not;
-using ::testing::Return;
-using ::testing::WithArg;
-using ::testing::WithArgs;
 
 TEST(RandomTest, TestCreateRandomId) {
   CreateRandomId();
@@ -138,15 +134,16 @@ TEST(RandomTest, TestSetRandomGenerator) {
 
   uint32_t id = 4658;
   EXPECT_CALL(*generator, Generate(_, sizeof(uint32_t)))
-      .WillOnce(DoAll(
-          WithArg<0>([&id](void* p) { std::memcpy(p, &id, sizeof(uint32_t)); }),
-          Return(true)));
+      .WillOnce([&id](void* p, size_t /*len*/) {
+        std::memcpy(p, &id, sizeof(uint32_t));
+        return true;
+      });
   EXPECT_EQ(CreateRandomId(), id);
 
-  EXPECT_CALL(*generator, Generate)
-      .WillOnce(DoAll(
-          WithArgs<0, 1>([](void* p, size_t len) { std::memset(p, 0, len); }),
-          Return(true)));
+  EXPECT_CALL(*generator, Generate).WillOnce([](void* p, size_t len) {
+    std::memset(p, 0, len);
+    return true;
+  });
   EXPECT_THAT(CreateRandomUuid(), Not(IsEmpty()));
 
   // Set the default random generator, and expect that mock generator is

@@ -195,10 +195,9 @@ void TestScreenCastStreamProvider::RecordFrame(RgbaColor rgba_color,
   ScopedBuf scoped_buf;
 
   if (spa_data->type == SPA_DATA_DmaBuf) {
-    uint8_t* map =
-        static_cast<uint8_t*>(mmap(nullptr, buffer_size, PROT_READ | PROT_WRITE,
-                                   MAP_SHARED, spa_data->fd, 0));
-    scoped_buf.initialize(map, buffer_size, spa_data->fd, true);
+    scoped_buf.initialize(spa_data->fd, buffer_size, 0,
+                          ScopedBuf::BufferType::kDmaBuf,
+                          ScopedBuf::AccessMode::kReadWrite);
     if (!scoped_buf) {
       RTC_LOG(LS_ERROR) << "Failed to mmap DMA-BUF for recording";
       pw_stream_queue_buffer(pw_stream_, buffer);
@@ -405,7 +404,7 @@ void TestScreenCastStreamProvider::OnStreamParamChanged(
     } else if (buffer_types & (1 << SPA_DATA_MemFd)) {
       sb << " MemFd\n";
     }
-    RTC_LOG(LS_INFO) << sb.str();
+    RTC_LOG(LS_INFO) << sb.Release();
   }
 
   uint8_t buffer[4096] = {};

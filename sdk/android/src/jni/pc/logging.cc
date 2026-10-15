@@ -14,6 +14,7 @@
 
 #include <string>
 
+#include "rtc_base/base_java_jni/Logging_jni.h"
 #include "sdk/android/native_api/jni/java_types.h"
 #include "sdk/android/src/jni/jni_helpers.h"
 #include "third_party/jni_zero/jni_zero.h"
@@ -21,46 +22,34 @@
 namespace webrtc {
 namespace jni {
 
-JNI_FUNCTION_DECLARATION(void,
-                         Logging_nativeEnableLogToDebugOutput,
-                         JNIEnv* jni,
-                         jclass,
-                         jint nativeSeverity) {
+static void JNI_Logging_EnableLogToDebugOutput(JNIEnv* jni,
+                                               jint nativeSeverity) {
   if (nativeSeverity >= LS_VERBOSE && nativeSeverity <= LS_NONE) {
     LogMessage::LogToDebug(static_cast<LoggingSeverity>(nativeSeverity));
   }
 }
 
-JNI_FUNCTION_DECLARATION(void,
-                         Logging_nativeEnableLogThreads,
-                         JNIEnv* jni,
-                         jclass) {
+static void JNI_Logging_EnableLogThreads(JNIEnv* jni) {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
   LogMessage::LogThreads(true);
 #pragma clang diagnostic pop
 }
 
-JNI_FUNCTION_DECLARATION(void,
-                         Logging_nativeEnableLogTimeStamps,
-                         JNIEnv* jni,
-                         jclass) {
+static void JNI_Logging_EnableLogTimeStamps(JNIEnv* jni) {
   LogMessage::LogTimestamps(true);
 }
 
-JNI_FUNCTION_DECLARATION(void,
-                         Logging_nativeLog,
-                         JNIEnv* jni,
-                         jclass,
-                         jint j_severity,
-                         jstring j_tag,
-                         jstring j_message) {
-  std::string message = JavaToNativeString(
-      jni, jni_zero::JavaRef<jstring>::CreateLeaky(jni, j_message));
-  std::string tag = JavaToNativeString(
-      jni, jni_zero::JavaRef<jstring>::CreateLeaky(jni, j_tag));
+static void JNI_Logging_Log(JNIEnv* jni,
+                            jint j_severity,
+                            const jni_zero::JavaRef<jstring>& j_tag,
+                            const jni_zero::JavaRef<jstring>& j_message) {
+  std::string message = JavaToNativeString(jni, j_message);
+  std::string tag = JavaToNativeString(jni, j_tag);
   RTC_LOG_TAG(static_cast<LoggingSeverity>(j_severity), tag.c_str()) << message;
 }
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(Logging)

@@ -299,6 +299,8 @@ public interface EglBase {
   // Detach the current EGL context, so that it can be made current on another thread.
   void detachCurrent();
 
+  default void setDetachSurfaceOnRelease(boolean detach) {}
+
   void swapBuffers();
 
   void swapBuffers(long presentationTimeStampNs);

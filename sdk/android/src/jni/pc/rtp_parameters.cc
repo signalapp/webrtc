@@ -221,3 +221,5 @@ ScopedJavaLocalRef<jobject> NativeToJavaRtpParameters(
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(RtpParameters)

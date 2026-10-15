@@ -38,3 +38,5 @@ void AddIceCandidateObserverJni::OnComplete(RTCError error) {
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(AddIceObserver)

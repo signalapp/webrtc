@@ -45,3 +45,5 @@ ScopedJavaRefCounted::~ScopedJavaRefCounted() {
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(RefCounted)

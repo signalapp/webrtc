@@ -25,11 +25,11 @@
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "api/environment/environment.h"
-#include "api/environment/environment_factory.h"
 #include "api/fec_controller_override.h"
 #include "api/field_trials.h"
 #include "api/field_trials_view.h"
 #include "api/make_ref_counted.h"
+#include "api/rtp_header_extension_id.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_parameters.h"
 #include "api/scoped_refptr.h"
@@ -102,6 +102,7 @@
 #include "rtc_base/thread_annotations.h"
 #include "test/call_test.h"
 #include "test/configurable_frame_size_encoder.h"
+#include "test/create_test_environment.h"
 #include "test/create_test_field_trials.h"
 #include "test/encoder_settings.h"
 #include "test/fake_encoder.h"
@@ -120,14 +121,12 @@
 
 namespace webrtc {
 namespace {
-enum : int {  // The first valid value is 1.
-  kAbsSendTimeExtensionId = 1,
-  kTimestampOffsetExtensionId,
-  kTransportSequenceNumberExtensionId,
-  kVideoContentTypeExtensionId,
-  kVideoRotationExtensionId,
-  kVideoTimingExtensionId,
-};
+constexpr RtpHeaderExtensionId kAbsSendTimeExtensionId(1);
+constexpr RtpHeaderExtensionId kTimestampOffsetExtensionId(2);
+constexpr RtpHeaderExtensionId kTransportSequenceNumberExtensionId(3);
+constexpr RtpHeaderExtensionId kVideoContentTypeExtensionId(4);
+constexpr RtpHeaderExtensionId kVideoRotationExtensionId(5);
+constexpr RtpHeaderExtensionId kVideoTimingExtensionId(6);
 
 // Readability convenience enum for `WaitBitrateChanged()`.
 enum class WaitUntil : bool { kZero = false, kNonZero = true };
@@ -157,10 +156,9 @@ std::string ParamInfoToStr(
   StringBuilder sb;
   sb << std::get<0>(info.param).scalability_mode << "_"
      << (std::get<1>(info.param) ? "WithIdentifier" : "WithoutIdentifier");
-  return sb.str();
+  return sb.Release();
 }
 
-}  // namespace
 
 class VideoSendStreamTest : public test::CallTest {
  public:
@@ -348,7 +346,8 @@ TEST_F(VideoSendStreamTest, SupportsTransmissionTimeOffset) {
 }
 
 TEST_F(VideoSendStreamTest, SupportsTransportWideSequenceNumbers) {
-  static const uint8_t kExtensionId = kTransportSequenceNumberExtensionId;
+  static constexpr RtpHeaderExtensionId kExtensionId =
+      kTransportSequenceNumberExtensionId;
   class TransportWideSequenceNumberObserver : public test::SendTest {
    public:
     TransportWideSequenceNumberObserver()
@@ -1096,7 +1095,7 @@ void VideoSendStreamTest::TestNackRetransmission(
       EXPECT_TRUE(Wait()) << "Timed out while waiting for NACK retransmission.";
     }
 
-    const Environment env_ = CreateEnvironment();
+    const Environment env_ = CreateTestEnvironment();
     std::unique_ptr<internal::TransportAdapter> transport_adapter_;
     int retransmit_count_;
     const uint32_t media_ssrc_;
@@ -1329,7 +1328,7 @@ void VideoSendStreamTest::TestPacketFragmentationSize(TestVideoFormat format,
       EXPECT_TRUE(Wait()) << "Timed out while observing incoming RTP packets.";
     }
 
-    const Environment env_ = CreateEnvironment();
+    const Environment env_ = CreateTestEnvironment();
     std::unique_ptr<internal::TransportAdapter> transport_adapter_;
     test::ConfigurableFrameSizeEncoder encoder_;
     test::VideoEncoderProxyFactory encoder_factory_;
@@ -1625,7 +1624,7 @@ TEST_F(VideoSendStreamTest, MinTransmitBitrateRespectsRemb) {
     }
 
     TaskQueueBase* const task_queue_;
-    const Environment env_ = CreateEnvironment();
+    const Environment env_ = CreateTestEnvironment();
     std::unique_ptr<ModuleRtpRtcpImpl2> rtp_rtcp_;
     std::unique_ptr<internal::TransportAdapter> feedback_transport_;
     RateLimiter retranmission_rate_limiter_;
@@ -1640,7 +1639,8 @@ TEST_F(VideoSendStreamTest, MinTransmitBitrateRespectsRemb) {
 TEST_F(VideoSendStreamTest, ChangingNetworkRoute) {
   static const int kStartBitrateBps = 300000;
   static const int kNewMaxBitrateBps = 1234567;
-  static const uint8_t kExtensionId = kTransportSequenceNumberExtensionId;
+  static constexpr RtpHeaderExtensionId kExtensionId =
+      kTransportSequenceNumberExtensionId;
   class ChangingNetworkRouteTest : public test::EndToEndTest {
    public:
     explicit ChangingNetworkRouteTest(TaskQueueBase* task_queue)
@@ -1781,8 +1781,11 @@ TEST_F(VideoSendStreamTest, ChangingTransportOverhead) {
     void PerformTest() override {
       SendTask(task_queue_, [this]() {
         transport_overhead_ = 100;
-        call_->GetTransportControllerSend()->OnTransportOverheadChanged(
-            transport_overhead_);
+        NetworkRoute route;
+        route.connected = true;
+        route.packet_overhead = transport_overhead_;
+        call_->GetTransportControllerSend()->OnNetworkRouteChanged("transport",
+                                                                   route);
       });
 
       EXPECT_TRUE(Wait());
@@ -1794,8 +1797,11 @@ TEST_F(VideoSendStreamTest, ChangingTransportOverhead) {
 
       SendTask(task_queue_, [this]() {
         transport_overhead_ = 500;
-        call_->GetTransportControllerSend()->OnTransportOverheadChanged(
-            transport_overhead_);
+        NetworkRoute route;
+        route.connected = true;
+        route.packet_overhead = transport_overhead_;
+        call_->GetTransportControllerSend()->OnNetworkRouteChanged("transport",
+                                                                   route);
       });
 
       EXPECT_TRUE(Wait());
@@ -2086,7 +2092,7 @@ TEST_F(VideoSendStreamTest, CanReconfigureToUseStartBitrateAbovePreviousMax) {
     int start_bitrate_kbps_ RTC_GUARDED_BY(mutex_);
   };
 
-  CreateSenderCall();
+  CreateSenderCall(TaskQueueBase::Current());
 
   test::NullTransport transport;
   CreateSendConfig(1, 0, 0, &transport);
@@ -3566,14 +3572,14 @@ TEST_F(VideoSendStreamTest, MAYBE_Vp9FlexModeRefCount) {
 
 void VideoSendStreamTest::TestRequestSourceRotateVideo(
     bool support_orientation_ext) {
-  CreateSenderCall();
+  CreateSenderCall(TaskQueueBase::Current());
 
   test::NullTransport transport;
   CreateSendConfig(1, 0, 0, &transport);
   GetVideoSendConfig()->rtp.extensions.clear();
   if (support_orientation_ext) {
     GetVideoSendConfig()->rtp.extensions.push_back(
-        RtpExtension(RtpExtension::kVideoRotationUri, 1));
+        RtpExtension(RtpExtension::kVideoRotationUri, RtpHeaderExtensionId(1)));
   }
 
   CreateVideoStreams();
@@ -3688,7 +3694,11 @@ TEST_F(VideoSendStreamTest, RemoveOverheadFromBandwidth) {
       SendTask(task_queue_, [this, &bitrate_config]() {
         call_->GetTransportControllerSend()->SetSdpBitrateParameters(
             bitrate_config);
-        call_->GetTransportControllerSend()->OnTransportOverheadChanged(40);
+        NetworkRoute route;
+        route.connected = true;
+        route.packet_overhead = 40;
+        call_->GetTransportControllerSend()->OnNetworkRouteChanged("transport",
+                                                                   route);
       });
 
       // At a bitrate of 60kbps with a packet size of 1200B video and an
@@ -4162,4 +4172,5 @@ TEST_F(VideoSendStreamTest, TestTemporalLayersVp9) {
                      /*scalability_mode=*/{});
 }
 
+}  // namespace
 }  // namespace webrtc

@@ -107,6 +107,13 @@ class MediaContentDescription {
     rtcp_reduced_size_ = reduced_size;
   }
 
+  // Whether RFC 3611 rcvr-rtt (receiver reference time report) was
+  // negotiated, enabling non-sender RTT (RRTR/DLRR) on this m-section.
+  bool receive_non_sender_rtt() const { return receive_non_sender_rtt_; }
+  void set_receive_non_sender_rtt(bool enable) {
+    receive_non_sender_rtt_ = enable;
+  }
+
   // Indicates support for the remote network estimate packet type. This
   // functionality is experimental and subject to change without notice.
   bool remote_estimate() const { return remote_estimate_; }
@@ -311,7 +318,7 @@ class MediaContentDescription {
   void set_codecs(const std::vector<Codec>& codecs) { codecs_ = codecs; }
   virtual bool has_codecs() const { return !codecs_.empty(); }
   bool HasCodec(int id) {
-    return absl::c_find_if(codecs_, [id](const Codec codec) {
+    return absl::c_find_if(codecs_, [id](const Codec& codec) {
              return codec.id == id;
            }) != codecs_.end();
   }
@@ -352,10 +359,11 @@ class MediaContentDescription {
  private:
   bool rtcp_mux_ = false;
   bool rtcp_reduced_size_ = false;
+  bool receive_non_sender_rtt_ = false;
   bool remote_estimate_ = false;
   bool rtcp_fb_ack_ccfb_ = false;
   int bandwidth_ = kAutoBandwidth;
-  std::string bandwidth_type_ = kApplicationSpecificBandwidth;
+  std::string bandwidth_type_{kApplicationSpecificBandwidth};
 
   // RingRTC: Allow out-of-band / "manual" key negotiation.
   std::optional<CryptoParams> crypto_;
@@ -442,11 +450,11 @@ class SctpDataContentDescription final : public MediaContentDescription {
   void set_max_message_size(int max_message_size) {
     max_message_size_ = max_message_size;
   }
-  std::optional<const std::vector<uint8_t>> sctp_init() const {
+  const std::optional<std::vector<uint8_t>>& sctp_init() const {
     return sctp_init_;
   }
-  void set_sctp_init(std::optional<const std::vector<uint8_t>> sctp_init) {
-    sctp_init_ = sctp_init;
+  void set_sctp_init(std::optional<std::vector<uint8_t>> sctp_init) {
+    sctp_init_ = std::move(sctp_init);
   }
 
  private:

@@ -719,10 +719,17 @@ TEST_P(PeerConnectionEndToEndTest, TooManyDataChannelsOpenedBeforeConnecting) {
                         {.timeout = TimeDelta::Millis(kMaxWait)}),
               IsRtcOk());
   // 0 and 2 should be open, 4 should be rejected as "ID too large".
-  EXPECT_EQ(DataChannelInterface::kOpen,
-            channels[(kReducedMaxSctpStreams / 2) - 1]->state());
-  EXPECT_EQ(DataChannelInterface::kClosed,
-            channels[kReducedMaxSctpStreams / 2]->state());
+  EXPECT_THAT(
+      WaitUntil(
+          [&] { return channels[(kReducedMaxSctpStreams / 2) - 1]->state(); },
+          Eq(DataChannelInterface::kOpen),
+          {.timeout = TimeDelta::Millis(kMaxWait)}),
+      IsRtcOk());
+  EXPECT_THAT(
+      WaitUntil([&] { return channels[kReducedMaxSctpStreams / 2]->state(); },
+                Eq(DataChannelInterface::kClosed),
+                {.timeout = TimeDelta::Millis(kMaxWait)}),
+      IsRtcOk());
 }
 
 // Verifies that max-message-size is propagated to the DataChannel.

@@ -49,9 +49,15 @@ namespace webrtc {
   };
 
   auto sleep = [&](TimeDelta delta) {
+    // Unconditionally (regardless of clock type) process messages on the
+    // current thread (if one exists). In tests using simulated clocks,
+    // Thread::Current() may act as the signaling thread and receive posted
+    // tasks that must be dispatched during WaitUntil().
+    if (Thread::Current()) {
+      Thread::Current()->ProcessMessages(0);
+    }
     std::visit(absl::Overload{
                    [&](const std::monostate&) {
-                     Thread::Current()->ProcessMessages(0);
                      Thread::Current()->SleepMs(delta.ms());
                    },
                    [&](auto* clock) { clock->AdvanceTime(delta); },

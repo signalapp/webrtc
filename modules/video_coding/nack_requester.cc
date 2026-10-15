@@ -39,17 +39,7 @@ constexpr TimeDelta kDefaultRtt = TimeDelta::Millis(100);
 constexpr int kMaxNackRetries = 100;
 constexpr int kMaxReorderedPackets = 128;
 constexpr int kNumReorderingBuckets = 10;
-constexpr TimeDelta kDefaultSendNackDelay = TimeDelta::Zero();
 
-TimeDelta GetSendNackDelay(const FieldTrialsView& field_trials) {
-  int64_t delay_ms = strtol(
-      field_trials.Lookup("WebRTC-SendNackDelayMs").c_str(), nullptr, 10);
-  if (delay_ms > 0 && delay_ms <= 20) {
-    RTC_LOG(LS_INFO) << "SendNackDelay is set to " << delay_ms;
-    return TimeDelta::Millis(delay_ms);
-  }
-  return kDefaultSendNackDelay;
-}
 }  // namespace
 
 NackPeriodicProcessor::NackPeriodicProcessor(TimeDelta update_interval)
@@ -97,22 +87,6 @@ ScopedNackPeriodicProcessorRegistration::
   processor_->UnregisterNackModule(module_);
 }
 
-NackRequester::NackInfo::NackInfo()
-    : seq_num(0),
-      send_at_seq_num(0),
-      created_at_time(Timestamp::MinusInfinity()),
-      sent_at_time(Timestamp::MinusInfinity()),
-      retries(0) {}
-
-NackRequester::NackInfo::NackInfo(uint16_t seq_num,
-                                  uint16_t send_at_seq_num,
-                                  Timestamp created_at_time)
-    : seq_num(seq_num),
-      send_at_seq_num(send_at_seq_num),
-      created_at_time(created_at_time),
-      sent_at_time(Timestamp::MinusInfinity()),
-      retries(0) {}
-
 NackRequester::NackRequester(TaskQueueBase* current_queue,
                              NackPeriodicProcessor* periodic_processor,
                              Clock* clock,
@@ -127,7 +101,6 @@ NackRequester::NackRequester(TaskQueueBase* current_queue,
       initialized_(false),
       rtt_(kDefaultRtt),
       newest_seq_num_(0),
-      send_nack_delay_(GetSendNackDelay(field_trials)),
       processor_registration_(this, periodic_processor) {
   RTC_DCHECK(clock_);
   RTC_DCHECK(nack_sender_);
@@ -248,12 +221,14 @@ void NackRequester::AddPacketsToNack(uint16_t seq_num_start,
 
   for (uint16_t seq_num = seq_num_start; seq_num != seq_num_end; ++seq_num) {
     // Do not send nack for packets that are already recovered by FEC or RTX
-    if (recovered_list_.find(seq_num) != recovered_list_.end())
+    if (recovered_list_.contains(seq_num)) {
       continue;
-    NackInfo nack_info(seq_num, seq_num + WaitNumberOfPackets(0.5),
-                       clock_->CurrentTime());
-    RTC_DCHECK(nack_list_.find(seq_num) == nack_list_.end());
-    nack_list_[seq_num] = nack_info;
+    }
+    NackInfo nack_info = {.seq_num = seq_num,
+                          .send_at_seq_num = static_cast<uint16_t>(
+                              seq_num + WaitNumberOfPackets(0.5))};
+    bool inserted = nack_list_.insert({seq_num, nack_info}).second;
+    RTC_DCHECK(inserted);
   }
 }
 
@@ -266,13 +241,12 @@ std::vector<uint16_t> NackRequester::GetNackBatch(NackFilterOptions options) {
   std::vector<uint16_t> nack_batch;
   auto it = nack_list_.begin();
   while (it != nack_list_.end()) {
-    bool delay_timed_out = now - it->second.created_at_time >= send_nack_delay_;
     bool nack_on_rtt_passed = now - it->second.sent_at_time >= rtt_;
     bool nack_on_seq_num_passed =
         it->second.sent_at_time.IsInfinite() &&
         AheadOrAt(newest_seq_num_, it->second.send_at_seq_num);
-    if (delay_timed_out && ((consider_seq_num && nack_on_seq_num_passed) ||
-                            (consider_timestamp && nack_on_rtt_passed))) {
+    if ((consider_seq_num && nack_on_seq_num_passed) ||
+        (consider_timestamp && nack_on_rtt_passed)) {
       nack_batch.emplace_back(it->second.seq_num);
       ++it->second.retries;
       it->second.sent_at_time = now;

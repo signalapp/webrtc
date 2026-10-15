@@ -115,8 +115,8 @@ class WebRtcVideoEngine : public VideoEngineInterface {
       const Environment& env,
       Call* call,
       const MediaConfig& config,
-      const VideoOptions& options,
-      const CryptoOptions& crypto_options) override;
+      const CryptoOptions& crypto_options,
+      absl::AnyInvocable<void(uint32_t ssrc)> on_first_packet) override;
 
   // TODO: https://issues.webrtc.org/360058654 - remove Legacy functions.
   std::vector<Codec> LegacySendCodecs() const override {
@@ -200,9 +200,6 @@ class WebRtcVideoSendChannel : public MediaChannelUtil,
   void SetExtmapAllowMixed(bool extmap_allow_mixed) override {
     MediaChannelUtil::SetExtmapAllowMixed(extmap_allow_mixed);
   }
-  bool ExtmapAllowMixed() const override {
-    return MediaChannelUtil::ExtmapAllowMixed();
-  }
 
   // Common functions between sender and receiver
   void SetInterface(MediaChannelNetworkInterface* iface) override;
@@ -230,7 +227,6 @@ class WebRtcVideoSendChannel : public MediaChannelUtil,
   void OnReadyToSend(bool ready) override;
   void OnNetworkRouteChanged(absl::string_view transport_name,
                              const NetworkRoute& network_route) override;
-  bool SetOptions(const VideoOptions& options) override;
 
   // Set a frame encryptor to a particular ssrc that will intercept all
   // outgoing video frames and attempt to encrypt them and forward the result
@@ -277,15 +273,6 @@ class WebRtcVideoSendChannel : public MediaChannelUtil,
   void SetEncoderToPacketizerFrameTransformer(
       uint32_t ssrc,
       scoped_refptr<FrameTransformerInterface> frame_transformer) override;
-  // Information queries to support SetReceiverFeedbackParameters
-  bool SendCodecHasNack() const override {
-    RTC_DCHECK_RUN_ON(worker_thread_);
-    if (!send_codec()) {
-      return false;
-    }
-    return HasNack(send_codec()->codec);
-  }
-
  private:
   struct ChangedSenderParameters {
     // These optionals are unset if not changed.
@@ -345,8 +332,6 @@ class WebRtcVideoSendChannel : public MediaChannelUtil,
     void SetEncoderSelector(
         scoped_refptr<VideoEncoderFactory::EncoderSelectorInterface>
             encoder_selector);
-
-    void SetOptions(const VideoOptions& options);
 
     void SetSend(bool send);
 
@@ -458,7 +443,7 @@ class WebRtcVideoSendChannel : public MediaChannelUtil,
   bool sending_ RTC_GUARDED_BY(worker_thread_);
   Call* const call_;
 
-  const MediaConfig::Video video_config_ RTC_GUARDED_BY(worker_thread_);
+  const MediaConfig::Video video_config_;
 
   // Using primary-ssrc (first ssrc) as key.
   std::map<uint32_t, WebRtcVideoSendStream*> send_streams_
@@ -479,11 +464,11 @@ class WebRtcVideoSendChannel : public MediaChannelUtil,
   // comment in WebRtcVideoChannel::ChangedReceiverParameters.
   BitrateConstraints bitrate_config_ RTC_GUARDED_BY(worker_thread_);
   VideoSenderParameters send_params_ RTC_GUARDED_BY(worker_thread_);
-  VideoOptions default_send_options_ RTC_GUARDED_BY(worker_thread_);
+  const VideoOptions default_send_options_;
   int64_t last_send_stats_log_ms_ RTC_GUARDED_BY(worker_thread_);
   // Per peer connection crypto options that last for the lifetime of the peer
   // connection.
-  const CryptoOptions crypto_options_ RTC_GUARDED_BY(worker_thread_);
+  const CryptoOptions crypto_options_;
 
   // Callback invoked whenever the list of SSRCs changes.
   absl::AnyInvocable<void(const std::set<uint32_t>&)>
@@ -501,12 +486,13 @@ class WebRtcVideoSendChannel : public MediaChannelUtil,
 class WebRtcVideoReceiveChannel : public MediaChannelUtil,
                                   public VideoMediaReceiveChannelInterface {
  public:
-  WebRtcVideoReceiveChannel(const Environment& env,
-                            Call* absl_nonnull call,
-                            const MediaConfig& config,
-                            const VideoOptions& options,
-                            const CryptoOptions& crypto_options,
-                            VideoDecoderFactory* absl_nullable decoder_factory);
+  WebRtcVideoReceiveChannel(
+      const Environment& env,
+      Call* absl_nonnull call,
+      const MediaConfig& config,
+      const CryptoOptions& crypto_options,
+      VideoDecoderFactory* absl_nullable decoder_factory,
+      absl::AnyInvocable<void(uint32_t ssrc)> on_first_packet);
   ~WebRtcVideoReceiveChannel() override;
 
  public:
@@ -526,6 +512,7 @@ class WebRtcVideoReceiveChannel : public MediaChannelUtil,
   RtpParameters GetRtpReceiverParameters(uint32_t ssrc) const override;
   RtpParameters GetDefaultRtpReceiveParameters() const override;
   void SetReceive(bool receive) override;
+  void SetReceiveNonSenderRttEnabled(bool enabled) override;
   bool AddRecvStream(const StreamParams& sp) override;
   bool AddDefaultRecvStreamForTesting(const StreamParams& sp) override {
     // Invokes private AddRecvStream variant function
@@ -626,6 +613,7 @@ class WebRtcVideoReceiveChannel : public MediaChannelUtil,
     RtpParameters GetRtpParameters() const;
 
     void SetReceiverParameters(const ChangedReceiverParameters& recv_params);
+    void SetNonSenderRttMeasurement(bool enabled);
 
     void OnFrame(const VideoFrame& frame) override;
     bool IsDefaultStream() const;
@@ -659,13 +647,10 @@ class WebRtcVideoReceiveChannel : public MediaChannelUtil,
     // when disabled.
     void SetFlexFecPayload(int payload_type);
 
-    void RecreateReceiveStream();
     void CreateReceiveStream();
 
-    // Applies a new receive codecs configration to `config_`. Returns true
-    // if the internal stream needs to be reconstructed, or false if no changes
-    // were applied.
-    bool ReconfigureCodecs(const std::vector<VideoCodecSettings>& recv_codecs);
+    // Applies a new receive codecs configuration to `config_` and `stream_`.
+    void ReconfigureCodecs(const std::vector<VideoCodecSettings>& recv_codecs);
 
     const Environment env_;
     Call* const call_;
@@ -690,6 +675,10 @@ class WebRtcVideoReceiveChannel : public MediaChannelUtil,
 
     RTC_NO_UNIQUE_ADDRESS SequenceChecker thread_checker_;
     bool receiving_ RTC_GUARDED_BY(&thread_checker_);
+    // One-shot callback invoked when this specific stream receives its first
+    // packet.
+    absl::AnyInvocable<void(uint32_t) &&> on_first_packet_
+        RTC_GUARDED_BY(&thread_checker_);
   };
   bool GetChangedReceiverParameters(const VideoReceiverParameters& params,
                                     ChangedReceiverParameters* changed_params)
@@ -697,6 +686,7 @@ class WebRtcVideoReceiveChannel : public MediaChannelUtil,
 
   std::map<uint32_t, WebRtcVideoReceiveStream*> receive_streams_
       RTC_GUARDED_BY(thread_checker_);
+  bool enable_non_sender_rtt_ RTC_GUARDED_BY(thread_checker_) = false;
   void FillReceiverStats(VideoMediaReceiveInfo* info, bool log_stats)
       RTC_EXCLUSIVE_LOCKS_REQUIRED(thread_checker_);
   void FillReceiveCodecStats(VideoMediaReceiveInfo* video_media_info)
@@ -722,7 +712,7 @@ class WebRtcVideoReceiveChannel : public MediaChannelUtil,
   // Delay for unsignaled streams, which may be set before the stream exists.
   int default_recv_base_minimum_delay_ms_ RTC_GUARDED_BY(thread_checker_) = 0;
 
-  const MediaConfig::Video video_config_ RTC_GUARDED_BY(thread_checker_);
+  const MediaConfig::Video video_config_;
 
   // When the channel and demuxer get reconfigured, there is a window of time
   // where we have to be prepared for packets arriving based on the old demuxer
@@ -753,7 +743,7 @@ class WebRtcVideoReceiveChannel : public MediaChannelUtil,
   // send_params/recv_params, rtp_extensions, options, etc.
   VideoReceiverParameters recv_params_ RTC_GUARDED_BY(thread_checker_);
   int64_t last_receive_stats_log_ms_ RTC_GUARDED_BY(thread_checker_);
-  const bool discard_unknown_ssrc_packets_ RTC_GUARDED_BY(thread_checker_);
+  const bool discard_unknown_ssrc_packets_;
   // This is a stream param that comes from the remote description, but wasn't
   // signaled with any a=ssrc lines. It holds information that was signaled
   // before the unsignaled receive stream is created when the first packet is
@@ -761,13 +751,18 @@ class WebRtcVideoReceiveChannel : public MediaChannelUtil,
   StreamParams unsignaled_stream_params_ RTC_GUARDED_BY(thread_checker_);
   // Per peer connection crypto options that last for the lifetime of the peer
   // connection.
-  const CryptoOptions crypto_options_ RTC_GUARDED_BY(thread_checker_);
+  const CryptoOptions crypto_options_;
 
   // Optional frame transformer set on unsignaled streams.
   scoped_refptr<FrameTransformerInterface> unsignaled_frame_transformer_
       RTC_GUARDED_BY(thread_checker_);
 
   const int receive_buffer_size_;
+
+  // Channel-level callback invoked when a receive stream on this channel
+  // receives its first packet. Can be invoked multiple times (e.g. simulcast).
+  absl::AnyInvocable<void(uint32_t ssrc)> on_first_packet_
+      RTC_GUARDED_BY(thread_checker_);
 };
 
 // Keeping the old name "WebRtcVideoChannel" around because some external

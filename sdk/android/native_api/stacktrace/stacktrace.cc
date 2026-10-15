@@ -10,8 +10,6 @@
 
 #include "sdk/android/native_api/stacktrace/stacktrace.h"
 
-#include <asm-generic/siginfo.h>
-#include <asm-generic/signal-defs.h>
 #include <dlfcn.h>
 #include <errno.h>
 #include <linux/futex.h>

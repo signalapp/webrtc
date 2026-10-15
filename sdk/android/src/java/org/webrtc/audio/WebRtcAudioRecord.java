@@ -25,7 +25,6 @@ import android.os.Build;
 import android.os.Process;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
-import java.lang.System;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -38,6 +37,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import org.jni_zero.NativeMethods;
 import org.webrtc.CalledByNative;
 import org.webrtc.Logging;
 import org.webrtc.ThreadUtils;
@@ -111,6 +111,7 @@ class WebRtcAudioRecord {
   private final @Nullable SamplesReadyCallback audioSamplesReadyCallback;
   private final boolean isAcousticEchoCancelerSupported;
   private final boolean isNoiseSuppressorSupported;
+  private final ThreadUtils.ThreadChecker threadChecker = new ThreadUtils.ThreadChecker();
 
   /**
    * Audio thread which keeps calling ByteBuffer.read() waiting for audio
@@ -134,7 +135,6 @@ class WebRtcAudioRecord {
       // Audio recording has started and the client is informed about it.
       doAudioRecordStateCallback(AUDIO_RECORD_START);
 
-      long lastTime = System.nanoTime();
       AudioTimestamp audioTimestamp = null;
       if (Build.VERSION.SDK_INT >= 24) {
         audioTimestamp = new AudioTimestamp();
@@ -157,7 +157,9 @@ class WebRtcAudioRecord {
                 captureTimeNs = audioTimestamp.nanoTime;
               }
             }
-            nativeDataIsRecorded(nativeAudioRecord, bytesRead, captureTimeNs);
+            WebRtcAudioRecordJni.get()
+                .dataIsRecorded(
+                    nativeAudioRecord, WebRtcAudioRecord.this, bytesRead, captureTimeNs);
           }
           if (audioSamplesReadyCallback != null) {
             // Copy the entire byte buffer array. The start of the byteBuffer is not necessarily
@@ -210,6 +212,7 @@ class WebRtcAudioRecord {
       @Nullable AudioRecordStateCallback stateCallback,
       @Nullable SamplesReadyCallback audioSamplesReadyCallback,
       boolean isAcousticEchoCancelerSupported, boolean isNoiseSuppressorSupported) {
+    threadChecker.detachThread();
     if (isAcousticEchoCancelerSupported && !WebRtcAudioEffects.isAcousticEchoCancelerSupported()) {
       throw new IllegalArgumentException("HW AEC not supported");
     }
@@ -267,18 +270,27 @@ class WebRtcAudioRecord {
 
   @CalledByNative
   private boolean enableBuiltInAEC(boolean enable) {
+    threadChecker.checkIsOnValidThread();
     Logging.d(TAG, "enableBuiltInAEC(" + enable + ")");
     return effects.setAEC(enable);
   }
 
   @CalledByNative
   private boolean enableBuiltInNS(boolean enable) {
+    threadChecker.checkIsOnValidThread();
     Logging.d(TAG, "enableBuiltInNS(" + enable + ")");
     return effects.setNS(enable);
   }
 
   @CalledByNative
   private int initRecording(int sampleRate, int channels) {
+    try {
+      threadChecker.checkIsOnValidThread();
+    } catch (IllegalStateException e) {
+      reportWebRtcAudioRecordInitError("threadChecker.checkIsOnValidThread failed: " +
+                                       e.getMessage());
+      return -1;
+    }
     Logging.d(TAG, "initRecording(sampleRate=" + sampleRate + ", channels=" + channels + ")");
     if (audioRecord != null) {
       reportWebRtcAudioRecordInitError("InitRecording called twice without StopRecording.");
@@ -286,7 +298,12 @@ class WebRtcAudioRecord {
     }
     final int bytesPerFrame = channels * getBytesPerSample(audioFormat);
     final int framesPerBuffer = sampleRate / BUFFERS_PER_SECOND;
-    byteBuffer = ByteBuffer.allocateDirect(bytesPerFrame * framesPerBuffer);
+    try {
+      byteBuffer = ByteBuffer.allocateDirect(bytesPerFrame * framesPerBuffer);
+    } catch (OutOfMemoryError | RuntimeException e) {
+      reportWebRtcAudioRecordInitError("allocateDirect failed: " + e.getMessage());
+      return -1;
+    }
     if (!byteBuffer.hasArray()) {
       reportWebRtcAudioRecordInitError("ByteBuffer does not have backing array.");
       return -1;
@@ -296,7 +313,7 @@ class WebRtcAudioRecord {
     // Rather than passing the ByteBuffer with every callback (requiring
     // the potentially expensive GetDirectBufferAddress) we simply have the
     // the native class cache the address to the memory once.
-    nativeCacheDirectBufferAddress(nativeAudioRecord, byteBuffer);
+    WebRtcAudioRecordJni.get().cacheDirectBufferAddress(nativeAudioRecord, this, byteBuffer);
 
     // Get the minimum buffer size required for the successful creation of
     // an AudioRecord object, in byte units.
@@ -334,6 +351,11 @@ class WebRtcAudioRecord {
     } catch (IllegalArgumentException | UnsupportedOperationException e) {
       // Report of exception message is sufficient. Example: "Cannot create AudioRecord".
       reportWebRtcAudioRecordInitError(e.getMessage());
+      releaseAudioResources();
+      return -1;
+    } catch (Throwable t) {
+      reportWebRtcAudioRecordInitError("InitRecording error: " +
+                                       t.getClass().getSimpleName() + ": " + t.getMessage());
       releaseAudioResources();
       return -1;
     }
@@ -377,6 +399,7 @@ class WebRtcAudioRecord {
 
   @CalledByNative
   private boolean startRecording() {
+    threadChecker.checkIsOnValidThread();
     Logging.d(TAG, "startRecording");
     assertTrue(audioRecord != null);
     assertTrue(audioThread == null);
@@ -428,6 +451,7 @@ class WebRtcAudioRecord {
 
   @CalledByNative
   private boolean stopRecording() {
+    threadChecker.checkIsOnValidThread();
     Logging.d(TAG, "stopRecording");
     assertTrue(audioThread != null);
     if (future != null) {
@@ -449,18 +473,23 @@ class WebRtcAudioRecord {
   }
 
   @TargetApi(Build.VERSION_CODES.M)
-  private static AudioRecord createAudioRecordOnMOrHigher(
+  private AudioRecord createAudioRecordOnMOrHigher(
       int audioSource, int sampleRate, int channelConfig, int audioFormat, int bufferSizeInBytes) {
     Logging.d(TAG, "createAudioRecordOnMOrHigher");
-    return new AudioRecord.Builder()
-        .setAudioSource(audioSource)
-        .setAudioFormat(new AudioFormat.Builder()
-                            .setEncoding(audioFormat)
-                            .setSampleRate(sampleRate)
-                            .setChannelMask(channelConfig)
-                            .build())
-        .setBufferSizeInBytes(bufferSizeInBytes)
-        .build();
+    AudioRecord.Builder builder =
+        new AudioRecord.Builder()
+            .setAudioSource(audioSource)
+            .setAudioFormat(
+                new AudioFormat.Builder()
+                    .setEncoding(audioFormat)
+                    .setSampleRate(sampleRate)
+                    .setChannelMask(channelConfig)
+                    .build())
+            .setBufferSizeInBytes(bufferSizeInBytes);
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && context != null) {
+      builder.setContext(context);
+    }
+    return builder.build();
   }
 
   private static AudioRecord createAudioRecordOnLowerThanM(
@@ -530,10 +559,14 @@ class WebRtcAudioRecord {
     return (channels == 1 ? AudioFormat.CHANNEL_IN_MONO : AudioFormat.CHANNEL_IN_STEREO);
   }
 
-  private native void nativeCacheDirectBufferAddress(
-      long nativeAudioRecordJni, ByteBuffer byteBuffer);
-  private native void nativeDataIsRecorded(
-      long nativeAudioRecordJni, int bytes, long captureTimestampNs);
+  @NativeMethods
+  interface Natives {
+    void cacheDirectBufferAddress(
+        long nativeAudioRecordJni, WebRtcAudioRecord caller, ByteBuffer byteBuffer);
+
+    void dataIsRecorded(
+        long nativeAudioRecordJni, WebRtcAudioRecord caller, int bytes, long captureTimestampNs);
+  }
 
   // Sets all recorded samples to zero if `mute` is true, i.e., ensures that
   // the microphone is muted.

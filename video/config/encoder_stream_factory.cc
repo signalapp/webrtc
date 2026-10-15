@@ -21,6 +21,7 @@
 #include "api/field_trials_view.h"
 #include "api/units/data_rate.h"
 #include "api/video/resolution.h"
+#include "api/video/video_adapter.h"
 #include "api/video/video_codec_type.h"
 #include "api/video/video_source_interface.h"
 #include "api/video_codecs/spatial_layer.h"
@@ -28,7 +29,6 @@
 #include "api/video_codecs/video_encoder.h"
 #include "call/adaptation/video_source_restrictions.h"
 #include "media/base/media_constants.h"
-#include "media/base/video_adapter.h"
 #include "modules/video_coding/codecs/vp9/svc_config.h"
 #include "modules/video_coding/utility/simulcast_utility.h"
 #include "rtc_base/checks.h"
@@ -200,6 +200,9 @@ void OverrideStreamSettings(
   for (size_t i = 0; i < layers.size(); ++i) {
     const VideoStream& overrides = encoder_config.simulcast_layers[i];
     VideoStream& layer = layers[i];
+    // Zero is a configured value meaning "do not send this layer"; only a
+    // negative value means unset.
+    const bool max_bitrate_configured = overrides.max_bitrate_bps >= 0;
     layer.active = overrides.active;
     layer.scalability_mode = overrides.scalability_mode;
     layer.scale_resolution_down_to = overrides.scale_resolution_down_to;
@@ -215,13 +218,13 @@ void OverrideStreamSettings(
     if (overrides.min_bitrate_bps > 0) {
       layer.min_bitrate_bps = overrides.min_bitrate_bps;
     }
-    if (overrides.max_bitrate_bps > 0) {
+    if (max_bitrate_configured) {
       layer.max_bitrate_bps = overrides.max_bitrate_bps;
     }
     if (overrides.target_bitrate_bps > 0) {
       layer.target_bitrate_bps = overrides.target_bitrate_bps;
     }
-    if (overrides.min_bitrate_bps > 0 && overrides.max_bitrate_bps > 0) {
+    if (overrides.min_bitrate_bps > 0 && max_bitrate_configured) {
       // Min and max bitrate are configured.
       // Set target to 3/4 of the max bitrate (or to max if below min).
       if (overrides.target_bitrate_bps <= 0)
@@ -234,7 +237,7 @@ void OverrideStreamSettings(
           std::max(layer.target_bitrate_bps, layer.min_bitrate_bps);
       layer.max_bitrate_bps =
           std::max(layer.max_bitrate_bps, layer.min_bitrate_bps);
-    } else if (overrides.max_bitrate_bps > 0) {
+    } else if (max_bitrate_configured) {
       // Only max bitrate is configured, make sure min/target are below max.
       // Keep target bitrate if it is set explicitly in encoding config.
       // Otherwise set target bitrate to 3/4 of the max bitrate
@@ -260,7 +263,7 @@ void OverrideStreamSettings(
   }
 
   bool is_highest_layer_max_bitrate_configured =
-      encoder_config.simulcast_layers[layers.size() - 1].max_bitrate_bps > 0;
+      encoder_config.simulcast_layers[layers.size() - 1].max_bitrate_bps >= 0;
   bool is_screencast =
       encoder_config.content_type == VideoEncoderConfig::ContentType::kScreen;
   if (!is_screencast && !is_highest_layer_max_bitrate_configured &&
@@ -367,9 +370,16 @@ std::vector<VideoStream> EncoderStreamFactory::CreateDefaultVideoStreams(
   //   RtpEncodingParamters, which is the encoding of this stream.
   // - `encoder_config.max_bitrate_bps` comes from SDP; "b=AS" or conditionally
   //   "x-google-max-bitrate".
-  // If `api_max_bitrate_bps` has a value then it is positive.
+  // If `api_max_bitrate_bps` has a value then it is non-negative.
+  //
+  // A configured max bitrate of zero is a valid value that means "do not
+  // allocate bitrate to this encoding"; only a negative value means unset.
+  // Treating zero as unset would silently uncap the encoding instead, see
+  // https://w3c.github.io/webrtc-pc/#dom-rtcrtpencodingparameters-maxbitrate
+  const bool encoding_max_bitrate_configured =
+      encoder_config.simulcast_layers[0].max_bitrate_bps >= 0;
   std::optional<int> api_max_bitrate_bps;
-  if (encoder_config.simulcast_layers[0].max_bitrate_bps > 0) {
+  if (encoding_max_bitrate_configured) {
     api_max_bitrate_bps = encoder_config.simulcast_layers[0].max_bitrate_bps;
   }
   if (encoder_config.max_bitrate_bps > 0) {
@@ -459,12 +469,14 @@ std::vector<VideoStream> EncoderStreamFactory::CreateDefaultVideoStreams(
       RTC_DCHECK_GE(sum_max_bitrates_kbps, 0);
       if (!api_max_bitrate_bps.has_value()) {
         max_bitrate_bps = sum_max_bitrates_kbps * 1000;
-      } else if (encoder_config.simulcast_layers[0].max_bitrate_bps <= 0) {
+      } else if (!encoding_max_bitrate_configured) {
         // Encoding max bitrate is kept if configured.
         max_bitrate_bps =
             std::min(max_bitrate_bps, sum_max_bitrates_kbps * 1000);
       }
-      max_bitrate_bps = std::max(min_bitrate_bps, max_bitrate_bps);
+      if (max_bitrate_bps > 0) {
+        max_bitrate_bps = std::max(min_bitrate_bps, max_bitrate_bps);
+      }
     }
   }
 

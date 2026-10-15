@@ -22,3 +22,5 @@ ScopedJavaLocalRef<jobject> GetAppContext(JNIEnv* jni) {
 }
 
 }  // namespace webrtc
+
+DEFINE_JNI(ApplicationContextProvider)

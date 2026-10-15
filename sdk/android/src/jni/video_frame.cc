@@ -328,3 +328,5 @@ void ReleaseJavaVideoFrame(JNIEnv* jni, const JavaRef<jobject>& j_video_frame) {
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(VideoFrame)

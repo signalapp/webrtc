@@ -406,8 +406,23 @@ RUSTEXPORT PeerConnectionInterface* Rust_createPeerConnection(
       auto add_transceiver_result =
           pc->AddTransceiver(inc_rc(outgoing_video_track_borrowed_rc), init);
       if (add_transceiver_result.ok()) {
+        auto rtp_sender = add_transceiver_result.MoveValue()->sender();
+
+        // AddTransceiver defaults scale_resolution_down_by to 1.0, which would
+        // make every simulcast layer full resolution. We manually clear it to
+        // keep the default simulcast scaling of 0.5. We don't explicitly set
+        // the value because null automatically scales off source resolution,
+        // while explicitly setting scale requires us to specify a base
+        auto parameters = rtp_sender->GetParameters();
+        parameters.encodings[0].scale_resolution_down_by = std::nullopt;
+        auto set_result = rtp_sender->SetParameters(parameters);
+        if (!set_result.ok()) {
+          RTC_LOG(LS_ERROR)
+              << "Failed to clear video scale_resolution_down_by: "
+              << set_result.message();
+        }
+
         if (observer_borrowed->enable_frame_encryption()) {
-          auto rtp_sender = add_transceiver_result.MoveValue()->sender();
           rtp_sender->SetFrameEncryptor(observer_borrowed->CreateEncryptor());
         }
       } else {

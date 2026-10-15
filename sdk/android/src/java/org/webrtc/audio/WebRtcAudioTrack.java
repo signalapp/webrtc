@@ -20,13 +20,13 @@ import android.os.Build;
 import android.os.Process;
 import androidx.annotation.Nullable;
 import java.nio.ByteBuffer;
+import org.jni_zero.NativeMethods;
 import org.webrtc.CalledByNative;
 import org.webrtc.Logging;
 import org.webrtc.ThreadUtils;
 import org.webrtc.audio.JavaAudioDeviceModule.AudioTrackErrorCallback;
 import org.webrtc.audio.JavaAudioDeviceModule.AudioTrackStartErrorCode;
 import org.webrtc.audio.JavaAudioDeviceModule.AudioTrackStateCallback;
-import org.webrtc.audio.LowLatencyAudioBufferManager;
 
 class WebRtcAudioTrack {
   private static final String TAG = "WebRtcAudioTrackExternal";
@@ -109,7 +109,7 @@ class WebRtcAudioTrack {
         // Get 10ms of PCM data from the native WebRTC client. Audio data is
         // written into the common ByteBuffer using the address that was
         // cached at construction.
-        nativeGetPlayoutData(nativeAudioTrack, sizeInBytes);
+        WebRtcAudioTrackJni.get().getPlayoutData(nativeAudioTrack, sizeInBytes);
         // Write data until all data has been written to the audio sink.
         // Upon return, the buffer position will have been advanced to reflect
         // the amount of data that was successfully written to the AudioTrack.
@@ -179,18 +179,30 @@ class WebRtcAudioTrack {
 
   @CalledByNative
   private int initPlayout(int sampleRate, int channels, double bufferSizeFactor) {
-    threadChecker.checkIsOnValidThread();
+    try {
+      threadChecker.checkIsOnValidThread();
+    } catch (IllegalStateException e) {
+      reportWebRtcAudioTrackInitError("threadChecker.checkIsOnValidThread failed: " +
+                                      e.getMessage());
+      return -1;
+    }
     Logging.d(TAG,
         "initPlayout(sampleRate=" + sampleRate + ", channels=" + channels
             + ", bufferSizeFactor=" + bufferSizeFactor + ")");
     final int bytesPerFrame = channels * (BITS_PER_SAMPLE / 8);
-    byteBuffer = ByteBuffer.allocateDirect(bytesPerFrame * (sampleRate / BUFFERS_PER_SECOND));
+    try {
+      byteBuffer =
+          ByteBuffer.allocateDirect(bytesPerFrame * (sampleRate / BUFFERS_PER_SECOND));
+    } catch (OutOfMemoryError | RuntimeException e) {
+      reportWebRtcAudioTrackInitError("allocateDirect failed: " + e.getMessage());
+      return -1;
+    }
     Logging.d(TAG, "byteBuffer.capacity: " + byteBuffer.capacity());
     emptyBytes = new byte[byteBuffer.capacity()];
     // Rather than passing the ByteBuffer with every callback (requiring
     // the potentially expensive GetDirectBufferAddress) we simply have the
     // the native class cache the address to the memory once.
-    nativeCacheDirectBufferAddress(nativeAudioTrack, byteBuffer);
+    WebRtcAudioTrackJni.get().cacheDirectBufferAddress(nativeAudioTrack, byteBuffer);
 
     // Get the minimum buffer size required for the successful creation of an
     // AudioTrack object to be created in the MODE_STREAM mode.
@@ -242,6 +254,11 @@ class WebRtcAudioTrack {
       }
     } catch (IllegalArgumentException e) {
       reportWebRtcAudioTrackInitError(e.getMessage());
+      releaseAudioResources();
+      return -1;
+    } catch (Throwable t) {
+      reportWebRtcAudioTrackInitError("InitPlayout error: " + t.getClass().getSimpleName() +
+                                      ": " + t.getMessage());
       releaseAudioResources();
       return -1;
     }
@@ -525,9 +542,12 @@ class WebRtcAudioTrack {
     return (channels == 1 ? AudioFormat.CHANNEL_OUT_MONO : AudioFormat.CHANNEL_OUT_STEREO);
   }
 
-  private static native void nativeCacheDirectBufferAddress(
-      long nativeAudioTrackJni, ByteBuffer byteBuffer);
-  private static native void nativeGetPlayoutData(long nativeAudioTrackJni, int bytes);
+  @NativeMethods
+  interface Natives {
+    void cacheDirectBufferAddress(long nativeAudioTrackJni, ByteBuffer byteBuffer);
+
+    void getPlayoutData(long nativeAudioTrackJni, int bytes);
+  }
 
   // Sets all samples to be played out to zero if `mute` is true, i.e.,
   // ensures that the speaker is muted.

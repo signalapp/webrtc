@@ -243,11 +243,11 @@ void AsyncDnsResolver::Start(const SocketAddress& addr,
       [this, addr, family, flag = safety_.flag(), state = state_]() {
         std::vector<IPAddress> addresses;
         int error = ResolveHostname(addr.hostname(), family, addresses);
-        state->PostToCallbackTaskQueue(
-            SafeTask(flag, [this, error, addresses = std::move(addresses)]() {
+        state->PostToCallbackTaskQueue(SafeTask(
+            flag, [this, error, addresses = std::move(addresses)]() mutable {
               RTC_DCHECK_RUN_ON(&result_.sequence_checker_);
               state_ = nullptr;
-              result_.addresses_ = addresses;
+              result_.addresses_ = std::move(addresses);
               result_.error_ = error;
               std::move(callback_)();
             }));

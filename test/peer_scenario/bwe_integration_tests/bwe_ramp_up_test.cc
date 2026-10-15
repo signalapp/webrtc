@@ -87,7 +87,9 @@ TEST(BweRampupTest, BweRampUpWhenCapacityIncrease) {
   // Wait for SDP negotiation.
   s.WaitAndProcess(&offer_exchange_done);
 
-  s.ProcessMessages(TimeDelta::Seconds(5));
+  // Capacity increases 3s after the first sent packet. Sample sooner so this
+  // check still reflects the initial 500 kbps link.
+  s.ProcessMessages(TimeDelta::Seconds(2));
   DataRate bwe_before_capacity_increase =
       GetAvailableSendBitrate(GetStatsAndProcess(s, caller));
   EXPECT_GT(bwe_before_capacity_increase.kbps(), 300);
@@ -411,6 +413,80 @@ TEST(BweRampupTest, RespectsStartRateFromSetBitrate) {
   s.ProcessMessages(TimeDelta::Seconds(1));
   DataRate bwe = GetAvailableSendBitrate(GetStatsAndProcess(s, caller));
   EXPECT_GE(bwe.kbps(), 70000);
+}
+
+// Reproduces slow BWE ramp-up when max allocated bitrate increases while the
+// sender is outside ALR (e.g. join with media off, then start screen share).
+TEST(BweRampupTest, RampUpWhenAllocatedBitrateIncreasesOutsideAlr) {
+  PeerScenario s(*::testing::UnitTest::GetInstance()->current_test_info());
+  PeerScenarioClient* caller = s.CreateClient({});
+  PeerScenarioClient* callee = s.CreateClient({});
+
+  // High capacity so the link is not the bottleneck.
+  auto node_builder = s.net()->NodeBuilder().capacity_kbps(5000).delay_ms(25);
+  auto caller_node = node_builder.Build().node;
+  auto callee_node = node_builder.Build().node;
+  s.net()->CreateRoute(caller->endpoint(), {caller_node}, callee->endpoint());
+  s.net()->CreateRoute(callee->endpoint(), {callee_node}, caller->endpoint());
+
+  FrameGeneratorCapturerConfig::SquaresVideo video_resolution = {
+      .framerate = 30, .width = 1920, .height = 1080};
+  PeerScenarioClient::VideoSendTrack track = caller->CreateVideo(
+      "VIDEO",
+      {.generator = {.squares_video = video_resolution}, .screencast = true});
+  // Mimic joining a call with outgoing media disabled.
+  track.source->Stop();
+
+  {
+    RtpParameters parameters = track.sender->GetParameters();
+    ASSERT_THAT(parameters.encodings, SizeIs(1));
+    parameters.encodings[0].max_bitrate_bps = 500'000;
+    ASSERT_TRUE(track.sender->SetParameters(parameters).ok());
+  }
+
+  auto signaling =
+      s.ConnectSignaling(caller, callee, {caller_node}, {callee_node});
+  signaling.StartIceSignaling();
+
+  std::atomic<bool> offer_exchange_done(false);
+  signaling.NegotiateSdp([&](const SessionDescriptionInterface& answer) {
+    offer_exchange_done = true;
+  });
+  s.WaitAndProcess(&offer_exchange_done);
+
+  // Allow initial probing to finish while no media is sent, so the sender
+  // remains outside ALR when the allocation is later increased.
+  s.ProcessMessages(TimeDelta::Seconds(5));
+  DataRate bwe_before_allocation_increase =
+      GetAvailableSendBitrate(GetStatsAndProcess(s, caller));
+  EXPECT_LT(bwe_before_allocation_increase.kbps(), 700);
+
+  auto outbound_stats = GetStatsAndProcess(s, caller)
+                            ->GetStatsOfType<RTCOutboundRtpStreamStats>();
+  ASSERT_FALSE(outbound_stats.empty());
+  EXPECT_EQ(outbound_stats[0]->frames_encoded.value_or(0), 0u);
+
+  // Raise max bitrate while outside ALR, then start media. The allocation
+  // increase should trigger probing and let BWE ramp toward the new allocation.
+  {
+    RtpParameters parameters = track.sender->GetParameters();
+    ASSERT_THAT(parameters.encodings, SizeIs(1));
+    parameters.encodings[0].max_bitrate_bps = 3'500'000;
+    ASSERT_TRUE(track.sender->SetParameters(parameters).ok());
+  }
+
+  track.source->Start();
+  s.ProcessMessages(TimeDelta::Seconds(3));
+
+  auto outbound_after = GetStatsAndProcess(s, caller)
+                            ->GetStatsOfType<RTCOutboundRtpStreamStats>();
+  ASSERT_FALSE(outbound_after.empty());
+  EXPECT_GT(outbound_after[0]->frames_encoded.value_or(0), 0u);
+
+  DataRate bwe_after_media_start =
+      GetAvailableSendBitrate(GetStatsAndProcess(s, caller));
+
+  EXPECT_GT(bwe_after_media_start.kbps(), 3000);
 }
 
 }  // namespace test

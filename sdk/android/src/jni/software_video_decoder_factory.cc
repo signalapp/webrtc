@@ -60,3 +60,5 @@ JNI_SoftwareVideoDecoderFactory_GetSupportedCodecs(JNIEnv* env,
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(SoftwareVideoDecoderFactory)

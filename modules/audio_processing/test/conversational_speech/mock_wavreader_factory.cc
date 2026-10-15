@@ -26,14 +26,14 @@ namespace test {
 namespace conversational_speech {
 
 using ::testing::_;
-using ::testing::Invoke;
 
 MockWavReaderFactory::MockWavReaderFactory(
     const Params& default_params,
     const std::map<std::string, const Params>& params)
     : default_params_(default_params), audiotrack_names_params_(params) {
-  ON_CALL(*this, Create(_))
-      .WillByDefault(Invoke(this, &MockWavReaderFactory::CreateMock));
+  ON_CALL(*this, Create(_)).WillByDefault([this](absl::string_view filepath) {
+    return CreateMock(filepath);
+  });
 }
 
 MockWavReaderFactory::MockWavReaderFactory(const Params& default_params)

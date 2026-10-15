@@ -107,6 +107,9 @@ ProbeControllerConfig::ProbeControllerConfig(
       network_state_min_probe_delta("network_state_min_probe_delta",
                                     TimeDelta::Millis(20)),
       probe_on_max_allocated_bitrate_change("probe_max_allocation", true),
+      probe_on_max_allocated_bitrate_change_without_alr(
+          "probe_max_allocation_without_alr",
+          true),
       first_allocation_probe_scale("alloc_p1", 1),
       second_allocation_probe_scale("alloc_p2", 2),
       allocation_probe_limit_by_current_scale("alloc_current_bwe_limit", 2),
@@ -128,6 +131,7 @@ ProbeControllerConfig::ProbeControllerConfig(
                    &alr_probing_interval,
                    &alr_probe_scale,
                    &probe_on_max_allocated_bitrate_change,
+                   &probe_on_max_allocated_bitrate_change_without_alr,
                    &first_allocation_probe_scale,
                    &second_allocation_probe_scale,
                    &allocation_probe_limit_by_current_scale,
@@ -147,14 +151,6 @@ ProbeControllerConfig::ProbeControllerConfig(
                   key_value_config->Lookup("WebRTC-Bwe-ProbingConfiguration"));
 
   // Specialized keys overriding subsets of WebRTC-Bwe-ProbingConfiguration
-  ParseFieldTrial(
-      {&first_exponential_probe_scale, &second_exponential_probe_scale},
-      key_value_config->Lookup("WebRTC-Bwe-InitialProbing"));
-  ParseFieldTrial({&further_exponential_probe_scale, &further_probe_threshold},
-                  key_value_config->Lookup("WebRTC-Bwe-ExponentialProbing"));
-  ParseFieldTrial(
-      {&alr_probing_interval, &alr_probe_scale, &loss_limited_probe_scale},
-      key_value_config->Lookup("WebRTC-Bwe-AlrProbing"));
   ParseFieldTrial(
       {&first_allocation_probe_scale, &second_allocation_probe_scale,
        &allocation_probe_limit_by_current_scale},
@@ -223,10 +219,11 @@ std::vector<ProbeClusterConfig> ProbeController::OnMaxTotalAllocatedBitrate(
     DataRate max_total_allocated_bitrate,
     Timestamp at_time) {
   const bool in_alr = alr_start_time_.has_value();
-  const bool allow_allocation_probe = in_alr;
+  const bool allow_allocation_probe =
+      in_alr || config_.probe_on_max_allocated_bitrate_change_without_alr;
   if (config_.probe_on_max_allocated_bitrate_change &&
       state_ == State::kProbingComplete &&
-      max_total_allocated_bitrate != max_total_allocated_bitrate_ &&
+      max_total_allocated_bitrate > max_total_allocated_bitrate_ &&
       estimated_bitrate_ < max_bitrate_ &&
       estimated_bitrate_ < max_total_allocated_bitrate &&
       allow_allocation_probe) {

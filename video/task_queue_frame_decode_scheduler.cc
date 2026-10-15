@@ -78,4 +78,8 @@ void TaskQueueFrameDecodeScheduler::Stop() {
   stopped_ = true;
 }
 
+bool TaskQueueFrameDecodeScheduler::stopped() const {
+  return stopped_;
+}
+
 }  // namespace webrtc

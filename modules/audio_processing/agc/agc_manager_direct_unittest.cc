@@ -40,10 +40,9 @@
 #include "test/testsupport/file_utils.h"
 
 using ::testing::_;
+using ::testing::Action;
 using ::testing::AtLeast;
-using ::testing::DoAll;
 using ::testing::Return;
-using ::testing::SetArgPointee;
 
 namespace webrtc {
 namespace {
@@ -69,6 +68,13 @@ using AnalogAgcConfig =
 using ClippingPredictorConfig = AudioProcessing::Config::GainController1::
     AnalogGainController::ClippingPredictor;
 constexpr AnalogAgcConfig kDefaultAnalogConfig{};
+
+Action<bool(int*)> SetRmsErrorDb(int val) {
+  return [val](int* error) {
+    *error = val;
+    return true;
+  };
+}
 
 class MockGainControl : public GainControl {
  public:
@@ -588,55 +594,46 @@ TEST_P(AgcManagerDirectParametrizedTest, MicVolumeResponseToRmsError) {
                          GetOverrideOrEmpty(kSpeechLevelDbfs));
 
   // Compressor default; no residual error.
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(5), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(5));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
                      GetOverrideOrEmpty(-23.0f));
 
   // Inside the compressor's window; no change of volume.
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(10), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(10));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
                      GetOverrideOrEmpty(-28.0f));
 
   // Above the compressor's window; volume should be increased.
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(11), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(11));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
                      GetOverrideOrEmpty(-29.0f));
   EXPECT_EQ(130, helper.manager.recommended_analog_level());
 
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(20), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(20));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
                      GetOverrideOrEmpty(-38.0f));
   EXPECT_EQ(168, helper.manager.recommended_analog_level());
 
   // Inside the compressor's window; no change of volume.
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(5), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(5));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
                      GetOverrideOrEmpty(-23.0f));
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(0), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(0));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
                      GetOverrideOrEmpty(-18.0f));
 
   // Below the compressor's window; volume should be decreased.
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(-1), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(-1));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
                      GetOverrideOrEmpty(-17.0f));
   EXPECT_EQ(167, helper.manager.recommended_analog_level());
 
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(-1), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(-1));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
                      GetOverrideOrEmpty(-17.0f));
   EXPECT_EQ(163, helper.manager.recommended_analog_level());
 
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(-9), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(-9));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
                      GetOverrideOrEmpty(-9.0f));
   EXPECT_EQ(129, helper.manager.recommended_analog_level());
@@ -651,72 +648,61 @@ TEST_P(AgcManagerDirectParametrizedTest, MicVolumeIsLimited) {
                          GetOverrideOrEmpty(kSpeechLevelDbfs));
 
   // Maximum upwards change is limited.
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(30), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(30));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
                      GetOverrideOrEmpty(-48.0f));
   EXPECT_EQ(183, helper.manager.recommended_analog_level());
 
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(30), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(30));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
                      GetOverrideOrEmpty(-48.0f));
   EXPECT_EQ(243, helper.manager.recommended_analog_level());
 
   // Won't go higher than the maximum.
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(30), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(30));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
                      GetOverrideOrEmpty(-48.0f));
   EXPECT_EQ(255, helper.manager.recommended_analog_level());
 
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(-1), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(-1));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
                      GetOverrideOrEmpty(-17.0f));
   EXPECT_EQ(254, helper.manager.recommended_analog_level());
 
   // Maximum downwards change is limited.
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(-40), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(-40));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
                      GetOverrideOrEmpty(22.0f));
   EXPECT_EQ(194, helper.manager.recommended_analog_level());
 
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(-40), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(-40));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
                      GetOverrideOrEmpty(22.0f));
   EXPECT_EQ(137, helper.manager.recommended_analog_level());
 
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(-40), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(-40));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
                      GetOverrideOrEmpty(22.0f));
   EXPECT_EQ(88, helper.manager.recommended_analog_level());
 
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(-40), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(-40));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
                      GetOverrideOrEmpty(22.0f));
   EXPECT_EQ(54, helper.manager.recommended_analog_level());
 
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(-40), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(-40));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
                      GetOverrideOrEmpty(22.0f));
   EXPECT_EQ(33, helper.manager.recommended_analog_level());
 
   // Won't go lower than the minimum.
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(-40), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(-40));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
                      GetOverrideOrEmpty(22.0f));
   EXPECT_EQ(std::max(18, GetMinMicLevel()),
             helper.manager.recommended_analog_level());
 
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(-40), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(-40));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
                      GetOverrideOrEmpty(22.0f));
   EXPECT_EQ(std::max(12, GetMinMicLevel()),
@@ -734,7 +720,7 @@ TEST_P(AgcManagerDirectParametrizedTest, CompressorStepsTowardsTarget) {
 
   // Compressor default; no call to set_compression_gain_db.
   EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(5), Return(true)))
+      .WillOnce(SetRmsErrorDb(5))
       .WillRepeatedly(Return(false));
   EXPECT_CALL(helper.mock_gain_control, set_compression_gain_db(_)).Times(0);
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
@@ -746,7 +732,7 @@ TEST_P(AgcManagerDirectParametrizedTest, CompressorStepsTowardsTarget) {
 
   // Moves slowly upwards.
   EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(9), Return(true)))
+      .WillOnce(SetRmsErrorDb(9))
       .WillRepeatedly(Return(false));
   EXPECT_CALL(helper.mock_gain_control, set_compression_gain_db(_)).Times(0);
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
@@ -768,7 +754,7 @@ TEST_P(AgcManagerDirectParametrizedTest, CompressorStepsTowardsTarget) {
 
   // Moves slowly downward, then reverses before reaching the original target.
   EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(5), Return(true)))
+      .WillOnce(SetRmsErrorDb(5))
       .WillRepeatedly(Return(false));
   EXPECT_CALL(helper.mock_gain_control, set_compression_gain_db(_)).Times(0);
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
@@ -780,7 +766,7 @@ TEST_P(AgcManagerDirectParametrizedTest, CompressorStepsTowardsTarget) {
   helper.CallProcess(/*num_calls=*/1, kNoOverride, kNoOverride);
 
   EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(9), Return(true)))
+      .WillOnce(SetRmsErrorDb(9))
       .WillRepeatedly(Return(false));
   EXPECT_CALL(helper.mock_gain_control, set_compression_gain_db(_)).Times(0);
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
@@ -805,7 +791,7 @@ TEST_P(AgcManagerDirectParametrizedTest, CompressorErrorIsDeemphasized) {
                          GetOverrideOrEmpty(kSpeechLevelDbfs));
 
   EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(10), Return(true)))
+      .WillOnce(SetRmsErrorDb(10))
       .WillRepeatedly(Return(false));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
                      GetOverrideOrEmpty(-28.0f));
@@ -822,7 +808,7 @@ TEST_P(AgcManagerDirectParametrizedTest, CompressorErrorIsDeemphasized) {
   helper.CallProcess(/*num_calls=*/20, kNoOverride, kNoOverride);
 
   EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(0), Return(true)))
+      .WillOnce(SetRmsErrorDb(0))
       .WillRepeatedly(Return(false));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
                      GetOverrideOrEmpty(-18.0f));
@@ -850,10 +836,10 @@ TEST_P(AgcManagerDirectParametrizedTest, CompressorReachesMaximum) {
                          GetOverrideOrEmpty(kSpeechLevelDbfs));
 
   EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(10), Return(true)))
-      .WillOnce(DoAll(SetArgPointee<0>(10), Return(true)))
-      .WillOnce(DoAll(SetArgPointee<0>(10), Return(true)))
-      .WillOnce(DoAll(SetArgPointee<0>(10), Return(true)))
+      .WillOnce(SetRmsErrorDb(10))
+      .WillOnce(SetRmsErrorDb(10))
+      .WillOnce(SetRmsErrorDb(10))
+      .WillOnce(SetRmsErrorDb(10))
       .WillRepeatedly(Return(false));
   helper.CallProcess(/*num_calls=*/4, speech_probability_override,
                      GetOverrideOrEmpty(-28.0f));
@@ -887,10 +873,10 @@ TEST_P(AgcManagerDirectParametrizedTest, CompressorReachesMinimum) {
                          GetOverrideOrEmpty(kSpeechLevelDbfs));
 
   EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(0), Return(true)))
-      .WillOnce(DoAll(SetArgPointee<0>(0), Return(true)))
-      .WillOnce(DoAll(SetArgPointee<0>(0), Return(true)))
-      .WillOnce(DoAll(SetArgPointee<0>(0), Return(true)))
+      .WillOnce(SetRmsErrorDb(0))
+      .WillOnce(SetRmsErrorDb(0))
+      .WillOnce(SetRmsErrorDb(0))
+      .WillOnce(SetRmsErrorDb(0))
       .WillRepeatedly(Return(false));
   helper.CallProcess(/*num_calls=*/4, speech_probability_override,
                      GetOverrideOrEmpty(-18.0f));
@@ -984,8 +970,7 @@ TEST_P(AgcManagerDirectParametrizedTest,
 
   // Change outside of compressor's range, which would normally trigger a call
   // to `SetMicVolume()`.
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(11), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(11));
 
   // When the analog volume changes, the gain controller is reset.
   EXPECT_CALL(*helper.mock_agc, Reset()).Times(AtLeast(1));
@@ -999,8 +984,7 @@ TEST_P(AgcManagerDirectParametrizedTest,
   EXPECT_EQ(154, helper.manager.recommended_analog_level());
 
   // Do the same thing, except downwards now.
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(-1), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(-1));
   helper.manager.set_stream_analog_level(100);
   EXPECT_CALL(*helper.mock_agc, Reset()).Times(AtLeast(1));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
@@ -1008,8 +992,7 @@ TEST_P(AgcManagerDirectParametrizedTest,
   EXPECT_EQ(100, helper.manager.recommended_analog_level());
 
   // And finally verify the AGC continues working without a manual change.
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(-1), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(-1));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
                      GetOverrideOrEmpty(-17.0f));
   EXPECT_EQ(99, helper.manager.recommended_analog_level());
@@ -1027,7 +1010,7 @@ TEST_P(AgcManagerDirectParametrizedTest,
   // Force the mic up to max volume. Takes a few steps due to the residual
   // gain limitation.
   EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillRepeatedly(DoAll(SetArgPointee<0>(30), Return(true)));
+      .WillRepeatedly(SetRmsErrorDb(30));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
                      GetOverrideOrEmpty(-48.0f));
   EXPECT_EQ(183, helper.manager.recommended_analog_level());
@@ -1039,8 +1022,7 @@ TEST_P(AgcManagerDirectParametrizedTest,
   EXPECT_EQ(255, helper.manager.recommended_analog_level());
 
   // Manual change does not result in SetMicVolume call.
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(-1), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(-1));
   helper.manager.set_stream_analog_level(50);
   EXPECT_CALL(*helper.mock_agc, Reset()).Times(AtLeast(1));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
@@ -1048,8 +1030,7 @@ TEST_P(AgcManagerDirectParametrizedTest,
   EXPECT_EQ(50, helper.manager.recommended_analog_level());
 
   // Continues working as usual afterwards.
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(20), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(20));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
                      GetOverrideOrEmpty(-38.0f));
 
@@ -1074,8 +1055,7 @@ TEST_P(AgcManagerDirectParametrizedTest,
 
   // Manual change below min, but strictly positive, otherwise AGC won't take
   // any action.
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(-1), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(-1));
   helper.manager.set_stream_analog_level(1);
   EXPECT_CALL(*helper.mock_agc, Reset()).Times(AtLeast(1));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
@@ -1083,20 +1063,17 @@ TEST_P(AgcManagerDirectParametrizedTest,
   EXPECT_EQ(1, helper.manager.recommended_analog_level());
 
   // Continues working as usual afterwards.
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(11), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(11));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
                      GetOverrideOrEmpty(-29.0f));
   EXPECT_EQ(2, helper.manager.recommended_analog_level());
 
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(30), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(30));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
                      GetOverrideOrEmpty(-48.0f));
   EXPECT_EQ(11, helper.manager.recommended_analog_level());
 
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(20), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(20));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
                      GetOverrideOrEmpty(-38.0f));
   EXPECT_EQ(18, helper.manager.recommended_analog_level());
@@ -1120,8 +1097,7 @@ TEST_P(AgcManagerDirectParametrizedTest,
 
   // Manual change below min, but strictly positive, otherwise
   // AGC won't take any action.
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(-1), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(-1));
   helper.manager.set_stream_analog_level(1);
   EXPECT_CALL(*helper.mock_agc, Reset()).Times(AtLeast(1));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
@@ -1211,7 +1187,7 @@ TEST_P(AgcManagerDirectParametrizedTest,
   EXPECT_EQ(240, helper.manager.recommended_analog_level());
 
   EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillRepeatedly(DoAll(SetArgPointee<0>(30), Return(true)));
+      .WillRepeatedly(SetRmsErrorDb(30));
   helper.CallProcess(/*num_calls=*/10, speech_probability_override,
                      GetOverrideOrEmpty(-48.0f));
   EXPECT_EQ(240, helper.manager.recommended_analog_level());
@@ -1232,7 +1208,7 @@ TEST_P(AgcManagerDirectParametrizedTest,
   EXPECT_EQ(185, helper.manager.recommended_analog_level());
 
   EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillRepeatedly(DoAll(SetArgPointee<0>(40), Return(true)));
+      .WillRepeatedly(SetRmsErrorDb(40));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
                      GetOverrideOrEmpty(-58.0f));
   EXPECT_EQ(240, helper.manager.recommended_analog_level());
@@ -1257,11 +1233,11 @@ TEST_P(AgcManagerDirectParametrizedTest,
   EXPECT_EQ(195, helper.manager.recommended_analog_level());
 
   EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(11), Return(true)))
-      .WillOnce(DoAll(SetArgPointee<0>(11), Return(true)))
-      .WillOnce(DoAll(SetArgPointee<0>(11), Return(true)))
-      .WillOnce(DoAll(SetArgPointee<0>(11), Return(true)))
-      .WillOnce(DoAll(SetArgPointee<0>(11), Return(true)))
+      .WillOnce(SetRmsErrorDb(11))
+      .WillOnce(SetRmsErrorDb(11))
+      .WillOnce(SetRmsErrorDb(11))
+      .WillOnce(SetRmsErrorDb(11))
+      .WillOnce(SetRmsErrorDb(11))
       .WillRepeatedly(Return(false));
   helper.CallProcess(/*num_calls=*/5, speech_probability_override,
                      GetOverrideOrEmpty(-29.0f));
@@ -1315,10 +1291,10 @@ TEST_P(AgcManagerDirectParametrizedTest,
   helper.CallPreProc(/*num_calls=*/1, /*clipped_ratio=*/kAboveClippedThreshold);
 
   EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(16), Return(true)))
-      .WillOnce(DoAll(SetArgPointee<0>(16), Return(true)))
-      .WillOnce(DoAll(SetArgPointee<0>(16), Return(true)))
-      .WillOnce(DoAll(SetArgPointee<0>(16), Return(true)))
+      .WillOnce(SetRmsErrorDb(16))
+      .WillOnce(SetRmsErrorDb(16))
+      .WillOnce(SetRmsErrorDb(16))
+      .WillOnce(SetRmsErrorDb(16))
       .WillRepeatedly(Return(false));
   helper.CallProcess(/*num_calls=*/4, speech_probability_override,
                      GetOverrideOrEmpty(-34.0f));
@@ -1354,8 +1330,7 @@ TEST_P(AgcManagerDirectParametrizedTest, UserCanRaiseVolumeAfterClipping) {
   EXPECT_EQ(210, helper.manager.recommended_analog_level());
 
   // High enough error to trigger a volume check.
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(14), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(14));
   // User changed the volume.
   helper.manager.set_stream_analog_level(250);
   EXPECT_CALL(*helper.mock_agc, Reset()).Times(AtLeast(1));
@@ -1364,20 +1339,17 @@ TEST_P(AgcManagerDirectParametrizedTest, UserCanRaiseVolumeAfterClipping) {
   EXPECT_EQ(250, helper.manager.recommended_analog_level());
 
   // Move down...
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(-10), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(-10));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
                      GetOverrideOrEmpty(-8.0f));
   EXPECT_EQ(210, helper.manager.recommended_analog_level());
   // And back up to the new max established by the user.
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(40), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(40));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
                      GetOverrideOrEmpty(-58.0f));
   EXPECT_EQ(250, helper.manager.recommended_analog_level());
   // Will not move above new maximum.
-  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillOnce(DoAll(SetArgPointee<0>(30), Return(true)));
+  EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_)).WillOnce(SetRmsErrorDb(30));
   helper.CallProcess(/*num_calls=*/1, speech_probability_override,
                      GetOverrideOrEmpty(-48.0f));
   EXPECT_EQ(250, helper.manager.recommended_analog_level());
@@ -1402,7 +1374,7 @@ TEST_P(AgcManagerDirectParametrizedTest, TakesNoActionOnZeroMicVolume) {
                          GetOverrideOrEmpty(kSpeechLevelDbfs));
 
   EXPECT_CALL(*helper.mock_agc, GetRmsErrorDb(_))
-      .WillRepeatedly(DoAll(SetArgPointee<0>(30), Return(true)));
+      .WillRepeatedly(SetRmsErrorDb(30));
   helper.manager.set_stream_analog_level(0);
   helper.CallProcess(/*num_calls=*/10,
                      GetOverrideOrEmpty(kHighSpeechProbability),

@@ -25,3 +25,5 @@ JNI_BuiltinAudioEncoderFactoryFactory_CreateBuiltinAudioEncoderFactory(
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(BuiltinAudioEncoderFactoryFactory)

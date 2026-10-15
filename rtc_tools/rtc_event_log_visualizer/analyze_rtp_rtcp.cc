@@ -766,18 +766,25 @@ void CreateSenderAndReceiverReportPlot(
     const ParsedRtcEventLog& parsed_log,
     const AnalyzerConfig& config,
     Plot* plot) {
+  // RTCP Sender/Receiver Reports report statistics for media streams.
+  // When receiving an incoming RTCP report (direction == kIncomingPacket),
+  // the report block pertains to a sent media stream (kOutgoingPacket).
+  // Furthermore, each report block reports on `block.source_ssrc()`, not
+  // `rtcp.rr.sender_ssrc()` (which is the SSRC of the RTCP packet sender).
+  PacketDirection media_direction =
+      direction == kIncomingPacket ? kOutgoingPacket : kIncomingPacket;
   std::map<uint32_t, TimeSeries> sr_reports_by_ssrc;
   const auto& sender_reports = parsed_log.sender_reports(direction);
   for (const auto& rtcp : sender_reports) {
     float x = config.GetCallTimeSec(rtcp.log_time());
-    uint32_t ssrc = rtcp.sr.sender_ssrc();
     for (const auto& block : rtcp.sr.report_blocks()) {
+      uint32_t ssrc = block.source_ssrc();
       float y = fy(block);
       auto sr_report_it = sr_reports_by_ssrc.find(ssrc);
       bool inserted;
       if (sr_report_it == sr_reports_by_ssrc.end()) {
         std::tie(sr_report_it, inserted) = sr_reports_by_ssrc.emplace(
-            ssrc, TimeSeries(GetStreamName(parsed_log, direction, ssrc) +
+            ssrc, TimeSeries(GetStreamName(parsed_log, media_direction, ssrc) +
                                  " Sender Reports",
                              LineStyle::kLine, PointStyle::kHighlight));
       }
@@ -792,14 +799,14 @@ void CreateSenderAndReceiverReportPlot(
   const auto& receiver_reports = parsed_log.receiver_reports(direction);
   for (const auto& rtcp : receiver_reports) {
     float x = config.GetCallTimeSec(rtcp.log_time());
-    uint32_t ssrc = rtcp.rr.sender_ssrc();
     for (const auto& block : rtcp.rr.report_blocks()) {
+      uint32_t ssrc = block.source_ssrc();
       float y = fy(block);
       auto rr_report_it = rr_reports_by_ssrc.find(ssrc);
       bool inserted;
       if (rr_report_it == rr_reports_by_ssrc.end()) {
         std::tie(rr_report_it, inserted) = rr_reports_by_ssrc.emplace(
-            ssrc, TimeSeries(GetStreamName(parsed_log, direction, ssrc) +
+            ssrc, TimeSeries(GetStreamName(parsed_log, media_direction, ssrc) +
                                  " Receiver Reports",
                              LineStyle::kLine, PointStyle::kHighlight));
       }

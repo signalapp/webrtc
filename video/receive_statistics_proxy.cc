@@ -111,8 +111,8 @@ void ReceiveStatisticsProxy::UpdateHistograms(
   Timestamp now = clock_->CurrentTime();
   TimeDelta stream_duration = now - start_;
 
-  if (stats_.frame_counts.key_frames > 0 ||
-      stats_.frame_counts.delta_frames > 0) {
+  if (stats_.received_frame_counts.key_frames > 0 ||
+      stats_.received_frame_counts.delta_frames > 0) {
     RTC_HISTOGRAM_COUNTS_100000("WebRTC.Video.ReceiveStreamLifetimeInSeconds",
                                 stream_duration.seconds());
     log_stream << "WebRTC.Video.ReceiveStreamLifetimeInSeconds "
@@ -190,10 +190,10 @@ void ReceiveStatisticsProxy::UpdateHistograms(
                << freq_offset_stats.ToString() << '\n';
   }
 
-  int num_total_frames =
-      stats_.frame_counts.key_frames + stats_.frame_counts.delta_frames;
+  int num_total_frames = stats_.received_frame_counts.key_frames +
+                         stats_.received_frame_counts.delta_frames;
   if (num_total_frames >= kMinRequiredSamples) {
-    int num_key_frames = stats_.frame_counts.key_frames;
+    int num_key_frames = stats_.received_frame_counts.key_frames;
     int key_frames_permille =
         (num_key_frames * 1000 + num_total_frames / 2) / num_total_frames;
     RTC_HISTOGRAM_COUNTS_1000("WebRTC.Video.KeyFramesReceivedInPermille",
@@ -661,6 +661,9 @@ void ReceiveStatisticsProxy::OnDecodedFrame(
       &content_specific_stats_[content_type];
 
   ++stats_.frames_decoded;
+  if (frame_type == VideoFrameType::kVideoFrameKey) {
+    ++stats_.key_frames_decoded;
+  }
   if (qp) {
     if (!stats_.qp_sum) {
       if (stats_.frames_decoded != 1) {
@@ -772,9 +775,9 @@ void ReceiveStatisticsProxy::OnCompleteFrame(bool is_keyframe,
   RTC_DCHECK_RUN_ON(&main_thread_);
 
   if (is_keyframe) {
-    ++stats_.frame_counts.key_frames;
+    ++stats_.received_frame_counts.key_frames;
   } else {
-    ++stats_.frame_counts.delta_frames;
+    ++stats_.received_frame_counts.delta_frames;
   }
 
   // Content type extension is set only for keyframes and should be propagated
@@ -868,21 +871,6 @@ ReceiveStatisticsProxy::ContentSpecificStats::ContentSpecificStats()
     : interframe_delay_percentiles(kMaxCommonInterframeDelayMs) {}
 
 ReceiveStatisticsProxy::ContentSpecificStats::~ContentSpecificStats() = default;
-
-void ReceiveStatisticsProxy::ContentSpecificStats::Add(
-    const ContentSpecificStats& other) {
-  e2e_delay_counter.Add(other.e2e_delay_counter);
-  interframe_delay_counter.Add(other.interframe_delay_counter);
-  flow_duration_ms += other.flow_duration_ms;
-  total_media_bytes += other.total_media_bytes;
-  received_height.Add(other.received_height);
-  received_width.Add(other.received_width);
-  qp_counter.Add(other.qp_counter);
-  frame_counts.key_frames += other.frame_counts.key_frames;
-  frame_counts.delta_frames += other.frame_counts.delta_frames;
-  interframe_delay_percentiles.Add(other.interframe_delay_percentiles);
-  corruption_score.MergeStatistics(other.corruption_score);
-}
 
 }  // namespace internal
 }  // namespace webrtc

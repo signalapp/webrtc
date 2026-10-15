@@ -13,6 +13,8 @@
 #include <algorithm>  // Access to min, max.
 #include <cstdint>
 #include <cstring>  // Access to memset.
+#include <numeric>
+#include <span>
 
 #include "common_audio/signal_processing/include/signal_processing_library.h"
 #include "modules/audio_coding/neteq/audio_multi_vector.h"
@@ -105,58 +107,80 @@ int DspHelper::RampSignal(AudioMultiVector* signal,
   return end_factor;
 }
 
+namespace {
+
+// Refines integer `peak` (the argmax of `data`) to sub-sample resolution,
+// writing the scaled location/value to `peak_index` / `peak_value`.
+// `edge_index` is the largest index that can be a peak; `next` is the sample
+// just to the right of `peak`, used only when `peak == edge_index`.
+void RefinePeak(std::span<const int16_t> data,
+                size_t peak,
+                size_t edge_index,
+                int16_t next,
+                int fs_mult,
+                size_t& peak_index,
+                int16_t& peak_value) {
+  // ParabolicFit refines peak_index in place, so seed it with the integer
+  // peak before the branches that call it.
+  peak_index = peak;
+  if (peak == 0) {
+    peak_value = data[0];
+    peak_index = 0;
+  } else if (peak == edge_index) {
+    if (data[peak] > next) {
+      int16_t points[3] = {data[peak - 1], data[peak], next};
+      DspHelper::ParabolicFit(points, fs_mult, &peak_index, &peak_value);
+    } else {
+      // Linear approximation.
+      peak_value = std::midpoint(data[peak], next);
+      peak_index = (peak * 2 + 1) * fs_mult;
+    }
+  } else {
+    // Interior peak.
+    DspHelper::ParabolicFit(data.subspan(peak - 1, 3), fs_mult, &peak_index,
+                            &peak_value);
+  }
+}
+
+}  // namespace
+
 void DspHelper::PeakDetection(int16_t* data,
                               size_t data_length,
                               size_t num_peaks,
                               int fs_mult,
                               size_t* peak_index,
                               int16_t* peak_value) {
-  size_t min_index = 0;
-  size_t max_index = 0;
+  RTC_DCHECK_GT(data_length, 0);
+  if (data_length == 0) {
+    return;
+  }
+  // A single peak may sit on the last real sample; treat the sample past it as
+  // zero. For multiple peaks the last sample is excluded from the search and
+  // instead used as a peak's right neighbour.
+  const bool single_peak = (num_peaks == 1);
+  const size_t search_length = single_peak ? data_length : data_length - 1;
+  const size_t edge_index = search_length - 1;
 
-  for (size_t i = 0; i <= num_peaks - 1; i++) {
-    if (num_peaks == 1) {
-      // Single peak.  The parabola fit assumes that an extra point is
-      // available; worst case it gets a zero on the high end of the signal.
-      // TODO(hlundin): This can potentially get much worse. It breaks the
-      // API contract, that the length of `data` is `data_length`.
-      data_length++;
-    }
-
-    peak_index[i] = WebRtcSpl_MaxIndexW16(data, data_length - 1);
-
-    if (i != num_peaks - 1) {
-      min_index = (peak_index[i] > 2) ? (peak_index[i] - 2) : 0;
-      max_index = std::min(data_length - 1, peak_index[i] + 2);
-    }
-
-    if ((peak_index[i] != 0) && (peak_index[i] != (data_length - 2))) {
-      ParabolicFit(&data[peak_index[i] - 1], fs_mult, &peak_index[i],
-                   &peak_value[i]);
-    } else {
-      if (peak_index[i] == data_length - 2) {
-        if (data[peak_index[i]] > data[peak_index[i] + 1]) {
-          ParabolicFit(&data[peak_index[i] - 1], fs_mult, &peak_index[i],
-                       &peak_value[i]);
-        } else if (data[peak_index[i]] <= data[peak_index[i] + 1]) {
-          // Linear approximation.
-          peak_value[i] = (data[peak_index[i]] + data[peak_index[i] + 1]) >> 1;
-          peak_index[i] = (peak_index[i] * 2 + 1) * fs_mult;
-        }
-      } else {
-        peak_value[i] = data[peak_index[i]];
-        peak_index[i] = peak_index[i] * 2 * fs_mult;
-      }
-    }
+  for (size_t i = 0; i < num_peaks; i++) {
+    const size_t peak = WebRtcSpl_MaxIndexW16(data, search_length);
+    // `next` is the sample right of the peak; a single peak on the last
+    // sample has no real neighbour, so use zero there.
+    const int16_t next =
+        (single_peak && peak == edge_index) ? 0 : data[peak + 1];
+    RefinePeak(std::span<const int16_t>(data, data_length), peak, edge_index,
+               next, fs_mult, peak_index[i], peak_value[i]);
 
     if (i != num_peaks - 1) {
+      // Zero a window around this peak so the next search finds a new one.
+      const size_t min_index = (peak > 2) ? (peak - 2) : 0;
+      const size_t max_index = std::min(data_length - 1, peak + 2);
       memset(&data[min_index], 0,
              sizeof(data[0]) * (max_index - min_index + 1));
     }
   }
 }
 
-void DspHelper::ParabolicFit(int16_t* signal_points,
+void DspHelper::ParabolicFit(std::span<const int16_t> signal_points,
                              int fs_mult,
                              size_t* peak_index,
                              int16_t* peak_value) {

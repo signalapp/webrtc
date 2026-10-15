@@ -36,3 +36,5 @@ static void JNI_TurnCustomizer_FreeTurnCustomizer(
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(TurnCustomizer)

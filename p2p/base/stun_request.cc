@@ -157,18 +157,15 @@ bool StunRequestManager::CheckResponse(StunMessage* msg) {
     if (msg->integrity() == StunMessage::IntegrityStatus::kNotSet) {
       // Checking status for the first time. Normal.
       msg->ValidateMessageIntegrity(request->msg()->password());
-    } else if (msg->integrity() == StunMessage::IntegrityStatus::kIntegrityOk &&
-               msg->password() == request->msg()->password()) {
+    } else if (msg->password() == request->msg()->password()) {
       // Status is already checked, with the same password. This is the case
       // we would want to see happen.
-    } else if (msg->integrity() ==
-               StunMessage::IntegrityStatus::kIntegrityBad) {
-      // This indicates that the original check had the wrong password.
+    } else {
+      // This indicates that the original check had a different password
+      // (e.g. ice-pwd changed between ping and response).
       // Bad design, needs revisiting.
       // TODO(crbug.com/1177125): Fix this.
       msg->RevalidateMessageIntegrity(request->msg()->password());
-    } else {
-      RTC_CHECK_NOTREACHED();
     }
   }
 

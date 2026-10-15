@@ -357,9 +357,6 @@ class RtpSendChannelHelper : public Base, public MediaChannelUtil {
   void SetExtmapAllowMixed(bool extmap_allow_mixed) override {
     return MediaChannelUtil::SetExtmapAllowMixed(extmap_allow_mixed);
   }
-  bool ExtmapAllowMixed() const override {
-    return MediaChannelUtil::ExtmapAllowMixed();
-  }
 
   RtpParameters GetRtpSendParameters(uint32_t ssrc) const override {
     auto parameters_iterator = rtp_send_parameters_.find(ssrc);
@@ -574,7 +571,7 @@ class FakeVoiceMediaReceiveChannel
   void SetDefaultRawAudioSink(
       std::unique_ptr<AudioSinkInterface> sink) override;
 
-  webrtc::RtcpMode RtcpMode() const override { return recv_rtcp_mode_; }
+  webrtc::RtcpMode RtcpMode() const { return recv_rtcp_mode_; }
   void SetRtcpMode(webrtc::RtcpMode mode) override { recv_rtcp_mode_ = mode; }
   std::vector<RtpSource> GetSources(uint32_t ssrc) const override;
   void SetReceiveNackEnabled(bool /* enabled */) override {}
@@ -601,7 +598,7 @@ class FakeVoiceMediaReceiveChannel
 
   bool SetRecvCodecs(const std::vector<Codec>& codecs);
   bool SetMaxSendBandwidth(int bps);
-  bool SetOptions(const AudioOptions& options) override;
+  bool SetOptions(const AudioOptions& options);
 
   std::vector<Codec> recv_codecs_;
   std::map<uint32_t, double> output_scalings_;
@@ -650,13 +647,10 @@ class FakeVoiceMediaSendChannel
 
   bool CanInsertDtmf() override;
   bool InsertDtmf(uint32_t ssrc, int event_code, int duration) override;
-  bool SetOptions(const AudioOptions& options) override;
+  bool SetOptions(const AudioOptions& options);
 
   bool SenderNackEnabled() const override { return false; }
   bool SenderNonSenderRttEnabled() const override { return false; }
-  void SetReceiveNackEnabled(bool /* enabled */) {}
-  void SetReceiveNonSenderRttEnabled(bool /* enabled */) {}
-  bool SendCodecHasNack() const override { return false; }
   std::optional<Codec> GetSendCodec() const override;
 
   // RingRTC change to configure opus
@@ -710,8 +704,10 @@ bool CompareDtmfInfo(const FakeVoiceMediaSendChannel::DtmfInfo& info,
 class FakeVideoMediaReceiveChannel
     : public RtpReceiveChannelHelper<VideoMediaReceiveChannelInterface> {
  public:
-  FakeVideoMediaReceiveChannel(const VideoOptions& options,
-                               TaskQueueBase* network_thread);
+  FakeVideoMediaReceiveChannel(const VideoOptions& /*options*/,
+                               TaskQueueBase* network_thread)
+      : FakeVideoMediaReceiveChannel(network_thread) {}
+  explicit FakeVideoMediaReceiveChannel(TaskQueueBase* network_thread);
 
   ~FakeVideoMediaReceiveChannel() override;
 
@@ -726,7 +722,7 @@ class FakeVideoMediaReceiveChannel
   const std::vector<Codec>& recv_codecs() const;
   const std::vector<Codec>& send_codecs() const;
   bool rendering() const;
-  const VideoOptions& options() const;
+
   const std::map<uint32_t, VideoSinkInterface<VideoFrame>*>& sinks() const;
   int max_bps() const;
   bool SetReceiverParameters(const VideoReceiverParameters& params) override;
@@ -736,6 +732,7 @@ class FakeVideoMediaReceiveChannel
   bool HasSink(uint32_t ssrc) const;
 
   void SetReceive(bool /* receive */) override {}
+  void SetReceiveNonSenderRttEnabled(bool /* enabled */) override {}
 
   bool HasSource(uint32_t ssrc) const;
   bool AddRecvStream(const StreamParams& sp) override;
@@ -763,14 +760,14 @@ class FakeVideoMediaReceiveChannel
  private:
   bool SetRecvCodecs(const std::vector<Codec>& codecs);
   bool SetSendCodecs(const std::vector<Codec>& codecs);
-  bool SetOptions(const VideoOptions& options);
+
   bool SetMaxSendBandwidth(int bps);
 
   std::vector<Codec> recv_codecs_;
   std::map<uint32_t, VideoSinkInterface<VideoFrame>*> sinks_;
   std::map<uint32_t, VideoSourceInterface<VideoFrame>*> sources_;
   std::map<uint32_t, int> output_delays_;
-  VideoOptions options_;
+
   int max_bps_;
 };
 
@@ -789,7 +786,6 @@ class FakeVideoMediaSendChannel
   MediaType media_type() const override { return MediaType::VIDEO; }
 
   const std::vector<Codec>& send_codecs() const;
-  const std::vector<Codec>& codecs() const;
   const VideoOptions& options() const;
   const std::map<uint32_t, VideoSinkInterface<VideoFrame>*>& sinks() const;
   int max_bps() const;
@@ -812,11 +808,10 @@ class FakeVideoMediaSendChannel
       absl::AnyInvocable<void(const std::set<uint32_t>&)> /* callback */)
       override {}
 
-  bool SendCodecHasNack() const override { return false; }
   bool GetStats(VideoMediaSendInfo* info) override;
   absl::AnyInvocable<std::optional<VideoMediaSendInfo>()> GetStatsTask()
       override;
-  bool SetOptions(const VideoOptions& options) override;
+  bool SetOptions(const VideoOptions& options);
 
  private:
   bool SetSendCodecs(const std::vector<Codec>& codecs);
@@ -848,7 +843,8 @@ class FakeVoiceEngine : public VoiceEngineInterface {
       Call* call,
       const MediaConfig& config,
       const AudioOptions& options,
-      const CryptoOptions& crypto_options) override;
+      const CryptoOptions& crypto_options,
+      absl::AnyInvocable<void(uint32_t ssrc)> on_first_packet) override;
 
   // TODO(ossu): For proper testing, These should either individually settable
   //             or the voice engine should reference mockable factories.
@@ -868,6 +864,7 @@ class FakeVoiceEngine : public VoiceEngineInterface {
   bool StartAecDump(FileWrapper file, int64_t max_size_bytes) override;
   void StopAecDump() override;
   std::optional<AudioDeviceModule::Stats> GetAudioDeviceStats() override;
+  void ApplyGlobalOptions(const AudioOptions& options) override {}
   std::vector<RtpHeaderExtensionCapability> GetRtpHeaderExtensions(
       const FieldTrialsView* field_trials) const override;
   void SetRtpHeaderExtensions(
@@ -975,8 +972,8 @@ class FakeVideoEngine : public VideoEngineInterface {
       const Environment& env,
       Call* call,
       const MediaConfig& config,
-      const VideoOptions& options,
-      const CryptoOptions& crypto_options) override;
+      const CryptoOptions& crypto_options,
+      absl::AnyInvocable<void(uint32_t ssrc)> on_first_packet) override;
   FakeVideoMediaSendChannel* GetSendChannel(size_t index);
   FakeVideoMediaReceiveChannel* GetReceiveChannel(size_t index);
 

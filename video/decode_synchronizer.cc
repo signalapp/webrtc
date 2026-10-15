@@ -107,6 +107,10 @@ void DecodeSynchronizer::SynchronizedFrameDecodeScheduler::Stop() {
   sync_->RemoveFrameScheduler(this);
 }
 
+bool DecodeSynchronizer::SynchronizedFrameDecodeScheduler::stopped() const {
+  return stopped_;
+}
+
 DecodeSynchronizer::DecodeSynchronizer(Clock* clock,
                                        Metronome* metronome,
                                        TaskQueueBase* worker_queue)

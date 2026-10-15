@@ -5,6 +5,8 @@
 
 package org.webrtc.audio;
 
+// RingRTC change to fix JNI Zero linking.
+import org.jni_zero.NativeMethods;
 import org.webrtc.JniCommon;
 import org.webrtc.Logging;
 
@@ -127,13 +129,11 @@ public class OboeAudioDeviceModule implements AudioDeviceModule {
     Logging.w(TAG, "getNative");
     synchronized (nativeLock) {
       if (nativeAudioDeviceModule == 0) {
-        Logging.w(TAG, "calling nativeCreateAudioDeviceModule");
-        nativeAudioDeviceModule = nativeCreateAudioDeviceModule(
-            useSoftwareAcousticEchoCanceler,
-            useSoftwareNoiseSuppressor,
-            useExclusiveSharingMode,
-            useInputLowLatency,
-            useInputVoiceCommPreset);
+        // RingRTC change to fix JNI Zero linking.
+        Logging.w(TAG, "calling createAudioDeviceModule");
+        nativeAudioDeviceModule = OboeAudioDeviceModuleJni.get().createAudioDeviceModule(
+            useSoftwareAcousticEchoCanceler, useSoftwareNoiseSuppressor, useExclusiveSharingMode,
+            useInputLowLatency, useInputVoiceCommPreset);
       }
       return nativeAudioDeviceModule;
     }
@@ -166,10 +166,11 @@ public class OboeAudioDeviceModule implements AudioDeviceModule {
     return false;
   }
 
-  private static native long nativeCreateAudioDeviceModule(
-      boolean useSoftwareAcousticEchoCanceler,
-      boolean useSoftwareNoiseSuppressor,
-      boolean useExclusiveSharingMode,
-      boolean useInputLowLatency,
-      boolean useInputVoiceCommPreset);
+  // RingRTC change to fix JNI Zero linking.
+  @NativeMethods
+  interface Natives {
+    long createAudioDeviceModule(boolean useSoftwareAcousticEchoCanceler,
+        boolean useSoftwareNoiseSuppressor, boolean useExclusiveSharingMode,
+        boolean useInputLowLatency, boolean useInputVoiceCommPreset);
+  }
 }

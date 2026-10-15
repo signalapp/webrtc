@@ -177,6 +177,9 @@ struct TestConfig {
     std::vector<TestConfig> out;
     for (auto cc : kEndpointVariants) {
       for (auto sc : kEndpointVariants) {
+        if (!cc.dtls_in_stun && sc.dtls_in_stun) {
+          continue;
+        }
         for (auto use_ice_lite : {false, true}) {
           for (auto cic : {true, false}) {
             for (auto p : {SSL_PROTOCOL_DTLS_12, SSL_PROTOCOL_DTLS_13}) {
@@ -552,7 +555,8 @@ class Base {
 
     CryptoOptions crypto_options;
     if (ep.config.pqc) {
-      FieldTrials field_trials("WebRTC-EnableDtlsPqc/Enabled/");
+      FieldTrials field_trials =
+          CreateTestFieldTrials("WebRTC-EnableDtlsPqc/Enabled/");
       crypto_options.ephemeral_key_exchange_cipher_groups.Update(&field_trials);
     }
     ep.dtls = std::make_unique<DtlsTransportInternalImpl>(

@@ -157,3 +157,5 @@ static ScopedJavaLocalRef<jstring> JNI_MediaStream_GetId(JNIEnv* jni,
 
 }  // namespace jni
 }  // namespace webrtc
+
+DEFINE_JNI(MediaStream)

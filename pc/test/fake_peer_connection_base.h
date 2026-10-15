@@ -409,6 +409,10 @@ class FakePeerConnectionBase : public PeerConnectionInternal {
   DataChannelController* data_channel_controller() override { return nullptr; }
   PortAllocator* port_allocator() override { return nullptr; }
   LegacyStatsCollector* legacy_stats() override { return nullptr; }
+  PeerConnectionTracerInterface* tracer() override { return nullptr; }
+  const PeerConnectionTracerInterface* tracer() const override {
+    return nullptr;
+  }
   void RunWithObserver(
       absl::AnyInvocable<void(webrtc::PeerConnectionObserver*) &&>) override {
     RTC_DCHECK_NOTREACHED();

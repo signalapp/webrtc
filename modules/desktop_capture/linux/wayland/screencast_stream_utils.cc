@@ -28,13 +28,6 @@
 
 #include "modules/desktop_capture/linux/wayland/egl_dmabuf.h"
 
-#if !PW_CHECK_VERSION(0, 3, 29)
-#define SPA_POD_PROP_FLAG_MANDATORY (1u << 3)
-#endif
-#if !PW_CHECK_VERSION(0, 3, 33)
-#define SPA_POD_PROP_FLAG_DONT_FIXATE (1u << 4)
-#endif
-
 namespace webrtc {
 
 constexpr uint32_t kSupportedPixelFormats[] = {

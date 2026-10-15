@@ -400,3 +400,5 @@ std::vector<std::string> JavaToStdVectorStrings(
 }
 
 }  // namespace webrtc
+
+DEFINE_JNI(JniHelper)
