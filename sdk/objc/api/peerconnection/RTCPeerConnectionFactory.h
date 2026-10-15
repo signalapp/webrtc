@@ -109,10 +109,6 @@ RTC_OBJC_EXPORT
 /** Initialize an RTCVideoTrack with a native VideoTrack. */
 - (RTC_OBJC_TYPE(RTCVideoTrack) *)videoTrackFromNativeTrack:(void *)nativeTrack;
 
-// RingRTC changes for low-level FFI
-/** Initialize an RTCMediaStream with a native MediaStream. */
-- (RTC_OBJC_TYPE(RTCMediaStream) *)mediaStreamFromNativeStream:(void *)nativeStream;
-
 /** Initialize an RTCMediaStream with an id. */
 - (RTC_OBJC_TYPE(RTCMediaStream) *)mediaStreamWithStreamId:(NSString *)streamId;
 
