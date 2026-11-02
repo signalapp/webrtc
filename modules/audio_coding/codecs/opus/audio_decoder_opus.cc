@@ -25,6 +25,7 @@
 #include "rtc_base/checks.h"
 // RingRTC change to support Opus DRED
 #if WEBRTC_OPUS_SUPPORT_DRED
+#include "modules/include/module_common_types_public.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #endif
 // RingRTC Change to configure opus
@@ -88,9 +89,8 @@ AudioDecoderOpusImpl::ParsePayloadRedundancy(
     Buffer payload_copy(payload.data(), payload.size());
     results.emplace_back(
         timestamp - duration,
-        1, // FEC packets have a priority of 1.
-        std::make_unique<OpusFrame>(this, std::move(payload_copy), false)
-    );
+        1,  // FEC packets have a priority of 1.
+        std::make_unique<OpusFrame>(this, std::move(payload_copy), false));
     begin_timestamp -= duration;
   }
 
@@ -111,18 +111,17 @@ AudioDecoderOpusImpl::ParsePayloadRedundancy(
         if (dred_count > desired_dred_count)
           dred_count = desired_dred_count;
         uint32_t recovery_timestamp =
-            timestamp - dred_count * sample_rate_hz_ / 100;
+            timestamp - dred_count * SamplesPer10msFrame(sample_rate_hz_);
         for (int i = 0; i < dred_count; ++i) {
-          // Make sure recovery_timestamp < begin_timestamp (if there was a FEC frame).
-          if ((begin_timestamp == recovery_timestamp) ||
-              (begin_timestamp - recovery_timestamp) >= 0xFFFFFFFF / 2)
+          // Make sure recovery_timestamp < begin_timestamp (if there was a FEC
+          // frame).
+          if (!IsNewerTimestamp(begin_timestamp, recovery_timestamp))
             break;
           results.emplace_back(
               recovery_timestamp,
-              2, // Deep REDundancy packets have a priority of 2.
-              std::make_unique<OpusFrame>(this, dred_data, dred_count - i, timestamp)
-          );
-          recovery_timestamp += sample_rate_hz_ / 100;
+              2,  // Deep REDundancy packets have a priority of 2.
+              std::make_unique<OpusFrame>(this, dred_data, dred_count - i));
+          recovery_timestamp += SamplesPer10msFrame(sample_rate_hz_);
         }
       }
     }
@@ -131,9 +130,8 @@ AudioDecoderOpusImpl::ParsePayloadRedundancy(
   // Handle the primary packet.
   results.emplace_back(
       timestamp,
-      0, // Primary packets have a priority of 0 (highest).
-      std::make_unique<OpusFrame>(this, std::move(payload), true)
-  );
+      0,  // Primary packets have a priority of 0 (highest).
+      std::make_unique<OpusFrame>(this, std::move(payload), true));
 
   return results;
 }
@@ -178,10 +176,8 @@ int AudioDecoderOpusImpl::DecodeRedundantInternal(const uint8_t* encoded,
 // RingRTC change to support Opus DRED
 #if WEBRTC_OPUS_SUPPORT_DRED
 int AudioDecoderOpusImpl::DecodeDred(const uint8_t* encoded,
-                                             size_t encoded_len,
-                                             uint32_t primary_timestamp,
-                                             int16_t* decoded,
-                                             int index) {
+                                     int16_t* decoded,
+                                     int index) {
   int ret = WebRtcOpus_DecodeDred(dec_state_, encoded, decoded, index);
   if (ret > 0)
     ret *= static_cast<int>(channels_);  // Return total number of samples.

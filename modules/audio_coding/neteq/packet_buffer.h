@@ -182,8 +182,7 @@ class PacketBuffer {
   StatisticsCalculator* stats_;
 // RingRTC change to support Opus DRED
 #if WEBRTC_OPUS_SUPPORT_DRED
-  uint16_t newest_sequence_number_;
-  uint64_t insert_count_;
+  std::optional<uint16_t> newest_sequence_number_;
   size_t num_primary_packets_;
 #endif
 };

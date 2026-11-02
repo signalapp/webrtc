@@ -308,7 +308,7 @@ int32_t AudioDeviceBuffer::SetRecordedBuffer(
     if (max_abs > 0) {
       // RingRTC change to log when audio samples start to be received.
       if (only_silence_recorded_) {
-         RTC_LOG(LS_WARNING) << "Initial non-silent audio samples received";
+        RTC_LOG(LS_WARNING) << "Initial non-silent audio samples received";
       }
       only_silence_recorded_ = false;
     }

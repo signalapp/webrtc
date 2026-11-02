@@ -2423,8 +2423,8 @@ PeerConnection::InitializePortAllocator_n(
   // properties set above.
   port_allocator_->SetConfiguration(
       stun_servers, std::move(turn_servers_copy),
-      configuration.ice_candidate_pool_size,
-      turn_port_prune_policy, configuration.turn_customizer,
+      configuration.ice_candidate_pool_size, turn_port_prune_policy,
+      configuration.turn_customizer,
       configuration.stun_candidate_keepalive_interval);
 
   InitializePortAllocatorResult res;
@@ -3344,8 +3344,8 @@ void PeerConnection::ConfigureAudioEncoders(
 
     if (transceiver->direction() == RtpTransceiverDirection::kSendRecv ||
         transceiver->direction() == RtpTransceiverDirection::kSendOnly) {
-      if(auto* voice_channel =
-            static_cast<VoiceMediaSendChannelInterface*>(transceiver->internal()->voice_media_send_channel())) {
+      if (auto* voice_channel = static_cast<VoiceMediaSendChannelInterface*>(
+              transceiver->internal()->voice_media_send_channel())) {
         sending_voice_channels.push_back(voice_channel);
       }
     }
@@ -3377,8 +3377,8 @@ void PeerConnection::ConfigureAudioDecoders(
 
     if (transceiver->direction() == RtpTransceiverDirection::kSendRecv ||
         transceiver->direction() == RtpTransceiverDirection::kRecvOnly) {
-      if(auto* voice_channel =
-            static_cast<VoiceMediaReceiveChannelInterface*>(transceiver->internal()->voice_media_receive_channel())) {
+      if (auto* voice_channel = static_cast<VoiceMediaReceiveChannelInterface*>(
+              transceiver->internal()->voice_media_receive_channel())) {
         receiving_voice_channels.push_back(voice_channel);
       }
     }
@@ -3419,15 +3419,15 @@ void PeerConnection::GetAudioLevels(uint16_t* captured_out,
         transceiver->direction() == RtpTransceiverDirection::kSendRecv;
     if (is_send_recv ||
         transceiver->direction() == RtpTransceiverDirection::kSendOnly) {
-      if(auto* voice_channel =
-            static_cast<VoiceMediaSendChannelInterface*>(transceiver->internal()->voice_media_send_channel())) {
+      if (auto* voice_channel = static_cast<VoiceMediaSendChannelInterface*>(
+              transceiver->internal()->voice_media_send_channel())) {
         sending_voice_channels.push_back(voice_channel);
       }
     }
     if (is_send_recv ||
         transceiver->direction() == RtpTransceiverDirection::kRecvOnly) {
-      if(auto* voice_channel =
-            static_cast<VoiceMediaReceiveChannelInterface*>(transceiver->internal()->voice_media_receive_channel())) {
+      if (auto* voice_channel = static_cast<VoiceMediaReceiveChannelInterface*>(
+              transceiver->internal()->voice_media_receive_channel())) {
         receiving_voice_channels.push_back(voice_channel);
       }
     }

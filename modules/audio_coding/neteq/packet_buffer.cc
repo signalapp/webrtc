@@ -81,8 +81,6 @@ PacketBuffer::PacketBuffer(const FieldTrialsView& field_trials,
 // RingRTC change to support Opus DRED
 #if WEBRTC_OPUS_SUPPORT_DRED
       stats_(stats),
-      newest_sequence_number_(0),
-      insert_count_(0),
       num_primary_packets_(0) {}
 #else
       stats_(stats) {}
@@ -135,26 +133,29 @@ void PacketBuffer::Flush() {
 
     auto recv_time_diff =
         first.packet_info.has_value() && last.packet_info.has_value() &&
-        first.packet_info->receive_time().IsFinite() &&
-        last.packet_info->receive_time().IsFinite() ?
-        (last.packet_info->receive_time() - first.packet_info->receive_time()) : TimeDelta::Micros(0);
+                first.packet_info->receive_time().IsFinite() &&
+                last.packet_info->receive_time().IsFinite()
+            ? (last.packet_info->receive_time() -
+               first.packet_info->receive_time())
+            : TimeDelta::Micros(0);
 
-    RTC_LOG(LS_WARNING) << "Flushing packets... seqnum_diff=" << (last.sequence_number - first.sequence_number)
-      << ", rtp_ts_diff=" << (last.timestamp - first.timestamp)
-      << ", recv_time_diff=" << recv_time_diff
-      << ", ms_since_first_insert=" << first.waiting_time->ElapsedMs()
-      << ", ms_since_last_insert=" << last.waiting_time->ElapsedMs()
-      << ", num_out_of_order=" << num_out_of_order
-      << ", num_gaps_below_40ms=" << num_gaps_below_40ms
-      << ", num_gaps_above_90ms=" << num_gaps_above_90ms
-      << ", num_no_packet_info=" << num_no_packet_info;
+    RTC_LOG(LS_WARNING)
+        << "Flushing packets... seqnum_diff="
+        << static_cast<uint16_t>(last.sequence_number - first.sequence_number)
+        << ", rtp_ts_diff=" << (last.timestamp - first.timestamp)
+        << ", recv_time_diff=" << recv_time_diff
+        << ", ms_since_first_insert=" << first.waiting_time->ElapsedMs()
+        << ", ms_since_last_insert=" << last.waiting_time->ElapsedMs()
+        << ", num_out_of_order=" << num_out_of_order
+        << ", num_gaps_below_40ms=" << num_gaps_below_40ms
+        << ", num_gaps_above_90ms=" << num_gaps_above_90ms
+        << ", num_no_packet_info=" << num_no_packet_info;
   }
   // end RingRTC change
   buffer_.clear();
 // RingRTC change to support Opus DRED
 #if WEBRTC_OPUS_SUPPORT_DRED
-  newest_sequence_number_ = 0;
-  insert_count_ = 0;
+  newest_sequence_number_.reset();
   num_primary_packets_ = 0;
 #endif
   stats_->FlushedPacketBuffer();
@@ -204,12 +205,10 @@ int PacketBuffer::InsertPacket(Packet&& packet,
 // RingRTC change to support Opus DRED
 #if WEBRTC_OPUS_SUPPORT_DRED
   const bool is_primary = packet.priority.codec_level == 0;
-  if (insert_count_ == 0) {
-    newest_sequence_number_ = packet.sequence_number;
-  }
-  insert_count_++;
-  newest_sequence_number_ =
-      LatestSequenceNumber(packet.sequence_number, newest_sequence_number_);
+  newest_sequence_number_ = newest_sequence_number_
+                                ? LatestSequenceNumber(packet.sequence_number,
+                                                       *newest_sequence_number_)
+                                : packet.sequence_number;
 #endif
 
   int return_val = kOK;
@@ -231,10 +230,9 @@ int PacketBuffer::InsertPacket(Packet&& packet,
       GetSpanSamples(last_decoded_length, sample_rate, false) >= span_threshold;
 // RingRTC change to support Opus DRED
 #if WEBRTC_OPUS_SUPPORT_DRED
-  if (num_primary_packets_ >= max_number_of_packets_
-      || buffer_.size() >= max_number_of_packets_ * 4
-      || smart_flush) {
-      // DRED is incompatible with with smart flush partial flushes
+  if (num_primary_packets_ >= max_number_of_packets_ ||
+      buffer_.size() >= max_number_of_packets_ * 4 || smart_flush) {
+    // DRED is incompatible with with smart flush partial flushes
 #else
   if (buffer_.size() >= max_number_of_packets_ || smart_flush) {
 #endif
@@ -255,7 +253,6 @@ int PacketBuffer::InsertPacket(Packet&& packet,
 // RingRTC change to support Opus DRED
 #if WEBRTC_OPUS_SUPPORT_DRED
       newest_sequence_number_ = packet.sequence_number;
-      insert_count_ = 1;
 #endif
       return_val = kFlushed;
       // RingRTC change to log more information around audio jitter buffer flushes
@@ -335,14 +332,9 @@ int PacketBuffer::NextHigherTimestamp(uint32_t timestamp,
 
 // RingRTC change to support Opus DRED
 #if WEBRTC_OPUS_SUPPORT_DRED
-std::optional<PacketBuffer::NextLowerTimestampResult> PacketBuffer::NextLowerTimestamp(
-    uint16_t sequence_number,
-    uint32_t timestamp) const {
-  if (Empty()) {
-    // Buffer is empty.
-    return std::nullopt;
-  }
-
+std::optional<PacketBuffer::NextLowerTimestampResult>
+PacketBuffer::NextLowerTimestamp(uint16_t sequence_number,
+                                 uint32_t timestamp) const {
   for (auto rit = buffer_.rbegin(); rit != buffer_.rend(); ++rit) {
     if (!rit->frame) {
       // Frameless packets (e.g. CN) are not supported; their slot in the
@@ -364,9 +356,6 @@ std::optional<PacketBuffer::NextLowerTimestampResult> PacketBuffer::NextLowerTim
 }
 
 std::optional<uint16_t> PacketBuffer::NewestSequenceNumber() const {
-  if (insert_count_ == 0) {
-    return std::nullopt;
-  }
   return newest_sequence_number_;
 }
 #endif

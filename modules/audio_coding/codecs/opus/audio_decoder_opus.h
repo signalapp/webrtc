@@ -43,11 +43,7 @@ class AudioDecoderOpusImpl final : public AudioDecoder {
       uint32_t timestamp,
       uint32_t recovery_timestamp_offset) override;
 
-  int DecodeDred(const uint8_t* encoded,
-                 size_t encoded_len,
-                 uint32_t primary_timestamp,
-                 int16_t* decoded,
-                 int index);
+  int DecodeDred(const uint8_t* encoded, int16_t* decoded, int index);
 #endif
   void Reset() override;
   int PacketDuration(const uint8_t* encoded, size_t encoded_len) const override;

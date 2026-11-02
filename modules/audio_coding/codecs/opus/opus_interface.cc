@@ -454,13 +454,15 @@ int16_t WebRtcOpus_DecoderCreate(OpusDecInst** inst,
       state->sample_rate_hz = sample_rate_hz;
       state->in_dtx_mode = 0;
       state->last_packet_num_channels = channels;
-      *inst = state;
 // RingRTC change to support Opus DRED
 #if WEBRTC_OPUS_SUPPORT_DRED
       state->dred_decoder = opus_dred_decoder_create(&error);
-      if (error == OPUS_OK && state->dred_decoder)
+      if (error == OPUS_OK && state->dred_decoder) {
+        *inst = state;
         return 0;
+      }
 #else
+      *inst = state;
       return 0;
 #endif
     }
