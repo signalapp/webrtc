@@ -399,23 +399,10 @@ int NetEqImpl::InsertPacket(const RTPHeader& rtp_header,
       info.buffer_flush = true;
     }
 // RingRTC change to support Opus DRED
-// Currently, smart flushing must be disabled for DRED to work
 #if WEBRTC_OPUS_SUPPORT_DRED
     // Capture codec_level before it is moved.
     const int codec_level = packet.priority.codec_level;
-
-    int return_val = packet_buffer_->InsertPacket(
-        std::move(packet), decoder_frame_length_, last_output_sample_rate_hz_,
-        target_level_ms);
-    if (return_val == PacketBuffer::kFlushed) {
-      new_codec_ = true;
-      update_sample_rate_and_channels = true;
-      info.buffer_flush = true;
-    } else if (return_val != PacketBuffer::kOK) {
-      // An error occurred.
-      return kFail;
-    }
-#else
+#endif
     int return_val = packet_buffer_->InsertPacket(
         std::move(packet), decoder_frame_length_, last_output_sample_rate_hz_,
         target_level_ms);
@@ -436,7 +423,6 @@ int NetEqImpl::InsertPacket(const RTPHeader& rtp_header,
       // An error occurred.
       return kFail;
     }
-#endif
 
     const bool should_update_stats = !new_codec_;
     auto relative_delay =

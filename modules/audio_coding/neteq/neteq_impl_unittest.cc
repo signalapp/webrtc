@@ -1912,4 +1912,56 @@ TEST_F(NetEqImplTest120ms, Accelerate) {
   EXPECT_EQ(NetEq::Operation::kAccelerate, neteq_->last_operation_for_test());
 }
 
+// RingRTC change to add smart flushing tests
+TEST(NetEqImplSmartFlushingTest, InsertPacketsWithPartialFlushes) {
+  SimulatedClock clock(0);
+  const Environment env = CreateTestEnvironment(
+      {.field_trials = "WebRTC-Audio-NetEqSmartFlushing/enabled:true,"
+                       "target_level_threshold_ms:100,"
+                       "target_level_multiplier:2/",
+       .time = &clock});
+  NetEq::Config config;
+  config.sample_rate_hz = 8000;
+  config.max_delay_ms = 200;
+  NetEqImpl::Dependencies deps(env, config, CreateBuiltinAudioDecoderFactory(),
+                               DefaultNetEqControllerFactory());
+  const PacketBuffer* packet_buffer = deps.packet_buffer.get();
+  NetEqImpl neteq(config, std::move(deps));
+
+  const int kPayloadLengthSamples = 80;
+  const size_t kPayloadLengthBytes = 2 * kPayloadLengthSamples;  // PCM 16-bit.
+  const uint8_t kPayloadType = 17;  // Just an arbitrary number.
+  uint8_t payload[kPayloadLengthBytes] = {0};
+  RTPHeader rtp_header;
+  rtp_header.payloadType = kPayloadType;
+  rtp_header.sequenceNumber = 0x1234;
+  rtp_header.timestamp = 0x12345678;
+  rtp_header.ssrc = 0x87654321;
+
+  EXPECT_TRUE(
+      neteq.RegisterPayloadType(kPayloadType, SdpAudioFormat("l16", 8000, 1)));
+
+  constexpr size_t kSmartFlushTriggerPackets = 20;
+  constexpr size_t kPartialFlushTargetPackets = 10;
+  size_t expected_packets = 0;
+  size_t expected_flushes = 1;
+  // 1.5 s of packets, well beyond the flushing threshold of at most 400 ms.
+  for (int i = 0; i < 150; ++i) {
+    if (expected_packets >= kSmartFlushTriggerPackets) {
+      expected_packets = kPartialFlushTargetPackets;
+      ++expected_flushes;
+    }
+    EXPECT_EQ(NetEq::kOK, neteq.InsertPacket(rtp_header, payload));
+    ++expected_packets;
+    EXPECT_EQ(packet_buffer->NumPacketsInBuffer(), expected_packets);
+    EXPECT_EQ(neteq.GetOperationsAndState().packet_buffer_flushes,
+              expected_flushes);
+    rtp_header.timestamp += kPayloadLengthSamples;
+    rtp_header.sequenceNumber += 1;
+  }
+  EXPECT_EQ(packet_buffer->NumPacketsInBuffer(), 20u);
+  EXPECT_EQ(neteq.GetOperationsAndState().packet_buffer_flushes, 14u);
+}
+// end RingRTC change
+
 }  // namespace webrtc

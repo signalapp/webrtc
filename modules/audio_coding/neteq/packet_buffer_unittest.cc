@@ -802,6 +802,110 @@ TEST(PacketBuffer, SmartFlushOverfillBuffer) {
   EXPECT_CALL(decoder_database, Die());  // Called when object is deleted.
 }
 
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+namespace {
+Packet MakePacket(uint16_t sequence_number,
+                  uint32_t timestamp,
+                  int codec_level,
+                  size_t duration) {
+  auto frame = std::make_unique<::testing::NiceMock<MockEncodedAudioFrame>>();
+  ON_CALL(*frame, Duration()).WillByDefault(Return(duration));
+  Packet packet;
+  packet.sequence_number = sequence_number;
+  packet.timestamp = timestamp;
+  packet.priority.codec_level = codec_level;
+  packet.payload.SetSize(10);
+  packet.frame = std::move(frame);
+  return packet;
+}
+}  // namespace
+
+// A smart flush trims DRED packets by span, not by number of packets, and
+// keeps the newest recovered audio.
+TEST(PacketBuffer, SmartFlushWithDredPackets) {
+  FieldTrials field_trials = CreateTestFieldTrials(
+      "WebRTC-Audio-NetEqSmartFlushing/enabled:true,"
+      "target_level_threshold_ms:600,target_level_multiplier:2/");
+  TickTimer tick_timer;
+  StrictMock<MockStatisticsCalculator> mock_stats(&tick_timer);
+  PacketBuffer buffer(field_trials, 50, &tick_timer, &mock_stats);
+  constexpr size_t kSampleRateHz = 48000;
+  constexpr size_t kPrimaryDuration = 2880;
+  constexpr size_t kDredDuration = 480;
+  constexpr int kTargetLevelMs = 500;
+  constexpr uint16_t kDredSequenceNumber = 22;
+
+  // 300 ms of primary packets.
+  uint32_t timestamp = 0;
+  for (uint16_t seq = 0; seq < 5; ++seq) {
+    EXPECT_EQ(
+        PacketBuffer::kOK,
+        buffer.InsertPacket(MakePacket(seq, timestamp, 0, kPrimaryDuration),
+                            kPrimaryDuration, kSampleRateHz, kTargetLevelMs));
+    timestamp += kPrimaryDuration;
+  }
+
+  // The packet after a 1 s loss carries 100 DRED packets, inserted oldest
+  // first. Inserting the 91st reaches the 1200 ms span threshold, flushing all
+  // primary packets and the oldest 30 DRED packets to get down to 600 ms.
+  EXPECT_CALL(mock_stats, PacketsDiscarded(1)).Times(5);
+  EXPECT_CALL(mock_stats, SecondaryPacketsDiscarded(1)).Times(30);
+  for (int i = 0; i < 100; ++i) {
+    EXPECT_EQ(i == 90 ? PacketBuffer::kPartialFlush : PacketBuffer::kOK,
+              buffer.InsertPacket(
+                  MakePacket(kDredSequenceNumber, timestamp, 2, kDredDuration),
+                  kDredDuration, kSampleRateHz, kTargetLevelMs));
+    timestamp += kDredDuration;
+  }
+  EXPECT_EQ(PacketBuffer::kOK,
+            buffer.InsertPacket(
+                MakePacket(kDredSequenceNumber, timestamp, 0, kPrimaryDuration),
+                kDredDuration, kSampleRateHz, kTargetLevelMs));
+
+  EXPECT_EQ(71u, buffer.NumPacketsInBuffer());
+  EXPECT_EQ(36480u, buffer.GetSpanSamples(kDredDuration, kSampleRateHz,
+                                          /*count_waiting_time=*/false));
+  uint32_t next_timestamp;
+  EXPECT_EQ(PacketBuffer::kOK, buffer.NextTimestamp(&next_timestamp));
+  EXPECT_EQ(28800u, next_timestamp);
+  EXPECT_EQ(kDredSequenceNumber, buffer.NewestSequenceNumber());
+  EXPECT_EQ(1u, mock_stats.GetOperationsAndState().packet_buffer_flushes);
+}
+
+// The primary packet count stays correct across partial flushes, so the count
+// limit is reached again only when the buffer is full again.
+TEST(PacketBuffer, PartialFlushUpdatesPrimaryPacketCount) {
+  FieldTrials field_trials = CreateTestFieldTrials(
+      "WebRTC-Audio-NetEqSmartFlushing/enabled:true,"
+      "target_level_threshold_ms:100000,target_level_multiplier:1/");
+  TickTimer tick_timer;
+  StrictMock<MockStatisticsCalculator> mock_stats(&tick_timer);
+  PacketBuffer buffer(field_trials, 10, &tick_timer, &mock_stats);
+  PacketGenerator gen(0, 0, 0, 10);
+  auto insert = [&] {
+    return buffer.InsertPacket(/*packet=*/gen.NextPacket(10, nullptr),
+                               /*last_decoded_length=*/10,
+                               /*sample_rate=*/1000,
+                               /*target_level_ms=*/100);
+  };
+
+  EXPECT_CALL(mock_stats, PacketsDiscarded(1)).Times(10);
+  for (int i = 0; i < 10; ++i) {
+    EXPECT_EQ(PacketBuffer::kOK, insert());
+  }
+  EXPECT_EQ(PacketBuffer::kPartialFlush, insert());
+  EXPECT_EQ(6u, buffer.NumPacketsInBuffer());
+  for (int i = 0; i < 4; ++i) {
+    EXPECT_EQ(PacketBuffer::kOK, insert());
+  }
+  EXPECT_EQ(PacketBuffer::kPartialFlush, insert());
+  EXPECT_EQ(6u, buffer.NumPacketsInBuffer());
+  EXPECT_EQ(2u, mock_stats.GetOperationsAndState().packet_buffer_flushes);
+}
+#endif
+// end RingRTC change to support Opus DRED
+
 namespace {
 void TestIsObsoleteTimestamp(uint32_t limit_timestamp) {
   // Check with zero horizon, which implies that the horizon is at 2^31, i.e.,

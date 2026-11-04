@@ -106,9 +106,16 @@ void PacketBuffer::Flush() {
   auto num_gaps_below_40ms = 0;
   auto num_gaps_above_90ms = 0;
   auto num_no_packet_info = 0;
+  auto num_primary = 0;
+  auto num_secondary = 0;
 
   for (auto& p : buffer_) {
     LogPacketDiscarded(p.priority.codec_level);
+    if (p.priority.codec_level > 0) {
+      num_secondary++;
+    } else {
+      num_primary++;
+    }
     if (p.packet_info.has_value() && p.packet_info->receive_time().IsFinite()) {
       if (prev_recv_ts.us() > 0) {
         auto gap_us = (p.packet_info->receive_time() - prev_recv_ts).us();
@@ -149,7 +156,9 @@ void PacketBuffer::Flush() {
         << ", num_out_of_order=" << num_out_of_order
         << ", num_gaps_below_40ms=" << num_gaps_below_40ms
         << ", num_gaps_above_90ms=" << num_gaps_above_90ms
-        << ", num_no_packet_info=" << num_no_packet_info;
+        << ", num_no_packet_info=" << num_no_packet_info
+        << ", num_primary=" << num_primary
+        << ", num_secondary=" << num_secondary;
   }
   // end RingRTC change
   buffer_.clear();
@@ -177,12 +186,52 @@ void PacketBuffer::PartialFlush(int target_level_ms,
                  smart_flushing_config_->target_level_threshold_ms *
                      static_cast<int>(sample_rate) / 1000);
   }
+  // RingRTC change to log more information around audio jitter buffer flushes
+  const size_t span_before =
+      GetSpanSamples(last_decoded_length, sample_rate, false);
+  size_t num_primary_discarded = 0;
+  size_t num_secondary_discarded = 0;
+  // end RingRTC change
   while (!buffer_.empty() &&
          (GetSpanSamples(last_decoded_length, sample_rate, false) >
               static_cast<size_t>(target_level_samples) ||
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+          num_primary_packets_ > max_number_of_packets_ / 2 ||
+          buffer_.size() > max_number_of_packets_ * 2)) {
+#else
           buffer_.size() > max_number_of_packets_ / 2)) {
+#endif
+    // RingRTC change to log more information around audio jitter buffer flushes
+    if (PeekNextPacket()->priority.codec_level > 0) {
+      num_secondary_discarded++;
+    } else {
+      num_primary_discarded++;
+    }
+// RingRTC change to support Opus DRED
+#if WEBRTC_OPUS_SUPPORT_DRED
+    if (PeekNextPacket()->priority.codec_level == 0) {
+      num_primary_packets_--;
+    }
+#endif
+// end RingRTC changes
     LogPacketDiscarded(PeekNextPacket()->priority.codec_level);
     buffer_.pop_front();
+  }
+
+  // RingRTC change to log more information around audio jitter buffer flushes
+  if (num_primary_discarded + num_secondary_discarded > 0) {
+    RTC_LOG(LS_WARNING)
+        << "Partial flush, primary_discarded=" << num_primary_discarded
+        << ", secondary_discarded=" << num_secondary_discarded
+        << ", span_before_ms=" << span_before * 1000 / sample_rate
+        << ", span_after_ms="
+        << GetSpanSamples(last_decoded_length, sample_rate, false) * 1000 /
+               sample_rate
+        << ", packets_remaining=" << buffer_.size();
+    // RingRTC change to count partial flushes as jitter buffer flushes
+    stats_->FlushedPacketBuffer();
+    // end RingRTC changes
   }
 }
 
@@ -232,7 +281,6 @@ int PacketBuffer::InsertPacket(Packet&& packet,
 #if WEBRTC_OPUS_SUPPORT_DRED
   if (num_primary_packets_ >= max_number_of_packets_ ||
       buffer_.size() >= max_number_of_packets_ * 4 || smart_flush) {
-    // DRED is incompatible with with smart flush partial flushes
 #else
   if (buffer_.size() >= max_number_of_packets_ || smart_flush) {
 #endif
