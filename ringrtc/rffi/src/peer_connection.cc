@@ -37,7 +37,6 @@ class ConnectionParametersV4 {
  public:
   std::string ice_ufrag;
   std::string ice_pwd;
-  std::vector<RffiVideoCodec> bidirectional_video_codecs;
   std::vector<RffiVideoCodec> encode_only_video_codecs;
   std::vector<RffiVideoCodec> decode_only_video_codecs;
 };
@@ -269,89 +268,6 @@ static void sort_codecs(RffiVideoCodec* first, size_t size) {
                    });
 }
 
-// Legacy version - only does symmetric codecs.
-RUSTEXPORT RffiConnectionParametersV4* Rust_sessionDescriptionToV4Legacy(
-    const SessionDescriptionInterface* session_description_borrowed,
-    bool enable_vp9) {
-  if (!session_description_borrowed) {
-    return nullptr;
-  }
-
-  const SessionDescription* session =
-      session_description_borrowed->description();
-  if (!session) {
-    return nullptr;
-  }
-
-  // Get ICE ufrag + pwd
-  if (session->transport_infos().empty()) {
-    return nullptr;
-  }
-
-  auto v4 = std::make_unique<ConnectionParametersV4>();
-
-  auto* transport = &session->transport_infos()[0].description;
-  v4->ice_ufrag = transport->ice_ufrag;
-  v4->ice_pwd = transport->ice_pwd;
-
-  // Get video codecs
-  auto* video = GetFirstVideoContentDescription(session);
-  if (video) {
-    for (const auto& codec : video->codecs()) {
-      auto codec_type = PayloadStringToCodecType(codec.name);
-
-      if (codec_type == kVideoCodecVP9) {
-        if (enable_vp9) {
-          auto profile = ParseSdpForVP9Profile(codec.params);
-          std::string profile_id_string;
-          codec.GetParam("profile-id", &profile_id_string);
-          if (!profile) {
-            RTC_LOG(LS_WARNING) << "Ignoring VP9 codec because profile-id = "
-                                << profile_id_string;
-            continue;
-          }
-
-          if (profile != VP9Profile::kProfile0) {
-            RTC_LOG(LS_WARNING)
-                << "Ignoring VP9 codec with non-zero profile-id = "
-                << profile_id_string;
-            continue;
-          }
-
-          RffiVideoCodec vp9;
-          vp9.type = kRffiVideoCodecVp9;
-          v4->bidirectional_video_codecs.push_back(vp9);
-        }
-      } else if (codec_type == kVideoCodecVP8) {
-        RffiVideoCodec vp8;
-        vp8.type = kRffiVideoCodecVp8;
-        v4->bidirectional_video_codecs.push_back(vp8);
-      }
-    }
-  }
-
-  std::stable_sort(v4->bidirectional_video_codecs.begin(),
-                   v4->bidirectional_video_codecs.end(),
-                   [](const RffiVideoCodec lhs, const RffiVideoCodec rhs) {
-                     return codecPriority(lhs) < codecPriority(rhs);
-                   });
-
-  auto* rffi_v4 = new RffiConnectionParametersV4();
-  rffi_v4->ice_ufrag_borrowed = v4->ice_ufrag.c_str();
-  rffi_v4->ice_pwd_borrowed = v4->ice_pwd.c_str();
-  rffi_v4->bidirectional_video_codecs_borrowed =
-      v4->bidirectional_video_codecs.data();
-  rffi_v4->bidirectional_video_codecs_size =
-      v4->bidirectional_video_codecs.size();
-  rffi_v4->encode_only_video_codecs_borrowed = nullptr;
-  rffi_v4->encode_only_video_codecs_size = 0;
-  rffi_v4->decode_only_video_codecs_borrowed = nullptr;
-  rffi_v4->decode_only_video_codecs_size = 0;
-  rffi_v4->backing_owned = v4.release();
-  return rffi_v4;
-}
-
-// Only used for case where remote advertises support for asymmetric codecs
 RUSTEXPORT RffiConnectionParametersV4* Rust_sessionDescriptionToV4(
     const SessionDescriptionInterface* session_description_borrowed,
     bool enable_vp9_encode,
@@ -421,11 +337,6 @@ RUSTEXPORT RffiConnectionParametersV4* Rust_sessionDescriptionToV4(
           RffiVideoCodec vp9;
           vp9.type = kRffiVideoCodecVp9;
 
-          if (enable_vp9_decode && enable_vp9_encode &&
-              !contains(v4->bidirectional_video_codecs, kRffiVideoCodecVp9)) {
-            v4->bidirectional_video_codecs.push_back(vp9);
-          }
-
           if (enable_vp9_decode && RtpTransceiverDirectionHasRecv(direction) &&
               !contains(v4->decode_only_video_codecs, kRffiVideoCodecVp9)) {
             v4->decode_only_video_codecs.push_back(vp9);
@@ -441,10 +352,6 @@ RUSTEXPORT RffiConnectionParametersV4* Rust_sessionDescriptionToV4(
         RffiVideoCodec vp8;
         vp8.type = kRffiVideoCodecVp8;
 
-        if (!contains(v4->bidirectional_video_codecs, kRffiVideoCodecVp8)) {
-          v4->bidirectional_video_codecs.push_back(vp8);
-        }
-
         if (RtpTransceiverDirectionHasRecv(direction) &&
             !contains(v4->decode_only_video_codecs, kRffiVideoCodecVp8)) {
           v4->decode_only_video_codecs.push_back(vp8);
@@ -457,17 +364,12 @@ RUSTEXPORT RffiConnectionParametersV4* Rust_sessionDescriptionToV4(
     }
   }
 
-  sort_codecs(v4->bidirectional_video_codecs);
   sort_codecs(v4->encode_only_video_codecs);
   sort_codecs(v4->decode_only_video_codecs);
 
   auto* rffi_v4 = new RffiConnectionParametersV4();
   rffi_v4->ice_ufrag_borrowed = v4->ice_ufrag.c_str();
   rffi_v4->ice_pwd_borrowed = v4->ice_pwd.c_str();
-  rffi_v4->bidirectional_video_codecs_borrowed =
-      v4->bidirectional_video_codecs.data();
-  rffi_v4->bidirectional_video_codecs_size =
-      v4->bidirectional_video_codecs.size();
   rffi_v4->encode_only_video_codecs_borrowed =
       v4->encode_only_video_codecs.data();
   rffi_v4->encode_only_video_codecs_size = v4->encode_only_video_codecs.size();
@@ -488,207 +390,6 @@ RUSTEXPORT void Rust_deleteV4(RffiConnectionParametersV4* v4_owned) {
 }
 
 // Returns an owned pointer.
-// Used to negotiate with clients that do not advertise support for asymmetric
-// codecs.
-RUSTEXPORT SessionDescriptionInterface* Rust_sessionDescriptionFromV4Legacy(
-    bool offer,
-    const RffiConnectionParametersV4* v4_borrowed,
-    bool enable_tcc_audio,
-    bool enable_vp9) {
-  if (v4_borrowed->bidirectional_video_codecs_borrowed == nullptr) {
-    RTC_LOG(LS_ERROR)
-        << "Rust_sessionDescriptionFromV4Legacy: bidirectional codecs null";
-    return nullptr;
-  }
-  // Major changes from the default WebRTC behavior:
-  // 1. We remove all codecs except Opus, VP8, and VP9
-  // 2. We remove all header extensions except for transport-cc, video
-  //    orientation, and abs send time.
-  // 3. Opus CBR and DTX is enabled.
-
-  // For some reason, WebRTC insists that the video SSRCs for one side don't
-  // overlap with SSRCs from the other side. To avoid potential problems, we'll
-  // give the caller side 1XXX and the callee side 2XXX;
-  uint32_t BASE_SSRC = offer ? 1000 : 2000;
-  // 1001 and 2001 used by connection.rs
-  uint32_t AUDIO_SSRC = BASE_SSRC + 2;
-  uint32_t VIDEO_SSRC = BASE_SSRC + 3;
-  uint32_t VIDEO_RTX_SSRC = BASE_SSRC + 13;
-
-  auto transport = TransportDescription();
-  transport.ice_mode = ICEMODE_FULL;
-  transport.ice_ufrag = std::string(v4_borrowed->ice_ufrag_borrowed);
-  transport.ice_pwd = std::string(v4_borrowed->ice_pwd_borrowed);
-  transport.AddOption(ICE_OPTION_TRICKLE);
-  transport.AddOption(ICE_OPTION_RENOMINATION);
-
-  // DTLS is disabled
-  transport.connection_role = CONNECTIONROLE_NONE;
-  transport.identity_fingerprint = nullptr;
-
-  auto set_rtp_params = [](MediaContentDescription* media) {
-    media->set_protocol(kMediaProtocolSavpf);
-    media->set_manually_specify_keys(true);
-    media->set_rtcp_mux(true);
-    media->set_direction(RtpTransceiverDirection::kSendRecv);
-  };
-
-  auto audio = std::make_unique<AudioContentDescription>();
-  set_rtp_params(audio.get());
-  auto video = std::make_unique<VideoContentDescription>();
-  set_rtp_params(video.get());
-
-  auto opus = CreateAudioCodec(OPUS_PT, kOpusCodecName, 48000, 2);
-  // These are the current defaults for WebRTC
-  // We set them explicitly to avoid having the defaults change on us.
-  opus.SetParam("stereo", "0");  // "1" would cause non-VOIP mode to be used
-  opus.SetParam("ptime", "60");
-  opus.SetParam("minptime", "60");
-  opus.SetParam("maxptime", "60");
-  opus.SetParam("useinbandfec", "1");
-  // This is not a default. We enable this to help reduce bandwidth because we
-  // are using CBR.
-  opus.SetParam("usedtx", "1");
-  opus.SetParam("maxaveragebitrate", "32000");
-  // This is not a default. We enable this for privacy.
-  opus.SetParam("cbr", "1");
-  opus.AddFeedbackParam(
-      FeedbackParam(kRtcpFbParamTransportCc, kParamValueEmpty));
-  audio->AddCodec(opus);
-
-  auto add_video_feedback_params = [](Codec* video_codec) {
-    video_codec->AddFeedbackParam(
-        FeedbackParam(kRtcpFbParamTransportCc, kParamValueEmpty));
-    video_codec->AddFeedbackParam(
-        FeedbackParam(kRtcpFbParamCcm, kRtcpFbCcmParamFir));
-    video_codec->AddFeedbackParam(
-        FeedbackParam(kRtcpFbParamNack, kParamValueEmpty));
-    video_codec->AddFeedbackParam(
-        FeedbackParam(kRtcpFbParamNack, kRtcpFbNackParamPli));
-    video_codec->AddFeedbackParam(
-        FeedbackParam(kRtcpFbParamRemb, kParamValueEmpty));
-  };
-
-  std::stable_sort(v4_borrowed->bidirectional_video_codecs_borrowed,
-                   v4_borrowed->bidirectional_video_codecs_borrowed +
-                       v4_borrowed->bidirectional_video_codecs_size,
-                   [](const RffiVideoCodec lhs, const RffiVideoCodec rhs) {
-                     return codecPriority(lhs) < codecPriority(rhs);
-                   });
-
-  for (size_t i = 0; i < v4_borrowed->bidirectional_video_codecs_size; i++) {
-    RffiVideoCodec rffi_codec =
-        v4_borrowed->bidirectional_video_codecs_borrowed[i];
-    if (rffi_codec.type == kRffiVideoCodecVp9) {
-      if (enable_vp9) {
-        auto vp9 = CreateVideoCodec(VP9_PT, kVp9CodecName);
-        vp9.params[kVP9FmtpProfileId] =
-            VP9ProfileToString(VP9Profile::kProfile0);
-        auto vp9_rtx = CreateVideoRtxCodec(VP9_RTX_PT, VP9_PT);
-        vp9_rtx.params[kVP9FmtpProfileId] =
-            VP9ProfileToString(VP9Profile::kProfile0);
-        add_video_feedback_params(&vp9);
-
-        video->AddCodec(vp9);
-        video->AddCodec(vp9_rtx);
-      }
-    } else if (rffi_codec.type == kRffiVideoCodecVp8) {
-      auto vp8 = CreateVideoCodec(VP8_PT, kVp8CodecName);
-      auto vp8_rtx = CreateVideoRtxCodec(VP8_RTX_PT, VP8_PT);
-      add_video_feedback_params(&vp8);
-
-      video->AddCodec(vp8);
-      video->AddCodec(vp8_rtx);
-    }
-  }
-
-  // These are "meta codecs" for redundancy and FEC.
-  // They are enabled by default currently with WebRTC.
-  auto red = CreateVideoCodec(RED_PT, kRedCodecName);
-  auto red_rtx = CreateVideoRtxCodec(RED_RTX_PT, RED_PT);
-  auto ulpfec = CreateVideoCodec(ULPFEC_PT, kUlpfecCodecName);
-
-  video->AddCodec(red);
-  video->AddCodec(red_rtx);
-  video->AddCodec(ulpfec);
-
-  auto transport_cc1 = RtpExtension(TransportSequenceNumber::Uri(),
-                                    RtpHeaderExtensionId(TRANSPORT_CC1_EXT_ID));
-  // TransportCC V2 is now enabled by default, but the difference is that V2
-  // doesn't send periodic updates and instead waits for feedback requests.
-  // Since the existing clients don't send feedback requests, we can't enable
-  // V2. We'd have to add it to signaling to move from V1 to V2.
-  auto video_orientation = RtpExtension(
-      VideoOrientation::Uri(), RtpHeaderExtensionId(VIDEO_ORIENTATION_EXT_ID));
-  // abs_send_time and tx_time_offset are used for more accurate REMB messages
-  // from the receiver, which are used by googcc in some small ways. So, keep
-  // it enabled. But it doesn't make sense to enable both abs_send_time and
-  // tx_time_offset, so only use abs_send_time.
-  auto abs_send_time = RtpExtension(AbsoluteSendTime::Uri(),
-                                    RtpHeaderExtensionId(ABS_SEND_TIME_EXT_ID));
-
-  // Note: Using transport-cc with audio is still experimental in WebRTC.
-  // And don't add abs_send_time because it's only used for video.
-  if (enable_tcc_audio) {
-    audio->AddRtpHeaderExtension(transport_cc1);
-  }
-
-  video->AddRtpHeaderExtension(transport_cc1);
-  video->AddRtpHeaderExtension(video_orientation);
-  video->AddRtpHeaderExtension(abs_send_time);
-
-  auto audio_stream = StreamParams();
-  audio_stream.id = kAudioTrackId;
-  audio_stream.add_ssrc(AUDIO_SSRC);
-
-  auto video_stream = StreamParams();
-  video_stream.id = kVideoTrackId;
-  video_stream.add_ssrc(VIDEO_SSRC);
-  video_stream.AddFidSsrc(VIDEO_SSRC, VIDEO_RTX_SSRC);  // AKA RTX
-
-  // Things that are the same for all of them
-  for (auto* stream : {&audio_stream, &video_stream}) {
-    // WebRTC just generates a random 16-byte string for the entire
-    // PeerConnection. It's used to send an SDES RTCP message. The value doesn't
-    // seem to be used for anything else. We'll set it around just in case. But
-    // everything seems to work fine without it.
-    stream->cname = "CNAMECNAMECNAME!";
-
-    stream->set_stream_ids({"s"});
-  }
-
-  audio->AddStream(audio_stream);
-  video->AddStream(video_stream);
-  video->set_rtcp_reduced_size(true);
-
-  // Keep the order as the WebRTC default: (audio, video, data).
-  auto audio_content_name = "audio";
-  auto video_content_name = "video";
-
-  auto session = std::make_unique<SessionDescription>();
-  session->AddTransportInfo({audio_content_name, transport});
-  session->AddTransportInfo({video_content_name, transport});
-
-  bool stopped = false;
-  session->AddContent(audio_content_name, MediaProtocolType::kRtp, stopped,
-                      std::move(audio));
-  session->AddContent(video_content_name, MediaProtocolType::kRtp, stopped,
-                      std::move(video));
-
-  auto bundle = ContentGroup(GROUP_TYPE_BUNDLE);
-  bundle.AddContentName(audio_content_name);
-  bundle.AddContentName(video_content_name);
-  session->AddGroup(bundle);
-
-  session->set_msid_signaling(kMsidSignalingMediaSection);
-
-  auto typ = offer ? SdpType::kOffer : SdpType::kAnswer;
-  return SessionDescriptionInterface::Create(typ, std::move(session), "1", "1")
-      .release();
-}
-
-// Returns an owned pointer.
-// Used only for clients that advertise support for asymmetric codecs.
 RUSTEXPORT SessionDescriptionInterface* Rust_sessionDescriptionFromV4(
     bool offer,
     const RffiConnectionParametersV4* v4_borrowed,
