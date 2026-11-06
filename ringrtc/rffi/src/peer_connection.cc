@@ -12,6 +12,9 @@
 #include "api/jsep.h"
 #include "api/peer_connection_interface.h"
 #include "api/video_codecs/vp9_profile.h"
+#ifdef RTC_ENABLE_H265
+#include "api/video_codecs/h265_profile_tier_level.h"
+#endif
 #include "modules/rtp_rtcp/source/rtp_dependency_descriptor_extension.h"
 #include "modules/rtp_rtcp/source/rtp_header_extensions.h"
 #include "p2p/base/port.h"
@@ -245,10 +248,12 @@ RUSTEXPORT bool Rust_disableDtlsAndSetSrtpKey(
 static int codecPriority(const RffiVideoCodec c) {
   // Lower values are given higher priority
   switch (c.type) {
-    case kRffiVideoCodecVp9:
+    case kRffiVideoCodecH265:
       return 0;
-    case kRffiVideoCodecVp8:
+    case kRffiVideoCodecVp9:
       return 1;
+    case kRffiVideoCodecVp8:
+      return 2;
     default:
       return 100;
   }
@@ -268,10 +273,53 @@ static void sort_codecs(RffiVideoCodec* first, size_t size) {
                    });
 }
 
+// For RTC, H.265 should be negotiated as Main profile in the Main tier
+// (level 3.1 == 720p).
+static bool IsAllowedH265Codec(const Codec& codec) {
+#ifdef RTC_ENABLE_H265
+  auto profile_tier_level = ParseSdpForH265ProfileTierLevel(codec.params);
+  if (!profile_tier_level) {
+    RTC_LOG(LS_WARNING)
+        << "Ignoring H265 codec with invalid profile-id/tier-flag/level-id";
+    return false;
+  }
+  if (profile_tier_level->profile != H265Profile::kProfileMain) {
+    RTC_LOG(LS_WARNING) << "Ignoring H265 codec with non-Main profile-id = "
+                        << static_cast<int>(profile_tier_level->profile);
+    return false;
+  }
+  if (profile_tier_level->tier != H265Tier::kTier0) {
+    RTC_LOG(LS_WARNING) << "Ignoring H265 codec with non-zero tier";
+    return false;
+  }
+  return true;
+#else
+  RTC_LOG(LS_WARNING) << "Ignoring H265 codec; built without H265 support";
+  return false;
+#endif
+}
+
+// Set H.265 configuration to Main profile, Main tier, level
+// 3.1 (720p), single RTP stream.
+// example: a=fmtp:110 profile-id=1;tier-flag=0;level-id=93;tx-mode=SRST
+static void SetH265FmtpParams(Codec* codec) {
+#ifdef RTC_ENABLE_H265
+  if (codec) {
+    codec->params[kH265FmtpProfileId] =
+        H265ProfileToString(H265Profile::kProfileMain);
+    codec->params[kH265FmtpTierFlag] = H265TierToString(H265Tier::kTier0);
+    codec->params[kH265FmtpLevelId] = H265LevelToString(H265Level::kLevel3_1);
+    codec->params[kH265FmtpTxMode] = H265_TX_MODE_SRST;
+  }
+#endif
+}
+
 RUSTEXPORT RffiConnectionParametersV4* Rust_sessionDescriptionToV4(
     const SessionDescriptionInterface* session_description_borrowed,
     bool enable_vp9_encode,
-    bool enable_vp9_decode) {
+    bool enable_vp9_decode,
+    bool enable_h265_encode,
+    bool enable_h265_decode) {
   if (!session_description_borrowed) {
     return nullptr;
   }
@@ -285,6 +333,11 @@ RUSTEXPORT RffiConnectionParametersV4* Rust_sessionDescriptionToV4(
   if (session->transport_infos().empty()) {
     return nullptr;
   }
+
+#ifndef RTC_ENABLE_H265
+  enable_h265_encode = false;
+  enable_h265_decode = false;
+#endif
 
   auto v4 = std::make_unique<ConnectionParametersV4>();
 
@@ -360,6 +413,25 @@ RUSTEXPORT RffiConnectionParametersV4* Rust_sessionDescriptionToV4(
             !contains(v4->encode_only_video_codecs, kRffiVideoCodecVp8)) {
           v4->encode_only_video_codecs.push_back(vp8);
         }
+      } else if (codec_type == kVideoCodecH265) {
+        if (enable_h265_encode || enable_h265_decode) {
+          if (!IsAllowedH265Codec(codec)) {
+            continue;
+          }
+          RffiVideoCodec h265;
+          h265.type = kRffiVideoCodecH265;
+
+          if (enable_h265_decode && RtpTransceiverDirectionHasRecv(direction) &&
+              !contains(v4->decode_only_video_codecs, kRffiVideoCodecH265)) {
+            v4->decode_only_video_codecs.push_back(h265);
+          }
+          if (enable_h265_encode && RtpTransceiverDirectionHasSend(direction) &&
+              !contains(v4->encode_only_video_codecs, kRffiVideoCodecH265)) {
+            v4->encode_only_video_codecs.push_back(h265);
+          }
+        } else {
+          RTC_LOG(LS_WARNING) << "Ignoring H265 codec due to lack of support";
+        }
       }
     }
   }
@@ -396,6 +468,8 @@ RUSTEXPORT SessionDescriptionInterface* Rust_sessionDescriptionFromV4(
     bool enable_tcc_audio,
     bool enable_vp9_encode,
     bool enable_vp9_decode,
+    bool enable_h265_encode,
+    bool enable_h265_decode,
     bool v4_is_local) {
   if (v4_borrowed->decode_only_video_codecs_borrowed == nullptr ||
       v4_borrowed->encode_only_video_codecs_borrowed == nullptr) {
@@ -506,6 +580,16 @@ RUSTEXPORT SessionDescriptionInterface* Rust_sessionDescriptionFromV4(
   auto vp8_rtx = CreateVideoRtxCodec(VP8_RTX_PT, VP8_PT);
   add_video_feedback_params(&vp8);
 
+#ifndef RTC_ENABLE_H265
+  enable_h265_encode = false;
+  enable_h265_decode = false;
+#endif
+  auto h265 = CreateVideoCodec(H265_PT, kH265CodecName);
+  SetH265FmtpParams(&h265);
+  auto h265_rtx = CreateVideoRtxCodec(H265_RTX_PT, H265_PT);
+  SetH265FmtpParams(&h265_rtx);
+  add_video_feedback_params(&h265);
+
   for (size_t i = 0; i < v4_borrowed->decode_only_video_codecs_size; i++) {
     RffiVideoCodec rffi_codec =
         v4_borrowed->decode_only_video_codecs_borrowed[i];
@@ -526,6 +610,12 @@ RUSTEXPORT SessionDescriptionInterface* Rust_sessionDescriptionFromV4(
     } else if (rffi_codec.type == kRffiVideoCodecVp8) {
       video_recv->AddCodec(vp8);
       video_recv->AddCodec(vp8_rtx);
+    } else if (rffi_codec.type == kRffiVideoCodecH265) {
+      if ((v4_is_local && enable_h265_decode) ||
+          (!v4_is_local && enable_h265_encode)) {
+        video_recv->AddCodec(h265);
+        video_recv->AddCodec(h265_rtx);
+      }
     }
   }
 
@@ -542,6 +632,12 @@ RUSTEXPORT SessionDescriptionInterface* Rust_sessionDescriptionFromV4(
     } else if (rffi_codec.type == kRffiVideoCodecVp8) {
       video_send->AddCodec(vp8);
       video_send->AddCodec(vp8_rtx);
+    } else if (rffi_codec.type == kRffiVideoCodecH265) {
+      if ((v4_is_local && enable_h265_encode) ||
+          (!v4_is_local && enable_h265_decode)) {
+        video_send->AddCodec(h265);
+        video_send->AddCodec(h265_rtx);
+      }
     }
   }
 

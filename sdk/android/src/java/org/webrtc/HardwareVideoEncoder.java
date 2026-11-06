@@ -12,6 +12,10 @@ package org.webrtc;
 
 import static android.media.MediaCodecInfo.CodecProfileLevel.AVCLevel3;
 import static android.media.MediaCodecInfo.CodecProfileLevel.AVCProfileHigh;
+// RingRTC change to explicitly configure H265
+import static android.media.MediaCodecInfo.CodecProfileLevel.HEVCMainTierLevel31;
+import static android.media.MediaCodecInfo.CodecProfileLevel.HEVCProfileMain;
+// end RingRTC change to explicitly configure H265
 import static android.media.MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR;
 
 import android.media.MediaCodec;
@@ -267,6 +271,12 @@ class HardwareVideoEncoder implements VideoEncoder {
         }
       }
 
+      // RingRTC change to explicitly configure H265
+      if (codecType == VideoCodecMimeType.H265) {
+        configureH265Format(format);
+      }
+      // end RingRTC change to explicitly configure H265
+
       if (codecName.equals("c2.google.av1.encoder")) {
         // Enable RTC mode in AV1 HW encoder.
         format.setInteger("vendor.google-av1enc.encoding-preset.int32.value", 1);
@@ -507,7 +517,14 @@ class HardwareVideoEncoder implements VideoEncoder {
         final int kLowH264QpThreshold = 24;
         final int kHighH264QpThreshold = 37;
         return new ScalingSettings(kLowH264QpThreshold, kHighH264QpThreshold);
+        // RingRTC change to explicitly configure H265
+      } else if (codecType == VideoCodecMimeType.H265) {
+        // Matches the H265 encoder on iOS.
+        final int kLowH265QpThreshold = 28;
+        final int kHighH265QpThreshold = 39;
+        return new ScalingSettings(kLowH265QpThreshold, kHighH265QpThreshold);
       }
+      // end RingRTC change to explicitly configure H265
     }
     return ScalingSettings.OFF;
   }
@@ -763,6 +780,37 @@ class HardwareVideoEncoder implements VideoEncoder {
 
     return codecCaps.isFeatureSupported(CodecCapabilities.FEATURE_EncodingStatistics);
   }
+
+  // RingRTC change to explicitly configure H265
+  // Configure Main profile, Main tier, level 3.1 (720p30), and no B-frames.
+  private void configureH265Format(MediaFormat format) {
+    if (isProfileLevelSupported(HEVCProfileMain, HEVCMainTierLevel31)) {
+      format.setInteger(MediaFormat.KEY_PROFILE, HEVCProfileMain);
+      format.setInteger(MediaFormat.KEY_LEVEL, HEVCMainTierLevel31);
+    } else {
+      Logging.w(TAG,"Encoder " + codecName + " does not support H265 Main profile at level 3.1");
+    }
+    format.setInteger(MediaFormat.KEY_MAX_B_FRAMES, 0);
+  }
+
+  // True if the encoder reports support for `profile` at `level` or higher
+  private boolean isProfileLevelSupported(int profile, int level) {
+    MediaCodecInfo codecInfo = codec.getCodecInfo();
+    if (codecInfo == null) {
+      return false;
+    }
+    CodecCapabilities codecCaps = codecInfo.getCapabilitiesForType(codecType.mimeType());
+    if (codecCaps == null || codecCaps.profileLevels == null) {
+      return false;
+    }
+    for (MediaCodecInfo.CodecProfileLevel profileLevel : codecCaps.profileLevels) {
+      if (profileLevel.profile == profile && profileLevel.level >= level) {
+        return true;
+      }
+    }
+    return false;
+  }
+  // end RingRTC change to explicitly configure H265
 
   // Visible for testing.
   protected void fillInputBuffer(ByteBuffer buffer, VideoFrame.Buffer frame) {

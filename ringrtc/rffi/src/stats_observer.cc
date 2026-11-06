@@ -19,6 +19,8 @@ StatsVideoCodecType MimeTypeToCodec(std::string mime_type) {
     return kStatsVideoCodecVp9;
   } else if (mime_type == "video/VP8") {
     return kStatsVideoCodecVp8;
+  } else if (mime_type == "video/H265") {
+    return kStatsVideoCodecH265;
   } else {
     RTC_LOG(LS_ERROR) << "unknown mime type " << mime_type;
     return kStatsInvalidVideoCodec;

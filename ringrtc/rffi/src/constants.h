@@ -25,11 +25,16 @@ constexpr int VP8_PT = 108;
 constexpr int VP8_RTX_PT = 118;
 constexpr int VP9_PT = 109;
 constexpr int VP9_RTX_PT = 119;
+constexpr int H265_PT = 110;
+constexpr int H265_RTX_PT = 111;
 constexpr int RED_PT = 120;
 constexpr int RED_RTX_PT = 121;
 constexpr int ULPFEC_PT = 122;
 
 constexpr uint32_t DISABLED_DEMUX_ID = 0;
+
+// H.265 fmtp tx-mode (RFC 7798)
+constexpr char H265_TX_MODE_SRST[] = "SRST";
 
 }  // namespace rffi
 }  // namespace webrtc

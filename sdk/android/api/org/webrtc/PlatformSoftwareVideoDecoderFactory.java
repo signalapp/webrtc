@@ -36,4 +36,19 @@ public class PlatformSoftwareVideoDecoderFactory extends MediaCodecVideoDecoderF
   public PlatformSoftwareVideoDecoderFactory(@Nullable EglBase.Context sharedContext) {
     super(sharedContext, defaultAllowedPredicate);
   }
+
+  // RingRTC change to add support for H265. Needed to prevent use of any software H265
+  /**
+   * Creates a PlatformSoftwareVideoDecoderFactory that only allows codecs accepted by the given
+   * predicate (in addition to being software-only). Lets callers exclude specific codecs, e.g. to
+   * keep a codec hardware-only.
+   *
+   * @param sharedContext The textures generated will be accessible from this context. May be null,
+   *                      this disables texture support.
+   * @param codecAllowedPredicate additional predicate a codec must satisfy to be allowed.
+   */
+  public PlatformSoftwareVideoDecoderFactory(
+      @Nullable EglBase.Context sharedContext, Predicate<MediaCodecInfo> codecAllowedPredicate) {
+    super(sharedContext, defaultAllowedPredicate.and(codecAllowedPredicate));
+  }
 }
