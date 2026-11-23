@@ -22,6 +22,19 @@ RTC_OBJC_EXPORT
 /** Returns the list of supported codec formats (profiles) for the H264 decoder. */
 + (NSArray<RTC_OBJC_TYPE(RTCVideoCodecInfo) *> *)supportedCodecs;
 
+// RingRTC change to add support for H265
+/** Creates an H264 decoder. Enables H265  mode if `codecInfo` specifies H265. */
+- (instancetype)initWithCodecInfo:(RTC_OBJC_TYPE(RTCVideoCodecInfo) *)codecInfo;
+
+/** Returns the H265 formats this class can decode. Empty unless built with
+ * rtc_use_h265 and the device has a hardware HEVC decoder.
+ */
++ (NSArray<RTC_OBJC_TYPE(RTCVideoCodecInfo) *> *)supportedH265Codecs;
+
+/** Whether hardware H265 decoding is available. */
++ (BOOL)isH265Supported;
+// end RingRTC change to add support for H265
+
 @end
 
 NS_ASSUME_NONNULL_END

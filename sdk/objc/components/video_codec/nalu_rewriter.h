@@ -50,6 +50,39 @@ bool H264AnnexBBufferToCMSampleBuffer(std::span<const uint8_t> annexb_buffer,
 CMVideoFormatDescriptionRef CreateVideoFormatDescription(
     std::span<const uint8_t> annexb_buffer);
 
+// RingRTC change to add support for H265
+#if defined(RTC_ENABLE_H265)
+// H265 sample buffers have a 4-byte length-prefixed NALUs (hvcC), while RTP
+// carries Annex B. H265 has three parameter sets (VPS, SPS, PPS) and a 2-byte
+// NALU header.
+
+// Converts a sample buffer emitted from the VideoToolbox encoder into a buffer
+// suitable for RTP. The sample buffer is in hvcc format whereas the rtp buffer
+// needs to be in Annex B format. Data is written directly to `annexb_buffer`.
+// On keyframes, the VPS/SPS/PPS are prepended.
+bool H265CMSampleBufferToAnnexBBuffer(CMSampleBufferRef hvcc_sample_buffer,
+                                      bool is_keyframe,
+                                      webrtc::Buffer* annexb_buffer);
+
+// Converts a buffer received from RTP into a sample buffer suitable for the
+// VideoToolbox decoder. The RTP buffer is in annex b format whereas the sample
+// buffer is in hevc format.
+// VPS/SPS/PPS NALUs are dropped if they are all in `video_format`. If any is
+// not, they are all kept in the sample buffer for VideoToolbox to apply.
+// Caller is responsible for releasing the created sample buffer.
+bool H265AnnexBBufferToCMSampleBuffer(std::span<const uint8_t> annexb_buffer,
+                                      CMVideoFormatDescriptionRef video_format,
+                                      CMSampleBufferRef* out_sample_buffer,
+                                      CMMemoryPoolRef memory_pool);
+
+// Returns a video format description created from all the VPS/SPS/PPS in the
+// Annex B buffer. If any type is missing, nullptr is returned. The caller
+// is responsible for releasing the description.
+CMVideoFormatDescriptionRef CreateH265VideoFormatDescription(
+    std::span<const uint8_t> annexb_buffer);
+#endif  // defined(RTC_ENABLE_H265)
+// end RingRTC change to add support for H265
+
 // Helper class for reading NALUs from an RTP Annex B buffer.
 class AnnexBBufferReader final {
  public:

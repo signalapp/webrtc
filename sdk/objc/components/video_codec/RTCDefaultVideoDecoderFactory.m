@@ -29,6 +29,10 @@
 
   [result
       addObjectsFromArray:[RTC_OBJC_TYPE(RTCVideoDecoderH264) supportedCodecs]];
+  // RingRTC change to add support for H265
+  [result addObjectsFromArray:[RTC_OBJC_TYPE(RTCVideoDecoderH264)
+                                  supportedH265Codecs]];
+  // end RingRTC change to add support for H265
   [result
       addObjectsFromArray:[RTC_OBJC_TYPE(RTCVideoDecoderVP8) supportedCodecs]];
 
@@ -47,6 +51,11 @@
     (RTC_OBJC_TYPE(RTCVideoCodecInfo) *)info {
   if ([info.name isEqualToString:kRTCVideoCodecH264Name]) {
     return [[RTC_OBJC_TYPE(RTCVideoDecoderH264) alloc] init];
+    // RingRTC change to add support for H265
+  } else if ([info.name isEqualToString:kRTCVideoCodecH265Name] &&
+             [RTC_OBJC_TYPE(RTCVideoDecoderH264) isH265Supported]) {
+    return [[RTC_OBJC_TYPE(RTCVideoDecoderH264) alloc] initWithCodecInfo:info];
+    // end RingRTC change to add support for H265
   } else if ([info.name isEqualToString:kRTCVideoCodecVp8Name]) {
     return [RTC_OBJC_TYPE(RTCVideoDecoderVP8) vp8Decoder];
   } else if ([info.name isEqualToString:kRTCVideoCodecVp9Name] &&

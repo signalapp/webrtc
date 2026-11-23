@@ -16,3 +16,5 @@
 NSString *const kRTCVideoCodecVp8Name = @(webrtc::kVp8CodecName);
 NSString *const kRTCVideoCodecVp9Name = @(webrtc::kVp9CodecName);
 NSString *const kRTCVideoCodecAv1Name = @(webrtc::kAv1CodecName);
+// RingRTC change to add H265 support
+NSString *const kRTCVideoCodecH265Name = @(webrtc::kH265CodecName);

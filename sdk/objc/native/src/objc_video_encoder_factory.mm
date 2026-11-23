@@ -16,6 +16,10 @@
 #import "base/RTCVideoEncoder.h"
 #import "base/RTCVideoEncoderFactory.h"
 #import "components/video_codec/RTCCodecSpecificInfoH264+Private.h"
+// RingRTC change to add H265 support
+#if defined(RTC_ENABLE_H265)
+#import "components/video_codec/RTCCodecSpecificInfoH265+Private.h"
+#endif
 #import "sdk/objc/api/peerconnection/RTCEncodedImage+Private.h"
 #import "sdk/objc/api/peerconnection/RTCVideoCodecInfo+Private.h"
 #import "sdk/objc/api/peerconnection/RTCVideoEncoderSettings+Private.h"
@@ -68,6 +72,15 @@ class ObjCVideoEncoder : public VideoEncoder {
           codecSpecificInfo = [(RTC_OBJC_TYPE(
               RTCCodecSpecificInfoH264) *)info nativeCodecSpecificInfo];
         }
+// RingRTC change to add H265 support
+#if defined(RTC_ENABLE_H265)
+        // Tags the frame as H265 so the H265 RTP packetizer is used.
+        if ([info isKindOfClass:[RTC_OBJC_TYPE(RTCCodecSpecificInfoH265)
+                                    class]]) {
+          codecSpecificInfo = [(RTC_OBJC_TYPE(
+              RTCCodecSpecificInfoH265) *)info nativeCodecSpecificInfo];
+        }
+#endif
 
         EncodedImageCallback::Result res =
             callback->OnEncodedImage(encodedImage, &codecSpecificInfo);

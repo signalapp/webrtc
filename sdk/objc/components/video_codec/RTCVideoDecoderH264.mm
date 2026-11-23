@@ -33,6 +33,11 @@
 #include "rtc_base/time_utils.h"
 #include "sdk/objc/components/video_codec/nalu_rewriter.h"
 
+// RingRTC change to add support for H265
+#include "api/video/video_codec_type.h"
+#import "api/video_codec/RTCVideoCodecConstants.h"
+// end RingRTC change to add support for H265
+
 // Struct that we pass to the decoder per frame to decode. We receive it again
 // in the decoder callback.
 struct RTCFrameDecodeParams {
@@ -45,6 +50,38 @@ struct RTCFrameDecodeParams {
 @interface RTC_OBJC_TYPE (RTCVideoDecoderH264)
 () - (void)setError : (OSStatus)error;
 @end
+
+// RingRTC change to add support for H265
+namespace {
+
+CMVideoFormatDescriptionRef CreateFormatDescription(
+    webrtc::VideoCodecType codecType,
+    std::span<const uint8_t> annexb_buffer) {
+#if defined(RTC_ENABLE_H265)
+  if (codecType == webrtc::kVideoCodecH265) {
+    return webrtc::CreateH265VideoFormatDescription(annexb_buffer);
+  }
+#endif
+  return webrtc::CreateVideoFormatDescription(annexb_buffer);
+}
+
+bool AnnexBBufferToCMSampleBuffer(webrtc::VideoCodecType codecType,
+                                  std::span<const uint8_t> annexb_buffer,
+                                  CMVideoFormatDescriptionRef video_format,
+                                  CMSampleBufferRef *out_sample_buffer,
+                                  CMMemoryPoolRef memory_pool) {
+#if defined(RTC_ENABLE_H265)
+  if (codecType == webrtc::kVideoCodecH265) {
+    return webrtc::H265AnnexBBufferToCMSampleBuffer(
+        annexb_buffer, video_format, out_sample_buffer, memory_pool);
+  }
+#endif
+  return webrtc::H264AnnexBBufferToCMSampleBuffer(
+      annexb_buffer, video_format, out_sample_buffer, memory_pool);
+}
+
+}  // namespace
+// end RingRTC change to add support for H265
 
 // This is the callback function that VideoToolbox calls when decode is
 // complete.
@@ -64,6 +101,23 @@ void decompressionOutputCallback(void *decoderRef,
     RTC_LOG(LS_ERROR) << "Failed to decode frame. Status: " << status;
     return;
   }
+  // RingRTC change to add support for H265
+  if (!imageBuffer) {
+    if (infoFlags & kVTDecodeInfo_FrameDropped) {
+      // VideoToolbox dropped this frame e.g. to keep up in real time.
+      // Should not affect later frames.
+      RTC_LOG(LS_VERBOSE) << "Decoder dropped a frame.";
+      return;
+    }
+    // No image and no reason given: fail the next decode so a keyframe is
+    // requested.
+    RTC_OBJC_TYPE(RTCVideoDecoderH264) *decoder =
+        (__bridge RTC_OBJC_TYPE(RTCVideoDecoderH264) *)decoderRef;
+    [decoder setError:kVTVideoDecoderBadDataErr];
+    RTC_LOG(LS_ERROR) << "Decode produced no image. Flags: " << infoFlags;
+    return;
+  }
+  // end RingRTC change to add support for H265
   // TODO(tkchin): Handle CVO properly.
   RTC_OBJC_TYPE(RTCCVPixelBuffer) *frameBuffer =
       [[RTC_OBJC_TYPE(RTCCVPixelBuffer) alloc] initWithPixelBuffer:imageBuffer];
@@ -83,6 +137,9 @@ void decompressionOutputCallback(void *decoderRef,
   VTDecompressionSessionRef _decompressionSession;
   RTCVideoDecoderCallback _callback;
   OSStatus _error;
+  // RingRTC change to add support for H265
+  webrtc::VideoCodecType _codecType;
+  // end RingRTC change to add support for H265
 }
 
 + (NSArray<RTC_OBJC_TYPE(RTCVideoCodecInfo) *> *)supportedCodecs {
@@ -109,13 +166,56 @@ void decompressionOutputCallback(void *decoderRef,
   return @[ constrainedHighInfo, constrainedBaselineInfo ];
 }
 
+// RingRTC change to add support for H265
++ (NSArray<RTC_OBJC_TYPE(RTCVideoCodecInfo) *> *)supportedH265Codecs {
+  if (![self isH265Supported]) {
+    return @[];
+  }
+  return @[ [[RTC_OBJC_TYPE(RTCVideoCodecInfo) alloc]
+      initWithName:kRTCVideoCodecH265Name] ];
+}
+
++ (BOOL)isH265Supported {
+#if defined(RTC_ENABLE_H265)
+  static BOOL supported = NO;
+  static dispatch_once_t onceToken;
+  dispatch_once(&onceToken, ^{
+    supported = VTIsHardwareDecodeSupported(kCMVideoCodecType_HEVC);
+    RTC_LOG(LS_INFO) << "Hardware HEVC decoder "
+                     << (supported ? "available" : "unavailable");
+  });
+  return supported;
+#else
+  return NO;
+#endif
+}
+// end RingRTC change to add support for H265
+
 - (instancetype)init {
   self = [super init];
   if (self) {
     _memoryPool = CMMemoryPoolCreate(nil);
+    // RingRTC change to add support for H265
+    _codecType = webrtc::kVideoCodecH264;
+    // end RingRTC change to add support for H265
   }
   return self;
 }
+
+// RingRTC change to add support for H265
+- (instancetype)initWithCodecInfo:
+    (RTC_OBJC_TYPE(RTCVideoCodecInfo) *)codecInfo {
+  self = [self init];
+  if (self && [codecInfo.name isEqualToString:kRTCVideoCodecH265Name]) {
+#if defined(RTC_ENABLE_H265)
+    _codecType = webrtc::kVideoCodecH265;
+#else
+    RTC_CHECK_NOTREACHED();
+#endif
+  }
+  return self;
+}
+// end RingRTC change to add support for H265
 
 - (void)dealloc {
   CMMemoryPoolInvalidate(_memoryPool);
@@ -141,10 +241,13 @@ void decompressionOutputCallback(void *decoderRef,
     return WEBRTC_VIDEO_CODEC_ERROR;
   }
 
+  // RingRTC change to add support for H265
   webrtc::ScopedCFTypeRef<CMVideoFormatDescriptionRef> inputFormat =
-      webrtc::ScopedCF(
-          webrtc::CreateVideoFormatDescription(std::span<const uint8_t>(
-              (uint8_t *)inputImage.buffer.bytes, inputImage.buffer.length)));
+      webrtc::ScopedCF(CreateFormatDescription(
+          _codecType,
+          std::span<const uint8_t>((uint8_t *)inputImage.buffer.bytes,
+                                   inputImage.buffer.length)));
+  // end RingRTC change to add support for H265
   if (inputFormat) {
     // Check if the video format has changed, and reinitialize decoder if
     // needed.
@@ -166,7 +269,9 @@ void decompressionOutputCallback(void *decoderRef,
     return WEBRTC_VIDEO_CODEC_ERROR;
   }
   CMSampleBufferRef sampleBuffer = nullptr;
-  if (!webrtc::H264AnnexBBufferToCMSampleBuffer(
+  // RingRTC change to add support for H265
+  if (!AnnexBBufferToCMSampleBuffer(
+          _codecType,
           std::span<const uint8_t>((uint8_t *)inputImage.buffer.bytes,
                                    inputImage.buffer.length),
           _videoFormat,
@@ -174,6 +279,7 @@ void decompressionOutputCallback(void *decoderRef,
           _memoryPool)) {
     return WEBRTC_VIDEO_CODEC_ERROR;
   }
+  // end RingRTC change to add support for H265
   RTC_DCHECK(sampleBuffer);
   VTDecodeFrameFlags decodeFlags =
       kVTDecodeFrame_EnableAsynchronousDecompression;

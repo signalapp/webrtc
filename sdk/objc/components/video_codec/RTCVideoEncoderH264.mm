@@ -40,6 +40,17 @@
 #include "system_wrappers/include/clock.h"
 #include "third_party/libyuv/include/libyuv/convert_from.h"
 
+// RingRTC change to add support for H265
+#include <limits>
+
+#include "api/video/video_codec_type.h"
+#import "api/video_codec/RTCVideoCodecConstants.h"
+#if defined(RTC_ENABLE_H265)
+#import "RTCCodecSpecificInfoH265.h"
+#include "common_video/h265/h265_bitstream_parser.h"
+#endif
+// end RingRTC change to add support for H265
+
 @interface RTC_OBJC_TYPE (RTCVideoEncoderH264)
 ()
 
@@ -63,6 +74,10 @@ const float kLimitToAverageBitRateFactor = 1.5f;
 // have been found to work better on devices that support VideoToolbox
 const int kLowH264QpThreshold = 28;
 const int kHighH264QpThreshold = 39;
+// RingRTC change to add support for H265
+const int kLowH265QpThreshold = 28;
+const int kHighH265QpThreshold = 39;
+// end RingRTC change to add support for H265
 
 const OSType kNV12PixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarFullRange;
 
@@ -335,6 +350,22 @@ NSUInteger GetMaxSampleRate(
       return 0;
   }
 }
+
+// RingRTC change to add support for H265
+#if defined(RTC_ENABLE_H265)
+// Encoder specification for probing hardware H265 support.
+NSDictionary *H265HardwareEncoderSpecification() {
+#if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
+  return @{
+    (NSString *)
+    kVTVideoEncoderSpecification_RequireHardwareAcceleratedVideoEncoder : @(YES),
+  };
+#else
+  return nil;
+#endif
+}
+#endif  // defined(RTC_ENABLE_H265)
+// end RingRTC change to add support for H265
 }  // namespace
 
 @implementation RTC_OBJC_TYPE (RTCVideoEncoderH264) {
@@ -351,7 +382,13 @@ NSUInteger GetMaxSampleRate(
   int32_t _height;
   VTCompressionSessionRef _compressionSession;
   RTCVideoCodecMode _mode;
+  // RingRTC change to add support for H265
+  webrtc::VideoCodecType _codecType;
 
+#if defined(RTC_ENABLE_H265)
+  webrtc::H265BitstreamParser _h265BitstreamParser;
+#endif  // defined(RTC_ENABLE_H265)
+  // end RingRTC change to add support for H265
   webrtc::H264BitstreamParser _h264BitstreamParser;
   std::vector<uint8_t> _frameScaleBuffer;
 }
@@ -380,6 +417,47 @@ NSUInteger GetMaxSampleRate(
   return @[ constrainedHighInfo, constrainedBaselineInfo ];
 }
 
+// RingRTC change to add support for H265
++ (NSArray<RTC_OBJC_TYPE(RTCVideoCodecInfo) *> *)supportedH265Codecs {
+  if (![self isH265Supported]) {
+    return @[];
+  }
+  return @[ [[RTC_OBJC_TYPE(RTCVideoCodecInfo) alloc]
+      initWithName:kRTCVideoCodecH265Name] ];
+}
+
++ (BOOL)isH265Supported {
+#if defined(RTC_ENABLE_H265)
+  static BOOL supported = NO;
+  static dispatch_once_t onceToken;
+  dispatch_once(&onceToken, ^{
+    CFStringRef encoderId = nullptr;
+    CFDictionaryRef properties = nullptr;
+    OSStatus status = VTCopySupportedPropertyDictionaryForEncoder(
+        1280,
+        720,
+        kCMVideoCodecType_HEVC,
+        (__bridge CFDictionaryRef)H265HardwareEncoderSpecification(),
+        &encoderId,
+        &properties);
+    if (encoderId) {
+      CFRelease(encoderId);
+    }
+    if (properties) {
+      CFRelease(properties);
+    }
+    supported = (status == noErr);
+    RTC_LOG(LS_INFO) << "Hardware HEVC encoder "
+                     << (supported ? "available" : "unavailable")
+                     << " (status " << status << ")";
+  });
+  return supported;
+#else
+  return NO;
+#endif
+}
+// end RingRTC change to add support for H265
+
 // .5 is set as a mininum to prevent overcompensating for large temporary
 // overshoots. We don't want to degrade video quality too badly.
 // .95 is set to prevent oscillations. When a lower bitrate is set on the
@@ -395,6 +473,16 @@ NSUInteger GetMaxSampleRate(
     _bitrateAdjuster = std::make_unique<webrtc::BitrateAdjuster>(
         webrtc::Clock::GetRealTimeClock(), .5, .95);
     _packetizationMode = RTCH264PacketizationModeNonInterleaved;
+    // RingRTC change to add support for H265
+#if defined(RTC_ENABLE_H265)
+    if ([codecInfo.name isEqualToString:kRTCVideoCodecH265Name]) {
+      // H265 has no profile-level-id; Main profile with AutoLevel is used.
+      _codecType = webrtc::kVideoCodecH265;
+      return self;
+    }
+#endif
+    _codecType = webrtc::kVideoCodecH264;
+    // end RingRTC change to add support for H265
     _profile_level_id = webrtc::ParseSdpForH264ProfileLevelId(
         [codecInfo nativeSdpVideoFormat].parameters);
     RTC_DCHECK(_profile_level_id);
@@ -413,16 +501,25 @@ NSUInteger GetMaxSampleRate(
                  (RTC_OBJC_TYPE(RTCVideoEncoderSettings) *)settings
                        numberOfCores:(int)numberOfCores {
   RTC_DCHECK(settings);
-  RTC_DCHECK([settings.name isEqualToString:kRTCVideoCodecH264Name]);
+  // RingRTC change to add support for H265
+  RTC_DCHECK([settings.name isEqualToString:_codecInfo.name]);
+  // end RingRTC change to add support for H265
 
   _width = settings.width;
   _height = settings.height;
   _mode = settings.mode;
 
-  uint32_t aligned_width = (((_width + 15) >> 4) << 4);
-  uint32_t aligned_height = (((_height + 15) >> 4) << 4);
-  _maxAllowedFrameRate = static_cast<uint32_t>(
-      GetMaxSampleRate(*_profile_level_id) / (aligned_width * aligned_height));
+  // RingRTC change to add support for H265
+  if (_codecType == webrtc::kVideoCodecH264) {
+    uint32_t aligned_width = (((_width + 15) >> 4) << 4);
+    uint32_t aligned_height = (((_height + 15) >> 4) << 4);
+    _maxAllowedFrameRate = static_cast<uint32_t>(
+        GetMaxSampleRate(*_profile_level_id) / (aligned_width * aligned_height));
+  } else {
+    // H265 uses AutoLevel, so there is no level-based frame rate limit.
+    _maxAllowedFrameRate = std::numeric_limits<uint32_t>::max();
+  }
+  // end RingRTC change to add support for H265
 
   // We can only set average bitrate on the HW encoder.
   _targetBitrateBps = settings.startBitrate * 1000;  // startBitrate is in kbps.
@@ -713,7 +810,10 @@ NSUInteger GetMaxSampleRate(
       nullptr,  // use default allocator
       _width,
       _height,
-      kCMVideoCodecType_H264,
+      // RingRTC change to add support for H265
+      _codecType == webrtc::kVideoCodecH265 ? kCMVideoCodecType_HEVC
+                                            : kCMVideoCodecType_H264,
+      // end RingRTC change to add support for H265
       (__bridge CFDictionaryRef)
           encoder_specs,  // use hardware accelerated encoder if available
       (__bridge CFDictionaryRef)sourceAttributes,
@@ -747,9 +847,13 @@ NSUInteger GetMaxSampleRate(
   RTC_DCHECK(_compressionSession);
   SetVTSessionProperty(
       _compressionSession, kVTCompressionPropertyKey_RealTime, true);
+  // RingRTC change to add support for H265
   SetVTSessionProperty(_compressionSession,
                        kVTCompressionPropertyKey_ProfileLevel,
-                       ExtractProfile(*_profile_level_id));
+                       _codecType == webrtc::kVideoCodecH265
+                           ? kVTProfileLevel_HEVC_Main_AutoLevel
+                           : ExtractProfile(*_profile_level_id));
+  // end RingRTC change to add support for H265
   SetVTSessionProperty(_compressionSession,
                        kVTCompressionPropertyKey_AllowFrameReordering,
                        false);
@@ -878,6 +982,18 @@ NSUInteger GetMaxSampleRate(
 
   __block std::unique_ptr<webrtc::Buffer> buffer =
       std::make_unique<webrtc::Buffer>();
+// RingRTC change to add support for H265
+#if defined(RTC_ENABLE_H265)
+  if (_codecType == webrtc::kVideoCodecH265) {
+    if (!webrtc::H265CMSampleBufferToAnnexBBuffer(
+            sampleBuffer, isKeyframe, buffer.get())) {
+      return;
+    }
+    // Tags the frame as H265 so the H265 RTP packetizer is used.
+    codecSpecificInfo = [[RTC_OBJC_TYPE(RTCCodecSpecificInfoH265) alloc] init];
+  } else
+#endif
+// end RingRTC change to add support for H265
   if (!webrtc::H264CMSampleBufferToAnnexBBuffer(
           sampleBuffer, isKeyframe, buffer.get())) {
     return;
@@ -905,8 +1021,18 @@ NSUInteger GetMaxSampleRate(
       RTCVideoContentTypeUnspecified;
   frame.flags = webrtc::VideoSendTiming::kInvalid;
 
-  _h264BitstreamParser.ParseBitstream(*buffer);
-  frame.qp = @(_h264BitstreamParser.GetLastSliceQp().value_or(-1));
+  // RingRTC change to add support for H265
+#if defined(RTC_ENABLE_H265)
+  if (_codecType == webrtc::kVideoCodecH265) {
+    _h265BitstreamParser.ParseBitstream(*buffer);
+    frame.qp = @(_h265BitstreamParser.GetLastSliceQp().value_or(-1));
+  } else
+#endif
+  {
+    _h264BitstreamParser.ParseBitstream(*buffer);
+    frame.qp = @(_h264BitstreamParser.GetLastSliceQp().value_or(-1));
+  }
+  // end RingRTC change to add support for H265
 
   BOOL res = callback(frame, codecSpecificInfo);
   if (!res) {
@@ -917,6 +1043,13 @@ NSUInteger GetMaxSampleRate(
 }
 
 - (nullable RTC_OBJC_TYPE(RTCVideoEncoderQpThresholds) *)scalingSettings {
+  // RingRTC change to add support for H265
+  if (_codecType == webrtc::kVideoCodecH265) {
+    return [[RTC_OBJC_TYPE(RTCVideoEncoderQpThresholds) alloc]
+        initWithThresholdsLow:kLowH265QpThreshold
+                         high:kHighH265QpThreshold];
+  }
+  // end RingRTC change to add support for H265
   return [[RTC_OBJC_TYPE(RTCVideoEncoderQpThresholds) alloc]
       initWithThresholdsLow:kLowH264QpThreshold
                        high:kHighH264QpThreshold];

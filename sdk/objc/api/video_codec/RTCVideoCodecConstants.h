@@ -15,3 +15,5 @@
 RTC_EXTERN NSString* const kRTCVideoCodecVp8Name;
 RTC_EXTERN NSString* const kRTCVideoCodecVp9Name;
 RTC_EXTERN NSString* const kRTCVideoCodecAv1Name;
+// RingRTC change to add H265 support
+RTC_EXTERN NSString* const kRTCVideoCodecH265Name;

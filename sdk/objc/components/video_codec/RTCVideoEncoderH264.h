@@ -25,6 +25,17 @@ RTC_OBJC_EXPORT
  */
 + (NSArray<RTC_OBJC_TYPE(RTCVideoCodecInfo) *> *)supportedCodecs;
 
+// RingRTC change to add support for H265
+/** Returns the H265 formats this class can encode; `initWithCodecInfo:` with
+ * one of them creates an H265 encoder. Empty unless built with rtc_use_h265 and
+ * the device has a hardware HEVC encoder.
+ */
++ (NSArray<RTC_OBJC_TYPE(RTCVideoCodecInfo) *> *)supportedH265Codecs;
+
+/** Whether hardware H265 encoding is available. */
++ (BOOL)isH265Supported;
+// end RingRTC change to add support for H265
+
 @end
 
 NS_ASSUME_NONNULL_END

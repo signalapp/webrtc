@@ -731,6 +731,16 @@ if (is_ios || is_mac) {
         ]
       }
 
+      # RingRTC change to add H265 support
+      if (rtc_use_h265) {
+        sources += [
+          "objc/components/video_codec/RTCCodecSpecificInfoH265+Private.h",
+          "objc/components/video_codec/RTCCodecSpecificInfoH265.h",
+          "objc/components/video_codec/RTCCodecSpecificInfoH265.mm",
+        ]
+      }
+      # end RingRTC change to add H265 support
+
       public_configs = [ ":common_config_objc" ]
       deps = [
         ":base_objc",
@@ -1320,6 +1330,28 @@ if (is_ios || is_mac) {
           ]
         }
       }
+
+      # RingRTC change to add support for H265
+      # The tests above build only for iOS. These run on macOS.
+      if (is_mac && rtc_use_h265) {
+        rtc_test("sdk_h265_unittests") {
+          testonly = true
+          configs += [ ":common_config_objc" ]
+          sources = [ "objc/unittests/nalu_rewriter_h265_tests.mm" ]
+          deps = [
+            ":video_toolbox_cc",
+            "../rtc_base:buffer",
+            "../test:test_support",
+          ]
+          frameworks = [
+            "CoreMedia.framework",
+            "CoreVideo.framework",
+            "Foundation.framework",
+            "VideoToolbox.framework",
+          ]
+        }
+      }
+      # end RingRTC change to add support for H265
     }
 
     if (is_ios) {
@@ -1763,6 +1795,10 @@ if (is_ios || is_mac) {
       visibility = [
         ":sdk_unittests_sources",
         ":videotoolbox_objc",
+
+        # RingRTC change to add support for H265
+        ":sdk_h265_unittests",
+        # end RingRTC change to add support for H265
       ]
       sources = [
         "objc/components/video_codec/helpers.cc",
