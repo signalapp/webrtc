@@ -402,9 +402,11 @@ ABSL_CONST_INIT thread_local bool mutex_locked = false;
       [self notifyDidSetActive:active];
     }
   } else {
-    RTCLogError(@"Failed to setActive:%d. Error: %@",
+    // RingRTC change to log the error code.
+    RTCLogError(@"Failed to setActive:%d. Error: %@ (%ld)",
                 active,
-                error.localizedDescription);
+                error.localizedDescription,
+                (long)error.code);
     [self notifyFailedToSetActive:active error:error];
   }
   // Set isActive and decrement activation count on deactivation
