@@ -476,8 +476,6 @@ public class PeerConnection {
     public TcpCandidatePolicy tcpCandidatePolicy;
     public CandidateNetworkPolicy candidateNetworkPolicy;
     public int audioJitterBufferMaxPackets;
-    // RingRTC change to configure the jitter buffer's max target delay.
-    public int audioJitterBufferMaxTargetDelayMs;
     public boolean audioJitterBufferFastAccelerate;
     public int iceConnectionReceivingTimeout;
     public int iceBackupCandidatePairPingInterval;
@@ -592,8 +590,6 @@ public class PeerConnection {
       candidateNetworkPolicy = CandidateNetworkPolicy.ALL;
       this.iceServers = iceServers;
       audioJitterBufferMaxPackets = 200;
-      // RingRTC change to configure the jitter buffer's max target delay.
-      audioJitterBufferMaxTargetDelayMs = 500;
       audioJitterBufferFastAccelerate = false;
       iceConnectionReceivingTimeout = -1;
       iceBackupCandidatePairPingInterval = -1;
@@ -672,12 +668,6 @@ public class PeerConnection {
     @CalledByNative
     int getAudioJitterBufferMaxPackets() {
       return audioJitterBufferMaxPackets;
-    }
-
-    // RingRTC change to configure the jitter buffer's max target delay.
-    @CalledByNative
-    int getAudioJitterBufferMaxTargetDelayMs() {
-      return audioJitterBufferMaxTargetDelayMs;
     }
 
     @CalledByNative
@@ -836,22 +826,21 @@ public class PeerConnection {
       return offerExtmapAllowMixed;
     }
 
-    // RingRTC change to use default port allocator flags
-    // @CalledByNative
-    // int getPortAllocatorMinPort() {
-    //   return portAllocatorMinPort;
-    // }
-    //
-    // @CalledByNative
-    // int getPortAllocatorMaxPort() {
-    //   return portAllocatorMaxPort;
-    // }
-    //
-    // @CalledByNative
-    // @PortAllocatorFlags
-    // int getPortAllocatorFlags() {
-    //   return portAllocatorFlags;
-    // }
+    @CalledByNative
+    int getPortAllocatorMinPort() {
+      return portAllocatorMinPort;
+    }
+
+    @CalledByNative
+    int getPortAllocatorMaxPort() {
+      return portAllocatorMaxPort;
+    }
+
+    @CalledByNative
+    @PortAllocatorFlags
+    int getPortAllocatorFlags() {
+      return portAllocatorFlags;
+    }
   };
 
   private final List<MediaStream> localStreams = new ArrayList<>();

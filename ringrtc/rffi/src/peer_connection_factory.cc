@@ -339,6 +339,13 @@ RUSTEXPORT PeerConnectionInterface* Rust_createPeerConnection(
   config.continual_gathering_policy =
       PeerConnectionInterface::ContinualGatheringPolicy::GATHER_CONTINUALLY;
 
+#if defined(WEBRTC_ANDROID) || defined(WEBRTC_IOS)
+  if (kind != RffiPeerConnectionKind::kGroupCall) {
+    config.enable_ice_renomination = true;
+    config.redetermine_role_on_ice_restart = false;
+  }
+#endif
+
   // PeerConnectionDependencies.observer is copied to PeerConnection.observer_.
   // It must live as long as the PeerConnection.
   PeerConnectionDependencies deps(observer_borrowed);

@@ -473,8 +473,6 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
   RTC_OBJC_TYPE(RTCPeerConnectionFactory) * _factory;
   NSMutableArray<RTC_OBJC_TYPE(RTCMediaStream) *> *_localStreams;
   std::unique_ptr<webrtc::PeerConnectionDelegateAdapter> _observer;
-  // RingRTC changes for low-level FFI
-  std::unique_ptr<webrtc::PeerConnectionObserver> _customObserver;
   webrtc::scoped_refptr<webrtc::PeerConnectionInterface> _peerConnection;
   std::unique_ptr<webrtc::MediaConstraints> _nativeConstraints;
   BOOL _hasStartedRtcEventLog;
@@ -503,23 +501,6 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
                        dependencies:std::move(dependencies)
                            delegate:delegate];
 }
-
-- (instancetype)initWithFactory:(RTC_OBJC_TYPE(RTCPeerConnectionFactory) *)factory
-                  configuration:(RTC_OBJC_TYPE(RTCConfiguration) *)configuration
-                    constraints:(RTC_OBJC_TYPE(RTCMediaConstraints) *)constraints
-                      // RingRTC changes for low-level FFI
-                       observer:(void *)observer  {
-  NSParameterAssert(factory);
-  std::unique_ptr<webrtc::PeerConnectionDependencies> dependencies =
-      std::make_unique<webrtc::PeerConnectionDependencies>(nullptr);
-  return [self initWithDependencies:factory
-                      configuration:configuration
-                        constraints:constraints
-                       dependencies:std::move(dependencies)
-                           // RingRTC changes for low-level FFI
-                           observer:observer];
-}
-
 
 - (nullable instancetype)
     initWithDependencies:(RTC_OBJC_TYPE(RTCPeerConnectionFactory) *)factory
@@ -556,62 +537,6 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
     _delegate = delegate;
   }
   return self;
-}
-
-- (instancetype)initWithDependencies:(RTC_OBJC_TYPE(RTCPeerConnectionFactory) *)factory
-                       configuration:(RTC_OBJC_TYPE(RTCConfiguration) *)configuration
-                         constraints:(RTC_OBJC_TYPE(RTCMediaConstraints) *)constraints
-                        dependencies:
-                            (std::unique_ptr<webrtc::PeerConnectionDependencies>)dependencies
-                            // RingRTC changes for low-level FFI
-                            observer:(void *)observer {
-  NSParameterAssert(factory);
-  NSParameterAssert(dependencies.get());
-  std::unique_ptr<webrtc::PeerConnectionInterface::RTCConfiguration> config(
-      [configuration createNativeConfiguration]);
-  if (!config) {
-    return nil;
-  }
-  self = [super init];
-  if (self) {
-    _nativeConstraints = constraints.nativeConstraints;
-    CopyConstraintsIntoRtcConfiguration(_nativeConstraints.get(), config.get());
-    // RingRTC changes for low-level FFI
-    _customObserver.reset((webrtc::PeerConnectionObserver *)observer);
-
-    webrtc::PeerConnectionDependencies deps = std::move(*dependencies.release());
-    // RingRTC changes for low-level FFI
-    deps.observer = _customObserver.get();
-    auto result = factory.nativeFactory->CreatePeerConnectionOrError(*config, std::move(deps));
-
-    if (!result.ok()) {
-      return nil;
-    }
-    _peerConnection = result.MoveValue();
-
-    _factory = factory;
-    _localStreams = [[NSMutableArray alloc] init];
-
-    // RingRTC changes for low-level FFI
-    _delegate = nil;
-  }
-
-  return self;
-}
-
-// RingRTC changes for low-level FFI
-- (RTC_OBJC_TYPE(RTCMediaStream) *)createStreamFromNative:(void *)nativeStreamBorrowedRc {
-  // @note Modeled on the PeerConnectionDelegateAdapter::OnAddStream
-  // function above in this file.
-
-  webrtc::scoped_refptr<webrtc::MediaStreamInterface> stream = webrtc::scoped_refptr<webrtc::MediaStreamInterface>((webrtc::MediaStreamInterface*)nativeStreamBorrowedRc);
-
-  return [[RTC_OBJC_TYPE(RTCMediaStream) alloc] initWithFactory:_factory nativeMediaStream:stream];
-}
-
-// RingRTC changes for low-level FFI
-- (void *)getNativePeerConnectionPointer {
-  return _peerConnection.get();
 }
 
 - (NSArray<RTC_OBJC_TYPE(RTCMediaStream) *> *)localStreams {

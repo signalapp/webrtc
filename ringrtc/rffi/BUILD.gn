@@ -45,7 +45,6 @@ if (is_android) {
     sources = [
       "${android_sdk}/src/jni/jni_onload.cc",
       "src/android/java_media_stream.cc",
-      "src/android/jni_peer_connection.cc",
     ] + common_sources
 
     # suppressed_config and hide_all_but_jni taken from

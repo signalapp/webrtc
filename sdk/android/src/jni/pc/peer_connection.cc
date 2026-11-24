@@ -225,12 +225,6 @@ void JavaToNativeRTCConfiguration(
   rtc_config->servers = JavaToNativeIceServers(jni, j_ice_servers);
   rtc_config->audio_jitter_buffer_max_packets =
       Java_RTCConfiguration_getAudioJitterBufferMaxPackets(jni, j_rtc_config);
-  // RingRTC change to smooth CPU load estimation
-  rtc_config->set_experiment_cpu_load_estimator(true);
-  // RingRTC change to configure the jitter buffer's max target delay.
-  rtc_config->set_audio_jitter_buffer_max_target_delay_ms(
-      Java_RTCConfiguration_getAudioJitterBufferMaxTargetDelayMs(jni,
-                                                                 j_rtc_config));
   rtc_config->audio_jitter_buffer_fast_accelerate =
       Java_RTCConfiguration_getAudioJitterBufferFastAccelerate(jni,
                                                                j_rtc_config);
@@ -318,13 +312,12 @@ void JavaToNativeRTCConfiguration(
     rtc_config->turn_logging_id = JavaToNativeString(jni, j_turn_logging_id);
   }
 
-  // RingRTC change to use default port allocator flags
-  // rtc_config->port_allocator_config.min_port =
-  //     Java_RTCConfiguration_getPortAllocatorMinPort(jni, j_rtc_config);
-  // rtc_config->port_allocator_config.max_port =
-  //     Java_RTCConfiguration_getPortAllocatorMaxPort(jni, j_rtc_config);
-  // rtc_config->port_allocator_config.flags =
-  //     Java_RTCConfiguration_getPortAllocatorFlags(jni, j_rtc_config);
+  rtc_config->port_allocator_config.min_port =
+      Java_RTCConfiguration_getPortAllocatorMinPort(jni, j_rtc_config);
+  rtc_config->port_allocator_config.max_port =
+      Java_RTCConfiguration_getPortAllocatorMaxPort(jni, j_rtc_config);
+  rtc_config->port_allocator_config.flags =
+      Java_RTCConfiguration_getPortAllocatorFlags(jni, j_rtc_config);
 }
 
 KeyType GetRtcConfigKeyType(JNIEnv* env,

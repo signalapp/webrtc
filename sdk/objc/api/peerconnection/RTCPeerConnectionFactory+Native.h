@@ -97,17 +97,6 @@ NS_ASSUME_NONNULL_BEGIN
                           delegate:(nullable id<RTC_OBJC_TYPE(
                                         RTCPeerConnectionDelegate)>)delegate;
 
-
-// RingRTC changes for low-level FFI
-/** Initialize an RTCPeerConnection with a configuration, constraints, and
- *  dependencies.
- */
-- (RTC_OBJC_TYPE(RTCPeerConnection) *)
-    peerConnectionWithDependencies:(RTC_OBJC_TYPE(RTCConfiguration) *)configuration
-                       constraints:(RTC_OBJC_TYPE(RTCMediaConstraints) *)constraints
-                      dependencies:(std::unique_ptr<webrtc::PeerConnectionDependencies>)dependencies
-                          observer:(void *)observer;
-
 @end
 
 NS_ASSUME_NONNULL_END
